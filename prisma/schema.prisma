@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  active
+  suspended
+  deleted
+}
+
+enum UserRole {
+  customer
+  admin
+}
+
+enum AccountStatus {
+  available
+  rented
+  maintenance
+  retired
+}
+
+enum RentalStatus {
+  active
+  expired
+  cancelled
+  payment_failed
+}
+
+model User {
+  id                String     @id @default(uuid()) @db.Uuid
+  email             String     @unique
+  passwordHash      String?    @map("password_hash")
+  fullName          String     @map("full_name")
+  role              UserRole   @default(customer)
+  stripeCustomerId  String?    @unique @map("stripe_customer_id")
+  status            UserStatus @default(active)
+  emailVerified     DateTime?  @map("email_verified")
+  image             String?
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  rentals           Rental[]
+  waitlistEntries   Waitlist[]
+  sessions          Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  token        String   @unique
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model LinkedInAccount {
+  id                    String        @id @default(uuid()) @db.Uuid
+  gologinProfileId      String?       @map("gologin_profile_id")
+  linkedinName          String        @map("linkedin_name")
+  linkedinHeadline      String?       @map("linkedin_headline")
+  linkedinUrl           String?       @map("linkedin_url")
+  connectionCount       Int           @default(0) @map("connection_count")
+  industry              String?
+  location              String?
+  profileScreenshotUrl  String?       @map("profile_screenshot_url")
+  profilePhotoUrl       String?       @map("profile_photo_url")
+  proxyHost             String?       @map("proxy_host")
+  proxyPort             Int?          @map("proxy_port")
+  proxyUsername         String?       @map("proxy_username")
+  proxyPassword         String?       @map("proxy_password")
+  status                AccountStatus @default(maintenance)
+  monthlyPrice          Decimal       @default(50.00) @map("monthly_price") @db.Decimal(10, 2)
+  accountAgeMonths      Int?          @map("account_age_months")
+  hasSalesNav           Boolean       @default(false) @map("has_sales_nav")
+  notes                 String?
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  rentals               Rental[]
+  waitlistEntries       Waitlist[]
+
+  @@map("linkedin_accounts")
+}
+
+model Rental {
+  id                    String       @id @default(uuid()) @db.Uuid
+  userId                String       @map("user_id") @db.Uuid
+  linkedinAccountId     String       @map("linkedin_account_id") @db.Uuid
+  stripeSubscriptionId  String?      @unique @map("stripe_subscription_id")
+  startDate             DateTime     @default(now()) @map("start_date")
+  currentPeriodEnd      DateTime?    @map("current_period_end")
+  autoRenew             Boolean      @default(true) @map("auto_renew")
+  status                RentalStatus @default(active)
+  accessGrantedAt       DateTime?    @map("access_granted_at")
+  accessRevokedAt       DateTime?    @map("access_revoked_at")
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @updatedAt @map("updated_at")
+
+  user                  User            @relation(fields: [userId], references: [id])
+  linkedinAccount       LinkedInAccount @relation(fields: [linkedinAccountId], references: [id])
+
+  @@map("rentals")
+}
+
+model Waitlist {
+  id                String          @id @default(uuid()) @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  linkedinAccountId String          @map("linkedin_account_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  user              User            @relation(fields: [userId], references: [id])
+  linkedinAccount   LinkedInAccount @relation(fields: [linkedinAccountId], references: [id])
+
+  @@unique([userId, linkedinAccountId])
+  @@map("waitlist")
+}
