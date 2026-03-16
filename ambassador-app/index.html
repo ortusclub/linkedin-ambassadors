@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinkedIn Ambassadors</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="logo">
+    <h1>LinkedIn Ambassadors</h1>
+    <p>Secure browser for account linking</p>
+  </div>
+
+  <div id="app">
+    <!-- Login form -->
+    <div id="login-view">
+      <div class="card">
+        <h3>Enter Your Profile ID</h3>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">
+          This was provided to you during sign-up. Check your email if you're unsure.
+        </p>
+        <div class="input-group">
+          <label>Email used for LinkedIn profile login</label>
+          <input type="email" id="email" placeholder="your.email@example.com">
+        </div>
+        <div class="input-group">
+          <label>Profile ID</label>
+          <input type="text" id="profile-id" placeholder="Paste your profile ID here">
+        </div>
+        <button class="btn btn-primary" id="launch-btn" onclick="handleLaunch()">
+          Open Secure Browser
+        </button>
+      </div>
+
+      <div class="card">
+        <h3>How it works</h3>
+        <ol class="steps">
+          <li>
+            <span class="num">1</span>
+            <span>Enter your profile ID and click "Open Secure Browser"</span>
+          </li>
+          <li>
+            <span class="num">2</span>
+            <span>A browser window will open — log into LinkedIn with your normal credentials</span>
+          </li>
+          <li>
+            <span class="num">3</span>
+            <span>Once logged in, close the browser window. Your session is saved securely.</span>
+          </li>
+        </ol>
+        <div class="info-box">
+          <strong>Your login is safe.</strong> We never see your password. Only the browser session cookie is stored locally on your computer, which allows authorised access to your LinkedIn account.
+        </div>
+      </div>
+    </div>
+
+    <!-- Browser active view -->
+    <div id="active-view" style="display:none;">
+      <div class="card">
+        <div class="status">
+          <div class="icon">🌐</div>
+          <h2>Browser is Open</h2>
+          <p>
+            Log into your LinkedIn account in the browser window.
+            Once you're done, close the browser window or click the button below.
+          </p>
+        </div>
+        <button class="btn btn-danger" onclick="handleClose()">
+          Close Browser & Save Session
+        </button>
+      </div>
+    </div>
+
+    <!-- Done view -->
+    <div id="done-view" style="display:none;">
+      <div class="card">
+        <div class="status">
+          <div class="icon">✅</div>
+          <h2>Session Saved!</h2>
+          <p>
+            Your LinkedIn session has been saved securely.
+            You can close this app now. If you ever need to re-authenticate, just open it again.
+          </p>
+        </div>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="resetView()">
+          Log Into Another Account
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showView(view) {
+      document.getElementById('login-view').style.display = view === 'login' ? 'block' : 'none';
+      document.getElementById('active-view').style.display = view === 'active' ? 'block' : 'none';
+      document.getElementById('done-view').style.display = view === 'done' ? 'block' : 'none';
+    }
+
+    async function handleLaunch() {
+      const profileId = document.getElementById('profile-id').value.trim();
+      const email = document.getElementById('email').value.trim();
+
+      if (!profileId) {
+        alert('Please enter your Profile ID');
+        return;
+      }
+
+      const btn = document.getElementById('launch-btn');
+      btn.disabled = true;
+      btn.textContent = 'Opening...';
+
+      try {
+        await window.ambassador.launchBrowser(profileId);
+        showView('active');
+      } catch (err) {
+        alert('Failed to open browser: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Open Secure Browser';
+      }
+    }
+
+    async function handleClose() {
+      await window.ambassador.closeBrowser();
+      showView('done');
+    }
+
+    function resetView() {
+      showView('login');
+    }
+
+    // Listen for browser being closed by the user (clicking X)
+    window.ambassador.onBrowserClosed(() => {
+      showView('done');
+    });
+  </script>
+</body>
+</html>

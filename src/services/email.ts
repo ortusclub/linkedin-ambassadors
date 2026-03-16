@@ -105,6 +105,40 @@ export async function sendAccessRevokedEmail(email: string, accountName: string)
   });
 }
 
+export async function sendAmbassadorWelcomeEmail(
+  email: string,
+  fullName: string,
+  tempPassword: string,
+  monthlyAmount: number
+) {
+  return sendEmail({
+    to: email,
+    subject: "Welcome to LinkedIn Ambassadors — Your account is ready",
+    html: `
+      <h2>Welcome, ${fullName}!</h2>
+      <p>You're now a LinkedIn Ambassador. Your account has been set up and is ready to go.</p>
+
+      <h3>Your Login Details</h3>
+      <div style="background:#f5f5f5;padding:16px;border-radius:8px;margin:16px 0;">
+        <p style="margin:4px 0;"><strong>Email:</strong> ${email}</p>
+        <p style="margin:4px 0;"><strong>Temporary Password:</strong> <code>${tempPassword}</code></p>
+        <p style="margin:8px 0 0;font-size:13px;color:#666;">You can change your password after logging in.</p>
+      </div>
+      <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/login" style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Log In to Your Dashboard</a></p>
+
+      <h3>What Happens Next</h3>
+      <ul>
+        <li><strong>Monthly payments of $${monthlyAmount}</strong> will be sent to your bank account on the 1st of each month while your account is active.</li>
+        <li><strong>Keep your LinkedIn session active.</strong> If your account gets logged out, we'll contact you to re-authenticate. Payments are paused until access is restored.</li>
+        <li><strong>Cancel anytime</strong> with 30 days notice.</li>
+      </ul>
+
+      <p>Questions? Reply to this email or contact us at support@klabber.co</p>
+      <p>— The LinkedIn Ambassadors Team</p>
+    `,
+  });
+}
+
 export async function sendAccountAvailableEmail(email: string, accountName: string) {
   return sendEmail({
     to: email,

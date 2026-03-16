@@ -1,0 +1,35 @@
+{
+  "name": "linkedin-ambassadors",
+  "version": "1.0.0",
+  "description": "LinkedIn Ambassadors — Secure browser for ambassador account login",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:all": "electron-builder --mac --win"
+  },
+  "build": {
+    "appId": "co.klabber.ambassador",
+    "productName": "LinkedIn Ambassadors",
+    "files": [
+      "main.js",
+      "preload.js",
+      "fingerprint.js",
+      "index.html",
+      "styles.css"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1"
+  }
+}

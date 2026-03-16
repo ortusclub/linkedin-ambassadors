@@ -1,21 +1,25 @@
-// Browser spawn wrapper — only functional locally, no-ops on Vercel
-// Uses indirect eval to completely hide require from bundler
+// Browser spawn wrapper
+// Imports child_process via a .cjs shim to avoid Turbopack bundling
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _cp: any = (() => {
-  if (typeof process !== "undefined" && process.env?.VERCEL) return null;
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
+
+let _cp: any = null;
+
+function getCP(): any {
+  if (_cp !== null) return _cp || null;
+  if (process.env.VERCEL) { _cp = false; return null; }
   try {
-    // Indirect eval — bundlers cannot trace this
-    // eslint-disable-next-line no-eval
-    return (0, eval)('typeof require !== "undefined" && require("child_process")');
+    _cp = require("./cp.cjs");
+    return _cp;
   } catch {
+    _cp = false;
     return null;
   }
-})();
+}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function spawnBrowser(data: Record<string, unknown>): Promise<{ child: any; result: { status: string; profileId?: string; error?: string } }> {
-  if (!_cp) {
+  const cp = getCP();
+  if (!cp) {
     return { child: null, result: { status: "error", error: "Browser launch is only available on the local admin server" } };
   }
 
@@ -23,7 +27,7 @@ export async function spawnBrowser(data: Record<string, unknown>): Promise<{ chi
     const scriptPath = process.cwd() + "/src/lib/browser-launcher.mjs";
 
     return new Promise((resolve, reject) => {
-      const child = _cp.spawn("node", [scriptPath, "launch", JSON.stringify(data)], {
+      const child = cp.spawn("node", [scriptPath, "launch", JSON.stringify(data)], {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
@@ -61,9 +65,10 @@ export async function spawnBrowser(data: Record<string, unknown>): Promise<{ chi
 }
 
 export function execCommand(cmd: string): string {
-  if (!_cp) return "";
+  const cp = getCP();
+  if (!cp) return "";
   try {
-    return _cp.execSync(cmd, { encoding: "utf-8", timeout: 15000 });
+    return cp.execSync(cmd, { encoding: "utf-8", timeout: 15000 });
   } catch {
     return "";
   }

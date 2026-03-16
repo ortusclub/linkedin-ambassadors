@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
-type Step = "info" | "scanning" | "result" | "bank" | "done";
+type Step = "info" | "scanning" | "result" | "bank" | "login" | "complete" | "done";
 
 const SCAN_STEPS = [
   "Locating your LinkedIn profile...",
@@ -117,6 +117,9 @@ export default function BecomeAmbassadorPage() {
   const [error, setError] = useState("");
   const [scanIndex, setScanIndex] = useState(0);
   const [offer, setOffer] = useState<{ amount: number; tier: string; reasons: { label: string; detail: string; positive: boolean }[] } | null>(null);
+  const [gologinProfileId, setGologinProfileId] = useState("");
+  const [launchingBrowser, setLaunchingBrowser] = useState(false);
+  const [credentials, setCredentials] = useState<{ email: string; tempPassword: string } | null>(null);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -197,9 +200,9 @@ export default function BecomeAmbassadorPage() {
         });
       }
 
-      setStep("done");
+      setStep("login");
     } catch {
-      setStep("done"); // Still show success even if save fails — we'll capture it
+      setStep("login"); // Continue to login step even if save fails
     } finally {
       setLoading(false);
     }
@@ -227,11 +230,12 @@ export default function BecomeAmbassadorPage() {
       <section className="bg-gray-50 py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-center text-3xl font-bold text-gray-900">How It Works</h2>
-          <div className="mt-10 grid gap-8 md:grid-cols-3">
+          <div className="mt-10 grid gap-6 md:grid-cols-4">
             {[
-              { n: "1", title: "Share Your Profile", desc: "Enter your LinkedIn URL and basic info. Takes 60 seconds.", active: step === "info", done: step !== "info" },
-              { n: "2", title: "Instant Assessment & Offer", desc: "We instantly evaluate your profile and make you a monthly offer.", active: step === "scanning" || step === "result", done: step === "bank" || step === "done" },
-              { n: "3", title: "Accept & Get Paid", desc: "Accept the offer, enter your bank details, and start earning.", active: step === "bank", done: step === "done" },
+              { n: "1", title: "Share Your Profile", desc: "Enter your LinkedIn URL and basic info.", active: step === "info", done: step !== "info" },
+              { n: "2", title: "Assessment & Offer", desc: "We evaluate your profile and make you a monthly offer.", active: step === "scanning" || step === "result", done: ["bank","login","complete","done"].includes(step) },
+              { n: "3", title: "Payment Details", desc: "Enter your bank details so we can pay you.", active: step === "bank", done: ["login","complete","done"].includes(step) },
+              { n: "4", title: "Log In & Connect", desc: "Log into LinkedIn via our secure browser to link your account.", active: step === "login" || step === "complete", done: step === "done" },
             ].map((s) => (
               <div key={s.n} className={`rounded-xl p-8 shadow-sm border text-center transition-all ${s.active ? "border-blue-500 bg-blue-50" : s.done ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}`}>
                 <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold ${s.done ? "bg-green-100 text-green-600" : s.active ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-400"}`}>
@@ -257,7 +261,7 @@ export default function BecomeAmbassadorPage() {
               <Card>
                 <CardContent className="py-6 space-y-4">
                   <Input id="fullName" label="Full Name *" value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required />
-                  <Input id="email" label="Email *" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required />
+                  <Input id="email" label="Email used for LinkedIn profile login *" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required />
                   <Input id="linkedinUrl" label="LinkedIn Profile URL *" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} required />
                   <div className="grid grid-cols-2 gap-4">
                     <Input id="connectionCount" label="Approx. Connections" placeholder="e.g. 5000" value={form.connectionCount} onChange={(e) => update("connectionCount", e.target.value.replace(/\D/g, ""))} />
@@ -408,9 +412,9 @@ export default function BecomeAmbassadorPage() {
               </p>
               <Card>
                 <CardContent className="py-6 space-y-4">
-                  <Input id="bankName" label="Bank Name *" placeholder="e.g. Chase, Barclays" value={bankForm.bankName} onChange={(e) => updateBank("bankName", e.target.value)} required />
-                  <Input id="bankAccountName" label="Account Holder Name *" value={bankForm.bankAccountName} onChange={(e) => updateBank("bankAccountName", e.target.value)} required />
-                  <Input id="bankAccountNumber" label="Account Number *" value={bankForm.bankAccountNumber} onChange={(e) => updateBank("bankAccountNumber", e.target.value)} required />
+                  <Input id="bankName" label="Bank Name" placeholder="e.g. Chase, Barclays" value={bankForm.bankName} onChange={(e) => updateBank("bankName", e.target.value)} />
+                  <Input id="bankAccountName" label="Account Holder Name" value={bankForm.bankAccountName} onChange={(e) => updateBank("bankAccountName", e.target.value)} />
+                  <Input id="bankAccountNumber" label="Account Number" value={bankForm.bankAccountNumber} onChange={(e) => updateBank("bankAccountNumber", e.target.value)} />
                   <div className="grid grid-cols-2 gap-4">
                     <Input id="bankRoutingNumber" label="Routing Number (US)" value={bankForm.bankRoutingNumber} onChange={(e) => updateBank("bankRoutingNumber", e.target.value)} />
                     <Input id="bankSortCode" label="Sort Code (UK)" value={bankForm.bankSortCode} onChange={(e) => updateBank("bankSortCode", e.target.value)} />
@@ -426,7 +430,188 @@ export default function BecomeAmbassadorPage() {
             </form>
           )}
 
-          {/* STEP 5: Done */}
+          {/* STEP 5: Log into LinkedIn via GoLogin */}
+          {step === "login" && (
+            <div className="py-4">
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Link Your LinkedIn Account</h2>
+              <p className="text-center text-gray-500 mb-6">
+                Follow these steps to securely connect your LinkedIn account. This takes about 5 minutes.
+              </p>
+
+              {/* Step 1: Download GoLogin */}
+              <Card>
+                <CardContent className="py-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">1</div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-lg">Download GoLogin</p>
+                      <p className="text-sm text-gray-500 mt-1">GoLogin is a secure browser app that protects your digital fingerprint. It&apos;s free to download and use.</p>
+                    </div>
+                  </div>
+                  <a
+                    href="https://gologin.com/download"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full rounded-lg bg-gray-900 py-3 text-center font-semibold text-white hover:bg-gray-800 transition-colors"
+                  >
+                    Download GoLogin (Free)
+                  </a>
+                  <p className="text-xs text-gray-400 mt-2 text-center">Available for Mac, Windows, and Linux. Already have it? Skip to step 2.</p>
+                </CardContent>
+              </Card>
+
+              {/* Step 2: Create a free account */}
+              <Card className="mt-4">
+                <CardContent className="py-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">2</div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-lg">Create a Free GoLogin Account</p>
+                      <p className="text-sm text-gray-500 mt-1">Open GoLogin and sign up for a free account. The free plan is all you need — it supports up to 3 profiles.</p>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 text-sm text-gray-600">
+                    <p><strong>Important:</strong> Sign up using this email address:</p>
+                    <p className="mt-1 font-mono text-blue-600 font-medium">{form.email}</p>
+                    <p className="mt-2 text-gray-500">We&apos;ll share a browser profile with this email so it appears in your GoLogin dashboard.</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Step 3: We share the profile */}
+              <Card className="mt-4">
+                <CardContent className="py-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">3</div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-lg">Open the Shared Profile</p>
+                      <p className="text-sm text-gray-500 mt-1">Once you&apos;ve signed up, click the button below. We&apos;ll share a secure browser profile with you. It will appear in your GoLogin dashboard.</p>
+                    </div>
+                  </div>
+                  <Button size="lg" className="w-full" onClick={() => setStep("complete")}>
+                    I&apos;ve Created My GoLogin Account — Continue
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Step 4: Log into LinkedIn */}
+              <Card className="mt-4">
+                <CardContent className="py-6">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">4</div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-lg">Log Into LinkedIn</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        In GoLogin, find the shared profile called <strong>&quot;AMB - {form.fullName}&quot;</strong> and click <strong>Run</strong>.
+                        A browser will open — log into LinkedIn with your normal credentials. Once logged in, close the browser and come back here.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="mt-6 rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">
+                <strong>Why GoLogin?</strong> GoLogin creates a unique browser fingerprint for your account, which keeps your LinkedIn session safe and persistent. Your login credentials are never shared with us — only the secure browser session.
+              </div>
+            </div>
+          )}
+
+          {/* STEP 6: Complete — profile shared, waiting for login */}
+          {step === "complete" && (
+            <div className="py-4">
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Almost Done!</h2>
+              <p className="text-center text-gray-500 mb-6">
+                We&apos;ll share a secure browser profile with you shortly. Here&apos;s what happens next:
+              </p>
+
+              <Card>
+                <CardContent className="py-6">
+                  <div className="space-y-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-600 flex-shrink-0">
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Your GoLogin account is ready</p>
+                        <p className="text-sm text-gray-500">Registered with <strong>{form.email}</strong></p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">1</div>
+                      <div>
+                        <p className="font-medium text-gray-900">We&apos;ll share a browser profile with you</p>
+                        <p className="text-sm text-gray-500">Within the next few minutes, a profile called <strong>&quot;AMB - {form.fullName}&quot;</strong> will appear in your GoLogin dashboard. We&apos;ll email you when it&apos;s ready.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">2</div>
+                      <div>
+                        <p className="font-medium text-gray-900">Run the profile and log into LinkedIn</p>
+                        <p className="text-sm text-gray-500">Click <strong>Run</strong> on the shared profile in GoLogin. An Orbita browser will open — log into LinkedIn with your normal credentials.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">3</div>
+                      <div>
+                        <p className="font-medium text-gray-900">Stop the profile to save your session</p>
+                        <p className="text-sm text-gray-500">Click <strong>Stop</strong> in GoLogin (not just closing the window). This securely saves your LinkedIn session.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
+                    <strong>That&apos;s it!</strong> Once you&apos;ve logged in and stopped the profile, your account will be live on our marketplace and you&apos;ll start earning monthly.
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="mt-6 space-y-3">
+                <Button size="lg" className="w-full" loading={loading} onClick={async () => {
+                  setLoading(true);
+                  setError("");
+                  try {
+                    // Create the ambassador's user account + LinkedIn account in the system
+                    const res = await fetch("/api/ambassador/complete", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        fullName: form.fullName,
+                        email: form.email,
+                        linkedinUrl: form.linkedinUrl,
+                        connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
+                        industry: form.industry,
+                        location: form.location,
+                        gologinProfileId: gologinProfileId,
+                        offeredAmount: offer?.amount,
+                      }),
+                    });
+                    const resData = await res.json();
+                    if (!res.ok) {
+                      setError(resData.error || "Something went wrong");
+                      return;
+                    }
+                    if (resData.user?.tempPassword) {
+                      setCredentials({ email: resData.user.email, tempPassword: resData.user.tempPassword });
+                    }
+                    setStep("done");
+                  } catch {
+                    setStep("done"); // Don't block them
+                  } finally {
+                    setLoading(false);
+                  }
+                }}>
+                  I&apos;ve Logged In &amp; Stopped the Profile — Complete Setup
+                </Button>
+                <Button size="lg" variant="outline" className="w-full" onClick={() => setStep("login")}>
+                  I Need Help — Go Back to Instructions
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 7: Done */}
           {step === "done" && (
             <div className="text-center py-8">
               <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
@@ -436,11 +621,86 @@ export default function BecomeAmbassadorPage() {
               </div>
               <h2 className="text-3xl font-bold text-gray-900">You&apos;re All Set!</h2>
               <p className="mt-4 text-lg text-gray-600">
-                Your application has been approved and your payment details are saved.
+                Your LinkedIn account is now connected and your payment details are saved.
               </p>
-              <p className="mt-2 text-gray-500">
-                We&apos;ll be in touch shortly with instructions to securely log into your LinkedIn account
-                via our portal. Once that&apos;s done, you&apos;ll start earning {offer ? formatCurrency(offer.amount) : ""}/month.
+
+              {/* Login credentials */}
+              {credentials && (
+                <Card className="mt-6">
+                  <CardContent className="py-5">
+                    <p className="text-sm font-semibold text-gray-900 mb-3">Your Ambassador Account</p>
+                    <p className="text-sm text-gray-600 mb-3">
+                      We&apos;ve created an account for you so you can log back in and manage your ambassador profile.
+                    </p>
+                    <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Email</span>
+                        <span className="font-mono font-medium text-gray-900">{credentials.email}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Temporary Password</span>
+                        <span className="font-mono font-medium text-gray-900">{credentials.tempPassword}</span>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-400">Save this password — you can change it after logging in.</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card className="mt-6 text-left">
+                <CardContent className="py-6">
+                  <h3 className="font-semibold text-gray-900 mb-4">What happens next?</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 flex-shrink-0 mt-0.5">
+                        <svg className="h-3.5 w-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Your account is now live</p>
+                        <p className="text-sm text-gray-500">We&apos;ll list your LinkedIn account in our marketplace for businesses to rent.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 flex-shrink-0 mt-0.5">
+                        <svg className="h-3.5 w-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Monthly payments of {offer ? formatCurrency(offer.amount) : ""}</p>
+                        <p className="text-sm text-gray-500">Paid directly to your bank account on the 1st of each month while your account is active.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100 flex-shrink-0 mt-0.5">
+                        <svg className="h-3.5 w-3.5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Keep your account logged in</p>
+                        <p className="text-sm text-gray-500">If your LinkedIn account gets logged out, we&apos;ll contact you to re-authenticate. Monthly payments are paused until access is restored.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 flex-shrink-0 mt-0.5">
+                        <svg className="h-3.5 w-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Cancel anytime</p>
+                        <p className="text-sm text-gray-500">Give us 30 days notice and we&apos;ll stop renting your account and return full access to you.</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <p className="mt-6 text-sm text-gray-400">
+                Questions? Contact us at support@klabber.co
               </p>
             </div>
           )}

@@ -4,9 +4,9 @@ import { z } from "zod";
 
 const bankSchema = z.object({
   applicationId: z.string().min(1),
-  bankName: z.string().min(1),
-  bankAccountName: z.string().min(1),
-  bankAccountNumber: z.string().min(1),
+  bankName: z.string().optional(),
+  bankAccountName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
   bankRoutingNumber: z.string().optional(),
   bankSortCode: z.string().optional(),
 });

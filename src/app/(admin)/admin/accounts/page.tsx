@@ -45,19 +45,19 @@ export default function AdminAccountsPage() {
       .catch(() => {});
   }, [filter]);
 
-  const handleOpen = async (profileId: string, accountName: string) => {
-    setOpening(profileId);
+  const handleOpen = async (accountId: string, accountName: string) => {
+    setOpening(accountId);
     try {
       const res = await fetch("/api/admin/browser/open", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId, accountName }),
+        body: JSON.stringify({ accountId, accountName }),
       });
       const data = await res.json();
       if (!res.ok) {
         alert(data.error || "Failed to open browser");
       } else {
-        setOpenProfiles((prev) => new Set(prev).add(profileId));
+        setOpenProfiles((prev) => new Set(prev).add(accountId));
       }
     } catch {
       alert("Failed to open browser");
@@ -171,24 +171,22 @@ export default function AdminAccountsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right space-x-3">
-                    {a.gologinProfileId && (
-                      openProfiles.has(a.gologinProfileId) ? (
-                        <button
-                          onClick={() => handleClose(a.gologinProfileId!)}
-                          disabled={closing === a.gologinProfileId}
-                          className="text-sm text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
-                        >
-                          {closing === a.gologinProfileId ? "Closing..." : "Close"}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleOpen(a.gologinProfileId!, a.linkedinName)}
-                          disabled={opening === a.gologinProfileId}
-                          className="text-sm text-green-600 hover:text-green-800 font-medium disabled:opacity-50"
-                        >
-                          {opening === a.gologinProfileId ? "Opening..." : "Open"}
-                        </button>
-                      )
+                    {openProfiles.has(a.id) ? (
+                      <button
+                        onClick={() => handleClose(a.id)}
+                        disabled={closing === a.id}
+                        className="text-sm text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                      >
+                        {closing === a.id ? "Closing..." : "Close"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleOpen(a.id, a.linkedinName)}
+                        disabled={opening === a.id}
+                        className="text-sm text-green-600 hover:text-green-800 font-medium disabled:opacity-50"
+                      >
+                        {opening === a.id ? "Opening..." : "Open"}
+                      </button>
                     )}
                     <Link href={`/admin/accounts/${a.id}`} className="text-sm text-blue-600 hover:text-blue-800">
                       Edit

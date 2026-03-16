@@ -1,133 +1,223 @@
-// This runs as a standalone Node.js script, NOT bundled by Next.js/Turbopack.
-// It's invoked as a child process from the API route.
+// Custom Chromium browser launcher — replaces GoLogin
+// Each profile gets a persistent data directory with fingerprint spoofing
 
-import GoLogin from 'gologin';
-import puppeteer from 'puppeteer-core';
-import { execSync } from 'child_process';
+import puppeteer from 'puppeteer';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
 
 const command = process.argv[2];
 const dataJson = process.argv[3];
 const data = JSON.parse(dataJson);
 
-if (command === 'launch') {
-  const { token, profileId, accountName } = data;
+// Fingerprint spoofing script injected into every page
+const FINGERPRINT_SCRIPT = (config) => `
+  // Override canvas fingerprint
+  const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+  HTMLCanvasElement.prototype.toDataURL = function(type) {
+    const ctx = this.getContext('2d');
+    if (ctx) {
+      const imageData = ctx.getImageData(0, 0, this.width, this.height);
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        imageData.data[i] ^= ${config.canvasNoise};
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
+    return origToDataURL.apply(this, arguments);
+  };
 
-  const gl = new GoLogin({
-    token,
-    profile_id: profileId,
-    extra_params: ['--start-maximized'],
+  // Override WebGL fingerprint
+  const origGetParameter = WebGLRenderingContext.prototype.getParameter;
+  WebGLRenderingContext.prototype.getParameter = function(param) {
+    if (param === 37445) return '${config.webglVendor}';
+    if (param === 37446) return '${config.webglRenderer}';
+    return origGetParameter.apply(this, arguments);
+  };
+  if (typeof WebGL2RenderingContext !== 'undefined') {
+    const origGetParameter2 = WebGL2RenderingContext.prototype.getParameter;
+    WebGL2RenderingContext.prototype.getParameter = function(param) {
+      if (param === 37445) return '${config.webglVendor}';
+      if (param === 37446) return '${config.webglRenderer}';
+      return origGetParameter2.apply(this, arguments);
+    };
+  }
+
+  // Override navigator properties
+  Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => ${config.cpuCores} });
+  Object.defineProperty(navigator, 'deviceMemory', { get: () => ${config.deviceMemory} });
+  Object.defineProperty(navigator, 'platform', { get: () => '${config.platform}' });
+  Object.defineProperty(navigator, 'languages', { get: () => ${JSON.stringify(config.languages)} });
+
+  // Override screen properties
+  Object.defineProperty(screen, 'width', { get: () => ${config.screenWidth} });
+  Object.defineProperty(screen, 'height', { get: () => ${config.screenHeight} });
+  Object.defineProperty(screen, 'colorDepth', { get: () => ${config.colorDepth} });
+
+  // Prevent WebRTC IP leak
+  if (typeof RTCPeerConnection !== 'undefined') {
+    const origRTC = RTCPeerConnection;
+    window.RTCPeerConnection = function(...args) {
+      if (args[0] && args[0].iceServers) {
+        args[0].iceServers = [];
+      }
+      return new origRTC(...args);
+    };
+    window.RTCPeerConnection.prototype = origRTC.prototype;
+  }
+`;
+
+// Generate a consistent fingerprint config from a seed (profile ID)
+function generateFingerprint(seed) {
+  const hash = (s) => crypto.createHash('md5').update(seed + s).digest('hex');
+  const num = (s, min, max) => min + (parseInt(hash(s).slice(0, 8), 16) % (max - min + 1));
+
+  const webglVendors = ['Google Inc. (Intel)', 'Google Inc. (Apple)', 'Google Inc. (NVIDIA)'];
+  const webglRenderers = [
+    'ANGLE (Intel, Intel(R) Iris(TM) Plus Graphics, OpenGL 4.1)',
+    'ANGLE (Apple, Apple M1, OpenGL 4.1)',
+    'ANGLE (NVIDIA, NVIDIA GeForce GTX 1650, OpenGL 4.1)',
+    'ANGLE (Intel, Intel(R) UHD Graphics 630, OpenGL 4.1)',
+    'ANGLE (Apple, Apple M2, OpenGL 4.1)',
+  ];
+
+  const platforms = ['MacIntel', 'Win32'];
+  const resolutions = [[1920, 1080], [2560, 1440], [1680, 1050], [1440, 900], [1536, 864]];
+  const res = resolutions[num('res', 0, resolutions.length - 1)];
+
+  return {
+    canvasNoise: num('canvas', 1, 5),
+    webglVendor: webglVendors[num('vendor', 0, webglVendors.length - 1)],
+    webglRenderer: webglRenderers[num('renderer', 0, webglRenderers.length - 1)],
+    cpuCores: [4, 8, 12, 16][num('cpu', 0, 3)],
+    deviceMemory: [4, 8, 16][num('mem', 0, 2)],
+    platform: platforms[num('plat', 0, platforms.length - 1)],
+    languages: ['en-US', 'en'],
+    screenWidth: res[0],
+    screenHeight: res[1],
+    colorDepth: 24,
+    userAgent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${num('chrome', 120, 131)}.0.${num('build', 5000, 7000)}.${num('patch', 50, 200)} Safari/537.36`,
+    timezone: 'America/New_York',
+  };
+}
+
+// Load or create profile config
+function getProfileDir(profileId) {
+  const dir = path.join(process.cwd(), 'profiles', profileId);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  const configPath = path.join(dir, 'fingerprint.json');
+  let config;
+  if (fs.existsSync(configPath)) {
+    config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  } else {
+    config = generateFingerprint(profileId);
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  }
+
+  return { dir, config };
+}
+
+if (command === 'launch') {
+  const { profileId, accountName, proxy } = data;
+
+  const { dir, config } = getProfileDir(profileId);
+  const userDataDir = path.join(dir, 'chrome-data');
+
+  process.stderr.write(`Launching profile ${profileId} (${accountName || 'unnamed'})...\n`);
+  process.stderr.write(`User data dir: ${userDataDir}\n`);
+  process.stderr.write(`Fingerprint: UA=${config.userAgent.slice(-30)}, Screen=${config.screenWidth}x${config.screenHeight}\n`);
+
+  const args = [
+    '--start-maximized',
+    '--disable-blink-features=AutomationControlled',
+    '--disable-features=IsolateOrigins,site-per-process',
+    `--window-size=${config.screenWidth},${config.screenHeight}`,
+    `--user-agent=${config.userAgent}`,
+    `--lang=${config.languages[0]}`,
+  ];
+
+  // Add proxy if provided
+  if (proxy && proxy.host) {
+    args.push(`--proxy-server=http://${proxy.host}:${proxy.port || 80}`);
+    process.stderr.write(`Proxy: ${proxy.host}:${proxy.port}\n`);
+  }
+
+  const browser = await puppeteer.launch({
     headless: false,
-    autoUpdateBrowser: true,
+    userDataDir,
+    args,
+    defaultViewport: null,
+    ignoreDefaultArgs: ['--enable-automation'],
   });
 
-  process.stderr.write(`Starting GoLogin profile ${profileId}...\n`);
+  // Inject fingerprint spoofing into all pages
+  const pages = await browser.pages();
+  const page = pages[0] || await browser.newPage();
 
-  let startResult;
-  try {
-    startResult = await gl.start();
-  } catch (e) {
-    process.stderr.write(`GoLogin start error: ${e.message}\n`);
-    console.log(JSON.stringify({ error: e.message }));
-    process.exit(1);
-  }
+  // Set up fingerprint injection for all new pages
+  const injectFingerprint = async (p) => {
+    try {
+      await p.evaluateOnNewDocument(FINGERPRINT_SCRIPT(config));
+    } catch { /* ignore */ }
+  };
 
-  const { status, wsUrl } = startResult;
-  process.stderr.write(`GoLogin start status: ${status}, wsUrl: ${wsUrl ? 'yes' : 'no'}\n`);
+  await injectFingerprint(page);
+  browser.on('targetcreated', async (target) => {
+    try {
+      const p = await target.page();
+      if (p) await injectFingerprint(p);
+    } catch { /* ignore */ }
+  });
 
-  if (status !== 'success' || !wsUrl) {
-    console.log(JSON.stringify({ error: `Failed to launch browser (status: ${status})` }));
-    process.exit(1);
-  }
-
-  // Connect with Puppeteer to navigate to LinkedIn and set window title
-  try {
-    const browser = await puppeteer.connect({
-      browserWSEndpoint: wsUrl,
-      defaultViewport: null,
+  // Handle proxy authentication
+  if (proxy && proxy.username && proxy.password) {
+    await page.authenticate({
+      username: proxy.username,
+      password: proxy.password,
     });
+  }
 
-    const pages = await browser.pages();
-    const page = pages[0] || (await browser.newPage());
+  // Set title for identification
+  const title = accountName ? `LA - ${accountName}` : `LA - ${profileId}`;
+  await page.evaluate((t) => { document.title = t; }, title);
 
-    // Set the window title so it's identifiable in the dock
-    const title = accountName ? `LA - ${accountName}` : `LA - ${profileId}`;
-    await page.evaluate((t) => { document.title = t; }, title);
-
+  // Navigate to LinkedIn
+  try {
     await page.goto('https://www.linkedin.com/login', {
       waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
-
-    // Set title again after navigation
     await page.evaluate((t) => { document.title = t; }, title);
-
-    // Watch for browser disconnect (user closed window manually)
-    browser.on('disconnected', async () => {
-      process.stderr.write('Browser window closed by user — saving session...\n');
-      try {
-        await gl.stop();
-        process.stderr.write('Session saved successfully after manual close\n');
-      } catch (e) {
-        process.stderr.write(`Failed to save session: ${e.message}\n`);
-      }
-      process.exit(0);
-    });
-
-    // Disconnect Puppeteer but keep watching for browser close
-    // We use a second connection just for monitoring
-    browser.disconnect();
-
-    // Reconnect just to monitor for close
-    try {
-      const monitor = await puppeteer.connect({
-        browserWSEndpoint: wsUrl,
-        defaultViewport: null,
-      });
-      monitor.on('disconnected', async () => {
-        process.stderr.write('Browser closed — saving session...\n');
-        try {
-          await gl.stop();
-          process.stderr.write('Session saved after browser close\n');
-        } catch (e) {
-          process.stderr.write(`Save error: ${e.message}\n`);
-        }
-        process.exit(0);
-      });
-    } catch {
-      process.stderr.write('Could not set up close monitor\n');
-    }
-
-    process.stderr.write('Browser launched and navigated to LinkedIn\n');
   } catch (e) {
-    process.stderr.write(`Puppeteer error (browser still open): ${e.message}\n`);
+    process.stderr.write(`Navigation error (continuing): ${e.message}\n`);
   }
 
-  // Bring the browser window to the front on macOS
+  // Bring to front on macOS
   try {
-    execSync(`osascript -e 'tell application "Orbita" to activate'`, { timeout: 5000 });
-  } catch {
-    // Try alternative name
-    try {
-      execSync(`osascript -e 'tell application "System Events" to set frontmost of (first process whose name contains "Orbita") to true'`, { timeout: 5000 });
-    } catch {
-      process.stderr.write('Could not bring window to front automatically\n');
-    }
-  }
+    const { execSync } = await import('child_process');
+    execSync(`osascript -e 'tell application "Google Chrome" to activate' 2>/dev/null || osascript -e 'tell application "Chromium" to activate' 2>/dev/null`, { timeout: 3000 });
+  } catch { /* ignore */ }
 
-  // Output success - keep process alive so GoLogin stays running
+  process.stderr.write('Browser launched successfully\n');
+
+  // Output success
   console.log(JSON.stringify({ status: 'launched', profileId }));
 
-  // Keep alive until we receive 'stop' on stdin
+  // Watch for browser close — save session automatically
+  browser.on('disconnected', () => {
+    process.stderr.write('Browser closed — session saved in user data dir\n');
+    process.exit(0);
+  });
+
+  // Keep alive, listen for stop command
   process.stdin.resume();
   process.stdin.on('data', async (chunk) => {
     const msg = chunk.toString().trim();
     if (msg === 'stop') {
+      process.stderr.write('Stop command received — closing browser\n');
       try {
-        await gl.stop();
-        console.log(JSON.stringify({ status: 'stopped' }));
-      } catch (e) {
-        process.stderr.write(`Stop error: ${e.message}\n`);
-      }
+        await browser.close();
+      } catch { /* already closed */ }
       process.exit(0);
     }
   });
