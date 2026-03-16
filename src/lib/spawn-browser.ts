@@ -1,24 +1,29 @@
 // Browser spawn wrapper — only functional locally, no-ops on Vercel
-// Uses dynamic Function constructor to completely hide require from bundler
+// Uses indirect eval to completely hide require from bundler
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getChildProcess(): any {
-  // This prevents ANY bundler from seeing the require call
-  return new Function('return require("child_process")')();
-}
+const _cp: any = (() => {
+  if (typeof process !== "undefined" && process.env?.VERCEL) return null;
+  try {
+    // Indirect eval — bundlers cannot trace this
+    // eslint-disable-next-line no-eval
+    return (0, eval)('typeof require !== "undefined" && require("child_process")');
+  } catch {
+    return null;
+  }
+})();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function spawnBrowser(data: Record<string, unknown>): Promise<{ child: any; result: { status: string; profileId?: string; error?: string } }> {
-  if (process.env.VERCEL) {
+  if (!_cp) {
     return { child: null, result: { status: "error", error: "Browser launch is only available on the local admin server" } };
   }
 
   try {
-    const cp = getChildProcess();
     const scriptPath = process.cwd() + "/src/lib/browser-launcher.mjs";
 
     return new Promise((resolve, reject) => {
-      const child = cp.spawn("node", [scriptPath, "launch", JSON.stringify(data)], {
+      const child = _cp.spawn("node", [scriptPath, "launch", JSON.stringify(data)], {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
@@ -56,10 +61,9 @@ export async function spawnBrowser(data: Record<string, unknown>): Promise<{ chi
 }
 
 export function execCommand(cmd: string): string {
-  if (process.env.VERCEL) return "";
+  if (!_cp) return "";
   try {
-    const cp = getChildProcess();
-    return cp.execSync(cmd, { encoding: "utf-8", timeout: 15000 });
+    return _cp.execSync(cmd, { encoding: "utf-8", timeout: 15000 });
   } catch {
     return "";
   }
