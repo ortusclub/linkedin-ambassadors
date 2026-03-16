@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { activeProcesses } from "../launch/route";
 import { spawnBrowser, execCommand } from "@/lib/spawn-browser";
+import { getNextProxy } from "@/lib/proxy-pool";
 
 export async function POST(req: Request) {
   try {
@@ -26,8 +27,8 @@ export async function POST(req: Request) {
       }
     }
 
-    // Look up proxy info from the database if we have an account
-    let proxy = undefined;
+    // Look up proxy info from the database, or auto-assign from pool
+    let proxy;
     if (accountId) {
       const account = await prisma.linkedInAccount.findUnique({ where: { id: accountId } });
       if (account?.proxyHost) {
@@ -38,6 +39,10 @@ export async function POST(req: Request) {
           password: account.proxyPassword || undefined,
         };
       }
+    }
+    // If no proxy configured on the account, auto-assign from pool
+    if (!proxy) {
+      proxy = getNextProxy();
     }
 
     const { child, result } = await spawnBrowser({

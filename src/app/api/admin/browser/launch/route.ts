@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
 import { spawnBrowser } from "@/lib/spawn-browser";
+import { getNextProxy } from "@/lib/proxy-pool";
+import { v4 as uuid } from "uuid";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const activeProcesses: Map<string, any> = new Map();
@@ -21,50 +23,35 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = launchSchema.parse(body);
 
-    const token = process.env.GOLOGIN_API_TOKEN!;
+    const profileId = uuid();
 
-    const createRes = await fetch("https://api.gologin.com/browser", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: `LA - ${data.accountName}`,
-        os: "mac",
-        browserType: "chrome",
-        navigator: {
-          language: "en-US,en",
-          userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-          resolution: "1920x1080",
-          platform: "MacIntel",
-        },
-        proxy: data.proxyHost
-          ? { mode: "http", host: data.proxyHost, port: data.proxyPort || 80, username: data.proxyUsername || "", password: data.proxyPassword || "" }
-          : { mode: "none" },
-        fonts: {
-          enableMasking: true,
-          enableDomRect: true,
-          families: ["Arial","Verdana","Helvetica","Times New Roman","Courier New","Georgia","Trebuchet MS","Arial Black","Impact","Comic Sans MS","Tahoma","Lucida Grande","Monaco","Menlo","Palatino","Futura","Gill Sans","Helvetica Neue","Optima","Baskerville"],
-        },
-      }),
+    // Use provided proxy or auto-assign from pool
+    const proxy = data.proxyHost
+      ? {
+          host: data.proxyHost,
+          port: data.proxyPort || 80,
+          username: data.proxyUsername || undefined,
+          password: data.proxyPassword || undefined,
+        }
+      : getNextProxy();
+
+    const { child, result } = await spawnBrowser({
+      profileId,
+      accountName: data.accountName,
+      proxy,
     });
 
-    if (!createRes.ok) {
-      const errText = await createRes.text();
-      return NextResponse.json({ error: `Failed to create GoLogin profile: ${errText}` }, { status: 500 });
-    }
-
-    const profile = await createRes.json();
-    const profileId = profile.id;
-
-    const { child, result } = await spawnBrowser({ token, profileId });
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }
     activeProcesses.set(profileId, child);
 
-    return NextResponse.json({ sessionId: profileId, profileId, message: "Browser launched." });
+    return NextResponse.json({
+      sessionId: profileId,
+      profileId,
+      proxy: { host: proxy.host, port: proxy.port },
+      message: "Browser launched.",
+    });
   } catch (error) {
     console.error("Browser launch error:", error);
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
