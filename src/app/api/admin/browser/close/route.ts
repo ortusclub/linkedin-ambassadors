@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { activeProcesses } from "../launch/route";
-import { execSync } from "child_process";
+import { execCommand } from "@/lib/spawn-browser";
 
 export async function POST(req: Request) {
   try {
@@ -14,27 +14,18 @@ export async function POST(req: Request) {
 
     const child = activeProcesses.get(profileId);
     if (child) {
-      // Send 'stop' to child process — triggers gl.stop() which uploads cookies
       await new Promise<void>((resolve) => {
         child.stdin?.write("stop\n");
         child.on("exit", () => resolve());
-        setTimeout(() => {
-          child.kill("SIGKILL");
-          resolve();
-        }, 10000);
+        setTimeout(() => { child.kill("SIGKILL"); resolve(); }, 10000);
       });
       activeProcesses.delete(profileId);
     }
 
-    // Also kill any lingering Orbita processes for this profile
     try {
-      // Find and kill Orbita processes that use this profile's data dir
-      execSync(`pkill -f "gologin_profile_${profileId}" 2>/dev/null || true`, { timeout: 5000 });
-      // Also try killing by the Orbita app name
-      execSync(`pkill -f "orbita" 2>/dev/null || true`, { timeout: 5000 });
-    } catch {
-      // Ignore — process may already be dead
-    }
+      execCommand(`pkill -f "gologin_profile_${profileId}" 2>/dev/null || true`);
+      execCommand(`pkill -f "orbita" 2>/dev/null || true`);
+    } catch { /* ignore */ }
 
     return NextResponse.json({ message: "Browser closed and session saved" });
   } catch (error) {
