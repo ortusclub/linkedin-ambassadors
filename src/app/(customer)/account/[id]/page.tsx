@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatNumber, formatCurrency } from "@/lib/utils";
+import { LinkedInPreview } from "@/components/catalogue/linkedin-preview";
 
 interface Account {
   id: string;
@@ -131,14 +132,14 @@ export default function AccountDetailPage() {
               className="rounded-xl border border-gray-200 shadow-sm"
             />
           ) : (
-            <div className="flex h-80 items-center justify-center rounded-xl border border-gray-200 bg-gray-100">
-              <div className="text-center">
-                <div className="mx-auto h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center text-4xl font-bold text-gray-400">
-                  {account.linkedinName.charAt(0)}
-                </div>
-                <p className="mt-4 text-gray-500">Profile screenshot coming soon</p>
-              </div>
-            </div>
+            <LinkedInPreview
+              name={account.linkedinName}
+              headline={account.linkedinHeadline}
+              photoUrl={account.profilePhotoUrl}
+              connectionCount={account.connectionCount}
+              location={account.location}
+              industry={account.industry}
+            />
           )}
         </div>
 
@@ -187,7 +188,6 @@ export default function AccountDetailPage() {
 
           <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-6">
             {isAdmin ? (
-              /* Admin view — just open the browser */
               <div className="space-y-3">
                 {browserOpen ? (
                   <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800">
@@ -210,7 +210,6 @@ export default function AccountDetailPage() {
                 )}
               </div>
             ) : (
-              /* Customer view — rent via Stripe */
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-3xl font-bold text-gray-900">
