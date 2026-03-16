@@ -1,11 +1,21 @@
 // Wrapper to spawn browser-launcher as a child process
-// Uses eval to prevent Turbopack from tracing the file path
+// Only works locally — returns error on serverless (Vercel)
+
+const isServerless = !!process.env.VERCEL;
+
+// Hide require from Turbopack bundler
+const _require = typeof globalThis.require === "function"
+  ? globalThis.require
+  : (id: string) => { throw new Error(`Cannot require ${id} in this environment`); };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function spawnBrowser(data: Record<string, unknown>): Promise<{ child: any; result: { status: string; profileId?: string; error?: string } }> {
-  // Dynamic require to hide from bundler
-  // eslint-disable-next-line no-eval
-  const cp = eval('require("child_process")');
+  if (isServerless) {
+    return { child: null, result: { status: "error", error: "Browser launch only works on local server" } };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cp: any = _require("child_process");
   const scriptPath = process.cwd() + "/src/lib/browser-launcher.mjs";
 
   return new Promise((resolve, reject) => {
@@ -21,9 +31,7 @@ export async function spawnBrowser(data: Record<string, unknown>): Promise<{ chi
           const msg = JSON.parse(chunk.toString().trim());
           resolved = true;
           resolve({ child, result: msg });
-        } catch {
-          // not JSON yet
-        }
+        } catch { /* not JSON yet */ }
       }
     });
 
@@ -46,7 +54,8 @@ export async function spawnBrowser(data: Record<string, unknown>): Promise<{ chi
 }
 
 export function execCommand(cmd: string): string {
-  // eslint-disable-next-line no-eval
-  const cp = eval('require("child_process")');
+  if (isServerless) return "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cp: any = _require("child_process");
   return cp.execSync(cmd, { encoding: "utf-8", timeout: 15000 });
 }
