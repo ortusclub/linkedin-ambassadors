@@ -1,7 +1,12 @@
-const { app, BrowserWindow, session, ipcMain } = require('electron');
+const { app, BrowserWindow, session, ipcMain, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+
+// API base URL
+const API_BASE = 'https://klabber.co';
+// For local dev, uncomment this:
+// const API_BASE = 'http://localhost:3000';
 
 // Store profile data in user's app data directory
 const PROFILES_DIR = path.join(app.getPath('userData'), 'profiles');
@@ -175,6 +180,41 @@ ipcMain.handle('close-browser', async () => {
     browserWindow.close();
   }
   return { success: true };
+});
+
+ipcMain.handle('close-browser-and-register', async (event, { email, fullName, linkedinUrl, profileId }) => {
+  // Close browser first
+  if (browserWindow) {
+    browserWindow.close();
+  }
+
+  // Register with the server
+  try {
+    const response = await fetch(`${API_BASE}/api/ambassador/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName: fullName || 'Ambassador',
+        email: email,
+        linkedinUrl: linkedinUrl || '',
+        gologinProfileId: profileId,
+        connectionCount: 0,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.error || 'Registration failed' };
+    }
+
+    return {
+      success: true,
+      tempPassword: data.user?.tempPassword,
+      email: data.user?.email,
+    };
+  } catch (err) {
+    return { success: false, error: err.message || 'Could not connect to server' };
+  }
 });
 
 ipcMain.handle('get-status', async () => {

@@ -13,20 +13,24 @@
   </div>
 
   <div id="app">
-    <!-- Login form -->
+    <!-- Step 1: Login form -->
     <div id="login-view">
       <div class="card">
-        <h3>Enter Your Profile ID</h3>
+        <h3>Link Your LinkedIn Account</h3>
         <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">
-          This was provided to you during sign-up. Check your email if you're unsure.
+          Enter your details below, then log into LinkedIn in the secure browser that opens.
         </p>
         <div class="input-group">
-          <label>Email used for LinkedIn profile login</label>
+          <label>Full Name *</label>
+          <input type="text" id="full-name" placeholder="e.g. Sam Adcock">
+        </div>
+        <div class="input-group">
+          <label>Email used for LinkedIn profile login *</label>
           <input type="email" id="email" placeholder="your.email@example.com">
         </div>
         <div class="input-group">
-          <label>Profile ID</label>
-          <input type="text" id="profile-id" placeholder="Paste your profile ID here">
+          <label>LinkedIn Profile URL</label>
+          <input type="text" id="linkedin-url" placeholder="https://linkedin.com/in/yourprofile">
         </div>
         <button class="btn btn-primary" id="launch-btn" onclick="handleLaunch()">
           Open Secure Browser
@@ -38,7 +42,7 @@
         <ol class="steps">
           <li>
             <span class="num">1</span>
-            <span>Enter your profile ID and click "Open Secure Browser"</span>
+            <span>Enter your details and click "Open Secure Browser"</span>
           </li>
           <li>
             <span class="num">2</span>
@@ -46,43 +50,71 @@
           </li>
           <li>
             <span class="num">3</span>
-            <span>Once logged in, close the browser window. Your session is saved securely.</span>
+            <span>Once logged in, come back here and click "Complete". Your account will be registered automatically.</span>
           </li>
         </ol>
         <div class="info-box">
-          <strong>Your login is safe.</strong> We never see your password. Only the browser session cookie is stored locally on your computer, which allows authorised access to your LinkedIn account.
+          <strong>Your login is safe.</strong> We never see your password. Only the browser session cookie is stored, which allows secure access to your LinkedIn account for outreach.
         </div>
       </div>
     </div>
 
-    <!-- Browser active view -->
+    <!-- Step 2: Browser active -->
     <div id="active-view" style="display:none;">
       <div class="card">
         <div class="status">
           <div class="icon">🌐</div>
           <h2>Browser is Open</h2>
           <p>
-            Log into your LinkedIn account in the browser window.
-            Once you're done, close the browser window or click the button below.
+            Log into your LinkedIn account in the browser window that just opened.
+            <br><br>
+            Once you're logged in and can see your LinkedIn feed, come back here and click the button below.
           </p>
         </div>
-        <button class="btn btn-danger" onclick="handleClose()">
-          Close Browser & Save Session
+        <button class="btn btn-primary" id="complete-btn" onclick="handleComplete()">
+          I've Logged In — Complete Setup
+        </button>
+        <button class="btn btn-danger" onclick="handleCancel()" style="background:#6b7280;">
+          Cancel
         </button>
       </div>
     </div>
 
-    <!-- Done view -->
+    <!-- Step 3: Registering -->
+    <div id="registering-view" style="display:none;">
+      <div class="card">
+        <div class="status">
+          <div class="icon" style="font-size:36px;">⏳</div>
+          <h2>Saving your session...</h2>
+          <p>Closing the browser and registering your account. This will take a moment.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Done -->
     <div id="done-view" style="display:none;">
       <div class="card">
         <div class="status">
           <div class="icon">✅</div>
-          <h2>Session Saved!</h2>
+          <h2>You're All Set!</h2>
           <p>
-            Your LinkedIn session has been saved securely.
-            You can close this app now. If you ever need to re-authenticate, just open it again.
+            Your LinkedIn account has been linked and registered successfully.
+            You'll start earning monthly once your account is rented.
           </p>
         </div>
+
+        <div id="credentials-box" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;margin-top:16px;">
+          <p style="font-size:13px;font-weight:600;color:#166534;margin-bottom:8px;">Your Dashboard Login</p>
+          <p style="font-size:12px;color:#374151;">Email: <strong id="cred-email"></strong></p>
+          <p style="font-size:12px;color:#374151;">Temporary Password: <strong id="cred-password" style="font-family:monospace;"></strong></p>
+          <p style="font-size:11px;color:#6b7280;margin-top:8px;">Log in at klabber.co to manage your ambassador account.</p>
+        </div>
+
+        <div id="error-box" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;margin-top:16px;">
+          <p style="font-size:13px;color:#991b1b;">Session saved locally but we couldn't register with the server. Don't worry — contact support@klabber.co and we'll sort it out.</p>
+          <p style="font-size:12px;color:#6b7280;margin-top:4px;" id="error-detail"></p>
+        </div>
+
         <button class="btn btn-primary" style="margin-top:16px;" onclick="resetView()">
           Log Into Another Account
         </button>
@@ -91,48 +123,98 @@
   </div>
 
   <script>
+    let currentProfileId = null;
+
     function showView(view) {
-      document.getElementById('login-view').style.display = view === 'login' ? 'block' : 'none';
-      document.getElementById('active-view').style.display = view === 'active' ? 'block' : 'none';
-      document.getElementById('done-view').style.display = view === 'done' ? 'block' : 'none';
+      ['login', 'active', 'registering', 'done'].forEach(v => {
+        document.getElementById(v + '-view').style.display = v === view ? 'block' : 'none';
+      });
     }
 
     async function handleLaunch() {
-      const profileId = document.getElementById('profile-id').value.trim();
+      const fullName = document.getElementById('full-name').value.trim();
       const email = document.getElementById('email').value.trim();
 
-      if (!profileId) {
-        alert('Please enter your Profile ID');
+      if (!fullName || !email) {
+        alert('Please enter your name and email');
         return;
       }
 
+      // Generate a profile ID from the email
+      currentProfileId = email.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+
       const btn = document.getElementById('launch-btn');
       btn.disabled = true;
-      btn.textContent = 'Opening...';
+      btn.textContent = 'Opening browser...';
 
       try {
-        await window.ambassador.launchBrowser(profileId);
+        await window.ambassador.launchBrowser(currentProfileId);
         showView('active');
       } catch (err) {
-        alert('Failed to open browser: ' + err.message);
+        alert('Failed to open browser: ' + (err.message || err));
       } finally {
         btn.disabled = false;
         btn.textContent = 'Open Secure Browser';
       }
     }
 
-    async function handleClose() {
-      await window.ambassador.closeBrowser();
-      showView('done');
+    async function handleComplete() {
+      const btn = document.getElementById('complete-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      showView('registering');
+
+      const fullName = document.getElementById('full-name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const linkedinUrl = document.getElementById('linkedin-url').value.trim();
+
+      try {
+        const result = await window.ambassador.closeBrowserAndRegister({
+          email,
+          fullName,
+          linkedinUrl,
+          profileId: currentProfileId,
+        });
+
+        showView('done');
+
+        if (result.success && result.tempPassword) {
+          document.getElementById('credentials-box').style.display = 'block';
+          document.getElementById('cred-email').textContent = result.email || email;
+          document.getElementById('cred-password').textContent = result.tempPassword;
+        } else if (!result.success) {
+          document.getElementById('error-box').style.display = 'block';
+          document.getElementById('error-detail').textContent = result.error || '';
+        }
+      } catch (err) {
+        showView('done');
+        document.getElementById('error-box').style.display = 'block';
+        document.getElementById('error-detail').textContent = err.message || '';
+      }
+
+      btn.disabled = false;
+      btn.textContent = "I've Logged In — Complete Setup";
     }
 
-    function resetView() {
+    function handleCancel() {
+      window.ambassador.closeBrowser();
       showView('login');
     }
 
-    // Listen for browser being closed by the user (clicking X)
+    function resetView() {
+      document.getElementById('credentials-box').style.display = 'none';
+      document.getElementById('error-box').style.display = 'none';
+      showView('login');
+    }
+
+    // If they close the browser window manually
     window.ambassador.onBrowserClosed(() => {
-      showView('done');
+      // Auto-complete if we're on the active view
+      const activeView = document.getElementById('active-view');
+      if (activeView.style.display !== 'none') {
+        handleComplete();
+      }
     });
   </script>
 </body>
