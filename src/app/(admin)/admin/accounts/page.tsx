@@ -36,13 +36,17 @@ export default function AdminAccountsPage() {
       .then((data) => setAccounts(data.accounts || []))
       .finally(() => setLoading(false));
 
-    // Fetch active browser sessions
-    fetch("/api/admin/browser/active")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.active) setOpenProfiles(new Set(data.active));
-      })
+    // Fetch active browser sessions and poll every 5 seconds
+    const fetchActive = () =>
+      fetch("/api/admin/browser/active")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.active) setOpenProfiles(new Set(data.active));
+        })
       .catch(() => {});
+    fetchActive();
+    const interval = setInterval(fetchActive, 5000);
+    return () => clearInterval(interval);
   }, [filter]);
 
   const handleOpen = async (accountId: string, accountName: string) => {
@@ -177,7 +181,7 @@ export default function AdminAccountsPage() {
                         disabled={closing === a.id}
                         className="text-sm text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
                       >
-                        {closing === a.id ? "Closing..." : "Close"}
+                        {closing === a.id ? "Saving & Closing..." : "Close"}
                       </button>
                     ) : (
                       <button
