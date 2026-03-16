@@ -18,12 +18,10 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
-    "gologin": "^2.2.8",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
     "pg": "^8.20.0",
-    "puppeteer-core": "^24.39.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "resend": "^6.9.3",
@@ -45,5 +43,9 @@
     "prisma": "^7.5.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "gologin": "^2.2.8",
+    "puppeteer-core": "^24.39.1"
   }
 }
