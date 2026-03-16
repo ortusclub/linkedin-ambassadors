@@ -24,6 +24,7 @@ export async function GET(
       monthlyPrice: true,
       status: true,
       notes: true,
+      gologinProfileId: true,
     },
   });
 

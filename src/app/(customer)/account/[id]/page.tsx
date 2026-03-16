@@ -21,25 +21,60 @@ interface Account {
   monthlyPrice: number | string;
   status: string;
   notes: string | null;
+  gologinProfileId: string | null;
+}
+
+interface User {
+  id: string;
+  role: string;
 }
 
 export default function AccountDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [account, setAccount] = useState<Account | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [renting, setRenting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/accounts/${params.id}`)
-      .then((r) => r.json())
-      .then((data) => setAccount(data.account))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch(`/api/accounts/${params.id}`).then((r) => r.json()),
+      fetch("/api/auth/me").then((r) => r.json()).catch(() => ({ user: null })),
+    ]).then(([accountData, userData]) => {
+      setAccount(accountData.account);
+      setUser(userData.user);
+      setLoading(false);
+    });
   }, [params.id]);
 
+  const isAdmin = user?.role === "admin";
+
+  const handleOpenBrowser = async () => {
+    if (!account?.gologinProfileId) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/admin/browser/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: account.gologinProfileId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBrowserOpen(true);
+      } else {
+        alert(data.error || "Failed to open browser");
+      }
+    } catch {
+      alert("Failed to open browser");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleRent = async () => {
-    setRenting(true);
+    setActionLoading(true);
     try {
       const res = await fetch("/api/rentals/checkout", {
         method: "POST",
@@ -59,7 +94,7 @@ export default function AccountDetailPage() {
     } catch {
       alert("Something went wrong. Please try again.");
     } finally {
-      setRenting(false);
+      setActionLoading(false);
     }
   };
 
@@ -151,37 +186,65 @@ export default function AccountDetailPage() {
           )}
 
           <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold text-gray-900">
-                  {formatCurrency(price)}
-                  <span className="text-base font-normal text-gray-500">/month</span>
-                </p>
-                <p className="mt-1 text-sm text-gray-500">Cancel anytime</p>
+            {isAdmin ? (
+              /* Admin view — just open the browser */
+              <div className="space-y-3">
+                {browserOpen ? (
+                  <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800">
+                    Browser is open. The GoLogin window should be visible on your screen.
+                  </div>
+                ) : (
+                  <Button
+                    size="lg"
+                    onClick={handleOpenBrowser}
+                    loading={actionLoading}
+                    className="w-full"
+                  >
+                    Open Account
+                  </Button>
+                )}
+                {account.gologinProfileId && (
+                  <p className="text-xs text-gray-400 text-center">
+                    GoLogin: {account.gologinProfileId}
+                  </p>
+                )}
               </div>
+            ) : (
+              /* Customer view — rent via Stripe */
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {formatCurrency(price)}
+                    <span className="text-base font-normal text-gray-500">/month</span>
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">Cancel anytime</p>
+                </div>
 
-              {account.status === "available" ? (
-                <Button size="lg" onClick={handleRent} loading={renting}>
-                  Rent This Account
-                </Button>
-              ) : (
-                <Button size="lg" disabled variant="secondary">
-                  Currently Unavailable
-                </Button>
-              )}
+                {account.status === "available" ? (
+                  <Button size="lg" onClick={handleRent} loading={actionLoading}>
+                    Rent This Account
+                  </Button>
+                ) : (
+                  <Button size="lg" disabled variant="secondary">
+                    Currently Unavailable
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {!isAdmin && (
+            <div className="mt-6 text-sm text-gray-500">
+              <h3 className="font-medium text-gray-700">What you get:</h3>
+              <ul className="mt-2 space-y-1">
+                <li>- Fully configured browser profile via GoLogin</li>
+                <li>- Dedicated residential proxy</li>
+                <li>- LinkedIn session already authenticated</li>
+                <li>- Works from any device with GoLogin installed</li>
+                <li>- Auto-renew with email reminders</li>
+              </ul>
             </div>
-          </div>
-
-          <div className="mt-6 text-sm text-gray-500">
-            <h3 className="font-medium text-gray-700">What you get:</h3>
-            <ul className="mt-2 space-y-1">
-              <li>- Fully configured browser profile via GoLogin</li>
-              <li>- Dedicated residential proxy</li>
-              <li>- LinkedIn session already authenticated</li>
-              <li>- Works from any device with GoLogin installed</li>
-              <li>- Auto-renew with email reminders</li>
-            </ul>
-          </div>
+          )}
         </div>
       </div>
     </div>

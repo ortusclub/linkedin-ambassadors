@@ -28,12 +28,19 @@ export async function createProfile(options: {
     password?: string;
   };
 }) {
-  return gologinFetch("/browser/v2", {
+  return gologinFetch("/browser", {
     method: "POST",
     body: JSON.stringify({
       name: options.name,
-      os: "win",
-      navigator: { language: "en-US,en" },
+      os: "mac",
+      browserType: "chrome",
+      navigator: {
+        language: "en-US,en",
+        userAgent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        resolution: "1920x1080",
+        platform: "MacIntel",
+      },
       proxy: options.proxy
         ? {
             mode: "http",

@@ -22,7 +22,7 @@ const createAccountSchema = z.object({
   notes: z.string().optional(),
   cookies: z.array(z.record(z.string(), z.unknown())).optional(),
   createGologinProfile: z.boolean().default(false),
-  status: z.enum(["available", "maintenance"]).default("maintenance"),
+  status: z.enum(["available", "maintenance"]).default("available"),
 });
 
 export async function GET(req: NextRequest) {

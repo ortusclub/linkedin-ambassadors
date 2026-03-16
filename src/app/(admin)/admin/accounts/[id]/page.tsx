@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ImageUpload } from "@/components/ui/image-upload";
+import { ProxyTestButton } from "@/components/admin/proxy-test-button";
 import { formatDate } from "@/lib/utils";
 
 export default function EditAccountPage() {
@@ -98,8 +100,8 @@ export default function EditAccountPage() {
         <Card>
           <CardHeader><h3 className="font-semibold text-gray-900">Images</h3></CardHeader>
           <CardContent className="space-y-4">
-            <Input id="profilePhotoUrl" label="Profile Photo URL" value={(form.profilePhotoUrl as string) || ""} onChange={(e) => update("profilePhotoUrl", e.target.value)} />
-            <Input id="profileScreenshotUrl" label="Screenshot URL" value={(form.profileScreenshotUrl as string) || ""} onChange={(e) => update("profileScreenshotUrl", e.target.value)} />
+            <ImageUpload label="Profile Photo" value={(form.profilePhotoUrl as string) || ""} onChange={(url) => update("profilePhotoUrl", url)} />
+            <ImageUpload label="Profile Screenshot" value={(form.profileScreenshotUrl as string) || ""} onChange={(url) => update("profileScreenshotUrl", url)} />
           </CardContent>
         </Card>
 
@@ -108,12 +110,18 @@ export default function EditAccountPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input id="proxyHost" label="Host" value={(form.proxyHost as string) || ""} onChange={(e) => update("proxyHost", e.target.value)} />
-              <Input id="proxyPort" label="Port" type="number" value={(form.proxyPort as number) || 0} onChange={(e) => update("proxyPort", parseInt(e.target.value) || 0)} />
+              <Input id="proxyPort" label="Port" placeholder="e.g. 12877" value={(form.proxyPort as string | number) || ""} onChange={(e) => update("proxyPort", e.target.value.replace(/\D/g, ""))} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input id="proxyUsername" label="Username" value={(form.proxyUsername as string) || ""} onChange={(e) => update("proxyUsername", e.target.value)} />
               <Input id="proxyPassword" label="Password" type="password" value={(form.proxyPassword as string) || ""} onChange={(e) => update("proxyPassword", e.target.value)} />
             </div>
+            <ProxyTestButton
+              host={(form.proxyHost as string) || ""}
+              port={(form.proxyPort as string | number) || ""}
+              username={(form.proxyUsername as string) || ""}
+              password={(form.proxyPassword as string) || ""}
+            />
           </CardContent>
         </Card>
 

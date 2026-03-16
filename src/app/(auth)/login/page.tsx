@@ -32,11 +32,10 @@ export default function LoginPage() {
       }
 
       if (data.role === "admin") {
-        router.push("/admin/dashboard");
+        window.location.href = "/admin/dashboard";
       } else {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       }
-      router.refresh();
     } catch {
       setError("Something went wrong");
     } finally {
