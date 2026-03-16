@@ -16,6 +16,7 @@ export default function EditAccountPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<Record<string, unknown>>({});
   const [rentals, setRentals] = useState<Array<{
     id: string;
@@ -41,20 +42,40 @@ export default function EditAccountPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSaved(false);
     setSaving(true);
 
     try {
       const res = await fetch(`/api/admin/accounts/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          linkedinName: form.linkedinName,
+          linkedinHeadline: form.linkedinHeadline,
+          linkedinUrl: form.linkedinUrl,
+          connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
+          industry: form.industry,
+          location: form.location,
+          profileScreenshotUrl: form.profileScreenshotUrl,
+          profilePhotoUrl: form.profilePhotoUrl,
+          proxyHost: form.proxyHost,
+          proxyPort: form.proxyPort ? Number(form.proxyPort) : undefined,
+          proxyUsername: form.proxyUsername,
+          proxyPassword: form.proxyPassword,
+          accountAgeMonths: form.accountAgeMonths ? Number(form.accountAgeMonths) : undefined,
+          hasSalesNav: form.hasSalesNav,
+          notes: form.notes,
+          status: form.status,
+          gologinProfileId: form.gologinProfileId,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
         setError(typeof data.error === "string" ? data.error : "Failed to update");
         return;
       }
-      router.push("/admin/accounts");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } catch {
       setError("Something went wrong");
     } finally {
@@ -73,6 +94,7 @@ export default function EditAccountPage() {
         Edit: {(form.linkedinName as string) || "Account"}
       </h2>
 
+      {saved && <div className="mb-4 rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700 font-medium">Changes saved successfully.</div>}
       {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-6">

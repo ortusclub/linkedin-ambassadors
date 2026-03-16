@@ -69,6 +69,48 @@ export async function PATCH(
       data,
     });
 
+    // Sync proxy to GoLogin profile if it has one
+    if (account.gologinProfileId && (data.proxyHost || data.proxyPort || data.proxyUsername || data.proxyPassword)) {
+      try {
+        const token = process.env.GOLOGIN_API_TOKEN!;
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        };
+
+        // GoLogin PUT requires all required fields, so fetch profile first
+        const profileRes = await fetch(
+          `https://api.gologin.com/browser/${account.gologinProfileId}`,
+          { headers }
+        );
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          const payload = {
+            name: profile.name,
+            browserType: profile.browserType || "chrome",
+            os: profile.os || "mac",
+            navigator: profile.navigator,
+            proxy: account.proxyHost
+              ? {
+                  mode: "http",
+                  host: account.proxyHost,
+                  port: account.proxyPort || 80,
+                  username: account.proxyUsername || "",
+                  password: account.proxyPassword || "",
+                }
+              : { mode: "none" },
+          };
+
+          await fetch(
+            `https://api.gologin.com/browser/${account.gologinProfileId}`,
+            { method: "PUT", headers, body: JSON.stringify(payload) }
+          );
+        }
+      } catch (e) {
+        console.error("Failed to sync proxy to GoLogin:", e);
+      }
+    }
+
     return NextResponse.json({ account });
   } catch (error) {
     if (error instanceof z.ZodError) {

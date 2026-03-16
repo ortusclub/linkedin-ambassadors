@@ -25,13 +25,71 @@ export default function AdminAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
 
+  const [opening, setOpening] = useState<string | null>(null);
+  const [openProfiles, setOpenProfiles] = useState<Set<string>>(new Set());
+  const [closing, setClosing] = useState<string | null>(null);
+
   useEffect(() => {
     const params = filter ? `?status=${filter}` : "";
     fetch(`/api/admin/accounts${params}`)
       .then((r) => r.json())
       .then((data) => setAccounts(data.accounts || []))
       .finally(() => setLoading(false));
+
+    // Fetch active browser sessions
+    fetch("/api/admin/browser/active")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.active) setOpenProfiles(new Set(data.active));
+      })
+      .catch(() => {});
   }, [filter]);
+
+  const handleOpen = async (profileId: string, accountName: string) => {
+    setOpening(profileId);
+    try {
+      const res = await fetch("/api/admin/browser/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId, accountName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to open browser");
+      } else {
+        setOpenProfiles((prev) => new Set(prev).add(profileId));
+      }
+    } catch {
+      alert("Failed to open browser");
+    } finally {
+      setOpening(null);
+    }
+  };
+
+  const handleClose = async (profileId: string) => {
+    setClosing(profileId);
+    try {
+      const res = await fetch("/api/admin/browser/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setOpenProfiles((prev) => {
+          const next = new Set(prev);
+          next.delete(profileId);
+          return next;
+        });
+      } else {
+        alert(data.error || "Failed to close browser");
+      }
+    } catch {
+      alert("Failed to close browser");
+    } finally {
+      setClosing(null);
+    }
+  };
 
   const statusVariant = (s: string) => {
     const map: Record<string, "success" | "info" | "warning" | "default"> = {
@@ -112,7 +170,26 @@ export default function AdminAccountsPage() {
                       <Badge variant="default">None</Badge>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right space-x-3">
+                    {a.gologinProfileId && (
+                      openProfiles.has(a.gologinProfileId) ? (
+                        <button
+                          onClick={() => handleClose(a.gologinProfileId!)}
+                          disabled={closing === a.gologinProfileId}
+                          className="text-sm text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                        >
+                          {closing === a.gologinProfileId ? "Closing..." : "Close"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleOpen(a.gologinProfileId!, a.linkedinName)}
+                          disabled={opening === a.gologinProfileId}
+                          className="text-sm text-green-600 hover:text-green-800 font-medium disabled:opacity-50"
+                        >
+                          {opening === a.gologinProfileId ? "Opening..." : "Open"}
+                        </button>
+                      )
+                    )}
                     <Link href={`/admin/accounts/${a.id}`} className="text-sm text-blue-600 hover:text-blue-800">
                       Edit
                     </Link>

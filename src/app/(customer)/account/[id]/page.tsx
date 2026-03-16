@@ -58,7 +58,7 @@ export default function AccountDetailPage() {
       const res = await fetch("/api/admin/browser/open", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: account.gologinProfileId }),
+        body: JSON.stringify({ profileId: account.gologinProfileId, accountName: account.linkedinName }),
       });
       const data = await res.json();
       if (res.ok) {

@@ -51,6 +51,11 @@ export async function POST(req: Request) {
               password: data.proxyPassword || "",
             }
           : { mode: "none" },
+        fonts: {
+          enableMasking: true,
+          enableDomRect: true,
+          families: ["Arial","Verdana","Helvetica","Times New Roman","Courier New","Georgia","Trebuchet MS","Arial Black","Impact","Comic Sans MS","Tahoma","Lucida Grande","Monaco","Menlo","Palatino","Futura","Gill Sans","Helvetica Neue","Optima","Baskerville"],
+        },
       }),
     });
 

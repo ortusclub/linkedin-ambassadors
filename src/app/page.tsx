@@ -15,12 +15,18 @@ export default function HomePage() {
               Browse our catalogue of pre-configured LinkedIn accounts with real connections,
               established histories, and Sales Navigator access. Pay monthly, cancel anytime.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-4">
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
               <Link
                 href="/catalogue"
                 className="rounded-lg bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
               >
                 Browse Available Accounts
+              </Link>
+              <Link
+                href="/become-ambassador"
+                className="rounded-lg bg-green-600 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
+              >
+                Become an Ambassador
               </Link>
               <a
                 href="#how-it-works"

@@ -43,6 +43,9 @@ export function Navbar() {
               <Link href="/catalogue" className="text-sm text-gray-600 hover:text-gray-900">
                 Browse Accounts
               </Link>
+              <Link href="/become-ambassador" className="text-sm text-gray-600 hover:text-gray-900">
+                Become an Ambassador
+              </Link>
               {user?.role === "admin" && (
                 <Link href="/admin/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
                   Admin

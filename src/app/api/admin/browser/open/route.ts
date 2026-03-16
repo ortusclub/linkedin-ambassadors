@@ -7,15 +7,26 @@ import { activeProcesses } from "../launch/route";
 export async function POST(req: Request) {
   try {
     await requireAdmin();
-    const { profileId } = await req.json();
+    const { profileId, accountName } = await req.json();
 
     if (!profileId) {
       return NextResponse.json({ error: "No profileId provided" }, { status: 400 });
     }
 
-    // Check if already running
-    if (activeProcesses.has(profileId)) {
-      return NextResponse.json({ message: "Browser is already open", sessionId: profileId });
+    // Check if already running — but verify the process is still alive
+    const existingProcess = activeProcesses.get(profileId);
+    if (existingProcess) {
+      if (existingProcess.killed || existingProcess.exitCode !== null) {
+        // Process is dead, clean it up
+        activeProcesses.delete(profileId);
+      } else {
+        // Process is still alive, bring window to front
+        try {
+          const { execSync } = await import("child_process");
+          execSync(`osascript -e 'tell application "System Events" to set frontmost of (first process whose name contains "Orbita") to true'`, { timeout: 3000 });
+        } catch { /* ignore */ }
+        return NextResponse.json({ message: "Browser is already open", sessionId: profileId });
+      }
     }
 
     const token = process.env.GOLOGIN_API_TOKEN!;
@@ -24,7 +35,7 @@ export async function POST(req: Request) {
     const result = await new Promise<{ status: string; error?: string }>((resolve, reject) => {
       const child = spawn(
         "node",
-        [scriptPath, "launch", JSON.stringify({ token, profileId })],
+        [scriptPath, "launch", JSON.stringify({ token, profileId, accountName })],
         { stdio: ["pipe", "pipe", "pipe"] }
       );
 

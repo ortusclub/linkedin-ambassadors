@@ -125,3 +125,34 @@ model Waitlist {
   @@unique([userId, linkedinAccountId])
   @@map("waitlist")
 }
+
+enum AmbassadorStatus {
+  pending
+  reviewing
+  approved
+  rejected
+  onboarded
+}
+
+model AmbassadorApplication {
+  id                String           @id @default(uuid()) @db.Uuid
+  fullName          String           @map("full_name")
+  email             String
+  linkedinUrl       String           @map("linkedin_url")
+  connectionCount   Int?             @map("connection_count")
+  industry          String?
+  location          String?
+  notes             String?
+  status            AmbassadorStatus @default(pending)
+  offeredAmount     Decimal?         @map("offered_amount") @db.Decimal(10, 2)
+  adminNotes        String?          @map("admin_notes")
+  bankName          String?          @map("bank_name")
+  bankAccountName   String?          @map("bank_account_name")
+  bankAccountNumber String?          @map("bank_account_number")
+  bankRoutingNumber String?          @map("bank_routing_number")
+  bankSortCode      String?          @map("bank_sort_code")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  @@map("ambassador_applications")
+}
