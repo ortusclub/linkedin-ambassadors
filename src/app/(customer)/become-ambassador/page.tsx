@@ -117,7 +117,7 @@ export default function BecomeAmbassadorPage() {
   const [error, setError] = useState("");
   const [scanIndex, setScanIndex] = useState(0);
   const [offer, setOffer] = useState<{ amount: number; tier: string; reasons: { label: string; detail: string; positive: boolean }[] } | null>(null);
-  const [gologinProfileId, setGologinProfileId] = useState("");
+  const [profileId, setGologinProfileId] = useState("");
   const [launchingBrowser, setLaunchingBrowser] = useState(false);
   const [credentials, setCredentials] = useState<{ email: string; tempPassword: string } | null>(null);
 
@@ -430,80 +430,63 @@ export default function BecomeAmbassadorPage() {
             </form>
           )}
 
-          {/* STEP 5: Log into LinkedIn via GoLogin */}
+          {/* STEP 5: Download app and log into LinkedIn */}
           {step === "login" && (
             <div className="py-4">
               <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Link Your LinkedIn Account</h2>
               <p className="text-center text-gray-500 mb-6">
-                Follow these steps to securely connect your LinkedIn account. This takes about 5 minutes.
+                Download our secure browser app and log into LinkedIn. Takes about 2 minutes.
               </p>
 
-              {/* Step 1: Download GoLogin */}
+              {/* Step 1: Download the app */}
               <Card>
                 <CardContent className="py-6">
                   <div className="flex items-start gap-3 mb-4">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">1</div>
                     <div>
-                      <p className="font-semibold text-gray-900 text-lg">Download GoLogin</p>
-                      <p className="text-sm text-gray-500 mt-1">GoLogin is a secure browser app that protects your digital fingerprint. It&apos;s free to download and use.</p>
+                      <p className="font-semibold text-gray-900 text-lg">Download LinkedIn Ambassadors App</p>
+                      <p className="text-sm text-gray-500 mt-1">Our secure browser app protects your digital fingerprint and keeps your LinkedIn session safe.</p>
                     </div>
                   </div>
                   <a
-                    href="https://gologin.com/download"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="/downloads/LinkedIn-Ambassadors.dmg"
                     className="block w-full rounded-lg bg-gray-900 py-3 text-center font-semibold text-white hover:bg-gray-800 transition-colors"
                   >
-                    Download GoLogin (Free)
+                    Download for Mac
                   </a>
-                  <p className="text-xs text-gray-400 mt-2 text-center">Available for Mac, Windows, and Linux. Already have it? Skip to step 2.</p>
+                  <p className="text-xs text-gray-400 mt-2 text-center">Windows version coming soon. Already have it? Skip to step 2.</p>
                 </CardContent>
               </Card>
 
-              {/* Step 2: Create a free account */}
+              {/* Step 2: Open the app and log in */}
               <Card className="mt-4">
                 <CardContent className="py-6">
                   <div className="flex items-start gap-3 mb-4">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">2</div>
                     <div>
-                      <p className="font-semibold text-gray-900 text-lg">Create a Free GoLogin Account</p>
-                      <p className="text-sm text-gray-500 mt-1">Open GoLogin and sign up for a free account. The free plan is all you need — it supports up to 3 profiles.</p>
+                      <p className="font-semibold text-gray-900 text-lg">Open the App &amp; Log Into LinkedIn</p>
+                      <p className="text-sm text-gray-500 mt-1">Open the LinkedIn Ambassadors app and enter your details:</p>
                     </div>
                   </div>
-                  <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 text-sm text-gray-600">
-                    <p><strong>Important:</strong> Sign up using this email address:</p>
-                    <p className="mt-1 font-mono text-blue-600 font-medium">{form.email}</p>
-                    <p className="mt-2 text-gray-500">We&apos;ll share a browser profile with this email so it appears in your GoLogin dashboard.</p>
+                  <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 text-sm text-gray-600 space-y-2">
+                    <p><strong>Full Name:</strong> {form.fullName}</p>
+                    <p><strong>Email:</strong> {form.email}</p>
+                    {form.linkedinUrl && <p><strong>LinkedIn URL:</strong> {form.linkedinUrl}</p>}
                   </div>
+                  <p className="text-sm text-gray-500 mt-3">Click <strong>&quot;Open Secure Browser&quot;</strong> in the app. A browser window will open — log into LinkedIn with your normal credentials.</p>
                 </CardContent>
               </Card>
 
-              {/* Step 3: We share the profile */}
-              <Card className="mt-4">
-                <CardContent className="py-6">
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">3</div>
-                    <div>
-                      <p className="font-semibold text-gray-900 text-lg">Open the Shared Profile</p>
-                      <p className="text-sm text-gray-500 mt-1">Once you&apos;ve signed up, click the button below. We&apos;ll share a secure browser profile with you. It will appear in your GoLogin dashboard.</p>
-                    </div>
-                  </div>
-                  <Button size="lg" className="w-full" onClick={() => setStep("complete")}>
-                    I&apos;ve Created My GoLogin Account — Continue
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Step 4: Log into LinkedIn */}
+              {/* Step 3: Complete */}
               <Card className="mt-4">
                 <CardContent className="py-6">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">4</div>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">3</div>
                     <div>
-                      <p className="font-semibold text-gray-900 text-lg">Log Into LinkedIn</p>
+                      <p className="font-semibold text-gray-900 text-lg">Click &quot;Complete Setup&quot; in the App</p>
                       <p className="text-sm text-gray-500 mt-1">
-                        In GoLogin, find the shared profile called <strong>&quot;AMB - {form.fullName}&quot;</strong> and click <strong>Run</strong>.
-                        A browser will open — log into LinkedIn with your normal credentials. Once logged in, close the browser and come back here.
+                        Once you&apos;ve logged into LinkedIn, click <strong>&quot;I&apos;ve Logged In — Complete Setup&quot;</strong> in the app.
+                        The app will save your session securely and register your account automatically.
                       </p>
                     </div>
                   </div>
@@ -511,58 +494,62 @@ export default function BecomeAmbassadorPage() {
               </Card>
 
               <div className="mt-6 rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">
-                <strong>Why GoLogin?</strong> GoLogin creates a unique browser fingerprint for your account, which keeps your LinkedIn session safe and persistent. Your login credentials are never shared with us — only the secure browser session.
+                <strong>Your login is safe.</strong> We never see your password. The app creates a unique browser fingerprint and only stores the session cookie — not your credentials.
+              </div>
+
+              <div className="mt-6">
+                <Button size="lg" className="w-full" onClick={() => setStep("complete")}>
+                  I&apos;ve Completed the Steps in the App
+                </Button>
               </div>
             </div>
           )}
 
-          {/* STEP 6: Complete — profile shared, waiting for login */}
+          {/* STEP 6: Waiting for confirmation */}
           {step === "complete" && (
             <div className="py-4">
               <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Almost Done!</h2>
               <p className="text-center text-gray-500 mb-6">
-                We&apos;ll share a secure browser profile with you shortly. Here&apos;s what happens next:
+                If you&apos;ve completed the steps in the app, your account should be registered automatically. Click below to finish.
               </p>
 
               <Card>
                 <CardContent className="py-6">
                   <div className="space-y-5">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-600 flex-shrink-0">
-                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                        <svg className="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">Your GoLogin account is ready</p>
-                        <p className="text-sm text-gray-500">Registered with <strong>{form.email}</strong></p>
+                        <p className="font-medium text-gray-900">App downloaded and installed</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">1</div>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                        <svg className="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
                       <div>
-                        <p className="font-medium text-gray-900">We&apos;ll share a browser profile with you</p>
-                        <p className="text-sm text-gray-500">Within the next few minutes, a profile called <strong>&quot;AMB - {form.fullName}&quot;</strong> will appear in your GoLogin dashboard. We&apos;ll email you when it&apos;s ready.</p>
+                        <p className="font-medium text-gray-900">Logged into LinkedIn via the secure browser</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">2</div>
-                      <div>
-                        <p className="font-medium text-gray-900">Run the profile and log into LinkedIn</p>
-                        <p className="text-sm text-gray-500">Click <strong>Run</strong> on the shared profile in GoLogin. An Orbita browser will open — log into LinkedIn with your normal credentials.</p>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                        <svg className="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">3</div>
                       <div>
-                        <p className="font-medium text-gray-900">Stop the profile to save your session</p>
-                        <p className="text-sm text-gray-500">Click <strong>Stop</strong> in GoLogin (not just closing the window). This securely saves your LinkedIn session.</p>
+                        <p className="font-medium text-gray-900">Session saved and account registered</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-6 rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
-                    <strong>That&apos;s it!</strong> Once you&apos;ve logged in and stopped the profile, your account will be live on our marketplace and you&apos;ll start earning monthly.
+                  <div className="mt-6 rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+                    <strong>All done!</strong> Your account will appear in our marketplace and you&apos;ll start earning monthly once it&apos;s rented.
                   </div>
                 </CardContent>
               </Card>
@@ -583,7 +570,7 @@ export default function BecomeAmbassadorPage() {
                         connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
                         industry: form.industry,
                         location: form.location,
-                        gologinProfileId: gologinProfileId,
+                        profileId: profileId,
                         offeredAmount: offer?.amount,
                       }),
                     });
