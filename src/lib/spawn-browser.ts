@@ -1,61 +1,66 @@
-// Wrapper to spawn browser-launcher as a child process
-// Only works locally — returns error on serverless (Vercel)
+// Browser spawn wrapper — only functional locally, no-ops on Vercel
+// Uses dynamic Function constructor to completely hide require from bundler
 
-const isServerless = !!process.env.VERCEL;
-
-// Hide require from Turbopack bundler
-const _require = typeof globalThis.require === "function"
-  ? globalThis.require
-  : (id: string) => { throw new Error(`Cannot require ${id} in this environment`); };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getChildProcess(): any {
+  // This prevents ANY bundler from seeing the require call
+  return new Function('return require("child_process")')();
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function spawnBrowser(data: Record<string, unknown>): Promise<{ child: any; result: { status: string; profileId?: string; error?: string } }> {
-  if (isServerless) {
-    return { child: null, result: { status: "error", error: "Browser launch only works on local server" } };
+  if (process.env.VERCEL) {
+    return { child: null, result: { status: "error", error: "Browser launch is only available on the local admin server" } };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cp: any = _require("child_process");
-  const scriptPath = process.cwd() + "/src/lib/browser-launcher.mjs";
+  try {
+    const cp = getChildProcess();
+    const scriptPath = process.cwd() + "/src/lib/browser-launcher.mjs";
 
-  return new Promise((resolve, reject) => {
-    const child = cp.spawn("node", [scriptPath, "launch", JSON.stringify(data)], {
-      stdio: ["pipe", "pipe", "pipe"],
+    return new Promise((resolve, reject) => {
+      const child = cp.spawn("node", [scriptPath, "launch", JSON.stringify(data)], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let resolved = false;
+
+      child.stdout.on("data", (chunk: Buffer) => {
+        if (!resolved) {
+          try {
+            const msg = JSON.parse(chunk.toString().trim());
+            resolved = true;
+            resolve({ child, result: msg });
+          } catch { /* not JSON yet */ }
+        }
+      });
+
+      child.stderr.on("data", (chunk: Buffer) => {
+        console.error("Browser stderr:", chunk.toString());
+      });
+
+      child.on("error", (err: Error) => {
+        if (!resolved) { resolved = true; reject(err); }
+      });
+
+      child.on("exit", (code: number | null) => {
+        if (!resolved) { resolved = true; reject(new Error(`Exited with code ${code}`)); }
+      });
+
+      setTimeout(() => {
+        if (!resolved) { resolved = true; child.kill(); reject(new Error("Timed out")); }
+      }, 60000);
     });
-
-    let resolved = false;
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      if (!resolved) {
-        try {
-          const msg = JSON.parse(chunk.toString().trim());
-          resolved = true;
-          resolve({ child, result: msg });
-        } catch { /* not JSON yet */ }
-      }
-    });
-
-    child.stderr.on("data", (chunk: Buffer) => {
-      console.error("Browser stderr:", chunk.toString());
-    });
-
-    child.on("error", (err: Error) => {
-      if (!resolved) { resolved = true; reject(err); }
-    });
-
-    child.on("exit", (code: number | null) => {
-      if (!resolved) { resolved = true; reject(new Error(`Exited with code ${code}`)); }
-    });
-
-    setTimeout(() => {
-      if (!resolved) { resolved = true; child.kill(); reject(new Error("Browser launch timed out")); }
-    }, 60000);
-  });
+  } catch (e) {
+    return { child: null, result: { status: "error", error: `Spawn failed: ${e instanceof Error ? e.message : "unknown"}` } };
+  }
 }
 
 export function execCommand(cmd: string): string {
-  if (isServerless) return "";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cp: any = _require("child_process");
-  return cp.execSync(cmd, { encoding: "utf-8", timeout: 15000 });
+  if (process.env.VERCEL) return "";
+  try {
+    const cp = getChildProcess();
+    return cp.execSync(cmd, { encoding: "utf-8", timeout: 15000 });
+  } catch {
+    return "";
+  }
 }
