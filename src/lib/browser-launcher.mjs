@@ -100,17 +100,27 @@ function generateFingerprint(seed) {
   };
 }
 
-// Load or create profile config
-function getProfileDir(profileId) {
+// Load or create profile config (fingerprint + proxy)
+function getProfileDir(profileId, incomingProxy) {
   const dir = path.join(process.cwd(), 'profiles', profileId);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-  const configPath = path.join(dir, 'fingerprint.json');
+  const configPath = path.join(dir, 'profile.json');
   let config;
   if (fs.existsSync(configPath)) {
     config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
   } else {
-    config = generateFingerprint(profileId);
+    config = {
+      fingerprint: generateFingerprint(profileId),
+      proxy: incomingProxy || null,
+      createdAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  }
+
+  // If profile exists but has no proxy and one was provided, save it
+  if (!config.proxy && incomingProxy) {
+    config.proxy = incomingProxy;
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
   }
 
@@ -120,26 +130,32 @@ function getProfileDir(profileId) {
 if (command === 'launch') {
   const { profileId, accountName, proxy } = data;
 
-  const { dir, config } = getProfileDir(profileId);
+  const { dir, config } = getProfileDir(profileId, proxy);
+  const fp = config.fingerprint;
+  const savedProxy = config.proxy;
   const userDataDir = path.join(dir, 'chrome-data');
 
   process.stderr.write(`Launching profile ${profileId} (${accountName || 'unnamed'})...\n`);
   process.stderr.write(`User data dir: ${userDataDir}\n`);
-  process.stderr.write(`Fingerprint: UA=${config.userAgent.slice(-30)}, Screen=${config.screenWidth}x${config.screenHeight}\n`);
+  process.stderr.write(`Fingerprint: UA=${fp.userAgent.slice(-30)}, Screen=${fp.screenWidth}x${fp.screenHeight}\n`);
+  if (savedProxy) {
+    process.stderr.write(`Proxy (saved): ${savedProxy.host}:${savedProxy.port}\n`);
+  } else {
+    process.stderr.write(`Proxy: none\n`);
+  }
 
   const args = [
     '--start-maximized',
     '--disable-blink-features=AutomationControlled',
     '--disable-features=IsolateOrigins,site-per-process',
-    `--window-size=${config.screenWidth},${config.screenHeight}`,
-    `--user-agent=${config.userAgent}`,
-    `--lang=${config.languages[0]}`,
+    `--window-size=${fp.screenWidth},${fp.screenHeight}`,
+    `--user-agent=${fp.userAgent}`,
+    `--lang=${fp.languages[0]}`,
   ];
 
-  // Add proxy if provided
-  if (proxy && proxy.host) {
-    args.push(`--proxy-server=http://${proxy.host}:${proxy.port || 80}`);
-    process.stderr.write(`Proxy: ${proxy.host}:${proxy.port}\n`);
+  // Use the saved proxy (consistent per profile)
+  if (savedProxy && savedProxy.host) {
+    args.push(`--proxy-server=http://${savedProxy.host}:${savedProxy.port || 80}`);
   }
 
   const browser = await puppeteer.launch({
@@ -157,7 +173,7 @@ if (command === 'launch') {
   // Set up fingerprint injection for all new pages
   const injectFingerprint = async (p) => {
     try {
-      await p.evaluateOnNewDocument(FINGERPRINT_SCRIPT(config));
+      await p.evaluateOnNewDocument(FINGERPRINT_SCRIPT(fp));
     } catch { /* ignore */ }
   };
 
@@ -169,11 +185,11 @@ if (command === 'launch') {
     } catch { /* ignore */ }
   });
 
-  // Handle proxy authentication
-  if (proxy && proxy.username && proxy.password) {
+  // Handle proxy authentication (using saved proxy)
+  if (savedProxy && savedProxy.username && savedProxy.password) {
     await page.authenticate({
-      username: proxy.username,
-      password: proxy.password,
+      username: savedProxy.username,
+      password: savedProxy.password,
     });
   }
 
