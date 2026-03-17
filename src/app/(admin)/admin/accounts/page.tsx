@@ -36,17 +36,13 @@ export default function AdminAccountsPage() {
       .then((data) => setAccounts(data.accounts || []))
       .finally(() => setLoading(false));
 
-    // Fetch active browser sessions and poll every 5 seconds
-    const fetchActive = () =>
-      fetch("/api/admin/browser/active")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.active) setOpenProfiles(new Set(data.active));
-        })
+    // Fetch active browser sessions once on load
+    fetch("/api/admin/browser/active")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.active) setOpenProfiles(new Set(data.active));
+      })
       .catch(() => {});
-    fetchActive();
-    const interval = setInterval(fetchActive, 5000);
-    return () => clearInterval(interval);
   }, [filter]);
 
   const handleOpen = async (accountId: string, accountName: string) => {
