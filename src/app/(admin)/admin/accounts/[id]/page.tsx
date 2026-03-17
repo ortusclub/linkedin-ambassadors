@@ -46,28 +46,30 @@ export default function EditAccountPage() {
     setSaving(true);
 
     try {
+      // Build payload, converting empty strings to null for optional fields
+      const payload: Record<string, unknown> = {};
+      if (form.linkedinName) payload.linkedinName = form.linkedinName;
+      if (form.linkedinHeadline || form.linkedinHeadline === "") payload.linkedinHeadline = form.linkedinHeadline || null;
+      if (form.linkedinUrl || form.linkedinUrl === "") payload.linkedinUrl = form.linkedinUrl || null;
+      if (form.connectionCount !== undefined) payload.connectionCount = Number(form.connectionCount) || 0;
+      if (form.industry !== undefined) payload.industry = form.industry || null;
+      if (form.location !== undefined) payload.location = form.location || null;
+      if (form.profileScreenshotUrl !== undefined) payload.profileScreenshotUrl = form.profileScreenshotUrl || null;
+      if (form.profilePhotoUrl !== undefined) payload.profilePhotoUrl = form.profilePhotoUrl || null;
+      if (form.proxyHost !== undefined) payload.proxyHost = form.proxyHost || null;
+      if (form.proxyPort !== undefined && form.proxyPort !== "" && form.proxyPort !== null) payload.proxyPort = Number(form.proxyPort);
+      if (form.proxyUsername !== undefined) payload.proxyUsername = form.proxyUsername || null;
+      if (form.proxyPassword !== undefined) payload.proxyPassword = form.proxyPassword || null;
+      if (form.accountAgeMonths !== undefined && form.accountAgeMonths !== "" && form.accountAgeMonths !== null) payload.accountAgeMonths = Number(form.accountAgeMonths);
+      if (form.hasSalesNav !== undefined) payload.hasSalesNav = !!form.hasSalesNav;
+      if (form.notes !== undefined) payload.notes = form.notes || null;
+      if (form.status) payload.status = form.status;
+      if (form.gologinProfileId !== undefined) payload.gologinProfileId = form.gologinProfileId || null;
+
       const res = await fetch(`/api/admin/accounts/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          linkedinName: form.linkedinName,
-          linkedinHeadline: form.linkedinHeadline,
-          linkedinUrl: form.linkedinUrl,
-          connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
-          industry: form.industry,
-          location: form.location,
-          profileScreenshotUrl: form.profileScreenshotUrl,
-          profilePhotoUrl: form.profilePhotoUrl,
-          proxyHost: form.proxyHost,
-          proxyPort: form.proxyPort ? Number(form.proxyPort) : undefined,
-          proxyUsername: form.proxyUsername,
-          proxyPassword: form.proxyPassword,
-          accountAgeMonths: form.accountAgeMonths ? Number(form.accountAgeMonths) : undefined,
-          hasSalesNav: form.hasSalesNav,
-          notes: form.notes,
-          status: form.status,
-          gologinProfileId: form.gologinProfileId,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -199,9 +201,11 @@ export default function EditAccountPage() {
           </Card>
         )}
 
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
           <Button type="submit" loading={saving}>Save Changes</Button>
           <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+          {saved && <span className="text-sm font-medium text-green-600">Changes saved successfully.</span>}
+          {error && <span className="text-sm font-medium text-red-600">{error}</span>}
         </div>
       </form>
     </div>

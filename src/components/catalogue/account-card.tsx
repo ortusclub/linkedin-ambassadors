@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { formatNumber, formatCurrency } from "@/lib/utils";
 
 interface AccountCardProps {
@@ -20,60 +18,118 @@ interface AccountCardProps {
   };
 }
 
+const AVATAR_COLORS = [
+  "linear-gradient(135deg,#0A66C2,#004182)",
+  "linear-gradient(135deg,#00B85C,#007A3D)",
+  "linear-gradient(135deg,#7C3AED,#5B21B6)",
+  "linear-gradient(135deg,#DC2626,#991B1B)",
+  "linear-gradient(135deg,#D97706,#92400E)",
+  "linear-gradient(135deg,#0891B2,#155E75)",
+];
+
+function getInitials(name: string) {
+  return name
+    .replace(/\s*\(.*\)\s*$/, "")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 export function AccountCard({ account }: AccountCardProps) {
-  const price = typeof account.monthlyPrice === "string"
-    ? parseFloat(account.monthlyPrice)
-    : account.monthlyPrice;
+  const price =
+    typeof account.monthlyPrice === "string"
+      ? parseFloat(account.monthlyPrice)
+      : account.monthlyPrice;
+
+  const displayName = account.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+  const initials = getInitials(account.linkedinName);
+  const ageYears = account.accountAgeMonths ? Math.floor(account.accountAgeMonths / 12) : null;
 
   return (
-    <div className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-start gap-4">
-        <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-full bg-gray-200">
+    <Link
+      href={`/account/${account.id}`}
+      className="block rounded-2xl border border-gray-200 bg-white p-6 transition-all hover:border-blue-400 hover:shadow-lg hover:-translate-y-0.5"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3.5 mb-4">
+        <div
+          className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-base flex-shrink-0 overflow-hidden"
+          style={{ background: getAvatarColor(account.linkedinName) }}
+        >
           {account.profilePhotoUrl ? (
             <img
               src={account.profilePhotoUrl}
-              alt={account.linkedinName}
-              className="h-full w-full object-cover"
+              alt={displayName}
+              className="w-full h-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-gray-400">
-              {account.linkedinName.charAt(0)}
-            </div>
+            initials
           )}
         </div>
-
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 truncate">{account.linkedinName}</h3>
-          {account.linkedinHeadline && (
-            <p className="mt-1 text-sm text-gray-600 truncate">{account.linkedinHeadline}</p>
-          )}
+        <div className="min-w-0">
+          <div className="font-semibold text-gray-900 text-[15px] truncate">{displayName}</div>
+          {account.linkedinHeadline ? (
+            <div className="text-[13px] text-gray-500 truncate">{account.linkedinHeadline}</div>
+          ) : account.location ? (
+            <div className="text-[13px] text-gray-500 truncate">{account.location}</div>
+          ) : null}
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
         {account.connectionCount > 0 && (
-          <Badge variant="info">{formatNumber(account.connectionCount)} connections</Badge>
+          <div className="bg-gray-50 rounded-lg px-3 py-2">
+            <div className="font-semibold text-[15px] text-gray-900">{formatNumber(account.connectionCount)}</div>
+            <div className="text-[11px] text-gray-400">Connections</div>
+          </div>
         )}
-        {account.industry && <Badge>{account.industry}</Badge>}
-        {account.location && <Badge>{account.location}</Badge>}
-        {account.accountAgeMonths && (
-          <Badge>
-            {account.accountAgeMonths >= 12
-              ? `${Math.floor(account.accountAgeMonths / 12)}y on LinkedIn`
-              : `${account.accountAgeMonths}mo on LinkedIn`}
-          </Badge>
+        {ageYears && ageYears > 0 ? (
+          <div className="bg-gray-50 rounded-lg px-3 py-2">
+            <div className="font-semibold text-[15px] text-gray-900">{ageYears}+ yrs</div>
+            <div className="text-[11px] text-gray-400">Account age</div>
+          </div>
+        ) : null}
+        {account.hasSalesNav && (
+          <div className="bg-gray-50 rounded-lg px-3 py-2">
+            <div className="font-semibold text-[15px] text-gray-900">SN</div>
+            <div className="text-[11px] text-gray-400">Sales Nav included</div>
+          </div>
         )}
-        {account.hasSalesNav && <Badge variant="success">Sales Navigator</Badge>}
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <span className="text-lg font-bold text-gray-900">
-          {formatCurrency(price)}<span className="text-sm font-normal text-gray-500">/mo</span>
-        </span>
-        <Link href={`/account/${account.id}`}>
-          <Button size="sm">View Profile</Button>
-        </Link>
+      {/* Tags */}
+      <div className="flex gap-1.5 flex-wrap mb-4">
+        {account.industry && (
+          <span className="text-[11px] px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 font-medium">
+            {account.industry}
+          </span>
+        )}
+        {account.location && account.linkedinHeadline && (
+          <span className="text-[11px] px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 font-medium">
+            {account.location}
+          </span>
+        )}
       </div>
-    </div>
+
+      {/* Price + CTA */}
+      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+        <div>
+          <span className="text-xl font-bold text-gray-900 tracking-tight">{formatCurrency(price)}</span>
+          <span className="text-[13px] text-gray-400">/month</span>
+        </div>
+        <span className="px-4 py-2 rounded-lg bg-blue-600 text-white text-[13px] font-semibold hover:bg-blue-700 transition-colors">
+          View Profile
+        </span>
+      </div>
+    </Link>
   );
 }

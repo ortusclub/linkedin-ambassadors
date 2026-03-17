@@ -1,6 +1,32 @@
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { formatNumber, formatCurrency } from "@/lib/utils";
 
-export default function HomePage() {
+const AVATAR_COLORS = [
+  "linear-gradient(135deg,#0A66C2,#004182)",
+  "linear-gradient(135deg,#00B85C,#007A3D)",
+  "linear-gradient(135deg,#7C3AED,#5B21B6)",
+  "linear-gradient(135deg,#DC2626,#991B1B)",
+  "linear-gradient(135deg,#D97706,#92400E)",
+  "linear-gradient(135deg,#0891B2,#155E75)",
+];
+
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(name: string) {
+  return name.replace(/\s*\(.*\)\s*$/, "").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+export default async function HomePage() {
+  const accounts = await prisma.linkedInAccount.findMany({
+    where: { status: "available" },
+    orderBy: { connectionCount: "desc" },
+    take: 4,
+  });
   return (
     <>
       <style>{`
@@ -211,14 +237,14 @@ export default function HomePage() {
           <div className="hero-divider">or</div>
           <div className="hero-side hero-earn">
             <div className="hero-label fade-up">For professionals</div>
-            <h1 className="hero-title fade-up d1">Earn $200–800/mo from your LinkedIn</h1>
-            <p className="hero-desc fade-up d2">Your established LinkedIn profile has value. List it on Klabber and earn passive income every month while keeping full control of your identity.</p>
+            <h1 className="hero-title fade-up d1">Earn $10–$500/mo from your LinkedIn</h1>
+            <p className="hero-desc fade-up d2">Every LinkedIn profile has value — from brand new to well-established. List yours on Klabber and get paid every month, guaranteed, whether we find a renter or not.</p>
             <div className="fade-up d3">
               <Link href="/become-ambassador" className="hero-btn hero-btn-white">Become an Ambassador →</Link>
             </div>
             <div className="hero-stats fade-up d4">
-              <div><div className="hero-stat-num">$420</div><div className="hero-stat-label">Avg. monthly earnings</div></div>
-              <div><div className="hero-stat-num">2,400+</div><div className="hero-stat-label">Ambassadors</div></div>
+              <div><div className="hero-stat-num">$85</div><div className="hero-stat-label">Avg. monthly earnings</div></div>
+              <div><div className="hero-stat-num">240+</div><div className="hero-stat-label">Ambassadors</div></div>
               <div><div className="hero-stat-num">48hr</div><div className="hero-stat-label">Avg. payout</div></div>
             </div>
           </div>
@@ -368,123 +394,58 @@ export default function HomePage() {
               <div>
                 <div className="section-label">Marketplace</div>
                 <div className="section-title" style={{marginBottom:8}}>Browse available accounts</div>
-                <p style={{fontSize:14,color:'var(--text-mid)'}}>214 accounts ready to rent right now</p>
-              </div>
-              <div className="filter-row">
-                <span className="filter-chip active">All</span>
-                <span className="filter-chip">Tech / SaaS</span>
-                <span className="filter-chip">Finance</span>
-                <span className="filter-chip">Healthcare</span>
-                <span className="filter-chip">US</span>
-                <span className="filter-chip">Europe</span>
-                <span className="filter-chip">APAC</span>
+                <p style={{fontSize:14,color:'var(--text-mid)'}}>{accounts.length} accounts ready to rent right now</p>
               </div>
             </div>
             <div className="account-grid">
-              {/* Card 1 */}
-              <div className="account-card">
-                <div className="account-badge">High demand</div>
-                <div className="account-header">
-                  <div className="account-avatar" style={{background:'linear-gradient(135deg,#0A66C2,#004182)'}}>JK</div>
-                  <div>
-                    <div className="account-name">Enterprise SaaS Leader</div>
-                    <div className="account-role">VP Sales · San Francisco, CA</div>
-                  </div>
+              {accounts.map((a) => {
+                const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+                const initials = getInitials(a.linkedinName);
+                const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
+                const price = Number(a.monthlyPrice);
+                return (
+                  <Link key={a.id} href={`/account/${a.id}`} className="account-card" style={{textDecoration:'none',color:'inherit'}}>
+                    <div className="account-header">
+                      <div className="account-avatar" style={{background: getAvatarColor(a.linkedinName), overflow:'hidden'}}>
+                        {a.profilePhotoUrl ? (
+                          <img src={a.profilePhotoUrl} alt={displayName} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                        ) : initials}
+                      </div>
+                      <div>
+                        <div className="account-name">{displayName}</div>
+                        <div className="account-role">{a.linkedinHeadline || [a.industry, a.location].filter(Boolean).join(" · ") || ""}</div>
+                      </div>
+                    </div>
+                    <div className="account-meta">
+                      {a.connectionCount > 0 && (
+                        <div className="account-meta-item"><div className="val">{formatNumber(a.connectionCount)}</div><div className="lbl">Connections</div></div>
+                      )}
+                      {ageYears && ageYears > 0 ? (
+                        <div className="account-meta-item"><div className="val">{ageYears}+ yrs</div><div className="lbl">Account age</div></div>
+                      ) : null}
+                      {a.hasSalesNav && (
+                        <div className="account-meta-item"><div className="val">SN</div><div className="lbl">Sales Nav included</div></div>
+                      )}
+                    </div>
+                    <div className="account-tags">
+                      {a.industry && <span className="account-tag">{a.industry}</span>}
+                      {a.location && <span className="account-tag">{a.location}</span>}
+                    </div>
+                    <div className="account-price">
+                      <div><span className="price">{formatCurrency(price)}</span><span className="period">/month</span></div>
+                      <span className="rent-btn">View Profile</span>
+                    </div>
+                  </Link>
+                );
+              })}
+              {accounts.length === 0 && (
+                <div style={{gridColumn:'1/-1',textAlign:'center',padding:'60px 20px',color:'var(--text-mid)'}}>
+                  <p style={{fontSize:16,fontWeight:500}}>No accounts available yet</p>
+                  <p style={{fontSize:14,marginTop:8}}>Check back soon or become an ambassador to list yours.</p>
                 </div>
-                <div className="account-meta">
-                  <div className="account-meta-item"><div className="val">4,200</div><div className="lbl">Connections</div></div>
-                  <div className="account-meta-item"><div className="val">82</div><div className="lbl">SSI Score</div></div>
-                  <div className="account-meta-item"><div className="val">6+ yrs</div><div className="lbl">Account age</div></div>
-                  <div className="account-meta-item"><div className="val">SN</div><div className="lbl">Sales Nav included</div></div>
-                </div>
-                <div className="account-tags">
-                  <span className="account-tag">SaaS</span>
-                  <span className="account-tag">Enterprise</span>
-                  <span className="account-tag green">Verified</span>
-                </div>
-                <div className="account-price">
-                  <div><span className="price">$299</span><span className="period">/month</span></div>
-                  <button className="rent-btn">Rent Now</button>
-                </div>
-              </div>
-              {/* Card 2 */}
-              <div className="account-card">
-                <div className="account-header">
-                  <div className="account-avatar" style={{background:'linear-gradient(135deg,#00B85C,#007A3D)'}}>RL</div>
-                  <div>
-                    <div className="account-name">FinTech Marketing Exec</div>
-                    <div className="account-role">CMO · London, UK</div>
-                  </div>
-                </div>
-                <div className="account-meta">
-                  <div className="account-meta-item"><div className="val">6,800</div><div className="lbl">Connections</div></div>
-                  <div className="account-meta-item"><div className="val">91</div><div className="lbl">SSI Score</div></div>
-                  <div className="account-meta-item"><div className="val">8+ yrs</div><div className="lbl">Account age</div></div>
-                  <div className="account-meta-item"><div className="val">SN</div><div className="lbl">Sales Nav included</div></div>
-                </div>
-                <div className="account-tags">
-                  <span className="account-tag">FinTech</span>
-                  <span className="account-tag">Marketing</span>
-                  <span className="account-tag green">Verified</span>
-                </div>
-                <div className="account-price">
-                  <div><span className="price">$399</span><span className="period">/month</span></div>
-                  <button className="rent-btn">Rent Now</button>
-                </div>
-              </div>
-              {/* Card 3 */}
-              <div className="account-card">
-                <div className="account-header">
-                  <div className="account-avatar" style={{background:'linear-gradient(135deg,#7C3AED,#5B21B6)'}}>MT</div>
-                  <div>
-                    <div className="account-name">APAC Growth Specialist</div>
-                    <div className="account-role">Dir. Marketing · Singapore</div>
-                  </div>
-                </div>
-                <div className="account-meta">
-                  <div className="account-meta-item"><div className="val">3,100</div><div className="lbl">Connections</div></div>
-                  <div className="account-meta-item"><div className="val">76</div><div className="lbl">SSI Score</div></div>
-                  <div className="account-meta-item"><div className="val">4+ yrs</div><div className="lbl">Account age</div></div>
-                  <div className="account-meta-item"><div className="val">SN</div><div className="lbl">Sales Nav included</div></div>
-                </div>
-                <div className="account-tags">
-                  <span className="account-tag">APAC</span>
-                  <span className="account-tag">B2B</span>
-                  <span className="account-tag green">Verified</span>
-                </div>
-                <div className="account-price">
-                  <div><span className="price">$249</span><span className="period">/month</span></div>
-                  <button className="rent-btn">Rent Now</button>
-                </div>
-              </div>
-              {/* Card 4 */}
-              <div className="account-card">
-                <div className="account-badge">New listing</div>
-                <div className="account-header">
-                  <div className="account-avatar" style={{background:'linear-gradient(135deg,#DC2626,#991B1B)'}}>AS</div>
-                  <div>
-                    <div className="account-name">Healthcare Tech Exec</div>
-                    <div className="account-role">VP Business Dev · New York, NY</div>
-                  </div>
-                </div>
-                <div className="account-meta">
-                  <div className="account-meta-item"><div className="val">5,400</div><div className="lbl">Connections</div></div>
-                  <div className="account-meta-item"><div className="val">85</div><div className="lbl">SSI Score</div></div>
-                  <div className="account-meta-item"><div className="val">7+ yrs</div><div className="lbl">Account age</div></div>
-                  <div className="account-meta-item"><div className="val">SN</div><div className="lbl">Sales Nav included</div></div>
-                </div>
-                <div className="account-tags">
-                  <span className="account-tag">Healthcare</span>
-                  <span className="account-tag">Enterprise</span>
-                  <span className="account-tag green">Verified</span>
-                </div>
-                <div className="account-price">
-                  <div><span className="price">$349</span><span className="period">/month</span></div>
-                  <button className="rent-btn">Rent Now</button>
-                </div>
-              </div>
+              )}
             </div>
-            <div className="browse-all"><Link href="/catalogue">View all 214 accounts →</Link></div>
+            <div className="browse-all"><Link href="/catalogue">View all accounts →</Link></div>
           </div>
         </section>
 
@@ -518,11 +479,11 @@ export default function HomePage() {
           <div className="ambassador-section">
             <div className="section-label">For professionals</div>
             <div className="section-title">Your LinkedIn has been earning you connections. Now let it earn you cash.</div>
-            <div className="section-desc">List your established account on Klabber. We handle the matching. You keep your identity and get paid monthly.</div>
+            <div className="section-desc">Any LinkedIn account qualifies — new or established. List yours and start earning immediately. We pay you every month, guaranteed, whether we find a renter or not.</div>
             <div style={{marginTop:32}}><Link href="/become-ambassador" className="hero-btn hero-btn-white" style={{display:'inline-flex',textDecoration:'none'}}>Apply to become an Ambassador →</Link></div>
             <div className="earn-grid">
               <div className="earn-card">
-                <div className="earn-amount">$200–$800</div>
+                <div className="earn-amount">$10–$500</div>
                 <h4>Monthly earnings</h4>
                 <p>Based on your connection count, industry relevance, SSI score, and account age.</p>
               </div>

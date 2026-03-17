@@ -158,7 +158,7 @@ export default function AccountDetailPage() {
               </div>
             )}
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{account.linkedinName}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{account.linkedinName.replace(/\s*\(.*\)\s*$/, '')}</h1>
               {account.linkedinHeadline && (
                 <p className="mt-1 text-gray-600">{account.linkedinHeadline}</p>
               )}
@@ -186,45 +186,54 @@ export default function AccountDetailPage() {
             </div>
           )}
 
-          <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-6">
+          <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-6 space-y-3">
+            {account.linkedinUrl && (
+              <a
+                href={account.linkedinUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full rounded-lg bg-blue-600 py-3 text-center font-semibold text-white hover:bg-blue-700 transition-colors"
+              >
+                View Profile
+              </a>
+            )}
+
             {isAdmin ? (
               <div className="space-y-3">
                 {browserOpen ? (
                   <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800">
                     Browser is open. The GoLogin window should be visible on your screen.
                   </div>
-                ) : (
+                ) : account.gologinProfileId ? (
                   <Button
                     size="lg"
+                    variant="outline"
                     onClick={handleOpenBrowser}
                     loading={actionLoading}
                     className="w-full"
                   >
-                    Open Account
+                    Open Browser Session
                   </Button>
-                )}
-                {account.gologinProfileId && (
-                  <p className="text-xs text-gray-400 text-center">
-                    GoLogin: {account.gologinProfileId}
-                  </p>
-                )}
+                ) : null}
               </div>
             ) : (
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {formatCurrency(price)}
-                    <span className="text-base font-normal text-gray-500">/month</span>
-                  </p>
-                  <p className="mt-1 text-sm text-gray-500">Cancel anytime</p>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {formatCurrency(price)}
+                      <span className="text-base font-normal text-gray-500">/month</span>
+                    </p>
+                    <p className="mt-1 text-sm text-gray-500">Cancel anytime</p>
+                  </div>
                 </div>
 
                 {account.status === "available" ? (
-                  <Button size="lg" onClick={handleRent} loading={actionLoading}>
+                  <Button size="lg" onClick={handleRent} loading={actionLoading} className="w-full">
                     Rent This Account
                   </Button>
                 ) : (
-                  <Button size="lg" disabled variant="secondary">
+                  <Button size="lg" disabled variant="secondary" className="w-full">
                     Currently Unavailable
                   </Button>
                 )}

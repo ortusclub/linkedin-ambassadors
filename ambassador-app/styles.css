@@ -567,6 +567,28 @@ button, input, select, textarea, a, .no-drag { -webkit-app-region: no-drag; }
   border-color: #fca5a5;
 }
 
+.saving-btn {
+  background: #fffbeb !important;
+  color: #b45309 !important;
+  border-color: #fde68a !important;
+  cursor: wait !important;
+  min-width: 140px;
+}
+
+.saving-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fde68a;
+  border-top-color: #b45309;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .delete-btn {
   background: transparent;
   color: #9ca3af;

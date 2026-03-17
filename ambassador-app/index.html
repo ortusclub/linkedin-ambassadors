@@ -360,7 +360,7 @@
             <td>
               <div class="actions-cell" style="justify-content:flex-end;">
                 ${isRunning
-                  ? `<button class="stop-btn no-drag" onclick="handleStop('${profile.id}')">&#9632; Stop</button>`
+                  ? `<button class="stop-btn no-drag" id="stop-btn-${profile.id}" onclick="handleStop('${profile.id}')">&#9632; Stop</button>`
                   : `<button class="run-btn no-drag" onclick="handleRun('${profile.id}')">&#9654; Run</button>`
                 }
                 <button class="delete-btn no-drag" onclick="handleDelete('${profile.id}')" title="Delete profile">&#x1f5d1;</button>
@@ -387,8 +387,22 @@
       renderProfiles();
     }
 
-    async function handleStop() {
+    async function handleStop(profileId) {
+      // Show saving state
+      const btn = document.getElementById('stop-btn-' + profileId);
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="saving-spinner"></span> Saving session…';
+        btn.classList.add('saving-btn');
+      }
+      // Small delay so user sees the saving state
+      await new Promise(r => setTimeout(r, 500));
       await window.ambassador.stopBrowser();
+      // Brief pause to show completion
+      if (btn) {
+        btn.innerHTML = '&#10003; Session saved';
+      }
+      await new Promise(r => setTimeout(r, 800));
       runningProfileId = null;
       renderProfiles();
     }
