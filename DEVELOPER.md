@@ -294,10 +294,27 @@ npm run build:win  # → dist/Klabber-{version}.exe
 ## Common Tasks
 
 ### Deploy to production
+
+**IMPORTANT: Always run a production build locally before pushing to catch TypeScript errors. Vercel will reject the deploy if the build fails.**
+
 ```bash
+# 1. ALWAYS build locally first to catch errors
+npm run build
+
+# 2. If build passes, commit and push
+git add -A
+git commit -m "Your commit message"
 git push origin main
-# Vercel auto-deploys within ~2 minutes
+
+# 3. Vercel auto-deploys on push to main (~2 minutes)
+#    If auto-deploy doesn't trigger, deploy manually:
+vercel --prod
 ```
+
+Common build failures:
+- **TypeScript errors** — e.g. referencing a form field that was removed. `npm run build` catches these locally.
+- **Missing imports** — removed a component but still importing it somewhere.
+- **Prisma schema mismatch** — if you changed the schema, run `npx prisma generate` before building.
 
 ### Run database migration in production
 ```bash
