@@ -7,215 +7,399 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="logo">
-    <h1>LinkedIn Ambassadors</h1>
-    <p>Secure browser for account linking</p>
+
+  <!-- ===== AUTH: LOGIN ===== -->
+  <div id="login-screen" class="auth-container">
+    <div class="auth-card">
+      <div class="logo">
+        <h1>LinkedIn Ambassadors</h1>
+        <p>Sign in to manage your profiles</p>
+      </div>
+      <div id="login-error" class="auth-error"></div>
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="your@email.com">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter your password">
+      </div>
+      <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">Sign In</button>
+      <div class="auth-toggle">
+        Don't have an account? <a onclick="showScreen('register-screen')">Create one</a>
+      </div>
+    </div>
   </div>
 
-  <div id="app">
-    <!-- Step 1: Login form -->
-    <div id="login-view">
-      <div class="card">
-        <h3>Link Your LinkedIn Account</h3>
-        <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">
-          Enter your details below, then log into LinkedIn in the secure browser that opens.
-        </p>
-        <div class="input-group">
-          <label>Full Name *</label>
-          <input type="text" id="full-name" placeholder="e.g. Sam Adcock">
-        </div>
-        <div class="input-group">
-          <label>Email used for LinkedIn profile login *</label>
-          <input type="email" id="email" placeholder="your.email@example.com">
-        </div>
-        <div class="input-group">
-          <label>LinkedIn Profile URL</label>
-          <input type="text" id="linkedin-url" placeholder="https://linkedin.com/in/yourprofile">
-        </div>
-        <button class="btn btn-primary" id="launch-btn" onclick="handleLaunch()">
-          Open Secure Browser
-        </button>
+  <!-- ===== AUTH: REGISTER ===== -->
+  <div id="register-screen" class="auth-container hidden">
+    <div class="auth-card">
+      <div class="logo">
+        <h1>LinkedIn Ambassadors</h1>
+        <p>Create your account</p>
       </div>
+      <div id="register-error" class="auth-error"></div>
+      <div class="input-group">
+        <label>Full Name</label>
+        <input type="text" id="register-name" placeholder="Sam Adcock">
+      </div>
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="register-email" placeholder="your@email.com">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="register-password" placeholder="Choose a password">
+      </div>
+      <button class="btn btn-primary" id="register-btn" onclick="handleRegister()">Create Account</button>
+      <div class="auth-toggle">
+        Already have an account? <a onclick="showScreen('login-screen')">Sign in</a>
+      </div>
+    </div>
+  </div>
 
-      <div class="card">
-        <h3>How it works</h3>
-        <ol class="steps">
-          <li>
-            <span class="num">1</span>
-            <span>Enter your details and click "Open Secure Browser"</span>
-          </li>
-          <li>
-            <span class="num">2</span>
-            <span>A browser window will open — log into LinkedIn with your normal credentials</span>
-          </li>
-          <li>
-            <span class="num">3</span>
-            <span>Once logged in, come back here and click "Complete". Your account will be registered automatically.</span>
-          </li>
-        </ol>
-        <div class="info-box">
-          <strong>Your login is safe.</strong> We never see your password. Only the browser session cookie is stored, which allows secure access to your LinkedIn account for outreach.
-        </div>
+  <!-- ===== DASHBOARD ===== -->
+  <div id="dashboard-screen" class="dashboard hidden">
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1>Ambassadors</h1>
+      </div>
+      <div class="topbar-right">
+        <span class="user-badge" id="user-email-badge"></span>
+        <button class="logout-btn no-drag" onclick="handleLogout()">Log Out</button>
       </div>
     </div>
 
-    <!-- Step 2: Browser active -->
-    <div id="active-view" style="display:none;">
-      <div class="card">
-        <div class="status">
-          <div class="icon">🌐</div>
-          <h2>Browser is Open</h2>
-          <p>
-            Log into your LinkedIn account in the browser window that just opened.
-            <br><br>
-            Once you're logged in and can see your LinkedIn feed, come back here and click the button below.
-          </p>
-        </div>
-        <button class="btn btn-primary" id="complete-btn" onclick="handleComplete()">
-          I've Logged In — Complete Setup
-        </button>
-        <button class="btn btn-danger" onclick="handleCancel()" style="background:#6b7280;">
-          Cancel
-        </button>
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="profile-count"><strong id="profile-count-num">0</strong> profiles</span>
+      </div>
+      <div class="toolbar-right">
+        <input type="text" class="search-input no-drag" placeholder="Search profiles..." id="search-input" oninput="filterProfiles()">
+        <button class="add-profile-btn no-drag" onclick="showAddModal()">+ Add Profile</button>
       </div>
     </div>
 
-    <!-- Step 3: Registering -->
-    <div id="registering-view" style="display:none;">
-      <div class="card">
-        <div class="status">
-          <div class="icon" style="font-size:36px;">⏳</div>
-          <h2>Saving your session...</h2>
-          <p>Closing the browser and registering your account. This will take a moment.</p>
-        </div>
+    <!-- Profile table -->
+    <div class="table-container">
+      <table class="profile-table" id="profile-table">
+        <thead>
+          <tr>
+            <th>Profile</th>
+            <th>Status</th>
+            <th>Proxy</th>
+            <th>Created</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="profile-tbody"></tbody>
+      </table>
+
+      <!-- Empty state -->
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-icon">&#x1f464;</div>
+        <h3>No profiles yet</h3>
+        <p>Add your first LinkedIn profile to get started. Each profile runs in its own isolated browser session.</p>
+        <button class="add-profile-btn no-drag" onclick="showAddModal()">+ Add Profile</button>
       </div>
     </div>
+  </div>
 
-    <!-- Step 4: Done -->
-    <div id="done-view" style="display:none;">
-      <div class="card">
-        <div class="status">
-          <div class="icon">✅</div>
-          <h2>You're All Set!</h2>
-          <p>
-            Your LinkedIn account has been linked and registered successfully.
-            You'll start earning monthly once your account is rented.
-          </p>
-        </div>
-
-        <div id="credentials-box" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;margin-top:16px;">
-          <p style="font-size:13px;font-weight:600;color:#166534;margin-bottom:8px;">Your Dashboard Login</p>
-          <p style="font-size:12px;color:#374151;">Email: <strong id="cred-email"></strong></p>
-          <p style="font-size:12px;color:#374151;">Temporary Password: <strong id="cred-password" style="font-family:monospace;"></strong></p>
-          <p style="font-size:11px;color:#6b7280;margin-top:8px;">Log in at klabber.co to manage your ambassador account.</p>
-        </div>
-
-        <div id="error-box" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;margin-top:16px;">
-          <p style="font-size:13px;color:#991b1b;">Session saved locally but we couldn't register with the server. Don't worry — contact support@klabber.co and we'll sort it out.</p>
-          <p style="font-size:12px;color:#6b7280;margin-top:4px;" id="error-detail"></p>
-        </div>
-
-        <button class="btn btn-primary" style="margin-top:16px;" onclick="resetView()">
-          Log Into Another Account
-        </button>
+  <!-- ===== ADD PROFILE MODAL ===== -->
+  <div id="add-modal" class="modal-overlay hidden" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>Add New Profile</h3>
+      <div class="input-group">
+        <label>Full Name *</label>
+        <input type="text" id="modal-name" placeholder="e.g. Sam Adcock">
+      </div>
+      <div class="input-group">
+        <label>LinkedIn Email *</label>
+        <input type="email" id="modal-email" placeholder="your.linkedin@email.com">
+      </div>
+      <div class="input-group">
+        <label>LinkedIn Profile URL</label>
+        <input type="text" id="modal-linkedin" placeholder="https://linkedin.com/in/yourprofile">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="hideAddModal()">Cancel</button>
+        <button class="btn btn-primary" id="modal-add-btn" onclick="handleAddProfile()">Add & Open Browser</button>
       </div>
     </div>
   </div>
 
   <script>
-    let currentProfileId = null;
+    // ===== State =====
+    let currentUser = null;
+    let allProfiles = [];
+    let runningProfileId = null;
 
-    function showView(view) {
-      ['login', 'active', 'registering', 'done'].forEach(v => {
-        document.getElementById(v + '-view').style.display = v === view ? 'block' : 'none';
+    // ===== Screen management =====
+    function showScreen(screenId) {
+      ['login-screen', 'register-screen', 'dashboard-screen'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== screenId);
       });
     }
 
-    async function handleLaunch() {
-      const fullName = document.getElementById('full-name').value.trim();
-      const email = document.getElementById('email').value.trim();
+    // ===== Auth =====
+    async function initApp() {
+      const auth = await window.ambassador.checkAuth();
+      if (auth && auth.email) {
+        currentUser = auth;
+        showScreen('dashboard-screen');
+        document.getElementById('user-email-badge').textContent = auth.email;
+        await refreshProfiles();
+      } else {
+        showScreen('login-screen');
+      }
+    }
 
-      if (!fullName || !email) {
-        alert('Please enter your name and email');
+    async function handleLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const errEl = document.getElementById('login-error');
+
+      if (!email || !password) {
+        errEl.textContent = 'Please enter email and password';
+        errEl.style.display = 'block';
         return;
       }
 
-      // Generate a profile ID from the email
-      currentProfileId = email.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-
-      const btn = document.getElementById('launch-btn');
+      const btn = document.getElementById('login-btn');
       btn.disabled = true;
-      btn.textContent = 'Opening browser...';
+      btn.textContent = 'Signing in...';
+      errEl.style.display = 'none';
 
-      try {
-        await window.ambassador.launchBrowser(currentProfileId);
-        showView('active');
-      } catch (err) {
-        alert('Failed to open browser: ' + (err.message || err));
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Open Secure Browser';
+      const result = await window.ambassador.login(email, password);
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+
+      if (result.success) {
+        currentUser = result;
+        document.getElementById('user-email-badge').textContent = email;
+        showScreen('dashboard-screen');
+        await refreshProfiles();
+      } else {
+        errEl.textContent = result.error || 'Login failed';
+        errEl.style.display = 'block';
       }
     }
 
-    async function handleComplete() {
-      const btn = document.getElementById('complete-btn');
+    async function handleRegister() {
+      const fullName = document.getElementById('register-name').value.trim();
+      const email = document.getElementById('register-email').value.trim();
+      const password = document.getElementById('register-password').value;
+      const errEl = document.getElementById('register-error');
+
+      if (!fullName || !email || !password) {
+        errEl.textContent = 'Please fill in all fields';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const btn = document.getElementById('register-btn');
       btn.disabled = true;
-      btn.textContent = 'Saving...';
+      btn.textContent = 'Creating account...';
+      errEl.style.display = 'none';
 
-      showView('registering');
+      const result = await window.ambassador.register(email, password, fullName);
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
 
-      const fullName = document.getElementById('full-name').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const linkedinUrl = document.getElementById('linkedin-url').value.trim();
+      if (result.success) {
+        currentUser = result;
+        document.getElementById('user-email-badge').textContent = email;
+        showScreen('dashboard-screen');
+        await refreshProfiles();
+      } else {
+        errEl.textContent = result.error || 'Registration failed';
+        errEl.style.display = 'block';
+      }
+    }
 
-      try {
-        const result = await window.ambassador.closeBrowserAndRegister({
-          email,
-          fullName,
-          linkedinUrl,
-          profileId: currentProfileId,
-        });
+    async function handleLogout() {
+      await window.ambassador.logout();
+      currentUser = null;
+      showScreen('login-screen');
+      // Clear form fields
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-password').value = '';
+    }
 
-        showView('done');
+    // ===== Profiles =====
+    async function refreshProfiles() {
+      allProfiles = await window.ambassador.listProfiles();
+      const status = await window.ambassador.getBrowserStatus();
+      runningProfileId = status.running ? status.profileId : null;
+      renderProfiles();
+    }
 
-        if (result.success && result.tempPassword) {
-          document.getElementById('credentials-box').style.display = 'block';
-          document.getElementById('cred-email').textContent = result.email || email;
-          document.getElementById('cred-password').textContent = result.tempPassword;
-        } else if (!result.success) {
-          document.getElementById('error-box').style.display = 'block';
-          document.getElementById('error-detail').textContent = result.error || '';
-        }
-      } catch (err) {
-        showView('done');
-        document.getElementById('error-box').style.display = 'block';
-        document.getElementById('error-detail').textContent = err.message || '';
+    function renderProfiles(filter) {
+      const tbody = document.getElementById('profile-tbody');
+      const emptyState = document.getElementById('empty-state');
+      const table = document.getElementById('profile-table');
+
+      let profiles = allProfiles;
+      if (filter) {
+        const q = filter.toLowerCase();
+        profiles = profiles.filter(p =>
+          p.name.toLowerCase().includes(q) ||
+          p.email.toLowerCase().includes(q) ||
+          p.id.toLowerCase().includes(q)
+        );
+      }
+
+      document.getElementById('profile-count-num').textContent = allProfiles.length;
+
+      if (allProfiles.length === 0) {
+        table.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      table.classList.remove('hidden');
+      emptyState.classList.add('hidden');
+
+      tbody.innerHTML = profiles.map(profile => {
+        const isRunning = profile.id === runningProfileId;
+        const initials = (profile.name || profile.id).split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        const date = profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+
+        return `
+          <tr>
+            <td>
+              <div class="profile-name">
+                <div class="profile-avatar">${initials}</div>
+                <div class="profile-name-text">
+                  <span class="name">${escapeHtml(profile.name || profile.id)}</span>
+                  <span class="email">${escapeHtml(profile.email || '')}</span>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge ${isRunning ? 'running' : 'ready'}">
+                <span class="dot"></span>
+                ${isRunning ? 'Running' : 'Ready'}
+              </span>
+            </td>
+            <td><span class="proxy-text">${escapeHtml(profile.proxy || 'None')}</span></td>
+            <td><span class="date-text">${date}</span></td>
+            <td>
+              <div class="actions-cell" style="justify-content:flex-end;">
+                ${isRunning
+                  ? `<button class="stop-btn no-drag" onclick="handleStop('${profile.id}')">&#9632; Stop</button>`
+                  : `<button class="run-btn no-drag" onclick="handleRun('${profile.id}')">&#9654; Run</button>`
+                }
+                <button class="delete-btn no-drag" onclick="handleDelete('${profile.id}')" title="Delete profile">&#x1f5d1;</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterProfiles() {
+      const q = document.getElementById('search-input').value.trim();
+      renderProfiles(q || null);
+    }
+
+    // ===== Browser actions =====
+    async function handleRun(profileId) {
+      const result = await window.ambassador.runBrowser(profileId);
+      if (!result.success) {
+        alert(result.error || 'Failed to launch browser');
+        return;
+      }
+      runningProfileId = profileId;
+      renderProfiles();
+    }
+
+    async function handleStop() {
+      await window.ambassador.stopBrowser();
+      runningProfileId = null;
+      renderProfiles();
+    }
+
+    async function handleDelete(profileId) {
+      if (!confirm('Delete this profile? Browser data and cookies will be permanently removed.')) return;
+      await window.ambassador.deleteProfile(profileId);
+      await refreshProfiles();
+    }
+
+    // ===== Add profile modal =====
+    function showAddModal() {
+      document.getElementById('add-modal').classList.remove('hidden');
+      document.getElementById('modal-name').value = '';
+      document.getElementById('modal-email').value = '';
+      document.getElementById('modal-linkedin').value = '';
+      document.getElementById('modal-name').focus();
+    }
+
+    function hideAddModal() {
+      document.getElementById('add-modal').classList.add('hidden');
+    }
+
+    function closeModal(e) {
+      if (e.target === e.currentTarget) hideAddModal();
+    }
+
+    async function handleAddProfile() {
+      const name = document.getElementById('modal-name').value.trim();
+      const email = document.getElementById('modal-email').value.trim();
+      const linkedinUrl = document.getElementById('modal-linkedin').value.trim();
+
+      if (!name || !email) {
+        alert('Please enter a name and email');
+        return;
+      }
+
+      const btn = document.getElementById('modal-add-btn');
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+
+      const result = await window.ambassador.addProfile(name, email, linkedinUrl);
+      if (result.success) {
+        hideAddModal();
+        await refreshProfiles();
+        // Auto-launch the browser for the new profile
+        await handleRun(result.profileId);
+      } else {
+        alert('Failed to add profile');
       }
 
       btn.disabled = false;
-      btn.textContent = "I've Logged In — Complete Setup";
+      btn.textContent = 'Add & Open Browser';
     }
 
-    function handleCancel() {
-      window.ambassador.closeBrowser();
-      showView('login');
+    // ===== Utilities =====
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
     }
 
-    function resetView() {
-      document.getElementById('credentials-box').style.display = 'none';
-      document.getElementById('error-box').style.display = 'none';
-      showView('login');
-    }
-
-    // If they close the browser window manually
+    // ===== Events =====
     window.ambassador.onBrowserClosed(() => {
-      // Auto-complete if we're on the active view
-      const activeView = document.getElementById('active-view');
-      if (activeView.style.display !== 'none') {
-        handleComplete();
+      runningProfileId = null;
+      renderProfiles();
+    });
+
+    // Allow Enter key on auth forms
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const loginScreen = document.getElementById('login-screen');
+      const registerScreen = document.getElementById('register-screen');
+      if (!loginScreen.classList.contains('hidden')) {
+        handleLogin();
+      } else if (!registerScreen.classList.contains('hidden')) {
+        handleRegister();
       }
     });
+
+    // Init
+    initApp();
   </script>
 </body>
 </html>

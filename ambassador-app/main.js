@@ -9,6 +9,7 @@ const API_BASE = 'http://localhost:3000';
 
 // Store profile data in user's app data directory
 const PROFILES_DIR = path.join(app.getPath('userData'), 'profiles');
+const AUTH_FILE = path.join(app.getPath('userData'), 'auth.json');
 
 // Proxy pool — round robin
 const PROXIES = [
@@ -42,9 +43,27 @@ function getNextProxy() {
 
 let mainWindow = null;
 let puppeteerBrowser = null;
-let currentProfileId = null;
+let runningProfileId = null;
 
-// Generate consistent fingerprint from profile ID
+// --- Auth persistence ---
+function loadAuth() {
+  try {
+    if (fs.existsSync(AUTH_FILE)) {
+      return JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+    }
+  } catch {}
+  return null;
+}
+
+function saveAuth(data) {
+  fs.writeFileSync(AUTH_FILE, JSON.stringify(data, null, 2));
+}
+
+function clearAuth() {
+  try { fs.unlinkSync(AUTH_FILE); } catch {}
+}
+
+// --- Fingerprint ---
 function generateFingerprint(seed) {
   const hash = (s) => crypto.createHash('md5').update(seed + s).digest('hex');
   const num = (s, min, max) => min + (parseInt(hash(s).slice(0, 8), 16) % (max - min + 1));
@@ -72,6 +91,7 @@ function generateFingerprint(seed) {
   };
 }
 
+// --- Profile management ---
 function getProfileDir(profileId, incomingProxy) {
   const dir = path.join(PROFILES_DIR, profileId);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -97,32 +117,76 @@ function getProfileDir(profileId, incomingProxy) {
   return { dir, config };
 }
 
+function listProfiles() {
+  if (!fs.existsSync(PROFILES_DIR)) return [];
+  const dirs = fs.readdirSync(PROFILES_DIR);
+  const profiles = [];
+
+  for (const dirName of dirs) {
+    const configPath = path.join(PROFILES_DIR, dirName, 'profile.json');
+    if (!fs.existsSync(configPath)) continue;
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      profiles.push({
+        id: dirName,
+        name: config.name || dirName,
+        email: config.email || '',
+        linkedinUrl: config.linkedinUrl || '',
+        proxy: config.proxy ? `${config.proxy.host}:${config.proxy.port}` : 'None',
+        createdAt: config.createdAt || '',
+        status: config.status || 'ready',
+        isRunning: runningProfileId === dirName,
+      });
+    } catch {}
+  }
+
+  return profiles.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+}
+
+function saveProfileMeta(profileId, meta) {
+  const configPath = path.join(PROFILES_DIR, profileId, 'profile.json');
+  if (!fs.existsSync(configPath)) return;
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  Object.assign(config, meta);
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+}
+
+function deleteProfile(profileId) {
+  const dir = path.join(PROFILES_DIR, profileId);
+  if (fs.existsSync(dir)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// --- Window ---
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 500,
+    width: 1000,
     height: 700,
-    resizable: false,
+    minWidth: 800,
+    minHeight: 550,
+    resizable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#1a1a2e',
+    trafficLightPosition: { x: 16, y: 16 },
   });
 
   mainWindow.loadFile('index.html');
 }
 
-// Launch a real Chrome browser using Puppeteer
+// --- Browser launch ---
 async function openBrowser(profileId, proxyConfig) {
-  currentProfileId = profileId;
+  runningProfileId = profileId;
   const { dir, config } = getProfileDir(profileId, proxyConfig);
   const fp = config.fingerprint;
   const savedProxy = config.proxy;
   const userDataDir = path.join(dir, 'chrome-data');
 
-  // Dynamically require puppeteer
   const puppeteer = require('puppeteer');
 
   const args = [
@@ -149,7 +213,6 @@ async function openBrowser(profileId, proxyConfig) {
   const pages = await puppeteerBrowser.pages();
   const page = pages[0] || await puppeteerBrowser.newPage();
 
-  // Handle proxy auth
   if (savedProxy && savedProxy.username && savedProxy.password) {
     await page.authenticate({
       username: savedProxy.username,
@@ -157,7 +220,6 @@ async function openBrowser(profileId, proxyConfig) {
     });
   }
 
-  // Inject fingerprint spoofing
   const fingerprintScript = `
     const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
     HTMLCanvasElement.prototype.toDataURL = function(type) {
@@ -192,7 +254,6 @@ async function openBrowser(profileId, proxyConfig) {
 
   await page.evaluateOnNewDocument(fingerprintScript);
 
-  // Navigate to LinkedIn
   try {
     await page.goto('https://www.linkedin.com/login', {
       waitUntil: 'domcontentloaded',
@@ -202,38 +263,122 @@ async function openBrowser(profileId, proxyConfig) {
     console.error('Navigation error:', e.message);
   }
 
-  // Watch for browser close
   puppeteerBrowser.on('disconnected', () => {
     puppeteerBrowser = null;
-    currentProfileId = null;
+    runningProfileId = null;
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('browser-closed');
     }
   });
 }
 
-// IPC handlers
-ipcMain.handle('launch-browser', async (event, { profileId, proxy }) => {
-  if (puppeteerBrowser) {
-    return { success: true, message: 'Browser is already open' };
-  }
-  const proxyToUse = proxy || getNextProxy();
-  await openBrowser(profileId, proxyToUse);
-  return { success: true, proxy: { host: proxyToUse.host, port: proxyToUse.port } };
+// --- IPC Handlers ---
+
+// Auth
+ipcMain.handle('auth:check', async () => {
+  return loadAuth();
 });
 
-ipcMain.handle('close-browser', async () => {
+ipcMain.handle('auth:login', async (event, { email, password }) => {
+  try {
+    const response = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.error || 'Login failed' };
+    }
+    const authData = { email, token: data.token, user: data.user };
+    saveAuth(authData);
+    return { success: true, ...authData };
+  } catch (err) {
+    return { success: false, error: err.message || 'Could not connect to server' };
+  }
+});
+
+ipcMain.handle('auth:register', async (event, { email, password, fullName }) => {
+  try {
+    const response = await fetch(`${API_BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, fullName }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.error || 'Registration failed' };
+    }
+    const authData = { email, token: data.token, user: data.user };
+    saveAuth(authData);
+    return { success: true, ...authData };
+  } catch (err) {
+    return { success: false, error: err.message || 'Could not connect to server' };
+  }
+});
+
+ipcMain.handle('auth:logout', async () => {
+  clearAuth();
+  return { success: true };
+});
+
+// Profiles
+ipcMain.handle('profiles:list', async () => {
+  return listProfiles();
+});
+
+ipcMain.handle('profiles:add', async (event, { name, email, linkedinUrl }) => {
+  const profileId = email.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+  const proxy = getNextProxy();
+  getProfileDir(profileId, proxy);
+  saveProfileMeta(profileId, { name, email, linkedinUrl, status: 'ready' });
+  return { success: true, profileId };
+});
+
+ipcMain.handle('profiles:delete', async (event, { profileId }) => {
+  if (runningProfileId === profileId) {
+    if (puppeteerBrowser) {
+      try { await puppeteerBrowser.close(); } catch {}
+      puppeteerBrowser = null;
+      runningProfileId = null;
+    }
+  }
+  deleteProfile(profileId);
+  return { success: true };
+});
+
+// Browser
+ipcMain.handle('browser:run', async (event, { profileId }) => {
+  if (puppeteerBrowser) {
+    return { success: false, error: 'A browser is already running. Stop it first.' };
+  }
+  const proxy = getNextProxy();
+  await openBrowser(profileId, proxy);
+  return { success: true };
+});
+
+ipcMain.handle('browser:stop', async () => {
   if (puppeteerBrowser) {
     try { await puppeteerBrowser.close(); } catch {}
     puppeteerBrowser = null;
+    runningProfileId = null;
   }
   return { success: true };
 });
 
+ipcMain.handle('browser:status', async () => {
+  return {
+    running: !!puppeteerBrowser,
+    profileId: runningProfileId,
+  };
+});
+
+// Legacy — keep for backward compat with ambassador complete flow
 ipcMain.handle('close-browser-and-register', async (event, { email, fullName, linkedinUrl, profileId }) => {
   if (puppeteerBrowser) {
     try { await puppeteerBrowser.close(); } catch {}
     puppeteerBrowser = null;
+    runningProfileId = null;
   }
 
   try {
@@ -262,13 +407,6 @@ ipcMain.handle('close-browser-and-register', async (event, { email, fullName, li
   } catch (err) {
     return { success: false, error: err.message || 'Could not connect to server' };
   }
-});
-
-ipcMain.handle('get-status', async () => {
-  return {
-    browserOpen: !!puppeteerBrowser,
-    profileId: currentProfileId,
-  };
 });
 
 app.whenReady().then(createMainWindow);
