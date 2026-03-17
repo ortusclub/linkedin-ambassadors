@@ -47,3 +47,4 @@ next-env.d.ts
 ambassador-app/node_modules
 ambassador-app/dist
 profiles/
+public/downloads/*.dmg

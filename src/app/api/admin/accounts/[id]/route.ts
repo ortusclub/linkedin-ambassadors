@@ -143,9 +143,8 @@ export async function DELETE(
       );
     }
 
-    await prisma.linkedInAccount.update({
+    await prisma.linkedInAccount.delete({
       where: { id },
-      data: { status: "retired" },
     });
 
     return NextResponse.json({ ok: true });

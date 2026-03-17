@@ -30,8 +30,6 @@ export default async function HomePage() {
   return (
     <>
       <style>{`
-        /* Hide the default layout navbar on the homepage */
-        body > nav, body > main > nav { display: none !important; }
         *{margin:0;padding:0;box-sizing:border-box}
         :root{
           --bg:#FAFAF8;--surface:#FFFFFF;--surface-alt:#F3F2EE;--text:#0F1419;--text-mid:#536471;--text-light:#8899A6;--border:#E8E6E1;
@@ -41,16 +39,9 @@ export default async function HomePage() {
         html{scroll-behavior:smooth}
         body{font-family:'DM Sans','Instrument Sans',system-ui,sans-serif;color:var(--text);background:var(--bg) !important;-webkit-font-smoothing:antialiased;overflow-x:hidden}
         .kl-page h1,.kl-page h2,.kl-page h3,.kl-page h4,.kl-page h5{font-family:'Instrument Sans','DM Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
-        .kl-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(250,250,248,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
-        .nav-inner{max-width:1200px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between}
-        .logo{font-family:'Instrument Sans',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.03em;color:var(--accent);text-decoration:none;display:flex;align-items:center;gap:8px}
-        .logo-mark{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;flex-shrink:0;letter-spacing:-0.03em}
-        .nav-links{display:flex;align-items:center;gap:32px}
-        .nav-links a{font-size:14px;color:var(--text-mid);text-decoration:none;font-weight:500;transition:color .15s}
-        .nav-links a:hover{color:var(--text)}
         .nav-cta{padding:8px 20px;background:var(--accent);color:#fff !important;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;transition:transform .15s,box-shadow .15s}
         .nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
-        .hero{margin-top:64px;min-height:calc(100vh - 64px);display:grid;grid-template-columns:1fr 1fr;position:relative}
+        .hero{min-height:calc(100vh - 64px);display:grid;grid-template-columns:1fr 1fr;position:relative}
         .hero-side{padding:80px 60px 60px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
         .hero-rent{background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%);color:#fff}
         .hero-earn{background:linear-gradient(160deg,#0A2618 0%,#0A4D30 40%,#00B85C 100%);color:#fff}
@@ -206,19 +197,6 @@ export default async function HomePage() {
       <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
 
       <div className="kl-page">
-        {/* NAV */}
-        <nav className="kl-nav">
-          <div className="nav-inner">
-            <Link href="/" className="logo"><span className="logo-mark">kl</span>Klabber</Link>
-            <div className="nav-links">
-              <Link href="/catalogue">Browse Accounts</Link>
-              <Link href="/become-ambassador">Become an Ambassador</Link>
-              <a href="#how">How It Works</a>
-              <Link href="/catalogue" className="nav-cta">Get Started</Link>
-            </div>
-          </div>
-        </nav>
-
         {/* HERO SPLIT */}
         <section className="hero">
           <div className="hero-side hero-rent">

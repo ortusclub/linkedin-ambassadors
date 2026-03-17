@@ -6,7 +6,7 @@ import { Navbar } from "@/components/layout/navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "LinkedIn Ambassadors — Rent Premium LinkedIn Accounts",
+  title: "Klabber — Rent Premium LinkedIn Accounts",
   description:
     "Browse, select, and rent pre-configured LinkedIn accounts for outreach, lead gen, and networking. Instant access, cancel anytime.",
 };

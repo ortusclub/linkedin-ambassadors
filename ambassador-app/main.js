@@ -43,8 +43,7 @@ function getNextProxy() {
 
 let mainWindow = null;
 let puppeteerBrowser = null;
-    // Clean up local proxy
-    if (localProxyUrl) { try { const pc = require("proxy-chain"); pc.closeAnonymizedProxy(localProxyUrl, true); } catch {} }
+let localProxyUrl = null;
 let runningProfileId = null;
 
 // --- Auth persistence ---
@@ -219,7 +218,7 @@ async function openBrowser(profileId, proxyConfig) {
   ];
 
   // Set up proxy with transparent auth via proxy-chain (no auth popup)
-  let localProxyUrl = null;
+  localProxyUrl = null;
   if (savedProxy && savedProxy.host) {
     const proxyChain = require('proxy-chain');
     const proxyUrl = `http://${savedProxy.username || ''}:${savedProxy.password || ''}@${savedProxy.host}:${savedProxy.port || 80}`;
@@ -334,13 +333,9 @@ async function openBrowser(profileId, proxyConfig) {
   puppeteerBrowser.on('disconnected', () => {
     const closedProfileId = runningProfileId;
     puppeteerBrowser = null;
-    // Clean up local proxy
-    if (localProxyUrl) { try { const pc = require("proxy-chain"); pc.closeAnonymizedProxy(localProxyUrl, true); } catch {} }
     runningProfileId = null;
-    // Clean up proxy-chain local proxy
-    if (localProxyUrl) {
-      try { require('proxy-chain').closeAnonymizedProxy(localProxyUrl, true); } catch {}
-    }
+    // Clean up local proxy
+    if (localProxyUrl) { try { require("proxy-chain").closeAnonymizedProxy(localProxyUrl, true); } catch {} localProxyUrl = null; }
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('browser-closed');
     }

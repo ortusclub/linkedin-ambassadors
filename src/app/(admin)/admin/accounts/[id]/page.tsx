@@ -15,6 +15,7 @@ export default function EditAccountPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<Record<string, unknown>>({});
@@ -206,6 +207,33 @@ export default function EditAccountPage() {
           <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
           {saved && <span className="text-sm font-medium text-green-600">Changes saved successfully.</span>}
           {error && <span className="text-sm font-medium text-red-600">{error}</span>}
+          <div className="ml-auto">
+            <Button
+              type="button"
+              variant="outline"
+              loading={deleting}
+              onClick={async () => {
+                if (!confirm("Are you sure you want to delete this profile? This cannot be undone.")) return;
+                setDeleting(true);
+                try {
+                  const res = await fetch(`/api/admin/accounts/${params.id}`, { method: "DELETE" });
+                  if (res.ok) {
+                    router.push("/admin/accounts");
+                  } else {
+                    const data = await res.json();
+                    setError(data.error || "Failed to delete");
+                  }
+                } catch {
+                  setError("Something went wrong");
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              className="!text-red-600 !border-red-200 hover:!bg-red-50"
+            >
+              Delete Profile
+            </Button>
+          </div>
         </div>
       </form>
     </div>

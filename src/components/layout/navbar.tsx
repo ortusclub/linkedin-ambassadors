@@ -31,8 +31,7 @@ export function Navbar() {
     router.push("/");
   };
 
-  // Hide default navbar on homepage (it has its own nav)
-  if (pathname === "/") return null;
+  // No pages excluded — navbar shows everywhere
 
   return (
     <>
@@ -66,10 +65,13 @@ export function Navbar() {
               <>
                 <Link href="/dashboard">Dashboard</Link>
                 <span className="kl-nav-user">{user.fullName}</span>
-                <button className="kl-nav-btn" onClick={handleLogout}>Log out</button>
+                <button className="kl-nav-btn" onClick={handleLogout}>Sign Out</button>
               </>
             ) : (
-              <Link href="/catalogue" className="kl-nav-cta">Get Started</Link>
+              <>
+                <Link href="/login" className="kl-nav-btn">Sign In</Link>
+                <Link href="/register" className="kl-nav-cta">Sign Up</Link>
+              </>
             )}
           </div>
         </div>
