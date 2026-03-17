@@ -1,4 +1,3 @@
-ambassador-app/dist
-ambassador-app/node_modules
+ambassador-app
 profiles
-public/downloads/*.dmg
+public/downloads
