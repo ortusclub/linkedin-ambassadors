@@ -69,7 +69,7 @@ export function AccountCard({ account }: AccountCardProps) {
           {formatCurrency(price)}<span className="text-sm font-normal text-gray-500">/mo</span>
         </span>
         <Link href={`/account/${account.id}`}>
-          <Button size="sm">Rent This Account</Button>
+          <Button size="sm">View Profile</Button>
         </Link>
       </div>
     </div>

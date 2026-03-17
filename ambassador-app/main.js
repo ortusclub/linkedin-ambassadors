@@ -172,7 +172,7 @@ function createMainWindow() {
       contextIsolation: true,
     },
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f9fafb',
     trafficLightPosition: { x: 16, y: 16 },
   });
 
@@ -290,7 +290,8 @@ ipcMain.handle('auth:login', async (event, { email, password }) => {
     if (!response.ok) {
       return { success: false, error: data.error || 'Login failed' };
     }
-    const authData = { email, token: data.token, user: data.user };
+    // API returns user fields directly (id, email, fullName, role) and sets cookie
+    const authData = { email: data.email, fullName: data.fullName, role: data.role, userId: data.id };
     saveAuth(authData);
     return { success: true, ...authData };
   } catch (err) {
@@ -309,7 +310,7 @@ ipcMain.handle('auth:register', async (event, { email, password, fullName }) => 
     if (!response.ok) {
       return { success: false, error: data.error || 'Registration failed' };
     }
-    const authData = { email, token: data.token, user: data.user };
+    const authData = { email: data.email, fullName: data.fullName, role: data.role, userId: data.id };
     saveAuth(authData);
     return { success: true, ...authData };
   } catch (err) {

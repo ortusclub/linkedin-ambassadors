@@ -124,6 +124,10 @@ export default function BecomeAmbassadorPage() {
   const [form, setForm] = useState({
     fullName: "",
     email: "",
+    linkedinProfileName: "",
+    linkedinEmail: "",
+    sameNameAsProfile: true,
+    sameEmailAsProfile: true,
     linkedinUrl: "",
     connectionCount: "",
     industry: "",
@@ -260,9 +264,48 @@ export default function BecomeAmbassadorPage() {
               <p className="text-center text-gray-500 mb-6">We&apos;ll assess it instantly</p>
               <Card>
                 <CardContent className="py-6 space-y-4">
-                  <Input id="fullName" label="Full Name *" value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required />
-                  <Input id="email" label="Email used for LinkedIn profile login *" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required />
-                  <Input id="linkedinUrl" label="LinkedIn Profile URL *" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} required />
+                  {/* Your details */}
+                  <div className="border-b border-gray-100 pb-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Your Details</p>
+                    <div className="space-y-4">
+                      <Input id="fullName" label="Your Full Name *" value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required />
+                      <Input id="email" label="Your Email *" type="email" placeholder="your@email.com" value={form.email} onChange={(e) => update("email", e.target.value)} required />
+                    </div>
+                  </div>
+
+                  {/* LinkedIn profile details */}
+                  <div className="border-b border-gray-100 pb-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">LinkedIn Profile You Want to Share</p>
+                    <div className="space-y-4">
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={form.sameNameAsProfile}
+                          onChange={(e) => setForm(prev => ({ ...prev, sameNameAsProfile: e.target.checked }))}
+                          className="rounded border-gray-300"
+                        />
+                        The LinkedIn profile name is the same as my name above
+                      </label>
+                      {!form.sameNameAsProfile && (
+                        <Input id="linkedinProfileName" label="Name on LinkedIn Profile *" placeholder="e.g. John Smith" value={form.linkedinProfileName} onChange={(e) => update("linkedinProfileName", e.target.value)} />
+                      )}
+
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={form.sameEmailAsProfile}
+                          onChange={(e) => setForm(prev => ({ ...prev, sameEmailAsProfile: e.target.checked }))}
+                          className="rounded border-gray-300"
+                        />
+                        The LinkedIn login email is the same as my email above
+                      </label>
+                      {!form.sameEmailAsProfile && (
+                        <Input id="linkedinEmail" label="Email Used for LinkedIn Login *" type="email" placeholder="linkedin@email.com" value={form.linkedinEmail} onChange={(e) => update("linkedinEmail", e.target.value)} />
+                      )}
+
+                      <Input id="linkedinUrl" label="LinkedIn Profile URL *" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} required />
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <Input id="connectionCount" label="Approx. Connections" placeholder="e.g. 5000" value={form.connectionCount} onChange={(e) => update("connectionCount", e.target.value.replace(/\D/g, ""))} />
                     <Input id="industry" label="Industry" placeholder="e.g. Technology" value={form.industry} onChange={(e) => update("industry", e.target.value)} />
