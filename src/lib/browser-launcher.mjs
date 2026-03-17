@@ -2,6 +2,7 @@
 // Each profile gets a persistent data directory with fingerprint spoofing
 
 import puppeteer from 'puppeteer';
+import proxyChain from 'proxy-chain';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -153,9 +154,14 @@ if (command === 'launch') {
     `--lang=${fp.languages[0]}`,
   ];
 
-  // Use the saved proxy (consistent per profile)
+  // Set up proxy with transparent authentication via proxy-chain
+  // This creates a local proxy that handles auth automatically — no popup
+  let localProxyUrl = null;
   if (savedProxy && savedProxy.host) {
-    args.push(`--proxy-server=http://${savedProxy.host}:${savedProxy.port || 80}`);
+    const proxyUrl = `http://${savedProxy.username || ''}:${savedProxy.password || ''}@${savedProxy.host}:${savedProxy.port || 80}`;
+    localProxyUrl = await proxyChain.anonymizeProxy(proxyUrl);
+    args.push(`--proxy-server=${localProxyUrl}`);
+    process.stderr.write(`Local proxy: ${localProxyUrl}\n`);
   }
 
   const browser = await puppeteer.launch({
@@ -185,14 +191,6 @@ if (command === 'launch') {
     } catch { /* ignore */ }
   });
 
-  // Handle proxy authentication (using saved proxy)
-  if (savedProxy && savedProxy.username && savedProxy.password) {
-    await page.authenticate({
-      username: savedProxy.username,
-      password: savedProxy.password,
-    });
-  }
-
   // Set title for identification
   const title = accountName ? `LA - ${accountName}` : `LA - ${profileId}`;
   await page.evaluate((t) => { document.title = t; }, title);
@@ -219,9 +217,17 @@ if (command === 'launch') {
   // Output success
   console.log(JSON.stringify({ status: 'launched', profileId }));
 
+  // Cleanup function
+  const cleanup = async () => {
+    if (localProxyUrl) {
+      try { await proxyChain.closeAnonymizedProxy(localProxyUrl, true); } catch {}
+    }
+  };
+
   // Watch for browser close — save session automatically
-  browser.on('disconnected', () => {
+  browser.on('disconnected', async () => {
     process.stderr.write('Browser closed — session saved in user data dir\n');
+    await cleanup();
     process.exit(0);
   });
 
@@ -233,10 +239,10 @@ if (command === 'launch') {
       process.stderr.write('Stop command received — closing browser gracefully\n');
       try {
         await browser.close();
-        // Wait 2 seconds for Chrome to flush cookies to disk
         await new Promise(r => setTimeout(r, 2000));
         process.stderr.write('Browser closed, cookies saved\n');
       } catch { /* already closed */ }
+      await cleanup();
       process.exit(0);
     }
   });

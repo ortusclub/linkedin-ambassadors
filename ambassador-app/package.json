@@ -41,6 +41,7 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "proxy-chain": "^2.7.1",
     "puppeteer": "^24.9.0"
   },
   "devDependencies": {

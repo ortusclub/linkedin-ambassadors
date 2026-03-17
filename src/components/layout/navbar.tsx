@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 
 interface User {
   id: string;
@@ -14,6 +13,7 @@ interface User {
 
 export function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,59 +31,50 @@ export function Navbar() {
     router.push("/");
   };
 
-  return (
-    <nav className="border-b border-gray-200 bg-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="text-xl font-bold text-blue-600">
-              LinkedIn Ambassadors
-            </Link>
-            <div className="hidden md:flex items-center gap-6">
-              <Link href="/catalogue" className="text-sm text-gray-600 hover:text-gray-900">
-                Browse Accounts
-              </Link>
-              <Link href="/become-ambassador" className="text-sm text-gray-600 hover:text-gray-900">
-                Become an Ambassador
-              </Link>
-              {user?.role === "admin" && (
-                <Link href="/admin/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
-                  Admin
-                </Link>
-              )}
-            </div>
-          </div>
+  // Hide default navbar on homepage (it has its own nav)
+  if (pathname === "/") return null;
 
-          <div className="flex items-center gap-4">
-            {loading ? (
-              <div className="h-8 w-20 animate-pulse rounded bg-gray-200" />
-            ) : user ? (
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500&display=swap');
+        .kl-navbar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(250,250,248,0.92);backdrop-filter:blur(20px);border-bottom:1px solid #E8E6E1}
+        .kl-navbar-inner{max-width:1200px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between}
+        .kl-logo{font-family:'Instrument Sans',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.03em;color:#1D1B16;text-decoration:none;display:flex;align-items:center;gap:8px}
+        .kl-logo-mark{width:36px;height:36px;background:#1D1B16;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;flex-shrink:0;letter-spacing:-0.03em}
+        .kl-nav-links{display:flex;align-items:center;gap:32px}
+        .kl-nav-links a{font-family:'DM Sans','Instrument Sans',system-ui,sans-serif;font-size:14px;color:#536471;text-decoration:none;font-weight:500;transition:color .15s}
+        .kl-nav-links a:hover{color:#0F1419}
+        .kl-nav-cta{padding:8px 20px !important;background:#1D1B16 !important;color:#fff !important;border-radius:10px !important;font-size:13px !important;font-weight:600 !important;text-decoration:none;transition:transform .15s,box-shadow .15s;border:none;cursor:pointer;display:inline-flex;align-items:center}
+        .kl-nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
+        .kl-nav-user{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:#536471;font-weight:500}
+        .kl-nav-btn{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;border:1px solid #E8E6E1;background:transparent;color:#536471;cursor:pointer;transition:all .15s;text-decoration:none}
+        .kl-nav-btn:hover{color:#0F1419;border-color:#0F1419}
+        .kl-spacer{height:64px}
+        @media(max-width:900px){.kl-nav-links{display:none}}
+      `}</style>
+      <nav className="kl-navbar">
+        <div className="kl-navbar-inner">
+          <Link href="/" className="kl-logo"><span className="kl-logo-mark">kl</span>Klabber</Link>
+          <div className="kl-nav-links">
+            <Link href="/catalogue">Browse Accounts</Link>
+            <Link href="/become-ambassador">Become an Ambassador</Link>
+            {user?.role === "admin" && (
+              <Link href="/admin/dashboard">Admin</Link>
+            )}
+            {loading ? null : user ? (
               <>
-                <Link href="/dashboard">
-                  <Button variant="ghost" size="sm">
-                    Dashboard
-                  </Button>
-                </Link>
-                <span className="text-sm text-gray-600">{user.fullName}</span>
-                <Button variant="outline" size="sm" onClick={handleLogout}>
-                  Log out
-                </Button>
+                <Link href="/dashboard">Dashboard</Link>
+                <span className="kl-nav-user">{user.fullName}</span>
+                <button className="kl-nav-btn" onClick={handleLogout}>Log out</button>
               </>
             ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost" size="sm">
-                    Log in
-                  </Button>
-                </Link>
-                <Link href="/register">
-                  <Button size="sm">Sign up</Button>
-                </Link>
-              </>
+              <Link href="/catalogue" className="kl-nav-cta">Get Started</Link>
             )}
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+      <div className="kl-spacer" />
+    </>
   );
 }

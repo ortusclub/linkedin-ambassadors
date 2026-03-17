@@ -43,6 +43,8 @@ function getNextProxy() {
 
 let mainWindow = null;
 let puppeteerBrowser = null;
+    // Clean up local proxy
+    if (localProxyUrl) { try { const pc = require("proxy-chain"); pc.closeAnonymizedProxy(localProxyUrl, true); } catch {} }
 let runningProfileId = null;
 
 // --- Auth persistence ---
@@ -188,19 +190,41 @@ async function openBrowser(profileId, proxyConfig) {
   const savedProxy = config.proxy;
   const userDataDir = path.join(dir, 'chrome-data');
 
+  // Clear session restore files so Chrome doesn't reopen old tabs
+  const sessionFiles = ['Last Session', 'Last Tabs', 'Current Session', 'Current Tabs'];
+  for (const f of sessionFiles) {
+    const fp1 = path.join(userDataDir, 'Default', f);
+    try { if (fs.existsSync(fp1)) fs.unlinkSync(fp1); } catch {}
+  }
+
   const puppeteer = require('puppeteer');
 
   const args = [
     '--start-maximized',
     '--disable-blink-features=AutomationControlled',
-    '--disable-features=IsolateOrigins,site-per-process',
     `--window-size=${fp.screenWidth},${fp.screenHeight}`,
     `--user-agent=${fp.userAgent}`,
     `--lang=${fp.languages[0]}`,
+    // Anti-detection flags
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-infobars',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding',
+    '--disable-component-update',
+    '--disable-sync',
+    '--disable-session-crashed-bubble',
+    '--hide-crash-restore-bubble',
   ];
 
+  // Set up proxy with transparent auth via proxy-chain (no auth popup)
+  let localProxyUrl = null;
   if (savedProxy && savedProxy.host) {
-    args.push(`--proxy-server=http://${savedProxy.host}:${savedProxy.port || 80}`);
+    const proxyChain = require('proxy-chain');
+    const proxyUrl = `http://${savedProxy.username || ''}:${savedProxy.password || ''}@${savedProxy.host}:${savedProxy.port || 80}`;
+    localProxyUrl = await proxyChain.anonymizeProxy(proxyUrl);
+    args.push(`--proxy-server=${localProxyUrl}`);
   }
 
   puppeteerBrowser = await puppeteer.launch({
@@ -208,20 +232,56 @@ async function openBrowser(profileId, proxyConfig) {
     userDataDir,
     args,
     defaultViewport: null,
-    ignoreDefaultArgs: ['--enable-automation'],
+    ignoreDefaultArgs: [
+      '--enable-automation',
+      '--enable-blink-features=IdleDetection',
+    ],
   });
 
-  const pages = await puppeteerBrowser.pages();
-  const page = pages[0] || await puppeteerBrowser.newPage();
-
-  if (savedProxy && savedProxy.username && savedProxy.password) {
-    await page.authenticate({
-      username: savedProxy.username,
-      password: savedProxy.password,
-    });
+  // Close all restored tabs immediately to prevent them hitting old proxy URLs
+  const restoredPages = await puppeteerBrowser.pages();
+  for (let i = 1; i < restoredPages.length; i++) {
+    try { await restoredPages[i].close(); } catch {}
   }
+  const page = restoredPages[0] || await puppeteerBrowser.newPage();
 
   const fingerprintScript = `
+    // Hide webdriver flag
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+
+    // Remove automation-related properties
+    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
+    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+
+    // Hide chrome.runtime to avoid detection (puppeteer injects this)
+    if (window.chrome) {
+      window.chrome.runtime = undefined;
+    }
+
+    // Spoof plugins to look like a real browser
+    Object.defineProperty(navigator, 'plugins', {
+      get: () => {
+        const plugins = [
+          { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+          { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+          { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' },
+        ];
+        plugins.length = 3;
+        return plugins;
+      }
+    });
+
+    // Spoof permissions API
+    const originalQuery = window.navigator.permissions.query;
+    window.navigator.permissions.query = (parameters) => {
+      if (parameters.name === 'notifications') {
+        return Promise.resolve({ state: Notification.permission });
+      }
+      return originalQuery(parameters);
+    };
+
+    // Canvas fingerprint
     const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
     HTMLCanvasElement.prototype.toDataURL = function(type) {
       const ctx = this.getContext('2d');
@@ -234,15 +294,22 @@ async function openBrowser(profileId, proxyConfig) {
       }
       return origToDataURL.apply(this, arguments);
     };
+
+    // WebGL fingerprint
     const origGetParam = WebGLRenderingContext.prototype.getParameter;
     WebGLRenderingContext.prototype.getParameter = function(p) {
       if (p === 37445) return '${fp.webglVendor}';
       if (p === 37446) return '${fp.webglRenderer}';
       return origGetParam.apply(this, arguments);
     };
+
+    // Hardware spoofing
     Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => ${fp.cpuCores} });
     Object.defineProperty(navigator, 'deviceMemory', { get: () => ${fp.deviceMemory} });
     Object.defineProperty(navigator, 'platform', { get: () => '${fp.platform}' });
+    Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
+
+    // Prevent WebRTC IP leak
     if (typeof RTCPeerConnection !== 'undefined') {
       const origRTC = RTCPeerConnection;
       window.RTCPeerConnection = function(...a) {
@@ -265,10 +332,21 @@ async function openBrowser(profileId, proxyConfig) {
   }
 
   puppeteerBrowser.on('disconnected', () => {
+    const closedProfileId = runningProfileId;
     puppeteerBrowser = null;
+    // Clean up local proxy
+    if (localProxyUrl) { try { const pc = require("proxy-chain"); pc.closeAnonymizedProxy(localProxyUrl, true); } catch {} }
     runningProfileId = null;
+    // Clean up proxy-chain local proxy
+    if (localProxyUrl) {
+      try { require('proxy-chain').closeAnonymizedProxy(localProxyUrl, true); } catch {}
+    }
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('browser-closed');
+    }
+    // Register with backend when browser closes (user logged into LinkedIn)
+    if (closedProfileId) {
+      registerProfileWithBackend(closedProfileId);
     }
   });
 }
@@ -341,7 +419,7 @@ ipcMain.handle('profiles:add', async (event, { name, email, linkedinUrl }) => {
   const profileId = email.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
   const proxy = getNextProxy();
   getProfileDir(profileId, proxy);
-  saveProfileMeta(profileId, { name, email, linkedinUrl, status: 'ready' });
+  saveProfileMeta(profileId, { name, email, linkedinUrl, status: 'ready', registered: false });
   return { success: true, profileId };
 });
 
@@ -350,12 +428,54 @@ ipcMain.handle('profiles:delete', async (event, { profileId }) => {
     if (puppeteerBrowser) {
       try { await puppeteerBrowser.close(); } catch {}
       puppeteerBrowser = null;
+    // Clean up local proxy
+    if (localProxyUrl) { try { const pc = require("proxy-chain"); pc.closeAnonymizedProxy(localProxyUrl, true); } catch {} }
       runningProfileId = null;
     }
   }
   deleteProfile(profileId);
   return { success: true };
 });
+
+// Register a profile with the backend (creates LinkedInAccount + User in the admin system)
+async function registerProfileWithBackend(profileId) {
+  const configPath = path.join(PROFILES_DIR, profileId, 'profile.json');
+  if (!fs.existsSync(configPath)) return;
+
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  if (config.registered) return; // Already registered
+
+  try {
+    const auth = loadAuth();
+    const response = await fetch(`${API_BASE}/api/ambassador/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName: config.name || 'Ambassador',
+        email: config.email || (auth && auth.email) || '',
+        linkedinUrl: config.linkedinUrl || '',
+        connectionCount: 0,
+        gologinProfileId: profileId,
+        offeredAmount: config.monthlyPayment || 50,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      saveProfileMeta(profileId, {
+        registered: true,
+        linkedinAccountId: data.linkedinAccount?.id,
+        monthlyPayment: data.linkedinAccount ? (config.monthlyPayment || 50) : null,
+      });
+      console.log('Profile registered with backend:', profileId);
+    } else {
+      const err = await response.json().catch(() => ({}));
+      console.error('Failed to register profile:', err.error || response.status);
+    }
+  } catch (err) {
+    console.error('Could not register profile with backend:', err.message);
+  }
+}
 
 // Browser
 ipcMain.handle('browser:run', async (event, { profileId }) => {
@@ -368,10 +488,17 @@ ipcMain.handle('browser:run', async (event, { profileId }) => {
 });
 
 ipcMain.handle('browser:stop', async () => {
+  const stoppedProfileId = runningProfileId;
   if (puppeteerBrowser) {
     try { await puppeteerBrowser.close(); } catch {}
     puppeteerBrowser = null;
+    // Clean up local proxy
+    if (localProxyUrl) { try { const pc = require("proxy-chain"); pc.closeAnonymizedProxy(localProxyUrl, true); } catch {} }
     runningProfileId = null;
+  }
+  // Register the profile with the backend after browser session is saved
+  if (stoppedProfileId) {
+    await registerProfileWithBackend(stoppedProfileId);
   }
   return { success: true };
 });
@@ -388,6 +515,8 @@ ipcMain.handle('close-browser-and-register', async (event, { email, fullName, li
   if (puppeteerBrowser) {
     try { await puppeteerBrowser.close(); } catch {}
     puppeteerBrowser = null;
+    // Clean up local proxy
+    if (localProxyUrl) { try { const pc = require("proxy-chain"); pc.closeAnonymizedProxy(localProxyUrl, true); } catch {} }
     runningProfileId = null;
   }
 
