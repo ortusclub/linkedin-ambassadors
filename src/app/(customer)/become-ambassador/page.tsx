@@ -21,7 +21,8 @@ const SCAN_STEPS = [
 
 function calculateOffer(data: {
   connectionCount: number;
-  industry: string;
+  verified: boolean;
+  hasSalesNav: boolean;
   notes: string;
 }): {
   amount: number;
@@ -50,31 +51,20 @@ function calculateOffer(data: {
     reasons.push({ label: "Connections", detail: `${conn} connections — building network`, positive: false });
   }
 
-  // Industry
-  const industry = (data.industry || "").toLowerCase();
-  const highValue = ["technology", "saas", "software", "finance", "banking", "consulting", "healthcare"];
-  const midValue = ["marketing", "sales", "real estate", "insurance", "recruiting"];
-  if (highValue.some((i) => industry.includes(i))) {
-    baseScore += 25;
-    reasons.push({ label: "Industry", detail: `${data.industry} — high-demand industry for outreach`, positive: true });
-  } else if (midValue.some((i) => industry.includes(i))) {
-    baseScore += 15;
-    reasons.push({ label: "Industry", detail: `${data.industry} — solid industry for outreach`, positive: true });
-  } else if (industry) {
-    baseScore += 10;
-    reasons.push({ label: "Industry", detail: `${data.industry}`, positive: true });
-  }
-
-  // Notes parsing
-  const notes = (data.notes || "").toLowerCase();
-  if (notes.includes("verified")) {
+  // Verified
+  if (data.verified) {
     baseScore += 15;
     reasons.push({ label: "Verification", detail: "LinkedIn verified profile", positive: true });
   }
-  if (notes.includes("sales nav") || notes.includes("navigator")) {
+
+  // Sales Navigator
+  if (data.hasSalesNav) {
     baseScore += 10;
     reasons.push({ label: "Sales Navigator", detail: "Active Sales Navigator subscription", positive: true });
   }
+
+  // Notes parsing for account age
+  const notes = (data.notes || "").toLowerCase();
   const ageMatch = notes.match(/(\d+)\+?\s*year/);
   if (ageMatch) {
     const years = parseInt(ageMatch[1]);
@@ -124,14 +114,16 @@ export default function BecomeAmbassadorPage() {
   const [form, setForm] = useState({
     fullName: "",
     email: "",
+    contactNumber: "",
     linkedinProfileName: "",
     linkedinEmail: "",
     sameNameAsProfile: true,
     sameEmailAsProfile: true,
     linkedinUrl: "",
     connectionCount: "",
-    industry: "",
     location: "",
+    verified: false,
+    hasSalesNav: false,
     notes: "",
   });
 
@@ -164,6 +156,7 @@ export default function BecomeAmbassadorPage() {
             ...prev,
             fullName: prev.fullName || data.user.fullName || "",
             email: prev.email || data.user.email || "",
+            contactNumber: prev.contactNumber || data.user.contactNumber || "",
           }));
         }
       })
@@ -177,7 +170,8 @@ export default function BecomeAmbassadorPage() {
       // Done scanning — calculate offer and show result
       const result = calculateOffer({
         connectionCount: Number(form.connectionCount) || 0,
-        industry: form.industry,
+        verified: form.verified as unknown as boolean,
+        hasSalesNav: form.hasSalesNav as unknown as boolean,
         notes: form.notes,
       });
       setOffer(result);
@@ -295,6 +289,7 @@ export default function BecomeAmbassadorPage() {
                     <div className="space-y-4">
                       <Input id="fullName" label="Your Full Name *" value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required />
                       <Input id="email" label="Your Email *" type="email" placeholder="your@email.com" value={form.email} onChange={(e) => update("email", e.target.value)} required />
+                      <Input id="contactNumber" label="Contact Number" type="tel" placeholder="e.g. +1 555 123 4567" value={form.contactNumber} onChange={(e) => update("contactNumber", e.target.value)} />
                     </div>
                   </div>
 
@@ -332,16 +327,24 @@ export default function BecomeAmbassadorPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <Input id="connectionCount" label="Approx. Connections" placeholder="e.g. 5000" value={form.connectionCount} onChange={(e) => update("connectionCount", e.target.value.replace(/\D/g, ""))} />
-                    <Input id="industry" label="Industry" placeholder="e.g. Technology" value={form.industry} onChange={(e) => update("industry", e.target.value)} />
+                    <Input id="connectionCount" label="Approx. Connections" type="text" inputMode="numeric" placeholder="e.g. 5000" value={form.connectionCount} onChange={(e) => update("connectionCount", e.target.value.replace(/\D/g, ""))} />
+                    <Input id="location" label="Location" placeholder="e.g. New York, NY" value={form.location} onChange={(e) => update("location", e.target.value)} />
                   </div>
-                  <Input id="location" label="Location" placeholder="e.g. New York, NY" value={form.location} onChange={(e) => update("location", e.target.value)} />
+                  <div className="space-y-3 pt-2">
+                    <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={form.verified as unknown as boolean} onChange={(e) => setForm(prev => ({ ...prev, verified: e.target.checked }))} className="rounded border-gray-300 h-4 w-4" />
+                      My LinkedIn profile is verified
+                    </label>
+                    <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={form.hasSalesNav as unknown as boolean} onChange={(e) => setForm(prev => ({ ...prev, hasSalesNav: e.target.checked }))} className="rounded border-gray-300 h-4 w-4" />
+                      I have Sales Navigator
+                    </label>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Anything else?</label>
-                    <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3}
+                    <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={2}
                       className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="e.g. Verified profile, Sales Navigator, 10+ years old" />
-                    <p className="mt-1 text-xs text-gray-400">Tip: mentioning verification, Sales Navigator, and account age can increase your offer.</p>
+                      placeholder="e.g. 10+ years old, specific industry experience" />
                   </div>
                   <Button type="submit" className="w-full" size="lg">Assess My Profile</Button>
                 </CardContent>
@@ -729,7 +732,7 @@ export default function BecomeAmbassadorPage() {
                         <p className="font-semibold text-gray-900">Download the Klabber App</p>
                         <div className="flex gap-3 mt-3">
                           <a
-                            href="/downloads/Klabber.dmg"
+                            href="/api/download"
                             className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-center font-semibold text-white hover:bg-gray-800 transition-colors"
                           >
                             Download for Mac

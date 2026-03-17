@@ -66,19 +66,35 @@
       </div>
     </div>
 
-    <!-- Toolbar -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <span class="profile-count"><strong id="profile-count-num">0</strong> profiles</span>
-      </div>
-      <div class="toolbar-right">
-        <input type="text" class="search-input no-drag" placeholder="Search profiles..." id="search-input" oninput="filterProfiles()">
-        <button class="add-profile-btn no-drag" onclick="showAddModal()">+ Add Profile</button>
-      </div>
-    </div>
-
-    <!-- Profile table -->
+    <!-- Content area -->
     <div class="table-container">
+
+      <!-- Section: Rented Accounts -->
+      <div id="rentals-section" class="hidden">
+        <div class="section-header">
+          <h2 class="section-title-text">Accounts I'm Renting</h2>
+        </div>
+        <table class="profile-table" id="rentals-table">
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Status</th>
+              <th>Since</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rentals-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Section: My Ambassador Accounts -->
+      <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+        <h2 class="section-title-text">My Ambassador Accounts <span id="profile-count-badge" class="count-badge">0</span></h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" class="search-input no-drag" placeholder="Search..." id="search-input" oninput="filterProfiles()">
+          <button class="add-profile-btn no-drag" onclick="showAddModal()">+ Add Profile</button>
+        </div>
+      </div>
       <table class="profile-table" id="profile-table">
         <thead>
           <tr>
@@ -288,7 +304,7 @@
     }
 
     function visitProfile() {
-      require('electron').shell.openExternal('https://klabber.co/dashboard');
+      window.ambassador.openExternal('https://klabber.co/dashboard');
     }
 
     async function handleLogout() {
@@ -298,12 +314,67 @@
       document.getElementById('login-email').value = '';
     }
 
-    // ===== Profiles =====
+    // ===== Profiles & Rentals =====
     async function refreshProfiles() {
       allProfiles = await window.ambassador.listProfiles();
       const status = await window.ambassador.getBrowserStatus();
       runningProfileId = status.running ? status.profileId : null;
       renderProfiles();
+      refreshRentals();
+    }
+
+    async function refreshRentals() {
+      try {
+        const rentals = await window.ambassador.listRentals();
+        renderRentals(rentals);
+      } catch {}
+    }
+
+    function renderRentals(rentals) {
+      const section = document.getElementById('rentals-section');
+      const tbody = document.getElementById('rentals-tbody');
+
+      if (!rentals || rentals.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+
+      section.classList.remove('hidden');
+      tbody.innerHTML = rentals.map(rental => {
+        const account = rental.linkedinAccount || {};
+        const name = (account.linkedinName || 'Unknown').replace(/\s*\(.*\)\s*$/, '');
+        const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        const startDate = rental.startDate ? new Date(rental.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+
+        return `
+          <tr>
+            <td>
+              <div class="profile-name">
+                <div class="profile-avatar" style="background:#2563eb;">${initials}</div>
+                <div class="profile-name-text">
+                  <span class="name">${escapeHtml(name)}</span>
+                  <span class="email">${escapeHtml(account.linkedinHeadline || '')}</span>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge running">
+                <span class="dot"></span>
+                Active
+              </span>
+            </td>
+            <td><span class="date-text">${startDate}</span></td>
+            <td>
+              <div class="actions-cell" style="justify-content:flex-end;">
+                ${account.gologinProfileId
+                  ? `<button class="run-btn no-drag" onclick="handleRun('${account.gologinProfileId}')">&#9654; Open</button>`
+                  : ''
+                }
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function renderProfiles(filter) {
@@ -321,7 +392,8 @@
         );
       }
 
-      document.getElementById('profile-count-num').textContent = allProfiles.length;
+      const countBadge = document.getElementById('profile-count-badge');
+      if (countBadge) countBadge.textContent = allProfiles.length;
 
       if (allProfiles.length === 0) {
         table.classList.add('hidden');

@@ -4,8 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 // API base URL
-const API_BASE = 'http://localhost:3000';
-// For production: const API_BASE = 'https://klabber.co';
+const API_BASE = 'https://klabber.co';
 
 // Store profile data in user's app data directory
 const PROFILES_DIR = path.join(app.getPath('userData'), 'profiles');
@@ -407,7 +406,43 @@ ipcMain.handle('auth:logout', async () => {
 
 // Profiles
 ipcMain.handle('profiles:list', async () => {
-  return listProfiles();
+  const localProfiles = listProfiles();
+
+  // Also try to fetch server-side profiles for this user
+  try {
+    const auth = loadAuth();
+    if (auth && auth.token) {
+      const response = await fetch(`${API_BASE}/api/ambassador/my-accounts`, {
+        headers: { 'Authorization': `Bearer ${auth.token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const serverAccounts = data.accounts || [];
+
+        // Merge: add server accounts that don't exist locally
+        const localIds = new Set(localProfiles.map(p => p.email));
+        for (const account of serverAccounts) {
+          const ownerEmail = (account.notes || '').match(/Owner:\s*([^\s.]+@[^\s.]+\.[^\s.]+)/)?.[1] || '';
+          if (ownerEmail && !localIds.has(ownerEmail)) {
+            // Server account not in local — add it to the list
+            localProfiles.push({
+              id: account.gologinProfileId || account.id,
+              name: (account.linkedinName || '').replace(/\s*\(.*\)\s*$/, ''),
+              email: ownerEmail,
+              linkedinUrl: account.linkedinUrl || '',
+              proxy: 'Server',
+              createdAt: account.createdAt || '',
+              status: account.status || 'ready',
+              monthlyPayment: account.monthlyPrice ? Number(account.monthlyPrice) : null,
+              isRunning: false,
+            });
+          }
+        }
+      }
+    }
+  } catch {}
+
+  return localProfiles;
 });
 
 ipcMain.handle('profiles:add', async (event, { name, email, linkedinUrl }) => {
@@ -415,7 +450,26 @@ ipcMain.handle('profiles:add', async (event, { name, email, linkedinUrl }) => {
   const proxy = getNextProxy();
   getProfileDir(profileId, proxy);
   saveProfileMeta(profileId, { name, email, linkedinUrl, status: 'ready', registered: false });
+
+  // Immediately register with backend
+  await registerProfileWithBackend(profileId);
+
   return { success: true, profileId };
+});
+
+ipcMain.handle('rentals:list', async () => {
+  try {
+    const auth = loadAuth();
+    if (!auth || !auth.token) return [];
+    const response = await fetch(`${API_BASE}/api/rentals`, {
+      headers: { 'Authorization': `Bearer ${auth.token}` },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return (data.rentals || []).filter(r => r.status === 'active' || r.status === 'payment_failed');
+    }
+  } catch {}
+  return [];
 });
 
 ipcMain.handle('profiles:delete', async (event, { profileId }) => {
@@ -543,7 +597,25 @@ ipcMain.handle('close-browser-and-register', async (event, { email, fullName, li
   }
 });
 
-app.whenReady().then(createMainWindow);
+app.whenReady().then(async () => {
+  createMainWindow();
+
+  // Register any unregistered profiles with the backend on startup
+  try {
+    const profiles = listProfiles();
+    for (const profile of profiles) {
+      const configPath = path.join(PROFILES_DIR, profile.id, 'profile.json');
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        if (!config.registered) {
+          await registerProfileWithBackend(profile.id);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Startup registration error:', err.message);
+  }
+});
 
 app.on('window-all-closed', () => {
   if (puppeteerBrowser) {

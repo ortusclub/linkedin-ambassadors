@@ -6,6 +6,7 @@ import { assessFromApplication } from "@/services/profile-assessor";
 const applySchema = z.object({
   fullName: z.string().min(1),
   email: z.string().email(),
+  contactNumber: z.string().optional(),
   linkedinUrl: z.string().min(1),
   connectionCount: z.number().int().optional(),
   industry: z.string().optional(),

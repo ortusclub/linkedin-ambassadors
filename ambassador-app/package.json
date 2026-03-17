@@ -29,12 +29,9 @@
     "mac": {
       "category": "public.app-category.business",
       "target": "dmg",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "entitlements.mac.plist",
-      "entitlementsInherit": "entitlements.mac.plist"
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
-    "afterSign": "notarize.js",
     "win": {
       "target": "nsis"
     }

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { compare, hash } from "bcryptjs";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { v4 as uuid } from "uuid";
 import type { User } from "@/generated/prisma/client";
 
@@ -61,9 +61,27 @@ export async function getSession(): Promise<(User & { sessionId: string }) | nul
 }
 
 export async function requireAuth(): Promise<User> {
+  // Try cookie-based session first
   const user = await getSession();
-  if (!user) throw new Error("Unauthorized");
-  return user;
+  if (user) return user;
+
+  // Fall back to Bearer token (from Electron app)
+  try {
+    const headerList = await headers();
+    const authHeader = headerList.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.slice(7);
+      const session = await prisma.session.findUnique({
+        where: { token },
+        include: { user: true },
+      });
+      if (session && session.expiresAt > new Date()) {
+        return session.user;
+      }
+    }
+  } catch {}
+
+  throw new Error("Unauthorized");
 }
 
 export async function requireAdmin(): Promise<User> {
