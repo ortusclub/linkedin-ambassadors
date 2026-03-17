@@ -135,6 +135,7 @@ function listProfiles() {
         proxy: config.proxy ? `${config.proxy.host}:${config.proxy.port}` : 'None',
         createdAt: config.createdAt || '',
         status: config.status || 'ready',
+        monthlyPayment: config.monthlyPayment || null,
         isRunning: runningProfileId === dirName,
       });
     } catch {}

@@ -61,6 +61,7 @@
       </div>
       <div class="topbar-right">
         <span class="user-badge" id="user-email-badge"></span>
+        <button class="visit-profile-btn no-drag" onclick="visitProfile()">Visit My Profile</button>
         <button class="logout-btn no-drag" onclick="handleLogout()">Sign Out</button>
       </div>
     </div>
@@ -83,6 +84,7 @@
           <tr>
             <th>Profile</th>
             <th>Status</th>
+            <th>Monthly Payment</th>
             <th>Proxy</th>
             <th>Created</th>
             <th style="text-align:right;">Actions</th>
@@ -285,6 +287,10 @@
       }
     }
 
+    function visitProfile() {
+      require('electron').shell.openExternal('https://klabber.co/dashboard');
+    }
+
     async function handleLogout() {
       await window.ambassador.logout();
       currentUser = null;
@@ -348,6 +354,7 @@
                 ${isRunning ? 'Running' : 'Ready'}
               </span>
             </td>
+            <td><span class="payment-text">${profile.monthlyPayment ? '$' + parseFloat(profile.monthlyPayment).toFixed(2) : '—'}</span></td>
             <td><span class="proxy-text">${escapeHtml(profile.proxy || 'None')}</span></td>
             <td><span class="date-text">${date}</span></td>
             <td>

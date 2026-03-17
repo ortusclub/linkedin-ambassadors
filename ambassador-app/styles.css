@@ -293,6 +293,21 @@ button, input, select, textarea, a, .no-drag { -webkit-app-region: no-drag; }
   border: 1px solid #e5e7eb;
 }
 
+.visit-profile-btn {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  color: #3b82f6;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.visit-profile-btn:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
 .logout-btn {
   background: transparent;
   border: 1px solid #e5e7eb;
@@ -488,6 +503,13 @@ button, input, select, textarea, a, .no-drag { -webkit-app-region: no-drag; }
 .status-badge.running .dot { background: #2563eb; }
 
 /* Proxy cell */
+/* Payment cell */
+.payment-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #16a34a;
+}
+
 .proxy-text {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 11px;
