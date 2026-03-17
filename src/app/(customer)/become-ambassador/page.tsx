@@ -182,13 +182,35 @@ export default function BecomeAmbassadorPage() {
     return () => clearTimeout(timer);
   }, [step, scanIndex, form]);
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!form.fullName || !form.email || !form.linkedinUrl) {
+    if (!form.fullName || !form.email || !form.linkedinUrl || !form.contactNumber) {
       setError("Please fill in all required fields");
       return;
     }
+
+    // Create ambassador application immediately so it appears in admin
+    try {
+      await fetch("/api/ambassador/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: form.fullName,
+          email: form.email,
+          contactNumber: form.contactNumber,
+          linkedinUrl: form.linkedinUrl,
+          connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
+          location: form.location || undefined,
+          notes: [
+            form.verified ? "Verified profile" : "",
+            form.hasSalesNav ? "Sales Navigator" : "",
+            form.notes || "",
+          ].filter(Boolean).join(". ") || undefined,
+        }),
+      });
+    } catch {} // Don't block the flow if this fails
+
     setScanIndex(0);
     setStep("scanning");
   }, [form]);
@@ -289,7 +311,7 @@ export default function BecomeAmbassadorPage() {
                     <div className="space-y-4">
                       <Input id="fullName" label="Your Full Name *" value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required />
                       <Input id="email" label="Your Email *" type="email" placeholder="your@email.com" value={form.email} onChange={(e) => update("email", e.target.value)} required />
-                      <Input id="contactNumber" label="Contact Number" type="tel" placeholder="e.g. +1 555 123 4567" value={form.contactNumber} onChange={(e) => update("contactNumber", e.target.value)} />
+                      <Input id="contactNumber" label="Contact Number *" type="tel" placeholder="e.g. +1 555 123 4567" value={form.contactNumber} onChange={(e) => update("contactNumber", e.target.value)} required />
                     </div>
                   </div>
 
@@ -331,14 +353,20 @@ export default function BecomeAmbassadorPage() {
                     <Input id="location" label="Location" placeholder="e.g. New York, NY" value={form.location} onChange={(e) => update("location", e.target.value)} />
                   </div>
                   <div className="space-y-3 pt-2">
-                    <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
-                      <input type="checkbox" checked={form.verified as unknown as boolean} onChange={(e) => setForm(prev => ({ ...prev, verified: e.target.checked }))} className="rounded border-gray-300 h-4 w-4" />
-                      My LinkedIn profile is verified
-                    </label>
-                    <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
-                      <input type="checkbox" checked={form.hasSalesNav as unknown as boolean} onChange={(e) => setForm(prev => ({ ...prev, hasSalesNav: e.target.checked }))} className="rounded border-gray-300 h-4 w-4" />
-                      I have Sales Navigator
-                    </label>
+                    <div>
+                      <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" checked={form.verified as unknown as boolean} onChange={(e) => setForm(prev => ({ ...prev, verified: e.target.checked }))} className="rounded border-gray-300 h-4 w-4" />
+                        My LinkedIn profile is verified
+                      </label>
+                      <p className="text-xs text-gray-400 ml-7 mt-1">Leave blank if you&apos;re unsure</p>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" checked={form.hasSalesNav as unknown as boolean} onChange={(e) => setForm(prev => ({ ...prev, hasSalesNav: e.target.checked }))} className="rounded border-gray-300 h-4 w-4" />
+                        I have Sales Navigator
+                      </label>
+                      <p className="text-xs text-gray-400 ml-7 mt-1">Leave blank if you&apos;re unsure</p>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Anything else?</label>

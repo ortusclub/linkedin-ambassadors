@@ -10,6 +10,7 @@ interface Application {
   id: string;
   fullName: string;
   email: string;
+  contactNumber: string | null;
   linkedinUrl: string;
   connectionCount: number | null;
   industry: string | null;
@@ -85,7 +86,10 @@ export default function AdminAmbassadorsPage() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">{app.email}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {app.email}
+                      {app.contactNumber && <span className="ml-3">{app.contactNumber}</span>}
+                    </p>
                     <a
                       href={app.linkedinUrl}
                       target="_blank"
