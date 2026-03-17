@@ -154,6 +154,22 @@ export default function BecomeAmbassadorPage() {
   const updateBank = (field: string, value: string) =>
     setBankForm((prev) => ({ ...prev, [field]: value }));
 
+  // Pre-fill from logged-in user
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.user) {
+          setForm((prev) => ({
+            ...prev,
+            fullName: prev.fullName || data.user.fullName || "",
+            email: prev.email || data.user.email || "",
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Scanning animation
   useEffect(() => {
     if (step !== "scanning") return;

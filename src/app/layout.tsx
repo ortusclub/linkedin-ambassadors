@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "Klabber — Rent Premium LinkedIn Accounts",
   description:
     "Browse, select, and rent pre-configured LinkedIn accounts for outreach, lead gen, and networking. Instant access, cancel anytime.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
