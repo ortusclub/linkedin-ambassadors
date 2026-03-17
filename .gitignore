@@ -45,6 +45,7 @@ next-env.d.ts
 
 /src/generated/prisma
 ambassador-app/node_modules
+ambassador-app/.chromium
 ambassador-app/dist
 profiles/
 public/downloads/*.dmg

@@ -225,8 +225,24 @@ async function openBrowser(profileId, proxyConfig) {
     args.push(`--proxy-server=${localProxyUrl}`);
   }
 
+  // Resolve bundled Chromium path — in packaged app it's in app.asar.unpacked/
+  let executablePath;
+  if (app.isPackaged) {
+    const resourcesDir = path.dirname(process.resourcesPath ? process.resourcesPath + '/app.asar' : __dirname);
+    const unpackedDir = path.join(resourcesDir, 'app.asar.unpacked', '.chromium');
+    // Find the chrome binary dynamically
+    const chromeDir = path.join(unpackedDir, 'chrome');
+    const versions = fs.readdirSync(chromeDir).filter(d => d.startsWith('mac'));
+    if (versions.length > 0) {
+      const platform = versions[0];
+      const appName = 'Google Chrome for Testing';
+      executablePath = path.join(chromeDir, platform, 'chrome-mac-arm64', `${appName}.app`, 'Contents', 'MacOS', appName);
+    }
+  }
+
   puppeteerBrowser = await puppeteer.launch({
     headless: false,
+    ...(executablePath ? { executablePath } : {}),
     userDataDir,
     args,
     defaultViewport: null,
