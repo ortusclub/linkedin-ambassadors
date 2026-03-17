@@ -2,22 +2,32 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendVerificationCode } from "@/services/email";
 
-// In-memory verification code store
-// Key: email, Value: { code, expiresAt }
-const verificationCodes = new Map<
-  string,
-  { code: string; expiresAt: number; attempts: number }
->();
+// In-memory verification code store, persisted on globalThis to survive hot reloads
+// Key: email, Value: { code, expiresAt, attempts }
+type CodeEntry = { code: string; expiresAt: number; attempts: number };
+
+const globalForCodes = globalThis as typeof globalThis & {
+  __verificationCodes?: Map<string, CodeEntry>;
+  __verificationCleanup?: ReturnType<typeof setInterval>;
+};
+
+if (!globalForCodes.__verificationCodes) {
+  globalForCodes.__verificationCodes = new Map<string, CodeEntry>();
+}
+
+const verificationCodes = globalForCodes.__verificationCodes;
 
 // Clean up expired codes periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [email, entry] of verificationCodes) {
-    if (entry.expiresAt < now) {
-      verificationCodes.delete(email);
+if (typeof globalForCodes.__verificationCleanup === "undefined") {
+  (globalForCodes as Record<string, unknown>).__verificationCleanup = setInterval(() => {
+    const now = Date.now();
+    for (const [email, entry] of verificationCodes) {
+      if (entry.expiresAt < now) {
+        verificationCodes.delete(email);
+      }
     }
-  }
-}, 60_000);
+  }, 60_000);
+}
 
 // Export for use by verify-code route
 export { verificationCodes };
