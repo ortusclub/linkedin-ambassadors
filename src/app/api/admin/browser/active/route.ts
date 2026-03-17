@@ -6,13 +6,24 @@ export async function GET() {
   try {
     await requireAdmin();
 
-    // Return list of profile IDs with active browser sessions
     const active: string[] = [];
     for (const [profileId, child] of activeProcesses.entries()) {
-      if (child.killed || child.exitCode !== null) {
-        activeProcesses.delete(profileId);
-      } else {
+      // Check if process is truly still running
+      let alive = false;
+      try {
+        // process.kill(pid, 0) checks if process exists without killing it
+        if (child.pid && !child.killed && child.exitCode === null) {
+          process.kill(child.pid, 0);
+          alive = true;
+        }
+      } catch {
+        // Process doesn't exist
+      }
+
+      if (alive) {
         active.push(profileId);
+      } else {
+        activeProcesses.delete(profileId);
       }
     }
 

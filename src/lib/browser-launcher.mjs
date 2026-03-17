@@ -232,7 +232,16 @@ if (command === 'launch') {
     if (msg === 'stop') {
       process.stderr.write('Stop command received — closing browser\n');
       try {
+        // Get the browser process PID before closing
+        const proc = browser.process();
+        const pid = proc?.pid;
+
         await browser.close();
+
+        // Force kill if still alive
+        if (pid) {
+          try { process.kill(pid, 'SIGKILL'); } catch { /* already dead */ }
+        }
       } catch { /* already closed */ }
       process.exit(0);
     }

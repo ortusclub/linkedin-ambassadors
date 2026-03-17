@@ -14,17 +14,33 @@ export async function POST(req: Request) {
 
     const child = activeProcesses.get(profileId);
     if (child) {
+      // Try graceful stop first
+      try { child.stdin?.write("stop\n"); } catch { /* ignore */ }
+
+      // Give it 2 seconds, then force kill
       await new Promise<void>((resolve) => {
-        child.stdin?.write("stop\n");
-        child.on("exit", () => resolve());
-        setTimeout(() => { child.kill("SIGKILL"); resolve(); }, 10000);
+        const timeout = setTimeout(() => {
+          try { child.kill("SIGKILL"); } catch { /* ignore */ }
+          resolve();
+        }, 2000);
+
+        child.on("exit", () => {
+          clearTimeout(timeout);
+          resolve();
+        });
       });
+
       activeProcesses.delete(profileId);
     }
 
+    // Kill any Chrome/Chromium processes spawned for this profile
     try {
-      execCommand(`pkill -f "gologin_profile_${profileId}" 2>/dev/null || true`);
-      execCommand(`pkill -f "orbita" 2>/dev/null || true`);
+      execCommand(`pkill -f "chrome-data" 2>/dev/null || true`);
+    } catch { /* ignore */ }
+
+    // Also kill by user data dir pattern
+    try {
+      execCommand(`pkill -f "${profileId}" 2>/dev/null || true`);
     } catch { /* ignore */ }
 
     return NextResponse.json({ message: "Browser closed and session saved" });
