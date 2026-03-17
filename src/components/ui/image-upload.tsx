@@ -23,9 +23,14 @@ export function ImageUpload({ label, value, onChange, className }: ImageUploadPr
         formData.append("file", file);
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
+        if (!res.ok) {
+          alert(`Upload failed: ${data.error || res.statusText}`);
+          return;
+        }
         if (data.url) onChange(data.url);
-      } catch {
-        console.error("Upload failed");
+      } catch (err) {
+        alert(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+        console.error("Upload failed", err);
       } finally {
         setUploading(false);
       }
