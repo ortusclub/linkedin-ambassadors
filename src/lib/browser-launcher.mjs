@@ -230,18 +230,12 @@ if (command === 'launch') {
   process.stdin.on('data', async (chunk) => {
     const msg = chunk.toString().trim();
     if (msg === 'stop') {
-      process.stderr.write('Stop command received — closing browser\n');
+      process.stderr.write('Stop command received — closing browser gracefully\n');
       try {
-        // Get the browser process PID before closing
-        const proc = browser.process();
-        const pid = proc?.pid;
-
         await browser.close();
-
-        // Force kill if still alive
-        if (pid) {
-          try { process.kill(pid, 'SIGKILL'); } catch { /* already dead */ }
-        }
+        // Wait 2 seconds for Chrome to flush cookies to disk
+        await new Promise(r => setTimeout(r, 2000));
+        process.stderr.write('Browser closed, cookies saved\n');
       } catch { /* already closed */ }
       process.exit(0);
     }

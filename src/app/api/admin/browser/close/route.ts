@@ -17,12 +17,12 @@ export async function POST(req: Request) {
       // Try graceful stop first
       try { child.stdin?.write("stop\n"); } catch { /* ignore */ }
 
-      // Give it 2 seconds, then force kill
+      // Give it 5 seconds for graceful close and cookie flush, then force kill
       await new Promise<void>((resolve) => {
         const timeout = setTimeout(() => {
           try { child.kill("SIGKILL"); } catch { /* ignore */ }
           resolve();
-        }, 2000);
+        }, 5000);
 
         child.on("exit", () => {
           clearTimeout(timeout);
@@ -33,15 +33,8 @@ export async function POST(req: Request) {
       activeProcesses.delete(profileId);
     }
 
-    // Kill any Chrome/Chromium processes spawned for this profile
-    try {
-      execCommand(`pkill -f "chrome-data" 2>/dev/null || true`);
-    } catch { /* ignore */ }
-
-    // Also kill by user data dir pattern
-    try {
-      execCommand(`pkill -f "${profileId}" 2>/dev/null || true`);
-    } catch { /* ignore */ }
+    // Only force kill if the graceful close didn't work
+    // Don't use pkill as it can kill Chrome before cookies are saved
 
     return NextResponse.json({ message: "Browser closed and session saved" });
   } catch (error) {
