@@ -939,7 +939,6 @@ export default function BecomeAmbassadorPage() {
                         email: form.email,
                         linkedinUrl: form.linkedinUrl,
                         connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
-                        industry: form.industry,
                         location: form.location,
                         profileId: profileId,
                         offeredAmount: offer?.amount,
