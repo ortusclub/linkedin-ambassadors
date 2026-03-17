@@ -22,14 +22,20 @@ export function ImageUpload({ label, value, onChange, className }: ImageUploadPr
         const formData = new FormData();
         formData.append("file", file);
         const res = await fetch("/api/upload", { method: "POST", body: formData });
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { error: text }; }
         if (!res.ok) {
-          alert(`Upload failed: ${data.error || res.statusText}`);
+          alert(`Upload error (${res.status}): ${data.error || text}`);
           return;
         }
-        if (data.url) onChange(data.url);
+        if (data.url) {
+          onChange(data.url);
+        } else {
+          alert(`Upload returned no URL. Response: ${text}`);
+        }
       } catch (err) {
-        alert(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+        alert(`Upload exception: ${err instanceof Error ? err.message : String(err)}`);
         console.error("Upload failed", err);
       } finally {
         setUploading(false);
