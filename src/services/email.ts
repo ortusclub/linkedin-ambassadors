@@ -1,6 +1,12 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 const from = process.env.RESEND_FROM_EMAIL || "noreply@linkedinambassadors.com";
 
 interface EmailOptions {
@@ -14,7 +20,7 @@ async function sendEmail({ to, subject, html }: EmailOptions) {
     console.log(`[Email] Would send to ${to}: ${subject}`);
     return;
   }
-  return resend.emails.send({ from, to, subject, html });
+  return getResend().emails.send({ from, to, subject, html });
 }
 
 export async function sendVerificationCode(email: string, code: string) {
