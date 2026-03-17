@@ -51,7 +51,9 @@ export function AccountCard({ account }: AccountCardProps) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Badge variant="info">{formatNumber(account.connectionCount)} connections</Badge>
+        {account.connectionCount > 0 && (
+          <Badge variant="info">{formatNumber(account.connectionCount)} connections</Badge>
+        )}
         {account.industry && <Badge>{account.industry}</Badge>}
         {account.location && <Badge>{account.location}</Badge>}
         {account.accountAgeMonths && (

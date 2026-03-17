@@ -279,38 +279,46 @@ ipcMain.handle('auth:check', async () => {
   return loadAuth();
 });
 
-ipcMain.handle('auth:login', async (event, { email, password }) => {
+ipcMain.handle('auth:send-verification', async (event, { email }) => {
   try {
-    const response = await fetch(`${API_BASE}/api/auth/login`, {
+    const response = await fetch(`${API_BASE}/api/auth/verify-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email }),
     });
+
     const data = await response.json();
     if (!response.ok) {
-      return { success: false, error: data.error || 'Login failed' };
+      return { success: false, error: data.error || 'Failed to send verification code' };
     }
-    // API returns user fields directly (id, email, fullName, role) and sets cookie
-    const authData = { email: data.email, fullName: data.fullName, role: data.role, userId: data.id };
-    saveAuth(authData);
-    return { success: true, ...authData };
+
+    return { success: true };
   } catch (err) {
     return { success: false, error: err.message || 'Could not connect to server' };
   }
 });
 
-ipcMain.handle('auth:register', async (event, { email, password, fullName }) => {
+ipcMain.handle('auth:verify-code', async (event, { email, code }) => {
   try {
-    const response = await fetch(`${API_BASE}/api/auth/register`, {
+    const response = await fetch(`${API_BASE}/api/auth/verify-code`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, fullName }),
+      body: JSON.stringify({ email, code }),
     });
+
     const data = await response.json();
     if (!response.ok) {
-      return { success: false, error: data.error || 'Registration failed' };
+      return { success: false, error: data.error || 'Verification failed' };
     }
-    const authData = { email: data.email, fullName: data.fullName, role: data.role, userId: data.id };
+
+    // Save auth data locally
+    const authData = {
+      email: data.user.email,
+      fullName: data.user.fullName,
+      userId: data.user.id,
+      role: data.user.role,
+      token: data.token,
+    };
     saveAuth(authData);
     return { success: true, ...authData };
   } catch (err) {

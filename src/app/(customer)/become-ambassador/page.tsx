@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
-type Step = "info" | "scanning" | "result" | "bank" | "login" | "complete" | "done";
+type Step = "info" | "scanning" | "result" | "bank" | "login" | "complete" | "done" | "review";
 
 const SCAN_STEPS = [
   "Locating your LinkedIn profile...",
@@ -135,12 +135,17 @@ export default function BecomeAmbassadorPage() {
     notes: "",
   });
 
+  const [paymentMethod, setPaymentMethod] = useState<"usdc" | "paypal" | "wise" | null>(null);
   const [bankForm, setBankForm] = useState({
     bankName: "",
     bankAccountName: "",
     bankAccountNumber: "",
     bankRoutingNumber: "",
     bankSortCode: "",
+    usdcWalletAddress: "",
+    usdcNetwork: "ethereum",
+    paypalEmail: "",
+    wiseEmail: "",
   });
 
   const update = (field: string, value: string) =>
@@ -200,7 +205,7 @@ export default function BecomeAmbassadorPage() {
         await fetch("/api/ambassador/bank", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ applicationId: applyData.application.id, ...bankForm }),
+          body: JSON.stringify({ applicationId: applyData.application.id, paymentMethod, ...bankForm }),
         });
       }
 
@@ -236,12 +241,16 @@ export default function BecomeAmbassadorPage() {
           <h2 className="text-center text-3xl font-bold text-gray-900">How It Works</h2>
           <div className="mt-10 grid gap-6 md:grid-cols-4">
             {[
-              { n: "1", title: "Share Your Profile", desc: "Enter your LinkedIn URL and basic info.", active: step === "info", done: step !== "info" },
-              { n: "2", title: "Assessment & Offer", desc: "We evaluate your profile and make you a monthly offer.", active: step === "scanning" || step === "result", done: ["bank","login","complete","done"].includes(step) },
-              { n: "3", title: "Payment Details", desc: "Enter your bank details so we can pay you.", active: step === "bank", done: ["login","complete","done"].includes(step) },
-              { n: "4", title: "Log In & Connect", desc: "Log into LinkedIn via our secure browser to link your account.", active: step === "login" || step === "complete", done: step === "done" },
+              { n: "1", title: "Share Your Profile", desc: "Enter your LinkedIn URL and basic info.", active: step === "info", done: step !== "info", goTo: "info" as Step },
+              { n: "2", title: "Assessment & Offer", desc: "We evaluate your profile and make you a monthly offer.", active: step === "scanning" || step === "result", done: ["bank","login","complete","done"].includes(step), goTo: "result" as Step },
+              { n: "3", title: "Payment Details", desc: "Choose how you'd like to be paid.", active: step === "bank", done: ["login","complete","done"].includes(step), goTo: "bank" as Step },
+              { n: "4", title: "Download & Connect", desc: "Download the Klabber app and add your LinkedIn profile.", active: step === "login" || step === "complete", done: step === "done", goTo: "login" as Step },
             ].map((s) => (
-              <div key={s.n} className={`rounded-xl p-8 shadow-sm border text-center transition-all ${s.active ? "border-blue-500 bg-blue-50" : s.done ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}`}>
+              <div
+                key={s.n}
+                onClick={() => s.done && setStep(s.goTo)}
+                className={`rounded-xl p-8 shadow-sm border text-center transition-all ${s.done ? "border-green-300 bg-green-50 cursor-pointer hover:border-green-400 hover:shadow-md" : s.active ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`}
+              >
                 <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold ${s.done ? "bg-green-100 text-green-600" : s.active ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-400"}`}>
                   {s.done ? "\u2713" : s.n}
                 </div>
@@ -417,6 +426,12 @@ export default function BecomeAmbassadorPage() {
                       </div>
                     ))}
                   </div>
+                  {offer.reasons.filter((r) => r.positive).length <= 1 && (
+                    <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                      <strong>Limited information available.</strong> We weren&apos;t able to fully assess your profile with the details provided.
+                      This is an automated estimate — if you&apos;d like a more accurate offer, our team can review your profile manually.
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -439,111 +454,371 @@ export default function BecomeAmbassadorPage() {
                 <Button onClick={() => setStep("bank")} size="lg" className="flex-1">
                   Become an Ambassador
                 </Button>
-                <Button variant="outline" size="lg" onClick={() => { setStep("info"); setOffer(null); }} className="flex-1">
-                  No, Thank You
+                {offer.reasons.filter((r) => r.positive).length <= 1 ? (
+                  <Button variant="outline" size="lg" onClick={() => setStep("review")} className="flex-1">
+                    Request Manual Review
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="lg" onClick={() => { setStep("info"); setOffer(null); }} className="flex-1">
+                    No, Thank You
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* STEP: Manual Review Contact Options */}
+          {step === "review" && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Request a Manual Review</h2>
+              <p className="text-center text-gray-500 mb-6">
+                Our team will personally review your profile and get back to you with a tailored offer. Reach out to us through any of the channels below.
+              </p>
+
+              <div className="space-y-3">
+                <a
+                  href="https://wa.me/447700123456"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-green-600" fill="currentColor">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">WhatsApp Us</p>
+                    <p className="text-sm text-gray-500">+44 7700 123456</p>
+                  </div>
+                </a>
+
+                <a
+                  href="https://t.me/clabber_support"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-blue-500" fill="currentColor">
+                      <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Telegram Us</p>
+                    <p className="text-sm text-gray-500">@clabber_support</p>
+                  </div>
+                </a>
+
+                <a
+                  href="mailto:ambassadors@clabber.co"
+                  className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <path d="M22 4l-10 8L2 4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Email Us</p>
+                    <p className="text-sm text-gray-500">ambassadors@clabber.co</p>
+                  </div>
+                </a>
+              </div>
+
+              <div className="mt-6">
+                <Button variant="outline" size="lg" className="w-full" onClick={() => setStep("result")}>
+                  Back to Offer
                 </Button>
               </div>
             </div>
           )}
 
-          {/* STEP 4: Bank details */}
+          {/* STEP 4: Payment details */}
           {step === "bank" && (
             <form onSubmit={handleBankSubmit}>
               <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Payment Details</h2>
               <p className="text-center text-gray-500 mb-6">
-                Where should we send your {offer ? formatCurrency(offer.amount) : ""}/month?
+                How would you like to receive your {offer ? formatCurrency(offer.amount) : ""}/month payment?
               </p>
-              <Card>
-                <CardContent className="py-6 space-y-4">
-                  <Input id="bankName" label="Bank Name" placeholder="e.g. Chase, Barclays" value={bankForm.bankName} onChange={(e) => updateBank("bankName", e.target.value)} />
-                  <Input id="bankAccountName" label="Account Holder Name" value={bankForm.bankAccountName} onChange={(e) => updateBank("bankAccountName", e.target.value)} />
-                  <Input id="bankAccountNumber" label="Account Number" value={bankForm.bankAccountNumber} onChange={(e) => updateBank("bankAccountNumber", e.target.value)} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input id="bankRoutingNumber" label="Routing Number (US)" value={bankForm.bankRoutingNumber} onChange={(e) => updateBank("bankRoutingNumber", e.target.value)} />
-                    <Input id="bankSortCode" label="Sort Code (UK)" value={bankForm.bankSortCode} onChange={(e) => updateBank("bankSortCode", e.target.value)} />
+
+              {/* Payment method selection */}
+              <div className="space-y-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("usdc")}
+                  className={`flex items-center gap-4 w-full rounded-xl border-2 p-5 text-left transition-all ${paymentMethod === "usdc" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-blue-600" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-2h-2v2zm0-4h2V7h-2v6z"/>
+                      <text x="7" y="16" fontSize="10" fontWeight="bold" fill="currentColor">$</text>
+                    </svg>
                   </div>
-                  <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">
-                    Your bank details are encrypted and stored securely. We&apos;ll use them only to send your monthly payments.
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">USDC</p>
+                    <p className="text-sm text-gray-500">Receive stablecoin to your crypto wallet. Fast, zero fees.</p>
                   </div>
-                  <Button type="submit" loading={loading} className="w-full" size="lg">
+                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${paymentMethod === "usdc" ? "border-blue-600" : "border-gray-300"}`}>
+                    {paymentMethod === "usdc" && <div className="h-2.5 w-2.5 rounded-full bg-blue-600" />}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("paypal")}
+                  className={`flex items-center gap-4 w-full rounded-xl border-2 p-5 text-left transition-all ${paymentMethod === "paypal" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 flex-shrink-0">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-indigo-600" fill="currentColor">
+                      <path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 00-.607-.541c1.652 1.046 2.024 2.986 1.488 5.74-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.44 9.137a.641.641 0 00.633.74h3.874c.457 0 .85-.334.922-.788l.038-.2.728-4.617.047-.254a.932.932 0 01.922-.788h.58c3.76 0 6.705-1.528 7.566-5.946.36-1.847.174-3.388-.777-4.471a3.71 3.71 0 00-1.092-.709z"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">PayPal</p>
+                    <p className="text-sm text-gray-500">Receive payment to your PayPal account. Available worldwide.</p>
+                  </div>
+                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${paymentMethod === "paypal" ? "border-blue-600" : "border-gray-300"}`}>
+                    {paymentMethod === "paypal" && <div className="h-2.5 w-2.5 rounded-full bg-blue-600" />}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("wise")}
+                  className={`flex items-center gap-4 w-full rounded-xl border-2 p-5 text-left transition-all ${paymentMethod === "wise" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">Wise</p>
+                    <p className="text-sm text-gray-500">Receive to your bank account via Wise. Low fees, great rates.</p>
+                  </div>
+                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${paymentMethod === "wise" ? "border-blue-600" : "border-gray-300"}`}>
+                    {paymentMethod === "wise" && <div className="h-2.5 w-2.5 rounded-full bg-blue-600" />}
+                  </div>
+                </button>
+              </div>
+
+              {/* USDC fields */}
+              {paymentMethod === "usdc" && (
+                <Card>
+                  <CardContent className="py-6 space-y-4">
+                    <Input
+                      id="usdcWalletAddress"
+                      label="Wallet Address"
+                      placeholder="0x... or ENS name"
+                      value={bankForm.usdcWalletAddress}
+                      onChange={(e) => updateBank("usdcWalletAddress", e.target.value)}
+                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Network</label>
+                      <select
+                        value={bankForm.usdcNetwork}
+                        onChange={(e) => updateBank("usdcNetwork", e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="ethereum">Ethereum (ERC-20)</option>
+                        <option value="polygon">Polygon</option>
+                        <option value="arbitrum">Arbitrum</option>
+                        <option value="base">Base</option>
+                        <option value="solana">Solana</option>
+                      </select>
+                    </div>
+                    <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
+                      Make sure your wallet supports USDC on the selected network. Sending to the wrong network may result in lost funds.
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* PayPal fields */}
+              {paymentMethod === "paypal" && (
+                <Card>
+                  <CardContent className="py-6 space-y-4">
+                    <Input
+                      id="paypalEmail"
+                      label="PayPal Email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={bankForm.paypalEmail}
+                      onChange={(e) => updateBank("paypalEmail", e.target.value)}
+                    />
+                    <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">
+                      Make sure this is the email address linked to your PayPal account. PayPal fees may apply.
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Wise fields */}
+              {paymentMethod === "wise" && (
+                <Card>
+                  <CardContent className="py-6 space-y-4">
+                    <Input
+                      id="wiseEmail"
+                      label="Wise Email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={bankForm.wiseEmail}
+                      onChange={(e) => updateBank("wiseEmail", e.target.value)}
+                    />
+                    <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+                      We&apos;ll send payment to your Wise account. If you don&apos;t have one yet, <a href="https://wise.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">sign up for free</a>.
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="mt-6 flex gap-3">
+                <Button variant="outline" size="lg" type="button" onClick={() => setStep("result")}>
+                  Back
+                </Button>
+                {paymentMethod && (
+                  <Button type="submit" loading={loading} className="flex-1" size="lg">
                     Submit &amp; Complete Setup
                   </Button>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             </form>
           )}
 
-          {/* STEP 5: Download app and log into LinkedIn */}
+          {/* STEP 5: Link LinkedIn — two side-by-side options */}
           {step === "login" && (
             <div className="py-4">
               <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Link Your LinkedIn Account</h2>
-              <p className="text-center text-gray-500 mb-6">
-                Download our secure browser app and log into LinkedIn. Takes about 2 minutes.
+              <p className="text-center text-gray-500 mb-8">
+                Choose how you&apos;d like to connect your LinkedIn profile.
               </p>
 
-              {/* Step 1: Download the app */}
-              <Card>
-                <CardContent className="py-6">
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">1</div>
-                    <div>
-                      <p className="font-semibold text-gray-900 text-lg">Download LinkedIn Ambassadors App</p>
-                      <p className="text-sm text-gray-500 mt-1">Our secure browser app protects your digital fingerprint and keeps your LinkedIn session safe.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Option 1: Do it yourself */}
+                <Card>
+                  <CardContent className="py-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
+                        <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="font-semibold text-gray-900 text-lg">Do It Yourself</h3>
                     </div>
-                  </div>
-                  <a
-                    href="/downloads/LinkedIn-Ambassadors.dmg"
-                    className="block w-full rounded-lg bg-gray-900 py-3 text-center font-semibold text-white hover:bg-gray-800 transition-colors"
-                  >
-                    Download for Mac
-                  </a>
-                  <p className="text-xs text-gray-400 mt-2 text-center">Windows version coming soon. Already have it? Skip to step 2.</p>
-                </CardContent>
-              </Card>
+                    <p className="text-sm text-gray-500 mb-5">Set up in about 2 minutes using the Klabber app.</p>
 
-              {/* Step 2: Open the app and log in */}
-              <Card className="mt-4">
-                <CardContent className="py-6">
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">2</div>
-                    <div>
-                      <p className="font-semibold text-gray-900 text-lg">Open the App &amp; Log Into LinkedIn</p>
-                      <p className="text-sm text-gray-500 mt-1">Open the LinkedIn Ambassadors app and enter your details:</p>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white flex-shrink-0 mt-0.5">1</div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Download the Klabber App</p>
+                          <a
+                            href="/downloads/LinkedIn-Ambassadors.dmg"
+                            className="inline-block mt-2 rounded-lg bg-gray-900 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
+                          >
+                            Download for Mac
+                          </a>
+                          <p className="text-xs text-gray-400 mt-1">Windows coming soon</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white flex-shrink-0 mt-0.5">2</div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Sign into the app</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Enter your email (<strong>{form.email}</strong>) and verify via the code we send you.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white flex-shrink-0 mt-0.5">3</div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Add your LinkedIn profile</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Click &quot;+ Add Profile&quot;, enter your details, and log into LinkedIn in the secure browser that opens.</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 text-sm text-gray-600 space-y-2">
-                    <p><strong>Full Name:</strong> {form.fullName}</p>
-                    <p><strong>Email:</strong> {form.email}</p>
-                    {form.linkedinUrl && <p><strong>LinkedIn URL:</strong> {form.linkedinUrl}</p>}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-3">Click <strong>&quot;Open Secure Browser&quot;</strong> in the app. A browser window will open — log into LinkedIn with your normal credentials.</p>
-                </CardContent>
-              </Card>
 
-              {/* Step 3: Complete */}
-              <Card className="mt-4">
-                <CardContent className="py-6">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">3</div>
-                    <div>
-                      <p className="font-semibold text-gray-900 text-lg">Click &quot;Complete Setup&quot; in the App</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Once you&apos;ve logged into LinkedIn, click <strong>&quot;I&apos;ve Logged In — Complete Setup&quot;</strong> in the app.
-                        The app will save your session securely and register your account automatically.
-                      </p>
+                    <div className="mt-5 rounded-lg bg-blue-50 border border-blue-100 p-3 text-xs text-blue-700">
+                      <strong>Your login is safe.</strong> We never see your password — only the session cookie is stored.
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
 
-              <div className="mt-6 rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">
-                <strong>Your login is safe.</strong> We never see your password. The app creates a unique browser fingerprint and only stores the session cookie — not your credentials.
-              </div>
+                    <Button size="lg" className="w-full mt-5" onClick={() => setStep("complete")}>
+                      I&apos;ve Completed the Steps
+                    </Button>
+                  </CardContent>
+                </Card>
 
-              <div className="mt-6">
-                <Button size="lg" className="w-full" onClick={() => setStep("complete")}>
-                  I&apos;ve Completed the Steps in the App
-                </Button>
+                {/* Option 2: Get help from our team */}
+                <Card>
+                  <CardContent className="py-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                        <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m4-4h6a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v4a2 2 0 002 2h2v4l4-4z" />
+                        </svg>
+                      </div>
+                      <h3 className="font-semibold text-gray-900 text-lg">Get Help From Our Team</h3>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-5">We&apos;ll walk you through it and set everything up together.</p>
+
+                    <div className="space-y-3">
+                      <a
+                        href="https://wa.me/447700123456"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 transition-all hover:border-green-300 hover:bg-green-50"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                          <svg viewBox="0 0 24 24" className="h-5 w-5 text-green-600" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">WhatsApp</p>
+                          <p className="text-xs text-gray-500">+44 7700 123456</p>
+                        </div>
+                      </a>
+
+                      <a
+                        href="https://t.me/klabber_support"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 transition-all hover:border-blue-300 hover:bg-blue-50"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
+                          <svg viewBox="0 0 24 24" className="h-5 w-5 text-blue-500" fill="currentColor">
+                            <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">Telegram</p>
+                          <p className="text-xs text-gray-500">@klabber_support</p>
+                        </div>
+                      </a>
+
+                      <a
+                        href="mailto:ambassadors@klabber.co"
+                        className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 transition-all hover:border-purple-300 hover:bg-purple-50"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 flex-shrink-0">
+                          <svg viewBox="0 0 24 24" className="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="2" y="4" width="20" height="16" rx="2" />
+                            <path d="M22 4l-10 8L2 4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">Email</p>
+                          <p className="text-xs text-gray-500">ambassadors@klabber.co</p>
+                        </div>
+                      </a>
+                    </div>
+
+                    <p className="text-xs text-gray-400 mt-4 text-center">Our team will guide you through the setup process step by step.</p>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           )}

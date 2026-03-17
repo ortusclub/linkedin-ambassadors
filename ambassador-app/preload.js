@@ -3,8 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('ambassador', {
   // Auth
   checkAuth: () => ipcRenderer.invoke('auth:check'),
-  login: (email, password) => ipcRenderer.invoke('auth:login', { email, password }),
-  register: (email, password, fullName) => ipcRenderer.invoke('auth:register', { email, password, fullName }),
+  sendVerification: (email) => ipcRenderer.invoke('auth:send-verification', { email }),
+  verifyCode: (email, code) => ipcRenderer.invoke('auth:verify-code', { email, code }),
   logout: () => ipcRenderer.invoke('auth:logout'),
 
   // Profiles

@@ -17,6 +17,24 @@ async function sendEmail({ to, subject, html }: EmailOptions) {
   return resend.emails.send({ from, to, subject, html });
 }
 
+export async function sendVerificationCode(email: string, code: string) {
+  return sendEmail({
+    to: email,
+    subject: `Your Klabber verification code: ${code}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;padding:40px 20px;">
+        <h2 style="color:#2563eb;margin-bottom:8px;">Klabber</h2>
+        <p style="color:#374151;font-size:15px;">Enter this code to sign in:</p>
+        <div style="background:#f3f4f6;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
+          <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#111827;">${code}</span>
+        </div>
+        <p style="color:#6b7280;font-size:13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
+        <p style="color:#6b7280;font-size:13px;margin-top:24px;">&mdash; The Klabber Team</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendWelcomeEmail(
   email: string,
   accountName: string,

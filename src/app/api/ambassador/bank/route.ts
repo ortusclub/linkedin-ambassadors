@@ -4,11 +4,16 @@ import { z } from "zod";
 
 const bankSchema = z.object({
   applicationId: z.string().min(1),
+  paymentMethod: z.enum(["usdc", "paypal", "wise"]),
   bankName: z.string().optional(),
   bankAccountName: z.string().optional(),
   bankAccountNumber: z.string().optional(),
   bankRoutingNumber: z.string().optional(),
   bankSortCode: z.string().optional(),
+  usdcWalletAddress: z.string().optional(),
+  usdcNetwork: z.string().optional(),
+  paypalEmail: z.string().optional(),
+  wiseEmail: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -31,11 +36,16 @@ export async function POST(req: Request) {
     await prisma.ambassadorApplication.update({
       where: { id: data.applicationId },
       data: {
+        paymentMethod: data.paymentMethod,
         bankName: data.bankName,
         bankAccountName: data.bankAccountName,
         bankAccountNumber: data.bankAccountNumber,
         bankRoutingNumber: data.bankRoutingNumber,
         bankSortCode: data.bankSortCode,
+        usdcWalletAddress: data.usdcWalletAddress,
+        usdcNetwork: data.usdcNetwork,
+        paypalEmail: data.paypalEmail,
+        wiseEmail: data.wiseEmail,
         status: "onboarded",
       },
     });

@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const linkedinAccount = await prisma.linkedInAccount.create({
       data: {
         gologinProfileId: data.gologinProfileId || null,
-        linkedinName: `${data.fullName} (${data.email})`,
+        linkedinName: data.fullName,
         linkedinHeadline: null,
         linkedinUrl: data.linkedinUrl || null,
         connectionCount: data.connectionCount || 0,

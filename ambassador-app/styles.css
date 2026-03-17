@@ -168,6 +168,85 @@ button, input, select, textarea, a, .no-drag { -webkit-app-region: no-drag; }
 
 .auth-toggle a:hover { text-decoration: underline; }
 
+.auth-hint {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+/* Verify screen */
+.verify-message {
+  text-align: center;
+  padding: 10px 0 24px;
+}
+
+.verify-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.verify-message h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.verify-message p {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.verify-email {
+  font-weight: 600;
+  color: #2563eb !important;
+  margin: 4px 0 12px;
+}
+
+/* Code input */
+.code-input-container {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.code-input {
+  width: 46px;
+  height: 54px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  outline: none;
+  transition: border 0.15s, box-shadow 0.15s;
+  -webkit-app-region: no-drag;
+}
+
+.code-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.code-input::placeholder {
+  color: #d1d5db;
+}
+
+.auth-hint a {
+  color: #2563eb;
+  text-decoration: none;
+  cursor: pointer;
+}
+.auth-hint a:hover {
+  text-decoration: underline;
+}
+
 /* ===== DASHBOARD LAYOUT ===== */
 .dashboard {
   display: flex;
