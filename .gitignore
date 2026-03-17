@@ -48,3 +48,4 @@ ambassador-app/node_modules
 ambassador-app/dist
 profiles/
 public/downloads/*.dmg
+.env*.local

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { writeFile } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 import { v4 as uuid } from "uuid";
 
 export async function POST(req: Request) {
@@ -15,17 +14,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
     const ext = file.name.split(".").pop() || "png";
     const filename = `${uuid()}.${ext}`;
-    const filepath = path.join(process.cwd(), "public/uploads", filename);
 
-    await writeFile(filepath, buffer);
+    const blob = await put(filename, file, {
+      access: "public",
+    });
 
-    const url = `/uploads/${filename}`;
-    return NextResponse.json({ url });
+    return NextResponse.json({ url: blob.url });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
       return NextResponse.json({ error: error.message }, { status: 403 });
