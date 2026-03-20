@@ -24,8 +24,8 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Register the user first
-      const regRes = await fetch("/api/auth/register", {
+      // Register the user first (ignore if already exists)
+      await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -34,13 +34,7 @@ export default function RegisterPage() {
           contactMethod,
           contactHandle,
         }),
-      });
-      const regData = await regRes.json();
-
-      if (!regRes.ok && regData.error !== "Email already registered") {
-        setError(typeof regData.error === "string" ? regData.error : "Registration failed");
-        return;
-      }
+      }).catch(() => {});
 
       // Send verification code
       const res = await fetch("/api/auth/verify-email", {
@@ -51,7 +45,7 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Failed to send code");
+        setError(typeof data.error === "string" ? data.error : "Failed to send verification code");
         return;
       }
 
@@ -143,7 +137,7 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               WhatsApp or Telegram <span className="text-red-500">*</span>
             </label>
-            <p className="text-xs text-gray-400 mb-2">We need at least one way to reach you besides email.</p>
+            <p className="text-xs text-gray-400 mb-2">We need at least one way to reach you besides email. This will only be used for communication about your rented or ambassador accounts — never for marketing or promotions.</p>
             <div className="flex gap-2 mb-2">
               <button
                 type="button"
