@@ -10,7 +10,7 @@ export async function GET() {
       include: {
         user: { select: { id: true, fullName: true, email: true } },
         linkedinAccount: {
-          select: { id: true, linkedinName: true, connectionCount: true },
+          select: { id: true, linkedinName: true, connectionCount: true, notes: true },
         },
       },
       orderBy: { createdAt: "desc" },

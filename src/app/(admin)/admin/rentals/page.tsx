@@ -12,7 +12,7 @@ interface Rental {
   currentPeriodEnd: string | null;
   autoRenew: boolean;
   user: { id: string; fullName: string; email: string };
-  linkedinAccount: { id: string; linkedinName: string; connectionCount: number };
+  linkedinAccount: { id: string; linkedinName: string; connectionCount: number; notes: string | null };
 }
 
 export default function AdminRentalsPage() {
@@ -64,7 +64,7 @@ export default function AdminRentalsPage() {
                     <p className="font-medium text-gray-900 text-sm">{r.user.fullName}</p>
                     <p className="text-xs text-gray-500">{r.user.email}</p>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{r.linkedinAccount.linkedinName}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{(r.linkedinAccount.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || r.linkedinAccount.linkedinName}</td>
                   <td className="px-4 py-3">
                     <Badge variant={statusVariant(r.status)}>{r.status.replace("_", " ")}</Badge>
                   </td>
