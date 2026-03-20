@@ -9,6 +9,7 @@ interface Customer {
   id: string;
   fullName: string;
   email: string;
+  contactNumber: string | null;
   status: string;
   createdAt: string;
   activeRentals: number;
@@ -41,6 +42,7 @@ export default function AdminCustomersPage() {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Name</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Email</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Contact</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Active Rentals</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Total Rentals</th>
@@ -52,6 +54,16 @@ export default function AdminCustomersPage() {
                 <tr key={c.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900 text-sm">{c.fullName}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{c.email}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {c.contactNumber ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${c.contactNumber.startsWith("telegram:") ? "bg-blue-50 text-blue-600" : "bg-green-50 text-green-600"}`}>
+                          {c.contactNumber.startsWith("telegram:") ? "TG" : "WA"}
+                        </span>
+                        <span className="text-xs">{c.contactNumber.replace(/^(whatsapp|telegram):/, "")}</span>
+                      </span>
+                    ) : "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge variant={c.status === "active" ? "success" : "danger"}>{c.status}</Badge>
                   </td>

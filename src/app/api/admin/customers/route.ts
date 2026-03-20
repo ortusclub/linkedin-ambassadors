@@ -23,6 +23,7 @@ export async function GET() {
       id: c.id,
       fullName: c.fullName,
       email: c.email,
+      contactNumber: c.contactNumber,
       status: c.status,
       createdAt: c.createdAt,
       activeRentals: c.rentals.filter((r) => r.status === "active").length,
