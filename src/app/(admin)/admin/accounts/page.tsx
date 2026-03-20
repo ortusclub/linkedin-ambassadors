@@ -417,6 +417,20 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 >
                   Copy template
                 </button>
+                <button
+                  onClick={() => {
+                    const blob = new Blob([csvTemplate], { type: "text/csv" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "klabber-import-template.csv";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="mt-2 ml-3 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Download template
+                </button>
               </div>
               <p className="text-xs text-gray-400 mb-1">
                 <strong>Columns:</strong> Account Email, LinkedIn Name, LinkedIn URL, Connections, Industry, Location, Sales Navigator (yes/no), Account Opened (YYYY-MM-DD), Rental Price, Ambassador Payment, Profile Photo URL
