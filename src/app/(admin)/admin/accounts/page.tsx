@@ -197,9 +197,22 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     setImportResult(null);
 
     const lines = csvText.trim().split("\n");
-    const header = lines[0].toLowerCase();
-    const isHeaderRow = header.includes("account email") || header.includes("linkedin name");
+    const firstLine = lines[0].toLowerCase().trim();
+    const isHeaderRow = firstLine.includes("account email") || firstLine.includes("linkedin name") || firstLine.includes("email");
+    const headerCols = isHeaderRow ? parseCsvLine(lines[0]).map(c => c.trim().toLowerCase()) : [];
     const dataLines = isHeaderRow ? lines.slice(1) : lines;
+
+    // Column index mapping — supports any column order
+    const colIndex = (name: string) => {
+      const i = headerCols.findIndex(h => h.includes(name));
+      return i >= 0 ? i : -1;
+    };
+
+    const defaultOrder = ["account email", "linkedin name", "linkedin url", "connections", "industry", "location", "sales nav", "account opened", "rental price", "ambassador payment", "status", "profile photo"];
+    const getCol = (cols: string[], name: string, fallbackIdx: number) => {
+      const idx = isHeaderRow ? colIndex(name) : fallbackIdx;
+      return idx >= 0 && idx < cols.length ? cols[idx]?.trim() : "";
+    };
 
     let success = 0;
     let failed = 0;
@@ -207,7 +220,18 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     for (const line of dataLines) {
       if (!line.trim()) continue;
       const cols = parseCsvLine(line);
-      const [accountEmail, linkedinName, linkedinUrl, connections, industry, location, salesNav, accountOpened, rentalPrice, ambassadorPayment, status, photoUrl] = cols;
+      const accountEmail = getCol(cols, "account email", 0) || getCol(cols, "email", 0);
+      const linkedinName = getCol(cols, "linkedin name", 1) || getCol(cols, "name", 1);
+      const linkedinUrl = getCol(cols, "linkedin url", 2) || getCol(cols, "url", 2);
+      const connections = getCol(cols, "connections", 3);
+      const industry = getCol(cols, "industry", 4);
+      const location = getCol(cols, "location", 5);
+      const salesNav = getCol(cols, "sales nav", 6);
+      const accountOpened = getCol(cols, "account opened", 7) || getCol(cols, "opened", 7);
+      const rentalPrice = getCol(cols, "rental price", 8) || getCol(cols, "rental", 8);
+      const ambassadorPayment = getCol(cols, "ambassador payment", 9) || getCol(cols, "ambassador", 9) || getCol(cols, "payout", 9);
+      const status = getCol(cols, "status", 10);
+      const photoUrl = getCol(cols, "photo", 11) || getCol(cols, "image", 11);
 
       let accountAgeMonths: number | undefined;
       if (accountOpened) {
@@ -234,7 +258,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
             ambassadorPayment: parseFloat(ambassadorPayment) || 0,
             profilePhotoUrl: photoUrl || undefined,
             notes: `Ambassador account. Owner: admin. Profile email: ${accountEmail || ""}.`,
-            status: (["under_review","available","unavailable","rented","maintenance","retired"].includes(status?.toLowerCase()) ? status.toLowerCase() : "under_review") as string,
+            status: (["under_review","available","unavailable","rented","maintenance","retired"].includes(status?.trim().toLowerCase()) ? status.trim().toLowerCase() : "under_review"),
           }),
         });
         if (res.ok) success++;
