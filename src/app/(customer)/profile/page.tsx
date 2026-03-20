@@ -29,7 +29,7 @@ interface PaymentDetails {
   wiseEmail: string | null;
 }
 
-type Section = "personal" | "billing" | "payout";
+type Section = "personal" | "wallet";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -57,6 +57,19 @@ export default function ProfilePage() {
   const [wiseEmail, setWiseEmail] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState("");
+
+  // Billing state
+  const [usdcBalance, setUsdcBalance] = useState("0");
+  const [depositAddress, setDepositAddress] = useState<string | null>(null);
+  const [addressCopied, setAddressCopied] = useState(false);
+  const [showCryptoTopUp, setShowCryptoTopUp] = useState(false);
+  const [showCardTopUp, setShowCardTopUp] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [withdrawAddress, setWithdrawAddress] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState("");
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -88,6 +101,11 @@ export default function ProfilePage() {
         setLoading(false);
       })
       .catch(() => router.push("/login"));
+
+    // Fetch wallet balance
+    fetch("/api/wallet/balance").then(r => r.json()).then(data => {
+      setUsdcBalance(data.balance || "0");
+    }).catch(() => {});
   }, [router]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -160,8 +178,7 @@ export default function ProfilePage() {
 
   const sidebarItems: { key: Section; label: string; icon: string }[] = [
     { key: "personal", label: "Personal Info", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
-    { key: "billing", label: "Billing", icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" },
-    { key: "payout", label: "Payout Details", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+    { key: "wallet", label: "Wallet", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
   ];
 
   return (
@@ -261,128 +278,183 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Billing Section */}
-        {activeSection === "billing" && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-[#1D1B16]">Subscription Billing</h2>
-              <p className="text-sm text-gray-400 mt-1">Manage the payment methods you use to pay for rented LinkedIn accounts.</p>
-            </div>
-            <div className="px-6 py-6">
-              <div className="bg-gray-50 rounded-xl border border-gray-200 p-5">
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-gray-900">Payment Methods</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Add, remove, or update the credit cards and payment methods linked to your account. This is managed securely through Stripe.
+        {/* Wallet Section */}
+        {activeSection === "wallet" && (
+          <div className="space-y-5">
+            {/* Balance Card */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Available Balance</p>
+                    <p className="text-3xl font-bold text-[#1D1B16] mt-1" style={{ fontFamily: "'Instrument Sans', sans-serif" }}>
+                      ${parseFloat(usdcBalance).toFixed(2)}
+                      <span className="text-sm font-normal text-gray-400 ml-1">USDC</span>
                     </p>
-                    <Button variant="outline" className="mt-4" onClick={handleBillingPortal}>
-                      Manage Payment Methods
-                    </Button>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Payout Details Section */}
-        {activeSection === "payout" && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-[#1D1B16]">Ambassador Payout Details</h2>
-              <p className="text-sm text-gray-400 mt-1">Choose how you receive earnings from your ambassador accounts.</p>
-            </div>
-            <div className="px-6 py-6">
-              {!paymentDetails ? (
-                <div className="text-center py-8">
-                  <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-sm text-gray-500 mb-1">No payout details yet.</p>
-                  <p className="text-xs text-gray-400 mb-4">Payout details are configured when you become an ambassador.</p>
-                  <Link href="/become-ambassador">
-                    <Button variant="outline" size="sm">Become an Ambassador</Button>
-                  </Link>
+            {/* Deposit */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-lg font-semibold text-[#1D1B16]">Deposit</h2>
+                <p className="text-sm text-gray-400 mt-1">Add funds to your wallet to pay for account rentals.</p>
+              </div>
+              <div className="px-6 py-5 space-y-3">
+                {/* Crypto Transfer */}
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                  <button
+                    onClick={() => {
+                      setShowCryptoTopUp(!showCryptoTopUp);
+                      setShowCardTopUp(false);
+                      if (!depositAddress) {
+                        fetch("/api/wallet/deposit-address").then(r => r.json()).then(data => {
+                          if (data.address) setDepositAddress(data.address);
+                        }).catch(() => {});
+                      }
+                    }}
+                    className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12M15 9.5c0-1.38-1.34-2.5-3-2.5S9 8.12 9 9.5 10.34 12 12 12s3 1.12 3 2.5-1.34 2.5-3 2.5-3-1.12-3-2.5" />
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-gray-900">Transfer USDC</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Send USDC from your crypto wallet on Base. No fees.</p>
+                    </div>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${showCryptoTopUp ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {showCryptoTopUp && (
+                    <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Send USDC on Base to:</p>
+                      {depositAddress ? (
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 text-xs bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 break-all text-gray-700">{depositAddress}</code>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(depositAddress); setAddressCopied(true); setTimeout(() => setAddressCopied(false), 2000); }}
+                            className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+                          >
+                            {addressCopied ? "Copied!" : "Copy"}
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500">Loading your deposit address...</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1.5">Unique to your account. Detected automatically within a few minutes.</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <form onSubmit={handleSavePayment} className="space-y-5">
-                  <div className="space-y-1">
-                    <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-                    <select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option value="bank_transfer">Bank Transfer</option>
-                      <option value="paypal">PayPal</option>
-                      <option value="wise">Wise</option>
-                      <option value="usdc">USDC (Crypto)</option>
-                    </select>
+
+                {/* Card Payment */}
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                  <button
+                    onClick={() => {
+                      setShowCardTopUp(!showCardTopUp);
+                      setShowCryptoTopUp(false);
+                      if (!depositAddress) {
+                        fetch("/api/wallet/deposit-address").then(r => r.json()).then(data => {
+                          if (data.address) setDepositAddress(data.address);
+                        }).catch(() => {});
+                      }
+                    }}
+                    className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-gray-900">Pay with Card</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Credit or debit card via MoonPay.</p>
+                    </div>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${showCardTopUp ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {showCardTopUp && (
+                    <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+                      {depositAddress ? (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-3">Funds are sent directly to your Klabber deposit address on Base.</p>
+                          <a
+                            href={`https://buy.moonpay.com?apiKey=pk_live_yourkey&currencyCode=usdc_base&walletAddress=${depositAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-lg bg-[#7D00FF] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#6B00DB] transition-colors"
+                          >
+                            Buy with MoonPay
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                          </a>
+                          <p className="text-xs text-gray-400 mt-2">Standard card fees apply.</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500">Loading...</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Withdraw */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-lg font-semibold text-[#1D1B16]">Withdraw</h2>
+                <p className="text-sm text-gray-400 mt-1">Send USDC from your Klabber balance to an external wallet.</p>
+              </div>
+              <div className="px-6 py-5">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Wallet Address (Base)</label>
+                    <input type="text" placeholder="0x..." value={withdrawAddress} onChange={(e) => setWithdrawAddress(e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                   </div>
-
-                  {paymentMethod === "bank_transfer" && (
-                    <div className="space-y-4 pl-0">
-                      <Input id="bankName" label="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-                      <Input id="bankAccountName" label="Account Holder Name" value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} />
-                      <Input id="bankAccountNumber" label="Account Number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} />
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input id="bankRoutingNumber" label="Routing Number" value={bankRoutingNumber} onChange={(e) => setBankRoutingNumber(e.target.value)} placeholder="US accounts" />
-                        <Input id="bankSortCode" label="Sort Code" value={bankSortCode} onChange={(e) => setBankSortCode(e.target.value)} placeholder="UK accounts" />
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentMethod === "paypal" && (
-                    <Input id="paypalEmail" label="PayPal Email" type="email" value={paypalEmail} onChange={(e) => setPaypalEmail(e.target.value)} />
-                  )}
-
-                  {paymentMethod === "wise" && (
-                    <Input id="wiseEmail" label="Wise Email" type="email" value={wiseEmail} onChange={(e) => setWiseEmail(e.target.value)} />
-                  )}
-
-                  {paymentMethod === "usdc" && (
-                    <div className="space-y-4">
-                      <Input id="usdcWalletAddress" label="USDC Wallet Address" value={usdcWalletAddress} onChange={(e) => setUsdcWalletAddress(e.target.value)} />
-                      <div className="space-y-1">
-                        <label className="block text-sm font-medium text-gray-700">Network</label>
-                        <select
-                          value={usdcNetwork}
-                          onChange={(e) => setUsdcNetwork(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        >
-                          <option value="ethereum">Ethereum</option>
-                          <option value="polygon">Polygon</option>
-                          <option value="solana">Solana</option>
-                          <option value="base">Base</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentMessage && (
-                    <div className={`text-sm px-4 py-3 rounded-lg ${
-                      paymentMessage.includes("success")
-                        ? "bg-green-50 text-green-700 border border-green-200"
-                        : "bg-red-50 text-red-700 border border-red-200"
-                    }`}>
-                      {paymentMessage}
-                    </div>
-                  )}
-                  <div className="pt-2">
-                    <Button type="submit" variant="primary" loading={savingPayment}>
-                      Save Payout Details
-                    </Button>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Amount (USDC)</label>
+                    <input type="text" inputMode="numeric" placeholder="0.00" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                   </div>
-                </form>
-              )}
+                  <button
+                    onClick={async () => {
+                      setWithdrawing(true); setWithdrawError(""); setWithdrawSuccess(false);
+                      try {
+                        const res = await fetch("/api/wallet/withdraw", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: withdrawAddress, amount: withdrawAmount }) });
+                        const data = await res.json();
+                        if (!res.ok) { setWithdrawError(data.error || "Withdrawal failed"); return; }
+                        setWithdrawSuccess(true);
+                        setUsdcBalance((prev) => (parseFloat(prev) - parseFloat(withdrawAmount)).toString());
+                        setWithdrawAddress(""); setWithdrawAmount("");
+                      } catch { setWithdrawError("Something went wrong"); } finally { setWithdrawing(false); }
+                    }}
+                    disabled={withdrawing || !withdrawAddress || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(usdcBalance)}
+                    className="w-full rounded-lg bg-[#1D1B16] px-4 py-2.5 text-sm font-semibold text-white hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {withdrawing ? "Processing..." : "Withdraw USDC"}
+                  </button>
+                  {withdrawError && <p className="text-xs text-red-600">{withdrawError}</p>}
+                  {withdrawSuccess && <p className="text-xs text-green-600">Withdrawal submitted successfully!</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Alternative payout */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-5">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Prefer a different payout method?</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  If you&#39;d like to receive ambassador payments via bank transfer, PayPal, or Wise instead of USDC, get in touch and we&#39;ll be happy to oblige.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <a href="https://t.me/klabber" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Telegram
+                  </a>
+                  <a href="mailto:support@klabber.co" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Email
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         )}

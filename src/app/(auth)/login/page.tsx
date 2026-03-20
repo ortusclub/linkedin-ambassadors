@@ -1,11 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[80vh] items-center justify-center"><div className="text-gray-400">Loading...</div></div>}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const message = searchParams.get("message");
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -72,6 +83,12 @@ export default function LoginPage() {
     <div className="flex min-h-[80vh] items-center justify-center px-4">
       <div className="w-full max-w-md">
         <h1 className="text-2xl font-bold text-gray-900 text-center">Log in to your account</h1>
+
+        {message && (
+          <div className="mt-4 rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700 text-center">
+            {message}
+          </div>
+        )}
 
         {step === "email" && (
           <form onSubmit={handleSendCode} className="mt-8 space-y-4">

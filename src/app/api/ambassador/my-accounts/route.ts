@@ -28,10 +28,10 @@ export async function GET() {
     const user = await getUser();
 
     // Find LinkedIn accounts that belong to this ambassador
-    // Ambassador accounts have notes containing the user's email
+    // Match "Owner: email." exactly to avoid substring matches
     const accounts = await prisma.linkedInAccount.findMany({
       where: {
-        notes: { contains: user.email },
+        notes: { contains: `Owner: ${user.email}.` },
       },
       select: {
         id: true,

@@ -17,6 +17,7 @@ interface Account {
   hasSalesNav: boolean;
   monthlyPrice: number;
   status: string;
+  linkedinUrl: string | null;
 }
 
 const AVATAR_COLORS = [
@@ -48,7 +49,13 @@ export default function CataloguePage() {
   const [hasSalesNav, setHasSalesNav] = useState(false);
   const [activeFilter, setActiveFilter] = useState("All");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkLoading, setBulkLoading] = useState(false);
+  const [user, setUser] = useState<{ id: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me").then((r) => r.json()).then((data) => {
+      if (data.user) setUser(data.user);
+    }).catch(() => {});
+  }, []);
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -101,33 +108,26 @@ export default function CataloguePage() {
     }
   };
 
-  const handleBulkRent = async () => {
+  const handleBulkRent = () => {
     if (selected.size === 0) return;
-    setBulkLoading(true);
-    try {
-      const res = await fetch("/api/rentals/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountIds: Array.from(selected) }),
-      });
-      const data = await res.json();
-      if (res.status === 401) {
-        router.push("/login");
-        return;
-      }
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch {
-      alert("Something went wrong. Please try again.");
-    } finally {
-      setBulkLoading(false);
+    if (!user) {
+      router.push("/login?message=You must sign in or sign up before you can rent accounts.");
+      return;
     }
+    router.push(`/checkout?accounts=${Array.from(selected).join(",")}`);
   };
 
   const selectedTotal = accounts
     .filter((a) => selected.has(a.id))
     .reduce((sum, a) => sum + Number(a.monthlyPrice), 0);
+
+  const handleRentSingle = (accountId: string) => {
+    if (!user) {
+      router.push("/login?message=You must sign in or sign up before you can rent accounts.");
+      return;
+    }
+    router.push(`/checkout?accounts=${accountId}`);
+  };
 
   return (
     <>
@@ -167,8 +167,11 @@ export default function CataloguePage() {
         .cat-price-row{margin-top:16px;padding-top:16px;border-top:1px solid #E8E6E1;display:flex;align-items:baseline;justify-content:space-between}
         .cat-price{font-size:22px;font-weight:700;font-family:'Instrument Sans',sans-serif;letter-spacing:-0.02em;color:#0F1419}
         .cat-period{font-size:13px;color:#8899A6}
-        .cat-view-btn{padding:8px 18px;border-radius:10px;background:#0A66C2;color:#fff;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s;font-family:'DM Sans',system-ui,sans-serif}
-        .cat-view-btn:hover{background:#004182;transform:translateY(-1px)}
+        .cat-view-btn{padding:4px 10px;border-radius:6px;background:#0A66C2;color:#fff;font-size:11px;font-weight:600;border:none;cursor:pointer;transition:all .15s;font-family:'DM Sans',system-ui,sans-serif;white-space:nowrap}
+        .cat-view-btn:hover{background:#004182}
+        .cat-rent-btn{padding:4px 10px;border-radius:6px;background:#00B85C;color:#fff;font-size:11px;font-weight:600;border:none;cursor:pointer;transition:all .15s;font-family:'DM Sans',system-ui,sans-serif;white-space:nowrap}
+        .cat-rent-btn:hover{background:#007A3D}
+        .cat-rent-btn:disabled{opacity:0.5;cursor:not-allowed}
         .cat-empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:#536471}
         .cat-loading{height:200px;border-radius:16px;background:#E8E6E1;animation:pulse 1.5s ease-in-out infinite}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
@@ -242,10 +245,9 @@ export default function CataloguePage() {
                 </button>
                 <button
                   onClick={handleBulkRent}
-                  disabled={bulkLoading}
-                  style={{padding:'6px 18px',borderRadius:8,border:'none',background:'#fff',color:'#0A66C2',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit',opacity:bulkLoading?0.6:1}}
+                  style={{padding:'6px 18px',borderRadius:8,border:'none',background:'#fff',color:'#0A66C2',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}
                 >
-                  {bulkLoading ? 'Processing...' : `Rent ${selected.size} Account${selected.size > 1 ? 's' : ''}`}
+                  {`Rent ${selected.size} Account${selected.size > 1 ? 's' : ''}`}
                 </button>
               </div>
             </div>
@@ -278,6 +280,7 @@ export default function CataloguePage() {
                     <th style={{padding:'12px 16px'}}>Industry</th>
                     <th style={{padding:'12px 16px'}}>Location</th>
                     <th style={{padding:'12px 16px'}}>Account Age</th>
+                    <th style={{padding:'12px 16px'}}>Sales Nav</th>
                     <th style={{padding:'12px 16px'}}>Status</th>
                     <th style={{padding:'12px 16px'}}>Price</th>
                     <th style={{padding:'12px 16px'}}></th>
@@ -333,7 +336,18 @@ export default function CataloguePage() {
                         <td style={{padding:'12px 16px',color:'#0F1419',fontWeight:500}}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</td>
                         <td style={{padding:'12px 16px',color:'#536471'}}>{a.industry || '—'}</td>
                         <td style={{padding:'12px 16px',color:'#536471'}}>{a.location || '—'}</td>
-                        <td style={{padding:'12px 16px',color:'#536471'}}>{ageYears && ageYears > 0 ? `${ageYears}+ yrs` : '—'}{a.hasSalesNav ? ' · SN' : ''}</td>
+                        <td style={{padding:'12px 16px',color:'#536471'}}>{ageYears && ageYears > 0 ? `${ageYears}+ yrs` : '—'}</td>
+                        <td style={{padding:'12px 16px',textAlign:'center'}}>
+                          {a.hasSalesNav ? (
+                            <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:'50%',background:'#E6F9EE',color:'#00B85C'}}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                            </span>
+                          ) : (
+                            <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:'50%',background:'#FEF2F2',color:'#DC2626'}}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </span>
+                          )}
+                        </td>
                         <td style={{padding:'12px 16px'}}>
                           <span style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 10px',borderRadius:100,fontSize:12,fontWeight:600,background:sc.bg,color:sc.text}}>
                             <span style={{width:6,height:6,borderRadius:'50%',background:sc.dot}} />
@@ -342,7 +356,21 @@ export default function CataloguePage() {
                         </td>
                         <td style={{padding:'12px 16px',fontWeight:700,color:'#0F1419',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'#8899A6',fontSize:12}}>/mo</span></td>
                         <td style={{padding:'12px 16px',textAlign:'right'}}>
-                          <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none',fontSize:12,padding:'6px 14px'}}>View Profile</Link>
+                          <div style={{display:'flex',gap:4,justifyContent:'flex-end'}}>
+                            {a.linkedinUrl ? (
+                              <a href={a.linkedinUrl} target="_blank" rel="noopener noreferrer" className="cat-view-btn" style={{display:'inline-block',textDecoration:'none'}}>View Profile</a>
+                            ) : (
+                              <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none'}}>View Profile</Link>
+                            )}
+                            {isAvailable && (
+                              <button
+                                className="cat-rent-btn"
+                                onClick={() => handleRentSingle(a.id)}
+                              >
+                                Rent
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );

@@ -30,7 +30,9 @@
     ],
     "protocols": {
       "name": "Klabber",
-      "schemes": ["klabber"]
+      "schemes": [
+        "klabber"
+      ]
     },
     "mac": {
       "category": "public.app-category.business",
@@ -44,6 +46,7 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1013.0",
     "proxy-chain": "^2.7.1",
     "puppeteer": "^24.9.0"
   },

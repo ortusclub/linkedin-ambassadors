@@ -45,6 +45,7 @@ model User {
   emailVerified     DateTime?  @map("email_verified")
   contactNumber     String?    @map("contact_number")
   image             String?
+  usdcBalance       Decimal    @default(0) @map("usdc_balance") @db.Decimal(18, 6)
   dismissAppModalUntil DateTime? @map("dismiss_app_modal_until")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
@@ -52,6 +53,8 @@ model User {
   rentals           Rental[]
   waitlistEntries   Waitlist[]
   sessions          Session[]
+  transactions      Transaction[]
+  depositAddress    DepositAddress?
 
   @@map("users")
 }
@@ -108,12 +111,14 @@ model Rental {
   autoRenew             Boolean      @default(true) @map("auto_renew")
   status                RentalStatus @default(active)
   accessGrantedAt       DateTime?    @map("access_granted_at")
+  usdcPayment           Boolean      @default(false) @map("usdc_payment")
   accessRevokedAt       DateTime?    @map("access_revoked_at")
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")
 
   user                  User            @relation(fields: [userId], references: [id])
   linkedinAccount       LinkedInAccount @relation(fields: [linkedinAccountId], references: [id])
+  transactions          Transaction[]
 
   @@map("rentals")
 }
@@ -166,4 +171,40 @@ model AmbassadorApplication {
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
   @@map("ambassador_applications")
+}
+
+enum TransactionType {
+  deposit
+  rental_payment
+  sweep
+  refund
+  adjustment
+}
+
+model DepositAddress {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @unique @map("user_id") @db.Uuid
+  address          String   @unique
+  derivationIndex  Int      @unique @map("derivation_index")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("deposit_addresses")
+}
+
+model Transaction {
+  id          String          @id @default(uuid()) @db.Uuid
+  userId      String          @map("user_id") @db.Uuid
+  type        TransactionType
+  amount      Decimal         @db.Decimal(18, 6)
+  txHash      String?         @map("tx_hash")
+  rentalId    String?         @map("rental_id") @db.Uuid
+  description String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  user        User            @relation(fields: [userId], references: [id])
+  rental      Rental?         @relation(fields: [rentalId], references: [id])
+
+  @@map("transactions")
 }

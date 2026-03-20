@@ -5,29 +5,22 @@ import { requireAuth } from "@/lib/auth";
 export async function GET() {
   try {
     const user = await requireAuth();
-
-    const rentals = await prisma.rental.findMany({
+    const transactions = await prisma.transaction.findMany({
       where: { userId: user.id },
-      include: {
-        linkedinAccount: {
-          select: {
-            id: true,
-            linkedinName: true,
-            linkedinHeadline: true,
-            profilePhotoUrl: true,
-            connectionCount: true,
-            gologinProfileId: true,
-            proxyHost: true,
-            proxyPort: true,
-            proxyUsername: true,
-            proxyPassword: true,
-          },
-        },
-      },
       orderBy: { createdAt: "desc" },
+      take: 50,
     });
 
-    return NextResponse.json({ rentals });
+    return NextResponse.json({
+      transactions: transactions.map((t) => ({
+        id: t.id,
+        type: t.type,
+        amount: t.amount.toString(),
+        txHash: t.txHash,
+        description: t.description,
+        createdAt: t.createdAt.toISOString(),
+      })),
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

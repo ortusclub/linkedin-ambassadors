@@ -72,14 +72,16 @@
       <!-- Section: Rented Accounts -->
       <div id="rentals-section" class="hidden">
         <div class="section-header">
-          <h2 class="section-title-text">Accounts I'm Renting</h2>
+          <h2 class="section-title-text">My Rental Accounts</h2>
         </div>
         <table class="profile-table" id="rentals-table">
           <thead>
             <tr>
               <th>Account</th>
               <th>Status</th>
+              <th>Proxy</th>
               <th>Since</th>
+              <th>Renewal</th>
               <th style="text-align:right;">Actions</th>
             </tr>
           </thead>
@@ -323,9 +325,11 @@
       refreshRentals();
     }
 
+    let _currentRentals = [];
     async function refreshRentals() {
       try {
         const rentals = await window.ambassador.listRentals();
+        _currentRentals = rentals;
         renderRentals(rentals);
       } catch {}
     }
@@ -340,11 +344,27 @@
       }
 
       section.classList.remove('hidden');
+      window._rentalData = {};
       tbody.innerHTML = rentals.map(rental => {
         const account = rental.linkedinAccount || {};
+        const profileId = account.gologinProfileId || rental.id;
         const name = (account.linkedinName || 'Unknown').replace(/\s*\(.*\)\s*$/, '');
         const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
         const startDate = rental.startDate ? new Date(rental.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+        const proxyText = account.proxyHost ? account.proxyHost + ':' + (account.proxyPort || '') : 'None';
+        const renewalText = rental.autoRenew
+          ? 'Auto-renewal on'
+          : rental.currentPeriodEnd
+            ? 'Expires ' + new Date(rental.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : '-';
+
+        // Store proxy data for this rental
+        window._rentalData[profileId] = {
+          host: account.proxyHost || null,
+          port: account.proxyPort || null,
+          username: account.proxyUsername || null,
+          password: account.proxyPassword || null,
+        };
 
         return `
           <tr>
@@ -363,10 +383,15 @@
                 Active
               </span>
             </td>
+            <td><span class="proxy-text">${escapeHtml(proxyText)}</span></td>
             <td><span class="date-text">${startDate}</span></td>
+            <td><span class="date-text">${renewalText}</span></td>
             <td>
               <div class="actions-cell" style="justify-content:flex-end;">
-                <button class="run-btn no-drag" onclick="handleRun('${account.gologinProfileId || rental.id}')">&#9654; Open Browser</button>
+                ${profileId === runningProfileId
+                  ? `<button class="stop-btn no-drag" id="stop-btn-${profileId}" onclick="handleStop('${profileId}')">&#9632; Stop</button>`
+                  : `<button class="run-btn no-drag" onclick="handleRun('${profileId}')">&#9654; Open Browser</button>`
+                }
               </div>
             </td>
           </tr>
@@ -444,7 +469,7 @@
               <div class="actions-cell" style="justify-content:flex-end;">
                 ${isRunning
                   ? `<button class="stop-btn no-drag" id="stop-btn-${profile.id}" onclick="handleStop('${profile.id}')">&#9632; Stop</button>`
-                  : `<button class="run-btn no-drag" onclick="handleRun('${profile.id}')">&#9654; Run</button>`
+                  : `<button class="run-btn no-drag" onclick="handleRun('${profile.id}')">&#9654; Open Browser</button>`
                 }
                 <button class="delete-btn no-drag" onclick="handleDelete('${profile.id}')" title="Delete profile">&#x1f5d1;</button>
               </div>
@@ -467,13 +492,15 @@
 
     // ===== Browser actions =====
     async function handleRun(profileId) {
-      const result = await window.ambassador.runBrowser(profileId);
+      const proxy = (window._rentalData && window._rentalData[profileId]) || null;
+      const result = await window.ambassador.runBrowser(profileId, proxy);
       if (!result.success) {
         alert(result.error || 'Failed to launch browser');
         return;
       }
       runningProfileId = profileId;
       renderProfiles();
+      renderRentals(_currentRentals);
     }
 
     async function handleStop(profileId) {
@@ -494,6 +521,7 @@
       await new Promise(r => setTimeout(r, 800));
       runningProfileId = null;
       renderProfiles();
+      renderRentals(_currentRentals);
     }
 
     async function handleDelete(profileId) {
@@ -570,6 +598,7 @@
       }
       runningProfileId = null;
       renderProfiles();
+      renderRentals(_currentRentals);
     });
 
     // Allow Enter key on login

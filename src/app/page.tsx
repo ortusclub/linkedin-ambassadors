@@ -44,7 +44,7 @@ export default async function HomePage() {
         .nav-cta{padding:8px 20px;background:var(--accent);color:#fff !important;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;transition:transform .15s,box-shadow .15s}
         .nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
         .hero{min-height:calc(100vh - 64px);display:grid;grid-template-columns:1fr 1fr;position:relative}
-        .hero-side{padding:80px 60px 60px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+        .hero-side{padding:80px 60px 60px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden}
         .hero-rent{background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%);color:#fff}
         .hero-earn{background:linear-gradient(160deg,#0A2618 0%,#0A4D30 40%,#00B85C 100%);color:#fff}
         .hero-side::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 70%,rgba(255,255,255,0.06) 0%,transparent 60%);pointer-events:none}
@@ -56,6 +56,11 @@ export default async function HomePage() {
         .hero-btn-white:hover{background:rgba(255,255,255,0.25);transform:translateY(-1px)}
         .hero-btn-solid{background:#fff;color:var(--accent)}
         .hero-btn-solid:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,0.15)}
+        .hero-video-btn{display:inline-flex;align-items:center;gap:10px;background:none;border:none;cursor:pointer;padding:0;transition:opacity .2s;text-decoration:none}
+        .hero-video-btn:hover{opacity:0.8}
+        .hero-video-play{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);border:1.5px solid rgba(255,255,255,0.35);display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .hero-video-btn:hover .hero-video-play{background:rgba(255,255,255,0.3);transform:scale(1.08)}
+        .hero-video-text{font-size:14px;font-weight:500;color:rgba(255,255,255,0.8);font-family:'DM Sans',system-ui,sans-serif}
         .hero-stats{display:flex;gap:32px;margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.15)}
         .hero-stat-num{font-size:28px;font-weight:700;font-family:'Instrument Sans',sans-serif;letter-spacing:-0.03em}
         .hero-stat-label{font-size:12px;opacity:0.6;margin-top:2px}
@@ -174,6 +179,8 @@ export default async function HomePage() {
         .btn-green-solid{padding:16px 32px;border-radius:var(--radius);background:var(--green);color:#fff;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
         .btn-green-solid:hover{background:var(--green-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,184,92,0.2)}
         .kl-footer{border-top:1px solid var(--border);padding:40px;text-align:center;font-size:13px;color:var(--text-light)}
+        .tg-float{position:fixed;bottom:24px;right:24px;z-index:50;width:56px;height:56px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform 0.2s,box-shadow 0.2s;text-decoration:none}
+        .tg-float:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(0,0,0,0.25)}
         @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
         .fade-up{animation:fadeUp .6s ease-out both}
         .d1{animation-delay:.1s}.d2{animation-delay:.2s}.d3{animation-delay:.3s}.d4{animation-delay:.4s}
@@ -205,8 +212,14 @@ export default async function HomePage() {
             <div className="hero-label fade-up">For growth teams</div>
             <h1 className="hero-title fade-up d1">Scale LinkedIn outreach without the limits</h1>
             <p className="hero-desc fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories. Run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
-            <div className="fade-up d3">
+            <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
               <Link href="/catalogue" className="hero-btn hero-btn-solid">Browse Available Accounts →</Link>
+              <a href="#" className="hero-video-btn" aria-label="Watch how renting works">
+                <span className="hero-video-play">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                </span>
+                <span className="hero-video-text">See how it works</span>
+              </a>
             </div>
             <div className="hero-stats fade-up d4">
               <div><div className="hero-stat-num">847</div><div className="hero-stat-label">Accounts live</div></div>
@@ -219,35 +232,69 @@ export default async function HomePage() {
             <div className="hero-label fade-up">For professionals</div>
             <h1 className="hero-title fade-up d1">Earn $10–$500/mo from your LinkedIn</h1>
             <p className="hero-desc fade-up d2">Every LinkedIn profile has value — from brand new to well-established. List yours on Klabber and get paid every month, guaranteed, whether we find a renter or not.</p>
-            <div className="fade-up d3">
+            <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
               <Link href="/become-ambassador" className="hero-btn hero-btn-white">Become an Ambassador →</Link>
+              <a href="#" className="hero-video-btn" aria-label="Watch how earning works">
+                <span className="hero-video-play">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                </span>
+                <span className="hero-video-text">Watch the video</span>
+              </a>
             </div>
             <div className="hero-stats fade-up d4">
-              <div><div className="hero-stat-num">$85</div><div className="hero-stat-label">Avg. monthly earnings</div></div>
+              <div><div className="hero-stat-num">$85</div><div className="hero-stat-label">Avg. per account/mo</div></div>
               <div><div className="hero-stat-num">240+</div><div className="hero-stat-label">Ambassadors</div></div>
-              <div><div className="hero-stat-num">48hr</div><div className="hero-stat-label">Avg. payout</div></div>
+              <div><div className="hero-stat-num">1st</div><div className="hero-stat-label">Monthly payout</div></div>
             </div>
           </div>
         </section>
 
         {/* SOCIAL PROOF BAR */}
         <div className="proof-bar">
-          <div className="proof-inner">
-            <div className="proof-logos">
-              <span style={{fontSize:12,color:'var(--text-light)',fontWeight:500,whiteSpace:'nowrap'}}>Trusted by teams at</span>
-              <span className="proof-logo">Salesforce</span>
-              <span className="proof-logo">HubSpot</span>
-              <span className="proof-logo">Outreach</span>
-              <span className="proof-logo">Apollo</span>
-              <span className="proof-logo">Lemlist</span>
-              <span className="proof-logo">Reply.io</span>
+          <div className="proof-inner" style={{justifyContent:'center',gap:64}}>
+            <div className="proof-stat" style={{textAlign:'center'}}>
+              <div className="proof-stat-num" id="counter-teams">237</div>
+              <div className="proof-stat-label">Teams using Klabber</div>
             </div>
-            <div className="proof-stats">
-              <div className="proof-stat"><div className="proof-stat-num">12,400</div><div className="proof-stat-label">Campaigns running</div></div>
-              <div className="proof-stat"><div className="proof-stat-num">94%</div><div className="proof-stat-label">Renewal rate</div></div>
+            <div style={{width:1,height:40,background:'var(--border)'}} />
+            <div className="proof-stat" style={{textAlign:'center'}}>
+              <div className="proof-stat-num" id="counter-accounts">847</div>
+              <div className="proof-stat-label">Verified accounts provided</div>
+            </div>
+            <div style={{width:1,height:40,background:'var(--border)'}} />
+            <div className="proof-stat" style={{textAlign:'center'}}>
+              <div className="proof-stat-num" style={{color:'#00B85C'}}>0</div>
+              <div className="proof-stat-label">Accounts restricted</div>
             </div>
           </div>
         </div>
+        <script dangerouslySetInnerHTML={{__html: `
+          (function(){
+            function animateCounter(id, target, duration) {
+              var el = document.getElementById(id);
+              if (!el) return;
+              var start = 0, startTime = null;
+              function step(ts) {
+                if (!startTime) startTime = ts;
+                var progress = Math.min((ts - startTime) / duration, 1);
+                var ease = 1 - Math.pow(1 - progress, 3);
+                var current = Math.floor(ease * target);
+                el.textContent = current.toLocaleString();
+                if (progress < 1) requestAnimationFrame(step);
+              }
+              requestAnimationFrame(step);
+              // Slowly increment after initial animation
+              setTimeout(function() {
+                setInterval(function() {
+                  target += 1;
+                  el.textContent = target.toLocaleString();
+                }, Math.random() * 8000 + 12000);
+              }, duration + 1000);
+            }
+            animateCounter('counter-teams', 237, 2000);
+            animateCounter('counter-accounts', 847, 2500);
+          })();
+        `}} />
 
         {/* HOW IT WORKS */}
         <section className="kl-section" id="how">
@@ -436,27 +483,58 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* COMPARISON TABLE */}
-        <section className="kl-section">
-          <div className="trust-grid">
-            <div>
-              <div className="section-label">Why Klabber</div>
-              <div className="section-title">74% cheaper than hiring another SDR</div>
-              <div className="section-desc">A single SDR costs $4,500–6,000/month in salary alone. With Klabber, you get the same outreach volume for a fraction of the cost — and you can scale instantly.</div>
-              <Link href="/catalogue" className="hero-btn hero-btn-solid" style={{background:'var(--blue)',color:'#fff',display:'inline-flex',textDecoration:'none'}}>Calculate your ROI →</Link>
+        {/* WHY RENT ACCOUNTS */}
+        <section style={{background:'linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%)',padding:'80px 60px',position:'relative',overflow:'hidden',borderRadius:24,margin:'0 40px'}}>
+          <div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 70% 30%,rgba(255,255,255,0.05) 0%,transparent 60%)',pointerEvents:'none'}} />
+          <div style={{maxWidth:1200,margin:'0 auto',position:'relative'}}>
+            <div style={{textAlign:'center',marginBottom:48}}>
+              <div style={{fontSize:12,fontWeight:600,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.5)',marginBottom:12}}>Why rent accounts</div>
+              <h2 style={{fontSize:'clamp(28px,3.5vw,40px)',fontWeight:700,letterSpacing:'-0.03em',color:'#fff',marginBottom:16,fontFamily:'Instrument Sans,sans-serif'}}>LinkedIn is powerful — but limited</h2>
+              <p style={{fontSize:16,color:'rgba(255,255,255,0.7)',maxWidth:600,margin:'0 auto',lineHeight:1.7}}>
+                With a single account, you&#39;re limited to around 100 connection requests per week, approximately 50 messages and InMails, and just one campaign at a time. Klabber removes those limits by giving you access to multiple verified accounts.
+              </p>
             </div>
-            <div className="comparison-table">
-              <div className="row header">
-                <div className="cell feature"></div>
-                <div className="cell solo">Solo account</div>
-                <div className="cell klabber">With Klabber</div>
+
+            <div style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:20,padding:'40px 36px'}}>
+              <h3 style={{fontSize:22,fontWeight:700,letterSpacing:'-0.02em',color:'#fff',marginBottom:24,fontFamily:'Instrument Sans,sans-serif'}}>Scale with real, verified accounts</h3>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+                <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                  <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                  </div>
+                  <div>
+                    <h4 style={{fontSize:14,fontWeight:600,color:'#fff',marginBottom:2}}>Real people, verified by LinkedIn</h4>
+                    <p style={{fontSize:13,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>No bots or fakes. Accounts that won&#39;t get restricted.</p>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                  <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                  </div>
+                  <div>
+                    <h4 style={{fontSize:14,fontWeight:600,color:'#fff',marginBottom:2}}>Works with Chrome extensions</h4>
+                    <p style={{fontSize:13,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>PhantomBuster, custom AI tools, or any automation you use.</p>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                  <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                  </div>
+                  <div>
+                    <h4 style={{fontSize:14,fontWeight:600,color:'#fff',marginBottom:2}}>Scale in minutes</h4>
+                    <p style={{fontSize:13,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>Go from one campaign to ten without hiring.</p>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                  <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                  </div>
+                  <div>
+                    <h4 style={{fontSize:14,fontWeight:600,color:'#fff',marginBottom:2}}>No restriction risk</h4>
+                    <p style={{fontSize:13,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>Genuine profiles don&#39;t trigger LinkedIn&#39;s spam detection.</p>
+                  </div>
+                </div>
               </div>
-              <div className="row"><div className="cell feature">Weekly connections</div><div className="cell solo">100</div><div className="cell klabber">1,000+</div></div>
-              <div className="row"><div className="cell feature">Parallel campaigns</div><div className="cell solo">1</div><div className="cell klabber">10+</div></div>
-              <div className="row"><div className="cell feature">Account risk</div><div className="cell solo">High</div><div className="cell klabber">Distributed</div></div>
-              <div className="row"><div className="cell feature">Monthly cost</div><div className="cell solo">$4,500+ (SDR)</div><div className="cell klabber">From $199</div></div>
-              <div className="row"><div className="cell feature">Ramp-up time</div><div className="cell solo">Weeks</div><div className="cell klabber">Instant</div></div>
-              <div className="row"><div className="cell feature">Sales Navigator</div><div className="cell solo">Extra cost</div><div className="cell klabber">Included</div></div>
             </div>
           </div>
         </section>
@@ -467,12 +545,12 @@ export default async function HomePage() {
             <div className="section-label">For professionals</div>
             <div className="section-title">Your LinkedIn has been earning you connections. Now let it earn you cash.</div>
             <div className="section-desc">Any LinkedIn account qualifies — new or established. List yours and start earning immediately. We pay you every month, guaranteed, whether we find a renter or not.</div>
-            <div style={{marginTop:32}}><Link href="/become-ambassador" className="hero-btn hero-btn-white" style={{display:'inline-flex',textDecoration:'none'}}>Apply to become an Ambassador →</Link></div>
+            <div style={{marginTop:32}}><Link href="/become-ambassador" className="hero-btn hero-btn-white" style={{display:'inline-flex',textDecoration:'none'}}>Become an Ambassador →</Link></div>
             <div className="earn-grid">
               <div className="earn-card">
                 <div className="earn-amount">$10–$500</div>
-                <h4>Monthly earnings</h4>
-                <p>Based on your connection count, industry relevance, SSI score, and account age.</p>
+                <h4>Monthly earnings per account</h4>
+                <p>Earn $10–$500 every month for each account you provide. Based on connection count, industry, and account age.</p>
               </div>
               <div className="earn-card">
                 <div className="earn-amount">100%</div>
@@ -480,9 +558,9 @@ export default async function HomePage() {
                 <p>Your name, photo, and headline stay yours. Renters use the account for outreach only — no profile changes.</p>
               </div>
               <div className="earn-card">
-                <div className="earn-amount">48hr</div>
-                <h4>Fast payouts</h4>
-                <p>Get paid within 48 hours of each billing cycle. Direct to your bank or PayPal.</p>
+                <div className="earn-amount">1st</div>
+                <h4>Monthly payouts</h4>
+                <p>Get paid on the 1st of every month directly via crypto (USDC). Prefer another method? Just let us know.</p>
               </div>
             </div>
           </div>
@@ -532,7 +610,7 @@ export default async function HomePage() {
         {/* FOOTER */}
         <footer className="kl-footer">
           <div style={{maxWidth:1200,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
-            <span className="logo" style={{fontSize:18}}><span className="logo-mark" style={{width:30,height:30,fontSize:15}}>kl</span>Klabber</span>
+            <span style={{fontSize:18,fontWeight:600,color:'var(--text-mid)',letterSpacing:'-0.02em'}}>Klabber</span>
             <div style={{display:'flex',gap:24}}>
               <a href="#" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Privacy</a>
               <a href="#" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Terms</a>
@@ -541,6 +619,17 @@ export default async function HomePage() {
             <div>© 2026 Klabber. All rights reserved.</div>
           </div>
         </footer>
+
+        {/* Telegram floating chat button */}
+        <a
+          href="https://t.me/klabber"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="tg-float"
+          aria-label="Chat with us on Telegram"
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+        </a>
       </div>
     </>
   );

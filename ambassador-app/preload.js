@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld('ambassador', {
   toggleAvailability: (profileId) => ipcRenderer.invoke('profiles:toggle-availability', { profileId }),
 
   // Browser
-  runBrowser: (profileId) => ipcRenderer.invoke('browser:run', { profileId }),
+  runBrowser: (profileId, proxy) => ipcRenderer.invoke('browser:run', { profileId, proxy }),
   stopBrowser: () => ipcRenderer.invoke('browser:stop'),
   getBrowserStatus: () => ipcRenderer.invoke('browser:status'),
   onBrowserClosed: (callback) => ipcRenderer.on('browser-closed', callback),

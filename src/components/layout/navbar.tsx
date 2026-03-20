@@ -16,11 +16,20 @@ export function Navbar() {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [balance, setBalance] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
-      .then((data) => setUser(data.user || null))
+      .then((data) => {
+        setUser(data.user || null);
+        if (data.user) {
+          fetch("/api/wallet/balance")
+            .then((r) => r.json())
+            .then((d) => setBalance(d.balance || "0"))
+            .catch(() => {});
+        }
+      })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
@@ -50,6 +59,10 @@ export function Navbar() {
         .kl-nav-user:hover{background:rgba(29,27,22,0.12) !important;color:#1D1B16 !important}
         .kl-nav-btn{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;border:1px solid #E8E6E1;background:transparent;color:#536471;cursor:pointer;transition:all .15s;text-decoration:none}
         .kl-nav-btn:hover{color:#0F1419;border-color:#0F1419}
+        .kl-balance{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#E6F9EE;border:1px solid #BBF7D0;font-size:13px;font-weight:700;color:#166534;text-decoration:none;transition:all .15s;cursor:pointer;font-family:'DM Sans',system-ui,sans-serif}
+        .kl-balance:hover{background:#D1FAE5;border-color:#86EFAC}
+        .kl-balance-label{font-size:11px;font-weight:500;color:#22C55E;letter-spacing:0.02em}
+        .kl-topup{font-size:10px;font-weight:600;color:#0A66C2;background:#E8F1FA;padding:2px 6px;border-radius:4px;margin-left:2px}
         .kl-spacer{height:64px}
         @media(max-width:900px){.kl-nav-links{display:none}}
       `}</style>
@@ -65,6 +78,11 @@ export function Navbar() {
             {loading ? null : user ? (
               <>
                 <Link href="/dashboard">Dashboard</Link>
+                <Link href="/dashboard#wallet" className="kl-balance">
+                  <span className="kl-balance-label">USDC</span>
+                  ${balance !== null ? parseFloat(balance).toFixed(2) : '—'}
+                  <span className="kl-topup">Top Up</span>
+                </Link>
                 <a href="/profile" className="kl-nav-btn">
                   {user.fullName}
                 </a>

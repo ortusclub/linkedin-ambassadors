@@ -49,6 +49,17 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showAppModal, setShowAppModal] = useState(false);
   const [appModalDismissed, setAppModalDismissed] = useState(false);
+  const [usdcBalance, setUsdcBalance] = useState<string>("0");
+  const [depositAddress, setDepositAddress] = useState<string | null>(null);
+  const [addressCopied, setAddressCopied] = useState(false);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showAppPrompt, setShowAppPrompt] = useState(false);
+  const [withdrawAddress, setWithdrawAddress] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState("");
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AmbassadorAccount | null>(null);
   const [editForm, setEditForm] = useState({ linkedinName: "", linkedinHeadline: "", linkedinUrl: "", industry: "", location: "", connectionCount: 0, profilePhotoUrl: "" });
@@ -62,13 +73,43 @@ export default function DashboardPage() {
       }),
       fetch("/api/ambassador/my-accounts").then((r) => r.json()).catch(() => ({ accounts: [] })),
       fetch("/api/user/dismiss-app-modal").then((r) => r.json()).catch(() => ({ dismissed: false })),
-    ]).then(([rentalData, ambassadorData, dismissData]) => {
+      fetch("/api/wallet/balance").then((r) => r.json()).catch(() => ({ balance: "0" })),
+      fetch("/api/wallet/deposit-address").then((r) => r.json()).catch(() => ({ address: null })),
+    ]).then(([rentalData, ambassadorData, dismissData, balanceData, addressData]) => {
       if (rentalData) setRentals(rentalData.rentals || []);
       setAmbassadorAccounts(ambassadorData.accounts || []);
       setAppModalDismissed(dismissData.dismissed || false);
+      setUsdcBalance(balanceData.balance || "0");
+      setDepositAddress(addressData.address || null);
       setLoading(false);
     });
   }, [router]);
+
+  const handleWithdraw = async () => {
+    setWithdrawing(true);
+    setWithdrawError("");
+    setWithdrawSuccess(false);
+    try {
+      const res = await fetch("/api/wallet/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: withdrawAddress, amount: withdrawAmount }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setWithdrawError(data.error || "Withdrawal failed");
+        return;
+      }
+      setWithdrawSuccess(true);
+      setUsdcBalance((prev) => (parseFloat(prev) - parseFloat(withdrawAmount)).toString());
+      setWithdrawAddress("");
+      setWithdrawAmount("");
+    } catch {
+      setWithdrawError("Something went wrong");
+    } finally {
+      setWithdrawing(false);
+    }
+  };
 
   const [removeAccountId, setRemoveAccountId] = useState<string | null>(null);
 
@@ -184,6 +225,94 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
       </div>
 
+      {/* USDC Wallet */}
+      <section id="wallet" className="mb-8">
+        <Card>
+          <CardContent className="px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A66C2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5c0-1.38-1.34-2.5-3-2.5S9 8.12 9 9.5 10.34 12 12 12s3 1.12 3 2.5-1.34 2.5-3 2.5-3-1.12-3-2.5"/></svg>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">USDC Balance</p>
+                  <p className="text-xl font-bold text-gray-900 -mt-0.5">${parseFloat(usdcBalance).toFixed(2)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowTopUp(!showTopUp);
+                    setShowWithdraw(false);
+                    if (!depositAddress) {
+                      fetch("/api/wallet/deposit-address").then(r => r.json()).then(data => {
+                        if (data.address) setDepositAddress(data.address);
+                      }).catch(() => {});
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${showTopUp ? 'bg-green-700 text-white' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                  Top Up
+                </button>
+                <button
+                  onClick={() => { setShowWithdraw(!showWithdraw); setShowTopUp(false); }}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showWithdraw ? 'border-gray-400 bg-gray-100 text-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Withdraw
+                </button>
+              </div>
+            </div>
+
+            {/* Top Up Panel */}
+            {showTopUp && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Send USDC on Base to:</p>
+                {depositAddress ? (
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 break-all text-gray-700">{depositAddress}</code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(depositAddress); setAddressCopied(true); setTimeout(() => setAddressCopied(false), 2000); }}
+                      className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+                    >
+                      {addressCopied ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">Loading your deposit address...</p>
+                )}
+                <p className="text-xs text-gray-400 mt-1.5">Base network only. This address is unique to your account. Deposits are detected automatically.</p>
+              </div>
+            )}
+
+            {/* Withdraw Panel */}
+            {showWithdraw && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Wallet Address</label>
+                    <input type="text" placeholder="0x..." value={withdrawAddress} onChange={(e) => setWithdrawAddress(e.target.value)} className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Amount</label>
+                    <input type="number" placeholder="0.00" step="0.01" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs" />
+                  </div>
+                </div>
+                <button
+                  onClick={handleWithdraw}
+                  disabled={withdrawing || !withdrawAddress || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > parseFloat(usdcBalance)}
+                  className="w-full rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {withdrawing ? "Processing..." : "Withdraw"}
+                </button>
+                {withdrawError && <p className="text-xs text-red-600 mt-1">{withdrawError}</p>}
+                {withdrawSuccess && <p className="text-xs text-green-600 mt-1">Withdrawal submitted!</p>}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
       {/* Ambassador Accounts */}
       {ambassadorAccounts.length > 0 && (
         <section className="mb-12">
@@ -273,12 +402,12 @@ export default function DashboardPage() {
 
       {/* Active Rentals */}
       <section className="mb-12">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Active Rentals</h2>
         {activeRentals.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center">
-              <p className="text-gray-500">No active rentals.</p>
-              <Button variant="primary" className="mt-4" onClick={() => router.push("/catalogue")}>
+              <h3 className="text-lg font-semibold text-gray-900">Scale Your LinkedIn Outreach</h3>
+              <p className="text-gray-500 text-sm mb-6">Rent verified accounts and run parallel campaigns to grow faster.</p>
+              <Button variant="primary" onClick={() => router.push("/catalogue")}>
                 Browse Accounts
               </Button>
             </CardContent>
@@ -310,16 +439,40 @@ export default function DashboardPage() {
                       <div className="mt-1 flex gap-4 text-xs text-gray-500">
                         <span>Started: {formatDate(rental.startDate)}</span>
                         {rental.currentPeriodEnd && <span>Next billing: {formatDate(rental.currentPeriodEnd)}</span>}
-                        <span>Auto-renew: {rental.autoRenew ? "On" : "Off"}</span>
+                        <button
+                          onClick={async () => {
+                            const newVal = !rental.autoRenew;
+                            const res = await fetch(`/api/rentals/${rental.id}/auto-renew`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ autoRenew: newVal }),
+                            });
+                            if (res.ok) {
+                              setRentals((prev) => prev.map((r) => r.id === rental.id ? { ...r, autoRenew: newVal } : r));
+                            }
+                          }}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${rental.autoRenew ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        >
+                          <span className={`inline-block w-2 h-2 rounded-full ${rental.autoRenew ? 'bg-green-500' : 'bg-gray-400'}`} />
+                          Auto-renew {rental.autoRenew ? "On" : "Off"}
+                        </button>
                       </div>
                     </div>
 
                     <div className="flex gap-2">
-                      {rental.linkedinAccount.gologinProfileId && (
-                        <Button size="sm" variant="primary">Access Account</Button>
-                      )}
+                      <Button size="sm" variant="primary" onClick={() => {
+                        const profileId = rental.linkedinAccount.gologinProfileId;
+                        if (profileId) {
+                          // Try deep link to Klabber app
+                          const timeout = setTimeout(() => setShowAppPrompt(true), 1500);
+                          window.location.href = `klabber://launch/${profileId}`;
+                          window.addEventListener("blur", () => clearTimeout(timeout), { once: true });
+                        } else {
+                          setShowAppPrompt(true);
+                        }
+                      }}>Access Account</Button>
                       {rental.autoRenew && (
-                        <Button size="sm" variant="outline" onClick={() => handleCancel(rental.id)}>Cancel</Button>
+                        <Button size="sm" variant="outline" onClick={() => handleCancel(rental.id)}>Cancel Auto Renewal</Button>
                       )}
                     </div>
                   </div>
@@ -482,6 +635,63 @@ export default function DashboardPage() {
                 {editSaving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Klabber App Download Prompt */}
+      {showAppPrompt && (
+        <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.5)',backdropFilter:'blur(4px)'}}>
+          <div style={{background:'#fff',borderRadius:20,padding:32,maxWidth:440,width:'90%',position:'relative'}}>
+            <button
+              onClick={() => setShowAppPrompt(false)}
+              style={{position:'absolute',top:16,right:16,background:'none',border:'none',fontSize:20,color:'#8899A6',cursor:'pointer',lineHeight:1}}
+            >
+              &times;
+            </button>
+
+            <div style={{textAlign:'center',marginBottom:24}}>
+              <div style={{width:48,height:48,borderRadius:12,background:'#1D1B16',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:20,fontWeight:700,margin:'0 auto 16px',fontFamily:"'Instrument Sans',sans-serif"}}>kl</div>
+              <h3 style={{fontSize:20,fontWeight:700,color:'#0F1419',fontFamily:"'Instrument Sans',sans-serif"}}>Download the Klabber App</h3>
+              <p style={{fontSize:13,color:'#536471',marginTop:6}}>You need the Klabber desktop app to access your rented accounts securely.</p>
+            </div>
+
+            <div style={{display:'flex',flexDirection:'column',gap:16,marginBottom:28}}>
+              <div style={{display:'flex',gap:14,alignItems:'flex-start'}}>
+                <div style={{width:28,height:28,borderRadius:8,background:'#E8F1FA',color:'#0A66C2',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Instrument Sans',sans-serif"}}>1</div>
+                <div>
+                  <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Download the Klabber app</p>
+                  <p style={{fontSize:12,color:'#8899A6',marginTop:2}}>Available for Mac and Windows. Takes less than a minute.</p>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:14,alignItems:'flex-start'}}>
+                <div style={{width:28,height:28,borderRadius:8,background:'#E6F9EE',color:'#00B85C',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Instrument Sans',sans-serif"}}>2</div>
+                <div>
+                  <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Log in with your Klabber account</p>
+                  <p style={{fontSize:12,color:'#8899A6',marginTop:2}}>Use the same email you signed up with. We&apos;ll send you a verification code.</p>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:14,alignItems:'flex-start'}}>
+                <div style={{width:28,height:28,borderRadius:8,background:'#F3E8FF',color:'#7C3AED',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Instrument Sans',sans-serif"}}>3</div>
+                <div>
+                  <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Your accounts will appear automatically</p>
+                  <p style={{fontSize:12,color:'#8899A6',marginTop:2}}>Open any account directly from the app with a secure, isolated Chrome profile.</p>
+                </div>
+              </div>
+            </div>
+
+            <a
+              href="/api/download"
+              style={{display:'block',width:'100%',padding:14,borderRadius:10,background:'#0A66C2',color:'#fff',fontSize:15,fontWeight:700,textAlign:'center',textDecoration:'none',fontFamily:"'DM Sans',sans-serif"}}
+            >
+              Download Klabber App
+            </a>
+            <button
+              onClick={() => setShowAppPrompt(false)}
+              style={{display:'block',width:'100%',padding:10,background:'transparent',border:'none',color:'#536471',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit',marginTop:8,textAlign:'center'}}
+            >
+              I already have the app
+            </button>
           </div>
         </div>
       )}

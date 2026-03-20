@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
       hasSalesNav: true,
       monthlyPrice: true,
       status: true,
+      linkedinUrl: true,
     },
   });
 

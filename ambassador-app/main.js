@@ -2,9 +2,10 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { uploadProfile, downloadProfile } = require('./profile-sync');
 
 // API base URL
-const API_BASE = process.env.NODE_ENV === 'production' ? 'https://klabber.co' : 'http://localhost:3000';
+const API_BASE = process.env.NODE_ENV === 'production' ? 'https://klabber.co' : 'http://localhost:3002';
 
 // Store profile data in user's app data directory
 const PROFILES_DIR = path.join(app.getPath('userData'), 'profiles');
@@ -188,13 +189,6 @@ async function openBrowser(profileId, proxyConfig) {
   const savedProxy = config.proxy;
   const userDataDir = path.join(dir, 'chrome-data');
 
-  // Clear session restore files so Chrome doesn't reopen old tabs
-  const sessionFiles = ['Last Session', 'Last Tabs', 'Current Session', 'Current Tabs'];
-  for (const f of sessionFiles) {
-    const fp1 = path.join(userDataDir, 'Default', f);
-    try { if (fs.existsSync(fp1)) fs.unlinkSync(fp1); } catch {}
-  }
-
   const puppeteer = require('puppeteer');
 
   const args = [
@@ -214,6 +208,7 @@ async function openBrowser(profileId, proxyConfig) {
     '--disable-sync',
     '--disable-session-crashed-bubble',
     '--hide-crash-restore-bubble',
+    '--restore-last-session',
   ];
 
   // Set up proxy with transparent auth via proxy-chain (no auth popup)
@@ -252,12 +247,9 @@ async function openBrowser(profileId, proxyConfig) {
     ],
   });
 
-  // Close all restored tabs immediately to prevent them hitting old proxy URLs
+  // Apply fingerprint to all pages (restored and new)
   const restoredPages = await puppeteerBrowser.pages();
-  for (let i = 1; i < restoredPages.length; i++) {
-    try { await restoredPages[i].close(); } catch {}
-  }
-  const page = restoredPages[0] || await puppeteerBrowser.newPage();
+  const hasRestoredTabs = restoredPages.length > 0 && restoredPages.some(p => p.url() !== 'about:blank');
 
   const fingerprintScript = `
     // Hide webdriver flag
@@ -334,15 +326,29 @@ async function openBrowser(profileId, proxyConfig) {
     }
   `;
 
-  await page.evaluateOnNewDocument(fingerprintScript);
+  // Apply fingerprint script to all existing and future pages
+  for (const p of restoredPages) {
+    try { await p.evaluateOnNewDocument(fingerprintScript); } catch {}
+  }
+  puppeteerBrowser.on('targetcreated', async (target) => {
+    try {
+      const p = await target.page();
+      if (p) await p.evaluateOnNewDocument(fingerprintScript);
+    } catch {}
+  });
 
-  try {
-    await page.goto('https://www.linkedin.com/login', {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000,
-    });
-  } catch (e) {
-    console.error('Navigation error:', e.message);
+  // Only navigate to LinkedIn if no tabs were restored
+  if (!hasRestoredTabs) {
+    const page = restoredPages[0] || await puppeteerBrowser.newPage();
+    await page.evaluateOnNewDocument(fingerprintScript);
+    try {
+      await page.goto('https://www.linkedin.com/login', {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+      });
+    } catch (e) {
+      console.error('Navigation error:', e.message);
+    }
   }
 
   const handleBrowserClose = () => {
@@ -358,6 +364,14 @@ async function openBrowser(profileId, proxyConfig) {
     // Register with backend when browser closes (user logged into LinkedIn)
     if (closedProfileId) {
       registerProfileWithBackend(closedProfileId);
+      // Upload profile to cloud for cross-machine sync
+      const auth = loadAuth();
+      if (auth && auth.token) {
+        const profileDir = path.join(PROFILES_DIR, closedProfileId);
+        uploadProfile(closedProfileId, profileDir, API_BASE, auth.token).catch(err => {
+          console.error('Profile upload on close failed:', err.message);
+        });
+      }
     }
   };
 
@@ -445,7 +459,18 @@ ipcMain.handle('auth:logout', async () => {
 
 // Profiles
 ipcMain.handle('profiles:list', async () => {
-  const localProfiles = listProfiles();
+  const auth = loadAuth();
+  const currentUserEmail = auth?.email || '';
+  const allLocalProfiles = listProfiles();
+  // Only show profiles created by the current user (or profiles without a createdBy field for backwards compat)
+  const localProfiles = allLocalProfiles.filter(p => {
+    const configPath = path.join(PROFILES_DIR, p.id, 'profile.json');
+    if (!fs.existsSync(configPath)) return false;
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      return !config.createdBy || config.createdBy === currentUserEmail;
+    } catch { return true; }
+  });
 
   // Also try to fetch server-side profiles for this user
   try {
@@ -503,7 +528,8 @@ ipcMain.handle('profiles:add', async (event, { name, email, linkedinUrl }) => {
   const profileId = email.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
   const proxy = getNextProxy();
   getProfileDir(profileId, proxy);
-  saveProfileMeta(profileId, { name, email, linkedinUrl, status: 'under_review', registered: false });
+  const auth = loadAuth();
+  saveProfileMeta(profileId, { name, email, linkedinUrl, status: 'under_review', registered: false, createdBy: auth?.email || '' });
 
   // Immediately register with backend
   await registerProfileWithBackend(profileId);
@@ -631,12 +657,23 @@ async function registerProfileWithBackend(profileId) {
 }
 
 // Browser
-ipcMain.handle('browser:run', async (event, { profileId }) => {
+ipcMain.handle('browser:run', async (event, { profileId, proxy }) => {
   if (puppeteerBrowser) {
     return { success: false, error: 'A browser is already running. Stop it first.' };
   }
-  const proxy = getNextProxy();
-  await openBrowser(profileId, proxy);
+  // Download latest profile from cloud before launching
+  const auth = loadAuth();
+  if (auth && auth.token) {
+    const profileDir = path.join(PROFILES_DIR, profileId);
+    if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
+    try {
+      await downloadProfile(profileId, profileDir, API_BASE, auth.token);
+    } catch (err) {
+      console.error('Profile download failed (continuing with local):', err.message);
+    }
+  }
+  const proxyConfig = proxy && proxy.host ? proxy : getNextProxy();
+  await openBrowser(profileId, proxyConfig);
   return { success: true };
 });
 
@@ -652,6 +689,16 @@ ipcMain.handle('browser:stop', async () => {
   // Register the profile with the backend after browser session is saved
   if (stoppedProfileId) {
     await registerProfileWithBackend(stoppedProfileId);
+    // Upload profile to cloud for cross-machine sync
+    const auth = loadAuth();
+    if (auth && auth.token) {
+      const profileDir = path.join(PROFILES_DIR, stoppedProfileId);
+      try {
+        await uploadProfile(stoppedProfileId, profileDir, API_BASE, auth.token);
+      } catch (err) {
+        console.error('Profile upload failed:', err.message);
+      }
+    }
   }
   return { success: true };
 });
