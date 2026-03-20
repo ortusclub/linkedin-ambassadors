@@ -168,6 +168,8 @@ function createMainWindow() {
     minWidth: 800,
     minHeight: 550,
     resizable: true,
+    title: 'Klabber',
+    icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
