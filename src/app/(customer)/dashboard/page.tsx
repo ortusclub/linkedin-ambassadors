@@ -461,15 +461,7 @@ export default function DashboardPage() {
 
                     <div className="flex gap-2">
                       <Button size="sm" variant="primary" onClick={() => {
-                        const profileId = rental.linkedinAccount.gologinProfileId;
-                        if (profileId) {
-                          // Try deep link to Klabber app
-                          const timeout = setTimeout(() => setShowAppPrompt(true), 1500);
-                          window.location.href = `klabber://launch/${profileId}`;
-                          window.addEventListener("blur", () => clearTimeout(timeout), { once: true });
-                        } else {
-                          setShowAppPrompt(true);
-                        }
+                        setShowAppPrompt(true);
                       }}>Access Account</Button>
                       {rental.autoRenew && (
                         <Button size="sm" variant="outline" onClick={() => handleCancel(rental.id)}>Cancel Auto Renewal</Button>
@@ -687,10 +679,19 @@ export default function DashboardPage() {
               Download Klabber App
             </a>
             <button
-              onClick={() => setShowAppPrompt(false)}
-              style={{display:'block',width:'100%',padding:10,background:'transparent',border:'none',color:'#536471',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit',marginTop:8,textAlign:'center'}}
+              onClick={() => {
+                window.location.href = 'klabber://open';
+                setShowAppPrompt(false);
+              }}
+              style={{display:'block',width:'100%',padding:12,borderRadius:10,background:'transparent',border:'2px solid #E8E6E1',color:'#0F1419',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit',marginTop:8,textAlign:'center'}}
             >
-              I already have the app
+              I already have the app — Open Klabber
+            </button>
+            <button
+              onClick={() => setShowAppPrompt(false)}
+              style={{display:'block',width:'100%',padding:8,background:'transparent',border:'none',color:'#8899A6',fontSize:12,fontWeight:500,cursor:'pointer',fontFamily:'inherit',marginTop:4,textAlign:'center'}}
+            >
+              Close
             </button>
           </div>
         </div>
