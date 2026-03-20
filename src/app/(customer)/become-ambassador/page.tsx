@@ -203,6 +203,7 @@ export default function BecomeAmbassadorPage() {
         body: JSON.stringify({
           fullName: form.fullName,
           email: form.email,
+          linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
           contactNumber: form.contactNumber,
           linkedinUrl: form.linkedinUrl,
           connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
@@ -232,6 +233,7 @@ export default function BecomeAmbassadorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
           connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
         }),
       });
@@ -319,26 +321,40 @@ export default function BecomeAmbassadorPage() {
 
       {/* How It Works */}
       {step !== "choice" && (
-      <section className="bg-gray-50 py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-center text-3xl font-bold text-gray-900">How It Works</h2>
-          <div className="mt-10 grid gap-6 md:grid-cols-4">
+      <section className="py-12">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-start justify-between">
             {[
-              { n: "1", title: "Share Your Profile", desc: "Enter your LinkedIn URL and basic info.", active: step === "info", done: step !== "info", goTo: "info" as Step },
-              { n: "2", title: "Assessment & Offer", desc: "We evaluate your profile and make you a monthly offer.", active: step === "scanning" || step === "result", done: ["bank","login","complete","done"].includes(step), goTo: "result" as Step },
-              { n: "3", title: "Payment Details", desc: "Choose how you'd like to be paid.", active: step === "bank", done: ["login","complete","done"].includes(step), goTo: "bank" as Step },
-              { n: "4", title: "Download & Connect", desc: "Download the Klabber app and add your LinkedIn profile.", active: step === "login" || step === "complete", done: step === "done", goTo: "login" as Step },
-            ].map((s) => (
-              <div
-                key={s.n}
-                onClick={() => s.done && setStep(s.goTo)}
-                className={`rounded-xl p-8 shadow-sm border text-center transition-all ${s.done ? "border-green-300 bg-green-50 cursor-pointer hover:border-green-400 hover:shadow-md" : s.active ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`}
-              >
-                <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold ${s.done ? "bg-green-100 text-green-600" : s.active ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-400"}`}>
-                  {s.done ? "\u2713" : s.n}
+              { n: "1", title: "Share Your Profile", desc: "Enter your LinkedIn URL and basic info.", active: step === "info", done: step !== "info", goTo: "info" as Step, color: "#0A66C2" },
+              { n: "2", title: "Assessment & Offer", desc: "We evaluate and make you an offer.", active: step === "scanning" || step === "result", done: ["bank","login","complete","done"].includes(step), goTo: "result" as Step, color: "#7C3AED" },
+              { n: "3", title: "Payment Details", desc: "Choose how you'd like to be paid.", active: step === "bank", done: ["login","complete","done"].includes(step), goTo: "bank" as Step, color: "#D97706" },
+              { n: "4", title: "Download & Connect", desc: "Get the Klabber app and connect.", active: step === "login" || step === "complete", done: step === "done", goTo: "login" as Step, color: "#00B85C" },
+            ].map((s, i, arr) => (
+              <div key={s.n} className="flex items-start" style={{flex:1}}>
+                <div
+                  onClick={() => s.done && setStep(s.goTo)}
+                  className={`flex flex-col items-center text-center ${s.done ? "cursor-pointer" : ""}`}
+                  style={{width:'100%'}}
+                >
+                  <div
+                    className="flex items-center justify-center transition-all"
+                    style={{
+                      width: 44, height: 44, borderRadius: '50%',
+                      background: s.done ? '#00B85C' : s.active ? s.color : '#E8E6E1',
+                      color: s.done || s.active ? '#fff' : '#8899A6',
+                      fontSize: 16, fontWeight: 700,
+                      boxShadow: s.active ? `0 0 0 4px ${s.color}20` : 'none',
+                    }}
+                  >
+                    {s.done ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    ) : s.n}
+                  </div>
+                  <p className="mt-2 text-xs font-semibold" style={{color: s.active ? '#0F1419' : s.done ? '#00B85C' : '#8899A6'}}>{s.title}</p>
                 </div>
-                <h3 className="mt-4 text-xl font-semibold text-gray-900">{s.title}</h3>
-                <p className="mt-2 text-gray-600">{s.desc}</p>
+                {i < arr.length - 1 && (
+                  <div style={{flex:'0 0 auto',width:40,height:2,background: s.done ? '#00B85C' : '#E8E6E1',marginTop:22,borderRadius:1}} />
+                )}
               </div>
             ))}
           </div>
