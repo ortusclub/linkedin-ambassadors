@@ -25,7 +25,7 @@ export default function RootLayout({
         <Navbar />
         <main>{children}</main>
         <a
-          href="https://t.me/klabber"
+          href="https://t.me/klabber_support_bot"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Chat with us on Telegram"
