@@ -106,12 +106,43 @@ export default function EditAccountPage() {
         <Card>
           <CardHeader><h3 className="font-semibold text-gray-900">Profile Details</h3></CardHeader>
           <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={(form.status as string) || "under_review"}
+                onChange={(e) => update("status", e.target.value)}
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="under_review">Under Review</option>
+                <option value="available">Available</option>
+                <option value="unavailable">Unavailable</option>
+                <option value="rented">Rented</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="retired">Retired</option>
+              </select>
+            </div>
             <Input id="linkedinName" label="LinkedIn Name" value={(form.linkedinName as string) || ""} onChange={(e) => update("linkedinName", e.target.value)} />
             <Input id="linkedinHeadline" label="Headline" value={(form.linkedinHeadline as string) || ""} onChange={(e) => update("linkedinHeadline", e.target.value)} />
             <Input id="linkedinUrl" label="LinkedIn URL" value={(form.linkedinUrl as string) || ""} onChange={(e) => update("linkedinUrl", e.target.value)} />
             <div className="grid grid-cols-2 gap-4">
               <Input id="connectionCount" label="Connections" type="text" inputMode="numeric" value={(form.connectionCount as number) || ""} onChange={(e) => update("connectionCount", parseInt(e.target.value) || 0)} />
-              <Input id="accountAgeMonths" label="Age (months)" type="text" inputMode="numeric" value={(form.accountAgeMonths as number) || ""} onChange={(e) => update("accountAgeMonths", parseInt(e.target.value) || 0)} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Opened</label>
+                <input
+                  type="date"
+                  value={(form.accountOpenedDate as string) || ""}
+                  onChange={(e) => {
+                    update("accountOpenedDate", e.target.value);
+                    if (e.target.value) {
+                      const opened = new Date(e.target.value);
+                      const now = new Date();
+                      const months = (now.getFullYear() - opened.getFullYear()) * 12 + (now.getMonth() - opened.getMonth());
+                      update("accountAgeMonths", Math.max(0, months));
+                    }
+                  }}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input id="industry" label="Industry" value={(form.industry as string) || ""} onChange={(e) => update("industry", e.target.value)} />
@@ -162,36 +193,6 @@ export default function EditAccountPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><h3 className="font-semibold text-gray-900">Status & Notes</h3></CardHeader>
-          <CardContent className="space-y-4">
-            <Input id="gologinProfileId" label="GoLogin Profile ID" value={(form.gologinProfileId as string) || ""} onChange={(e) => update("gologinProfileId", e.target.value)} />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                value={(form.status as string) || "maintenance"}
-                onChange={(e) => update("status", e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="under_review">Under Review</option>
-                <option value="available">Available</option>
-                <option value="unavailable">Unavailable</option>
-                <option value="rented">Rented</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="retired">Retired</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-              <textarea
-                value={(form.notes as string) || ""}
-                onChange={(e) => update("notes", e.target.value)}
-                rows={3}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Rental history */}
         {rentals.length > 0 && (
