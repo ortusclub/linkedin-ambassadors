@@ -100,15 +100,13 @@ export default function AdminAmbassadorsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Applicant</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Contact</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">LinkedIn</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner Email</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Offer</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Applied</th>
-                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -119,67 +117,20 @@ export default function AdminAmbassadorsPage() {
                   return (
                     <tr key={app.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">{app.fullName}</p>
-                        <p className="text-xs text-gray-500">{app.email}</p>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{app.contactNumber || "—"}</td>
-                      <td className="px-4 py-3">
-                        <a
-                          href={app.linkedinUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:text-blue-800 truncate block max-w-[180px]"
-                        >
-                          {app.linkedinUrl.replace("https://www.linkedin.com/in/", "").replace(/\/$/, "")}
+                        <a href={app.linkedinUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-900 hover:text-blue-600">
+                          {app.fullName}
                         </a>
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{app.linkedinUrl.replace("https://www.linkedin.com/in/", "").replace(/\/$/, "") || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{app.email}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {app.connectionCount ? app.connectionCount.toLocaleString() : "—"}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{app.location || app.industry || "—"}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{offer ? `${offer}/mo` : "—"}</td>
                       <td className="px-4 py-3">
                         <Badge variant={statusVariant(app.status)}>{app.status}</Badge>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{formatDate(app.createdAt)}</td>
-                      <td className="px-4 py-3 text-right space-x-2">
-                        {app.status === "pending" && (
-                          <button
-                            onClick={() => updateStatus(app.id, "reviewing")}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            Review
-                          </button>
-                        )}
-                        {app.status === "reviewing" && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setEditing(app.id);
-                                setOfferAmount(app.offeredAmount?.toString() || "");
-                                setAdminNotes(app.adminNotes || "");
-                              }}
-                              className="text-sm text-green-600 hover:text-green-800 font-medium"
-                            >
-                              Make Offer
-                            </button>
-                            <button
-                              onClick={() => updateStatus(app.id, "rejected")}
-                              className="text-sm text-red-600 hover:text-red-800 font-medium"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                        {app.status === "approved" && (
-                          <button
-                            onClick={() => updateStatus(app.id, "onboarded")}
-                            className="text-sm text-green-600 hover:text-green-800 font-medium"
-                          >
-                            Mark Onboarded
-                          </button>
-                        )}
-                      </td>
                     </tr>
                   );
                 })}
