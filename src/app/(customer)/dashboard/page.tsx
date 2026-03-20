@@ -253,7 +253,7 @@ export default function DashboardPage() {
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${showTopUp ? 'bg-green-700 text-white' : 'bg-green-600 text-white hover:bg-green-700'}`}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                  Top Up
+                  Deposit
                 </button>
                 <button
                   onClick={() => { setShowWithdraw(!showWithdraw); setShowTopUp(false); }}
@@ -264,24 +264,47 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Top Up Panel */}
+            {/* Deposit Panel */}
             {showTopUp && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Send USDC on Base to:</p>
-                {depositAddress ? (
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 text-xs bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 break-all text-gray-700">{depositAddress}</code>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(depositAddress); setAddressCopied(true); setTimeout(() => setAddressCopied(false), 2000); }}
-                      className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:bg-gray-50 whitespace-nowrap"
-                    >
-                      {addressCopied ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500">Loading your deposit address...</p>
-                )}
-                <p className="text-xs text-gray-400 mt-1.5">Base network only. This address is unique to your account. Deposits are detected automatically.</p>
+              <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                {/* Crypto deposit */}
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-2">Transfer USDC <span className="font-normal text-gray-400">— no fees</span></p>
+                  {depositAddress ? (
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-xs bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 break-all text-gray-700">{depositAddress}</code>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(depositAddress); setAddressCopied(true); setTimeout(() => setAddressCopied(false), 2000); }}
+                        className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+                      >
+                        {addressCopied ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">Loading your deposit address...</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1.5">Base network only. Unique to your account. Detected automatically.</p>
+                </div>
+                {/* Card deposit */}
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-2">Pay with Card <span className="font-normal text-gray-400">— via MoonPay</span></p>
+                  {depositAddress ? (
+                    <div>
+                      <a
+                        href={`https://buy.moonpay.com?apiKey=pk_live_yourkey&currencyCode=usdc_base&walletAddress=${depositAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#7D00FF] px-3 py-2 text-xs font-semibold text-white hover:bg-[#6B00DB] transition-colors"
+                      >
+                        Buy USDC with Card
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </a>
+                      <p className="text-xs text-gray-400 mt-1.5">Standard card fees apply.</p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">Loading...</p>
+                  )}
+                </div>
               </div>
             )}
 
