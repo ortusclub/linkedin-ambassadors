@@ -52,9 +52,10 @@ export default function RegisterPage() {
           )}
           <Input
             id="fullName"
-            label="Full name"
+            label="Username"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
+            placeholder="Choose a username"
             required
           />
           <Input
