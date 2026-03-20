@@ -200,14 +200,6 @@ export default function AccountDetailPage() {
               </div>
             )}
 
-            {/* About */}
-            {account.notes && (
-              <div className="rounded-2xl bg-white border border-gray-200 p-6">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">About This Account</h2>
-                <p className="text-gray-700 leading-relaxed">{account.notes}</p>
-              </div>
-            )}
-
             {/* What you get */}
             {!isAdmin && (
               <div className="rounded-2xl bg-white border border-gray-200 p-6">
@@ -269,26 +261,25 @@ export default function AccountDetailPage() {
                       <p className="mt-1 text-sm text-gray-500">Cancel anytime</p>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="flex gap-2">
                       {account.linkedinUrl && (
                         <a
                           href={account.linkedinUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block w-full rounded-xl border-2 border-blue-600 py-3 text-center font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+                          className="flex-1 rounded-lg border border-gray-200 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           View Profile
                         </a>
                       )}
-
                       {account.status === "available" ? (
-                        <Button size="lg" onClick={handleRent} loading={actionLoading} className="w-full !rounded-xl !py-3">
-                          Rent This Account
-                        </Button>
+                        <button onClick={handleRent} disabled={actionLoading} className="flex-1 rounded-lg bg-blue-600 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50">
+                          {actionLoading ? "Processing..." : "Rent This Account"}
+                        </button>
                       ) : (
-                        <Button size="lg" disabled variant="secondary" className="w-full !rounded-xl !py-3">
+                        <button disabled className="flex-1 rounded-lg bg-gray-100 py-2.5 text-center text-sm font-semibold text-gray-400 cursor-not-allowed">
                           Currently Unavailable
-                        </Button>
+                        </button>
                       )}
                     </div>
                   </>
