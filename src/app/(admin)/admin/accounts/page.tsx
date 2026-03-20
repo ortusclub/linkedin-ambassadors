@@ -284,7 +284,6 @@ export default function AdminAccountsPage() {
                         <button onClick={() => handleApprove(a.id)} className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700">Approve</button>
                       )}
                       <Link href={`/admin/accounts/${a.id}`} className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200">Edit</Link>
-                      <button onClick={() => handleDelete(a.id)} className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-100">Remove</button>
                     </div>
                   </td>
                 </tr>
