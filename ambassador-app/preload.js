@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer, shell } = require('electron');
 
 contextBridge.exposeInMainWorld('ambassador', {
-  openExternal: (url) => shell.openExternal(url),
+  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
   // Auth
   checkAuth: () => ipcRenderer.invoke('auth:check'),
   sendVerification: (email) => ipcRenderer.invoke('auth:send-verification', { email }),
@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('ambassador', {
   listRentals: () => ipcRenderer.invoke('rentals:list'),
   addProfile: (name, email, linkedinUrl) => ipcRenderer.invoke('profiles:add', { name, email, linkedinUrl }),
   deleteProfile: (profileId) => ipcRenderer.invoke('profiles:delete', { profileId }),
+  toggleAvailability: (profileId) => ipcRenderer.invoke('profiles:toggle-availability', { profileId }),
 
   // Browser
   runBrowser: (profileId) => ipcRenderer.invoke('browser:run', { profileId }),

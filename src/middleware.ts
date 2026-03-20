@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionToken = request.cookies.get("session_token")?.value;
 
-  // Protect customer dashboard
+  // Protect customer dashboard and profile
   if (pathname.startsWith("/dashboard") && !sessionToken) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

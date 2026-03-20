@@ -524,6 +524,38 @@ button, input, select, textarea, a, .no-drag { -webkit-app-region: no-drag; }
 
 .status-badge.ready .dot { background: #16a34a; }
 .status-badge.running .dot { background: #2563eb; }
+.status-badge.not-available {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+.status-badge.not-available .dot { background: #9ca3af; }
+.status-badge.under-review {
+  background: #fef3c7;
+  color: #92400e;
+}
+.status-badge.under-review .dot { background: #d97706; }
+.status-badge.rented {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.status-badge.rented .dot { background: #0ea5e9; }
+.status-badge.maintenance {
+  background: #fef3c7;
+  color: #92400e;
+}
+.status-badge.maintenance .dot { background: #f59e0b; }
+
+.availability-toggle {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #2563eb;
+  cursor: pointer;
+}
+.availability-toggle:hover {
+  color: #1d4ed8;
+}
 
 /* Proxy cell */
 /* Payment cell */
@@ -565,6 +597,8 @@ button, input, select, textarea, a, .no-drag { -webkit-app-region: no-drag; }
   display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 120px;
+  justify-content: center;
 }
 .run-btn:hover {
   background: #dcfce7;
@@ -584,6 +618,8 @@ button, input, select, textarea, a, .no-drag { -webkit-app-region: no-drag; }
   display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 120px;
+  justify-content: center;
 }
 .stop-btn:hover {
   background: #fee2e2;

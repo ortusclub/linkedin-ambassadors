@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatNumber, formatCurrency } from "@/lib/utils";
 
 interface Account {
@@ -15,6 +16,7 @@ interface Account {
   accountAgeMonths: number | null;
   hasSalesNav: boolean;
   monthlyPrice: number;
+  status: string;
 }
 
 const AVATAR_COLORS = [
@@ -37,6 +39,7 @@ function getInitials(name: string) {
 }
 
 export default function CataloguePage() {
+  const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -44,6 +47,8 @@ export default function CataloguePage() {
   const [sort, setSort] = useState("connectionCount");
   const [hasSalesNav, setHasSalesNav] = useState(false);
   const [activeFilter, setActiveFilter] = useState("All");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -77,6 +82,52 @@ export default function CataloguePage() {
     }
     setTimeout(() => fetchAccounts(), 0);
   };
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const available = accounts.filter((a) => a.status === "available");
+    if (selected.size === available.length && available.length > 0) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(available.map((a) => a.id)));
+    }
+  };
+
+  const handleBulkRent = async () => {
+    if (selected.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/rentals/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountIds: Array.from(selected) }),
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const selectedTotal = accounts
+    .filter((a) => selected.has(a.id))
+    .reduce((sum, a) => sum + Number(a.monthlyPrice), 0);
 
   return (
     <>
@@ -175,9 +226,34 @@ export default function CataloguePage() {
             </div>
           </div>
 
+          {/* Bulk rent bar */}
+          {selected.size > 0 && (
+            <div style={{background:'#0A66C2',borderRadius:12,padding:'12px 20px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',color:'#fff'}}>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <span style={{fontWeight:600,fontSize:14}}>{selected.size} account{selected.size > 1 ? 's' : ''} selected</span>
+                <span style={{fontSize:13,opacity:0.85}}>Total: {formatCurrency(selectedTotal)}/mo</span>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <button
+                  onClick={() => setSelected(new Set())}
+                  style={{padding:'6px 14px',borderRadius:8,border:'1px solid rgba(255,255,255,0.3)',background:'transparent',color:'#fff',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={handleBulkRent}
+                  disabled={bulkLoading}
+                  style={{padding:'6px 18px',borderRadius:8,border:'none',background:'#fff',color:'#0A66C2',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit',opacity:bulkLoading?0.6:1}}
+                >
+                  {bulkLoading ? 'Processing...' : `Rent ${selected.size} Account${selected.size > 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </div>
+          )}
+
           {loading ? (
-            <div className="cat-grid">
-              {[1,2,3,4,5,6].map(i => <div key={i} className="cat-loading" />)}
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              {[1,2,3,4,5,6].map(i => <div key={i} className="cat-loading" style={{height:56}} />)}
             </div>
           ) : accounts.length === 0 ? (
             <div className="cat-empty">
@@ -185,47 +261,94 @@ export default function CataloguePage() {
               <p style={{fontSize:14,marginTop:8}}>Check back soon or adjust your filters.</p>
             </div>
           ) : (
-            <div className="cat-grid">
-              {accounts.map((a) => {
-                const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
-                const initials = getInitials(a.linkedinName);
-                const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
-                const price = Number(a.monthlyPrice);
-                return (
-                  <Link key={a.id} href={`/account/${a.id}`} className="cat-card">
-                    <div className="cat-card-header">
-                      <div className="cat-avatar" style={{background: getAvatarColor(a.linkedinName)}}>
-                        {a.profilePhotoUrl ? (
-                          <img src={a.profilePhotoUrl} alt={displayName} />
-                        ) : initials}
-                      </div>
-                      <div style={{minWidth:0}}>
-                        <div className="cat-name">{displayName}</div>
-                        <div className="cat-role">{a.linkedinHeadline || [a.industry, a.location].filter(Boolean).join(" · ") || ""}</div>
-                      </div>
-                    </div>
-                    <div className="cat-meta">
-                      {a.connectionCount > 0 && (
-                        <div className="cat-meta-item"><div className="val">{formatNumber(a.connectionCount)}</div><div className="lbl">Connections</div></div>
-                      )}
-                      {ageYears && ageYears > 0 ? (
-                        <div className="cat-meta-item"><div className="val">{ageYears}+ yrs</div><div className="lbl">Account age</div></div>
-                      ) : null}
-                      {a.hasSalesNav && (
-                        <div className="cat-meta-item"><div className="val">SN</div><div className="lbl">Sales Nav included</div></div>
-                      )}
-                    </div>
-                    <div className="cat-tags">
-                      {a.industry && <span className="cat-tag">{a.industry}</span>}
-                      {a.location && <span className="cat-tag">{a.location}</span>}
-                    </div>
-                    <div className="cat-price-row">
-                      <div><span className="cat-price">{formatCurrency(price)}</span><span className="cat-period">/month</span></div>
-                      <span className="cat-view-btn">View Profile</span>
-                    </div>
-                  </Link>
-                );
-              })}
+            <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,overflow:'hidden'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid #E8E6E1',textAlign:'left',fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'#8899A6'}}>
+                    <th style={{padding:'12px 12px 12px 16px',width:40}}>
+                      <input
+                        type="checkbox"
+                        checked={selected.size > 0 && selected.size === accounts.filter(a => a.status === 'available').length}
+                        onChange={toggleSelectAll}
+                        style={{accentColor:'#0A66C2',cursor:'pointer'}}
+                      />
+                    </th>
+                    <th style={{padding:'12px 16px'}}>Profile</th>
+                    <th style={{padding:'12px 16px'}}>Connections</th>
+                    <th style={{padding:'12px 16px'}}>Industry</th>
+                    <th style={{padding:'12px 16px'}}>Location</th>
+                    <th style={{padding:'12px 16px'}}>Account Age</th>
+                    <th style={{padding:'12px 16px'}}>Status</th>
+                    <th style={{padding:'12px 16px'}}>Price</th>
+                    <th style={{padding:'12px 16px'}}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accounts.map((a) => {
+                    const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+                    const initials = getInitials(a.linkedinName);
+                    const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
+                    const price = Number(a.monthlyPrice);
+                    const isAvailable = a.status === 'available';
+                    const isSelected = selected.has(a.id);
+                    const statusColors: Record<string, {bg:string,text:string,dot:string}> = {
+                      available: {bg:'#E6F9EE',text:'#007A3D',dot:'#00B85C'},
+                      rented: {bg:'#FEF3C7',text:'#92400E',dot:'#D97706'},
+                      maintenance: {bg:'#E8F1FA',text:'#004182',dot:'#0A66C2'},
+                      retired: {bg:'#F3F2EE',text:'#536471',dot:'#8899A6'},
+                    };
+                    const sc = statusColors[a.status] || statusColors.retired;
+                    return (
+                      <tr
+                        key={a.id}
+                        style={{borderBottom:'1px solid #F0EFEB',transition:'background .15s',cursor:'pointer',background:isSelected?'#F0F7FF':'transparent'}}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background='#FAFAF8'; }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background='transparent'; }}
+                      >
+                        <td style={{padding:'12px 12px 12px 16px',width:40}}>
+                          {isAvailable ? (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelect(a.id)}
+                              style={{accentColor:'#0A66C2',cursor:'pointer'}}
+                            />
+                          ) : (
+                            <input type="checkbox" disabled style={{opacity:0.3}} />
+                          )}
+                        </td>
+                        <td style={{padding:'12px 16px'}}>
+                          <div style={{display:'flex',alignItems:'center',gap:12}}>
+                            <div className="cat-avatar" style={{background: getAvatarColor(a.linkedinName),width:36,height:36,borderRadius:9,fontSize:13}}>
+                              {a.profilePhotoUrl ? (
+                                <img src={a.profilePhotoUrl} alt={displayName} />
+                              ) : initials}
+                            </div>
+                            <div>
+                              <div style={{fontWeight:600,color:'#0F1419'}}>{displayName}</div>
+                              {a.linkedinHeadline && <div style={{fontSize:12,color:'#8899A6',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.linkedinHeadline}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{padding:'12px 16px',color:'#0F1419',fontWeight:500}}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</td>
+                        <td style={{padding:'12px 16px',color:'#536471'}}>{a.industry || '—'}</td>
+                        <td style={{padding:'12px 16px',color:'#536471'}}>{a.location || '—'}</td>
+                        <td style={{padding:'12px 16px',color:'#536471'}}>{ageYears && ageYears > 0 ? `${ageYears}+ yrs` : '—'}{a.hasSalesNav ? ' · SN' : ''}</td>
+                        <td style={{padding:'12px 16px'}}>
+                          <span style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 10px',borderRadius:100,fontSize:12,fontWeight:600,background:sc.bg,color:sc.text}}>
+                            <span style={{width:6,height:6,borderRadius:'50%',background:sc.dot}} />
+                            {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                          </span>
+                        </td>
+                        <td style={{padding:'12px 16px',fontWeight:700,color:'#0F1419',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'#8899A6',fontSize:12}}>/mo</span></td>
+                        <td style={{padding:'12px 16px',textAlign:'right'}}>
+                          <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none',fontSize:12,padding:'6px 14px'}}>View Profile</Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

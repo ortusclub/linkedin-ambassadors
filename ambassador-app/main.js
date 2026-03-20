@@ -1,10 +1,10 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
 // API base URL
-const API_BASE = 'https://klabber.co';
+const API_BASE = process.env.NODE_ENV === 'production' ? 'https://klabber.co' : 'http://localhost:3000';
 
 // Store profile data in user's app data directory
 const PROFILES_DIR = path.join(app.getPath('userData'), 'profiles');
@@ -345,7 +345,8 @@ async function openBrowser(profileId, proxyConfig) {
     console.error('Navigation error:', e.message);
   }
 
-  puppeteerBrowser.on('disconnected', () => {
+  const handleBrowserClose = () => {
+    if (!puppeteerBrowser) return; // already handled
     const closedProfileId = runningProfileId;
     puppeteerBrowser = null;
     runningProfileId = null;
@@ -358,10 +359,32 @@ async function openBrowser(profileId, proxyConfig) {
     if (closedProfileId) {
       registerProfileWithBackend(closedProfileId);
     }
+  };
+
+  puppeteerBrowser.on('disconnected', handleBrowserClose);
+
+  // Also detect when user closes all browser tabs/windows
+  puppeteerBrowser.on('targetdestroyed', async () => {
+    try {
+      if (puppeteerBrowser) {
+        const pages = await puppeteerBrowser.pages();
+        if (pages.length === 0) {
+          try { await puppeteerBrowser.close(); } catch {}
+          handleBrowserClose();
+        }
+      }
+    } catch {
+      handleBrowserClose();
+    }
   });
 }
 
 // --- IPC Handlers ---
+
+// Shell
+ipcMain.handle('shell:open-external', async (event, url) => {
+  await shell.openExternal(url);
+});
 
 // Auth
 ipcMain.handle('auth:check', async () => {
@@ -435,16 +458,31 @@ ipcMain.handle('profiles:list', async () => {
         const data = await response.json();
         const serverAccounts = data.accounts || [];
 
-        // Merge: add server accounts that don't exist locally
-        const localIds = new Set(localProfiles.map(p => p.email));
+        // Build a map of server accounts by profileId
+        const serverMap = new Map();
         for (const account of serverAccounts) {
-          const ownerEmail = (account.notes || '').match(/Owner:\s*([^\s.]+@[^\s.]+\.[^\s.]+)/)?.[1] || '';
-          if (ownerEmail && !localIds.has(ownerEmail)) {
-            // Server account not in local — add it to the list
+          const profileId = account.gologinProfileId || account.id;
+          serverMap.set(profileId, account);
+        }
+
+        // Update existing local profiles with server status
+        for (const local of localProfiles) {
+          const server = serverMap.get(local.id);
+          if (server) {
+            local.status = server.status || local.status;
+          }
+        }
+
+        // Add server accounts that don't exist locally
+        const localIds = new Set(localProfiles.map(p => p.id));
+        for (const account of serverAccounts) {
+          const profileId = account.gologinProfileId || account.id;
+          if (!localIds.has(profileId)) {
+            const profileEmail = (account.notes || '').match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || '';
             localProfiles.push({
-              id: account.gologinProfileId || account.id,
+              id: profileId,
               name: (account.linkedinName || '').replace(/\s*\(.*\)\s*$/, ''),
-              email: ownerEmail,
+              email: profileEmail || account.linkedinName,
               linkedinUrl: account.linkedinUrl || '',
               proxy: 'Server',
               createdAt: account.createdAt || '',
@@ -465,7 +503,7 @@ ipcMain.handle('profiles:add', async (event, { name, email, linkedinUrl }) => {
   const profileId = email.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
   const proxy = getNextProxy();
   getProfileDir(profileId, proxy);
-  saveProfileMeta(profileId, { name, email, linkedinUrl, status: 'ready', registered: false });
+  saveProfileMeta(profileId, { name, email, linkedinUrl, status: 'under_review', registered: false });
 
   // Immediately register with backend
   await registerProfileWithBackend(profileId);
@@ -488,6 +526,35 @@ ipcMain.handle('rentals:list', async () => {
   return [];
 });
 
+ipcMain.handle('profiles:toggle-availability', async (event, { profileId }) => {
+  // Read current status from local config
+  const configPath = path.join(PROFILES_DIR, profileId, 'profile.json');
+  if (!fs.existsSync(configPath)) return { success: false };
+
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  const newStatus = config.status === 'unavailable' ? 'available' : 'unavailable';
+  saveProfileMeta(profileId, { status: newStatus });
+
+  // Update on server if registered
+  if (config.linkedinAccountId) {
+    try {
+      const auth = loadAuth();
+      if (auth && auth.token) {
+        await fetch(`${API_BASE}/api/ambassador/my-accounts`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${auth.token}`,
+          },
+          body: JSON.stringify({ id: config.linkedinAccountId, status: newStatus }),
+        });
+      }
+    } catch {}
+  }
+
+  return { success: true, status: newStatus };
+});
+
 ipcMain.handle('profiles:delete', async (event, { profileId }) => {
   if (runningProfileId === profileId) {
     if (puppeteerBrowser) {
@@ -499,6 +566,18 @@ ipcMain.handle('profiles:delete', async (event, { profileId }) => {
     }
   }
   deleteProfile(profileId);
+
+  // Also delete from server
+  try {
+    const auth = loadAuth();
+    if (auth && auth.token) {
+      await fetch(`${API_BASE}/api/ambassador/accounts/${profileId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${auth.token}` },
+      });
+    }
+  } catch {}
+
   return { success: true };
 });
 
@@ -512,16 +591,25 @@ async function registerProfileWithBackend(profileId) {
 
   try {
     const auth = loadAuth();
+    const headers = { 'Content-Type': 'application/json' };
+    if (auth && auth.token) {
+      headers['Authorization'] = `Bearer ${auth.token}`;
+    }
     const response = await fetch(`${API_BASE}/api/ambassador/complete`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         fullName: config.name || 'Ambassador',
         email: config.email || (auth && auth.email) || '',
+        ownerEmail: (auth && auth.email) || '',
         linkedinUrl: config.linkedinUrl || '',
         connectionCount: 0,
         gologinProfileId: profileId,
-        offeredAmount: config.monthlyPayment || 50,
+        offeredAmount: config.monthlyPayment || 0,
+        proxyHost: config.proxy?.host || null,
+        proxyPort: config.proxy?.port || null,
+        proxyUsername: config.proxy?.username || null,
+        proxyPassword: config.proxy?.password || null,
       }),
     });
 
@@ -614,6 +702,15 @@ ipcMain.handle('close-browser-and-register', async (event, { email, fullName, li
 });
 
 app.whenReady().then(async () => {
+  // Register klabber:// protocol handler
+  if (process.defaultApp) {
+    if (process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient('klabber', process.execPath, [path.resolve(process.argv[1])]);
+    }
+  } else {
+    app.setAsDefaultProtocolClient('klabber');
+  }
+
   createMainWindow();
 
   // Register any unregistered profiles with the backend on startup
@@ -632,6 +729,28 @@ app.whenReady().then(async () => {
     console.error('Startup registration error:', err.message);
   }
 });
+
+// Handle klabber:// URL (macOS)
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+
+// Handle second instance (Windows/Linux) — bring existing window to front
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
 
 app.on('window-all-closed', () => {
   if (puppeteerBrowser) {

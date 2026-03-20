@@ -43,10 +43,12 @@ export async function POST(req: Request) {
 
     // Rate limit: don't allow re-sending within 60 seconds
     const existing = verificationCodes.get(email.toLowerCase());
-    if (existing && existing.expiresAt - 9 * 60 * 1000 > Date.now()) {
-      // Code was created less than 60 seconds ago
+    const codeCreatedAt = existing ? existing.expiresAt - 10 * 60 * 1000 : 0;
+    const secondsSinceCreated = Math.floor((Date.now() - codeCreatedAt) / 1000);
+    if (existing && secondsSinceCreated < 60) {
+      const waitSeconds = 60 - secondsSinceCreated;
       return NextResponse.json(
-        { error: "Please wait before requesting a new code" },
+        { error: `Please wait ${waitSeconds} seconds before requesting a new code` },
         { status: 429 }
       );
     }

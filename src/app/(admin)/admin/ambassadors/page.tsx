@@ -25,6 +25,7 @@ interface Application {
 export default function AdminAmbassadorsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [offerAmount, setOfferAmount] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
@@ -62,133 +63,171 @@ export default function AdminAmbassadorsPage() {
     return map[s] || "default";
   };
 
-  if (loading) return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-200" />)}</div>;
+  const filtered = filter
+    ? applications.filter((a) => a.status === filter)
+    : applications;
+
+  if (loading) return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-200" />)}</div>;
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Ambassador Applications</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Valuations</h2>
+        <p className="text-sm text-gray-500">{applications.length} total</p>
+      </div>
 
-      {applications.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500">No applications yet</CardContent></Card>
+      <div className="mb-4 flex gap-2">
+        {["", "pending", "reviewing", "approved", "rejected", "onboarded"].map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            className={`rounded-full px-3 py-1 text-sm ${
+              filter === s
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {s || "All"}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card><CardContent className="py-8 text-center text-gray-500">No valuations found</CardContent></Card>
       ) : (
-        <div className="space-y-4">
-          {applications.map((app) => (
-            <Card key={app.id}>
-              <CardContent className="py-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-gray-900">{app.fullName}</h3>
-                      <Badge variant={statusVariant(app.status)}>{app.status}</Badge>
-                      {app.offeredAmount && (
-                        <Badge variant="info">
-                          Offer: {formatCurrency(typeof app.offeredAmount === "string" ? parseFloat(app.offeredAmount) : app.offeredAmount)}/mo
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {app.email}
-                      {app.contactNumber && <span className="ml-3">{app.contactNumber}</span>}
-                    </p>
-                    <a
-                      href={app.linkedinUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      {app.linkedinUrl}
-                    </a>
-                    <div className="mt-2 flex flex-wrap gap-3 text-sm text-gray-500">
-                      {app.connectionCount && <span>{app.connectionCount.toLocaleString()} connections</span>}
-                      {app.industry && <span>{app.industry}</span>}
-                      {app.location && <span>{app.location}</span>}
-                      <span>Applied {formatDate(app.createdAt)}</span>
-                    </div>
-                    {app.notes && (
-                      <p className="mt-2 text-sm text-gray-600 italic">&quot;{app.notes}&quot;</p>
-                    )}
-                    {app.adminNotes && (
-                      <p className="mt-1 text-sm text-gray-500">Admin: {app.adminNotes}</p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2 ml-4">
-                    {app.status === "pending" && (
-                      <Button size="sm" onClick={() => updateStatus(app.id, "reviewing")}>
-                        Start Review
-                      </Button>
-                    )}
-                    {app.status === "reviewing" && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setEditing(app.id);
-                            setOfferAmount(app.offeredAmount?.toString() || "");
-                            setAdminNotes(app.adminNotes || "");
-                          }}
+        <>
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Applicant</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">LinkedIn</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Offer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Applied</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filtered.map((app) => {
+                  const offer = app.offeredAmount
+                    ? formatCurrency(typeof app.offeredAmount === "string" ? parseFloat(app.offeredAmount) : app.offeredAmount)
+                    : null;
+                  return (
+                    <tr key={app.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">{app.fullName}</p>
+                        <p className="text-xs text-gray-500">{app.email}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <a
+                          href={app.linkedinUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-800 truncate block max-w-[180px]"
                         >
-                          Make Offer
-                        </Button>
-                        <Button size="sm" variant="danger" onClick={() => updateStatus(app.id, "rejected")}>
-                          Reject
-                        </Button>
-                      </>
-                    )}
-                    {app.status === "approved" && (
-                      <Button size="sm" variant="outline" onClick={() => updateStatus(app.id, "onboarded")}>
-                        Mark Onboarded
-                      </Button>
-                    )}
+                          {app.linkedinUrl.replace("https://www.linkedin.com/in/", "").replace(/\/$/, "")}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {app.connectionCount ? app.connectionCount.toLocaleString() : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{app.location || app.industry || "—"}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{offer ? `${offer}/mo` : "—"}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={statusVariant(app.status)}>{app.status}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{formatDate(app.createdAt)}</td>
+                      <td className="px-4 py-3 text-right space-x-2">
+                        {app.status === "pending" && (
+                          <button
+                            onClick={() => updateStatus(app.id, "reviewing")}
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Review
+                          </button>
+                        )}
+                        {app.status === "reviewing" && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setEditing(app.id);
+                                setOfferAmount(app.offeredAmount?.toString() || "");
+                                setAdminNotes(app.adminNotes || "");
+                              }}
+                              className="text-sm text-green-600 hover:text-green-800 font-medium"
+                            >
+                              Make Offer
+                            </button>
+                            <button
+                              onClick={() => updateStatus(app.id, "rejected")}
+                              className="text-sm text-red-600 hover:text-red-800 font-medium"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {app.status === "approved" && (
+                          <button
+                            onClick={() => updateStatus(app.id, "onboarded")}
+                            className="text-sm text-green-600 hover:text-green-800 font-medium"
+                          >
+                            Mark Onboarded
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Offer modal */}
+          {editing && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditing(null)}>
+              <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Make Offer</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Offer ($)</label>
+                    <input
+                      type="number"
+                      value={offerAmount}
+                      onChange={(e) => setOfferAmount(e.target.value)}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      placeholder="e.g. 25"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Admin Notes</label>
+                    <input
+                      value={adminNotes}
+                      onChange={(e) => setAdminNotes(e.target.value)}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      placeholder="Internal notes..."
+                    />
                   </div>
                 </div>
-
-                {/* Offer form */}
-                {editing === app.id && (
-                  <div className="mt-4 rounded-lg bg-gray-50 p-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Offer ($)</label>
-                        <input
-                          type="number"
-                          value={offerAmount}
-                          onChange={(e) => setOfferAmount(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                          placeholder="e.g. 25"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Admin Notes</label>
-                        <input
-                          value={adminNotes}
-                          onChange={(e) => setAdminNotes(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                          placeholder="Internal notes..."
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          updateStatus(app.id, "approved", {
-                            offeredAmount: parseFloat(offerAmount),
-                            adminNotes,
-                          })
-                        }
-                      >
-                        Approve with Offer
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditing(null)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <div className="mt-6 flex gap-3 justify-end">
+                  <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+                  <Button
+                    onClick={() =>
+                      updateStatus(editing, "approved", {
+                        offeredAmount: parseFloat(offerAmount),
+                        adminNotes,
+                      })
+                    }
+                  >
+                    Approve with Offer
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

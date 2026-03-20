@@ -11,6 +11,7 @@ export async function GET() {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
+      contactNumber: user.contactNumber,
       role: user.role,
       stripeCustomerId: user.stripeCustomerId,
     },

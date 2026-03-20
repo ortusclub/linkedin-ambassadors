@@ -11,7 +11,13 @@ export async function GET(req: NextRequest) {
   const sort = searchParams.get("sort") || "connectionCount";
   const search = searchParams.get("search");
 
-  const where: Record<string, unknown> = { status: "available" };
+  const statusFilter = searchParams.get("status");
+  const where: Record<string, unknown> = {};
+  if (statusFilter) {
+    where.status = statusFilter;
+  } else {
+    where.status = { in: ["available", "rented"] };
+  }
 
   if (industry) where.industry = industry;
   if (location) where.location = { contains: location, mode: "insensitive" };
@@ -45,6 +51,7 @@ export async function GET(req: NextRequest) {
       accountAgeMonths: true,
       hasSalesNav: true,
       monthlyPrice: true,
+      status: true,
     },
   });
 

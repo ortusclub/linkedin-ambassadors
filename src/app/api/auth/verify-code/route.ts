@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createSession } from "@/lib/auth";
 import { z } from "zod";
 import { verificationCodes } from "@/app/api/auth/verify-email/route";
 
 const schema = z.object({
   email: z.string().email(),
   code: z.string().length(6),
+  source: z.enum(["web", "electron"]).optional(),
 });
 
 const MAX_ATTEMPTS = 5;
@@ -13,7 +15,7 @@ const MAX_ATTEMPTS = 5;
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, code } = schema.parse(body);
+    const { email, code, source } = schema.parse(body);
     const emailLower = email.toLowerCase();
 
     const entry = verificationCodes.get(emailLower);
@@ -74,29 +76,44 @@ export async function POST(req: Request) {
       });
     }
 
-    // Create a session token for the Electron app (no cookie needed)
-    const { v4: uuid } = await import("uuid");
-    const token = uuid();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    if (source === "web") {
+      // Web login: set httpOnly session cookie
+      await createSession(user.id, user.role === "admin");
 
-    await prisma.session.create({
-      data: {
-        userId: user.id,
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+        },
+      });
+    } else {
+      // Electron app: return Bearer token
+      const { v4: uuid } = await import("uuid");
+      const token = uuid();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+      await prisma.session.create({
+        data: {
+          userId: user.id,
+          token,
+          expiresAt,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+        },
         token,
-        expiresAt,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-      },
-      token,
-    });
+      });
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues }, { status: 400 });

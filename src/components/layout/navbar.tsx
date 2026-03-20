@@ -46,7 +46,8 @@ export function Navbar() {
         .kl-nav-links a:hover{color:#0F1419}
         .kl-nav-cta{padding:8px 20px !important;background:#1D1B16 !important;color:#fff !important;border-radius:10px !important;font-size:13px !important;font-weight:600 !important;text-decoration:none;transition:transform .15s,box-shadow .15s;border:none;cursor:pointer;display:inline-flex;align-items:center}
         .kl-nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
-        .kl-nav-user{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:#536471;font-weight:500}
+        .kl-nav-user{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:#1D1B16 !important;font-weight:600;cursor:pointer;text-decoration:none !important;display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:8px;background:rgba(29,27,22,0.06);transition:all .15s}
+        .kl-nav-user:hover{background:rgba(29,27,22,0.12) !important;color:#1D1B16 !important}
         .kl-nav-btn{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;border:1px solid #E8E6E1;background:transparent;color:#536471;cursor:pointer;transition:all .15s;text-decoration:none}
         .kl-nav-btn:hover{color:#0F1419;border-color:#0F1419}
         .kl-spacer{height:64px}
@@ -64,7 +65,9 @@ export function Navbar() {
             {loading ? null : user ? (
               <>
                 <Link href="/dashboard">Dashboard</Link>
-                <span className="kl-nav-user">{user.fullName}</span>
+                <a href="/profile" className="kl-nav-btn">
+                  {user.fullName}
+                </a>
                 <button className="kl-nav-btn" onClick={handleLogout}>Sign Out</button>
               </>
             ) : (

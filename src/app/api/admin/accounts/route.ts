@@ -47,7 +47,30 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ accounts });
+    // Resolve owner names from notes
+    const ownerEmails = accounts
+      .map((a) => (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, ""))
+      .filter(Boolean) as string[];
+
+    const ownerUsers = ownerEmails.length > 0
+      ? await prisma.user.findMany({
+          where: { email: { in: ownerEmails } },
+          select: { email: true, fullName: true },
+        })
+      : [];
+
+    const ownerMap = new Map(ownerUsers.map((u) => [u.email, u.fullName]));
+
+    const accountsWithOwner = accounts.map((a) => {
+      const ownerEmail = (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || "";
+      return {
+        ...a,
+        ownerName: ownerMap.get(ownerEmail) || ownerEmail || null,
+        ownerEmail: ownerEmail || null,
+      };
+    });
+
+    return NextResponse.json({ accounts: accountsWithOwner });
   } catch (error) {
     if (error instanceof Error && error.message === "Forbidden") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

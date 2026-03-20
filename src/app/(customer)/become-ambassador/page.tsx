@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
-type Step = "info" | "scanning" | "result" | "bank" | "login" | "complete" | "done" | "review";
+type Step = "choice" | "info" | "scanning" | "result" | "bank" | "login" | "complete" | "done" | "review";
 
 const SCAN_STEPS = [
   "Locating your LinkedIn profile...",
@@ -102,7 +102,7 @@ function calculateOffer(data: {
 }
 
 export default function BecomeAmbassadorPage() {
-  const [step, setStep] = useState<Step>("info");
+  const [step, setStep] = useState<Step | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [scanIndex, setScanIndex] = useState(0);
@@ -146,7 +146,7 @@ export default function BecomeAmbassadorPage() {
   const updateBank = (field: string, value: string) =>
     setBankForm((prev) => ({ ...prev, [field]: value }));
 
-  // Pre-fill from logged-in user
+  // Pre-fill from logged-in user and skip choice step
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
@@ -158,9 +158,14 @@ export default function BecomeAmbassadorPage() {
             email: prev.email || data.user.email || "",
             contactNumber: prev.contactNumber || data.user.contactNumber || "",
           }));
+          setStep("info");
+        } else {
+          setStep("choice");
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setStep("choice");
+      });
   }, []);
 
   // Scanning animation
@@ -249,6 +254,10 @@ export default function BecomeAmbassadorPage() {
     }
   };
 
+  if (step === null) {
+    return <div className="flex min-h-screen items-center justify-center"><div className="text-gray-400">Loading...</div></div>;
+  }
+
   return (
     <div>
       {/* Hero */}
@@ -267,7 +276,49 @@ export default function BecomeAmbassadorPage() {
         </div>
       </section>
 
+      {/* Choice Screen */}
+      {step === "choice" && (
+        <section className="py-16">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div
+                onClick={() => (window.location.href = "/login")}
+                className="cursor-pointer rounded-xl border-2 border-gray-200 bg-white p-10 text-center shadow-sm transition-all hover:border-blue-500 hover:shadow-lg"
+              >
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-3xl">
+                  👋
+                </div>
+                <h3 className="mt-6 text-xl font-bold text-gray-900">Already an Ambassador?</h3>
+                <p className="mt-3 text-gray-600">Sign in to manage your account, check earnings, and view your dashboard.</p>
+                <div className="mt-6">
+                  <span className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+                    Sign In →
+                  </span>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setStep("info")}
+                className="cursor-pointer rounded-xl border-2 border-gray-200 bg-white p-10 text-center shadow-sm transition-all hover:border-green-500 hover:shadow-lg"
+              >
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
+                  🚀
+                </div>
+                <h3 className="mt-6 text-xl font-bold text-gray-900">First-Time Ambassador?</h3>
+                <p className="mt-3 text-gray-600">Fill out a quick form and we&apos;ll assess your LinkedIn profile instantly.</p>
+                <div className="mt-6">
+                  <span className="inline-flex items-center rounded-lg bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700">
+                    Get Started →
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* How It Works */}
+      {step !== "choice" && (
       <section className="bg-gray-50 py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-center text-3xl font-bold text-gray-900">How It Works</h2>
@@ -293,7 +344,9 @@ export default function BecomeAmbassadorPage() {
           </div>
         </div>
       </section>
+      )}
 
+      {step !== "choice" && (
       <section className="py-16">
         <div className="mx-auto max-w-xl px-4">
           {error && <div className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
@@ -301,8 +354,8 @@ export default function BecomeAmbassadorPage() {
           {/* STEP 1: Form */}
           {step === "info" && (
             <form onSubmit={handleSubmit}>
-              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Share Your Profile</h2>
-              <p className="text-center text-gray-500 mb-6">We&apos;ll assess it instantly</p>
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Get Your Profile Valuation</h2>
+              <p className="text-center text-gray-500 mb-6">We&apos;ll evaluate your profile instantly</p>
               <Card>
                 <CardContent className="py-6 space-y-4">
                   {/* Your details */}
@@ -311,7 +364,10 @@ export default function BecomeAmbassadorPage() {
                     <div className="space-y-4">
                       <Input id="fullName" label="Your Full Name *" value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required />
                       <Input id="email" label="Your Email *" type="email" placeholder="your@email.com" value={form.email} onChange={(e) => update("email", e.target.value)} required />
-                      <Input id="contactNumber" label="Contact Number *" type="tel" placeholder="e.g. +1 555 123 4567" value={form.contactNumber} onChange={(e) => update("contactNumber", e.target.value)} required />
+                      <div className="space-y-1">
+                        <Input id="contactNumber" label="Phone Number *" type="tel" placeholder="e.g. +1 555 123 4567" value={form.contactNumber} onChange={(e) => update("contactNumber", e.target.value)} required />
+                        <p className="text-xs text-gray-400">Please include your country code (e.g. +1, +44). We'll only contact you if there's an issue with one of your ambassador accounts or if we're having issues with your billing or payment information. We won't contact you for marketing or spamming.</p>
+                      </div>
                     </div>
                   </div>
 
@@ -348,33 +404,7 @@ export default function BecomeAmbassadorPage() {
                       <Input id="linkedinUrl" label="LinkedIn Profile URL *" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} required />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input id="connectionCount" label="Approx. Connections" type="text" inputMode="numeric" placeholder="e.g. 5000" value={form.connectionCount} onChange={(e) => update("connectionCount", e.target.value.replace(/\D/g, ""))} />
-                    <Input id="location" label="Location" placeholder="e.g. New York, NY" value={form.location} onChange={(e) => update("location", e.target.value)} />
-                  </div>
-                  <div className="space-y-3 pt-2">
-                    <div>
-                      <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
-                        <input type="checkbox" checked={form.verified as unknown as boolean} onChange={(e) => setForm(prev => ({ ...prev, verified: e.target.checked }))} className="rounded border-gray-300 h-4 w-4" />
-                        My LinkedIn profile is verified
-                      </label>
-                      <p className="text-xs text-gray-400 ml-7 mt-1">Leave blank if you&apos;re unsure</p>
-                    </div>
-                    <div>
-                      <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer">
-                        <input type="checkbox" checked={form.hasSalesNav as unknown as boolean} onChange={(e) => setForm(prev => ({ ...prev, hasSalesNav: e.target.checked }))} className="rounded border-gray-300 h-4 w-4" />
-                        I have Sales Navigator
-                      </label>
-                      <p className="text-xs text-gray-400 ml-7 mt-1">Leave blank if you&apos;re unsure</p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Anything else?</label>
-                    <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={2}
-                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="e.g. 10+ years old, specific industry experience" />
-                  </div>
-                  <Button type="submit" className="w-full" size="lg">Assess My Profile</Button>
+                  <Button type="submit" className="w-full" size="lg">Get Profile Valuation</Button>
                 </CardContent>
               </Card>
             </form>
@@ -450,38 +480,6 @@ export default function BecomeAmbassadorPage() {
                 <p className="mt-1 text-gray-500">Here&apos;s what we found, {form.fullName.split(" ")[0]}</p>
               </div>
 
-              {/* Reasons */}
-              <Card>
-                <CardContent className="py-5">
-                  <p className="text-sm font-semibold text-gray-900 mb-3">Profile Analysis</p>
-                  <div className="space-y-2.5">
-                    {offer.reasons.map((r) => (
-                      <div key={r.label} className="flex items-start gap-2.5">
-                        <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full flex-shrink-0 ${r.positive ? "bg-green-100" : "bg-gray-100"}`}>
-                          {r.positive ? (
-                            <svg className="h-3 w-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <div className="h-1.5 w-1.5 rounded-full bg-gray-400" />
-                          )}
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-900">{r.label}</span>
-                          <span className="text-sm text-gray-500"> — {r.detail}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {offer.reasons.filter((r) => r.positive).length <= 1 && (
-                    <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-                      <strong>Limited information available.</strong> We weren&apos;t able to fully assess your profile with the details provided.
-                      This is an automated estimate — if you&apos;d like a more accurate offer, our team can review your profile manually.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
               {/* Offer */}
               <Card className="mt-4">
                 <CardContent className="py-8 text-center">
@@ -491,15 +489,15 @@ export default function BecomeAmbassadorPage() {
                   </p>
                   <p className="mt-1 text-lg text-gray-500">per month</p>
                   <p className="mt-4 text-sm text-gray-500">
-                    Paid directly to your bank account on the 1st of each month.
-                    <br />Cancel anytime with 30 days notice.
+                    Paid by a method of your choosing on the 1st of each month.
+                    <br />Cancel anytime.
                   </p>
                 </CardContent>
               </Card>
 
               <div className="mt-6 flex gap-4">
                 <Button onClick={() => setStep("bank")} size="lg" className="flex-1">
-                  Become an Ambassador
+                  Accept Assessment
                 </Button>
                 {offer.reasons.filter((r) => r.positive).length <= 1 ? (
                   <Button variant="outline" size="lg" onClick={() => setStep("review")} className="flex-1">
@@ -986,20 +984,9 @@ export default function BecomeAmbassadorPage() {
                 <Card className="mt-6">
                   <CardContent className="py-5">
                     <p className="text-sm font-semibold text-gray-900 mb-3">Your Ambassador Account</p>
-                    <p className="text-sm text-gray-600 mb-3">
-                      We&apos;ve created an account for you so you can log back in and manage your ambassador profile.
+                    <p className="text-sm text-gray-600">
+                      You have an account — you can log in anytime at <a href="https://klabber.co" className="text-blue-600 hover:underline">klabber.co</a> using <span className="font-medium">{credentials.email}</span> to manage your ambassador profile and view your earnings.
                     </p>
-                    <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Email</span>
-                        <span className="font-mono font-medium text-gray-900">{credentials.email}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Temporary Password</span>
-                        <span className="font-mono font-medium text-gray-900">{credentials.tempPassword}</span>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-xs text-gray-400">Save this password — you can change it after logging in.</p>
                   </CardContent>
                 </Card>
               )}
@@ -1027,7 +1014,7 @@ export default function BecomeAmbassadorPage() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">Monthly payments of {offer ? formatCurrency(offer.amount) : ""}</p>
-                        <p className="text-sm text-gray-500">Paid directly to your bank account on the 1st of each month while your account is active.</p>
+                        <p className="text-sm text-gray-500">Paid by a method of your choosing on the 1st of each month while your account is active.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -1049,7 +1036,7 @@ export default function BecomeAmbassadorPage() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">Cancel anytime</p>
-                        <p className="text-sm text-gray-500">Give us 30 days notice and we&apos;ll stop renting your account and return full access to you.</p>
+                        <p className="text-sm text-gray-500">You can cancel anytime. You won&apos;t be paid for the following month, but you always have full access to your account.</p>
                       </div>
                     </div>
                   </div>
@@ -1063,6 +1050,7 @@ export default function BecomeAmbassadorPage() {
           )}
         </div>
       </section>
+      )}
 
       {/* FAQ — only on step 1 */}
       {step === "info" && (
@@ -1072,9 +1060,9 @@ export default function BecomeAmbassadorPage() {
             <div className="mt-12 space-y-8">
               {[
                 { q: "Is my account safe?", a: "Yes. Your account is accessed through a secure, isolated browser profile with its own fingerprint and proxy. It looks like normal usage to LinkedIn." },
-                { q: "Do I lose access to my own account?", a: "During the rental period, the renter will be using the account. You'll regain full access when the rental ends." },
-                { q: "How do I get paid?", a: "We pay monthly via bank transfer on the 1st of each month." },
-                { q: "Can I stop at any time?", a: "Yes. You can withdraw your account with 30 days notice." },
+                { q: "Do I lose access to my own account?", a: "No. Both you and the renter have access to the account at any time through our proprietary software. You can see what they're using it for and who they're messaging. You don't lose access to anything." },
+                { q: "How do I get paid?", a: "We offer several payment options: bank transfer to a bank of your choice, PayPal, Wise, or USDC. We pay out on the 1st of every month." },
+                { q: "Can I stop at any time?", a: "Yes. You can withdraw your account anytime — just change your password or remove it. You won't be paid for the following month, and we'd appreciate a heads up, but it's completely up to you. You always have full access to your account, just like anybody else." },
               ].map((faq) => (
                 <div key={faq.q}>
                   <h3 className="text-lg font-semibold text-gray-900">{faq.q}</h3>

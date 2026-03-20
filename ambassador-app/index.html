@@ -366,10 +366,7 @@
             <td><span class="date-text">${startDate}</span></td>
             <td>
               <div class="actions-cell" style="justify-content:flex-end;">
-                ${account.gologinProfileId
-                  ? `<button class="run-btn no-drag" onclick="handleRun('${account.gologinProfileId}')">&#9654; Open</button>`
-                  : ''
-                }
+                <button class="run-btn no-drag" onclick="handleRun('${account.gologinProfileId || rental.id}')">&#9654; Open Browser</button>
               </div>
             </td>
           </tr>
@@ -421,12 +418,26 @@
               </div>
             </td>
             <td>
-              <span class="status-badge ${isRunning ? 'running' : 'ready'}">
-                <span class="dot"></span>
-                ${isRunning ? 'Running' : 'Ready'}
-              </span>
+              ${(() => {
+                const s = profile.status || 'available';
+                const statusMap = {
+                  'under_review': { cls: 'under-review', label: 'Under Review' },
+                  'ready': { cls: 'under-review', label: 'Under Review' },
+                  'available': { cls: 'ready', label: 'Available' },
+                  'unavailable': { cls: 'not-available', label: 'Not Available' },
+                  'rented': { cls: 'rented', label: 'Rented' },
+                  'maintenance': { cls: 'maintenance', label: 'Maintenance' },
+                  'retired': { cls: 'not-available', label: 'Retired' },
+                };
+                const info = statusMap[s] || { cls: 'ready', label: s };
+                const canToggle = s === 'available' || s === 'unavailable';
+                return `<span class="status-badge ${info.cls}"><span class="dot"></span>${info.label}</span>
+                  ${canToggle ? `<a class="availability-toggle no-drag" onclick="handleToggleAvailability('${profile.id}')">
+                    ${s === 'available' ? 'Set as unavailable' : 'Set as available'}
+                  </a>` : ''}`;
+              })()}
             </td>
-            <td><span class="payment-text">${profile.monthlyPayment ? '$' + parseFloat(profile.monthlyPayment).toFixed(2) : '—'}</span></td>
+            <td><span class="payment-text">TBC</span></td>
             <td><span class="proxy-text">${escapeHtml(profile.proxy || 'None')}</span></td>
             <td><span class="date-text">${date}</span></td>
             <td>
@@ -446,6 +457,12 @@
     function filterProfiles() {
       const q = document.getElementById('search-input').value.trim();
       renderProfiles(q || null);
+    }
+
+    // ===== Availability toggle =====
+    async function handleToggleAvailability(profileId) {
+      await window.ambassador.toggleAvailability(profileId);
+      await refreshProfiles();
     }
 
     // ===== Browser actions =====
@@ -538,7 +555,19 @@
     }
 
     // ===== Events =====
-    window.ambassador.onBrowserClosed(() => {
+    window.ambassador.onBrowserClosed(async () => {
+      // Show saving state on the running profile's button
+      if (runningProfileId) {
+        const btn = document.getElementById('stop-btn-' + runningProfileId);
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<span class="saving-spinner"></span> Saving session…';
+          btn.classList.add('saving-btn');
+          await new Promise(r => setTimeout(r, 500));
+          btn.innerHTML = '&#10003; Session saved';
+          await new Promise(r => setTimeout(r, 800));
+        }
+      }
       runningProfileId = null;
       renderProfiles();
     });

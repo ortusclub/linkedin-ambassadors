@@ -27,7 +27,7 @@ export default async function HomePage() {
   const accounts = await prisma.linkedInAccount.findMany({
     where: { status: "available" },
     orderBy: { connectionCount: "desc" },
-    take: 4,
+    take: 10,
   });
   return (
     <>
@@ -377,54 +377,61 @@ export default async function HomePage() {
                 <p style={{fontSize:14,color:'var(--text-mid)'}}>{accounts.length} accounts ready to rent right now</p>
               </div>
             </div>
-            <div className="account-grid">
-              {accounts.map((a) => {
-                const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
-                const initials = getInitials(a.linkedinName);
-                const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
-                const price = Number(a.monthlyPrice);
-                return (
-                  <Link key={a.id} href={`/account/${a.id}`} className="account-card" style={{textDecoration:'none',color:'inherit'}}>
-                    <div className="account-header">
-                      <div className="account-avatar" style={{background: getAvatarColor(a.linkedinName), overflow:'hidden'}}>
-                        {a.profilePhotoUrl ? (
-                          <img src={a.profilePhotoUrl} alt={displayName} style={{width:'100%',height:'100%',objectFit:'cover'}} />
-                        ) : initials}
-                      </div>
-                      <div>
-                        <div className="account-name">{displayName}</div>
-                        <div className="account-role">{a.linkedinHeadline || [a.industry, a.location].filter(Boolean).join(" · ") || ""}</div>
-                      </div>
-                    </div>
-                    <div className="account-meta">
-                      {a.connectionCount > 0 && (
-                        <div className="account-meta-item"><div className="val">{formatNumber(a.connectionCount)}</div><div className="lbl">Connections</div></div>
-                      )}
-                      {ageYears && ageYears > 0 ? (
-                        <div className="account-meta-item"><div className="val">{ageYears}+ yrs</div><div className="lbl">Account age</div></div>
-                      ) : null}
-                      {a.hasSalesNav && (
-                        <div className="account-meta-item"><div className="val">SN</div><div className="lbl">Sales Nav included</div></div>
-                      )}
-                    </div>
-                    <div className="account-tags">
-                      {a.industry && <span className="account-tag">{a.industry}</span>}
-                      {a.location && <span className="account-tag">{a.location}</span>}
-                    </div>
-                    <div className="account-price">
-                      <div><span className="price">{formatCurrency(price)}</span><span className="period">/month</span></div>
-                      <span className="rent-btn">View Profile</span>
-                    </div>
-                  </Link>
-                );
-              })}
-              {accounts.length === 0 && (
-                <div style={{gridColumn:'1/-1',textAlign:'center',padding:'60px 20px',color:'var(--text-mid)'}}>
-                  <p style={{fontSize:16,fontWeight:500}}>No accounts available yet</p>
-                  <p style={{fontSize:14,marginTop:8}}>Check back soon or become an ambassador to list yours.</p>
-                </div>
-              )}
-            </div>
+            {accounts.length === 0 ? (
+              <div style={{textAlign:'center',padding:'60px 20px',color:'var(--text-mid)'}}>
+                <p style={{fontSize:16,fontWeight:500}}>No accounts available yet</p>
+                <p style={{fontSize:14,marginTop:8}}>Check back soon or become an ambassador to list yours.</p>
+              </div>
+            ) : (
+              <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',overflow:'hidden'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
+                  <thead>
+                    <tr style={{borderBottom:'1px solid var(--border)',textAlign:'left',fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-light)'}}>
+                      <th style={{padding:'12px 16px'}}>Profile</th>
+                      <th style={{padding:'12px 16px'}}>Connections</th>
+                      <th style={{padding:'12px 16px'}}>Industry</th>
+                      <th style={{padding:'12px 16px'}}>Location</th>
+                      <th style={{padding:'12px 16px'}}>Account Age</th>
+                      <th style={{padding:'12px 16px'}}>Price</th>
+                      <th style={{padding:'12px 16px'}}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {accounts.map((a) => {
+                      const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+                      const initials = getInitials(a.linkedinName);
+                      const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
+                      const price = Number(a.monthlyPrice);
+                      return (
+                        <tr key={a.id} style={{borderBottom:'1px solid var(--surface-alt)',transition:'background .15s'}}>
+                          <td style={{padding:'12px 16px'}}>
+                            <div style={{display:'flex',alignItems:'center',gap:12}}>
+                              <div style={{width:36,height:36,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden',background:getAvatarColor(a.linkedinName)}}>
+                                {a.profilePhotoUrl ? (
+                                  <img src={a.profilePhotoUrl} alt={displayName} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                                ) : initials}
+                              </div>
+                              <div>
+                                <div style={{fontWeight:600,color:'var(--text)'}}>{displayName}</div>
+                                {a.linkedinHeadline && <div style={{fontSize:12,color:'var(--text-light)',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.linkedinHeadline}</div>}
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{padding:'12px 16px',color:'var(--text)',fontWeight:500}}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</td>
+                          <td style={{padding:'12px 16px',color:'var(--text-mid)'}}>{a.industry || '—'}</td>
+                          <td style={{padding:'12px 16px',color:'var(--text-mid)'}}>{a.location || '—'}</td>
+                          <td style={{padding:'12px 16px',color:'var(--text-mid)'}}>{ageYears && ageYears > 0 ? `${ageYears}+ yrs` : '—'}{a.hasSalesNav ? ' · SN' : ''}</td>
+                          <td style={{padding:'12px 16px',fontWeight:700,color:'var(--text)',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'var(--text-light)',fontSize:12}}>/mo</span></td>
+                          <td style={{padding:'12px 16px',textAlign:'right'}}>
+                            <Link href={`/account/${a.id}`} className="rent-btn" style={{display:'inline-block',textDecoration:'none',fontSize:12,padding:'6px 14px'}}>View Profile</Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <div className="browse-all"><Link href="/catalogue">View all accounts →</Link></div>
           </div>
         </section>

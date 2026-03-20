@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { cookies, headers } from "next/headers";
+import { z } from "zod";
 
 async function getUser() {
   // First try Bearer token (from Electron app)
@@ -43,6 +44,8 @@ export async function GET() {
         monthlyPrice: true,
         gologinProfileId: true,
         notes: true,
+        proxyHost: true,
+        proxyPort: true,
         createdAt: true,
         rentals: {
           where: { status: "active" },
@@ -55,6 +58,56 @@ export async function GET() {
 
     return NextResponse.json({ accounts });
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+const updateSchema = z.object({
+  id: z.string().uuid(),
+  linkedinName: z.string().min(1).optional(),
+  linkedinHeadline: z.string().optional(),
+  linkedinUrl: z.string().optional(),
+  industry: z.string().optional(),
+  location: z.string().optional(),
+  connectionCount: z.number().int().optional(),
+  profilePhotoUrl: z.string().optional(),
+  status: z.enum(["available", "unavailable"]).optional(),
+});
+
+export async function PATCH(req: Request) {
+  try {
+    const user = await getUser();
+    const body = await req.json();
+    const data = updateSchema.parse(body);
+
+    // Verify the account belongs to this user
+    const account = await prisma.linkedInAccount.findUnique({
+      where: { id: data.id },
+      select: { notes: true },
+    });
+
+    if (!account || !account.notes?.includes(user.email)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const { id, ...updateData } = data;
+    const filtered = Object.fromEntries(
+      Object.entries(updateData).filter(([, v]) => v !== undefined)
+    );
+
+    const updated = await prisma.linkedInAccount.update({
+      where: { id },
+      data: filtered,
+    });
+
+    return NextResponse.json({ account: updated });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues }, { status: 400 });
+    }
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

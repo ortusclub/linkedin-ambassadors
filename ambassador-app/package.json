@@ -28,6 +28,10 @@
       ".chromium/**/*",
       "node_modules/@puppeteer/**/*"
     ],
+    "protocols": {
+      "name": "Klabber",
+      "schemes": ["klabber"]
+    },
     "mac": {
       "category": "public.app-category.business",
       "target": "dmg",

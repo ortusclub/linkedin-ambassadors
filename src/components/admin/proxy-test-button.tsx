@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 interface ProxyTestButtonProps {
@@ -14,9 +14,9 @@ export function ProxyTestButton({ host, port, username, password }: ProxyTestBut
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  const handleTest = async () => {
+  const runTest = async () => {
     if (!host || !port) {
-      setResult({ success: false, message: "Enter host and port first." });
+      setResult({ success: false, message: "No proxy configured." });
       return;
     }
 
@@ -38,22 +38,40 @@ export function ProxyTestButton({ host, port, username, password }: ProxyTestBut
     }
   };
 
+  // Auto-test on mount when proxy details are present
+  useEffect(() => {
+    if (host && port) {
+      runTest();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="space-y-2">
-      <Button type="button" variant="outline" size="sm" onClick={handleTest} loading={testing}>
-        Test Proxy
-      </Button>
-      {result && (
-        <div
-          className={`rounded-lg p-2 text-sm ${
-            result.success
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
-          }`}
-        >
-          {result.message}
-        </div>
+    <div className="flex items-center gap-3">
+      {/* Status indicator */}
+      {testing && (
+        <span className="flex items-center gap-2 text-sm text-gray-500">
+          <span className="inline-block h-3 w-3 rounded-full bg-yellow-400 animate-pulse" />
+          Testing...
+        </span>
       )}
+      {!testing && result && (
+        <span className={`flex items-center gap-2 text-sm font-medium ${result.success ? "text-green-700" : "text-red-700"}`}>
+          <span className={`inline-block h-3 w-3 rounded-full ${result.success ? "bg-green-500" : "bg-red-500"}`} />
+          {result.success ? "Proxy OK" : "Proxy Failed"}
+        </span>
+      )}
+      {!testing && !result && host && port && (
+        <span className="flex items-center gap-2 text-sm text-gray-400">
+          <span className="inline-block h-3 w-3 rounded-full bg-gray-300" />
+          Not tested
+        </span>
+      )}
+
+      {/* Manual re-test button */}
+      <Button type="button" variant="outline" size="sm" onClick={runTest} loading={testing}>
+        {result ? "Re-test" : "Test Proxy"}
+      </Button>
     </div>
   );
 }
