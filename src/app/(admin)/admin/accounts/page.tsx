@@ -164,8 +164,8 @@ export default function AdminAccountsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
 
-  const csvTemplate = `Account Email,LinkedIn Name,LinkedIn URL,Connections,Industry,Location,Sales Navigator,Account Opened,Rental Price,Ambassador Payment,Profile Photo URL
-mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Technology,London,no,2020-01-15,50,25,https://example.com/photo.jpg`;
+  const csvTemplate = `Account Email,LinkedIn Name,LinkedIn URL,Connections,Industry,Location,Sales Navigator,Account Opened,Rental Price,Ambassador Payment,Status,Profile Photo URL
+mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Technology,London,no,2020-01-15,50,25,available,https://example.com/photo.jpg`;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -207,7 +207,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     for (const line of dataLines) {
       if (!line.trim()) continue;
       const cols = parseCsvLine(line);
-      const [accountEmail, linkedinName, linkedinUrl, connections, industry, location, salesNav, accountOpened, rentalPrice, ambassadorPayment, photoUrl] = cols;
+      const [accountEmail, linkedinName, linkedinUrl, connections, industry, location, salesNav, accountOpened, rentalPrice, ambassadorPayment, status, photoUrl] = cols;
 
       let accountAgeMonths: number | undefined;
       if (accountOpened) {
@@ -234,7 +234,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
             ambassadorPayment: parseFloat(ambassadorPayment) || 0,
             profilePhotoUrl: photoUrl || undefined,
             notes: `Ambassador account. Owner: admin. Profile email: ${accountEmail || ""}.`,
-            status: "under_review",
+            status: (["under_review","available","unavailable","rented","maintenance","retired"].includes(status?.toLowerCase()) ? status.toLowerCase() : "under_review") as string,
           }),
         });
         if (res.ok) success++;
@@ -436,7 +436,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 </button>
               </div>
               <p className="text-xs text-gray-400 mb-1">
-                <strong>Columns:</strong> Account Email, LinkedIn Name, LinkedIn URL, Connections, Industry, Location, Sales Navigator (yes/no), Account Opened (YYYY-MM-DD), Rental Price, Ambassador Payment, Profile Photo URL
+                <strong>Columns:</strong> Account Email, LinkedIn Name, LinkedIn URL, Connections, Industry, Location, Sales Navigator (yes/no), Account Opened (YYYY-MM-DD), Rental Price, Ambassador Payment, Status (available/under_review/unavailable), Profile Photo URL
               </p>
               <p className="text-xs text-gray-400">
                 <strong>Profile photos:</strong> Use direct image URLs (Imgur, Cloudflare, etc).
