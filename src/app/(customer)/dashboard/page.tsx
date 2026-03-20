@@ -390,20 +390,20 @@ export default function DashboardPage() {
                             <span className={`h-1.5 w-1.5 rounded-full ${isRented ? "bg-green-500" : account.status === "available" ? "bg-green-500" : "bg-gray-400"}`} />
                             {isRented ? "Rented" : account.status === "under_review" ? "Under Review" : account.status === "available" ? "Available" : "Not Available"}
                           </span>
-                          {!isRented && account.status !== "under_review" && (
-                            <button
-                              onClick={() => handleToggleStatus(account)}
-                              className="block mt-1 text-[10px] text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                              {account.status === "available" ? "Set as unavailable" : "Set as available"}
-                            </button>
-                          )}
                         </td>
                         <td className="px-4 py-3 font-medium text-gray-900">{price > 0 ? formatCurrency(price) : <span className="text-sm text-gray-400 font-normal">To be confirmed</span>}</td>
                         <td className="px-4 py-3 text-xs text-gray-500">{account.proxyHost ? <span className="text-green-600 font-medium">Assigned</span> : "None"}</td>
                         <td className="px-4 py-3 text-gray-500">{formatDate(account.createdAt)}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center gap-2 justify-end">
+                            {!isRented && account.status !== "under_review" && (
+                              <button
+                                onClick={() => handleToggleStatus(account)}
+                                className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${account.status === "available" ? "border-yellow-300 text-yellow-700 hover:bg-yellow-50" : "border-green-300 text-green-700 hover:bg-green-50"}`}
+                              >
+                                {account.status === "available" ? "Pause" : "Activate"}
+                              </button>
+                            )}
                             <Button size="sm" variant="primary" onClick={handleOpenAccount}>Open</Button>
                             <button
                               onClick={() => setRemoveAccountId(account.id)}
