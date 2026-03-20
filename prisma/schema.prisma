@@ -148,6 +148,7 @@ model AmbassadorApplication {
   id                String           @id @default(uuid()) @db.Uuid
   fullName          String           @map("full_name")
   email             String
+  linkedinEmail     String?          @map("linkedin_email")
   contactNumber     String?          @map("contact_number")
   linkedinUrl       String           @map("linkedin_url")
   connectionCount   Int?             @map("connection_count")

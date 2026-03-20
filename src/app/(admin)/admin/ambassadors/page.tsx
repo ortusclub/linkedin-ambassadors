@@ -10,6 +10,7 @@ interface Application {
   id: string;
   fullName: string;
   email: string;
+  linkedinEmail: string | null;
   contactNumber: string | null;
   linkedinUrl: string;
   connectionCount: number | null;
@@ -101,8 +102,9 @@ export default function AdminAmbassadorsPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account Email</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">LinkedIn</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Contact</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
@@ -122,12 +124,13 @@ export default function AdminAmbassadorsPage() {
                           {app.fullName}
                         </a>
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{app.email}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{app.linkedinEmail && app.linkedinEmail !== app.email ? app.linkedinEmail : <span className="text-gray-400">Same as owner</span>}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         <a href={app.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
                           {app.linkedinUrl.replace("https://www.linkedin.com/in/", "").replace("https://linkedin.com/in/", "").replace(/\/$/, "") || "—"}
                         </a>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{app.email}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{app.contactNumber || "—"}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {app.connectionCount ? app.connectionCount.toLocaleString() : "—"}
