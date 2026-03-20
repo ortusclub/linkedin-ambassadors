@@ -1,36 +1,83 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [contactMethod, setContactMethod] = useState<"whatsapp" | "telegram">("whatsapp");
   const [contactHandle, setContactHandle] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactHandle) {
+      setError("Please provide your WhatsApp number or Telegram username.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+
+    try {
+      // Register the user first
+      const regRes = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          fullName: email.split("@")[0],
+          contactMethod,
+          contactHandle,
+        }),
+      });
+      const regData = await regRes.json();
+
+      if (!regRes.ok && regData.error !== "Email already registered") {
+        setError(typeof regData.error === "string" ? regData.error : "Registration failed");
+        return;
+      }
+
+      // Send verification code
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Failed to send code");
+        return;
+      }
+
+      setCodeSent(true);
+    } catch {
+      setError("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch("/api/auth/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, fullName, contactMethod, contactHandle: contactHandle || undefined }),
+        body: JSON.stringify({ email, code }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Registration failed");
+        setError(typeof data.error === "string" ? data.error : "Invalid code");
         return;
       }
 
@@ -42,22 +89,48 @@ export default function RegisterPage() {
     }
   };
 
+  if (codeSent) {
+    return (
+      <div className="flex min-h-[80vh] items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <h1 className="text-2xl font-bold text-gray-900 text-center">Check your email</h1>
+          <p className="mt-2 text-center text-sm text-gray-500">We sent a 6-digit code to <span className="font-medium text-gray-900">{email}</span></p>
+          <form onSubmit={handleVerify} className="mt-8 space-y-4">
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
+            )}
+            <Input
+              id="code"
+              label="Verification code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="000000"
+              maxLength={6}
+              required
+            />
+            <Button type="submit" loading={loading} className="w-full">
+              Verify & Create Account
+            </Button>
+          </form>
+          <button
+            onClick={() => setCodeSent(false)}
+            className="mt-4 block w-full text-center text-sm text-gray-500 hover:text-gray-700"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4">
       <div className="w-full max-w-md">
         <h1 className="text-2xl font-bold text-gray-900 text-center">Create your account</h1>
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        <form onSubmit={handleSendCode} className="mt-8 space-y-4">
           {error && (
             <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
           )}
-          <Input
-            id="fullName"
-            label="Username"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="Choose a username"
-            required
-          />
           <Input
             id="email"
             label="Email"
@@ -66,17 +139,11 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <Input
-            id="password"
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={8}
-            required
-          />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preferred contact method</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              WhatsApp or Telegram <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs text-gray-400 mb-2">We need at least one way to reach you besides email.</p>
             <div className="flex gap-2 mb-2">
               <button
                 type="button"
@@ -103,7 +170,7 @@ export default function RegisterPage() {
             />
           </div>
           <Button type="submit" loading={loading} className="w-full">
-            Create account
+            Continue
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-gray-600">

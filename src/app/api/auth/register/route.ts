@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(8).optional(),
   fullName: z.string().min(1),
   contactMethod: z.enum(["whatsapp", "telegram"]).optional(),
   contactHandle: z.string().optional(),
@@ -21,13 +21,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }
 
-    const passwordHash = await hashPassword(password);
+    const passwordHash = password ? await hashPassword(password) : null;
     const contactNumber = contactHandle ? `${contactMethod || "whatsapp"}:${contactHandle}` : null;
     const user = await prisma.user.create({
       data: { email, passwordHash, fullName, contactNumber },
     });
 
-    await createSession(user.id);
+    // Don't create session here — user will verify email first
+    try { await createSession(user.id); } catch {}
 
     return NextResponse.json({
       id: user.id,
