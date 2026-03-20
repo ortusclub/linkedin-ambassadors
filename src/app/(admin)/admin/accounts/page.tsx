@@ -13,6 +13,7 @@ interface Account {
   linkedinHeadline: string | null;
   connectionCount: number;
   industry: string | null;
+  location: string | null;
   status: string;
   gologinProfileId: string | null;
   notes: string | null;
@@ -20,6 +21,9 @@ interface Account {
   ownerEmail: string | null;
   monthlyPrice: string | number;
   ambassadorPayment: string | number;
+  hasSalesNav: boolean;
+  accountAgeMonths: number | null;
+  createdAt: string;
   proxyHost: string | null;
   proxyPort: number | null;
   rentals: Array<{
@@ -230,14 +234,15 @@ export default function AdminAccountsPage() {
                     className="rounded border-gray-300 cursor-pointer"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Industry</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Current Renter</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rental Price</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Ambassador Payment</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Age</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">SN</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rental</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payout</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -254,61 +259,33 @@ export default function AdminAccountsPage() {
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <div>
-                      <p className="font-medium text-gray-900">{a.linkedinName}</p>
-                      {a.linkedinHeadline && (
-                        <p className="text-xs text-gray-500 truncate max-w-xs">{a.linkedinHeadline}</p>
-                      )}
-                    </div>
+                    <p className="text-sm font-medium text-gray-900">{(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName}</p>
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={statusVariant(a.status)}>{a.status}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{formatNumber(a.connectionCount)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{a.industry || "—"}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {a.ownerEmail || "—"}
+                  <td className="px-4 py-3 text-xs text-gray-600">{a.ownerEmail || "—"}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{a.location || "—"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"}</td>
+                  <td className="px-4 py-3 text-xs">{a.hasSalesNav ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
+                  <td className="px-4 py-3 text-xs font-medium text-gray-900">
+                    {Number(a.monthlyPrice) > 0 ? `$${Number(a.monthlyPrice).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {a.rentals[0]?.user.fullName || "—"}
+                  <td className="px-4 py-3 text-xs font-medium text-gray-900">
+                    {Number(a.ambassadorPayment) > 0 ? `$${Number(a.ambassadorPayment).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                    {Number(a.monthlyPrice) > 0 ? `$${Number(a.monthlyPrice).toFixed(2)}` : <span className="text-gray-400 font-normal">TBC</span>}
+                  <td className="px-4 py-3 text-xs text-gray-600">
+                    {a.proxyHost ? <span className="font-mono">{a.proxyHost}:{a.proxyPort}</span> : <span className="text-gray-400">None</span>}
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                    {Number(a.ambassadorPayment) > 0 ? `$${Number(a.ambassadorPayment).toFixed(2)}` : <span className="text-gray-400 font-normal">TBC</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {a.proxyHost ? (
-                      <span className="text-xs font-mono">{a.proxyHost}:{a.proxyPort}</span>
-                    ) : (
-                      <span className="text-gray-400">None</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right space-x-3">
-                    {a.status === "under_review" && (
-                      <button
-                        onClick={() => handleApprove(a.id)}
-                        className="text-sm text-green-600 hover:text-green-800 font-medium"
-                      >
-                        Approve
-                      </button>
-                    )}
-                    <button
-                      onClick={() => { window.location.href = "klabber://open"; }}
-                      className="text-sm text-green-600 hover:text-green-800 font-medium"
-                    >
-                      Open App
-                    </button>
-                    <Link href={`/admin/accounts/${a.id}`} className="text-sm text-blue-600 hover:text-blue-800">
-                      Edit
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(a.id)}
-                      className="text-sm text-red-600 hover:text-red-800 font-medium"
-                    >
-                      Remove
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 justify-end">
+                      {a.status === "under_review" && (
+                        <button onClick={() => handleApprove(a.id)} className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700">Approve</button>
+                      )}
+                      <Link href={`/admin/accounts/${a.id}`} className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200">Edit</Link>
+                      <button onClick={() => handleDelete(a.id)} className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-100">Remove</button>
+                    </div>
                   </td>
                 </tr>
               ))}
