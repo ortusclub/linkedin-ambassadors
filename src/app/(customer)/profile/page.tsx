@@ -447,10 +447,10 @@ export default function ProfilePage() {
                   If you&#39;d like to receive ambassador payments via bank transfer, PayPal, or Wise instead of USDC, get in touch and we&#39;ll be happy to oblige.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <a href="https://t.me/klabber" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <a href="https://t.me/klabber_support_bot" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                     Telegram
                   </a>
-                  <a href="mailto:support@klabber.co" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <a href="mailto:info@klabber.co" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                     Email
                   </a>
                 </div>
