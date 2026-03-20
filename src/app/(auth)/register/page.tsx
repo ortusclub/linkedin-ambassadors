@@ -75,7 +75,7 @@ export default function RegisterPage() {
             required
           />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Preferred contact method <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Preferred contact method</label>
             <div className="flex gap-2 mb-2">
               <button
                 type="button"
@@ -97,6 +97,7 @@ export default function RegisterPage() {
               value={contactHandle}
               onChange={(e) => setContactHandle(e.target.value)}
               placeholder={contactMethod === "whatsapp" ? "+44 7700 000000" : "@username"}
+              required
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
