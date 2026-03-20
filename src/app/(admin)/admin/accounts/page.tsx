@@ -224,23 +224,23 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             linkedinName: linkedinName || accountEmail?.split("@")[0] || "Unknown",
-            linkedinUrl: linkedinUrl || "",
+            linkedinUrl: linkedinUrl || undefined,
             connectionCount: parseInt(connections) || 0,
-            industry: industry || null,
-            location: location || null,
+            industry: industry || undefined,
+            location: location || undefined,
             hasSalesNav: salesNav?.toLowerCase() === "yes" || salesNav?.toLowerCase() === "true",
-            accountAgeMonths: accountAgeMonths || null,
+            accountAgeMonths: accountAgeMonths || undefined,
             monthlyPrice: parseFloat(rentalPrice) || 0,
             ambassadorPayment: parseFloat(ambassadorPayment) || 0,
-            profilePhotoUrl: photoUrl || null,
+            profilePhotoUrl: photoUrl || undefined,
             notes: `Ambassador account. Owner: admin. Profile email: ${accountEmail || ""}.`,
             status: "under_review",
           }),
         });
         if (res.ok) success++;
-        else failed++;
-      } catch {
-        failed++;
+        else { const err = await res.json().catch(() => ({})); console.error("Import row failed:", err); failed++; }
+      } catch (e) {
+        console.error("Import row error:", e); failed++;
       }
     }
 

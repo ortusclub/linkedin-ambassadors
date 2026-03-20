@@ -95,23 +95,26 @@ export async function POST(req: Request) {
 
     // Create GoLogin profile if requested
     if (data.createGologinProfile) {
-      const profile = await gologin.createProfile({
-        name: data.linkedinName,
-        proxy:
-          data.proxyHost && data.proxyPort
-            ? {
-                host: data.proxyHost,
-                port: data.proxyPort,
-                username: data.proxyUsername || undefined,
-                password: data.proxyPassword || undefined,
-              }
-            : undefined,
-      });
-      gologinProfileId = profile.id;
+      try {
+        const profile = await gologin.createProfile({
+          name: data.linkedinName,
+          proxy:
+            data.proxyHost && data.proxyPort
+              ? {
+                  host: data.proxyHost,
+                  port: data.proxyPort,
+                  username: data.proxyUsername || undefined,
+                  password: data.proxyPassword || undefined,
+                }
+              : undefined,
+        });
+        gologinProfileId = profile.id;
 
-      // Inject cookies if provided
-      if (data.cookies && gologinProfileId) {
-        await gologin.addCookies(gologinProfileId, data.cookies);
+        if (data.cookies && gologinProfileId) {
+          await gologin.addCookies(gologinProfileId, data.cookies);
+        }
+      } catch (err) {
+        console.error("GoLogin profile creation failed:", err);
       }
     }
 
@@ -132,6 +135,8 @@ export async function POST(req: Request) {
         proxyPassword: data.proxyPassword,
         accountAgeMonths: data.accountAgeMonths,
         hasSalesNav: data.hasSalesNav,
+        monthlyPrice: data.monthlyPrice || 0,
+        ambassadorPayment: data.ambassadorPayment || 0,
         notes: data.notes,
         status: data.status,
       },
