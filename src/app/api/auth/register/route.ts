@@ -7,12 +7,14 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   fullName: z.string().min(1),
+  contactMethod: z.enum(["whatsapp", "telegram"]).optional(),
+  contactHandle: z.string().optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, password, fullName } = registerSchema.parse(body);
+    const { email, password, fullName, contactMethod, contactHandle } = registerSchema.parse(body);
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -20,8 +22,9 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hashPassword(password);
+    const contactNumber = contactHandle ? `${contactMethod || "whatsapp"}:${contactHandle}` : null;
     const user = await prisma.user.create({
-      data: { email, passwordHash, fullName },
+      data: { email, passwordHash, fullName, contactNumber },
     });
 
     await createSession(user.id);
