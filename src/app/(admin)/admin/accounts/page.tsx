@@ -402,11 +402,14 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
               <p className="text-sm text-gray-500 mb-3">Upload a CSV file or paste data below. Each row creates an account with "Under Review" status.</p>
 
               {/* File upload */}
-              <label className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-4 mb-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
+              <div
+                onClick={() => document.getElementById("csv-file-input")?.click()}
+                className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-4 mb-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+              >
                 <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-                <span className="text-sm text-gray-600 font-medium">Choose CSV file</span>
-                <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
-              </label>
+                <span className="text-sm text-gray-600 font-medium">{csvText ? "File loaded — click to replace" : "Click to upload CSV file"}</span>
+              </div>
+              <input id="csv-file-input" type="file" accept=".csv,.txt" onChange={handleFileUpload} style={{ display: "none" }} />
 
               <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 mb-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Template</p>
