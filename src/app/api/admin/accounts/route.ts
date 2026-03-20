@@ -19,6 +19,8 @@ const createAccountSchema = z.object({
   proxyPassword: z.string().optional(),
   accountAgeMonths: z.number().int().optional(),
   hasSalesNav: z.boolean().default(false),
+  monthlyPrice: z.number().optional(),
+  ambassadorPayment: z.number().optional(),
   notes: z.string().optional(),
   cookies: z.array(z.record(z.string(), z.unknown())).optional(),
   createGologinProfile: z.boolean().default(false),

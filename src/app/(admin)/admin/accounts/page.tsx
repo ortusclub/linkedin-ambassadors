@@ -164,8 +164,32 @@ export default function AdminAccountsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
 
-  const csvTemplate = `Account Email,LinkedIn Name,LinkedIn URL,Connections,Industry,Location,Sales Navigator,Account Opened,Profile Photo URL
-mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Technology,London,no,2020-01-15,https://example.com/photo.jpg`;
+  const csvTemplate = `Account Email,LinkedIn Name,LinkedIn URL,Connections,Industry,Location,Sales Navigator,Account Opened,Rental Price,Ambassador Payment,Profile Photo URL
+mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Technology,London,no,2020-01-15,50,25,https://example.com/photo.jpg`;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCsvText((ev.target?.result as string) || "");
+    };
+    reader.readAsText(file);
+  };
+
+  const parseCsvLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQuotes = !inQuotes; }
+      else if (ch === "," && !inQuotes) { result.push(current.trim()); current = ""; }
+      else { current += ch; }
+    }
+    result.push(current.trim());
+    return result;
+  };
 
   const handleCsvImport = async () => {
     if (!csvText.trim()) return;
@@ -182,8 +206,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
     for (const line of dataLines) {
       if (!line.trim()) continue;
-      const cols = line.split(",").map(c => c.trim());
-      const [accountEmail, linkedinName, linkedinUrl, connections, industry, location, salesNav, accountOpened, photoUrl] = cols;
+      const cols = parseCsvLine(line);
+      const [accountEmail, linkedinName, linkedinUrl, connections, industry, location, salesNav, accountOpened, rentalPrice, ambassadorPayment, photoUrl] = cols;
 
       let accountAgeMonths: number | undefined;
       if (accountOpened) {
@@ -206,6 +230,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
             location: location || null,
             hasSalesNav: salesNav?.toLowerCase() === "yes" || salesNav?.toLowerCase() === "true",
             accountAgeMonths: accountAgeMonths || null,
+            monthlyPrice: parseFloat(rentalPrice) || 0,
+            ambassadorPayment: parseFloat(ambassadorPayment) || 0,
             profilePhotoUrl: photoUrl || null,
             notes: `Ambassador account. Owner: admin. Profile email: ${accountEmail || ""}.`,
             status: "under_review",
@@ -373,7 +399,15 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
             </div>
 
             <div className="mb-4">
-              <p className="text-sm text-gray-500 mb-3">Paste your CSV data below. Each row creates a new account with "Under Review" status.</p>
+              <p className="text-sm text-gray-500 mb-3">Upload a CSV file or paste data below. Each row creates an account with "Under Review" status.</p>
+
+              {/* File upload */}
+              <label className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-4 mb-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
+                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                <span className="text-sm text-gray-600 font-medium">Choose CSV file</span>
+                <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
+              </label>
+
               <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 mb-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Template</p>
                 <pre className="text-xs text-gray-600 whitespace-pre-wrap break-all">{csvTemplate}</pre>
@@ -384,19 +418,19 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   Copy template
                 </button>
               </div>
-              <p className="text-xs text-gray-400 mb-2">
-                <strong>Columns:</strong> Account Email, LinkedIn Name, LinkedIn URL, Connections, Industry, Location, Sales Navigator (yes/no), Account Opened (YYYY-MM-DD), Profile Photo URL
+              <p className="text-xs text-gray-400 mb-1">
+                <strong>Columns:</strong> Account Email, LinkedIn Name, LinkedIn URL, Connections, Industry, Location, Sales Navigator (yes/no), Account Opened (YYYY-MM-DD), Rental Price, Ambassador Payment, Profile Photo URL
               </p>
-              <p className="text-xs text-gray-400 mb-3">
-                <strong>Profile photos:</strong> Use direct image URLs. You can upload images to any host (Imgur, Cloudflare, etc.) and paste the URLs in the last column.
+              <p className="text-xs text-gray-400">
+                <strong>Profile photos:</strong> Use direct image URLs (Imgur, Cloudflare, etc).
               </p>
             </div>
 
             <textarea
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
-              rows={10}
-              placeholder="Paste CSV data here..."
+              rows={8}
+              placeholder="CSV data will appear here when you upload a file, or paste directly..."
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono text-gray-700 mb-4"
             />
 
