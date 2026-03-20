@@ -101,6 +101,7 @@ export default function AdminAmbassadorsPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Applicant</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Contact</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">LinkedIn</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
@@ -121,6 +122,7 @@ export default function AdminAmbassadorsPage() {
                         <p className="font-medium text-gray-900">{app.fullName}</p>
                         <p className="text-xs text-gray-500">{app.email}</p>
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{app.contactNumber || "—"}</td>
                       <td className="px-4 py-3">
                         <a
                           href={app.linkedinUrl}

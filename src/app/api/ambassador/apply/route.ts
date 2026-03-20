@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const application = await prisma.ambassadorApplication.create({
       data: {
         ...data,
-        status: assessment.autoApproved ? "approved" : "pending",
+        status: assessment.autoApproved ? "approved" : "reviewing",
         offeredAmount: assessment.offeredAmount,
         adminNotes: `Auto-assessed: Score ${assessment.score}/100, Tier: ${assessment.tier}. ${assessment.breakdown.map((b) => `${b.category}: ${b.points}/${b.maxPoints}`).join(", ")}`,
       },
