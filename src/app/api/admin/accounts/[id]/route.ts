@@ -18,8 +18,10 @@ const updateSchema = z.object({
   proxyPassword: z.string().nullable().optional(),
   accountAgeMonths: z.number().int().nullable().optional(),
   hasSalesNav: z.boolean().optional(),
+  monthlyPrice: z.number().optional(),
+  ambassadorPayment: z.number().optional(),
   notes: z.string().nullable().optional(),
-  status: z.enum(["available", "rented", "maintenance", "retired"]).optional(),
+  status: z.enum(["under_review", "available", "rented", "unavailable", "maintenance", "retired"]).optional(),
   gologinProfileId: z.string().nullable().optional(),
 }).partial();
 

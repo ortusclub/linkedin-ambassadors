@@ -42,6 +42,7 @@ export async function GET() {
         connectionCount: true,
         status: true,
         monthlyPrice: true,
+        ambassadorPayment: true,
         gologinProfileId: true,
         notes: true,
         proxyHost: true,

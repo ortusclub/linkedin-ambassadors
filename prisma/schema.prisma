@@ -84,7 +84,8 @@ model LinkedInAccount {
   proxyUsername         String?       @map("proxy_username")
   proxyPassword         String?       @map("proxy_password")
   status                AccountStatus @default(available)
-  monthlyPrice          Decimal       @default(50.00) @map("monthly_price") @db.Decimal(10, 2)
+  monthlyPrice          Decimal       @default(0) @map("monthly_price") @db.Decimal(10, 2)
+  ambassadorPayment     Decimal       @default(0) @map("ambassador_payment") @db.Decimal(10, 2)
   accountAgeMonths      Int?          @map("account_age_months")
   hasSalesNav           Boolean       @default(false) @map("has_sales_nav")
   notes                 String?

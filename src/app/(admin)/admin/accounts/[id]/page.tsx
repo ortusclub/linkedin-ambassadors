@@ -64,6 +64,8 @@ export default function EditAccountPage() {
       if (form.accountAgeMonths !== undefined && form.accountAgeMonths !== "" && form.accountAgeMonths !== null) payload.accountAgeMonths = Number(form.accountAgeMonths);
       if (form.hasSalesNav !== undefined) payload.hasSalesNav = !!form.hasSalesNav;
       if (form.notes !== undefined) payload.notes = form.notes || null;
+      if (form.monthlyPrice !== undefined && form.monthlyPrice !== "") payload.monthlyPrice = Number(form.monthlyPrice) || 0;
+      if (form.ambassadorPayment !== undefined && form.ambassadorPayment !== "") payload.ambassadorPayment = Number(form.ambassadorPayment) || 0;
       if (form.status) payload.status = form.status;
       if (form.gologinProfileId !== undefined) payload.gologinProfileId = form.gologinProfileId || null;
 
@@ -108,8 +110,8 @@ export default function EditAccountPage() {
             <Input id="linkedinHeadline" label="Headline" value={(form.linkedinHeadline as string) || ""} onChange={(e) => update("linkedinHeadline", e.target.value)} />
             <Input id="linkedinUrl" label="LinkedIn URL" value={(form.linkedinUrl as string) || ""} onChange={(e) => update("linkedinUrl", e.target.value)} />
             <div className="grid grid-cols-2 gap-4">
-              <Input id="connectionCount" label="Connections" type="number" value={(form.connectionCount as number) || 0} onChange={(e) => update("connectionCount", parseInt(e.target.value) || 0)} />
-              <Input id="accountAgeMonths" label="Age (months)" type="number" value={(form.accountAgeMonths as number) || 0} onChange={(e) => update("accountAgeMonths", parseInt(e.target.value) || 0)} />
+              <Input id="connectionCount" label="Connections" type="text" inputMode="numeric" value={(form.connectionCount as number) || ""} onChange={(e) => update("connectionCount", parseInt(e.target.value) || 0)} />
+              <Input id="accountAgeMonths" label="Age (months)" type="text" inputMode="numeric" value={(form.accountAgeMonths as number) || ""} onChange={(e) => update("accountAgeMonths", parseInt(e.target.value) || 0)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input id="industry" label="Industry" value={(form.industry as string) || ""} onChange={(e) => update("industry", e.target.value)} />
@@ -119,6 +121,16 @@ export default function EditAccountPage() {
               <input type="checkbox" checked={(form.hasSalesNav as boolean) || false} onChange={(e) => update("hasSalesNav", e.target.checked)} className="rounded border-gray-300" />
               Has Sales Navigator
             </label>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><h3 className="font-semibold text-gray-900">Pricing</h3></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input id="monthlyPrice" label="Rental Price ($/mo)" type="text" inputMode="numeric" value={(form.monthlyPrice as number) || ""} onChange={(e) => update("monthlyPrice", e.target.value)} placeholder="What the customer pays" />
+              <Input id="ambassadorPayment" label="Ambassador Payment ($/mo)" type="text" inputMode="numeric" value={(form.ambassadorPayment as number) || ""} onChange={(e) => update("ambassadorPayment", e.target.value)} placeholder="What the owner receives" />
+            </div>
           </CardContent>
         </Card>
 
@@ -161,9 +173,11 @@ export default function EditAccountPage() {
                 onChange={(e) => update("status", e.target.value)}
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               >
+                <option value="under_review">Under Review</option>
                 <option value="available">Available</option>
-                <option value="maintenance">Maintenance</option>
+                <option value="unavailable">Unavailable</option>
                 <option value="rented">Rented</option>
+                <option value="maintenance">Maintenance</option>
                 <option value="retired">Retired</option>
               </select>
             </div>

@@ -18,6 +18,8 @@ interface Account {
   notes: string | null;
   ownerName: string | null;
   ownerEmail: string | null;
+  monthlyPrice: string | number;
+  ambassadorPayment: string | number;
   proxyHost: string | null;
   proxyPort: number | null;
   rentals: Array<{
@@ -234,6 +236,8 @@ export default function AdminAccountsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Industry</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Current Renter</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rental Price</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Ambassador Payment</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -267,6 +271,12 @@ export default function AdminAccountsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {a.rentals[0]?.user.fullName || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    {Number(a.monthlyPrice) > 0 ? `$${Number(a.monthlyPrice).toFixed(2)}` : <span className="text-gray-400 font-normal">TBC</span>}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    {Number(a.ambassadorPayment) > 0 ? `$${Number(a.ambassadorPayment).toFixed(2)}` : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {a.proxyHost ? (

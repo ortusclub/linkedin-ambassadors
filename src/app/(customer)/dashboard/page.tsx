@@ -34,6 +34,7 @@ interface AmbassadorAccount {
   connectionCount: number;
   status: string;
   monthlyPrice: string | number;
+  ambassadorPayment: string | number;
   gologinProfileId: string | null;
   proxyHost: string | null;
   proxyPort: number | null;
@@ -207,9 +208,9 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {ambassadorAccounts.map((account) => {
-                    const price = typeof account.monthlyPrice === "string"
-                      ? parseFloat(account.monthlyPrice)
-                      : account.monthlyPrice;
+                    const price = typeof account.ambassadorPayment === "string"
+                      ? parseFloat(account.ambassadorPayment)
+                      : account.ambassadorPayment;
                     const isRented = account.rentals.length > 0;
                     const initials = account.linkedinName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
                     const emailMatch = account.notes?.match(/Profile email: ([^.]+@[^.]+\.[^.]+)/);
