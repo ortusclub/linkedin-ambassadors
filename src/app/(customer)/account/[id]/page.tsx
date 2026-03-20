@@ -261,24 +261,24 @@ export default function AccountDetailPage() {
                       <p className="mt-1 text-sm text-gray-500">Cancel anytime</p>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                       {account.linkedinUrl && (
                         <a
                           href={account.linkedinUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 rounded-lg border border-gray-200 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="flex-1 flex items-center justify-center rounded-lg border border-gray-200 h-11 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           View Profile
                         </a>
                       )}
                       {account.status === "available" ? (
-                        <button onClick={handleRent} disabled={actionLoading} className="flex-1 rounded-lg bg-blue-600 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50">
-                          {actionLoading ? "Processing..." : "Rent This Account"}
+                        <button onClick={handleRent} disabled={actionLoading} className="flex-1 flex items-center justify-center rounded-lg bg-blue-600 h-11 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 whitespace-nowrap">
+                          {actionLoading ? "Processing..." : "Rent Account"}
                         </button>
                       ) : (
-                        <button disabled className="flex-1 rounded-lg bg-gray-100 py-2.5 text-center text-sm font-semibold text-gray-400 cursor-not-allowed">
-                          Currently Unavailable
+                        <button disabled className="flex-1 flex items-center justify-center rounded-lg bg-gray-100 h-11 text-sm font-semibold text-gray-400 cursor-not-allowed">
+                          Unavailable
                         </button>
                       )}
                     </div>
