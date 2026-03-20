@@ -282,35 +282,37 @@ export default function BecomeAmbassadorPage() {
       {step === "choice" && (
         <section className="py-16">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2">
               <div
                 onClick={() => (window.location.href = "/login")}
-                className="cursor-pointer rounded-xl border-2 border-gray-200 bg-white p-10 text-center shadow-sm transition-all hover:border-blue-500 hover:shadow-lg"
+                className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:border-blue-400 hover:shadow-xl hover:shadow-blue-500/5"
               >
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-3xl">
-                  👋
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
+                  <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
                 </div>
-                <h3 className="mt-6 text-xl font-bold text-gray-900">Already an Ambassador?</h3>
-                <p className="mt-3 text-gray-600">Sign in to manage your account, check earnings, and view your dashboard.</p>
-                <div className="mt-6">
-                  <span className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700">
-                    Sign In →
+                <h3 className="mt-5 text-lg font-semibold text-gray-900">Already an Ambassador?</h3>
+                <p className="mt-2 text-sm text-gray-500 leading-relaxed">Sign in to manage your accounts, check earnings, and view your dashboard.</p>
+                <div className="mt-5">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 group-hover:gap-2.5 transition-all">
+                    Sign In
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
                   </span>
                 </div>
               </div>
 
               <div
                 onClick={() => setStep("info")}
-                className="cursor-pointer rounded-xl border-2 border-gray-200 bg-white p-10 text-center shadow-sm transition-all hover:border-green-500 hover:shadow-lg"
+                className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:border-green-400 hover:shadow-xl hover:shadow-green-500/5"
               >
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
-                  🚀
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50">
+                  <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 </div>
-                <h3 className="mt-6 text-xl font-bold text-gray-900">First-Time Ambassador?</h3>
-                <p className="mt-3 text-gray-600">Fill out a quick form and we&apos;ll assess your LinkedIn profile instantly.</p>
-                <div className="mt-6">
-                  <span className="inline-flex items-center rounded-lg bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700">
-                    Get Started →
+                <h3 className="mt-5 text-lg font-semibold text-gray-900">First-Time Ambassador?</h3>
+                <p className="mt-2 text-sm text-gray-500 leading-relaxed">Fill out a quick form and we&apos;ll assess your LinkedIn profile instantly.</p>
+                <div className="mt-5">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-600 group-hover:gap-2.5 transition-all">
+                    Get Started
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
                   </span>
                 </div>
               </div>
