@@ -120,14 +120,14 @@ export default function AdminAmbassadorsPage() {
                   return (
                     <tr key={app.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <a href={app.linkedinUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-900 hover:text-blue-600">
+                        <a href={app.linkedinUrl.startsWith("http") ? app.linkedinUrl : `https://${app.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-900 hover:text-blue-600">
                           {app.fullName}
                         </a>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{app.email}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{app.linkedinEmail && app.linkedinEmail !== app.email ? app.linkedinEmail : <span className="text-gray-400">Same as owner</span>}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        <a href={app.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                        <a href={app.linkedinUrl.startsWith("http") ? app.linkedinUrl : `https://${app.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
                           {app.linkedinUrl.replace("https://www.linkedin.com/in/", "").replace("https://linkedin.com/in/", "").replace(/\/$/, "") || "—"}
                         </a>
                       </td>

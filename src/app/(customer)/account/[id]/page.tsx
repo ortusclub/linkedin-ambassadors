@@ -264,7 +264,7 @@ export default function AccountDetailPage() {
                     <div className="flex gap-3">
                       {account.linkedinUrl && (
                         <a
-                          href={account.linkedinUrl}
+                          href={account.linkedinUrl.startsWith("http") ? account.linkedinUrl : `https://${account.linkedinUrl}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex-1 flex items-center justify-center rounded-lg border border-gray-200 h-11 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
