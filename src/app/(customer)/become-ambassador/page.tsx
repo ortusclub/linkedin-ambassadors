@@ -350,15 +350,19 @@ export default function BecomeAmbassadorPage() {
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50">
                   <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 </div>
-                <h3 className="mt-5 text-lg font-semibold text-gray-900">Skip Straight to Adding Profile</h3>
-                <p className="mt-2 text-sm text-gray-500 leading-relaxed">Already know the process? Download the Klabber app and add your LinkedIn profile directly.</p>
+                <h3 className="mt-5 text-lg font-semibold text-gray-900">Share Your Profile Directly</h3>
+                <p className="mt-2 text-sm text-gray-500 leading-relaxed">Follow our step-by-step guide to share your LinkedIn profile via GoLogin. It&apos;s quick and free.</p>
                 <div className="mt-5">
                   <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-600 group-hover:gap-2.5 transition-all">
-                    Add Profile
+                    Follow the Steps
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
                   </span>
                 </div>
               </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-500">Need help? <a href="https://t.me/klabber_support_bot" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:text-blue-800">Get in touch with our team</a> and we&apos;ll walk you through the process.</p>
             </div>
           </div>
         </section>
@@ -370,9 +374,10 @@ export default function BecomeAmbassadorPage() {
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-start justify-between">
             {[
-              { n: "1", title: "Share Your Profile", active: step === "info", done: step !== "info" && step !== "logged-in-choice", goTo: "info" as Step, color: "#0A66C2" },
-              { n: "2", title: "Get Evaluated", active: step === "scanning" || step === "result", done: ["bank","login","complete","done"].includes(step), goTo: "result" as Step, color: "#7C3AED" },
-              { n: "3", title: "Start Getting Paid", active: step === "bank" || step === "login" || step === "complete", done: step === "done", goTo: "bank" as Step, color: "#00B85C" },
+              { n: "1", title: "Get a Valuation", active: step === "info" || step === "scanning", done: ["result","bank","login","complete","done"].includes(step as string), goTo: "info" as Step, color: "#0A66C2" },
+              { n: "2", title: "Share Your Profile", active: step === "result" || step === "bank", done: ["login","complete","done"].includes(step as string), goTo: "result" as Step, color: "#7C3AED" },
+              { n: "3", title: "Get Approved", active: step === "login" || step === "complete", done: step === "done", goTo: "login" as Step, color: "#D97706" },
+              { n: "4", title: "Get Paid Monthly", active: false, done: step === "done", goTo: "done" as Step, color: "#00B85C" },
             ].map((s, i, arr) => (
               <div key={s.n} className="flex items-start" style={{flex:1}}>
                 <div
@@ -415,7 +420,14 @@ export default function BecomeAmbassadorPage() {
           {step === "info" && (
             <form onSubmit={handleSubmit}>
               <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Get Your Profile Valuation</h2>
-              <p className="text-center text-gray-500 mb-6">We&apos;ll evaluate your profile instantly</p>
+              <p className="text-center text-gray-500 mb-2">We&apos;ll evaluate your profile instantly</p>
+              <button
+                type="button"
+                onClick={() => setStep("login")}
+                className="block mx-auto mb-6 text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Skip valuation for now →
+              </button>
               <Card>
                 <CardContent className="py-6 space-y-4">
                   {/* Your details */}
