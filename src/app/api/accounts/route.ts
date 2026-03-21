@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search");
 
   const statusFilter = searchParams.get("status");
-  const where: Record<string, unknown> = { listed: true };
+  const where: Record<string, unknown> = {};
   if (statusFilter) {
     where.status = statusFilter;
   } else {
