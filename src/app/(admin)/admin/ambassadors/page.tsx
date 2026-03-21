@@ -78,17 +78,24 @@ export default function AdminAmbassadorsPage() {
       </div>
 
       <div className="mb-4 flex gap-2">
-        {["", "pending", "reviewing", "approved", "rejected", "onboarded"].map((s) => (
+        {[
+          { value: "", label: "All" },
+          { value: "pending", label: "Received" },
+          { value: "reviewing", label: "Under Review" },
+          { value: "approved", label: "Accepted" },
+          { value: "rejected", label: "Rejected" },
+          { value: "onboarded", label: "Onboarded" },
+        ].map((s) => (
           <button
-            key={s}
-            onClick={() => setFilter(s)}
+            key={s.value}
+            onClick={() => setFilter(s.value)}
             className={`rounded-full px-3 py-1 text-sm ${
-              filter === s
+              filter === s.value
                 ? "bg-blue-600 text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            {s || "All"}
+            {s.label}
           </button>
         ))}
       </div>
@@ -149,9 +156,9 @@ export default function AdminAmbassadorsPage() {
                             "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          <option value="pending">Pending</option>
+                          <option value="pending">Received</option>
                           <option value="reviewing">Under Review</option>
-                          <option value="approved">Approved</option>
+                          <option value="approved">Accepted</option>
                           <option value="rejected">Rejected</option>
                           <option value="onboarded">Onboarded</option>
                         </select>
