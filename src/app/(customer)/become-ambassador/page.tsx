@@ -932,6 +932,26 @@ export default function BecomeAmbassadorPage() {
 
                   <div className="space-y-4">
                     <a
+                      href="https://klabber.co/book"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-indigo-300 hover:bg-indigo-50"
+                    >
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 flex-shrink-0">
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Book a Meeting</p>
+                        <p className="text-sm text-gray-500">Schedule a call with our team</p>
+                      </div>
+                    </a>
+
+                    <a
                       href="https://wa.me/639399388701"
                       target="_blank"
                       rel="noopener noreferrer"
