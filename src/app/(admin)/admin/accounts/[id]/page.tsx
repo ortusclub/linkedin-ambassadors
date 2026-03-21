@@ -69,6 +69,7 @@ export default function EditAccountPage() {
       if (form.ambassadorPayment !== undefined && form.ambassadorPayment !== "") payload.ambassadorPayment = Number(form.ambassadorPayment) || 0;
       if (form.status) payload.status = form.status;
       if (form.gologinProfileId !== undefined) payload.gologinProfileId = form.gologinProfileId || null;
+      if (form.gologinShareLink !== undefined) payload.gologinShareLink = form.gologinShareLink || null;
 
       const res = await fetch(`/api/admin/accounts/${params.id}`, {
         method: "PATCH",
@@ -159,6 +160,7 @@ export default function EditAccountPage() {
                 Listed (visible on Browse Accounts)
               </label>
             </div>
+            <Input id="gologinShareLink" label="GoLogin Share Profile Link" value={(form.gologinShareLink as string) || ""} onChange={(e) => update("gologinShareLink", e.target.value)} placeholder="https://app.gologin.com/..." />
           </CardContent>
         </Card>
 

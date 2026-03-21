@@ -17,6 +17,7 @@ export async function GET() {
             profilePhotoUrl: true,
             connectionCount: true,
             gologinProfileId: true,
+            gologinShareLink: true,
             proxyHost: true,
             proxyPort: true,
             proxyUsername: true,

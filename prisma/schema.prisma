@@ -92,6 +92,7 @@ model LinkedInAccount {
   accountAgeMonths      Int?          @map("account_age_months")
   hasSalesNav           Boolean       @default(false) @map("has_sales_nav")
   listed                Boolean       @default(true)
+  gologinShareLink      String?       @map("gologin_share_link")
   notes                 String?
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")

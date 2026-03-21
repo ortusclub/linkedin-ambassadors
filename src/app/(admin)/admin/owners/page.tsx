@@ -45,14 +45,14 @@ export default function AdminOwnersPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Owners</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Account Owners</h2>
         <p className="text-sm text-gray-500">{owners.length} ambassador{owners.length !== 1 ? "s" : ""} with accounts</p>
       </div>
 
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-200" />)}</div>
       ) : owners.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500">No owners found</CardContent></Card>
+        <Card><CardContent className="py-8 text-center text-gray-500">No account owners found</CardContent></Card>
       ) : (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
           <table className="min-w-full divide-y divide-gray-200">

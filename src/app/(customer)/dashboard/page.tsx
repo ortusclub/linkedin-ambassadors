@@ -22,6 +22,7 @@ interface Rental {
     profilePhotoUrl: string | null;
     connectionCount: number;
     gologinProfileId: string | null;
+    gologinShareLink: string | null;
   };
 }
 
@@ -40,6 +41,16 @@ interface AmbassadorAccount {
   proxyPort: number | null;
   createdAt: string;
   rentals: Array<{ id: string; startDate: string; currentPeriodEnd: string | null }>;
+}
+
+interface Submission {
+  id: string;
+  fullName: string;
+  email: string;
+  linkedinEmail: string | null;
+  linkedinUrl: string;
+  status: string;
+  createdAt: string;
 }
 
 export default function DashboardPage() {
@@ -64,6 +75,8 @@ export default function DashboardPage() {
   const [editingAccount, setEditingAccount] = useState<AmbassadorAccount | null>(null);
   const [editForm, setEditForm] = useState({ linkedinName: "", linkedinHeadline: "", linkedinUrl: "", industry: "", location: "", connectionCount: 0, profilePhotoUrl: "" });
   const [editSaving, setEditSaving] = useState(false);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [deletingSubmission, setDeletingSubmission] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -75,12 +88,14 @@ export default function DashboardPage() {
       fetch("/api/user/dismiss-app-modal").then((r) => r.json()).catch(() => ({ dismissed: false })),
       fetch("/api/wallet/balance").then((r) => r.json()).catch(() => ({ balance: "0" })),
       fetch("/api/wallet/deposit-address").then((r) => r.json()).catch(() => ({ address: null })),
-    ]).then(([rentalData, ambassadorData, dismissData, balanceData, addressData]) => {
+      fetch("/api/ambassador/my-submissions").then((r) => r.json()).catch(() => ({ submissions: [] })),
+    ]).then(([rentalData, ambassadorData, dismissData, balanceData, addressData, submissionsData]) => {
       if (rentalData) setRentals(rentalData.rentals || []);
       setAmbassadorAccounts(ambassadorData.accounts || []);
       setAppModalDismissed(dismissData.dismissed || false);
       setUsdcBalance(balanceData.balance || "0");
       setDepositAddress(addressData.address || null);
+      setSubmissions(submissionsData.submissions || []);
       setLoading(false);
     });
   }, [router]);
@@ -340,7 +355,7 @@ export default function DashboardPage() {
       {ambassadorAccounts.length > 0 && (
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">My Ambassador Accounts</h2>
+            <h2 className="text-xl font-semibold text-gray-900">My Shared Accounts</h2>
             <Link href="/become-ambassador">
               <Button variant="outline" size="sm">Add Another Account</Button>
             </Link>
@@ -404,7 +419,6 @@ export default function DashboardPage() {
                                 {account.status === "available" ? "Pause" : "Activate"}
                               </button>
                             )}
-                            <Button size="sm" variant="primary" onClick={handleOpenAccount}>Open</Button>
                             <button
                               onClick={() => setRemoveAccountId(account.id)}
                               className="text-xs text-red-500 hover:text-red-700 font-medium"
@@ -423,8 +437,9 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Active Rentals */}
+      {/* My Rented Accounts */}
       <section className="mb-12">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">My Rented Accounts</h2>
         {activeRentals.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center">
@@ -436,65 +451,98 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {activeRentals.map((rental) => (
-              <Card key={rental.id}>
-                <CardContent className="py-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-full bg-gray-200">
-                      {rental.linkedinAccount.profilePhotoUrl ? (
-                        <img src={rental.linkedinAccount.profilePhotoUrl} alt={rental.linkedinAccount.linkedinName} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-gray-400">
-                          {rental.linkedinAccount.linkedinName.charAt(0)}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900">{rental.linkedinAccount.linkedinName}</h3>
-                        {statusBadge(rental.status)}
+          <Card>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3">Profile</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Started</th>
+                    <th className="px-4 py-3">Next Billing</th>
+                    <th className="px-4 py-3">Auto-Renew</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+            {activeRentals.map((rental) => {
+              const initials = rental.linkedinAccount.linkedinName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+              return (
+                <tr key={rental.id} className="border-b last:border-b-0">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
+                        {rental.linkedinAccount.profilePhotoUrl ? (
+                          <img src={rental.linkedinAccount.profilePhotoUrl} alt={rental.linkedinAccount.linkedinName} className="h-full w-full rounded-full object-cover" />
+                        ) : (
+                          initials
+                        )}
                       </div>
-                      {rental.linkedinAccount.linkedinHeadline && (
-                        <p className="text-sm text-gray-600">{rental.linkedinAccount.linkedinHeadline}</p>
-                      )}
-                      <div className="mt-1 flex gap-4 text-xs text-gray-500">
-                        <span>Started: {formatDate(rental.startDate)}</span>
-                        {rental.currentPeriodEnd && <span>Next billing: {formatDate(rental.currentPeriodEnd)}</span>}
-                        <button
-                          onClick={async () => {
-                            const newVal = !rental.autoRenew;
-                            const res = await fetch(`/api/rentals/${rental.id}/auto-renew`, {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ autoRenew: newVal }),
-                            });
-                            if (res.ok) {
-                              setRentals((prev) => prev.map((r) => r.id === rental.id ? { ...r, autoRenew: newVal } : r));
-                            }
-                          }}
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${rental.autoRenew ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                      <div>
+                        <p className="font-medium text-gray-900">{rental.linkedinAccount.linkedinName}</p>
+                        {rental.linkedinAccount.linkedinHeadline && (
+                          <p className="text-xs text-gray-500">{rental.linkedinAccount.linkedinHeadline}</p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${rental.status === "active" ? "text-green-600" : "text-red-600"}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${rental.status === "active" ? "bg-green-500" : "bg-red-500"}`} />
+                      {rental.status === "active" ? "Active" : rental.status.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{formatDate(rental.startDate)}</td>
+                  <td className="px-4 py-3 text-gray-500">{rental.currentPeriodEnd ? formatDate(rental.currentPeriodEnd) : "—"}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={async () => {
+                        const newVal = !rental.autoRenew;
+                        const res = await fetch(`/api/rentals/${rental.id}/auto-renew`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ autoRenew: newVal }),
+                        });
+                        if (res.ok) {
+                          setRentals((prev) => prev.map((r) => r.id === rental.id ? { ...r, autoRenew: newVal } : r));
+                        }
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${rental.autoRenew ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                    >
+                      <span className={`inline-block w-2 h-2 rounded-full ${rental.autoRenew ? 'bg-green-500' : 'bg-gray-400'}`} />
+                      {rental.autoRenew ? "On" : "Off"}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center gap-2 justify-end">
+                      {rental.linkedinAccount.gologinShareLink && (
+                        <a
+                          href={rental.linkedinAccount.gologinShareLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
                         >
-                          <span className={`inline-block w-2 h-2 rounded-full ${rental.autoRenew ? 'bg-green-500' : 'bg-gray-400'}`} />
-                          Auto-renew {rental.autoRenew ? "On" : "Off"}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="primary" onClick={() => {
-                        setShowAppPrompt(true);
-                      }}>Access Account</Button>
+                          GoLogin
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
+                        </a>
+                      )}
                       {rental.autoRenew && (
-                        <Button size="sm" variant="outline" onClick={() => handleCancel(rental.id)}>Cancel Auto Renewal</Button>
+                        <button
+                          onClick={() => handleCancel(rental.id)}
+                          className="rounded-md border border-yellow-300 px-2.5 py-1 text-xs font-medium text-yellow-700 hover:bg-yellow-50 transition-colors"
+                        >
+                          Cancel Renewal
+                        </button>
                       )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </td>
+                </tr>
+              );
+            })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
         )}
       </section>
 
@@ -519,6 +567,76 @@ export default function DashboardPage() {
           </div>
         </section>
       )}
+
+      {/* My Submissions */}
+      {/* My Submissions */}
+      <section className="mb-12">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">My Submissions</h2>
+        {submissions.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <h3 className="text-lg font-semibold text-gray-900">Submit Your LinkedIn Accounts</h3>
+              <p className="text-gray-500 text-sm mb-6">Share your accounts with us and get paid monthly.</p>
+              <Link href="/become-ambassador">
+                <Button variant="primary">Submit an Account</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3">Account Name</th>
+                    <th className="px-4 py-3">Account Email</th>
+                    <th className="px-4 py-3">LinkedIn URL</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Submitted</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {submissions.map((sub) => (
+                    <tr key={sub.id} className="border-b last:border-b-0">
+                      <td className="px-4 py-3 font-medium text-gray-900">{sub.fullName}</td>
+                      <td className="px-4 py-3 text-gray-600">{sub.linkedinEmail || sub.email}</td>
+                      <td className="px-4 py-3">
+                        <a href={sub.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm font-medium truncate block max-w-[200px]">
+                          {sub.linkedinUrl.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//, "").replace(/\/$/, "")}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={sub.status === "approved" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
+                          {sub.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{formatDate(sub.createdAt)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={async () => {
+                            if (!confirm("Are you sure you want to delete this submission?")) return;
+                            setDeletingSubmission(sub.id);
+                            const res = await fetch(`/api/ambassador/my-submissions/${sub.id}`, { method: "DELETE" });
+                            if (res.ok) {
+                              setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
+                            }
+                            setDeletingSubmission(null);
+                          }}
+                          disabled={deletingSubmission === sub.id}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
+                        >
+                          {deletingSubmission === sub.id ? "Deleting..." : "Delete"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
+      </section>
 
       {/* Share Accounts CTA — only show if they have no ambassador accounts */}
       {ambassadorAccounts.length === 0 && (

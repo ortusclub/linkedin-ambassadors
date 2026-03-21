@@ -27,6 +27,7 @@ interface Account {
   createdAt: string;
   proxyHost: string | null;
   proxyPort: number | null;
+  gologinShareLink: string | null;
   rentals: Array<{
     user: { fullName: string; email: string };
   }>;
@@ -294,7 +295,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">LinkedIn Accounts</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Linked Accounts</h2>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowImport(true)}>Import CSV</Button>
           <Button variant="outline" onClick={() => { window.location.href = "klabber://open"; }}>Open Klabber App</Button>
@@ -366,6 +367,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rental</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payout</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">GoLogin Share</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -400,6 +402,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600">
                     {a.proxyHost ? <span className="font-mono">{a.proxyHost}:{a.proxyPort}</span> : <span className="text-gray-400">None</span>}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-600">
+                    {a.gologinShareLink ? (
+                      <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium">Link</a>
+                    ) : <span className="text-gray-400">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">
