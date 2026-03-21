@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
-type Step = "choice" | "logged-in-choice" | "info" | "scanning" | "result" | "bank" | "login" | "complete" | "done" | "review";
+type Step = "choice" | "logged-in-choice" | "info" | "scanning" | "result" | "bank" | "account-details" | "login" | "complete" | "done" | "review";
 
 const SCAN_STEPS = [
   "Locating your LinkedIn profile...",
@@ -129,6 +129,9 @@ export default function BecomeAmbassadorPage() {
     notes: "",
   });
 
+  const [accountName, setAccountName] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountLinkedinUrl, setAccountLinkedinUrl] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"usdc" | "paypal" | "wise" | null>(null);
   const [bankForm, setBankForm] = useState({
     bankName: "",
@@ -251,9 +254,9 @@ export default function BecomeAmbassadorPage() {
         });
       }
 
-      setStep("login");
+      setStep("account-details");
     } catch {
-      setStep("login"); // Continue to login step even if save fails
+      setStep("account-details"); // Continue even if save fails
     } finally {
       setLoading(false);
     }
@@ -347,7 +350,7 @@ export default function BecomeAmbassadorPage() {
               </div>
 
               <div
-                onClick={() => setStep("login")}
+                onClick={() => setStep("account-details")}
                 className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:border-green-400 hover:shadow-xl hover:shadow-green-500/5"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50">
@@ -377,8 +380,8 @@ export default function BecomeAmbassadorPage() {
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-start justify-between">
             {[
-              { n: "1", title: "Get a Valuation", active: step === "info" || step === "scanning" || step === "result" || step === "bank", done: ["login","complete","done"].includes(step as string), goTo: "info" as Step, color: "#0A66C2" },
-              { n: "2", title: "Share Your Profile", active: step === "login", done: ["complete","done"].includes(step as string), goTo: "login" as Step, color: "#7C3AED" },
+              { n: "1", title: "Get a Valuation", active: step === "info" || step === "scanning" || step === "result" || step === "bank", done: ["account-details","login","complete","done"].includes(step as string), goTo: "info" as Step, color: "#0A66C2" },
+              { n: "2", title: "Share Your Profile", active: step === "account-details" || step === "login", done: ["complete","done"].includes(step as string), goTo: "account-details" as Step, color: "#7C3AED" },
               { n: "3", title: "Get Approved", active: step === "complete", done: step === "done", goTo: "complete" as Step, color: "#D97706" },
               { n: "4", title: "Get Paid Monthly", active: false, done: step === "done", goTo: "done" as Step, color: "#00B85C" },
             ].map((s, i, arr) => (
@@ -428,7 +431,7 @@ export default function BecomeAmbassadorPage() {
                 type="button"
                 onClick={() => {
                   if (isLoggedIn) {
-                    setStep("login");
+                    setStep("account-details");
                   } else {
                     window.location.href = "/login?message=Please sign up or sign in before sharing your profile.";
                   }
@@ -811,6 +814,74 @@ export default function BecomeAmbassadorPage() {
                 )}
               </div>
             </form>
+          )}
+
+          {/* STEP: Account Details */}
+          {step === "account-details" && (
+            <div className="py-4">
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Account Details</h2>
+              <p className="text-center text-gray-500 mb-8">Tell us about the LinkedIn account you&apos;re sharing.</p>
+
+              <div className="mx-auto max-w-md space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                  <input
+                    type="text"
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                    placeholder="Full name on the LinkedIn account"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Email</label>
+                  <input
+                    type="email"
+                    value={accountEmail}
+                    onChange={(e) => setAccountEmail(e.target.value)}
+                    placeholder="Email used to log into this LinkedIn account"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn Profile URL</label>
+                  <input
+                    type="url"
+                    value={accountLinkedinUrl}
+                    onChange={(e) => setAccountLinkedinUrl(e.target.value)}
+                    placeholder="https://www.linkedin.com/in/yourprofile"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+
+                <Button
+                  className="w-full"
+                  disabled={!accountName || !accountEmail || !accountLinkedinUrl}
+                  onClick={async () => {
+                    // Submit as a valuation/application
+                    try {
+                      await fetch("/api/ambassador/apply", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          fullName: form.fullName || accountName,
+                          email: form.email || accountEmail,
+                          linkedinEmail: accountEmail,
+                          contactNumber: form.contactNumber || undefined,
+                          linkedinUrl: accountLinkedinUrl,
+                          connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
+                          location: form.location || undefined,
+                          notes: `Account name: ${accountName}. Account email: ${accountEmail}.`,
+                        }),
+                      });
+                    } catch {}
+                    setStep("login");
+                  }}
+                >
+                  Continue
+                </Button>
+              </div>
+            </div>
           )}
 
           {/* STEP 5: Link LinkedIn — two options */}
