@@ -166,8 +166,8 @@ export default function AdminAccountsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
 
-  const csvTemplate = `Account Email,LinkedIn Name,LinkedIn URL,Connections,Industry,Location,Sales Navigator,Account Opened,Rental Price,Ambassador Payment,Status,Profile Photo URL
-mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Technology,London,no,2020-01-15,50,25,available,https://example.com/photo.jpg`;
+  const csvTemplate = `Account Email,LinkedIn Name,LinkedIn URL,Connections,Industry,Location,Sales Navigator,Account Opened,Rental Price,Ambassador Payment,Status,Profile Photo URL,GoLogin Share Link
+mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Technology,London,no,2020-01-15,50,25,available,https://example.com/photo.jpg,https://app.gologin.com/share/abc123`;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -234,6 +234,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       const ambassadorPayment = getCol(cols, "ambassador payment", 9) || getCol(cols, "ambassador", 9) || getCol(cols, "payout", 9);
       const status = getCol(cols, "status", 10);
       const photoUrl = getCol(cols, "photo", 11) || getCol(cols, "image", 11);
+      const gologinShareLink = getCol(cols, "gologin", 12) || getCol(cols, "share link", 12);
 
       let accountAgeMonths: number | undefined;
       if (accountOpened) {
@@ -259,6 +260,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
             monthlyPrice: parseFloat(rentalPrice) || 0,
             ambassadorPayment: parseFloat(ambassadorPayment) || 0,
             profilePhotoUrl: photoUrl || undefined,
+            gologinShareLink: gologinShareLink || undefined,
             notes: `Ambassador account. Owner: admin. Profile email: ${accountEmail || ""}.`,
             status: (["under_review","available","unavailable","rented","maintenance","retired"].includes(status?.trim().toLowerCase()) ? status.trim().toLowerCase() : "under_review"),
           }),
@@ -470,7 +472,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 </button>
               </div>
               <p className="text-xs text-gray-400 mb-1">
-                <strong>Columns:</strong> Account Email, LinkedIn Name, LinkedIn URL, Connections, Industry, Location, Sales Navigator (yes/no), Account Opened (YYYY-MM-DD), Rental Price, Ambassador Payment, Status (available/under_review/unavailable), Profile Photo URL
+                <strong>Columns:</strong> Account Email, LinkedIn Name, LinkedIn URL, Connections, Industry, Location, Sales Navigator (yes/no), Account Opened (YYYY-MM-DD), Rental Price, Ambassador Payment, Status (available/under_review/unavailable), Profile Photo URL, GoLogin Share Link
               </p>
               <p className="text-xs text-gray-400">
                 <strong>Profile photos:</strong> Use direct image URLs (Imgur, Cloudflare, etc).

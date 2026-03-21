@@ -325,9 +325,12 @@ export default async function HomePage() {
           <div className="kl-section">
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:60,alignItems:'center'}}>
               <div>
-                <div className="section-label">Powered by Klabber Browser</div>
-                <div className="section-title">Our proprietary Chromium browser makes sharing seamless — and invisible to LinkedIn</div>
-                <div className="section-desc">The biggest risk with account sharing is LinkedIn detecting multiple logins from different locations. Klabber Browser eliminates that entirely.</div>
+                <div className="section-label" style={{display:'flex',alignItems:'center',gap:8}}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#FF6B00" strokeWidth="2"/><path d="M8 12.5L11 15.5L16.5 9" stroke="#FF6B00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Powered by GoLogin
+                </div>
+                <div className="section-title">Seamless account sharing powered by GoLogin — invisible to LinkedIn</div>
+                <div className="section-desc">We&apos;ve partnered with <strong>GoLogin</strong>, the industry-leading anti-detect browser, to make account sharing completely seamless. Each shared account runs through a dedicated browser profile with its own proxy, cookies, and fingerprint — so LinkedIn sees one consistent user, no matter who&apos;s logged in.</div>
                 <div className="browser-features">
                   <div className="browser-feature">
                     <div className="browser-feature-icon" style={{background:'var(--blue-light)',color:'var(--blue)'}}>
@@ -335,7 +338,7 @@ export default async function HomePage() {
                     </div>
                     <div>
                       <h4>Shared proxy session</h4>
-                      <p>Both the ambassador and renter connect through the same proxy location. LinkedIn sees one consistent login origin — no flags, no suspicion.</p>
+                      <p>Both the account owner and renter connect through the same proxy location via GoLogin. LinkedIn sees one consistent login origin — no flags, no suspicion.</p>
                     </div>
                   </div>
                   <div className="browser-feature">
@@ -344,7 +347,7 @@ export default async function HomePage() {
                     </div>
                     <div>
                       <h4>Unified cookie environment</h4>
-                      <p>Both parties share the same browser cookies and session data. No conflicting logins, no &quot;new device&quot; alerts. It looks like one person, one device.</p>
+                      <p>GoLogin keeps both parties sharing the same browser cookies and session data. No conflicting logins, no &quot;new device&quot; alerts. It looks like one person, one device.</p>
                     </div>
                   </div>
                   <div className="browser-feature">
@@ -353,7 +356,7 @@ export default async function HomePage() {
                     </div>
                     <div>
                       <h4>Simultaneous access</h4>
-                      <p>Both the ambassador and renter can be logged in at the same time. No kicking each other out, no session conflicts — it just works throughout the rental period.</p>
+                      <p>Both the account owner and renter can be logged in at the same time. No kicking each other out, no session conflicts — it just works throughout the rental period.</p>
                     </div>
                   </div>
                   <div className="browser-feature">
@@ -362,7 +365,7 @@ export default async function HomePage() {
                     </div>
                     <div>
                       <h4>Zero detection in 12 months</h4>
-                      <p>Across thousands of active rentals, not a single account has been flagged by LinkedIn. The proxy + cookie architecture makes shared access indistinguishable from normal use.</p>
+                      <p>Across thousands of active rentals, not a single account has been flagged by LinkedIn. GoLogin&apos;s anti-detect technology makes shared access indistinguishable from normal use.</p>
                     </div>
                   </div>
                 </div>
@@ -410,6 +413,23 @@ export default async function HomePage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* TRY IT YOURSELF */}
+        <section>
+          <div className="kl-section">
+            <div style={{borderTop:'1px solid #E5E7EB',borderBottom:'1px solid #E5E7EB',padding:'48px 0',textAlign:'center'}}>
+              <div className="section-label">See It For Yourself</div>
+              <div className="section-title" style={{maxWidth:600,margin:'0 auto'}}>Don&apos;t just take our word for it — try it yourself</div>
+              <p style={{fontSize:15,color:'var(--text-mid)',maxWidth:520,margin:'12px auto 0',lineHeight:1.7}}>
+                Click the button below and GoLogin will open a real LinkedIn account directly in your browser. No password needed, no verification steps — just instant, seamless access. That&apos;s exactly how it works for every renter on Klabber.
+              </p>
+              <a href="#" target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,marginTop:28,padding:'18px 36px',background:'linear-gradient(135deg, #FF6B00, #FF8C33)',color:'white',borderRadius:14,fontSize:17,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 14px rgba(255,107,0,0.35)',transition:'transform 0.2s, box-shadow 0.2s'}}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Try Our Test Account
+              </a>
             </div>
           </div>
         </section>

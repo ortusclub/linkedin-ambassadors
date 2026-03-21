@@ -25,6 +25,7 @@ const createAccountSchema = z.object({
   notes: z.string().optional(),
   cookies: z.array(z.record(z.string(), z.unknown())).optional(),
   createGologinProfile: z.boolean().default(false),
+  gologinShareLink: z.string().optional(),
   status: z.enum(["under_review", "available", "unavailable", "rented", "maintenance", "retired"]).default("under_review"),
 });
 
@@ -139,6 +140,7 @@ export async function POST(req: Request) {
         monthlyPrice: data.monthlyPrice || 0,
         ambassadorPayment: data.ambassadorPayment || 0,
         notes: data.notes,
+        gologinShareLink: data.gologinShareLink,
         status: data.status,
       },
     });
