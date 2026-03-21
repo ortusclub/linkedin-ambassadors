@@ -22,6 +22,7 @@ interface Account {
   monthlyPrice: string | number;
   ambassadorPayment: string | number;
   hasSalesNav: boolean;
+  listed: boolean;
   accountAgeMonths: number | null;
   createdAt: string;
   proxyHost: string | null;
@@ -361,6 +362,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Age</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">SN</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Listed</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rental</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payout</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
@@ -389,6 +391,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   <td className="px-4 py-3 text-sm text-gray-600">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</td>
                   <td className="px-4 py-3 text-xs text-gray-600">{a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"}</td>
                   <td className="px-4 py-3 text-xs">{a.hasSalesNav ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
+                  <td className="px-4 py-3 text-xs">{a.listed ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
                   <td className="px-4 py-3 text-xs font-medium text-gray-900">
                     {Number(a.monthlyPrice) > 0 ? `$${Number(a.monthlyPrice).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>

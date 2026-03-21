@@ -25,7 +25,7 @@ function getInitials(name: string) {
 
 export default async function HomePage() {
   const accounts = await prisma.linkedInAccount.findMany({
-    where: { status: "available" },
+    where: { status: "available", listed: true },
     orderBy: { connectionCount: "desc" },
     take: 10,
   });

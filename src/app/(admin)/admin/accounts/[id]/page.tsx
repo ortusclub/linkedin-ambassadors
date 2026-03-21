@@ -63,6 +63,7 @@ export default function EditAccountPage() {
       if (form.proxyPassword !== undefined) payload.proxyPassword = form.proxyPassword || null;
       if (form.accountAgeMonths !== undefined && form.accountAgeMonths !== "" && form.accountAgeMonths !== null) payload.accountAgeMonths = Number(form.accountAgeMonths);
       if (form.hasSalesNav !== undefined) payload.hasSalesNav = !!form.hasSalesNav;
+      if (form.listed !== undefined) payload.listed = !!form.listed;
       if (form.notes !== undefined) payload.notes = form.notes || null;
       if (form.monthlyPrice !== undefined && form.monthlyPrice !== "") payload.monthlyPrice = Number(form.monthlyPrice) || 0;
       if (form.ambassadorPayment !== undefined && form.ambassadorPayment !== "") payload.ambassadorPayment = Number(form.ambassadorPayment) || 0;
@@ -148,10 +149,16 @@ export default function EditAccountPage() {
               <Input id="industry" label="Industry" value={(form.industry as string) || ""} onChange={(e) => update("industry", e.target.value)} />
               <Input id="location" label="Location" value={(form.location as string) || ""} onChange={(e) => update("location", e.target.value)} />
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={(form.hasSalesNav as boolean) || false} onChange={(e) => update("hasSalesNav", e.target.checked)} className="rounded border-gray-300" />
-              Has Sales Navigator
-            </label>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={(form.hasSalesNav as boolean) || false} onChange={(e) => update("hasSalesNav", e.target.checked)} className="rounded border-gray-300" />
+                Has Sales Navigator
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={(form.listed as boolean) ?? true} onChange={(e) => update("listed", e.target.checked)} className="rounded border-gray-300" />
+                Listed (visible on Browse Accounts)
+              </label>
+            </div>
           </CardContent>
         </Card>
 

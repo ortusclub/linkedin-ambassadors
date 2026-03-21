@@ -19,6 +19,7 @@ const createAccountSchema = z.object({
   proxyPassword: z.string().optional(),
   accountAgeMonths: z.number().int().optional(),
   hasSalesNav: z.boolean().default(false),
+  listed: z.boolean().default(true),
   monthlyPrice: z.number().optional(),
   ambassadorPayment: z.number().optional(),
   notes: z.string().optional(),

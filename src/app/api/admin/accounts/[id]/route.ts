@@ -18,6 +18,7 @@ const updateSchema = z.object({
   proxyPassword: z.string().nullable().optional(),
   accountAgeMonths: z.number().int().nullable().optional(),
   hasSalesNav: z.boolean().optional(),
+  listed: z.boolean().optional(),
   monthlyPrice: z.number().optional(),
   ambassadorPayment: z.number().optional(),
   notes: z.string().nullable().optional(),
