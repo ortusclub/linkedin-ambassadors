@@ -1072,26 +1072,14 @@ export default function BecomeAmbassadorPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-3xl font-bold text-gray-900">You&apos;re All Set!</h2>
+              <h2 className="text-3xl font-bold text-gray-900">Start Getting Paid</h2>
               <p className="mt-4 text-lg text-gray-600">
-                Your LinkedIn account is now connected and your payment details are saved.
+                Once your account is approved, you&apos;ll start getting paid on the 1st of every month.
               </p>
-
-              {/* Login credentials */}
-              {credentials && (
-                <Card className="mt-6">
-                  <CardContent className="py-5">
-                    <p className="text-sm font-semibold text-gray-900 mb-3">Your Ambassador Account</p>
-                    <p className="text-sm text-gray-600">
-                      You have an account — you can log in anytime at <a href="https://klabber.co" className="text-blue-600 hover:underline">klabber.co</a> using <span className="font-medium">{credentials.email}</span> to manage your ambassador profile and view your earnings.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
 
               <Card className="mt-6 text-left">
                 <CardContent className="py-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">What happens next?</h3>
+                  <h3 className="font-semibold text-gray-900 mb-4">How you get paid</h3>
                   <div className="space-y-4">
                     <div className="flex items-start gap-3">
                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 flex-shrink-0 mt-0.5">
@@ -1100,30 +1088,19 @@ export default function BecomeAmbassadorPage() {
                         </svg>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">Your account is now live</p>
-                        <p className="text-sm text-gray-500">We&apos;ll list your LinkedIn account in our marketplace for businesses to rent.</p>
+                        <p className="font-medium text-gray-900">Paid monthly on the 1st</p>
+                        <p className="text-sm text-gray-500">Your agreed amount is paid on the 1st of every month, directly to your preferred payment method.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 flex-shrink-0 mt-0.5">
-                        <svg className="h-3.5 w-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 flex-shrink-0 mt-0.5">
+                        <svg className="h-3.5 w-3.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                         </svg>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">Monthly payments of {offer ? formatCurrency(offer.amount) : ""}</p>
-                        <p className="text-sm text-gray-500">Paid by a method of your choosing on the 1st of each month while your account is active.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100 flex-shrink-0 mt-0.5">
-                        <svg className="h-3.5 w-3.5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Keep your account logged in</p>
-                        <p className="text-sm text-gray-500">If your LinkedIn account gets logged out, we&apos;ll contact you to re-authenticate. Monthly payments are paused until access is restored.</p>
+                        <p className="font-medium text-gray-900">Multiple payment options</p>
+                        <p className="text-sm text-gray-500">Receive payment via USDC directly into your Klabber wallet, or if you prefer an alternative method, our team can accommodate — just let us know.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -1134,16 +1111,18 @@ export default function BecomeAmbassadorPage() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">Cancel anytime</p>
-                        <p className="text-sm text-gray-500">You can cancel anytime. You won&apos;t be paid for the following month, but you always have full access to your account.</p>
+                        <p className="text-sm text-gray-500">You can withdraw your account at any time with 30 days notice.</p>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <p className="mt-6 text-sm text-gray-400">
-                Questions? Contact us at support@klabber.co
-              </p>
+              <div className="mt-6">
+                <a href="/dashboard" className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-8 py-3 text-center font-semibold text-white hover:bg-blue-700 transition-colors">
+                  Go to Dashboard
+                </a>
+              </div>
             </div>
           )}
         </div>
