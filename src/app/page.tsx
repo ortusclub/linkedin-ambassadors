@@ -233,7 +233,7 @@ export default async function HomePage() {
             <h1 className="hero-title fade-up d1">Earn $10–$500/mo from your LinkedIn</h1>
             <p className="hero-desc fade-up d2">Every LinkedIn profile has value — from brand new to well-established. List yours on Klabber and get paid every month, guaranteed, whether we find a renter or not.</p>
             <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-              <Link href="/become-ambassador" className="hero-btn hero-btn-white">Become an Ambassador →</Link>
+              <Link href="/become-ambassador" className="hero-btn hero-btn-white">Share Your Accounts →</Link>
               <a href="#" className="hero-video-btn" aria-label="Watch how earning works">
                 <span className="hero-video-play">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
@@ -545,7 +545,7 @@ export default async function HomePage() {
             <div className="section-label">For professionals</div>
             <div className="section-title">Your LinkedIn has been earning you connections. Now let it earn you cash.</div>
             <div className="section-desc">Any LinkedIn account qualifies — new or established. List yours and start earning immediately. We pay you every month, guaranteed, whether we find a renter or not.</div>
-            <div style={{marginTop:32}}><Link href="/become-ambassador" className="hero-btn hero-btn-white" style={{display:'inline-flex',textDecoration:'none'}}>Become an Ambassador →</Link></div>
+            <div style={{marginTop:32}}><Link href="/become-ambassador" className="hero-btn hero-btn-white" style={{display:'inline-flex',textDecoration:'none'}}>Share Your Accounts →</Link></div>
             <div className="earn-grid">
               <div className="earn-card">
                 <div className="earn-amount">$10–$500</div>
@@ -603,7 +603,7 @@ export default async function HomePage() {
           <p>Whether you want to scale your outreach or monetize your professional network, Klabber makes it happen.</p>
           <div className="cta-row">
             <Link href="/catalogue" className="btn-blue">Browse Accounts →</Link>
-            <Link href="/become-ambassador" className="btn-green-solid">Become an Ambassador →</Link>
+            <Link href="/become-ambassador" className="btn-green-solid">Share Your Accounts →</Link>
           </div>
         </section>
 

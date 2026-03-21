@@ -270,11 +270,11 @@ export default function BecomeAmbassadorPage() {
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-5xl font-bold tracking-tight text-gray-900">
-              Become a LinkedIn
-              <span className="text-blue-600"> Ambassador</span>
+              Share Your
+              <span className="text-blue-600"> LinkedIn Accounts</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
-              Earn money from your LinkedIn account. Share your profile with businesses who need
+              Earn money from your LinkedIn accounts. Share them with businesses who need
               established accounts for outreach — and get paid monthly.
             </p>
           </div>

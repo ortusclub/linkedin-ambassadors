@@ -520,15 +520,15 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Become an Ambassador CTA — only show if they have no ambassador accounts */}
+      {/* Share Accounts CTA — only show if they have no ambassador accounts */}
       {ambassadorAccounts.length === 0 && (
         <section>
           <Card>
             <CardContent className="py-8 text-center">
               <h3 className="text-lg font-semibold text-gray-900">Earn Money From Your LinkedIn Account</h3>
-              <p className="mt-2 text-gray-500">Offer your LinkedIn account as an ambassador and get paid monthly.</p>
+              <p className="mt-2 text-gray-500">Share your LinkedIn account and get paid monthly.</p>
               <Link href="/become-ambassador">
-                <Button className="mt-4" variant="primary">Add Ambassador Account</Button>
+                <Button className="mt-4" variant="primary">Share Your Accounts</Button>
               </Link>
             </CardContent>
           </Card>
