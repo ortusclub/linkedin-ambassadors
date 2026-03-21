@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/accounts", label: "Accounts" },
-  { href: "/admin/rentals", label: "Rentals" },
-  { href: "/admin/customers", label: "Renters" },
-  { href: "/admin/owners", label: "Owners" },
-  { href: "/admin/ambassadors", label: "Valuations" },
+  { href: "/admin/accounts", label: "Linked Accounts" },
+  { href: "/admin/rentals", label: "Rental Agreements" },
+  { href: "/admin/customers", label: "Clapper Accounts" },
+  { href: "/admin/owners", label: "Account Owners" },
+  { href: "/admin/ambassadors", label: "Submissions" },
   { href: "/admin/balances", label: "Balances" },
 ];
 

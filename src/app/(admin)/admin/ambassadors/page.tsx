@@ -73,7 +73,7 @@ export default function AdminAmbassadorsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Valuations</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Submissions</h2>
         <p className="text-sm text-gray-500">{applications.length} total</p>
       </div>
 
