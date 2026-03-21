@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/accounts", label: "Linked Accounts" },
+  { href: "/admin/accounts", label: "LinkedIn Accounts" },
   { href: "/admin/rentals", label: "Rental Agreements" },
-  { href: "/admin/customers", label: "Clapper Accounts" },
+  { href: "/admin/customers", label: "Klabber Accounts" },
   { href: "/admin/owners", label: "Account Owners" },
   { href: "/admin/ambassadors", label: "Submissions" },
   { href: "/admin/balances", label: "Balances" },
