@@ -594,7 +594,7 @@ export default function BecomeAmbassadorPage() {
 
               <div className="space-y-3">
                 <a
-                  href="https://wa.me/447700123456"
+                  href="https://wa.me/639399388701"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
@@ -606,7 +606,7 @@ export default function BecomeAmbassadorPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">WhatsApp Us</p>
-                    <p className="text-sm text-gray-500">+44 7700 123456</p>
+                    <p className="text-sm text-gray-500">+639399388701</p>
                   </div>
                 </a>
 
@@ -890,7 +890,7 @@ export default function BecomeAmbassadorPage() {
 
                   <div className="space-y-4">
                     <a
-                      href="https://wa.me/447700123456"
+                      href="https://wa.me/639399388701"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-green-300 hover:bg-green-50"
@@ -902,7 +902,7 @@ export default function BecomeAmbassadorPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">WhatsApp</p>
-                        <p className="text-sm text-gray-500">+44 7700 123456</p>
+                        <p className="text-sm text-gray-500">+639399388701</p>
                       </div>
                     </a>
 
