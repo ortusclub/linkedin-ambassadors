@@ -362,7 +362,7 @@ export default function BecomeAmbassadorPage() {
             </div>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-500">Need help? <a href="https://t.me/klabber_support_bot" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:text-blue-800">Get in touch with our team</a> and we&apos;ll walk you through the process.</p>
+              <p className="text-sm text-gray-500">Need help? <a href="https://t.me/klabber_support_bot_bot" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:text-blue-800">Get in touch with our team</a> and we&apos;ll walk you through the process.</p>
             </div>
           </div>
         </section>
@@ -907,7 +907,7 @@ export default function BecomeAmbassadorPage() {
                     </a>
 
                     <a
-                      href="https://t.me/klabber_support"
+                      href="https://t.me/klabber_support_bot"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-blue-300 hover:bg-blue-50"
@@ -919,7 +919,7 @@ export default function BecomeAmbassadorPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">Telegram</p>
-                        <p className="text-sm text-gray-500">@klabber_support</p>
+                        <p className="text-sm text-gray-500">@klabber_support_bot</p>
                       </div>
                     </a>
 
