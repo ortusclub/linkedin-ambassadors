@@ -346,7 +346,7 @@ export default function BecomeAmbassadorPage() {
               </div>
 
               <div
-                onClick={() => setStep("bank")}
+                onClick={() => setStep("login")}
                 className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:border-green-400 hover:shadow-xl hover:shadow-green-500/5"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50">
@@ -376,9 +376,9 @@ export default function BecomeAmbassadorPage() {
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-start justify-between">
             {[
-              { n: "1", title: "Get a Valuation", active: step === "info" || step === "scanning", done: ["result","bank","login","complete","done"].includes(step as string), goTo: "info" as Step, color: "#0A66C2" },
-              { n: "2", title: "Share Your Profile", active: step === "result" || step === "bank", done: ["login","complete","done"].includes(step as string), goTo: "result" as Step, color: "#7C3AED" },
-              { n: "3", title: "Get Approved", active: step === "login" || step === "complete", done: step === "done", goTo: "login" as Step, color: "#D97706" },
+              { n: "1", title: "Get a Valuation", active: step === "info" || step === "scanning" || step === "result" || step === "bank", done: ["login","complete","done"].includes(step as string), goTo: "info" as Step, color: "#0A66C2" },
+              { n: "2", title: "Share Your Profile", active: step === "login", done: ["complete","done"].includes(step as string), goTo: "login" as Step, color: "#7C3AED" },
+              { n: "3", title: "Get Approved", active: step === "complete", done: step === "done", goTo: "complete" as Step, color: "#D97706" },
               { n: "4", title: "Get Paid Monthly", active: false, done: step === "done", goTo: "done" as Step, color: "#00B85C" },
             ].map((s, i, arr) => (
               <div key={s.n} className="flex items-start" style={{flex:1}}>
@@ -427,7 +427,7 @@ export default function BecomeAmbassadorPage() {
                 type="button"
                 onClick={() => {
                   if (isLoggedIn) {
-                    setStep("bank");
+                    setStep("login");
                   } else {
                     window.location.href = "/login?message=Please sign up or sign in before sharing your profile.";
                   }
