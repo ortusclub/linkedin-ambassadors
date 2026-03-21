@@ -104,6 +104,7 @@ function calculateOffer(data: {
 export default function BecomeAmbassadorPage() {
   const [step, setStep] = useState<Step | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [assignedProxy, setAssignedProxy] = useState<{host:string;port:number;username:string;password:string}|null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [scanIndex, setScanIndex] = useState(0);
@@ -826,54 +827,87 @@ export default function BecomeAmbassadorPage() {
                   <div className="text-center mb-4">
                     <span className="inline-block rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-blue-700 mb-4">Option A</span>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">Set It Up Yourself</h3>
-                    <p className="text-gray-500">Takes about 2 minutes using the Klabber app.</p>
+                    <p className="text-gray-500">Takes about 5 minutes using GoLogin (free).</p>
                   </div>
 
                   <hr className="border-gray-200 mb-6" />
 
                   <div className="space-y-6">
+                    {/* Step 1 */}
                     <div className="flex items-start gap-4">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">1</div>
                       <div>
-                        <p className="font-semibold text-gray-900">Download the Klabber App</p>
-                        <div className="flex gap-3 mt-3">
-                          <a
-                            href="/api/download"
-                            className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-center font-semibold text-white hover:bg-gray-800 transition-colors"
-                          >
-                            Download for Mac
-                          </a>
-                          <span className="inline-flex items-center justify-center rounded-lg bg-gray-100 border border-gray-200 px-6 py-3 text-center font-semibold text-gray-400 cursor-not-allowed">
-                            Windows — Coming Soon
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-2">If macOS says the app can&apos;t be opened, right-click the app and choose <strong>Open</strong> — you&apos;ll only need to do this once.</p>
+                        <p className="font-semibold text-gray-900">Sign up to GoLogin</p>
+                        <p className="text-sm text-gray-500 mt-1">If you don&apos;t have GoLogin yet, sign up for free at <a href="https://gologin.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:text-blue-800">gologin.com</a>. You&apos;ll get a free trial — that&apos;s fine, you only need the free version.</p>
                       </div>
                     </div>
 
+                    {/* Step 2 */}
                     <div className="flex items-start gap-4">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">2</div>
                       <div>
-                        <p className="font-semibold text-gray-900">Sign into the app</p>
-                        <p className="text-sm text-gray-500 mt-1">Enter your email (<strong>{form.email}</strong>) and verify via the code we send you.</p>
+                        <p className="font-semibold text-gray-900">Create a new profile with this proxy</p>
+                        <p className="text-sm text-gray-500 mt-1">Open GoLogin, click &quot;+ New Profile&quot;, and name it after the email of the LinkedIn account you want to share. Then enter the proxy details below:</p>
+                        {assignedProxy ? (
+                          <div className="mt-3 rounded-lg bg-gray-50 border border-gray-200 p-4 font-mono text-sm space-y-2">
+                            <div className="flex justify-between"><span className="text-gray-500">Host:</span><span className="font-semibold text-gray-900">{assignedProxy.host}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">Port:</span><span className="font-semibold text-gray-900">{assignedProxy.port}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">Username:</span><span className="font-semibold text-gray-900">{assignedProxy.username}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">Password:</span><span className="font-semibold text-gray-900">{assignedProxy.password}</span></div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch("/api/ambassador/proxy");
+                                const data = await res.json();
+                                if (data.proxy) setAssignedProxy(data.proxy);
+                              } catch {}
+                            }}
+                            className="mt-3 inline-flex items-center rounded-lg bg-blue-50 border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                          >
+                            Show my proxy details
+                          </button>
+                        )}
                       </div>
                     </div>
 
+                    {/* Step 3 */}
                     <div className="flex items-start gap-4">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">3</div>
                       <div>
-                        <p className="font-semibold text-gray-900">Add your LinkedIn profile</p>
-                        <p className="text-sm text-gray-500 mt-1">Click &quot;+ Add Profile&quot;, enter your details, and log into LinkedIn in the secure Chrome browser that opens.</p>
+                        <p className="font-semibold text-gray-900">Log into your LinkedIn account</p>
+                        <p className="text-sm text-gray-500 mt-1">Open the profile you just created in GoLogin. A browser will open — log into your LinkedIn account as you normally would.</p>
+                      </div>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">4</div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Share the profile with Klabber</p>
+                        <p className="text-sm text-gray-500 mt-1">Close the browser, then in GoLogin right-click the profile → <strong>Share</strong> → set permission to <strong>&quot;Can edit&quot;</strong> → share to:</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <code className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white">info@klabber.co</code>
+                          <button
+                            type="button"
+                            onClick={() => { navigator.clipboard.writeText("info@klabber.co"); }}
+                            className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                          >
+                            Copy
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-6 rounded-lg bg-blue-50 border border-blue-100 p-4 text-sm text-blue-700">
-                    <strong>Your login is safe.</strong> We never see your password — only the session cookie is stored.
+                  <div className="mt-6 rounded-lg bg-green-50 border border-green-100 p-4 text-sm text-green-700">
+                    <strong>Your password stays private.</strong> By sharing the GoLogin profile, both you and Klabber can access the account without needing to know or share your LinkedIn password.
                   </div>
 
                   <Button size="lg" className="w-full mt-6" onClick={() => setStep("complete")}>
-                    I&apos;ve Completed the Steps
+                    I&apos;ve Shared My Profile
                   </Button>
                 </CardContent>
               </Card>
