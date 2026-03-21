@@ -137,7 +137,24 @@ export default function AdminAmbassadorsPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{app.location || app.industry || "—"}</td>
                       <td className="px-4 py-3">
-                        <Badge variant={statusVariant(app.status)}>{app.status}</Badge>
+                        <select
+                          value={app.status}
+                          onChange={(e) => updateStatus(app.id, e.target.value)}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold border-0 cursor-pointer appearance-none text-center ${
+                            app.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                            app.status === "reviewing" ? "bg-blue-100 text-blue-800" :
+                            app.status === "approved" ? "bg-green-100 text-green-800" :
+                            app.status === "rejected" ? "bg-red-100 text-red-800" :
+                            app.status === "onboarded" ? "bg-green-100 text-green-800" :
+                            "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="reviewing">Under Review</option>
+                          <option value="approved">Approved</option>
+                          <option value="rejected">Rejected</option>
+                          <option value="onboarded">Onboarded</option>
+                        </select>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">{formatDate(app.createdAt)}</td>
                     </tr>
