@@ -40,7 +40,8 @@ export default function ProfilePage() {
 
   // Personal info form
   const [fullName, setFullName] = useState("");
-  const [contactNumber, setContactNumber] = useState("");
+  const [contactMethod, setContactMethod] = useState<"whatsapp" | "telegram">("whatsapp");
+  const [contactHandle, setContactHandle] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
 
@@ -82,7 +83,17 @@ export default function ProfilePage() {
         const u = data.user;
         setUser(u);
         setFullName(u.fullName || "");
-        setContactNumber(u.contactNumber || "");
+        if (u.contactNumber) {
+          if (u.contactNumber.startsWith("telegram:")) {
+            setContactMethod("telegram");
+            setContactHandle(u.contactNumber.replace("telegram:", ""));
+          } else if (u.contactNumber.startsWith("whatsapp:")) {
+            setContactMethod("whatsapp");
+            setContactHandle(u.contactNumber.replace("whatsapp:", ""));
+          } else {
+            setContactHandle(u.contactNumber);
+          }
+        }
 
         if (data.paymentDetails) {
           const p = data.paymentDetails;
@@ -116,7 +127,7 @@ export default function ProfilePage() {
     const res = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, contactNumber }),
+      body: JSON.stringify({ fullName, contactNumber: contactHandle ? `${contactMethod}:${contactHandle}` : "" }),
     });
 
     if (res.ok) {
@@ -248,16 +259,33 @@ export default function ProfilePage() {
                   </p>
                   <p className="text-xs text-gray-400">Email cannot be changed. Create a new account to use a different email.</p>
                 </div>
-                <div className="space-y-1">
-                  <Input
-                    id="contactNumber"
-                    label="Phone Number"
-                    type="tel"
-                    value={contactNumber}
-                    onChange={(e) => setContactNumber(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp or Telegram</label>
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setContactMethod("whatsapp")}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${contactMethod === "whatsapp" ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                    >
+                      WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContactMethod("telegram")}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${contactMethod === "telegram" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                    >
+                      Telegram
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={contactHandle}
+                    onChange={(e) => setContactHandle(e.target.value)}
+                    placeholder={contactMethod === "whatsapp" ? "+44 7700 000000" : "@username"}
+                    required
+                    className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-gray-400">Please include your country code (e.g. +1, +44). We'll only contact you if there's an issue with one of your ambassador accounts or if we're having issues with your billing or payment information. We won't contact you for marketing or spamming.</p>
+                  <p className="text-xs text-gray-400 mt-1">Only used for communication about your rented or ambassador accounts — never for marketing or promotions.</p>
                 </div>
                 {profileMessage && (
                   <div className={`text-sm px-4 py-3 rounded-lg ${
