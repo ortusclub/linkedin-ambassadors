@@ -20,13 +20,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = applySchema.parse(body);
 
-    // Check for duplicate application
+    // Check for duplicate application (same email AND same LinkedIn URL)
     const existing = await prisma.ambassadorApplication.findFirst({
-      where: { email: data.email, status: { in: ["pending", "reviewing", "approved"] } },
+      where: { email: data.email, linkedinUrl: data.linkedinUrl, status: { in: ["pending", "reviewing", "approved"] } },
     });
     if (existing) {
       return NextResponse.json(
-        { error: "You already have an active application" },
+        { error: "You already have an active application for this account" },
         { status: 409 }
       );
     }
