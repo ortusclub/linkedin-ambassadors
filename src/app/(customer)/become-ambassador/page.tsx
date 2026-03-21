@@ -103,6 +103,7 @@ function calculateOffer(data: {
 
 export default function BecomeAmbassadorPage() {
   const [step, setStep] = useState<Step | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [scanIndex, setScanIndex] = useState(0);
@@ -158,6 +159,7 @@ export default function BecomeAmbassadorPage() {
             email: prev.email || data.user.email || "",
             contactNumber: prev.contactNumber || data.user.contactNumber || "",
           }));
+          setIsLoggedIn(true);
           setStep("logged-in-choice");
         } else {
           setStep("choice");
@@ -344,7 +346,7 @@ export default function BecomeAmbassadorPage() {
               </div>
 
               <div
-                onClick={() => setStep("login")}
+                onClick={() => setStep("bank")}
                 className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:border-green-400 hover:shadow-xl hover:shadow-green-500/5"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50">
@@ -423,7 +425,13 @@ export default function BecomeAmbassadorPage() {
               <p className="text-center text-gray-500 mb-2">We&apos;ll evaluate your profile instantly</p>
               <button
                 type="button"
-                onClick={() => setStep("login")}
+                onClick={() => {
+                  if (isLoggedIn) {
+                    setStep("bank");
+                  } else {
+                    window.location.href = "/login?message=Please sign up or sign in before sharing your profile.";
+                  }
+                }}
                 className="block mx-auto mb-6 text-sm text-blue-600 hover:text-blue-800 font-medium"
               >
                 Skip valuation for now →
