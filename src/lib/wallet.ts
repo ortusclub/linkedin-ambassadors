@@ -39,6 +39,12 @@ export function getTreasuryAddress(): string {
   return process.env.TREASURY_WALLET_ADDRESS || "0x953f06a4229e451f0Bc5E589a763EE5A9058882D";
 }
 
+export function getTreasuryWallet(): ethers.Wallet {
+  const privateKey = process.env.TREASURY_PRIVATE_KEY;
+  if (!privateKey) throw new Error("TREASURY_PRIVATE_KEY not configured");
+  return new ethers.Wallet(privateKey, getBaseProvider());
+}
+
 // USDC on Base has 6 decimals
 export function parseUsdc(amount: string | number): bigint {
   return ethers.parseUnits(String(amount), 6);
