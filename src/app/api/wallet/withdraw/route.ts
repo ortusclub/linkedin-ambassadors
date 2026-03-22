@@ -16,18 +16,7 @@ export async function POST(req: Request) {
     const { address, amount } = schema.parse(body);
     const withdrawAmount = parseFloat(amount);
 
-    // Check balance
-    const userData = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { usdcBalance: true },
-    });
-
-    if (!userData || parseFloat(userData.usdcBalance.toString()) < withdrawAmount) {
-      return NextResponse.json({ error: "Insufficient balance" }, { status: 400 });
-    }
-
     // Check treasury has enough USDC and ETH for gas
-    const treasuryWallet = getTreasuryWallet();
     const usdc = getUsdcContract(getBaseProvider());
     const treasuryUsdc: bigint = await usdc.balanceOf(getTreasuryAddress());
     const treasuryEth = await getBaseProvider().getBalance(getTreasuryAddress());
@@ -37,35 +26,55 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Withdrawals are temporarily unavailable. Please try again later." }, { status: 503 });
     }
 
-    if (treasuryEth < BigInt(100000000000000)) { // 0.0001 ETH
+    if (treasuryEth < BigInt(100000000000000)) {
       console.error(`[WITHDRAW] Insufficient treasury ETH for gas`);
       return NextResponse.json({ error: "Withdrawals are temporarily unavailable. Please try again later." }, { status: 503 });
     }
 
-    // Send USDC on-chain from treasury to user's address
-    const usdcWithSigner = getUsdcContract(treasuryWallet);
-    const tx = await usdcWithSigner.transfer(address, parseUsdc(amount));
-    const receipt = await tx.wait();
+    // Deduct balance FIRST to prevent race condition.
+    // Uses raw SQL to atomically check and deduct in one query.
+    const deducted = await prisma.$executeRaw`
+      UPDATE users
+      SET usdc_balance = usdc_balance - ${withdrawAmount}::decimal
+      WHERE id = ${user.id}::uuid
+        AND usdc_balance >= ${withdrawAmount}::decimal
+    `;
 
-    // Deduct balance and record transaction with tx hash
-    await prisma.$transaction(async (dbTx) => {
-      await dbTx.user.update({
-        where: { id: user.id },
-        data: { usdcBalance: { decrement: withdrawAmount } },
-      });
+    if (deducted === 0) {
+      return NextResponse.json({ error: "Insufficient balance" }, { status: 400 });
+    }
 
-      await dbTx.transaction.create({
-        data: {
-          userId: user.id,
-          type: "refund",
-          amount: -withdrawAmount,
-          txHash: receipt.hash,
-          description: `Withdrawal of ${amount} USDC to ${address}`,
-        },
-      });
+    // Balance is now locked. Send USDC on-chain.
+    let txHash: string;
+    try {
+      const treasuryWallet = getTreasuryWallet();
+      const usdcWithSigner = getUsdcContract(treasuryWallet);
+      const tx = await usdcWithSigner.transfer(address, parseUsdc(amount));
+      const receipt = await tx.wait();
+      txHash = receipt.hash;
+    } catch (onChainError) {
+      // On-chain transfer failed — refund the user's balance
+      await prisma.$executeRaw`
+        UPDATE users
+        SET usdc_balance = usdc_balance + ${withdrawAmount}::decimal
+        WHERE id = ${user.id}::uuid
+      `;
+      console.error("[WITHDRAW] On-chain transfer failed, balance refunded:", onChainError);
+      return NextResponse.json({ error: "Failed to process withdrawal. Please try again." }, { status: 500 });
+    }
+
+    // Record the transaction
+    await prisma.transaction.create({
+      data: {
+        userId: user.id,
+        type: "refund",
+        amount: -withdrawAmount,
+        txHash,
+        description: `Withdrawal of ${amount} USDC to ${address}`,
+      },
     });
 
-    return NextResponse.json({ success: true, txHash: receipt.hash });
+    return NextResponse.json({ success: true, txHash });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

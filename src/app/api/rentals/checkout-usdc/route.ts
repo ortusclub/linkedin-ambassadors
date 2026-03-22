@@ -25,13 +25,19 @@ export async function POST(req: Request) {
       new Prisma.Decimal(0)
     );
 
-    // Check balance
-    const userData = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { usdcBalance: true },
-    });
+    // Atomically check and deduct balance to prevent race condition
+    const deducted = await prisma.$executeRaw`
+      UPDATE users
+      SET usdc_balance = usdc_balance - ${totalPrice.toNumber()}::decimal
+      WHERE id = ${user.id}::uuid
+        AND usdc_balance >= ${totalPrice.toNumber()}::decimal
+    `;
 
-    if (!userData || userData.usdcBalance.lessThan(totalPrice)) {
+    if (deducted === 0) {
+      const userData = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { usdcBalance: true },
+      });
       return NextResponse.json(
         {
           error: "Insufficient USDC balance",
@@ -42,54 +48,56 @@ export async function POST(req: Request) {
       );
     }
 
-    // Process payment in a transaction
-    const rentalIds = await prisma.$transaction(async (tx) => {
-      // Deduct balance
-      await tx.user.update({
-        where: { id: user.id },
-        data: { usdcBalance: { decrement: totalPrice } },
+    // Balance deducted — now create rentals in a transaction
+    try {
+      const rentalIds = await prisma.$transaction(async (tx) => {
+        const ids: string[] = [];
+
+        for (const account of accounts) {
+          const rental = await tx.rental.create({
+            data: {
+              userId: user.id,
+              linkedinAccountId: account.id,
+              usdcPayment: true,
+              autoRenew: !!autoRenew,
+              status: "active",
+              currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
+              accessGrantedAt: new Date(),
+            },
+          });
+
+          await tx.linkedInAccount.update({
+            where: { id: account.id },
+            data: { status: "rented" },
+          });
+
+          await tx.transaction.create({
+            data: {
+              userId: user.id,
+              type: "rental_payment",
+              amount: account.monthlyPrice.negated(),
+              rentalId: rental.id,
+              description: `Rental payment for ${account.linkedinName}`,
+            },
+          });
+
+          ids.push(rental.id);
+        }
+
+        return ids;
       });
 
-      const ids: string[] = [];
-
-      for (const account of accounts) {
-        // Create rental
-        const rental = await tx.rental.create({
-          data: {
-            userId: user.id,
-            linkedinAccountId: account.id,
-            usdcPayment: true,
-            autoRenew: !!autoRenew,
-            status: "active",
-            currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
-            accessGrantedAt: new Date(),
-          },
-        });
-
-        // Mark account as rented
-        await tx.linkedInAccount.update({
-          where: { id: account.id },
-          data: { status: "rented" },
-        });
-
-        // Record transaction
-        await tx.transaction.create({
-          data: {
-            userId: user.id,
-            type: "rental_payment",
-            amount: account.monthlyPrice.negated(),
-            rentalId: rental.id,
-            description: `Rental payment for ${account.linkedinName}`,
-          },
-        });
-
-        ids.push(rental.id);
-      }
-
-      return ids;
-    });
-
-    return NextResponse.json({ success: true, rentalIds });
+      return NextResponse.json({ success: true, rentalIds });
+    } catch (rentalError) {
+      // Rental creation failed — refund the balance
+      await prisma.$executeRaw`
+        UPDATE users
+        SET usdc_balance = usdc_balance + ${totalPrice.toNumber()}::decimal
+        WHERE id = ${user.id}::uuid
+      `;
+      console.error("USDC checkout rental creation failed, balance refunded:", rentalError);
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
