@@ -39,7 +39,8 @@ export default async function HomePage() {
           --accent:#1D1B16;--radius:10px;--radius-lg:16px;--radius-xl:24px;
         }
         html{scroll-behavior:smooth}
-        body{font-family:'DM Sans','Instrument Sans',system-ui,sans-serif;color:var(--text);background:var(--bg) !important;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+        body{font-family:'DM Sans','Instrument Sans',system-ui,sans-serif;color:var(--text);background:var(--bg) !important;-webkit-font-smoothing:antialiased;overflow-x:hidden;max-width:100vw}
+        .kl-page{overflow-x:hidden}
         .kl-page h1,.kl-page h2,.kl-page h3,.kl-page h4,.kl-page h5{font-family:'Instrument Sans','DM Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
         .nav-cta{padding:8px 20px;background:var(--accent);color:#fff !important;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;transition:transform .15s,box-shadow .15s}
         .nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
@@ -205,7 +206,7 @@ export default async function HomePage() {
           .ambassador-section{margin:0 16px;padding:40px 20px}
           .kl-section{padding:48px 16px}
           .mobile-2col,.mobile-2col-wide{grid-template-columns:1fr;gap:20px}
-          .mobile-section-pad{padding:48px 20px}
+          .mobile-section-pad{padding:48px 16px !important}
           .cat-inner{padding:24px 16px 60px}
           .hero-btn{padding:12px 20px;font-size:13px}
           .hero-video-text{display:none}
@@ -528,7 +529,7 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:20,padding:'32px 24px'}}>
+            <div style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:16,padding:'24px 16px'}}>
               <h3 style={{fontSize:22,fontWeight:700,letterSpacing:'-0.02em',color:'#fff',marginBottom:24,fontFamily:'Instrument Sans,sans-serif'}}>Scale with real, verified accounts</h3>
               <div className="mobile-2col">
                 <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
