@@ -253,12 +253,12 @@ export default async function HomePage() {
         <div className="proof-bar">
           <div className="proof-inner" style={{justifyContent:'center',gap:64}}>
             <div className="proof-stat" style={{textAlign:'center'}}>
-              <div className="proof-stat-num" id="counter-teams">237</div>
+              <div className="proof-stat-num" id="counter-teams" suppressHydrationWarning>237</div>
               <div className="proof-stat-label">Teams using Klabber</div>
             </div>
             <div style={{width:1,height:40,background:'var(--border)'}} />
             <div className="proof-stat" style={{textAlign:'center'}}>
-              <div className="proof-stat-num" id="counter-accounts">847</div>
+              <div className="proof-stat-num" id="counter-accounts" suppressHydrationWarning>847</div>
               <div className="proof-stat-label">Verified accounts provided</div>
             </div>
             <div style={{width:1,height:40,background:'var(--border)'}} />
