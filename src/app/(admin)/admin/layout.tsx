@@ -13,6 +13,7 @@ const navItems = [
   { href: "/admin/owners", label: "Account Owners" },
   { href: "/admin/ambassadors", label: "Submissions" },
   { href: "/admin/balances", label: "Balances" },
+  { href: "/admin/transactions", label: "Transactions" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

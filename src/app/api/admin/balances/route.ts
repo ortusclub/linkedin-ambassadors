@@ -7,7 +7,7 @@ export async function GET() {
     await requireAdmin();
 
     const users = await prisma.user.findMany({
-      where: { usdcBalance: { gt: 0 } },
+      where: { role: "customer" },
       select: {
         id: true,
         fullName: true,

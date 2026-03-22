@@ -20,6 +20,7 @@ export async function GET() {
         linkedinName: true,
         status: true,
         monthlyPrice: true,
+        ambassadorPayment: true,
         notes: true,
         createdAt: true,
       },
@@ -52,18 +53,38 @@ export async function GET() {
 
     const userMap = new Map(users.map((u) => [u.email, u]));
 
+    // Look up payment methods from ambassador applications
+    const applications = emails.length > 0
+      ? await prisma.ambassadorApplication.findMany({
+          where: { email: { in: emails } },
+          select: { email: true, paymentMethod: true },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+
+    const paymentMap = new Map<string, string>();
+    for (const app of applications) {
+      if (app.paymentMethod && !paymentMap.has(app.email)) {
+        paymentMap.set(app.email, app.paymentMethod);
+      }
+    }
+
     const owners = Array.from(ownerMap.entries()).map(([email, data]) => {
       const user = userMap.get(email);
+      const monthlyPayout = data.accounts.reduce((sum, a) => sum + Number(a.ambassadorPayment || 0), 0);
       return {
         email,
         fullName: user?.fullName || email,
         joinedAt: user?.createdAt || null,
         accountCount: data.accounts.length,
+        monthlyPayout,
+        paymentMethod: paymentMap.get(email) || null,
         accounts: data.accounts.map((a) => ({
           id: a.id,
           linkedinName: a.linkedinName,
           status: a.status,
           monthlyPrice: a.monthlyPrice,
+          ambassadorPayment: a.ambassadorPayment,
         })),
       };
     });

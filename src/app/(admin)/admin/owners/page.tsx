@@ -10,6 +10,7 @@ interface OwnerAccount {
   linkedinName: string;
   status: string;
   monthlyPrice: string | number;
+  ambassadorPayment: string | number;
 }
 
 interface Owner {
@@ -17,6 +18,8 @@ interface Owner {
   fullName: string;
   joinedAt: string | null;
   accountCount: number;
+  monthlyPayout: number;
+  paymentMethod: string | null;
   accounts: OwnerAccount[];
 }
 
@@ -61,6 +64,8 @@ export default function AdminOwnersPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Email</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Accounts</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Monthly Payout</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payment Method</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Their Accounts</th>
               </tr>
             </thead>
@@ -75,8 +80,14 @@ export default function AdminOwnersPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{owner.email}</td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{owner.accountCount}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    {owner.monthlyPayout > 0 ? formatCurrency(owner.monthlyPayout) : <span className="text-gray-400 font-normal">TBC</span>}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {owner.paymentMethod ? <span className="capitalize">{owner.paymentMethod}</span> : <span className="text-gray-400">Not set</span>}
+                  </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
                       {owner.accounts.map((account) => (
                         <span key={account.id} className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2 py-1 text-xs">
                           <span className="font-medium text-gray-700">{account.linkedinName}</span>
