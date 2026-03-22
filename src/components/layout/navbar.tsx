@@ -83,9 +83,9 @@ export function Navbar() {
                   ${balance !== null ? parseFloat(balance).toFixed(2) : '—'}
                   <span className="kl-topup">Top Up</span>
                 </Link>
-                <a href="/profile" className="kl-nav-btn">
+                <Link href="/profile" className="kl-nav-btn">
                   {user.fullName}
-                </a>
+                </Link>
                 <button className="kl-nav-btn" onClick={handleLogout}>Sign Out</button>
               </>
             ) : (
