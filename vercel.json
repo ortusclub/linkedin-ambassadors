@@ -5,7 +5,7 @@
   "crons": [
     {
       "path": "/api/cron/detect-deposits",
-      "schedule": "0 0 * * *"
+      "schedule": "* * * * *"
     }
   ]
 }
