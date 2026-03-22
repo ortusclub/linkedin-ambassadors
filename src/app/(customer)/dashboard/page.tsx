@@ -298,7 +298,7 @@ export default function DashboardPage() {
                   ) : (
                     <p className="text-xs text-gray-500">Loading your deposit address...</p>
                   )}
-                  <p className="text-xs text-gray-400 mt-1.5">Base network only. Unique to your account. Detected automatically.</p>
+                  <p className="text-xs text-gray-400 mt-1.5">Base network only. Unique to your account. Please allow up to one minute for deposits to be detected.</p>
                 </div>
                 {/* Card deposit */}
                 <div className="rounded-lg border border-gray-200 p-3">

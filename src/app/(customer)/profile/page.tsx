@@ -383,7 +383,7 @@ export default function ProfilePage() {
                       ) : (
                         <p className="text-xs text-gray-500">Loading your deposit address...</p>
                       )}
-                      <p className="text-xs text-gray-400 mt-1.5">Unique to your account. Detected automatically within a few minutes.</p>
+                      <p className="text-xs text-gray-400 mt-1.5">Unique to your account. Please allow up to one minute for deposits to be detected.</p>
                     </div>
                   )}
                 </div>
