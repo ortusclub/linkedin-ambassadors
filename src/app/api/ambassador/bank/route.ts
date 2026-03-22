@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { getSession } from "@/lib/auth";
 
 const bankSchema = z.object({
   applicationId: z.string().min(1),
@@ -18,6 +19,11 @@ const bankSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const data = bankSchema.parse(body);
 
@@ -27,6 +33,11 @@ export async function POST(req: Request) {
 
     if (!application) {
       return NextResponse.json({ error: "Application not found" }, { status: 404 });
+    }
+
+    // Verify the application belongs to the logged-in user
+    if (application.email !== session.email) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (application.status !== "approved") {

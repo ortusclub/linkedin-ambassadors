@@ -23,8 +23,6 @@ export async function GET(
       hasSalesNav: true,
       monthlyPrice: true,
       status: true,
-      notes: true,
-      gologinProfileId: true,
     },
   });
 

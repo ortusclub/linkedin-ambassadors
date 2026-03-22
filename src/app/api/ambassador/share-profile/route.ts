@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getSession } from "@/lib/auth";
 
 const shareSchema = z.object({
   profileId: z.string().min(1),
@@ -8,6 +9,11 @@ const shareSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const data = shareSchema.parse(body);
 
@@ -26,7 +32,6 @@ export async function POST(req: Request) {
     if (!res.ok) {
       const errText = await res.text();
       console.error("GoLogin share error:", errText);
-      // Don't fail the flow — sharing might not be available on all plans
       return NextResponse.json({ ok: true, warning: "Profile created but sharing may require a GoLogin paid plan" });
     }
 
