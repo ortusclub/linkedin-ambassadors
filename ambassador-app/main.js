@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { uploadProfile, downloadProfile } = require('./profile-sync');
 
 // API base URL
-const API_BASE = process.env.NODE_ENV === 'production' ? 'https://klabber.co' : 'http://localhost:3002';
+const API_BASE = process.env.NODE_ENV === 'production' ? 'https://klabber.co' : 'http://localhost:3004';
 
 // Store profile data in user's app data directory
 const PROFILES_DIR = path.join(app.getPath('userData'), 'profiles');

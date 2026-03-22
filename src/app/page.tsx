@@ -184,9 +184,17 @@ export default async function HomePage() {
         @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
         .fade-up{animation:fadeUp .6s ease-out both}
         .d1{animation-delay:.1s}.d2{animation-delay:.2s}.d3{animation-delay:.3s}.d4{animation-delay:.4s}
+        .mobile-2col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+        .mobile-2col-wide{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+        .mobile-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+        .mobile-section-pad{padding:80px 40px}
         @media(max-width:900px){
           .hero{grid-template-columns:1fr;min-height:auto}
-          .hero-side{padding:60px 32px 48px}
+          .hero-side{padding:48px 24px 40px}
+          .hero-title{font-size:28px}
+          .hero-desc{font-size:14px}
+          .hero-stats{gap:20px;flex-wrap:wrap}
+          .hero-stat-num{font-size:22px}
           .hero-divider{position:relative;top:auto;left:auto;transform:none;margin:-28px auto}
           .how-grid,.earn-grid,.testimonial-grid{grid-template-columns:1fr}
           .trust-grid{grid-template-columns:1fr}
@@ -194,8 +202,13 @@ export default async function HomePage() {
           .account-grid{grid-template-columns:1fr}
           .nav-links{display:none}
           .proof-inner{flex-direction:column;text-align:center}
-          .ambassador-section{margin:0 16px;padding:48px 24px}
-          .kl-section{padding:60px 24px}
+          .ambassador-section{margin:0 16px;padding:40px 20px}
+          .kl-section{padding:48px 16px}
+          .mobile-2col,.mobile-2col-wide{grid-template-columns:1fr;gap:20px}
+          .mobile-section-pad{padding:48px 20px}
+          .cat-inner{padding:24px 16px 60px}
+          .hero-btn{padding:12px 20px;font-size:13px}
+          .hero-video-text{display:none}
         }
       `}</style>
 
@@ -323,7 +336,7 @@ export default async function HomePage() {
         {/* KLABBER BROWSER */}
         <section className="browser-section">
           <div className="kl-section">
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:60,alignItems:'center'}}>
+            <div className="mobile-2col-wide">
               <div>
                 <div className="section-label" style={{display:'flex',alignItems:'center',gap:8}}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#FF6B00" strokeWidth="2"/><path d="M8 12.5L11 15.5L16.5 9" stroke="#FF6B00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -450,8 +463,8 @@ export default async function HomePage() {
                 <p style={{fontSize:14,marginTop:8}}>Check back soon or become an ambassador to list yours.</p>
               </div>
             ) : (
-              <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',overflow:'hidden'}}>
-                <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
+              <div className="mobile-table-wrap" style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:14,minWidth:700}}>
                   <thead>
                     <tr style={{borderBottom:'1px solid var(--border)',textAlign:'left',fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-light)'}}>
                       <th style={{padding:'12px 16px'}}>Profile</th>
@@ -504,7 +517,7 @@ export default async function HomePage() {
         </section>
 
         {/* WHY RENT ACCOUNTS */}
-        <section style={{background:'linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%)',padding:'80px 60px',position:'relative',overflow:'hidden',borderRadius:24,margin:'0 40px'}}>
+        <section className="mobile-section-pad" style={{background:'linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%)',padding:'80px 40px',position:'relative',overflow:'hidden'}}>
           <div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 70% 30%,rgba(255,255,255,0.05) 0%,transparent 60%)',pointerEvents:'none'}} />
           <div style={{maxWidth:1200,margin:'0 auto',position:'relative'}}>
             <div style={{textAlign:'center',marginBottom:48}}>
@@ -515,9 +528,9 @@ export default async function HomePage() {
               </p>
             </div>
 
-            <div style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:20,padding:'40px 36px'}}>
+            <div style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:20,padding:'32px 24px'}}>
               <h3 style={{fontSize:22,fontWeight:700,letterSpacing:'-0.02em',color:'#fff',marginBottom:24,fontFamily:'Instrument Sans,sans-serif'}}>Scale with real, verified accounts</h3>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+              <div className="mobile-2col">
                 <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
                   <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                     <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
