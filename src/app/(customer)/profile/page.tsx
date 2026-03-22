@@ -71,6 +71,8 @@ export default function ProfilePage() {
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+  const [currentPaymentMethod, setCurrentPaymentMethod] = useState("crypto_wallet");
+  const [currentPaymentDetails, setCurrentPaymentDetails] = useState("");
 
   useEffect(() => {
     fetch("/api/profile")
@@ -93,6 +95,14 @@ export default function ProfilePage() {
           } else {
             setContactHandle(u.contactNumber);
           }
+        }
+
+        // Set current payment method from application or user
+        if (data.paymentDetails?.paymentMethod) {
+          setCurrentPaymentMethod(data.paymentDetails.paymentMethod);
+        }
+        if (data.user?.paymentDetails) {
+          setCurrentPaymentDetails(data.user.paymentDetails);
         }
 
         if (data.paymentDetails) {
@@ -463,6 +473,40 @@ export default function ProfilePage() {
                   </button>
                   {withdrawError && <p className="text-xs text-red-600">{withdrawError}</p>}
                   {withdrawSuccess && <p className="text-xs text-green-600">Withdrawal submitted successfully!</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Current Payment Method */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-5">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Your Current Payout Method</h3>
+                <div className="rounded-lg bg-gray-50 border border-gray-200 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 flex-shrink-0">
+                      {currentPaymentMethod === "crypto_wallet" || currentPaymentMethod === "usdc" ? (
+                        <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12M15 9.5c0-1.38-1.34-2.5-3-2.5S9 8.12 9 9.5 10.34 12 12 12s3 1.12 3 2.5-1.34 2.5-3 2.5-3-1.12-3-2.5" /><circle cx="12" cy="12" r="10" /></svg>
+                      ) : (
+                        <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {currentPaymentMethod === "crypto_wallet" ? "Crypto Wallet (USDC)" :
+                         currentPaymentMethod === "usdc" ? "USDC" :
+                         currentPaymentMethod === "paypal" ? "PayPal" :
+                         currentPaymentMethod === "wise" ? "Wise" :
+                         currentPaymentMethod === "bank_transfer" ? "Bank Transfer" :
+                         currentPaymentMethod}
+                      </p>
+                      {currentPaymentDetails && (
+                        <p className="text-xs text-gray-500 mt-0.5">{currentPaymentDetails}</p>
+                      )}
+                      {!currentPaymentDetails && (
+                        <p className="text-xs text-gray-400 mt-0.5">Paid on the 1st of each month</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

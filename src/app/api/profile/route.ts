@@ -14,6 +14,7 @@ export async function GET() {
         contactNumber: true,
         role: true,
         stripeCustomerId: true,
+        paymentDetails: true,
         createdAt: true,
       },
     });
