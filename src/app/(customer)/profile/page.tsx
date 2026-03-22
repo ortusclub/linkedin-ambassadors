@@ -418,15 +418,16 @@ export default function ProfilePage() {
                       {depositAddress ? (
                         <div>
                           <p className="text-xs text-gray-500 mb-3">Funds are sent directly to your Klabber deposit address on Base.</p>
-                          <a
-                            href={`https://buy.moonpay.com?apiKey=pk_live_yourkey&currencyCode=usdc_base&walletAddress=${depositAddress}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            onClick={async () => {
+                              try { await fetch("/api/wallet/card-interest", { method: "POST" }); } catch {}
+                              alert("This feature is currently under maintenance. Coming back soon!");
+                            }}
                             className="inline-flex items-center gap-2 rounded-lg bg-[#7D00FF] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#6B00DB] transition-colors"
                           >
                             Buy with MoonPay
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                          </a>
+                          </button>
                           <p className="text-xs text-gray-400 mt-2">Standard card fees apply.</p>
                         </div>
                       ) : (
