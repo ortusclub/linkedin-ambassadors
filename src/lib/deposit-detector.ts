@@ -13,57 +13,36 @@ export async function detectDeposits() {
   for (const deposit of deposits) {
     try {
       const onChainBalance: bigint = await usdc.balanceOf(deposit.address);
+      const lastSeen = parseUsdc(String(deposit.lastSeenBalance));
 
-      if (onChainBalance > BigInt(0)) {
-        // Sum previous deposits and sweeps for this address to avoid double-crediting.
-        // If detect runs twice before a sweep, the on-chain balance hasn't changed,
-        // so we subtract what we've already credited (minus what's been swept).
-        const previousDeposits = await prisma.transaction.aggregate({
-          where: {
-            userId: deposit.userId,
-            type: "deposit",
-            description: { contains: deposit.address },
-          },
-          _sum: { amount: true },
-        });
+      // Only credit the difference between current on-chain balance and what we last saw
+      if (onChainBalance > lastSeen) {
+        const newAmount = onChainBalance - lastSeen;
+        const amount = formatUsdc(newAmount);
 
-        const previousSweeps = await prisma.transaction.aggregate({
-          where: {
-            userId: deposit.userId,
-            type: "sweep",
-            description: { contains: deposit.address },
-          },
-          _sum: { amount: true },
-        });
-
-        const credited = parseUsdc(String(previousDeposits._sum.amount ?? "0"));
-        const swept = parseUsdc(String(previousSweeps._sum.amount ?? "0"));
-        // After a sweep, the on-chain balance resets to 0, so swept amounts
-        // no longer count against what we've credited
-        const alreadyCredited = credited - swept;
-        const newAmount = onChainBalance - (alreadyCredited > BigInt(0) ? alreadyCredited : BigInt(0));
-
-        if (newAmount > BigInt(0)) {
-          const amount = formatUsdc(newAmount);
-
-          await prisma.$transaction(async (tx) => {
-            await tx.user.update({
-              where: { id: deposit.userId },
-              data: { usdcBalance: { increment: amount } },
-            });
-
-            await tx.transaction.create({
-              data: {
-                userId: deposit.userId,
-                type: "deposit",
-                amount: amount,
-                description: `USDC deposit detected at ${deposit.address}`,
-              },
-            });
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({
+            where: { id: deposit.userId },
+            data: { usdcBalance: { increment: amount } },
           });
 
-          results.push({ userId: deposit.userId, amount, address: deposit.address });
-        }
+          await tx.transaction.create({
+            data: {
+              userId: deposit.userId,
+              type: "deposit",
+              amount: amount,
+              description: `USDC deposit detected at ${deposit.address}`,
+            },
+          });
+
+          // Update last seen balance to current on-chain balance
+          await tx.depositAddress.update({
+            where: { id: deposit.id },
+            data: { lastSeenBalance: formatUsdc(onChainBalance) },
+          });
+        });
+
+        results.push({ userId: deposit.userId, amount, address: deposit.address });
       }
     } catch (error) {
       console.error(`Error checking deposit for ${deposit.address}:`, error);
@@ -105,14 +84,22 @@ export async function sweepDeposits() {
         const tx = await usdcWithSigner.transfer(treasury, balance);
         const receipt = await tx.wait();
 
-        await prisma.transaction.create({
-          data: {
-            userId: deposit.userId,
-            type: "sweep",
-            amount: formatUsdc(balance),
-            txHash: receipt.hash,
-            description: `Swept ${formatUsdc(balance)} USDC to treasury`,
-          },
+        await prisma.$transaction(async (tx) => {
+          await tx.transaction.create({
+            data: {
+              userId: deposit.userId,
+              type: "sweep",
+              amount: formatUsdc(balance),
+              txHash: receipt.hash,
+              description: `Swept ${formatUsdc(balance)} USDC to treasury`,
+            },
+          });
+
+          // Reset last seen balance since funds have been swept
+          await tx.depositAddress.update({
+            where: { id: deposit.id },
+            data: { lastSeenBalance: 0 },
+          });
         });
 
         results.push({

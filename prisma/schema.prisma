@@ -190,6 +190,7 @@ model DepositAddress {
   userId           String   @unique @map("user_id") @db.Uuid
   address          String   @unique
   derivationIndex  Int      @unique @map("derivation_index")
+  lastSeenBalance  Decimal  @default(0) @map("last_seen_balance") @db.Decimal(18, 6)
   createdAt        DateTime @default(now()) @map("created_at")
 
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
