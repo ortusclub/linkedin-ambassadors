@@ -117,6 +117,8 @@ export default function BecomeAmbassadorPage() {
     fullName: "",
     email: "",
     contactNumber: "",
+    contactMethod: "whatsapp" as "whatsapp" | "telegram",
+    contactHandle: "",
     linkedinProfileName: "",
     linkedinEmail: "",
     sameNameAsProfile: true,
@@ -162,6 +164,8 @@ export default function BecomeAmbassadorPage() {
             fullName: prev.fullName || data.user.fullName || "",
             email: prev.email || data.user.email || "",
             contactNumber: prev.contactNumber || data.user.contactNumber || "",
+            contactMethod: data.user.contactNumber?.startsWith("telegram:") ? "telegram" as const : "whatsapp" as const,
+            contactHandle: prev.contactHandle || (data.user.contactNumber?.replace(/^(whatsapp|telegram):/, "") || ""),
           }));
           setIsLoggedIn(true);
           setStep("logged-in-choice");
@@ -196,7 +200,7 @@ export default function BecomeAmbassadorPage() {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!form.fullName || !form.email || !form.linkedinUrl || !form.contactNumber) {
+    if (!form.fullName || !form.email || !form.linkedinUrl || !form.contactHandle) {
       setError("Please fill in all required fields");
       return;
     }
@@ -210,7 +214,7 @@ export default function BecomeAmbassadorPage() {
           fullName: form.fullName,
           email: form.email,
           linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
-          contactNumber: form.contactNumber,
+          contactNumber: `${form.contactMethod}:${form.contactHandle}`,
           linkedinUrl: form.linkedinUrl,
           connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
           location: form.location || undefined,
@@ -239,6 +243,7 @@ export default function BecomeAmbassadorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          contactNumber: form.contactHandle ? `${form.contactMethod}:${form.contactHandle}` : undefined,
           linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
           connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
         }),
@@ -450,7 +455,33 @@ export default function BecomeAmbassadorPage() {
                       <Input id="fullName" label="Your Full Name *" value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required />
                       <Input id="email" label="Your Email *" type="email" placeholder="your@email.com" value={form.email} onChange={(e) => update("email", e.target.value)} required />
                       <div className="space-y-1">
-                        <Input id="contactNumber" label="Phone Number *" type="tel" placeholder="e.g. +1 555 123 4567" value={form.contactNumber} onChange={(e) => update("contactNumber", e.target.value)} required />
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp or Telegram *</label>
+                          <div className="flex gap-2 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => update("contactMethod", "whatsapp")}
+                              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${form.contactMethod === "whatsapp" ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                            >
+                              WhatsApp
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => update("contactMethod", "telegram")}
+                              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${form.contactMethod === "telegram" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                            >
+                              Telegram
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            value={form.contactHandle}
+                            onChange={(e) => update("contactHandle", e.target.value)}
+                            placeholder={form.contactMethod === "whatsapp" ? "+44 7700 000000" : "@username"}
+                            required
+                            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
                         <p className="text-xs text-gray-400">Please include your country code (e.g. +1, +44). We'll only contact you if there's an issue with one of your ambassador accounts or if we're having issues with your billing or payment information. We won't contact you for marketing or spamming.</p>
                       </div>
                     </div>
@@ -581,7 +612,7 @@ export default function BecomeAmbassadorPage() {
               </Card>
 
               <div className="mt-6 flex gap-4">
-                <Button onClick={() => setStep("bank")} size="lg" className="flex-1">
+                <Button onClick={() => setStep("account-details")} size="lg" className="flex-1">
                   Accept Assessment
                 </Button>
                 {offer.reasons.filter((r) => r.positive).length <= 1 ? (
@@ -868,14 +899,17 @@ export default function BecomeAmbassadorPage() {
                           fullName: accountName,
                           email: form.email || accountEmail,
                           linkedinEmail: accountEmail,
-                          contactNumber: form.contactNumber || undefined,
+                          contactNumber: form.contactHandle ? `${form.contactMethod}:${form.contactHandle}` : undefined,
                           linkedinUrl: accountLinkedinUrl,
                           notes: `Account name: ${accountName}. Account email: ${accountEmail}.`,
                         }),
                       });
                       if (!res.ok) {
                         const err = await res.json().catch(() => ({}));
-                        console.error("Submission failed:", err);
+                        // 409 = duplicate, still continue
+                        if (res.status !== 409) {
+                          console.error("Submission failed:", err);
+                        }
                       }
                     } catch (e) {
                       console.error("Submission error:", e);
@@ -1091,6 +1125,12 @@ export default function BecomeAmbassadorPage() {
                   <p className="text-sm text-gray-400 mt-5 text-center">Our team will guide you through the entire process step by step.</p>
                 </CardContent>
               </Card>
+
+              <div className="mt-6">
+                <Button size="lg" className="w-full" onClick={() => setStep("complete")}>
+                  Next
+                </Button>
+              </div>
             </div>
           )}
 
