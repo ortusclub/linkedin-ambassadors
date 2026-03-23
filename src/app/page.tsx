@@ -24,11 +24,11 @@ function getInitials(name: string) {
 }
 
 const SAMPLE_ACCOUNTS = [
-  { id: "1", linkedinName: "Alex Chen", linkedinHeadline: "VP of Engineering", connectionCount: 8500, industry: "Technology", location: "San Francisco, CA", accountAgeMonths: 96, monthlyPrice: 350, status: "available" as const },
-  { id: "2", linkedinName: "Maria Santos", linkedinHeadline: "Head of Sales", connectionCount: 6200, industry: "SaaS", location: "New York, NY", accountAgeMonths: 72, monthlyPrice: 275, status: "available" as const },
-  { id: "3", linkedinName: "James Wright", linkedinHeadline: "Marketing Director", connectionCount: 5100, industry: "Marketing", location: "Chicago, IL", accountAgeMonths: 60, monthlyPrice: 220, status: "available" as const },
-  { id: "4", linkedinName: "Priya Patel", linkedinHeadline: "Senior Recruiter", connectionCount: 4800, industry: "Recruiting", location: "Austin, TX", accountAgeMonths: 48, monthlyPrice: 200, status: "available" as const },
-  { id: "5", linkedinName: "Tom Nielsen", linkedinHeadline: "Founder & CEO", connectionCount: 3900, industry: "FinTech", location: "Miami, FL", accountAgeMonths: 84, monthlyPrice: 180, status: "available" as const },
+  { id: "1", linkedinName: "Alex Chen", linkedinHeadline: "VP of Engineering", connectionCount: 8500, industry: "Technology", location: "San Francisco, CA", accountAgeMonths: 96, monthlyPrice: 350, status: "available" as const, profilePhotoUrl: null, hasSalesNav: false },
+  { id: "2", linkedinName: "Maria Santos", linkedinHeadline: "Head of Sales", connectionCount: 6200, industry: "SaaS", location: "New York, NY", accountAgeMonths: 72, monthlyPrice: 275, status: "available" as const, profilePhotoUrl: null, hasSalesNav: false },
+  { id: "3", linkedinName: "James Wright", linkedinHeadline: "Marketing Director", connectionCount: 5100, industry: "Marketing", location: "Chicago, IL", accountAgeMonths: 60, monthlyPrice: 220, status: "available" as const, profilePhotoUrl: null, hasSalesNav: false },
+  { id: "4", linkedinName: "Priya Patel", linkedinHeadline: "Senior Recruiter", connectionCount: 4800, industry: "Recruiting", location: "Austin, TX", accountAgeMonths: 48, monthlyPrice: 200, status: "available" as const, profilePhotoUrl: null, hasSalesNav: true },
+  { id: "5", linkedinName: "Tom Nielsen", linkedinHeadline: "Founder & CEO", connectionCount: 3900, industry: "FinTech", location: "Miami, FL", accountAgeMonths: 84, monthlyPrice: 180, status: "available" as const, profilePhotoUrl: null, hasSalesNav: false },
 ];
 
 export default async function HomePage() {
