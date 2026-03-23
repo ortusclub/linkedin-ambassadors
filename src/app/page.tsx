@@ -171,6 +171,11 @@ export default async function HomePage() {
         .testimonial-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;color:#fff}
         .testimonial-name{font-weight:600;font-size:13px}
         .testimonial-role{font-size:12px;color:var(--text-light)}
+        .faq-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+        .faq-card{padding:28px 28px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);transition:all .2s}
+        .faq-card:hover{border-color:var(--blue);box-shadow:0 8px 24px rgba(10,102,194,0.06);transform:translateY(-2px)}
+        .faq-card h4{font-size:16px;margin-bottom:10px;font-weight:600;color:var(--text)}
+        .faq-card p{font-size:14px;color:var(--text-mid);line-height:1.7}
         .final-cta{text-align:center;padding:120px 40px;max-width:700px;margin:0 auto}
         .final-cta h2{font-size:clamp(32px,4vw,48px);letter-spacing:-0.03em;margin-bottom:16px}
         .final-cta p{font-size:16px;color:var(--text-mid);margin-bottom:36px;line-height:1.6}
@@ -197,7 +202,7 @@ export default async function HomePage() {
           .hero-stats{gap:20px;flex-wrap:wrap}
           .hero-stat-num{font-size:22px}
           .hero-divider{position:relative;top:auto;left:auto;transform:none;margin:-28px auto}
-          .how-grid,.earn-grid,.testimonial-grid{grid-template-columns:1fr}
+          .how-grid,.earn-grid,.testimonial-grid,.faq-grid{grid-template-columns:1fr}
           .trust-grid{grid-template-columns:1fr}
           .browser-section .kl-section > div{grid-template-columns:1fr}
           .account-grid{grid-template-columns:1fr}
@@ -627,6 +632,48 @@ export default async function HomePage() {
                   <div><div className="testimonial-name">James P.</div><div className="testimonial-role">RevOps Lead, Enterprise SaaS</div></div>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="kl-section">
+          <div style={{textAlign:'center',marginBottom:48}}>
+            <div className="section-label">Frequently asked questions</div>
+            <div className="section-title" style={{margin:'0 auto',maxWidth:600}}>Everything you need to know</div>
+          </div>
+          <div className="faq-grid">
+            <div className="faq-card">
+              <h4>What is Klabber?</h4>
+              <p>Klabber is a marketplace where growth teams can rent verified LinkedIn accounts for outreach, and professionals can earn passive income by sharing accounts they no longer actively use.</p>
+            </div>
+            <div className="faq-card">
+              <h4>Will my LinkedIn account get restricted?</h4>
+              <p>No. Every session runs through GoLogin&apos;s anti-detect browser with dedicated proxies, fingerprint isolation, and shared cookie environments. We&apos;ve maintained a 0% restriction rate across all accounts on the platform.</p>
+            </div>
+            <div className="faq-card">
+              <h4>Can I still use my account while it&apos;s rented?</h4>
+              <p>Yes. GoLogin allows simultaneous access, so you and the renter can use the account at the same time without conflicts or session clashes.</p>
+            </div>
+            <div className="faq-card">
+              <h4>How much can I earn as an ambassador?</h4>
+              <p>Ambassadors earn between $10 and $500 per month per account, depending on connection count, industry, and account age. Payments are guaranteed on the 1st of every month.</p>
+            </div>
+            <div className="faq-card">
+              <h4>How are renters charged?</h4>
+              <p>Renters pay a monthly subscription per account. You can pay with a credit card via Stripe or with USDC. Cancel anytime — no long-term contracts.</p>
+            </div>
+            <div className="faq-card">
+              <h4>Will renters change my profile information?</h4>
+              <p>No. Your name, photo, headline, and profile content stay exactly as they are. Renters only use the account for connection requests and messaging — no profile edits allowed.</p>
+            </div>
+            <div className="faq-card">
+              <h4>What tools work with rented accounts?</h4>
+              <p>Any Chrome extension or LinkedIn automation tool works — including Dripify, Expandi, Linked Helper, and others. The GoLogin browser session supports all standard extensions.</p>
+            </div>
+            <div className="faq-card">
+              <h4>How do ambassador payouts work?</h4>
+              <p>Payouts are sent on the 1st of every month via USDC (crypto) by default. If you prefer bank transfer, PayPal, or Wise, just let us know during onboarding.</p>
             </div>
           </div>
         </section>
