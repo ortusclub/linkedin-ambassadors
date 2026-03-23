@@ -17,6 +17,7 @@ export default function LoginPage() {
 function LoginForm() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
+  const redirect = searchParams.get("redirect");
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -69,6 +70,8 @@ function LoginForm() {
 
       if (data.user?.role === "admin") {
         window.location.href = "/admin/dashboard";
+      } else if (redirect && redirect.startsWith("/")) {
+        window.location.href = redirect;
       } else {
         window.location.href = "/dashboard";
       }
@@ -144,7 +147,7 @@ function LoginForm() {
 
         <p className="mt-4 text-center text-sm text-gray-600">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link href={redirect ? `/register?redirect=${encodeURIComponent(redirect)}` : "/register"} className="font-medium text-blue-600 hover:text-blue-500">
             Sign up
           </Link>
         </p>

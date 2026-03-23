@@ -17,6 +17,10 @@ export function middleware(request: NextRequest) {
 
   // Redirect logged-in users away from auth pages
   if ((pathname === "/login" || pathname === "/register") && sessionToken) {
+    const redirect = request.nextUrl.searchParams.get("redirect");
+    if (redirect && redirect.startsWith("/")) {
+      return NextResponse.redirect(new URL(redirect, request.url));
+    }
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

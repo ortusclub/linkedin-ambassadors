@@ -178,6 +178,17 @@ export default function BecomeAmbassadorPage() {
       });
   }, []);
 
+  // Auto-fetch proxy when entering the GoLogin setup step
+  useEffect(() => {
+    if (step !== "login" || assignedProxy) return;
+    fetch("/api/ambassador/proxy")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.proxy) setAssignedProxy(data.proxy);
+      })
+      .catch(() => {});
+  }, [step, assignedProxy]);
+
   // Scanning animation
   useEffect(() => {
     if (step !== "scanning") return;
@@ -295,7 +306,7 @@ export default function BecomeAmbassadorPage() {
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-5 md:grid-cols-2">
               <div
-                onClick={() => (window.location.href = "/login")}
+                onClick={() => (window.location.href = "/login?redirect=/become-ambassador")}
                 className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:border-blue-400 hover:shadow-xl hover:shadow-blue-500/5"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
@@ -312,14 +323,14 @@ export default function BecomeAmbassadorPage() {
               </div>
 
               <div
-                onClick={() => setStep("info")}
+                onClick={() => (window.location.href = "/login?redirect=/become-ambassador")}
                 className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:border-green-400 hover:shadow-xl hover:shadow-green-500/5"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50">
                   <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 </div>
                 <h3 className="mt-5 text-lg font-semibold text-gray-900">First-Time Ambassador?</h3>
-                <p className="mt-2 text-sm text-gray-500 leading-relaxed">Fill out a quick form and we&apos;ll assess your LinkedIn profile instantly.</p>
+                <p className="mt-2 text-sm text-gray-500 leading-relaxed">Sign up or log in first, then we&apos;ll assess your LinkedIn profile instantly.</p>
                 <div className="mt-5">
                   <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-600 group-hover:gap-2.5 transition-all">
                     Get Started

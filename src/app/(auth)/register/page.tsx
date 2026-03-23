@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function RegisterPage() {
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
   const [email, setEmail] = useState("");
   const [contactMethod, setContactMethod] = useState<"whatsapp" | "telegram">("whatsapp");
   const [contactHandle, setContactHandle] = useState("");
@@ -75,7 +78,7 @@ export default function RegisterPage() {
         return;
       }
 
-      window.location.href = "/dashboard";
+      window.location.href = redirect && redirect.startsWith("/") ? redirect : "/dashboard";
     } catch {
       setError("Something went wrong");
     } finally {
@@ -169,7 +172,7 @@ export default function RegisterPage() {
         </form>
         <p className="mt-4 text-center text-sm text-gray-600">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link href={redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login"} className="font-medium text-blue-600 hover:text-blue-500">
             Log in
           </Link>
         </p>
