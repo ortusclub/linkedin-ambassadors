@@ -473,12 +473,63 @@ export default function DashboardPage() {
         <h2 className="text-xl font-semibold text-gray-900 mb-4">My Rented Accounts</h2>
         {activeRentals.length === 0 ? (
           <Card>
-            <CardContent className="py-8 text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Scale Your LinkedIn Outreach</h3>
-              <p className="text-gray-500 text-sm mb-6">Rent verified accounts and run parallel campaigns to grow faster.</p>
-              <Button variant="primary" onClick={() => router.push("/catalogue")}>
-                Browse Accounts
-              </Button>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3">Profile</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Started</th>
+                    <th className="px-4 py-3">Next Billing</th>
+                    <th className="px-4 py-3">Auto-Renew</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b last:border-b-0 bg-amber-50/50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-600">
+                          RB
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900">Rikard Bilazon</p>
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Test Account</span>
+                          </div>
+                          <p className="text-xs text-gray-500">Sales Director at TechCorp</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                        Active
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">Mar 23, 2026</td>
+                    <td className="px-4 py-3 text-gray-500">Apr 23, 2026</td>
+                    <td className="px-4 py-3 text-gray-500">Yes</td>
+                    <td className="px-4 py-3 text-right">
+                      <a
+                        href="https://app.gologin.com/sharedProfile/67df5acf4ae0da4b2aabd697"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+                      >
+                        Try It
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="px-4 py-4 text-center border-t border-gray-100">
+                <p className="text-xs text-gray-400 mb-3">This is a demo account so you can see how renting works. Browse accounts to rent your own.</p>
+                <Button variant="primary" size="sm" onClick={() => router.push("/catalogue")}>
+                  Browse Accounts
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
