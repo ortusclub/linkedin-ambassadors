@@ -72,6 +72,7 @@ export function Navbar() {
           <div className="kl-nav-links">
             <Link href="/catalogue">Browse Accounts</Link>
             <Link href="/become-ambassador">Share Accounts</Link>
+            <Link href="/faqs">FAQs</Link>
             {user?.role === "admin" && (
               <Link href="/admin/dashboard">Admin</Link>
             )}
