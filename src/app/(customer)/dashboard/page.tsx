@@ -512,7 +512,7 @@ export default function DashboardPage() {
                     <td className="px-4 py-3 text-gray-500">Yes</td>
                     <td className="px-4 py-3 text-right">
                       <a
-                        href="https://g.camp/share/yeiner.morales%40ortus.solutions/HsaEqQjcuI"
+                        href="https://g.camp/share/yeiner.morales@ortus.solutions/HsaEqQjcuI"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
