@@ -329,7 +329,7 @@ export default function BecomeAmbassadorPage() {
 
       {/* Choice Screen */}
       {step === "choice" && (
-        <section className="py-16">
+        <section className="py-6">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-5 md:grid-cols-2">
               <div
@@ -372,7 +372,7 @@ export default function BecomeAmbassadorPage() {
 
       {/* Logged-in Choice Screen */}
       {step === "logged-in-choice" && (
-        <section className="py-16">
+        <section className="py-6">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-5 md:grid-cols-2">
               <div
