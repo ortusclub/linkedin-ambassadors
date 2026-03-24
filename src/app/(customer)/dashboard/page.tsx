@@ -471,8 +471,7 @@ export default function DashboardPage() {
       {/* My Rented Accounts */}
       <section className="mb-12">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">My Rented Accounts</h2>
-        {true ? (
-          <Card>
+        <Card>
             <CardContent className="p-0">
               <table className="w-full text-sm">
                 <thead>
@@ -600,8 +599,7 @@ export default function DashboardPage() {
                 </tbody>
               </table>
             </CardContent>
-          </Card>
-        )}
+        </Card>
       </section>
 
       {/* Past Rentals */}
