@@ -39,7 +39,8 @@ export default function ProfilePage() {
   const [activeSection, setActiveSection] = useState<Section>("personal");
 
   // Personal info form
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [contactMethod, setContactMethod] = useState<"whatsapp" | "telegram">("whatsapp");
   const [contactHandle, setContactHandle] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
@@ -84,7 +85,9 @@ export default function ProfilePage() {
         if (!data) return;
         const u = data.user;
         setUser(u);
-        setFullName(u.fullName || "");
+        const nameParts = (u.fullName || "").split(" ");
+        setFirstName(nameParts[0] || "");
+        setLastName(nameParts.slice(1).join(" ") || "");
         if (u.contactNumber) {
           if (u.contactNumber.startsWith("telegram:")) {
             setContactMethod("telegram");
@@ -137,7 +140,7 @@ export default function ProfilePage() {
     const res = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, contactNumber: contactHandle ? `${contactMethod}:${contactHandle}` : "" }),
+      body: JSON.stringify({ fullName: `${firstName.trim()} ${lastName.trim()}`, contactNumber: contactHandle ? `${contactMethod}:${contactHandle}` : "" }),
     });
 
     if (res.ok) {
@@ -255,13 +258,22 @@ export default function ProfilePage() {
             </div>
             <div className="px-6 py-6">
               <form onSubmit={handleSaveProfile} className="space-y-5">
-                <Input
-                  id="fullName"
-                  label="Full Name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    id="firstName"
+                    label="First Name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                  />
+                  <Input
+                    id="lastName"
+                    label="Last Name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                  />
+                </div>
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Email Address</label>
                   <p className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-400 text-sm">

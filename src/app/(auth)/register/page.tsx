@@ -17,6 +17,8 @@ export default function RegisterPage() {
 function RegisterForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [contactMethod, setContactMethod] = useState<"whatsapp" | "telegram">("whatsapp");
   const [contactHandle, setContactHandle] = useState("");
@@ -27,6 +29,10 @@ function RegisterForm() {
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Please enter your first and last name.");
+      return;
+    }
     if (!contactHandle) {
       setError("Please provide your WhatsApp number or Telegram username.");
       return;
@@ -41,7 +47,7 @@ function RegisterForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          fullName: email.split("@")[0],
+          fullName: `${firstName.trim()} ${lastName.trim()}`,
           contactMethod,
           contactHandle,
         }),
@@ -131,24 +137,47 @@ function RegisterForm() {
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-4">
       <div className="w-full max-w-md">
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <div className="w-8 h-8 rounded-lg bg-[#1D1B16] flex items-center justify-center text-white text-sm font-bold" style={{ fontFamily: "'Instrument Sans', sans-serif", letterSpacing: "-0.03em" }}>kl</div>
+          <span className="text-xl font-bold text-[#1D1B16]" style={{ fontFamily: "'Instrument Sans', sans-serif", letterSpacing: "-0.03em" }}>Klabber</span>
+        </div>
         <h1 className="text-2xl font-bold text-gray-900 text-center">Create your account</h1>
-        <form onSubmit={handleSendCode} className="mt-8 space-y-4">
+        <p className="mt-2 text-center text-sm text-gray-500 mb-8">Start renting or sharing LinkedIn accounts in minutes.</p>
+        <form onSubmit={handleSendCode} className="space-y-4">
           {error && (
             <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
           )}
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              id="firstName"
+              label="First Name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="John"
+              required
+            />
+            <Input
+              id="lastName"
+              label="Last Name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Doe"
+              required
+            />
+          </div>
           <Input
             id="email"
             label="Email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="john@company.com"
             required
           />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               WhatsApp or Telegram <span className="text-red-500">*</span>
             </label>
-            <p className="text-xs text-gray-400 mb-2">We need at least one way to reach you besides email. This will only be used for communication about your rented or ambassador accounts — never for marketing or promotions.</p>
             <div className="flex gap-2 mb-2">
               <button
                 type="button"
@@ -173,6 +202,7 @@ function RegisterForm() {
               required
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
+            <p className="text-xs text-gray-400 mt-1">Only used for account communication — never for marketing.</p>
           </div>
           <Button type="submit" loading={loading} className="w-full">
             Continue
