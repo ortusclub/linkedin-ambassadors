@@ -10,6 +10,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // Require login before sharing accounts
+  if (pathname.startsWith("/become-ambassador") && !sessionToken) {
+    return NextResponse.redirect(new URL("/login?redirect=/become-ambassador", request.url));
+  }
+
   // Protect admin routes (full auth check happens in admin layout)
   if (pathname.startsWith("/admin") && !sessionToken) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -28,5 +33,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/login", "/register"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/become-ambassador", "/login", "/register"],
 };
