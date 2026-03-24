@@ -453,7 +453,7 @@ export default async function HomePage() {
               <p style={{fontSize:15,color:'var(--text-mid)',maxWidth:520,margin:'12px auto 0',lineHeight:1.7}}>
                 Click the button below and GoLogin will open a real LinkedIn account directly in your browser. No password needed, no verification steps — just instant, seamless access. That&apos;s exactly how it works for every renter on Klabber.
               </p>
-              <a href="#" target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,marginTop:28,padding:'18px 36px',background:'linear-gradient(135deg, #FF6B00, #FF8C33)',color:'white',borderRadius:14,fontSize:17,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 14px rgba(255,107,0,0.35)',transition:'transform 0.2s, box-shadow 0.2s'}}>
+              <a href="https://g.camp/share/zildjiang%40ortus.solutions/2SGdpCEin5" target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,marginTop:28,padding:'18px 36px',background:'linear-gradient(135deg, #FF6B00, #FF8C33)',color:'white',borderRadius:14,fontSize:17,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 14px rgba(255,107,0,0.35)',transition:'transform 0.2s, box-shadow 0.2s'}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 Try Our Test Account
               </a>
