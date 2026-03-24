@@ -51,6 +51,7 @@ interface Submission {
   linkedinUrl: string;
   status: string;
   createdAt: string;
+  gologinShareLink: string | null;
 }
 
 export default function DashboardPage() {
@@ -649,6 +650,7 @@ export default function DashboardPage() {
                     <th className="px-4 py-3">LinkedIn URL</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Submitted</th>
+                    <th className="px-4 py-3">GoLogin</th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
@@ -663,11 +665,26 @@ export default function DashboardPage() {
                         </a>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant={sub.status === "approved" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
+                        <Badge variant={sub.status === "approved" || sub.status === "onboarded" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
                           {sub.status}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{formatDate(sub.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        {sub.gologinShareLink ? (
+                          <a
+                            href={sub.gologinShareLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                          >
+                            GoLogin
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={async () => {
