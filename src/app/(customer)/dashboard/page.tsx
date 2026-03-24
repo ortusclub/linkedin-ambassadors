@@ -644,48 +644,58 @@ export default function DashboardPage() {
             <CardContent className="p-0">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    <th className="px-4 py-3">Account Name</th>
-                    <th className="px-4 py-3">Account Email</th>
-                    <th className="px-4 py-3">LinkedIn URL</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Submitted</th>
-                    <th className="px-4 py-3">GoLogin</th>
-                    <th className="px-4 py-3"></th>
+                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-400">
+                    <th className="px-5 py-4">Account Name</th>
+                    <th className="px-5 py-4">Account Email</th>
+                    <th className="px-5 py-4">LinkedIn URL</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Submitted</th>
+                    <th className="px-5 py-4">GoLogin</th>
+                    <th className="px-5 py-4"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {submissions.map((sub) => (
                     <tr key={sub.id} className="border-b last:border-b-0">
-                      <td className="px-4 py-3 font-medium text-gray-900">{sub.fullName}</td>
-                      <td className="px-4 py-3 text-gray-600">{sub.linkedinEmail || sub.email}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-4 font-semibold text-gray-900">{sub.fullName}</td>
+                      <td className="px-5 py-4 text-gray-500">{sub.linkedinEmail || sub.email}</td>
+                      <td className="px-5 py-4">
                         <a href={sub.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm font-medium truncate block max-w-[200px]">
                           {sub.linkedinUrl.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//, "").replace(/\/$/, "")}
                         </a>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-4">
                         <Badge variant={sub.status === "approved" || sub.status === "onboarded" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
                           {sub.status}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-gray-500">{formatDate(sub.createdAt)}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-4 text-gray-400 text-sm">{formatDate(sub.createdAt)}</td>
+                      <td className="px-5 py-4">
                         {sub.gologinShareLink ? (
                           <a
                             href={sub.gologinShareLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                          >
+                            GoLogin
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                          </a>
+                        ) : (sub.status === "onboarded" || sub.status === "approved") ? (
+                          <a
+                            href="https://app.gologin.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
                           >
                             GoLogin
                             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                           </a>
                         ) : (
-                          <span className="text-xs text-gray-400">—</span>
+                          <span className="text-xs text-gray-300">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-5 py-4 text-right">
                         <button
                           onClick={async () => {
                             if (!confirm("Are you sure you want to delete this submission?")) return;
