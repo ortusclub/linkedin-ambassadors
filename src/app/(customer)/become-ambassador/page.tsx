@@ -350,14 +350,14 @@ export default function BecomeAmbassadorPage() {
               </div>
 
               <div
-                onClick={() => (window.location.href = "/login?redirect=/become-ambassador")}
+                onClick={() => setStep("info")}
                 className="group cursor-pointer rounded-2xl border border-gray-200 bg-white p-8 transition-all hover:border-green-400 hover:shadow-xl hover:shadow-green-500/5"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50">
                   <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 </div>
                 <h3 className="mt-5 text-lg font-semibold text-gray-900">First-Time Ambassador?</h3>
-                <p className="mt-2 text-sm text-gray-500 leading-relaxed">Sign up or log in first, then we&apos;ll assess your LinkedIn profile instantly.</p>
+                <p className="mt-2 text-sm text-gray-500 leading-relaxed">Get your LinkedIn profile evaluated instantly — no sign-up needed.</p>
                 <div className="mt-5">
                   <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-600 group-hover:gap-2.5 transition-all">
                     Get Started
@@ -650,7 +650,13 @@ export default function BecomeAmbassadorPage() {
               </Card>
 
               <div className="mt-6 flex gap-4">
-                <Button onClick={() => setStep("account-details")} size="lg" className="flex-1">
+                <Button onClick={() => {
+                  if (!isLoggedIn) {
+                    window.location.href = "/login?redirect=/become-ambassador";
+                    return;
+                  }
+                  setStep("account-details");
+                }} size="lg" className="flex-1">
                   Accept Assessment
                 </Button>
                 {offer.reasons.filter((r) => r.positive).length <= 1 ? (
