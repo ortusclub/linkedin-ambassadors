@@ -427,6 +427,10 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
                           <span className="h-1.5 w-1.5 rounded-full bg-red-500" />Not Found
                         </span>
+                      ) : a.linkedinAccountHealth === "checking" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />Checking...
+                        </span>
                       ) : a.linkedinAccountHealth === "unknown" || a.linkedinAccountHealth === "rate_limited" || a.linkedinAccountHealth === "error" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-0.5 text-xs font-semibold text-yellow-700">
                           <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />Unknown
@@ -437,37 +441,19 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         </span>
                       )}
                       <button
-                        onClick={() => {
-                          // Open LinkedIn profile in new tab for admin to visually check
-                          let linkedinUrl = a.linkedinUrl || "";
-                          if (linkedinUrl && !linkedinUrl.startsWith("http")) linkedinUrl = `https://${linkedinUrl}`;
-                          if (linkedinUrl) window.open(linkedinUrl, "_blank");
+                        onClick={async () => {
+                          setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, linkedinAccountHealth: "checking" } : acc));
+                          const res = await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST" });
+                          if (res.ok) {
+                            const data = await res.json();
+                            setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, linkedinAccountHealth: data.health, healthCheckedAt: data.checkedAt } : acc));
+                          } else {
+                            setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, linkedinAccountHealth: "error" } : acc));
+                          }
                         }}
                         className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors"
-                        title="Open LinkedIn profile"
-                      >👁</button>
-                      <button
-                        onClick={async () => {
-                          const res = await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ health: "active" }) });
-                          if (res.ok) {
-                            const data = await res.json();
-                            setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, linkedinAccountHealth: data.health, healthCheckedAt: data.checkedAt } : acc));
-                          }
-                        }}
-                        className="rounded bg-green-50 px-1.5 py-0.5 text-xs text-green-600 hover:bg-green-100 transition-colors"
-                        title="Mark as active"
-                      >✓</button>
-                      <button
-                        onClick={async () => {
-                          const res = await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ health: "restricted" }) });
-                          if (res.ok) {
-                            const data = await res.json();
-                            setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, linkedinAccountHealth: data.health, healthCheckedAt: data.checkedAt } : acc));
-                          }
-                        }}
-                        className="rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-100 transition-colors"
-                        title="Mark as restricted"
-                      >✗</button>
+                        title="Check health"
+                      >{a.linkedinAccountHealth === "checking" ? "..." : "↻"}</button>
                     </div>
                     {a.healthCheckedAt && (
                       <div className="text-[10px] text-gray-400 mt-0.5">{new Date(a.healthCheckedAt).toLocaleDateString()}</div>
