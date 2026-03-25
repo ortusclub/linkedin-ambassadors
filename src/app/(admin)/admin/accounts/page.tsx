@@ -28,6 +28,8 @@ interface Account {
   proxyHost: string | null;
   proxyPort: number | null;
   gologinShareLink: string | null;
+  linkedinAccountHealth: string | null;
+  healthCheckedAt: string | null;
   rentals: Array<{
     user: { fullName: string; email: string };
   }>;
@@ -370,6 +372,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payout</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">GoLogin Share</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Health</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -409,6 +412,45 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     {a.gologinShareLink ? (
                       <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium">Link</a>
                     ) : <span className="text-gray-400">—</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      {a.linkedinAccountHealth === "active" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-green-500" />Active
+                        </span>
+                      ) : a.linkedinAccountHealth === "restricted" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />Restricted
+                        </span>
+                      ) : a.linkedinAccountHealth === "not_found" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />Not Found
+                        </span>
+                      ) : a.linkedinAccountHealth === "unknown" || a.linkedinAccountHealth === "rate_limited" || a.linkedinAccountHealth === "error" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-0.5 text-xs font-semibold text-yellow-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />Unknown
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+                          <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />Unchecked
+                        </span>
+                      )}
+                      <button
+                        onClick={async () => {
+                          const res = await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST" });
+                          if (res.ok) {
+                            const data = await res.json();
+                            setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, linkedinAccountHealth: data.health, healthCheckedAt: data.checkedAt } : acc));
+                          }
+                        }}
+                        className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                        title="Check health"
+                      >↻</button>
+                    </div>
+                    {a.healthCheckedAt && (
+                      <div className="text-[10px] text-gray-400 mt-0.5">{new Date(a.healthCheckedAt).toLocaleDateString()}</div>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end">

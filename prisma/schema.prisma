@@ -94,6 +94,8 @@ model LinkedInAccount {
   hasSalesNav           Boolean       @default(false) @map("has_sales_nav")
   listed                Boolean       @default(true)
   gologinShareLink      String?       @map("gologin_share_link")
+  linkedinAccountHealth String?       @default("unchecked") @map("linkedin_account_health")
+  healthCheckedAt       DateTime?     @map("health_checked_at")
   notes                 String?
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
