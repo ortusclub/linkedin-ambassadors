@@ -28,7 +28,7 @@ export async function POST(
       url = `https://${url}`;
     }
 
-    let health = "unchecked";
+    let health = "unknown";
 
     try {
       const response = await fetch(url, {
@@ -44,33 +44,40 @@ export async function POST(
 
       const html = await response.text();
 
+      // Check for restricted/unavailable signals
+      const restrictedSignals = [
+        "this profile is not available",
+        "This LinkedIn Page isn",
+        "profile-unavailable",
+        "has been restricted",
+        "temporarily restricted",
+        "account has been restricted",
+        "this account is not available",
+      ];
+
+      const isRestricted = restrictedSignals.some((signal) =>
+        html.toLowerCase().includes(signal.toLowerCase())
+      );
+
       if (response.status === 404) {
         health = "not_found";
-      } else if (response.status === 999) {
-        // LinkedIn rate limiting — can't determine status
-        health = "rate_limited";
-      } else if (
-        html.includes("this profile is not available") ||
-        html.includes("This LinkedIn Page isn") ||
-        html.includes("profile-unavailable") ||
-        html.includes("not available") ||
-        html.includes("has been restricted") ||
-        html.includes("temporarily restricted")
-      ) {
+      } else if (isRestricted) {
         health = "restricted";
+      } else if (response.status === 999) {
+        // LinkedIn rate-limited but didn't say restricted — profile likely exists
+        health = "active";
       } else if (
+        html.includes("linkedin.com") ||
         html.includes("authwall") ||
         html.includes("auth_wall") ||
+        html.includes("Sign in") ||
         html.includes("join LinkedIn") ||
-        html.includes("Sign in")
+        html.includes("LinkedIn") ||
+        response.ok
       ) {
-        // Auth wall means the profile exists but we can't see details
-        // This is normal for most profiles — means they're active
+        // If LinkedIn returns any page (including auth wall), the profile exists
+        // A restricted profile would have been caught above
         health = "active";
-      } else if (response.ok && html.includes("linkedin.com")) {
-        health = "active";
-      } else {
-        health = "unknown";
       }
     } catch {
       health = "error";
