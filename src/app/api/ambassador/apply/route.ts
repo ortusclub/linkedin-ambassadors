@@ -49,6 +49,27 @@ export async function POST(req: Request) {
       },
     });
 
+    // If auto-approved, create a LinkedInAccount automatically
+    if (assessment.autoApproved) {
+      const existingAccount = await prisma.linkedInAccount.findFirst({
+        where: { linkedinUrl: data.linkedinUrl },
+      });
+      if (!existingAccount) {
+        await prisma.linkedInAccount.create({
+          data: {
+            linkedinName: data.fullName,
+            linkedinUrl: data.linkedinUrl,
+            connectionCount: data.connectionCount || 0,
+            industry: data.industry || null,
+            location: data.location || null,
+            status: "under_review",
+            ambassadorPayment: assessment.offeredAmount,
+            notes: `Owner: ${data.email}. Profile email: ${data.linkedinEmail || data.email}.`,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
       application,
       assessment: {
