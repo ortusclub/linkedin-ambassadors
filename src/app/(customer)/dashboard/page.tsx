@@ -672,25 +672,37 @@ export default function DashboardPage() {
                       <td className="px-5 py-4 text-gray-400 text-sm">{formatDate(sub.createdAt)}</td>
                       <td className="px-5 py-4">
                         {sub.gologinShareLink ? (
-                          <a
-                            href={sub.gologinShareLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                          <button
+                            onClick={() => {
+                              // Try to launch GoLogin desktop app
+                              const iframe = document.createElement("iframe");
+                              iframe.style.display = "none";
+                              iframe.src = "gologin://open";
+                              document.body.appendChild(iframe);
+                              setTimeout(() => document.body.removeChild(iframe), 500);
+                              // Also open the share link in a new tab
+                              window.open(sub.gologinShareLink!, "_blank");
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
                           >
                             GoLogin
                             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                          </a>
+                          </button>
                         ) : (sub.status === "onboarded" || sub.status === "approved") ? (
-                          <a
-                            href="https://app.gologin.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                          <button
+                            onClick={() => {
+                              const iframe = document.createElement("iframe");
+                              iframe.style.display = "none";
+                              iframe.src = "gologin://open";
+                              document.body.appendChild(iframe);
+                              setTimeout(() => document.body.removeChild(iframe), 500);
+                              window.open("https://app.gologin.com", "_blank");
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
                           >
                             GoLogin
                             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-xs text-gray-300">—</span>
                         )}
