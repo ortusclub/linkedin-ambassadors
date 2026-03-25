@@ -674,14 +674,15 @@ export default function DashboardPage() {
                         {sub.gologinShareLink ? (
                           <button
                             onClick={() => {
-                              // Try to launch GoLogin desktop app
-                              const iframe = document.createElement("iframe");
-                              iframe.style.display = "none";
-                              iframe.src = "gologin://open";
-                              document.body.appendChild(iframe);
-                              setTimeout(() => document.body.removeChild(iframe), 500);
-                              // Also open the share link in a new tab
-                              window.open(sub.gologinShareLink!, "_blank");
+                              // Extract path from share link and build gologin:// protocol URL
+                              try {
+                                const shareUrl = new URL(sub.gologinShareLink!);
+                                const gologinProto = `gologin:/${shareUrl.pathname}`;
+                                window.location.href = gologinProto;
+                              } catch {
+                                // Fallback: open share link in browser
+                                window.open(sub.gologinShareLink!, "_blank");
+                              }
                             }}
                             className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
                           >
@@ -691,12 +692,7 @@ export default function DashboardPage() {
                         ) : (sub.status === "onboarded" || sub.status === "approved") ? (
                           <button
                             onClick={() => {
-                              const iframe = document.createElement("iframe");
-                              iframe.style.display = "none";
-                              iframe.src = "gologin://open";
-                              document.body.appendChild(iframe);
-                              setTimeout(() => document.body.removeChild(iframe), 500);
-                              window.open("https://app.gologin.com", "_blank");
+                              window.location.href = "gologin://";
                             }}
                             className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
                           >
