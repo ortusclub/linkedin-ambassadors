@@ -2,6 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
+// Manual GoLogin share links for onboarded submissions that don't have
+// a matching LinkedInAccount record yet
+const MANUAL_SHARE_LINKS: Record<string, string> = {
+  "https://www.linkedin.com/in/ramon-almeda-032123105": "https://g.camp/share/ramon.almeda%40ortus.solutions/qvx8S6GXcr",
+  "https://www.linkedin.com/in/ramon-almeda-032123105/": "https://g.camp/share/ramon.almeda%40ortus.solutions/qvx8S6GXcr",
+  "www.linkedin.com/in/ramon-almeda-032123105": "https://g.camp/share/ramon.almeda%40ortus.solutions/qvx8S6GXcr",
+  "linkedin.com/in/ramon-almeda-032123105": "https://g.camp/share/ramon.almeda%40ortus.solutions/qvx8S6GXcr",
+};
+
 export async function GET() {
   try {
     const user = await requireAuth();
@@ -31,7 +40,7 @@ export async function GET() {
 
     const enrichedSubmissions = submissions.map((sub) => ({
       ...sub,
-      gologinShareLink: gologinLinks[sub.linkedinUrl] || null,
+      gologinShareLink: gologinLinks[sub.linkedinUrl] || MANUAL_SHARE_LINKS[sub.linkedinUrl] || null,
     }));
 
     return NextResponse.json({ submissions: enrichedSubmissions });
