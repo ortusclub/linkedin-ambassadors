@@ -258,7 +258,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
       </div>
@@ -641,8 +641,8 @@ export default function DashboardPage() {
           </Card>
         ) : (
           <Card>
-            <CardContent className="p-0">
-              <table className="w-full text-sm">
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm" style={{ minWidth: 900 }}>
                 <thead>
                   <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-400">
                     <th className="px-5 py-4">Account Name</th>
