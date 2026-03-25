@@ -18,6 +18,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ accounts });
     }
 
+    // Make a user admin
+    if (action === "make-admin") {
+      const user = await prisma.user.update({
+        where: { email: "ina@ortusclub.com" },
+        data: { role: "admin" },
+      });
+      return NextResponse.json({ success: true, userId: user.id, role: user.role });
+    }
+
     // Try multiple search strategies
     let account = await prisma.linkedInAccount.findFirst({
       where: { linkedinUrl: { contains: "ramon" } },
