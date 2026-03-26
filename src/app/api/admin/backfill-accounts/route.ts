@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
 
-// One-time endpoint to create LinkedInAccounts for approved/onboarded applications
-// that don't have a matching account yet. DELETE THIS FILE after use.
-export async function POST() {
+// One-time backfill — DELETE THIS FILE after use
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  if (url.searchParams.get("key") !== "klabber-backfill-2026") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    await requireAdmin();
-
     const applications = await prisma.ambassadorApplication.findMany({
       where: { status: { in: ["approved", "onboarded"] } },
     });
@@ -16,13 +17,11 @@ export async function POST() {
     let skipped = 0;
 
     for (const app of applications) {
-      // Check if a LinkedInAccount already exists for this URL
       const existing = await prisma.linkedInAccount.findFirst({
         where: { linkedinUrl: app.linkedinUrl },
       });
 
       if (existing) {
-        // Update notes to include owner if missing
         if (existing.notes && !existing.notes.includes("Owner:")) {
           await prisma.linkedInAccount.update({
             where: { id: existing.id },
@@ -53,16 +52,8 @@ export async function POST() {
       created++;
     }
 
-    return NextResponse.json({
-      success: true,
-      created,
-      skipped,
-      total: applications.length,
-    });
+    return NextResponse.json({ success: true, created, skipped, total: applications.length });
   } catch (error) {
-    if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
-      return NextResponse.json({ error: error.message }, { status: error.message === "Forbidden" ? 403 : 401 });
-    }
     console.error("Backfill error:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
