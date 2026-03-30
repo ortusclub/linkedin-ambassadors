@@ -39,6 +39,7 @@ export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
 
   const [opening, setOpening] = useState<string | null>(null);
   const [openProfiles, setOpenProfiles] = useState<Set<string>>(new Set());
@@ -360,6 +361,16 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         ))}
       </div>
 
+      <div className="mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, email, location, industry..."
+          className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      </div>
+
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-200" />)}</div>
       ) : accounts.length === 0 ? (
@@ -413,7 +424,18 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {accounts.map((a) => (
+              {accounts.filter((a) => {
+                if (!search) return true;
+                const q = search.toLowerCase();
+                return (
+                  a.linkedinName.toLowerCase().includes(q) ||
+                  (a.ownerEmail || "").toLowerCase().includes(q) ||
+                  (a.location || "").toLowerCase().includes(q) ||
+                  (a.industry || "").toLowerCase().includes(q) ||
+                  (a.notes || "").toLowerCase().includes(q) ||
+                  (a.proxyHost || "").includes(q)
+                );
+              }).map((a) => (
                 <tr key={a.id} className={`hover:bg-gray-50 ${selected.has(a.id) ? "bg-red-50/50" : ""}`}>
                   <td className="px-4 py-3 w-10">
                     <input
