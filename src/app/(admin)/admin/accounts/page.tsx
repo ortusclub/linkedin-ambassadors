@@ -317,13 +317,14 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   const toggleForRent = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "available" ? "unavailable" : "available";
+    const newListed = newStatus === "available";
     const res = await fetch(`/api/admin/accounts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ status: newStatus, listed: newListed }),
     });
     if (res.ok) {
-      setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, status: newStatus } : a));
+      setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, status: newStatus, listed: newListed } : a));
     }
   };
 

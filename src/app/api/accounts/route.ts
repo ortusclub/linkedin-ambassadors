@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
   } else {
     where.status = { in: ["available", "rented"] };
   }
+  // Only show listed accounts in browse
+  where.listed = true;
 
   if (industry) where.industry = industry;
   if (location) where.location = { contains: location, mode: "insensitive" };
