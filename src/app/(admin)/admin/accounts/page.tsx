@@ -30,6 +30,8 @@ interface Account {
   gologinShareLink: string | null;
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
+  removedAt: string | null;
+  removedBy: string | null;
   rentals: Array<{
     user: { fullName: string; email: string };
   }>;
@@ -305,6 +307,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       under_review: "default",
       maintenance: "default",
       retired: "default",
+      removed: "danger",
     };
     return map[s] || "default";
   };
@@ -312,6 +315,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
   const getDisplayStatus = (s: string) => {
     if (s === "available") return "Available";
     if (s === "rented") return "Rented";
+    if (s === "removed") return "Removed";
     return "Offline";
   };
 
@@ -346,6 +350,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
           { value: "available", label: "Available" },
           { value: "rented", label: "Rented" },
           { value: "offline", label: "Offline" },
+          { value: "removed", label: "Removed" },
           { value: "", label: "All" },
         ].map((s) => (
           <button

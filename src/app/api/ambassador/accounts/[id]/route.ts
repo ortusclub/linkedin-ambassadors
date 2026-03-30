@@ -42,10 +42,13 @@ export async function DELETE(
         return NextResponse.json({ error: "Not authorized" }, { status: 403 });
       }
 
-      // Delete any rentals first, then the account
+      // Soft-delete: set status to removed
       await prisma.rental.deleteMany({ where: { linkedinAccountId: byProfile.id } });
       await prisma.waitlist.deleteMany({ where: { linkedinAccountId: byProfile.id } });
-      await prisma.linkedInAccount.delete({ where: { id: byProfile.id } });
+      await prisma.linkedInAccount.update({
+        where: { id: byProfile.id },
+        data: { status: "removed", removedAt: new Date(), removedBy: "ambassador" },
+      });
       return NextResponse.json({ success: true });
     }
 
@@ -56,7 +59,10 @@ export async function DELETE(
 
     await prisma.rental.deleteMany({ where: { linkedinAccountId: account.id } });
     await prisma.waitlist.deleteMany({ where: { linkedinAccountId: account.id } });
-    await prisma.linkedInAccount.delete({ where: { id: account.id } });
+    await prisma.linkedInAccount.update({
+      where: { id: account.id },
+      data: { status: "removed", removedAt: new Date(), removedBy: "ambassador" },
+    });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

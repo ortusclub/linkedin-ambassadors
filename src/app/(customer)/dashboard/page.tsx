@@ -39,6 +39,8 @@ interface AmbassadorAccount {
   gologinProfileId: string | null;
   proxyHost: string | null;
   proxyPort: number | null;
+  removedAt: string | null;
+  removedBy: string | null;
   createdAt: string;
   rentals: Array<{ id: string; startDate: string; currentPeriodEnd: string | null }>;
 }
@@ -77,6 +79,7 @@ export default function DashboardPage() {
   const [editForm, setEditForm] = useState({ linkedinName: "", linkedinHeadline: "", linkedinUrl: "", industry: "", location: "", connectionCount: 0, profilePhotoUrl: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [removedAccounts, setRemovedAccounts] = useState<AmbassadorAccount[]>([]);
   const [deletingSubmission, setDeletingSubmission] = useState<string | null>(null);
   const [depositPolling, setDepositPolling] = useState(false);
   const [lastDetectedBalance, setLastDetectedBalance] = useState<string>("0");
@@ -115,6 +118,7 @@ export default function DashboardPage() {
     ]).then(([rentalData, ambassadorData, dismissData, balanceData, addressData, submissionsData]) => {
       if (rentalData) setRentals(rentalData.rentals || []);
       setAmbassadorAccounts(ambassadorData.accounts || []);
+      setRemovedAccounts(ambassadorData.removedAccounts || []);
       setAppModalDismissed(dismissData.dismissed || false);
       setUsdcBalance(balanceData.balance || "0");
       setDepositAddress(addressData.address || null);
@@ -155,7 +159,11 @@ export default function DashboardPage() {
     if (!removeAccountId) return;
     const res = await fetch(`/api/ambassador/accounts/${removeAccountId}`, { method: "DELETE" });
     if (res.ok) {
+      const removed = ambassadorAccounts.find((a) => a.id === removeAccountId);
       setAmbassadorAccounts((prev) => prev.filter((a) => a.id !== removeAccountId));
+      if (removed) {
+        setRemovedAccounts((prev) => [{ ...removed, status: "removed", removedAt: new Date().toISOString(), removedBy: "ambassador" }, ...prev]);
+      }
     }
     setRemoveAccountId(null);
   };
@@ -459,6 +467,66 @@ export default function DashboardPage() {
                             </button>
                           </div>
                         </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {/* Removed Accounts */}
+      {removedAccounts.length > 0 && (
+        <section className="mb-12">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Removed Accounts</h2>
+            <span className="text-xs text-gray-400">Paper trail of removed accounts</span>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3">Profile</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Monthly Payment</th>
+                    <th className="px-4 py-3">Created</th>
+                    <th className="px-4 py-3">Removed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {removedAccounts.map((account) => {
+                    const price = typeof account.ambassadorPayment === "string"
+                      ? parseFloat(account.ambassadorPayment)
+                      : account.ambassadorPayment;
+                    const initials = account.linkedinName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+                    const emailMatch = account.notes?.match(/Profile email: ([^.]+@[^.]+\.[^.]+)/);
+                    const profileEmail = emailMatch ? emailMatch[1] : null;
+
+                    return (
+                      <tr key={account.id} className="border-b last:border-b-0 opacity-60">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-400">
+                              {initials}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-500">{account.linkedinName}</p>
+                              {profileEmail && <p className="text-xs text-gray-400">{profileEmail}</p>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                            Removed
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-400">{price > 0 ? formatCurrency(price) : "—"}</td>
+                        <td className="px-4 py-3 text-gray-400">{formatDate(account.createdAt)}</td>
+                        <td className="px-4 py-3 text-gray-400">{account.removedAt ? formatDate(account.removedAt) : "—"}</td>
                       </tr>
                     );
                   })}

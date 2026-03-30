@@ -47,6 +47,8 @@ export async function GET() {
         notes: true,
         proxyHost: true,
         proxyPort: true,
+        removedAt: true,
+        removedBy: true,
         createdAt: true,
         rentals: {
           where: { status: "active" },
@@ -57,7 +59,10 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ accounts });
+    const active = accounts.filter((a) => a.status !== "removed");
+    const removed = accounts.filter((a) => a.status === "removed");
+
+    return NextResponse.json({ accounts: active, removedAccounts: removed });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

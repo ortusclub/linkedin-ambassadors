@@ -26,7 +26,7 @@ const createAccountSchema = z.object({
   cookies: z.array(z.record(z.string(), z.unknown())).optional(),
   createGologinProfile: z.boolean().default(false),
   gologinShareLink: z.string().optional(),
-  status: z.enum(["under_review", "available", "unavailable", "rented", "maintenance", "retired"]).default("under_review"),
+  status: z.enum(["under_review", "available", "unavailable", "rented", "maintenance", "retired", "removed"]).default("under_review"),
 });
 
 export async function GET(req: NextRequest) {
@@ -37,7 +37,12 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
 
     const where: Record<string, unknown> = {};
-    if (status) where.status = status;
+    if (status) {
+      where.status = status;
+    } else {
+      // By default, exclude removed accounts
+      where.status = { not: "removed" };
+    }
 
     const accounts = await prisma.linkedInAccount.findMany({
       where,

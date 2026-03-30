@@ -25,6 +25,7 @@ enum AccountStatus {
   maintenance
   unavailable
   retired
+  removed
 }
 
 enum RentalStatus {
@@ -97,6 +98,8 @@ model LinkedInAccount {
   linkedinAccountHealth String?       @default("unchecked") @map("linkedin_account_health")
   healthCheckedAt       DateTime?     @map("health_checked_at")
   notes                 String?
+  removedAt             DateTime?     @map("removed_at")
+  removedBy             String?       @map("removed_by")
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 

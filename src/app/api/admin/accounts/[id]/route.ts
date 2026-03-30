@@ -22,7 +22,7 @@ const updateSchema = z.object({
   monthlyPrice: z.number().optional(),
   ambassadorPayment: z.number().optional(),
   notes: z.string().nullable().optional(),
-  status: z.enum(["under_review", "available", "rented", "unavailable", "maintenance", "retired"]).optional(),
+  status: z.enum(["under_review", "available", "rented", "unavailable", "maintenance", "retired", "removed"]).optional(),
   gologinProfileId: z.string().nullable().optional(),
   gologinShareLink: z.string().nullable().optional(),
 }).partial();
@@ -148,11 +148,9 @@ export async function DELETE(
       });
     }
 
-    // Delete all rentals linked to this account, then delete the account
-    await prisma.rental.deleteMany({ where: { linkedinAccountId: id } });
-    await prisma.waitlist.deleteMany({ where: { linkedinAccountId: id } });
-    await prisma.linkedInAccount.delete({
+    await prisma.linkedInAccount.update({
       where: { id },
+      data: { status: "removed", removedAt: new Date(), removedBy: "admin" },
     });
 
     return NextResponse.json({ ok: true });
