@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       where.status = status;
     } else {
       // By default, exclude removed accounts
-      where.status = { not: "removed" };
+      where.status = { in: ["under_review", "available", "rented", "maintenance", "unavailable", "retired"] };
     }
 
     const accounts = await prisma.linkedInAccount.findMany({
