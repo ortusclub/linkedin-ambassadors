@@ -20,14 +20,21 @@ export async function POST(
     }
 
     if (rental.stripeSubscriptionId) {
-      await stripe.subscriptions.update(rental.stripeSubscriptionId, {
-        cancel_at_period_end: true,
-      });
+      try {
+        await stripe.subscriptions.cancel(rental.stripeSubscriptionId);
+      } catch (e) {
+        console.error("Stripe cancel error:", e);
+      }
     }
 
     await prisma.rental.update({
       where: { id },
-      data: { autoRenew: false },
+      data: { status: "cancelled", autoRenew: false, accessRevokedAt: new Date() },
+    });
+
+    await prisma.linkedInAccount.update({
+      where: { id: rental.linkedinAccountId },
+      data: { status: "available" },
     });
 
     return NextResponse.json({ ok: true });
