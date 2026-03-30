@@ -537,15 +537,20 @@ export default function DashboardPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center gap-2 justify-end">
                       {rental.linkedinAccount.gologinShareLink && (
-                        <a
-                          href={rental.linkedinAccount.gologinShareLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                        <button
+                          onClick={() => {
+                            try {
+                              const shareUrl = new URL(rental.linkedinAccount.gologinShareLink!);
+                              window.location.href = `gologin:/${shareUrl.pathname}`;
+                            } catch {
+                              window.open(rental.linkedinAccount.gologinShareLink!, "_blank");
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
                         >
                           GoLogin
                           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
-                        </a>
+                        </button>
                       )}
                       {rental.autoRenew && (
                         <button
@@ -586,15 +591,15 @@ export default function DashboardPage() {
                     <td className="px-4 py-3 text-gray-400">Apr 24, 2026</td>
                     <td className="px-4 py-3 text-gray-400">—</td>
                     <td className="px-4 py-3 text-right">
-                      <a
-                        href="https://g.camp/share/nitin.kumar%40ortus.solutions/x1gQJgdu9l"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors whitespace-nowrap"
+                      <button
+                        onClick={() => {
+                          window.location.href = "gologin://share/nitin.kumar%40ortus.solutions/x1gQJgdu9l";
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors whitespace-nowrap cursor-pointer border-none"
                       >
                         Try It
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                      </a>
+                      </button>
                     </td>
                   </tr>
                 </tbody>
