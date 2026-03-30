@@ -587,7 +587,7 @@ export default function DashboardPage() {
                     <td className="px-4 py-3 text-gray-400">—</td>
                     <td className="px-4 py-3 text-right">
                       <a
-                        href="https://g.camp/share/zildjiang%40ortus.solutions/2SGdpCEin5"
+                        href="https://g.camp/share/nitin.kumar%40ortus.solutions/x1gQJgdu9l"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors whitespace-nowrap"
