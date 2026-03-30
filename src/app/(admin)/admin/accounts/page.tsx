@@ -79,10 +79,16 @@ export default function AdminAccountsPage() {
   };
 
   useEffect(() => {
-    const params = filter ? `?status=${filter}` : "";
+    const params = filter && filter !== "offline" ? `?status=${filter}` : "";
     fetch(`/api/admin/accounts${params}`)
       .then((r) => r.json())
-      .then((data) => setAccounts(data.accounts || []))
+      .then((data) => {
+        let accts = data.accounts || [];
+        if (filter === "offline") {
+          accts = accts.filter((a: Account) => a.status !== "available" && a.status !== "rented");
+        }
+        setAccounts(accts);
+      })
       .finally(() => setLoading(false));
 
     // Fetch active browser sessions once on load
@@ -278,22 +284,46 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     setImporting(false);
 
     // Refresh the list
-    const params = filter ? `?status=${filter}` : "";
+    const params = filter && filter !== "offline" ? `?status=${filter}` : "";
     fetch(`/api/admin/accounts${params}`)
       .then((r) => r.json())
-      .then((data) => setAccounts(data.accounts || []));
+      .then((data) => {
+        let accts = data.accounts || [];
+        if (filter === "offline") {
+          accts = accts.filter((a: Account) => a.status !== "available" && a.status !== "rented");
+        }
+        setAccounts(accts);
+      });
   };
 
   const statusVariant = (s: string) => {
     const map: Record<string, "success" | "info" | "warning" | "danger" | "default"> = {
-      under_review: "warning",
       available: "success",
       rented: "info",
-      unavailable: "danger",
-      maintenance: "warning",
+      unavailable: "default",
+      under_review: "default",
+      maintenance: "default",
       retired: "default",
     };
     return map[s] || "default";
+  };
+
+  const getDisplayStatus = (s: string) => {
+    if (s === "available") return "Available";
+    if (s === "rented") return "Rented";
+    return "Offline";
+  };
+
+  const toggleForRent = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === "available" ? "unavailable" : "available";
+    const res = await fetch(`/api/admin/accounts/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (res.ok) {
+      setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, status: newStatus } : a));
+    }
   };
 
   return (
@@ -310,17 +340,22 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       </div>
 
       <div className="mb-4 flex gap-2">
-        {["", "under_review", "available", "rented", "unavailable", "maintenance", "retired"].map((s) => (
+        {[
+          { value: "available", label: "Available" },
+          { value: "rented", label: "Rented" },
+          { value: "offline", label: "Offline" },
+          { value: "", label: "All" },
+        ].map((s) => (
           <button
-            key={s}
-            onClick={() => { setFilter(s); setLoading(true); }}
+            key={s.value}
+            onClick={() => { setFilter(s.value); setLoading(true); }}
             className={`rounded-full px-3 py-1 text-sm ${
-              filter === s
+              filter === s.value
                 ? "bg-blue-600 text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            {s || "All"}
+            {s.label}
           </button>
         ))}
       </div>
@@ -373,6 +408,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">GoLogin Share</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Health</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase text-gray-500">For Rent</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -391,7 +427,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     <p className="text-sm font-medium text-gray-900">{(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={statusVariant(a.status)}>{a.status}</Badge>
+                    <Badge variant={statusVariant(a.status)}>{getDisplayStatus(a.status)}</Badge>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600">{a.ownerEmail || "—"}</td>
                   <td className="px-4 py-3 text-xs text-gray-600">{a.location || "—"}</td>
@@ -460,12 +496,23 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5 justify-end">
-                      {a.status === "under_review" && (
-                        <button onClick={() => handleApprove(a.id)} className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700">Approve</button>
+                    <div className="flex justify-end">
+                      {a.status === "rented" ? (
+                        <div className="relative w-10 h-[22px] rounded-full bg-green-500 opacity-50 cursor-not-allowed">
+                          <div className="absolute top-[2px] left-[20px] w-[18px] h-[18px] rounded-full bg-white shadow-sm" />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => toggleForRent(a.id, a.status)}
+                          className={`relative w-10 h-[22px] rounded-full transition-colors cursor-pointer ${a.status === "available" ? "bg-green-500" : "bg-gray-300"}`}
+                        >
+                          <span className={`absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-all ${a.status === "available" ? "left-[20px]" : "left-[2px]"}`} />
+                        </button>
                       )}
-                      <Link href={`/admin/accounts/${a.id}`} className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200">Edit</Link>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link href={`/admin/accounts/${a.id}`} className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200">Edit</Link>
                   </td>
                 </tr>
               ))}
