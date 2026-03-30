@@ -51,7 +51,7 @@ export default function AdminAmbassadorsPage() {
       );
       setEditing(null);
       // Automatically switch to the new status tab
-      setFilter(status);
+      setFilter(status === "reviewing" ? "pending" : status);
     }
   };
 
@@ -67,7 +67,9 @@ export default function AdminAmbassadorsPage() {
   };
 
   const filtered = filter
-    ? applications.filter((a) => a.status === filter)
+    ? filter === "pending"
+      ? applications.filter((a) => a.status === "pending" || a.status === "reviewing")
+      : applications.filter((a) => a.status === filter)
     : applications;
 
   if (loading) return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-200" />)}</div>;
@@ -82,7 +84,6 @@ export default function AdminAmbassadorsPage() {
       <div className="mb-4 flex gap-2">
         {[
           { value: "pending", label: "Received" },
-          { value: "reviewing", label: "Under Review" },
           { value: "approved", label: "Accepted" },
           { value: "rejected", label: "Rejected" },
           { value: "onboarded", label: "Onboarded" },
@@ -97,7 +98,7 @@ export default function AdminAmbassadorsPage() {
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            {s.label} <span className="opacity-70 text-xs ml-0.5">{s.value ? applications.filter((a) => a.status === s.value).length : applications.length}</span>
+            {s.label} <span className="opacity-70 text-xs ml-0.5">{s.value === "pending" ? applications.filter((a) => a.status === "pending" || a.status === "reviewing").length : s.value ? applications.filter((a) => a.status === s.value).length : applications.length}</span>
           </button>
         ))}
       </div>
@@ -150,8 +151,7 @@ export default function AdminAmbassadorsPage() {
                           value={app.status}
                           onChange={(e) => updateStatus(app.id, e.target.value)}
                           className={`rounded-full px-3 py-1 text-xs font-semibold border-0 cursor-pointer appearance-none text-center ${
-                            app.status === "pending" ? "bg-yellow-100 text-yellow-800" :
-                            app.status === "reviewing" ? "bg-blue-100 text-blue-800" :
+                            (app.status === "pending" || app.status === "reviewing") ? "bg-yellow-100 text-yellow-800" :
                             app.status === "approved" ? "bg-green-100 text-green-800" :
                             app.status === "rejected" ? "bg-red-100 text-red-800" :
                             app.status === "onboarded" ? "bg-green-100 text-green-800" :
@@ -159,7 +159,6 @@ export default function AdminAmbassadorsPage() {
                           }`}
                         >
                           <option value="pending">Received</option>
-                          <option value="reviewing">Under Review</option>
                           <option value="approved">Accepted</option>
                           <option value="rejected">Rejected</option>
                           <option value="onboarded">Onboarded</option>
