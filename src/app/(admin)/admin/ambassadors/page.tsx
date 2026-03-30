@@ -26,7 +26,7 @@ interface Application {
 export default function AdminAmbassadorsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState("pending");
   const [editing, setEditing] = useState<string | null>(null);
   const [offerAmount, setOfferAmount] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
@@ -50,6 +50,8 @@ export default function AdminAmbassadorsPage() {
         prev.map((a) => (a.id === id ? { ...a, ...data.application } : a))
       );
       setEditing(null);
+      // Automatically switch to the new status tab
+      setFilter(status);
     }
   };
 
@@ -79,12 +81,12 @@ export default function AdminAmbassadorsPage() {
 
       <div className="mb-4 flex gap-2">
         {[
-          { value: "", label: "All" },
           { value: "pending", label: "Received" },
           { value: "reviewing", label: "Under Review" },
           { value: "approved", label: "Accepted" },
           { value: "rejected", label: "Rejected" },
           { value: "onboarded", label: "Onboarded" },
+          { value: "", label: "All" },
         ].map((s) => (
           <button
             key={s.value}
@@ -95,7 +97,7 @@ export default function AdminAmbassadorsPage() {
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            {s.label}
+            {s.label} <span className="opacity-70 text-xs ml-0.5">{s.value ? applications.filter((a) => a.status === s.value).length : applications.length}</span>
           </button>
         ))}
       </div>
