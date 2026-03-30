@@ -140,13 +140,17 @@ export async function DELETE(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    // Cancel any active rentals before deleting
     if (account.status === "rented") {
-      return NextResponse.json(
-        { error: "Cannot delete a currently rented account" },
-        { status: 400 }
-      );
+      await prisma.rental.updateMany({
+        where: { linkedinAccountId: id, status: "active" },
+        data: { status: "cancelled" },
+      });
     }
 
+    // Delete all rentals linked to this account, then delete the account
+    await prisma.rental.deleteMany({ where: { linkedinAccountId: id } });
+    await prisma.waitlist.deleteMany({ where: { linkedinAccountId: id } });
     await prisma.linkedInAccount.delete({
       where: { id },
     });
