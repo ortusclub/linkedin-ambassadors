@@ -543,12 +543,1086 @@ The tools have evolved. The strategy has evolved. But LinkedIn outreach itself i
 *Need safe, pre-warmed LinkedIn accounts for your outreach campaigns? [Browse available accounts on Klabber](https://klabber.co/catalogue) — each includes a dedicated GoLogin browser session and residential proxy.*
 `,
   },
+  {
+    slug: "how-to-rent-linkedin-account-complete-guide",
+    title: "How to Rent a LinkedIn Account for Outreach — Complete Guide",
+    description: "Everything you need to know about renting LinkedIn accounts: how it works, what to look for, pricing, safety, and how to get started in under 5 minutes.",
+    date: "2026-05-01",
+    readTime: "8 min read",
+    category: "Getting Started",
+    content: `
+## Why Rent a LinkedIn Account?
+
+Building a LinkedIn account from scratch takes months. You need to create the profile, add connections gradually, warm up the account, and build credibility before you can run any outreach. That's 3-6 months of work before you send your first campaign message.
+
+Renting solves this. You get instant access to an account that's already:
+
+- **Aged** — 1 to 15+ years old, with established history
+- **Connected** — 500 to 30,000+ connections already in place
+- **Warmed** — past the new-account restrictions LinkedIn applies
+- **Verified** — real professional profiles with genuine backgrounds
+
+Instead of months of preparation, you're running campaigns within minutes.
+
+## How LinkedIn Account Rental Works
+
+### Step 1: Browse Available Accounts
+
+Visit a marketplace like [Klabber](https://klabber.co/catalogue) and browse available LinkedIn accounts. Each listing shows:
+
+- **Name and headline** — the professional identity
+- **Connection count** — how large the network is
+- **Industry** — Technology, SaaS, Finance, Healthcare, etc.
+- **Account age** — how many years the account has existed
+- **Sales Navigator** — whether it includes a Sales Nav subscription
+- **Monthly price** — what it costs to rent
+
+Filter by industry to find accounts relevant to your target market. A Technology account works better for reaching CTOs than a Healthcare account.
+
+### Step 2: Rent and Get Instant Access
+
+Select an account and check out. Payment is typically monthly via credit card or cryptocurrency. After checkout, you receive access immediately through an anti-detect browser like GoLogin.
+
+### Step 3: Launch and Start Outreach
+
+Open the account in the anti-detect browser. The browser creates a unique fingerprint — screen resolution, timezone, fonts, GPU — so LinkedIn sees the session as coming from a unique device. This prevents detection.
+
+From there, you can:
+
+- Send connection requests (stay within 20-25 per day)
+- Message existing connections
+- Use LinkedIn automation tools (Dripify, Expandi, etc.)
+- Browse and search for prospects
+- View profiles and engage with content
+
+### Step 4: Scale by Adding More Accounts
+
+One account gives you 100-150 connection requests per week. Need more? Rent additional accounts. Each operates independently with its own browser session and IP address.
+
+## What to Look for in a Rental Account
+
+Not all LinkedIn accounts are equal. Here's what matters:
+
+### Connection Count
+
+More connections = more reach. But quality matters too:
+
+- **500-1,000 connections:** Good for niche targeting. Lower price.
+- **1,000-5,000 connections:** Sweet spot for most outreach campaigns.
+- **5,000-10,000 connections:** Large network, higher response rates.
+- **10,000+ connections:** Premium. Your connection requests get accepted more often because prospects see lots of mutual connections.
+
+### Account Age
+
+LinkedIn trusts older accounts more. A 5-year-old account can do things a 6-month-old account can't:
+
+- Higher daily connection request limits
+- Less scrutiny from LinkedIn's AI
+- More credibility with prospects who check the profile
+
+### Industry Relevance
+
+An account in the same industry as your target audience converts better. Prospects are more likely to accept connections from someone in their field.
+
+### Sales Navigator
+
+Accounts with active Sales Navigator subscriptions let you:
+
+- Use advanced search filters
+- See who's viewed your profile
+- Send InMail messages
+- Access Open Profile messaging (free messages to Sales Nav users)
+
+Sales Nav accounts cost more but give you significantly more outreach capabilities.
+
+## Pricing: What Does It Cost?
+
+| Account Type | Connections | Features | Monthly Price |
+|---|---|---|---|
+| Basic | 500-1,000 | Standard account | $10-30 |
+| Standard | 1,000-5,000 | Aged 2+ years | $30-100 |
+| Premium | 5,000-10,000 | Aged 5+ years, verified | $100-250 |
+| Ultra-Premium | 10,000+ | Sales Navigator, 5+ years | $250-500 |
+
+Compare this to the alternative: hiring an SDR ($4,000-6,000/month + tools) or building accounts from scratch (3-6 months of zero output).
+
+## Is It Safe?
+
+The safety of account rental depends entirely on the technology used:
+
+**Without anti-detect browser:** Risky. LinkedIn detects multiple sessions from the same browser fingerprint and flags the account.
+
+**With anti-detect browser (GoLogin):** Safe. Each session has a unique fingerprint, dedicated residential proxy, and isolated cookies. LinkedIn sees each session as a different person on a different device.
+
+Key safety practices:
+
+- Stay within 20-25 connection requests per day per account
+- Use residential proxies, never data centre IPs
+- Vary your message templates
+- Mix outreach with normal activity (browsing, liking posts, commenting)
+- Don't run outreach 24/7 — have realistic "online" hours
+
+## Getting Started in 5 Minutes
+
+1. Go to [klabber.co/catalogue](https://klabber.co/catalogue)
+2. Filter by your target industry
+3. Select an account within your budget
+4. Complete checkout (credit card or USDC)
+5. Launch the account in the Klabber browser app
+6. Start your first campaign
+
+That's it. No warm-up period, no profile building, no waiting.
+
+---
+
+*Ready to start? [Browse available LinkedIn accounts on Klabber](https://klabber.co/catalogue) — instant access, cancel anytime.*
+`,
+  },
+  {
+    slug: "best-linkedin-automation-tools-2026",
+    title: "Best LinkedIn Automation Tools in 2026 (Compared)",
+    description: "A comprehensive comparison of LinkedIn automation tools: Dripify, Expandi, Linked Helper, Phantombuster, and more. Features, pricing, safety, and which to choose.",
+    date: "2026-05-15",
+    readTime: "10 min read",
+    category: "Tools",
+    content: `
+## The LinkedIn Automation Landscape in 2026
+
+LinkedIn automation tools have evolved significantly. With LinkedIn cracking down on bots and AI-powered outreach, the tools that survive are the ones that prioritise safety alongside functionality.
+
+Here's an honest comparison of the top tools in 2026.
+
+## The Top LinkedIn Automation Tools
+
+### 1. Dripify
+
+**Best for:** Teams who want an all-in-one campaign manager
+
+**What it does:** Cloud-based LinkedIn automation that runs campaigns from the cloud (not your browser). Creates sequences of connection requests, messages, profile views, and follow-ups.
+
+**Key features:**
+- Automated drip sequences (connection → message → follow-up)
+- Team management dashboard
+- A/B testing for messages
+- Analytics and conversion tracking
+- CRM integrations (HubSpot, Salesforce)
+
+**Pricing:** $59-99/month per account
+
+**Safety:** Runs in the cloud with its own browser sessions. Moderate risk — uses shared infrastructure.
+
+**Best paired with:** Multiple LinkedIn accounts to maximise volume while keeping each account within safe limits.
+
+### 2. Expandi
+
+**Best for:** Advanced users who want granular control
+
+**What it does:** Cloud-based automation with smart targeting. Known for its "smart sequences" that adapt based on prospect behaviour.
+
+**Key features:**
+- Smart sequences (different paths based on whether prospect accepts, responds, etc.)
+- Hyper-personalisation with dynamic images and GIFs
+- Blacklist management
+- Detailed analytics per campaign and per account
+- Webhooks for custom integrations
+
+**Pricing:** $99/month per account
+
+**Safety:** Dedicated IP per account, mimics human behaviour patterns. One of the safer cloud options.
+
+**Best paired with:** Accounts that have Sales Navigator for maximum targeting capabilities.
+
+### 3. Linked Helper
+
+**Best for:** Users who want a desktop-based tool
+
+**What it does:** Desktop application that automates LinkedIn actions through your browser. Runs locally on your computer.
+
+**Key features:**
+- Connection request campaigns
+- Message sequences
+- Profile visits and endorsements
+- Data scraping and export
+- Works with regular LinkedIn and Sales Navigator
+
+**Pricing:** $15-45/month
+
+**Safety:** Runs in your actual browser — higher risk of detection than cloud tools. Best used with an anti-detect browser like GoLogin.
+
+### 4. Phantombuster
+
+**Best for:** Technical users who want APIs and scraping
+
+**What it does:** API-based automation platform with pre-built "Phantoms" for LinkedIn actions. More of a developer tool than a campaign manager.
+
+**Key features:**
+- LinkedIn profile scraper
+- Connection request automation
+- Sales Navigator search export
+- Auto-message sequences
+- API access for custom workflows
+- Chain multiple automations together
+
+**Pricing:** $69-159/month
+
+**Safety:** Cookie-based authentication. Moderate risk. Works best with anti-detect browsers.
+
+### 5. Waalaxy
+
+**Best for:** Beginners who want simplicity
+
+**What it does:** Chrome extension + cloud hybrid that focuses on ease of use. Multi-channel — combines LinkedIn + email sequences.
+
+**Key features:**
+- LinkedIn + email sequences in one tool
+- Template library
+- Simple drag-and-drop campaign builder
+- Auto-import from LinkedIn searches
+- Team features
+
+**Pricing:** €56-80/month
+
+**Safety:** Chrome extension model has moderate risk. The cloud component helps.
+
+## Comparison Table
+
+| Feature | Dripify | Expandi | Linked Helper | Phantombuster | Waalaxy |
+|---|---|---|---|---|---|
+| Cloud-based | Yes | Yes | No (desktop) | Yes | Hybrid |
+| Smart sequences | Basic | Advanced | Basic | API-based | Basic |
+| Multi-account | Yes | Yes | Manual | Yes | Limited |
+| CRM integration | Yes | Limited | No | API | Limited |
+| Email + LinkedIn | No | No | No | Yes | Yes |
+| Safety level | Medium | High | Low-Medium | Medium | Medium |
+| Price/month | $59-99 | $99 | $15-45 | $69-159 | €56-80 |
+| Best for | Teams | Power users | Budget | Developers | Beginners |
+
+## The Missing Piece: Accounts
+
+Here's what none of these tool comparisons tell you: **the tool is only as good as the accounts you run it on.**
+
+Every one of these tools is limited by LinkedIn's per-account restrictions:
+- 100-200 connection requests per week per account
+- 50-75 messages per day per account
+- Risk of restrictions if you push limits
+
+The real scaling strategy isn't choosing the right tool — it's **running your chosen tool across multiple LinkedIn accounts**. Five accounts on Dripify gives you 5x the reach of one account on Dripify.
+
+This is why teams combine their automation tool of choice with account rental from platforms like [Klabber](https://klabber.co/catalogue). The tool handles the campaign logic; the accounts provide the volume.
+
+## How to Choose the Right Tool
+
+**Choose Dripify if:** You're a sales team that wants campaign management with analytics and CRM integration.
+
+**Choose Expandi if:** You want the most sophisticated automation with smart branching and hyper-personalisation.
+
+**Choose Linked Helper if:** You're on a budget and comfortable running a desktop app (pair it with GoLogin for safety).
+
+**Choose Phantombuster if:** You're technical, want API access, and need data scraping alongside outreach.
+
+**Choose Waalaxy if:** You're new to LinkedIn automation and want the simplest possible setup.
+
+## The Ideal Setup
+
+For a serious B2B outreach operation in 2026:
+
+1. **Tool:** Expandi or Dripify (cloud-based, safer)
+2. **Accounts:** 3-10 pre-warmed LinkedIn accounts from [Klabber](https://klabber.co/catalogue)
+3. **Browser:** GoLogin anti-detect browser (comes with Klabber accounts)
+4. **Limits:** 20-25 connections per day per account
+5. **Messages:** Personalised templates with 5-10 variations
+
+This setup gives you 300-1,250 connection requests per week while keeping every account safely within LinkedIn's limits.
+
+---
+
+*Need accounts to run your automation tool on? [Browse pre-warmed LinkedIn accounts on Klabber](https://klabber.co/catalogue) — each includes GoLogin browser access.*
+`,
+  },
+  {
+    slug: "sdr-teams-multiple-linkedin-accounts",
+    title: "How SDR Teams Use Multiple LinkedIn Accounts to Scale Outbound",
+    description: "Inside the playbook: how top SDR teams use 5-20 LinkedIn accounts to book 50+ meetings per month while staying under LinkedIn's radar.",
+    date: "2026-06-01",
+    readTime: "7 min read",
+    category: "Sales Strategy",
+    content: `
+## The SDR Scaling Problem
+
+Every SDR team hits the same ceiling. You've got great messaging, a dialed-in ICP, and a process that converts. But LinkedIn limits each account to 100-200 connection requests per week. That's maybe 40-60 new connections, 10-15 conversations, and 3-5 meetings per week — per rep.
+
+For a single SDR, that might be enough. For a team trying to book 50+ meetings per month across multiple segments, geographies, or personas? One account per rep isn't going to cut it.
+
+## The Multi-Account Playbook
+
+Here's how high-performing SDR teams actually operate:
+
+### The Math
+
+| Accounts per SDR | Connections/Week | Conversations/Week | Meetings/Month |
+|---|---|---|---|
+| 1 account | 100-150 | 10-15 | 8-12 |
+| 3 accounts | 300-450 | 30-45 | 24-36 |
+| 5 accounts | 500-750 | 50-75 | 40-60 |
+| 10 accounts | 1,000-1,500 | 100-150 | 80-120 |
+
+Each additional account multiplies output without increasing risk on any single account.
+
+### How It Works in Practice
+
+**Account segmentation:** Each LinkedIn account targets a different segment. For example:
+
+- Account 1: CTOs at mid-market SaaS companies (US)
+- Account 2: VP Sales at enterprise companies (UK)
+- Account 3: Marketing Directors at FinTech startups (Europe)
+- Account 4: Founders at Series A-C startups (US West Coast)
+- Account 5: HR Directors at companies with 200-500 employees
+
+Each account builds a relevant network in its segment. Connection acceptance rates are higher because the account's profile and existing connections are industry-relevant.
+
+**Campaign management:** Each account runs its own campaign sequence:
+
+1. Profile view → connection request → welcome message → follow-up → meeting ask
+2. Each account stays under 25 connections/day
+3. Automation tools (Dripify, Expandi) manage the sequences
+4. Each account has its own GoLogin browser session and proxy
+
+**Centralised tracking:** All accounts feed into one CRM (HubSpot, Salesforce, Pipedrive). The SDR manager sees unified metrics:
+
+- Total connections made across all accounts
+- Response rates per segment/account
+- Meetings booked per account
+- Pipeline generated
+
+### Where the Accounts Come From
+
+Building 5-10 LinkedIn accounts from scratch is impractical:
+
+- Takes 3-6 months to warm each account
+- LinkedIn detects and bans new accounts created in bulk
+- Maintaining 5-10 fake profiles is a full-time job
+
+Instead, SDR teams rent pre-warmed accounts from marketplaces like [Klabber](https://klabber.co/catalogue). Each account comes with:
+
+- Established connection network (1,000-10,000+)
+- Account history (1-10+ years)
+- GoLogin browser session with dedicated proxy
+- Ready for campaigns from day one
+
+## The Campaign Sequence That Works
+
+Across hundreds of accounts and millions of messages, this sequence consistently performs:
+
+**Day 1:** View prospect's profile (they see the notification)
+
+**Day 3:** Send connection request with a 1-line personalised note:
+> "Hi [Name], noticed [Company] is [doing something specific]. Would love to connect."
+
+**Day 5 (after acceptance):** Value-first message — no pitch:
+> "Thanks for connecting! I recently wrote about [relevant topic] — thought it might be useful given [their situation]. [Link]"
+
+**Day 8:** Soft question:
+> "Curious — how are you handling [specific challenge] at [Company]? We've been hearing it's a big focus for [their industry] teams right now."
+
+**Day 12:** Direct ask:
+> "Would it be worth a 15-minute chat to see if [your solution] could help? Happy to share what's worked for [similar company]."
+
+**Day 18:** Break-up message:
+> "No worries if the timing isn't right. I'll keep sharing relevant insights. Feel free to reach out whenever."
+
+This 5-touch sequence gets 15-25% response rates and 5-10% meeting rates when targeting is dialed in.
+
+## Team Structure
+
+A typical SDR team running multi-account outreach:
+
+**SDR Manager:**
+- Owns 0 accounts personally
+- Monitors all campaign performance
+- Adjusts messaging and targeting
+- Manages account allocation
+
+**SDR Reps (each):**
+- Manages 3-5 LinkedIn accounts
+- Each account targets a different segment
+- Runs campaigns via automation tool
+- Handles conversations and books meetings
+
+**Ops/Admin:**
+- Sources and onboards new accounts
+- Manages GoLogin browser profiles
+- Handles account rotation (swapping underperforming accounts)
+- Monitors account health (acceptance rates, restrictions)
+
+## Risk Management
+
+Running multiple accounts requires discipline:
+
+**1. Never exceed daily limits.** 25 connections and 50 messages per account per day. No exceptions.
+
+**2. Use unique browser fingerprints.** Each account needs its own GoLogin profile. Never share fingerprints between accounts.
+
+**3. Use residential proxies.** Data centre IPs get flagged instantly. Each account needs its own residential IP in a location that matches the account's profile.
+
+**4. Rotate underperforming accounts.** If an account's acceptance rate drops below 25%, pause it. Swap in a fresh account.
+
+**5. Keep messaging human.** Vary templates. Don't send the exact same message from different accounts to the same company.
+
+## The ROI
+
+Let's do the math for a 3-person SDR team, each running 5 accounts:
+
+- **15 accounts total** × 20 connections/day × 5 days/week = 1,500 connection requests/week
+- 35% acceptance rate = 525 new connections/week
+- 20% response rate = 105 conversations/week
+- 8% meeting rate = 12 meetings/week = **48 meetings/month**
+- Account cost: 15 × $100/avg = $1,500/month
+- Tool cost: 15 × $80/avg = $1,200/month
+- **Total: $2,700/month for 48 meetings**
+- **Cost per meeting: $56**
+
+Compare that to paid ads ($200-500 per meeting) or hiring 3 more SDRs ($15,000-20,000/month).
+
+---
+
+*Ready to scale your SDR team's outreach? [Browse pre-warmed accounts on Klabber](https://klabber.co/catalogue) — from $10/month per account.*
+`,
+  },
+  {
+    slug: "linkedin-sales-navigator-worth-it",
+    title: "LinkedIn Sales Navigator: Is It Worth $100/Month in 2026?",
+    description: "An honest breakdown of Sales Navigator's features, ROI, and whether it's worth the price for different team sizes and use cases.",
+    date: "2026-06-15",
+    readTime: "6 min read",
+    category: "Tools",
+    content: `
+## What Sales Navigator Actually Gives You
+
+LinkedIn Sales Navigator costs $99.99/month (annual) or $139.99/month (monthly). Here's what you get that free LinkedIn doesn't offer:
+
+### Advanced Search Filters
+
+Free LinkedIn search is basic — job title, location, company. Sales Navigator adds:
+
+- **Company headcount** — target companies by exact employee count
+- **Revenue range** — filter by company revenue
+- **Technologies used** — find companies using specific tools
+- **Recent job changes** — people who just started a new role (great timing for outreach)
+- **Posted on LinkedIn recently** — active users who are more likely to respond
+- **Years in current position** — find decision-makers who've been established
+
+These filters turn LinkedIn from a directory into a prospecting machine.
+
+### InMail Credits
+
+You get 50 InMail credits per month. InMail lets you message anyone — no connection required. Average response rates:
+
+- Cold InMail: 10-15%
+- Warm InMail (after profile view/engagement): 20-30%
+
+Unused credits roll over for up to 3 months (max 150 accumulated).
+
+### Open Profile Access
+
+Sales Navigator lets you enable "Open Profile" — meaning anyone can message you for free. More importantly, you can identify other Open Profile users and message them without using InMail credits.
+
+This is a massive advantage for outreach. See our [guide to Open Profile campaigns](https://klabber.co/blog/linkedin-open-profile-campaigns) for the full strategy.
+
+### Lead Lists and Alerts
+
+Save prospects to lists and get alerts when they:
+- Change jobs
+- Post content
+- Get mentioned in the news
+- Their company raises funding
+
+These triggers give you perfect conversation starters.
+
+### Buyer Intent Data
+
+Sales Navigator shows "buyer intent" signals:
+- Which companies are researching topics related to your product
+- Which prospects are engaging with competitor content
+- Growth signals (hiring, expansion, funding)
+
+## When Sales Navigator Is Worth It
+
+### Worth it if:
+
+- **You're an SDR/BDR** doing 50+ connection requests per week. The advanced search pays for itself by improving targeting quality.
+- **Your deal size is $5,000+/year.** One closed deal from better prospecting covers years of Sales Nav.
+- **You target specific company sizes or industries.** The filters are transformative.
+- **You run Open Profile campaigns.** Free messaging to Sales Nav users is incredibly valuable.
+
+### Not worth it if:
+
+- **You send fewer than 20 connection requests per week.** The free tier is sufficient.
+- **You already have your prospect list.** If you're working from a CRM list, you don't need Sales Nav search.
+- **You're on a very tight budget.** $100/month matters when you're bootstrapping.
+
+## The Alternative: Rent Accounts With Sales Navigator
+
+Here's something most people don't consider: instead of paying $100/month for Sales Navigator on your own account, you can rent a LinkedIn account that **already has Sales Navigator** included.
+
+On [Klabber](https://klabber.co/catalogue), accounts with Sales Navigator typically cost $150-300/month — but you get both the account (with its established connections and history) and Sales Navigator in one package. For teams running multiple accounts, this is often more cost-effective than adding Sales Nav to each of your own accounts.
+
+## Sales Navigator ROI Calculator
+
+| Monthly Cost | Meetings Needed to Break Even | Deal Size for Positive ROI |
+|---|---|---|
+| $100/month (own account) | 1 meeting | Any deal >$1,200/year |
+| $150/month (rented account + Sales Nav) | 1 meeting | Any deal >$1,800/year |
+| $500/month (5 accounts with Sales Nav) | 2-3 meetings | Any deal >$2,000/year |
+
+For B2B sales with average deal sizes of $10,000+, the ROI is almost always positive.
+
+## Key Takeaways
+
+- Sales Navigator's advanced search filters are its most valuable feature
+- Worth it for active prospectors doing 50+ outreach actions per week
+- InMail and Open Profile messaging are powerful but underutilised
+- Consider renting accounts with Sales Nav included for multi-account strategies
+- The ROI is positive for virtually any B2B team with deal sizes above $2,000
+
+---
+
+*Want Sales Navigator without the separate subscription? [Browse accounts with Sales Nav on Klabber](https://klabber.co/catalogue) — pre-warmed and ready for prospecting.*
+`,
+  },
+  {
+    slug: "cold-email-vs-linkedin-outreach",
+    title: "Cold Email vs LinkedIn Outreach: Which Converts Better in 2026?",
+    description: "A data-driven comparison of cold email and LinkedIn outreach: response rates, cost per meeting, deliverability, and when to use each channel.",
+    date: "2026-07-01",
+    readTime: "7 min read",
+    category: "LinkedIn Strategy",
+    content: `
+## The Numbers: LinkedIn vs Email
+
+Let's start with the data:
+
+| Metric | Cold Email | LinkedIn Outreach |
+|---|---|---|
+| Average response rate | 1-5% | 15-25% |
+| Average open rate | 20-40% | 90%+ (messages are seen) |
+| Deliverability issues | High (spam filters, bounces) | Low (messages land in inbox) |
+| Cost per meeting | $150-400 | $50-150 |
+| Personalisation options | Name, company, title | Profile, connections, activity, mutual contacts |
+| Trust signal | None (unknown sender) | Full profile visible |
+| Scalability ceiling | Unlimited (with domains) | Limited by connection requests |
+
+LinkedIn wins on quality. Email wins on volume. The best teams use both.
+
+## Where LinkedIn Outreach Wins
+
+### 1. Trust Is Built-In
+
+When you email someone cold, they see a name and a company. They have no way to verify who you are without clicking through to your website.
+
+On LinkedIn, your entire professional history is one click away. Your mutual connections, endorsements, content, and work history all build credibility before they even read your message.
+
+### 2. Messages Actually Get Seen
+
+Email deliverability is a constant battle. Between spam filters, promotions tabs, and overflowing inboxes, 60-80% of cold emails are never seen by the recipient.
+
+LinkedIn messages land directly in the inbox with a notification. Open rates are effectively 90%+ because LinkedIn actively notifies users of new messages.
+
+### 3. Multi-Touch Is Natural
+
+On email, following up 4-5 times can feel aggressive. On LinkedIn, the engagement pattern is natural:
+
+- View profile → like a post → connect → message → follow up
+
+Each touch point builds familiarity. By the time you send a direct message, they've already seen your name multiple times.
+
+### 4. Higher Response Rates
+
+The combination of trust, visibility, and context drives 3-5x higher response rates compared to cold email. A well-crafted LinkedIn campaign consistently achieves 15-25% response rates.
+
+## Where Cold Email Wins
+
+### 1. Unlimited Scale
+
+LinkedIn limits you to 100-200 connection requests per week per account. Email has no theoretical limit — you can send thousands of emails per day across multiple domains.
+
+For high-volume outreach (10,000+ prospects per month), email is the only option that works from a single operator.
+
+### 2. Better for Certain Industries
+
+Some industries don't live on LinkedIn. Retail, hospitality, construction, and local services are better reached via email. If your prospects aren't active on LinkedIn, the platform doesn't help.
+
+### 3. Automation Is More Mature
+
+Email automation has 20+ years of tooling behind it. Sequences, A/B testing, domain rotation, warm-up tools — the email infrastructure ecosystem is deep and sophisticated.
+
+LinkedIn automation is catching up but is still more constrained by platform restrictions.
+
+## The Best Approach: Multi-Channel
+
+Top-performing outbound teams in 2026 don't choose one or the other. They use both:
+
+**Sequence:**
+1. Day 1: View LinkedIn profile
+2. Day 2: Send connection request on LinkedIn
+3. Day 3: Send cold email (referencing LinkedIn)
+4. Day 5: Follow up on LinkedIn (if connected) or email
+5. Day 8: Comment on their LinkedIn post
+6. Day 10: Second email follow-up
+7. Day 14: LinkedIn message (if connected) or final email
+
+This multi-channel approach achieves 30-40% response rates — higher than either channel alone.
+
+### Scaling Multi-Channel
+
+The constraint is LinkedIn, not email. To scale multi-channel outreach, you need more LinkedIn accounts. Each account handles one segment:
+
+- 5 LinkedIn accounts × 25 connections/day = 125 new connections/day
+- Pair with email sequences for non-responders
+- Total reach: 3,000+ prospects per month across both channels
+
+Teams source additional LinkedIn accounts from rental platforms like [Klabber](https://klabber.co/catalogue) to scale the LinkedIn side without the months-long account building process.
+
+## Cost Comparison
+
+| Setup | Monthly Cost | Meetings/Month | Cost/Meeting |
+|---|---|---|---|
+| Email only (2 domains + tool) | $200-400 | 10-20 | $20-40 |
+| LinkedIn only (1 account + tool) | $150-200 | 8-12 | $15-25 |
+| LinkedIn × 5 accounts + tool | $600-800 | 40-60 | $13-15 |
+| Multi-channel (5 LinkedIn + email) | $800-1,200 | 60-80 | $13-15 |
+
+Multi-channel with multiple LinkedIn accounts delivers the best cost per meeting and the highest total volume.
+
+## Key Takeaways
+
+- LinkedIn outreach has 3-5x higher response rates than cold email
+- Email offers unlimited scale; LinkedIn is capped by connection limits
+- The best strategy is multi-channel: LinkedIn + email together
+- To scale LinkedIn, run campaigns across multiple accounts
+- Cost per meeting is lowest with multi-account LinkedIn + email
+
+---
+
+*Scale your LinkedIn outreach to match your email volume. [Browse pre-warmed accounts on Klabber](https://klabber.co/catalogue) — from $10/month.*
+`,
+  },
+  {
+    slug: "how-to-warm-up-linkedin-account",
+    title: "How to Warm Up a LinkedIn Account (Step-by-Step Guide)",
+    description: "A day-by-day guide to warming up a new or inactive LinkedIn account safely. What to do, what to avoid, and how long it takes before you can run outreach.",
+    date: "2026-07-15",
+    readTime: "6 min read",
+    category: "Getting Started",
+    content: `
+## Why Warm-Up Matters
+
+LinkedIn monitors new and recently reactivated accounts closely. If you create an account today and start sending 50 connection requests tomorrow, you'll be restricted within hours.
+
+The warm-up process builds trust with LinkedIn's algorithm by gradually increasing activity to look like a real professional using the platform naturally.
+
+## The 30-Day Warm-Up Schedule
+
+### Week 1: Profile Setup (Days 1-7)
+
+**Goal:** Make the account look complete and legitimate.
+
+- **Day 1:** Complete your profile — photo, banner, headline, about section, current role, education
+- **Day 2:** Add 3-5 skills. Join 5-10 relevant LinkedIn groups
+- **Day 3:** Follow 10-15 companies in your industry. Follow 5-10 thought leaders
+- **Day 4:** Connect with 5 people you actually know (colleagues, friends, alumni)
+- **Day 5:** Like and comment on 3-5 posts in your feed
+- **Day 6-7:** Post your first piece of content (share an article with your thoughts, or a text post about your industry)
+
+**Connection requests this week:** 5-10 total (only people you know)
+
+### Week 2: Gentle Expansion (Days 8-14)
+
+**Goal:** Start building connections beyond your immediate network.
+
+- Connect with 10-15 people per day — 2nd-degree connections, alumni, industry peers
+- Like and comment on 5-10 posts daily
+- View 20-30 profiles daily (let people see your profile visits)
+- Post or share content 2-3 times this week
+- Respond to any messages promptly
+
+**Connection requests this week:** 10-15 per day = 50-75 total
+
+### Week 3: Moderate Activity (Days 15-21)
+
+**Goal:** Approach normal professional activity levels.
+
+- Connect with 15-20 people per day
+- Include some targeted prospects (not just random connections)
+- Engage with 10+ posts daily
+- View 40-50 profiles daily
+- Send 5-10 messages to existing connections (not sales pitches — genuine conversations)
+
+**Connection requests this week:** 15-20 per day = 75-100 total
+
+### Week 4: Full Operation (Days 22-30)
+
+**Goal:** Reach sustainable outreach levels.
+
+- Connect with 20-25 people per day (your long-term safe limit)
+- Start including personalised notes with connection requests
+- Begin messaging new connections with your outreach sequence
+- Maintain daily engagement (likes, comments, profile views)
+- Post content 2-3 times per week
+
+**Connection requests this week:** 20-25 per day = 100-125 total
+
+## What To Avoid During Warm-Up
+
+**Don't:**
+- Send connection requests without a profile photo — instant red flag
+- Use automation tools in the first 2 weeks
+- Send identical messages to multiple people
+- Connect with people in completely unrelated industries
+- Be active outside normal working hours (midnight-6am)
+- Skip days entirely then blast activity the next day
+- Send more than 5 messages per day in week 1
+
+**Do:**
+- Keep sessions to 30-60 minutes in weeks 1-2
+- Use the mobile app occasionally (LinkedIn sees multi-device usage as a trust signal)
+- Accept connection requests from others
+- Respond to messages within 24 hours
+
+## The Shortcut: Pre-Warmed Accounts
+
+The 30-day warm-up is necessary for new accounts. But there's an alternative: **rent an account that's already warmed.**
+
+Pre-warmed accounts from platforms like [Klabber](https://klabber.co/catalogue) skip this entire process because they're real LinkedIn accounts with:
+
+- 1-15+ years of history
+- 500-30,000+ existing connections
+- Established activity patterns
+- Trust already built with LinkedIn's algorithm
+
+You can start outreach on day one — no warm-up needed.
+
+## Signs Your Account Is Properly Warmed
+
+You'll know warm-up is complete when:
+
+- Connection request acceptance rate is above 30%
+- You can send 25 connection requests per day without warnings
+- Your "People You May Know" suggestions are relevant to your industry
+- You're appearing in search results for your skills/keywords
+- You're getting organic profile views (5-10+ per day)
+
+## Key Takeaways
+
+- New accounts need 3-4 weeks of gradual warm-up
+- Start with 5-10 connections per day, build to 20-25
+- Engagement (likes, comments, posts) is as important as connection requests
+- Never use automation tools during the warm-up phase
+- Pre-warmed rental accounts skip the warm-up entirely
+
+---
+
+*Skip the warm-up. [Browse pre-warmed LinkedIn accounts on Klabber](https://klabber.co/catalogue) — aged, connected, and ready for outreach from day one.*
+`,
+  },
+  {
+    slug: "linkedin-account-sharing-safe-2026",
+    title: "LinkedIn Account Sharing: Is It Safe in 2026?",
+    description: "Can you share a LinkedIn account without getting banned? How anti-detect browsers work, what LinkedIn detects, and the technology that makes account sharing safe.",
+    date: "2026-08-01",
+    readTime: "7 min read",
+    category: "LinkedIn Compliance",
+    content: `
+## The Short Answer
+
+LinkedIn account sharing is safe **if you use the right technology**. Without it, you'll get caught. Here's why and how.
+
+## What LinkedIn Detects
+
+LinkedIn's security system analyses multiple signals to detect unusual account activity:
+
+### Browser Fingerprinting
+
+Your browser has a unique fingerprint — a combination of:
+
+- Screen resolution and colour depth
+- Installed browser plugins and fonts
+- GPU and WebGL rendering characteristics
+- Timezone and language settings
+- Canvas and audio fingerprints
+- Navigator properties (platform, user agent, etc.)
+
+If two sessions on the same LinkedIn account share the same browser fingerprint, LinkedIn knows it's the same person. But if the same account is accessed from two **identical** fingerprints, that's a red flag — it suggests automation or sharing.
+
+### IP Address Analysis
+
+LinkedIn tracks:
+
+- IP address of each session
+- ISP type (residential vs data centre)
+- Geographic location
+- How many LinkedIn accounts access from the same IP
+
+If an account is accessed from a residential IP in London and then a data centre IP in Virginia within minutes, that's flagged.
+
+### Session Behaviour
+
+LinkedIn monitors how sessions interact:
+
+- Simultaneous active sessions from different locations
+- Session switching patterns
+- Activity patterns that don't match human behaviour
+
+## How Anti-Detect Browsers Make Sharing Safe
+
+Anti-detect browsers like GoLogin solve every detection vector:
+
+### Unique Fingerprints
+
+GoLogin creates a completely separate browser profile for each LinkedIn account. Each profile has:
+
+- Its own screen resolution
+- Its own set of fonts
+- Its own GPU fingerprint
+- Its own timezone and language
+- Its own canvas and WebGL rendering
+- Its own user agent
+
+To LinkedIn, each profile looks like a completely different computer. There's no fingerprint overlap between accounts.
+
+### Dedicated Proxies
+
+Each browser profile connects through its own residential proxy:
+
+- Account 1 → Residential IP in Chicago
+- Account 2 → Residential IP in London
+- Account 3 → Residential IP in Sydney
+
+LinkedIn sees three different people in three different cities on three different computers. Because that's exactly what the fingerprints and IPs show.
+
+### Isolated Sessions
+
+Each GoLogin profile has its own:
+
+- Cookie storage
+- Local storage
+- Cache
+- Session data
+
+Nothing is shared between profiles. They're completely isolated, as if they're running on separate physical machines.
+
+## The 0% Restriction Rate Claim
+
+Platforms like [Klabber](https://klabber.co/catalogue) claim a 0% restriction rate on shared accounts. How?
+
+1. **Pre-warmed accounts:** Every account has an established history and connection network. LinkedIn trusts aged accounts more.
+
+2. **GoLogin integration:** Each rental comes with a pre-configured GoLogin profile — correct fingerprint, dedicated proxy, proper timezone matching the account's location.
+
+3. **Activity limits enforced:** The platform sets maximum daily limits per account. You physically can't exceed them.
+
+4. **Profile integrity:** Account owners' information stays unchanged. No profile edits, no suspicious changes.
+
+## What About LinkedIn's Terms of Service?
+
+LinkedIn's Terms of Service technically prohibit account sharing. Section 8.2 states that accounts are for "individual use." This is true for virtually every social media platform.
+
+In practice:
+
+- LinkedIn doesn't actively scan for GoLogin/anti-detect browser usage
+- Their detection is focused on **behaviour patterns**, not Terms of Service violations
+- If each session looks like a unique, well-behaved user, LinkedIn has no signal to act on
+- The primary enforcement mechanism is automated AI detection, not manual review
+
+The risk is theoretical, not practical — as long as the technology works correctly.
+
+## Best Practices for Safe Account Sharing
+
+1. **Always use an anti-detect browser.** Never access a shared account from your regular Chrome browser.
+
+2. **Use residential proxies only.** Data centre IPs are detected and blocked immediately.
+
+3. **Match the proxy location to the account.** If the account is based in "New York, NY," use a proxy in the New York area.
+
+4. **Stay within daily activity limits.** 20-25 connection requests, 50-75 messages, maximum per day.
+
+5. **Don't modify the profile.** Leave the name, photo, headline, and experience unchanged.
+
+6. **Stagger sessions.** If multiple people access the same account, avoid overlapping sessions. One person at a time is safer than simultaneous access.
+
+7. **Keep normal hours.** Access the account during business hours in its timezone. Don't browse at 3am.
+
+## Key Takeaways
+
+- LinkedIn detects sharing through browser fingerprints, IP analysis, and behaviour patterns
+- Anti-detect browsers (GoLogin) create unique, isolated environments per account
+- Each session looks like a different person on a different device in a different location
+- With proper technology, account sharing has a 0% restriction rate
+- The key is: unique fingerprints, residential proxies, activity limits, and no profile changes
+
+---
+
+*Safe LinkedIn account sharing starts with the right setup. [Browse accounts on Klabber](https://klabber.co/catalogue) — each includes a pre-configured GoLogin profile with dedicated residential proxy.*
+`,
+  },
+  {
+    slug: "gologin-linkedin-setup-guide",
+    title: "GoLogin for LinkedIn: Complete Setup Guide",
+    description: "How to set up GoLogin anti-detect browser for safe LinkedIn outreach. Step-by-step configuration for fingerprints, proxies, and multi-account management.",
+    date: "2026-08-15",
+    readTime: "6 min read",
+    category: "Tools",
+    content: `
+## What Is GoLogin?
+
+GoLogin is an anti-detect browser that lets you create multiple, isolated browser profiles — each with a unique digital fingerprint. For LinkedIn, this means you can safely manage multiple accounts without LinkedIn detecting that they're being used from the same computer.
+
+Think of it as running 10 different laptops, each in a different city, all from your single machine.
+
+## Why You Need GoLogin for LinkedIn
+
+Without GoLogin (or a similar anti-detect browser), managing multiple LinkedIn accounts is risky:
+
+- **Regular Chrome:** All accounts share the same browser fingerprint. LinkedIn detects this immediately.
+- **Incognito mode:** Doesn't change your fingerprint. LinkedIn still sees the same browser.
+- **Multiple Chrome profiles:** Share some fingerprint data. Better than nothing, but not safe for serious use.
+- **GoLogin:** Each profile has a completely unique fingerprint. LinkedIn sees each as a separate device.
+
+## Step-by-Step Setup
+
+### Step 1: Create a GoLogin Account
+
+Sign up at GoLogin's website. Plans range from free (3 profiles) to paid ($49-$199/month for 100-2,000 profiles).
+
+For LinkedIn outreach:
+- **3-5 accounts:** Free tier works
+- **5-20 accounts:** Professional plan ($49/month)
+- **20+ accounts:** Business plan ($99/month)
+
+### Step 2: Create a Browser Profile
+
+For each LinkedIn account, create a new browser profile:
+
+1. Click "New Profile"
+2. Name it (e.g., "LinkedIn - Tech SDR - US East")
+3. **Operating System:** Choose one that matches natural usage (Windows 10/11 or macOS)
+4. **Browser version:** Keep it current — don't use outdated versions
+
+### Step 3: Configure the Fingerprint
+
+This is the critical part. For each profile, GoLogin generates a unique:
+
+- **User Agent:** Identifies the browser and OS
+- **Screen Resolution:** 1920×1080, 2560×1440, etc.
+- **WebGL Vendor/Renderer:** GPU identification
+- **Canvas Hash:** A unique drawing output
+- **Audio Context:** Audio processing fingerprint
+- **Fonts:** Installed system fonts
+- **Timezone:** Must match your proxy location
+
+**Important:** Let GoLogin auto-generate these. Don't manually set them unless you know what you're doing. The auto-generated fingerprints are designed to look natural.
+
+### Step 4: Add a Proxy
+
+Each profile needs its own proxy (IP address):
+
+1. In the profile settings, go to "Proxy"
+2. Select proxy type: **HTTP** or **SOCKS5**
+3. Enter your proxy details: host, port, username, password
+4. **Always use residential proxies** — never data centre
+
+**Where to get proxies:**
+- Bright Data (premium, reliable)
+- Smartproxy (good value)
+- Oxylabs (enterprise-grade)
+- SOAX (sticky residential sessions)
+
+**Matching location:** If the LinkedIn account says "Chicago, IL," use a proxy in Chicago or at least in Illinois. Location mismatch is a red flag.
+
+### Step 5: Set the Timezone
+
+Match the timezone to the proxy location:
+
+- Chicago proxy → Central Time (UTC-6)
+- London proxy → GMT (UTC+0)
+- Sydney proxy → AEST (UTC+10)
+
+GoLogin can auto-detect this from the proxy, but verify it's correct.
+
+### Step 6: Launch and Log In
+
+1. Click "Run" on your profile
+2. A browser window opens with the unique fingerprint
+3. Navigate to linkedin.com
+4. Log in with the account credentials
+5. Save the session (GoLogin remembers cookies)
+
+Next time you launch this profile, you'll be logged in automatically.
+
+## Managing Multiple Profiles
+
+### Organisation
+
+Name profiles clearly:
+- "LinkedIn - [Account Name] - [Segment]"
+- "LinkedIn - Sarah Chen - SaaS CTOs"
+- "LinkedIn - James Park - UK Finance"
+
+### Tags
+
+Use GoLogin's tag feature to group profiles:
+- By campaign: "Q2 Campaign," "ABM Enterprise"
+- By SDR: "Team - Alex," "Team - Maria"
+- By status: "Active," "Warming Up," "Paused"
+
+### Session Management
+
+- Don't run more than 5-10 profiles simultaneously (depends on your machine's RAM)
+- Close profiles when not in use
+- Each profile uses ~500MB-1GB of RAM
+
+## The Easier Path: Pre-Configured Profiles
+
+Setting up GoLogin profiles correctly — fingerprints, proxies, timezones — requires attention to detail. Get one setting wrong, and LinkedIn may detect something unusual.
+
+[Klabber](https://klabber.co/catalogue) provides LinkedIn accounts with pre-configured GoLogin profiles. Each rental includes:
+
+- A GoLogin profile with correct fingerprint settings
+- A dedicated residential proxy in the right location
+- Timezone and language matching
+- Saved session with the account already logged in
+
+You launch the profile and start working — no configuration needed.
+
+## Key Takeaways
+
+- GoLogin creates unique browser fingerprints for each LinkedIn account
+- Each profile needs its own residential proxy (matching the account's location)
+- Let GoLogin auto-generate fingerprints for the most natural-looking results
+- Always match timezone to proxy location
+- Name and tag profiles for easy management
+- Pre-configured profiles from Klabber skip the setup entirely
+
+---
+
+*Skip the GoLogin setup. [Browse accounts on Klabber](https://klabber.co/catalogue) — each comes with a pre-configured browser profile ready to launch.*
+`,
+  },
 ];
 
 export function getBlogPost(slug: string): BlogPost | undefined {
-  return blogPosts.find((p) => p.slug === slug);
+  const today = new Date().toISOString().split("T")[0];
+  const post = blogPosts.find((p) => p.slug === slug);
+  if (post && post.date <= today) return post;
+  return undefined;
 }
 
 export function getAllBlogPosts(): BlogPost[] {
-  return blogPosts.sort((a, b) => b.date.localeCompare(a.date));
+  const today = new Date().toISOString().split("T")[0];
+  return blogPosts
+    .filter((p) => p.date <= today)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export function getAllBlogSlugs(): string[] {
+  return blogPosts.map((p) => p.slug);
 }
