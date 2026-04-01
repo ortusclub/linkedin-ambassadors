@@ -33,7 +33,7 @@ export default function FAQsPage() {
         .faq-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
         .faq-card{padding:28px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);transition:all .2s}
         .faq-card:hover{border-color:var(--blue);box-shadow:0 8px 24px rgba(10,102,194,0.06);transform:translateY(-2px)}
-        .faq-card h4{font-size:16px;margin-bottom:10px;font-weight:600;color:var(--text)}
+        .faq-card h3{font-size:16px;margin-bottom:10px;font-weight:600;color:var(--text)}
         .faq-card p{font-size:14px;color:var(--text-mid);line-height:1.7}
         .faq-cta{text-align:center;margin-top:64px}
         .faq-cta p{font-size:16px;color:var(--text-mid);margin-bottom:20px}
@@ -48,41 +48,41 @@ export default function FAQsPage() {
       <div className="faq-page">
         <div className="faq-header">
           <div className="faq-label">Frequently asked questions</div>
-          <h1 className="faq-title">Everything you need to know</h1>
+          <h1 className="faq-title">LinkedIn Account Rental FAQ</h1>
           <p className="faq-subtitle">Got questions about renting or sharing LinkedIn accounts? We&apos;ve got answers.</p>
         </div>
 
         <div className="faq-grid">
           <div className="faq-card">
-            <h4>What is Klabber?</h4>
+            <h3>What is Klabber?</h3>
             <p>Klabber is a marketplace where growth teams can rent verified LinkedIn accounts for outreach, and professionals can earn passive income by sharing accounts they no longer actively use.</p>
           </div>
           <div className="faq-card">
-            <h4>Will my LinkedIn account get restricted?</h4>
+            <h3>Will my LinkedIn account get restricted?</h3>
             <p>No. Every session runs through GoLogin&apos;s anti-detect browser with dedicated proxies, fingerprint isolation, and shared cookie environments. We&apos;ve maintained a 0% restriction rate across all accounts on the platform.</p>
           </div>
           <div className="faq-card">
-            <h4>Can I still use my account while it&apos;s rented?</h4>
+            <h3>Can I still use my account while it&apos;s rented?</h3>
             <p>Yes. GoLogin allows simultaneous access, so you and the renter can use the account at the same time without conflicts or session clashes.</p>
           </div>
           <div className="faq-card">
-            <h4>How much can I earn as an ambassador?</h4>
+            <h3>How much can I earn as an ambassador?</h3>
             <p>Ambassadors earn between $10 and $500 per month per account, depending on connection count, industry, and account age. Payments are guaranteed on the 1st of every month.</p>
           </div>
           <div className="faq-card">
-            <h4>How are renters charged?</h4>
+            <h3>How are renters charged?</h3>
             <p>Renters pay a monthly subscription per account. You can pay with a credit card via Stripe or with USDC. Cancel anytime — no long-term contracts.</p>
           </div>
           <div className="faq-card">
-            <h4>Will renters change my profile information?</h4>
+            <h3>Will renters change my profile information?</h3>
             <p>No. Your name, photo, headline, and profile content stay exactly as they are. Renters only use the account for connection requests and messaging — no profile edits allowed.</p>
           </div>
           <div className="faq-card">
-            <h4>What tools work with rented accounts?</h4>
+            <h3>What tools work with rented accounts?</h3>
             <p>Any Chrome extension or LinkedIn automation tool works — including Dripify, Expandi, Linked Helper, and others. The GoLogin browser session supports all standard extensions.</p>
           </div>
           <div className="faq-card">
-            <h4>How do ambassador payouts work?</h4>
+            <h3>How do ambassador payouts work?</h3>
             <p>Payouts are sent on the 1st of every month via USDC (crypto) by default. If you prefer bank transfer, PayPal, or Wise, just let us know during onboarding.</p>
           </div>
         </div>

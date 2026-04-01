@@ -1,8 +1,13 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, formatCurrency } from "@/lib/utils";
+import { DM_Sans, Instrument_Sans } from "next/font/google";
+
+const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-dm-sans" });
+const instrumentSans = Instrument_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-instrument-sans" });
 
 const AVATAR_COLORS = [
   "linear-gradient(135deg,#0A66C2,#004182)",
@@ -52,9 +57,9 @@ export default async function HomePage() {
           --accent:#1D1B16;--radius:10px;--radius-lg:16px;--radius-xl:24px;
         }
         html{scroll-behavior:smooth}
-        body{font-family:'DM Sans','Instrument Sans',system-ui,sans-serif;color:var(--text);background:var(--bg) !important;-webkit-font-smoothing:antialiased;overflow-x:hidden;max-width:100vw}
+        body{font-family:var(--font-dm-sans),'DM Sans',system-ui,sans-serif;color:var(--text);background:var(--bg) !important;-webkit-font-smoothing:antialiased;overflow-x:hidden;max-width:100vw}
         .kl-page{overflow-x:hidden}
-        .kl-page h1,.kl-page h2,.kl-page h3,.kl-page h4,.kl-page h5{font-family:'Instrument Sans','DM Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
+        .kl-page h1,.kl-page h2,.kl-page h3,.kl-page h4,.kl-page h5{font-family:var(--font-instrument-sans),'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
         .nav-cta{padding:8px 20px;background:var(--accent);color:#fff !important;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;transition:transform .15s,box-shadow .15s}
         .nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
         .hero{min-height:calc(100vh - 64px);display:grid;grid-template-columns:1fr 1fr;position:relative}
@@ -76,7 +81,7 @@ export default async function HomePage() {
         .hero-video-btn:hover .hero-video-play{background:rgba(255,255,255,0.3);transform:scale(1.08)}
         .hero-video-text{font-size:14px;font-weight:500;color:rgba(255,255,255,0.8);font-family:'DM Sans',system-ui,sans-serif}
         .hero-stats{display:flex;gap:32px;margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.15)}
-        .hero-stat-num{font-size:28px;font-weight:700;font-family:'Instrument Sans',sans-serif;letter-spacing:-0.03em}
+        .hero-stat-num{font-size:28px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;letter-spacing:-0.03em}
         .hero-stat-label{font-size:12px;opacity:0.6;margin-top:2px}
         .hero-divider{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10;width:56px;height:56px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--text-mid);box-shadow:0 4px 24px rgba(0,0,0,0.1)}
         .proof-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:20px 0}
@@ -85,7 +90,7 @@ export default async function HomePage() {
         .proof-logo{font-size:13px;font-weight:600;color:var(--text-light);letter-spacing:-0.01em;opacity:0.5}
         .proof-stats{display:flex;gap:40px}
         .proof-stat{text-align:center}
-        .proof-stat-num{font-size:20px;font-weight:700;font-family:'Instrument Sans',sans-serif;color:var(--text);letter-spacing:-0.02em}
+        .proof-stat-num{font-size:20px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;color:var(--text);letter-spacing:-0.02em}
         .proof-stat-label{font-size:11px;color:var(--text-light);margin-top:2px}
         .kl-section{padding:100px 40px;max-width:1200px;margin:0 auto}
         .section-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
@@ -111,14 +116,14 @@ export default async function HomePage() {
         .account-role{font-size:13px;color:var(--text-mid)}
         .account-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
         .account-meta-item{background:var(--surface-alt);padding:8px 12px;border-radius:8px}
-        .account-meta-item .val{font-size:15px;font-weight:600;font-family:'Instrument Sans',sans-serif}
+        .account-meta-item .val{font-size:15px;font-weight:600;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif}
         .account-meta-item .lbl{font-size:11px;color:var(--text-light);margin-top:1px}
         .account-tags{display:flex;gap:6px;flex-wrap:wrap}
         .account-tag{font-size:11px;padding:4px 10px;border-radius:100px;background:var(--blue-light);color:var(--blue);font-weight:500}
         .account-tag.green{background:var(--green-light);color:var(--green-dark)}
         .account-badge{position:absolute;top:12px;right:12px;font-size:10px;font-weight:600;padding:4px 10px;border-radius:100px;background:var(--green-light);color:var(--green-dark)}
         .account-price{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:baseline;justify-content:space-between}
-        .account-price .price{font-size:22px;font-weight:700;font-family:'Instrument Sans',sans-serif;letter-spacing:-0.02em}
+        .account-price .price{font-size:22px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;letter-spacing:-0.02em}
         .account-price .period{font-size:13px;color:var(--text-light)}
         .account-price .rent-btn{padding:8px 18px;border-radius:var(--radius);background:var(--blue);color:#fff;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s}
         .account-price .rent-btn:hover{background:var(--blue-dark);transform:translateY(-1px)}
@@ -154,7 +159,7 @@ export default async function HomePage() {
         .li-role{font-size:12px;color:var(--text-mid)}
         .li-stats-row{display:flex;gap:16px}
         .li-stat{display:flex;flex-direction:column;align-items:center;flex:1;padding:8px;background:var(--surface);border-radius:8px}
-        .li-stat-num{font-size:16px;font-weight:700;font-family:'Instrument Sans',sans-serif}
+        .li-stat-num{font-size:16px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif}
         .li-stat-lbl{font-size:10px;color:var(--text-light)}
         .browser-shield{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--green);font-weight:500;padding:10px 14px;background:var(--green-light);border-radius:8px}
         .ambassador-section{background:linear-gradient(160deg,#0A2618 0%,#0A4D30 40%,#00B85C 100%);color:#fff;border-radius:var(--radius-xl);margin:0 40px;padding:80px 60px;position:relative;overflow:hidden}
@@ -166,7 +171,7 @@ export default async function HomePage() {
         .earn-card{padding:28px 24px;border-radius:var(--radius-lg);background:rgba(255,255,255,0.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1)}
         .earn-card h4{font-size:16px;margin-bottom:6px;font-weight:600}
         .earn-card p{font-size:13px;opacity:0.7;line-height:1.5}
-        .earn-card .earn-amount{font-size:32px;font-weight:700;font-family:'Instrument Sans',sans-serif;letter-spacing:-0.03em;margin-bottom:4px}
+        .earn-card .earn-amount{font-size:32px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;letter-spacing:-0.03em;margin-bottom:4px}
         .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
         .comparison-table{border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface)}
         .comparison-table .row{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);font-size:14px}
@@ -226,18 +231,13 @@ export default async function HomePage() {
         }
       `}</style>
 
-      {/* Google Fonts */}
-      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
-
-      <div className="kl-page">
+      <div className={`kl-page ${dmSans.variable} ${instrumentSans.variable}`}>
         {/* HERO SPLIT */}
         <section className="hero">
           <div className="hero-side hero-rent">
             <div className="hero-label fade-up">For growth teams</div>
             <h1 className="hero-title fade-up d1">Scale LinkedIn outreach without the limits</h1>
+            {/* Single H1 on the page — the second hero uses h2 for proper heading hierarchy */}
             <p className="hero-desc fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories. Run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
             <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
               <Link href="/catalogue" className="hero-btn hero-btn-solid">Browse Available Accounts →</Link>
@@ -257,7 +257,7 @@ export default async function HomePage() {
           <div className="hero-divider">or</div>
           <div className="hero-side hero-earn">
             <div className="hero-label fade-up">For professionals</div>
-            <h1 className="hero-title fade-up d1">Earn $10–$500/mo from your LinkedIn</h1>
+            <h2 className="hero-title fade-up d1">Earn $10–$500/mo from your LinkedIn</h2>
             <p className="hero-desc fade-up d2">Every LinkedIn profile has value — from brand new to well-established. List yours on Klabber and get paid every month, guaranteed, whether we find a renter or not.</p>
             <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
               <Link href="/become-ambassador" className="hero-btn hero-btn-white">Share Your Accounts →</Link>
@@ -502,7 +502,7 @@ export default async function HomePage() {
                             <div style={{display:'flex',alignItems:'center',gap:12}}>
                               <div style={{width:36,height:36,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden',background:getAvatarColor(a.linkedinName)}}>
                                 {a.profilePhotoUrl ? (
-                                  <img src={a.profilePhotoUrl} alt={displayName} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                                  <Image src={a.profilePhotoUrl} alt={displayName} width={36} height={36} style={{objectFit:'cover'}} loading="lazy" />
                                 ) : initials}
                               </div>
                               <div>

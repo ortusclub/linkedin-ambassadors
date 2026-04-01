@@ -1,9 +1,11 @@
 import type { MetadataRoute } from "next";
+import { prisma } from "@/lib/prisma";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://klabber.co";
 
-  return [
+  // Static pages
+  const staticPages: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
       lastModified: new Date(),
@@ -29,4 +31,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
   ];
+
+  // Dynamic account pages
+  let accountPages: MetadataRoute.Sitemap = [];
+  try {
+    const accounts = await prisma.linkedInAccount.findMany({
+      where: { status: "available", listed: true },
+      select: { id: true, updatedAt: true },
+    });
+
+    accountPages = accounts.map((account) => ({
+      url: `${baseUrl}/account/${account.id}`,
+      lastModified: account.updatedAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    }));
+  } catch {
+    // DB not available — return static pages only
+  }
+
+  return [...staticPages, ...accountPages];
 }
