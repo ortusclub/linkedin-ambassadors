@@ -88,6 +88,38 @@ export function JsonLd() {
           text: "Yes. If you have a LinkedIn account you're not actively using, you can list it as an Ambassador and earn $10-$500 per month depending on your account's connections, age, and features.",
         },
       },
+      {
+        "@type": "Question",
+        name: "Can I still use my account while it's rented?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. GoLogin allows simultaneous access, so you and the renter can use the account at the same time without conflicts or session clashes.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How are renters charged?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Renters pay a monthly subscription per account. You can pay with a credit card via Stripe or with USDC cryptocurrency. Cancel anytime — no long-term contracts required.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Will renters change my profile information?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "No. Your name, photo, headline, and profile content stay exactly as they are. Renters only use the account for connection requests and messaging — no profile edits allowed.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What tools work with rented accounts?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Any Chrome extension or LinkedIn automation tool works — including Dripify, Expandi, Linked Helper, and others. The GoLogin browser session supports all standard extensions.",
+        },
+      },
     ],
   };
 
