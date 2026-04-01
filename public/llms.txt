@@ -1,0 +1,54 @@
+# Klabber — LinkedIn Account Rental Marketplace
+
+> Klabber is a marketplace where growth teams can rent premium, pre-warmed LinkedIn accounts for outreach and lead generation campaigns.
+
+## What is Klabber?
+
+Klabber connects two groups:
+- **Growth teams** who need LinkedIn accounts for outreach, lead generation, and networking campaigns
+- **Professionals (Ambassadors)** who have LinkedIn accounts they're not actively using and want to earn passive income
+
+## How It Works
+
+### For Renters (Growth Teams)
+1. Browse the catalogue of available LinkedIn accounts at klabber.co/catalogue
+2. Filter by industry, connection count, Sales Navigator status, and account age
+3. Select and rent accounts starting from $10/month
+4. Access accounts instantly via GoLogin anti-detect browser
+5. Run outreach campaigns safely — 0% restriction rate
+
+### For Ambassadors (Account Owners)
+1. Visit klabber.co/become-ambassador
+2. Submit your LinkedIn profile for valuation
+3. Earn $10-$500/month depending on connections, age, and features
+4. Get paid via USDC, PayPal, Wise, or bank transfer
+
+## Pricing
+
+- Basic accounts (500-1,000 connections): From $10/month
+- Standard accounts (1,000-5,000 connections): From $50/month
+- Premium accounts (5,000+ connections, Sales Navigator): From $100-500/month
+- All plans include GoLogin browser access and 24/7 support
+
+## Key Features
+
+- Pre-warmed, verified LinkedIn accounts ready for outreach
+- GoLogin anti-detect browser technology (0% restriction rate)
+- Instant access after rental
+- Cancel anytime — no long-term commitments
+- USDC and Stripe payment options
+- 24/7 Telegram support
+
+## Contact
+
+- Website: https://klabber.co
+- Support: https://t.me/klabber_support_bot
+- Email: support@klabber.co
+- Ambassador inquiries: ambassadors@klabber.co
+
+## Pages
+
+- Homepage: https://klabber.co
+- Browse Accounts: https://klabber.co/catalogue
+- Become an Ambassador: https://klabber.co/become-ambassador
+- FAQs: https://klabber.co/faqs

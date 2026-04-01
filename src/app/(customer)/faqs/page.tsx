@@ -1,4 +1,18 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "FAQs — LinkedIn Account Rental Questions Answered",
+  description:
+    "Common questions about renting LinkedIn accounts on Klabber. Learn about safety, pricing, restrictions, simultaneous use, payouts, and more.",
+  alternates: { canonical: "/faqs" },
+  openGraph: {
+    title: "Frequently Asked Questions | Klabber",
+    description:
+      "Everything you need to know about renting LinkedIn accounts safely and earning as an Ambassador.",
+    url: "https://klabber.co/faqs",
+  },
+};
 
 export default function FAQsPage() {
   return (

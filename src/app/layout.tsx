@@ -2,15 +2,73 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
+import { JsonLd } from "@/components/seo/json-ld";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Klabber — Rent Premium LinkedIn Accounts",
+  title: {
+    default: "Klabber — Rent Premium LinkedIn Accounts for Outreach",
+    template: "%s | Klabber",
+  },
   description:
-    "Browse, select, and rent pre-configured LinkedIn accounts for outreach, lead gen, and networking. Instant access, cancel anytime.",
+    "Rent pre-warmed, verified LinkedIn accounts for outreach, lead generation, and networking. Instant access via GoLogin browser. Cancel anytime. From $10/month.",
+  keywords: [
+    "rent LinkedIn account",
+    "LinkedIn account rental",
+    "LinkedIn outreach",
+    "LinkedIn lead generation",
+    "buy LinkedIn accounts",
+    "LinkedIn account marketplace",
+    "GoLogin LinkedIn",
+    "LinkedIn automation",
+    "B2B outreach",
+    "sales prospecting LinkedIn",
+  ],
+  authors: [{ name: "Klabber" }],
+  creator: "Klabber",
+  publisher: "Klabber",
+  metadataBase: new URL("https://klabber.co"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://klabber.co",
+    siteName: "Klabber",
+    title: "Klabber — Rent Premium LinkedIn Accounts for Outreach",
+    description:
+      "Rent pre-warmed, verified LinkedIn accounts for outreach and lead generation. Instant access, cancel anytime. From $10/month.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Klabber - Rent Premium LinkedIn Accounts",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Klabber — Rent Premium LinkedIn Accounts",
+    description:
+      "Rent pre-warmed LinkedIn accounts for outreach and lead gen. Instant access, cancel anytime.",
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: "/favicon.svg",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 
@@ -22,6 +80,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased bg-gray-50`}>
+        <JsonLd />
         <Navbar />
         <main>{children}</main>
         <a
