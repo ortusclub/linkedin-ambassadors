@@ -51,8 +51,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB not available — return static pages only
   }
 
-  // Blog posts
-  const blogPages: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
+  // Blog posts (include all — even scheduled ones for pre-indexing)
+  const { blogPosts: allPosts } = await import("@/lib/blog-posts");
+  const blogPages: MetadataRoute.Sitemap = allPosts.map((post) => ({
     url: `${baseUrl}/blog/${post.slug}`,
     lastModified: new Date(post.date),
     changeFrequency: "monthly" as const,
