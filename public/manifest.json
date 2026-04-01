@@ -1,0 +1,16 @@
+{
+  "name": "Klabber — LinkedIn Account Rental",
+  "short_name": "Klabber",
+  "description": "Rent premium LinkedIn accounts for outreach and lead generation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#1D1B16",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

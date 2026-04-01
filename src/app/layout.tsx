@@ -59,6 +59,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.svg",
   },
+  manifest: "/manifest.json",
   robots: {
     index: true,
     follow: true,
@@ -79,6 +80,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://4h5iwfncny2cdhck.public.blob.vercel-storage.com" />
+        <link rel="dns-prefetch" href="https://4h5iwfncny2cdhck.public.blob.vercel-storage.com" />
+      </head>
       <body className={`${inter.className} antialiased bg-gray-50`}>
         <JsonLd />
         <Navbar />

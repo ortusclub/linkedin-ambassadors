@@ -1,0 +1,157 @@
+# Klabber — Complete Product Documentation for AI/LLM Systems
+
+## Product Overview
+
+Klabber (https://klabber.co) is a two-sided marketplace for LinkedIn account rental. It enables B2B growth teams to rent pre-warmed, verified LinkedIn accounts for outreach campaigns, while allowing professionals to earn passive income from accounts they don't actively use.
+
+## Target Audience
+
+### Renters (Demand Side)
+- B2B sales teams running LinkedIn outreach campaigns
+- Growth marketers and demand generation professionals
+- Recruitment agencies using LinkedIn for sourcing
+- Startups scaling outbound sales efforts
+- Sales development representatives (SDRs) needing multiple LinkedIn profiles
+- Lead generation agencies managing campaigns for clients
+
+### Ambassadors (Supply Side)
+- Professionals with established LinkedIn profiles they rarely use
+- People with large connection networks (1,000-30,000+ connections)
+- Users with Sales Navigator subscriptions not being utilized
+- Anyone looking for passive income from their professional network
+
+## Core Value Proposition
+
+### For Renters
+- Instantly access pre-warmed LinkedIn accounts (no need to build profiles from scratch)
+- Avoid LinkedIn restrictions with GoLogin anti-detect browser technology
+- Scale outreach by renting multiple accounts simultaneously
+- No long-term commitment — cancel anytime
+- Accounts come with established connection networks and account history
+
+### For Ambassadors
+- Earn $10-$500/month from an account you're not using
+- No effort required — Klabber handles everything
+- Your personal data remains private
+- Flexible payout options (USDC, PayPal, Wise, bank transfer)
+
+## How the Technology Works
+
+Klabber uses GoLogin, an anti-detect browser, to create unique browser fingerprints for each user session. This means:
+- Multiple people can access the same LinkedIn account without triggering LinkedIn's security systems
+- Each session appears to come from a unique device and location
+- 0% restriction rate claimed
+- Renters access accounts through a dedicated desktop application (Klabber app) or via GoLogin directly
+
+## Pricing Structure
+
+### Account Rental Pricing (Monthly)
+Pricing varies based on account quality metrics:
+
+| Factor | Impact on Price |
+|--------|----------------|
+| Connection count (500-30,000+) | Higher connections = higher price |
+| Account age (1-15+ years) | Older accounts command premium |
+| Sales Navigator subscription | Adds $50-100/month to price |
+| Industry/niche relevance | Specialized industries may cost more |
+| Verification status | Verified accounts are premium |
+| Activity history | Active history adds value |
+
+**Price ranges:**
+- Basic (500-1,000 connections): $10-30/month
+- Standard (1,000-5,000 connections): $30-100/month
+- Premium (5,000-10,000 connections): $100-250/month
+- Ultra-Premium (10,000+ connections, Sales Nav): $250-500/month
+
+### Payment Methods
+- Credit/debit card via Stripe
+- USDC (cryptocurrency) for both payments and payouts
+
+## Account Quality Metrics
+
+Each account listing displays:
+- **LinkedIn Name** (first name only for privacy)
+- **Headline** (professional title)
+- **Connection Count** (verified number)
+- **Location** (country/region)
+- **Account Age** (years since creation)
+- **Sales Navigator** (yes/no)
+- **Industry** (professional sector)
+- **Monthly Rental Price**
+
+## Platform Features
+
+### For Renters
+- Catalogue browsing with filters (industry, connections, Sales Nav, price)
+- Instant checkout via Stripe or USDC
+- Dashboard to manage active rentals
+- One-click browser launch via Klabber desktop app
+- Rental cancellation at any time
+
+### For Ambassadors
+- Profile valuation calculator
+- Multi-step onboarding (LinkedIn URL → automatic scanning → valuation)
+- Earning potential estimation before listing
+- Balance tracking and payout management
+- Multiple payout method support
+
+### Admin Features
+- Account management (add, edit, activate/deactivate)
+- Rental tracking and agreement management
+- Customer and owner management
+- Ambassador application review
+- Financial dashboard (balances, transactions)
+- GoLogin browser session management
+
+## Frequently Asked Questions
+
+**Q: Will my LinkedIn account get restricted?**
+A: No. Klabber uses GoLogin anti-detect browser technology which creates unique browser fingerprints for each session, preventing LinkedIn from detecting account sharing.
+
+**Q: Can multiple people use the same account simultaneously?**
+A: Yes, through GoLogin's technology, multiple users can access the same account without conflicts.
+
+**Q: How do I earn money as an Ambassador?**
+A: List your LinkedIn account, get it valued based on connections/age/features, and start earning monthly passive income. Payouts available in USDC, PayPal, Wise, or bank transfer.
+
+**Q: What tools can I use with rented accounts?**
+A: Rented accounts work with any LinkedIn automation or outreach tool that runs within a browser session.
+
+**Q: How are payouts processed?**
+A: Ambassadors can withdraw earnings via USDC cryptocurrency, PayPal, Wise, or direct bank transfer.
+
+**Q: Is there a minimum rental period?**
+A: No. You can rent month-to-month and cancel anytime.
+
+**Q: What happens to my personal information as an Ambassador?**
+A: Your personal data remains private. Renters only see the professional profile information needed for outreach campaigns.
+
+**Q: How quickly can I access a rented account?**
+A: Instantly. After checkout, you can launch the account in the Klabber browser app immediately.
+
+## Contact Information
+
+- Website: https://klabber.co
+- Support (Telegram): https://t.me/klabber_support_bot
+- Support Email: support@klabber.co
+- Ambassador Inquiries: ambassadors@klabber.co
+- General Email: noreply@klabber.co
+
+## Pages & URLs
+
+- Homepage: https://klabber.co
+- Account Catalogue: https://klabber.co/catalogue
+- Become an Ambassador: https://klabber.co/become-ambassador
+- FAQs: https://klabber.co/faqs
+- Login: https://klabber.co/login
+- Register: https://klabber.co/register
+
+## Technical Stack
+
+- Frontend: Next.js (React), Tailwind CSS
+- Backend: Next.js API routes, Prisma ORM, PostgreSQL
+- Payments: Stripe (subscriptions), USDC (crypto via ethers.js)
+- Email: Resend (transactional)
+- Browser Technology: GoLogin (anti-detect)
+- Hosting: Vercel
+- Desktop App: Electron
