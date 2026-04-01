@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
+import { getAllBlogPosts } from "@/lib/blog-posts";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://klabber.co";
@@ -50,5 +51,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB not available — return static pages only
   }
 
-  return [...staticPages, ...accountPages];
+  // Blog posts
+  const blogPages: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
+    url: `${baseUrl}/blog/${post.slug}`,
+    lastModified: new Date(post.date),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
+  return [...staticPages, ...blogPages, ...accountPages];
 }
