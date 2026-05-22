@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Browse LinkedIn Accounts for Rent",
@@ -13,13 +14,108 @@ export const metadata: Metadata = {
   },
 };
 
-export default function CatalogueLayout({
+async function getCatalogueSchema() {
+  try {
+    const accounts = await prisma.linkedInAccount.findMany({
+      where: { status: "available", listed: true },
+      select: {
+        id: true,
+        linkedinName: true,
+        linkedinHeadline: true,
+        industry: true,
+        location: true,
+        connectionCount: true,
+        hasSalesNav: true,
+        monthlyPrice: true,
+        profilePhotoUrl: true,
+      },
+      orderBy: { connectionCount: "desc" },
+      take: 100,
+    });
+
+    if (accounts.length === 0) return null;
+
+    const itemList = {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: "LinkedIn Accounts for Rent on Klabber",
+      description:
+        "Pre-warmed, verified LinkedIn accounts available for monthly rental. Each account includes GoLogin browser access for safe, simultaneous use.",
+      numberOfItems: accounts.length,
+      itemListElement: accounts.map((a, index) => {
+        const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+        const price = Number(a.monthlyPrice);
+        const descParts: string[] = [];
+        if (a.connectionCount > 0) descParts.push(`${a.connectionCount.toLocaleString()}+ connections`);
+        if (a.industry) descParts.push(a.industry);
+        if (a.location) descParts.push(a.location);
+        if (a.hasSalesNav) descParts.push("Sales Navigator enabled");
+        const description =
+          a.linkedinHeadline ||
+          `Rent ${displayName}'s LinkedIn account on Klabber${descParts.length ? ` — ${descParts.join(", ")}` : ""}.`;
+
+        return {
+          "@type": "ListItem",
+          position: index + 1,
+          item: {
+            "@type": "Product",
+            "@id": `https://klabber.co/account/${a.id}`,
+            name: `Rent LinkedIn Account: ${displayName}`,
+            description,
+            url: `https://klabber.co/account/${a.id}`,
+            image: a.profilePhotoUrl || undefined,
+            category: a.industry || "LinkedIn Account Rental",
+            brand: { "@type": "Brand", name: "Klabber" },
+            offers: {
+              "@type": "Offer",
+              url: `https://klabber.co/account/${a.id}`,
+              price: price.toFixed(2),
+              priceCurrency: "USD",
+              priceSpecification: {
+                "@type": "UnitPriceSpecification",
+                price: price.toFixed(2),
+                priceCurrency: "USD",
+                unitText: "MONTH",
+                referenceQuantity: { "@type": "QuantitativeValue", value: 1, unitCode: "MON" },
+              },
+              availability: "https://schema.org/InStock",
+              businessFunction: "https://purl.org/goodrelations/v1#LeaseOut",
+              seller: { "@type": "Organization", name: "Klabber", url: "https://klabber.co" },
+            },
+            additionalProperty: [
+              a.connectionCount > 0
+                ? { "@type": "PropertyValue", name: "Connections", value: a.connectionCount }
+                : null,
+              a.industry ? { "@type": "PropertyValue", name: "Industry", value: a.industry } : null,
+              a.location ? { "@type": "PropertyValue", name: "Location", value: a.location } : null,
+              { "@type": "PropertyValue", name: "Sales Navigator", value: a.hasSalesNav ? "Yes" : "No" },
+            ].filter(Boolean),
+          },
+        };
+      }),
+    };
+
+    return itemList;
+  } catch (error) {
+    console.error("Catalogue schema build failed:", error);
+    return null;
+  }
+}
+
+export default async function CatalogueLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const schema = await getCatalogueSchema();
   return (
     <>
+      {schema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
+      )}
       {children}
       {/* SEO-only content for search engines — hidden visually but indexable */}
       <div
