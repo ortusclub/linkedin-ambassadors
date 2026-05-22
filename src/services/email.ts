@@ -206,6 +206,36 @@ export async function sendAmbassadorApplicationLead(application: {
   });
 }
 
+export async function sendTelegramMessageNotification(opts: {
+  fromName: string;
+  username?: string | null;
+  chatId: number | string;
+  text: string;
+}) {
+  const userHandle = opts.username ? `@${opts.username}` : "(no username)";
+  const replyLink = opts.username
+    ? `https://t.me/${opts.username}`
+    : `tg://user?id=${opts.chatId}`;
+  const escaped = opts.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return sendEmail({
+    to: "info@klabber.co",
+    subject: `New Telegram message from ${opts.fromName}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 20px;">
+        <h2 style="color:#0F1419;margin-bottom:8px;">New Telegram Message</h2>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">${opts.fromName} ${userHandle} just messaged the Klabber support bot.</p>
+        <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;margin-bottom:16px;">
+          <p style="margin:0 0 6px;color:#536471;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Message</p>
+          <p style="margin:0;color:#0F1419;font-size:15px;line-height:1.5;white-space:pre-wrap;">${escaped}</p>
+        </div>
+        <p style="margin:0;color:#536471;font-size:13px;">
+          <a href="${replyLink}" style="color:#0A66C2;text-decoration:none;">Reply on Telegram →</a>
+        </p>
+      </div>
+    `,
+  });
+}
+
 export async function sendSignupNotification(user: {
   fullName: string;
   email: string;
