@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
-import { z } from "zod";
-import { verificationCodes } from "@/app/api/auth/verify-email/route";
 
 const schema = z.object({
   email: z.string().email(),
@@ -18,7 +18,9 @@ export async function POST(req: Request) {
     const { email, code, source } = schema.parse(body);
     const emailLower = email.toLowerCase();
 
-    const entry = verificationCodes.get(emailLower);
+    const entry = await prisma.verificationCode.findUnique({
+      where: { email: emailLower },
+    });
 
     if (!entry) {
       return NextResponse.json(
@@ -27,8 +29,8 @@ export async function POST(req: Request) {
       );
     }
 
-    if (entry.expiresAt < Date.now()) {
-      verificationCodes.delete(emailLower);
+    if (entry.expiresAt.getTime() < Date.now()) {
+      await prisma.verificationCode.delete({ where: { email: emailLower } });
       return NextResponse.json(
         { error: "Verification code has expired. Please request a new one." },
         { status: 400 }
@@ -36,25 +38,27 @@ export async function POST(req: Request) {
     }
 
     if (entry.attempts >= MAX_ATTEMPTS) {
-      verificationCodes.delete(emailLower);
+      await prisma.verificationCode.delete({ where: { email: emailLower } });
       return NextResponse.json(
         { error: "Too many incorrect attempts. Please request a new code." },
         { status: 429 }
       );
     }
 
-    if (entry.code !== code) {
-      entry.attempts++;
+    const valid = await compare(code, entry.codeHash);
+    if (!valid) {
+      await prisma.verificationCode.update({
+        where: { email: emailLower },
+        data: { attempts: { increment: 1 } },
+      });
       return NextResponse.json(
         { error: "Incorrect code. Please try again." },
         { status: 401 }
       );
     }
 
-    // Code is valid - clean it up
-    verificationCodes.delete(emailLower);
+    await prisma.verificationCode.delete({ where: { email: emailLower } });
 
-    // Find or create user
     let user = await prisma.user.findUnique({
       where: { email: emailLower },
     });
@@ -77,7 +81,6 @@ export async function POST(req: Request) {
     }
 
     if (source === "web") {
-      // Web login: set httpOnly session cookie
       await createSession(user.id, user.role === "admin");
 
       return NextResponse.json({
@@ -90,10 +93,9 @@ export async function POST(req: Request) {
         },
       });
     } else {
-      // Electron app: return Bearer token
       const { v4: uuid } = await import("uuid");
       const token = uuid();
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
       await prisma.session.create({
         data: {
