@@ -207,7 +207,6 @@ export default function CataloguePage() {
               </label>
               <select className="cat-sort" value={sort} onChange={(e) => setSort(e.target.value)}>
                 <option value="connectionCount">Most Connections</option>
-                <option value="accountAge">Account Age</option>
                 <option value="newest">Newest Added</option>
               </select>
               <form onSubmit={handleSearch} className="cat-search">
@@ -271,7 +270,6 @@ export default function CataloguePage() {
                     <th style={{padding:'12px 16px'}}>Connections</th>
                     <th style={{padding:'12px 16px'}}>Industry</th>
                     <th style={{padding:'12px 16px'}}>Location</th>
-                    <th style={{padding:'12px 16px'}}>Account Age</th>
                     <th style={{padding:'12px 16px'}}>Sales Nav</th>
                     <th style={{padding:'12px 16px'}}>Status</th>
                     <th style={{padding:'12px 16px'}}>Price</th>
@@ -282,7 +280,6 @@ export default function CataloguePage() {
                   {accounts.map((a) => {
                     const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
                     const initials = getInitials(a.linkedinName);
-                    const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
                     const price = Number(a.monthlyPrice);
                     const isAvailable = a.status === 'available';
                     const isSelected = selected.has(a.id);
@@ -328,7 +325,6 @@ export default function CataloguePage() {
                         <td style={{padding:'12px 16px',color:'#0F1419',fontWeight:500}}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</td>
                         <td style={{padding:'12px 16px',color:'#536471'}}>{a.industry || '—'}</td>
                         <td style={{padding:'12px 16px',color:'#536471'}}>{a.location || '—'}</td>
-                        <td style={{padding:'12px 16px',color:'#536471'}}>{ageYears && ageYears > 0 ? `${ageYears}+ yrs` : '—'}</td>
                         <td style={{padding:'12px 16px',textAlign:'center'}}>
                           {a.hasSalesNav ? (
                             <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:'50%',background:'#E6F9EE',color:'#00B85C'}}>
