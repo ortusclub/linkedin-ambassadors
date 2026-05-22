@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, createSession } from "@/lib/auth";
+import { sendSignupNotification } from "@/services/email";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -29,6 +30,16 @@ export async function POST(req: Request) {
 
     // Don't create session here — user will verify email first
     try { await createSession(user.id); } catch {}
+
+    try {
+      await sendSignupNotification({
+        fullName: user.fullName,
+        email: user.email,
+        contactNumber: user.contactNumber,
+      });
+    } catch (emailError) {
+      console.error("Signup notification email failed:", emailError);
+    }
 
     return NextResponse.json({
       id: user.id,

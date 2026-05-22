@@ -36,6 +36,8 @@ export default function AccountDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
+  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
+  const [insufficientInfo, setInsufficientInfo] = useState<{ balance: number; price: number } | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -73,23 +75,30 @@ export default function AccountDetailPage() {
   };
 
   const handleRent = async () => {
+    if (!account) return;
     setActionLoading(true);
     try {
-      const res = await fetch("/api/rentals/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId: params.id }),
-      });
-      const data = await res.json();
-
-      if (res.status === 401) {
-        router.push("/login");
+      const meRes = await fetch("/api/auth/me");
+      const meData = await meRes.json();
+      if (!meData.user) {
+        router.push(`/login?redirect=${encodeURIComponent(`/account/${params.id}`)}`);
         return;
       }
 
-      if (data.url) {
-        window.location.href = data.url;
+      const balRes = await fetch("/api/wallet/balance");
+      const balData = await balRes.json();
+      const balance = parseFloat(balData.balance || "0");
+      const price = typeof account.monthlyPrice === "string"
+        ? parseFloat(account.monthlyPrice)
+        : Number(account.monthlyPrice);
+
+      if (balance < price) {
+        setInsufficientInfo({ balance, price });
+        setShowInsufficientModal(true);
+        return;
       }
+
+      router.push(`/checkout?accounts=${params.id}`);
     } catch {
       alert("Something went wrong. Please try again.");
     } finally {
@@ -328,6 +337,56 @@ export default function AccountDetailPage() {
           </div>
         </div>
       </div>
+
+      {showInsufficientModal && insufficientInfo && (
+        <div
+          onClick={() => setShowInsufficientModal(false)}
+          style={{position:'fixed',inset:0,background:'rgba(15,20,25,0.55)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{background:'#fff',borderRadius:20,maxWidth:440,width:'100%',padding:32,boxShadow:'0 24px 60px rgba(15,20,25,0.25)',fontFamily:"'DM Sans','Instrument Sans',system-ui,sans-serif"}}
+          >
+            <div style={{width:56,height:56,borderRadius:16,background:'#FFF4E5',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF6B00" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <h2 style={{fontSize:22,fontWeight:700,color:'#0F1419',letterSpacing:'-0.02em',marginBottom:8,fontFamily:"'Instrument Sans','DM Sans',system-ui,sans-serif"}}>
+              Top up to rent this account
+            </h2>
+            <p style={{fontSize:14,color:'#536471',lineHeight:1.55,marginBottom:20}}>
+              You need to deposit money to rent this account. Top up your USDC balance and you&apos;ll be back here in seconds.
+            </p>
+            <div style={{background:'#F8F8F5',borderRadius:12,padding:'14px 16px',marginBottom:24,display:'flex',flexDirection:'column',gap:8}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
+                <span style={{color:'#536471'}}>Your balance</span>
+                <span style={{fontWeight:700,color:'#0F1419'}}>${insufficientInfo.balance.toFixed(2)}</span>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
+                <span style={{color:'#536471'}}>Rental price</span>
+                <span style={{fontWeight:700,color:'#0F1419'}}>${insufficientInfo.price.toFixed(2)}/mo</span>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,paddingTop:8,borderTop:'1px solid #E8E6E1'}}>
+                <span style={{color:'#991B1B',fontWeight:600}}>Amount needed</span>
+                <span style={{fontWeight:800,color:'#991B1B'}}>${(insufficientInfo.price - insufficientInfo.balance).toFixed(2)}</span>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              <button
+                onClick={() => setShowInsufficientModal(false)}
+                style={{flex:1,padding:'13px',borderRadius:10,background:'#fff',color:'#536471',fontSize:14,fontWeight:600,border:'1px solid #E8E6E1',cursor:'pointer',fontFamily:'inherit'}}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => router.push("/dashboard?topup=1#wallet")}
+                style={{flex:1.4,padding:'13px',borderRadius:10,background:'#FF6B00',color:'#fff',fontSize:14,fontWeight:700,border:'none',cursor:'pointer',fontFamily:'inherit'}}
+              >
+                Top Up Now →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

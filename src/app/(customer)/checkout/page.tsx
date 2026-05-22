@@ -232,13 +232,22 @@ function CheckoutContent() {
               ) : (
                 <>
                   <p style={{fontSize:12,color:'#8899A6',marginBottom:12}}>Pay with USDC on Base. Cancel anytime.</p>
-                  <button
-                    onClick={handleCheckout}
-                    disabled={checkingOut || !hasSufficientBalance}
-                    style={{width:'100%',padding:'14px',borderRadius:10,background:hasSufficientBalance ? '#0A66C2' : '#94A3B8',color:'#fff',fontSize:15,fontWeight:700,border:'none',cursor:hasSufficientBalance ? 'pointer' : 'not-allowed',fontFamily:'inherit',transition:'all .15s',opacity:checkingOut?0.6:1}}
-                  >
-                    {checkingOut ? "Processing..." : hasSufficientBalance ? `Pay ${formatCurrency(total)} USDC` : "Insufficient Balance"}
-                  </button>
+                  {hasSufficientBalance ? (
+                    <button
+                      onClick={handleCheckout}
+                      disabled={checkingOut}
+                      style={{width:'100%',padding:'14px',borderRadius:10,background:'#0A66C2',color:'#fff',fontSize:15,fontWeight:700,border:'none',cursor:'pointer',fontFamily:'inherit',transition:'all .15s',opacity:checkingOut?0.6:1}}
+                    >
+                      {checkingOut ? "Processing..." : `Pay ${formatCurrency(total)} USDC`}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => router.push("/dashboard?topup=1#wallet")}
+                      style={{width:'100%',padding:'14px',borderRadius:10,background:'#FF6B00',color:'#fff',fontSize:15,fontWeight:700,border:'none',cursor:'pointer',fontFamily:'inherit',transition:'all .15s'}}
+                    >
+                      Top Up Balance →
+                    </button>
+                  )}
                 </>
               )}
               <button

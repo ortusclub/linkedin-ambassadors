@@ -16,6 +16,12 @@ export function formatNumber(num: number): string {
   if (num >= 1000) {
     return `${(num / 1000).toFixed(num >= 10000 ? 0 : 1)}k+`;
   }
+  if (num >= 100) {
+    return `${Math.floor(num / 100) * 100}+`;
+  }
+  if (num > 0) {
+    return "100+";
+  }
   return num.toString();
 }
 
