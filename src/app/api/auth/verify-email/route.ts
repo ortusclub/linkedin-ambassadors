@@ -1,69 +1,48 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { hash } from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 import { sendVerificationCode } from "@/services/email";
-
-// In-memory verification code store, persisted on globalThis to survive hot reloads
-// Key: email, Value: { code, expiresAt, attempts }
-type CodeEntry = { code: string; expiresAt: number; attempts: number };
-
-const globalForCodes = globalThis as typeof globalThis & {
-  __verificationCodes?: Map<string, CodeEntry>;
-  __verificationCleanup?: ReturnType<typeof setInterval>;
-};
-
-if (!globalForCodes.__verificationCodes) {
-  globalForCodes.__verificationCodes = new Map<string, CodeEntry>();
-}
-
-const verificationCodes = globalForCodes.__verificationCodes;
-
-// Clean up expired codes periodically
-if (typeof globalForCodes.__verificationCleanup === "undefined") {
-  (globalForCodes as Record<string, unknown>).__verificationCleanup = setInterval(() => {
-    const now = Date.now();
-    for (const [email, entry] of verificationCodes) {
-      if (entry.expiresAt < now) {
-        verificationCodes.delete(email);
-      }
-    }
-  }, 60_000);
-}
-
-// Export for use by verify-code route
-export { verificationCodes };
 
 const schema = z.object({
   email: z.string().email(),
 });
 
+const CODE_TTL_MS = 10 * 60 * 1000;
+const RESEND_COOLDOWN_MS = 60 * 1000;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { email } = schema.parse(body);
+    const emailLower = email.toLowerCase();
 
-    // Rate limit: don't allow re-sending within 60 seconds
-    const existing = verificationCodes.get(email.toLowerCase());
-    const codeCreatedAt = existing ? existing.expiresAt - 10 * 60 * 1000 : 0;
-    const secondsSinceCreated = Math.floor((Date.now() - codeCreatedAt) / 1000);
-    if (existing && secondsSinceCreated < 60) {
-      const waitSeconds = 60 - secondsSinceCreated;
-      return NextResponse.json(
-        { error: `Please wait ${waitSeconds} seconds before requesting a new code` },
-        { status: 429 }
-      );
-    }
-
-    // Generate 6-digit code
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-
-    // Store with 10-minute expiry
-    verificationCodes.set(email.toLowerCase(), {
-      code,
-      expiresAt: Date.now() + 10 * 60 * 1000,
-      attempts: 0,
+    const existing = await prisma.verificationCode.findUnique({
+      where: { email: emailLower },
     });
 
-    // Send the email
+    if (existing) {
+      const codeCreatedAt = existing.expiresAt.getTime() - CODE_TTL_MS;
+      const sinceCreated = Date.now() - codeCreatedAt;
+      if (sinceCreated < RESEND_COOLDOWN_MS) {
+        const waitSeconds = Math.ceil((RESEND_COOLDOWN_MS - sinceCreated) / 1000);
+        return NextResponse.json(
+          { error: `Please wait ${waitSeconds} seconds before requesting a new code` },
+          { status: 429 }
+        );
+      }
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeHash = await hash(code, 10);
+    const expiresAt = new Date(Date.now() + CODE_TTL_MS);
+
+    await prisma.verificationCode.upsert({
+      where: { email: emailLower },
+      create: { email: emailLower, codeHash, expiresAt, attempts: 0 },
+      update: { codeHash, expiresAt, attempts: 0 },
+    });
+
     await sendVerificationCode(email, code);
 
     return NextResponse.json({ success: true });
