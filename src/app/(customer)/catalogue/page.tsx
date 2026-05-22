@@ -357,7 +357,25 @@ export default function CataloguePage() {
                         <td style={{padding:'12px 16px',fontWeight:700,color:'#0F1419',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'#8899A6',fontSize:12}}>/mo</span></td>
                         <td style={{padding:'12px 16px',textAlign:'right'}}>
                           <div style={{display:'flex',gap:4,justifyContent:'flex-end'}}>
-                            <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none'}}>View Profile</Link>
+                            {user && a.linkedinUrl ? (
+                              <a
+                                href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="cat-view-btn"
+                                style={{display:'inline-block',textDecoration:'none'}}
+                              >
+                                View Profile
+                              </a>
+                            ) : (
+                              <Link
+                                href={user ? `/account/${a.id}` : `/login?redirect=${encodeURIComponent('/catalogue')}`}
+                                className="cat-view-btn"
+                                style={{display:'inline-block',textDecoration:'none'}}
+                              >
+                                View Profile
+                              </Link>
+                            )}
                             {isAvailable && (
                               <button
                                 className="cat-rent-btn"
