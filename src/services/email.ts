@@ -163,6 +163,88 @@ export async function sendAmbassadorWelcomeEmail(
   });
 }
 
+export async function sendAmbassadorApplicationLead(application: {
+  fullName: string;
+  email: string;
+  linkedinEmail?: string | null;
+  contactNumber?: string | null;
+  linkedinUrl: string;
+  connectionCount?: number | null;
+  industry?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  status?: string;
+  offeredAmount?: number | string | null;
+}) {
+  const row = (label: string, value: string | number | null | undefined) =>
+    value === null || value === undefined || value === ""
+      ? ""
+      : `<tr><td style="padding:6px 12px;color:#536471;font-size:13px;white-space:nowrap;">${label}</td><td style="padding:6px 12px;color:#0F1419;font-size:13px;">${value}</td></tr>`;
+
+  return sendEmail({
+    to: "info@klabber.co",
+    subject: `New ambassador application: ${application.fullName}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 20px;">
+        <h2 style="color:#0F1419;margin-bottom:8px;">New Ambassador Application</h2>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">Someone just submitted the "Get Your Profile Valuation" form.</p>
+        <table style="width:100%;border-collapse:collapse;background:#F8F8F5;border-radius:12px;overflow:hidden;">
+          ${row("Name", application.fullName)}
+          ${row("Email", application.email)}
+          ${row("LinkedIn Email", application.linkedinEmail)}
+          ${row("Contact", application.contactNumber)}
+          ${row("LinkedIn URL", `<a href="${application.linkedinUrl}" style="color:#0A66C2;">${application.linkedinUrl}</a>`)}
+          ${row("Connections", application.connectionCount)}
+          ${row("Industry", application.industry)}
+          ${row("Location", application.location)}
+          ${row("Status", application.status)}
+          ${row("Offered Amount", application.offeredAmount ? `$${application.offeredAmount}/mo` : null)}
+          ${row("Notes", application.notes)}
+        </table>
+      </div>
+    `,
+  });
+}
+
+export async function sendSignupNotification(user: {
+  fullName: string;
+  email: string;
+  contactNumber?: string | null;
+}) {
+  return sendEmail({
+    to: "info@klabber.co",
+    subject: `New Klabber signup: ${user.fullName}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 20px;">
+        <h2 style="color:#0F1419;margin-bottom:8px;">New Signup</h2>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">A new user just created a Klabber account.</p>
+        <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;">
+          <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Name:</strong> ${user.fullName}</p>
+          <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Email:</strong> <a href="mailto:${user.email}" style="color:#0A66C2;text-decoration:none;">${user.email}</a></p>
+          ${user.contactNumber ? `<p style="margin:0;color:#0F1419;font-size:14px;"><strong>Contact:</strong> ${user.contactNumber}</p>` : ""}
+        </div>
+      </div>
+    `,
+  });
+}
+
+export async function sendTestAccountLead(name: string, email: string) {
+  return sendEmail({
+    to: "info@klabber.co",
+    subject: `New test-account lead: ${name}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 20px;">
+        <h2 style="color:#0F1419;margin-bottom:8px;">New Test Account Lead</h2>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">Someone just opened the test LinkedIn account from klabber.co.</p>
+        <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;">
+          <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Name:</strong> ${name}</p>
+          <p style="margin:0;color:#0F1419;font-size:14px;"><strong>Email:</strong> <a href="mailto:${email}" style="color:#0A66C2;text-decoration:none;">${email}</a></p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 export async function sendAccountAvailableEmail(email: string, accountName: string) {
   return sendEmail({
     to: email,

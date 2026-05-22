@@ -37,8 +37,11 @@ export default function FAQsPage() {
         .faq-card p{font-size:14px;color:var(--text-mid);line-height:1.7}
         .faq-cta{text-align:center;margin-top:64px}
         .faq-cta p{font-size:16px;color:var(--text-mid);margin-bottom:20px}
+        .faq-cta-actions{display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center}
         .faq-cta-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:var(--radius);background:var(--blue);color:#fff;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
         .faq-cta-btn:hover{background:var(--blue-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(10,102,194,0.2)}
+        .faq-cta-btn-alt{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:var(--radius);background:#fff;color:var(--text-dark);font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;border:1px solid #E8E6E1;cursor:pointer}
+        .faq-cta-btn-alt:hover{border-color:var(--text-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(15,20,25,0.08)}
         @media(max-width:900px){
           .faq-page{padding:48px 16px 80px}
           .faq-grid{grid-template-columns:1fr}
@@ -89,7 +92,10 @@ export default function FAQsPage() {
 
         <div className="faq-cta">
           <p>Still have questions? We&apos;re happy to help.</p>
-          <a href="https://t.me/klabber_support_bot" target="_blank" rel="noopener noreferrer" className="faq-cta-btn">Chat with us on Telegram →</a>
+          <div className="faq-cta-actions">
+            <a href="https://t.me/klabber_support_bot" target="_blank" rel="noopener noreferrer" className="faq-cta-btn">Chat with us on Telegram →</a>
+            <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer" className="faq-cta-btn-alt">Book a Meeting →</a>
+          </div>
         </div>
       </div>
     </>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,7 @@ interface Submission {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [ambassadorAccounts, setAmbassadorAccounts] = useState<AmbassadorAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,6 +127,13 @@ export default function DashboardPage() {
       setLoading(false);
     });
   }, [router]);
+
+  useEffect(() => {
+    if (searchParams.get("topup") === "1") {
+      setShowTopUp(true);
+      setShowWithdraw(false);
+    }
+  }, [searchParams]);
 
   const handleWithdraw = async () => {
     setWithdrawing(true);
@@ -389,6 +397,28 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+      </section>
+
+      {/* Rent an Account CTA */}
+      <section className="mb-8">
+        <Link
+          href="/catalogue"
+          className="flex items-center justify-between gap-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white px-5 py-4 transition-all hover:border-blue-300 hover:shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Rent an Account</p>
+              <p className="text-xs text-gray-500">Browse available LinkedIn accounts in the marketplace</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white">
+            Browse Accounts
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </span>
+        </Link>
       </section>
 
       {/* Ambassador Accounts */}

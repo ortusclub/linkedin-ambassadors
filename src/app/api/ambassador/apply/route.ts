@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { assessFromApplication } from "@/services/profile-assessor";
+import { sendAmbassadorApplicationLead } from "@/services/email";
 
 const applySchema = z.object({
   fullName: z.string().min(1),
@@ -68,6 +69,24 @@ export async function POST(req: Request) {
           },
         });
       }
+    }
+
+    try {
+      await sendAmbassadorApplicationLead({
+        fullName: data.fullName,
+        email: data.email,
+        linkedinEmail: data.linkedinEmail,
+        contactNumber: data.contactNumber,
+        linkedinUrl: data.linkedinUrl,
+        connectionCount: data.connectionCount,
+        industry: data.industry,
+        location: data.location,
+        notes: data.notes,
+        status: application.status,
+        offeredAmount: assessment.offeredAmount,
+      });
+    } catch (emailError) {
+      console.error("Ambassador lead email failed:", emailError);
     }
 
     return NextResponse.json({

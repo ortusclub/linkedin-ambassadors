@@ -121,14 +121,6 @@ export default function CataloguePage() {
     .filter((a) => selected.has(a.id))
     .reduce((sum, a) => sum + Number(a.monthlyPrice), 0);
 
-  const handleRentSingle = (accountId: string) => {
-    if (!user) {
-      router.push("/login?message=You must sign in or sign up before you can rent accounts.");
-      return;
-    }
-    router.push(`/checkout?accounts=${accountId}`);
-  };
-
   return (
     <>
       <style>{`
@@ -357,7 +349,7 @@ export default function CataloguePage() {
                         <td style={{padding:'12px 16px',fontWeight:700,color:'#0F1419',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'#8899A6',fontSize:12}}>/mo</span></td>
                         <td style={{padding:'12px 16px',textAlign:'right'}}>
                           <div style={{display:'flex',gap:4,justifyContent:'flex-end'}}>
-                            {user && a.linkedinUrl ? (
+                            {a.linkedinUrl ? (
                               <a
                                 href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`}
                                 target="_blank"
@@ -368,21 +360,14 @@ export default function CataloguePage() {
                                 View Profile
                               </a>
                             ) : (
-                              <Link
-                                href={user ? `/account/${a.id}` : `/login?redirect=${encodeURIComponent('/catalogue')}`}
-                                className="cat-view-btn"
-                                style={{display:'inline-block',textDecoration:'none'}}
-                              >
+                              <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none'}}>
                                 View Profile
                               </Link>
                             )}
                             {isAvailable && (
-                              <button
-                                className="cat-rent-btn"
-                                onClick={() => handleRentSingle(a.id)}
-                              >
+                              <Link href={`/account/${a.id}`} className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
                                 Rent
-                              </button>
+                              </Link>
                             )}
                           </div>
                         </td>
@@ -391,6 +376,26 @@ export default function CataloguePage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {!loading && accounts.length > 0 && (
+            <div style={{marginTop:32,background:'linear-gradient(135deg,#0A66C2 0%,#004182 100%)',borderRadius:16,padding:'32px 40px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:24,flexWrap:'wrap',color:'#fff'}}>
+              <div style={{flex:'1 1 320px',minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:600,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.7)',marginBottom:8}}>Plus 100s more accounts</div>
+                <h3 style={{fontSize:22,fontWeight:600,letterSpacing:'-0.02em',marginBottom:6,color:'#fff'}}>Looking for something specific?</h3>
+                <p style={{fontSize:14,color:'rgba(255,255,255,0.85)',lineHeight:1.5}}>Book a meeting to explore more opportunities — we have hundreds of additional accounts not listed here.</p>
+              </div>
+              <a
+                href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{padding:'14px 28px',borderRadius:12,background:'#fff',color:'#0A66C2',fontSize:14,fontWeight:700,textDecoration:'none',whiteSpace:'nowrap',transition:'transform .15s,box-shadow .15s',display:'inline-flex',alignItems:'center',gap:8}}
+                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.15)';}}
+                onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='';}}
+              >
+                Book a Meeting →
+              </a>
             </div>
           )}
         </div>
