@@ -59,6 +59,7 @@ Renters never own the account — they get a managed, isolated GoLogin browser s
 ## Key Pages
 
 - Homepage: https://klabber.co
+- Rent LinkedIn accounts (full guide): https://klabber.co/rent-linkedin-accounts
 - Browse / rent accounts: https://klabber.co/catalogue
 - How it works (step-by-step): https://klabber.co/how-it-works
 - Become an Ambassador: https://klabber.co/become-ambassador

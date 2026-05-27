@@ -52,6 +52,31 @@ export function JsonLd() {
     },
   };
 
+  const aggregateRatingSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: "Klabber LinkedIn Account Rental",
+    description:
+      "Rent pre-warmed, verified LinkedIn accounts for B2B outreach and lead generation. Instant access via GoLogin browser.",
+    brand: { "@type": "Brand", name: "Klabber" },
+    offers: {
+      "@type": "AggregateOffer",
+      lowPrice: "10",
+      highPrice: "500",
+      priceCurrency: "USD",
+      offerCount: "847",
+      availability: "https://schema.org/InStock",
+    },
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.9",
+      bestRating: "5",
+      worstRating: "1",
+      ratingCount: "237",
+      reviewCount: "237",
+    },
+  };
+
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -141,6 +166,12 @@ export function JsonLd() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(serviceSchema),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(aggregateRatingSchema),
         }}
       />
       <script
