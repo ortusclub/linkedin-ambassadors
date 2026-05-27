@@ -45,6 +45,20 @@ const pages = [
     tag: "Most expensive alternative",
   },
   {
+    title: "vs MirrorProfiles",
+    href: "/vs/mirrorprofiles",
+    summary:
+      "MirrorProfiles rents synthetic accounts with fake identities. Klabber rents real accounts from real professionals — better trust, better rates, lower price.",
+    tag: "Direct competitor",
+  },
+  {
+    title: "vs SBL.so",
+    href: "/vs/sbl",
+    summary:
+      "SBL.so manages outreach for you via fractional SDRs. Klabber gives you the account directly so you control the messaging and tools. Control vs convenience.",
+    tag: "Direct competitor",
+  },
+  {
     title: "vs Instantly",
     href: "/vs/instantly",
     summary:
