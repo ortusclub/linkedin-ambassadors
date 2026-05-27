@@ -24,6 +24,13 @@ const pages = [
     tag: "Most common alternative",
   },
   {
+    title: "vs Buying Aged LinkedIn Accounts",
+    href: "/vs/buying-aged-linkedin-accounts",
+    summary:
+      "Aged accounts from forums and Telegram cost $200-2,000+ and get banned within weeks. Renting is cheaper, safer, and reversible.",
+    tag: "Highest risk",
+  },
+  {
     title: "vs Sharing Passwords with a VA",
     href: "/vs/sharing-linkedin-passwords",
     summary:
@@ -36,6 +43,20 @@ const pages = [
     summary:
       "Why DIY multi-account setups take 3 months to warm and get restricted at a 70% rate. Same-day access with Klabber instead.",
     tag: "Most expensive alternative",
+  },
+  {
+    title: "vs Instantly",
+    href: "/vs/instantly",
+    summary:
+      "Instantly is a cold email platform. Klabber rents LinkedIn accounts. Different tools for different channels — many teams use both.",
+    tag: "Complementary tool",
+  },
+  {
+    title: "vs Smartlead",
+    href: "/vs/smartlead",
+    summary:
+      "Smartlead automates email with unlimited mailboxes. Klabber provides the LinkedIn accounts. Here's when to use which — or both.",
+    tag: "Complementary tool",
   },
 ];
 
