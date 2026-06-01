@@ -44,7 +44,11 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutCompleted(session);
+        if (session.metadata?.type === "wallet_topup") {
+          await handleWalletTopUp(session);
+        } else {
+          await handleCheckoutCompleted(session);
+        }
         break;
       }
       case "invoice.payment_succeeded": {
@@ -74,6 +78,35 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+async function handleWalletTopUp(session: Stripe.Checkout.Session) {
+  const userId = session.metadata?.userId;
+  const amountUsd = Number(session.metadata?.amountUsd);
+
+  if (!userId || !Number.isFinite(amountUsd) || amountUsd <= 0) return;
+  if (session.payment_status !== "paid") return;
+
+  // Idempotency: skip if this checkout session has already been credited
+  const existing = await prisma.transaction.findFirst({
+    where: { description: `stripe_topup:${session.id}` },
+  });
+  if (existing) return;
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { usdcBalance: { increment: amountUsd } },
+    }),
+    prisma.transaction.create({
+      data: {
+        userId,
+        type: "deposit",
+        amount: amountUsd,
+        description: `stripe_topup:${session.id}`,
+      },
+    }),
+  ]);
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
