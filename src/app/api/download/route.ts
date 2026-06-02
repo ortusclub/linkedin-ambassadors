@@ -44,7 +44,7 @@ export async function GET() {
     return new NextResponse(assetRes.body, {
       headers: {
         "Content-Type": "application/x-apple-diskimage",
-        "Content-Disposition": 'attachment; filename="Klabber.dmg"',
+        "Content-Disposition": 'attachment; filename="LinkedVelocity.dmg"',
         "Content-Length": asset.size.toString(),
       },
     });

@@ -8,8 +8,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "Klabber — Rent Premium LinkedIn Accounts for Outreach",
-    template: "%s | Klabber",
+    default: "LinkedVelocity — Rent Premium LinkedIn Accounts for Outreach",
+    template: "%s | LinkedVelocity",
   },
   description:
     "Rent pre-warmed, verified LinkedIn accounts for outreach, lead generation, and networking. Instant access via GoLogin browser. Cancel anytime. From $10/month.",
@@ -25,19 +25,19 @@ export const metadata: Metadata = {
     "B2B outreach",
     "sales prospecting LinkedIn",
   ],
-  authors: [{ name: "Klabber" }],
-  creator: "Klabber",
-  publisher: "Klabber",
-  metadataBase: new URL("https://klabber.co"),
+  authors: [{ name: "LinkedVelocity" }],
+  creator: "LinkedVelocity",
+  publisher: "LinkedVelocity",
+  metadataBase: new URL("https://linkedvelocity.com"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://klabber.co",
-    siteName: "Klabber",
-    title: "Klabber — Rent Premium LinkedIn Accounts for Outreach",
+    url: "https://linkedvelocity.com",
+    siteName: "LinkedVelocity",
+    title: "LinkedVelocity — Rent Premium LinkedIn Accounts for Outreach",
     description:
       "Rent pre-warmed, verified LinkedIn accounts for outreach and lead generation. Instant access, cancel anytime. From $10/month.",
     images: [
@@ -45,13 +45,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Klabber - Rent Premium LinkedIn Accounts",
+        alt: "LinkedVelocity - Rent Premium LinkedIn Accounts",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Klabber — Rent Premium LinkedIn Accounts",
+    title: "LinkedVelocity — Rent Premium LinkedIn Accounts",
     description:
       "Rent pre-warmed LinkedIn accounts for outreach and lead gen. Instant access, cancel anytime.",
     images: ["/og-image.png"],

@@ -4,13 +4,13 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "FAQs — LinkedIn Account Rental Questions Answered",
   description:
-    "Common questions about renting LinkedIn accounts on Klabber. Learn about safety, pricing, restrictions, simultaneous use, payouts, and more.",
+    "Common questions about renting LinkedIn accounts on LinkedVelocity. Learn about safety, pricing, restrictions, simultaneous use, payouts, and more.",
   alternates: { canonical: "/faqs" },
   openGraph: {
-    title: "Frequently Asked Questions | Klabber",
+    title: "Frequently Asked Questions | LinkedVelocity",
     description:
       "Everything you need to know about renting LinkedIn accounts safely and earning as an Ambassador.",
-    url: "https://klabber.co/faqs",
+    url: "https://linkedvelocity.com/faqs",
   },
 };
 
@@ -57,8 +57,8 @@ export default function FAQsPage() {
 
         <div className="faq-grid">
           <div className="faq-card">
-            <h3>What is Klabber?</h3>
-            <p>Klabber is a marketplace where growth teams can rent verified LinkedIn accounts for outreach, and professionals can earn passive income by sharing accounts they no longer actively use.</p>
+            <h3>What is LinkedVelocity?</h3>
+            <p>LinkedVelocity is a marketplace where growth teams can rent verified LinkedIn accounts for outreach, and professionals can earn passive income by sharing accounts they no longer actively use.</p>
           </div>
           <div className="faq-card">
             <h3>Will my LinkedIn account get restricted?</h3>

@@ -26,16 +26,16 @@ async function sendEmail({ to, subject, html }: EmailOptions) {
 export async function sendVerificationCode(email: string, code: string) {
   return sendEmail({
     to: email,
-    subject: `Your Klabber verification code: ${code}`,
+    subject: `Your LinkedVelocity verification code: ${code}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;padding:40px 20px;">
-        <h2 style="color:#2563eb;margin-bottom:8px;">Klabber</h2>
+        <h2 style="color:#2563eb;margin-bottom:8px;">LinkedVelocity</h2>
         <p style="color:#374151;font-size:15px;">Enter this code to sign in:</p>
         <div style="background:#f3f4f6;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
           <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#111827;">${code}</span>
         </div>
         <p style="color:#6b7280;font-size:13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
-        <p style="color:#6b7280;font-size:13px;margin-top:24px;">&mdash; The Klabber Team</p>
+        <p style="color:#6b7280;font-size:13px;margin-top:24px;">&mdash; The LinkedVelocity Team</p>
       </div>
     `,
   });
@@ -157,7 +157,7 @@ export async function sendAmbassadorWelcomeEmail(
         <li><strong>Cancel anytime</strong> with 30 days notice.</li>
       </ul>
 
-      <p>Questions? Reply to this email or contact us at support@klabber.co</p>
+      <p>Questions? Reply to this email or contact us at support@linkedvelocity.com</p>
       <p>— The LinkedIn Ambassadors Team</p>
     `,
   });
@@ -182,7 +182,7 @@ export async function sendAmbassadorApplicationLead(application: {
       : `<tr><td style="padding:6px 12px;color:#536471;font-size:13px;white-space:nowrap;">${label}</td><td style="padding:6px 12px;color:#0F1419;font-size:13px;">${value}</td></tr>`;
 
   return sendEmail({
-    to: "info@klabber.co",
+    to: "info@linkedvelocity.com",
     subject: `New ambassador application: ${application.fullName}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 20px;">
@@ -218,12 +218,12 @@ export async function sendTelegramMessageNotification(opts: {
     : `tg://user?id=${opts.chatId}`;
   const escaped = opts.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return sendEmail({
-    to: "info@klabber.co",
+    to: "info@linkedvelocity.com",
     subject: `New Telegram message from ${opts.fromName}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 20px;">
         <h2 style="color:#0F1419;margin-bottom:8px;">New Telegram Message</h2>
-        <p style="color:#536471;font-size:14px;margin-bottom:20px;">${opts.fromName} ${userHandle} just messaged the Klabber support bot.</p>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">${opts.fromName} ${userHandle} just messaged the LinkedVelocity support bot.</p>
         <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;margin-bottom:16px;">
           <p style="margin:0 0 6px;color:#536471;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Message</p>
           <p style="margin:0;color:#0F1419;font-size:15px;line-height:1.5;white-space:pre-wrap;">${escaped}</p>
@@ -242,12 +242,12 @@ export async function sendSignupNotification(user: {
   contactNumber?: string | null;
 }) {
   return sendEmail({
-    to: "info@klabber.co",
-    subject: `New Klabber signup: ${user.fullName}`,
+    to: "info@linkedvelocity.com",
+    subject: `New LinkedVelocity signup: ${user.fullName}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 20px;">
         <h2 style="color:#0F1419;margin-bottom:8px;">New Signup</h2>
-        <p style="color:#536471;font-size:14px;margin-bottom:20px;">A new user just created a Klabber account.</p>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">A new user just created a LinkedVelocity account.</p>
         <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;">
           <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Name:</strong> ${user.fullName}</p>
           <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Email:</strong> <a href="mailto:${user.email}" style="color:#0A66C2;text-decoration:none;">${user.email}</a></p>
@@ -260,12 +260,12 @@ export async function sendSignupNotification(user: {
 
 export async function sendTestAccountLead(name: string, email: string) {
   return sendEmail({
-    to: "info@klabber.co",
+    to: "info@linkedvelocity.com",
     subject: `New test-account lead: ${name}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 20px;">
         <h2 style="color:#0F1419;margin-bottom:8px;">New Test Account Lead</h2>
-        <p style="color:#536471;font-size:14px;margin-bottom:20px;">Someone just opened the test LinkedIn account from klabber.co.</p>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">Someone just opened the test LinkedIn account from linkedvelocity.com.</p>
         <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;">
           <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Name:</strong> ${name}</p>
           <p style="margin:0;color:#0F1419;font-size:14px;"><strong>Email:</strong> <a href="mailto:${email}" style="color:#0A66C2;text-decoration:none;">${email}</a></p>

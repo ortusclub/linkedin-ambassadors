@@ -94,7 +94,7 @@ export async function GET() {
               border: "1px solid rgba(255,255,255,0.2)",
             }}
           >
-            klabber.co
+            linkedvelocity.com
           </div>
         </div>
       </div>

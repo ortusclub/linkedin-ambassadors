@@ -3,28 +3,28 @@ import Link from "next/link";
 import { CompareStyle } from "../compare-style";
 
 export const metadata: Metadata = {
-  title: "Buying Aged LinkedIn Accounts vs Renting on Klabber",
+  title: "Buying Aged LinkedIn Accounts vs Renting on LinkedVelocity",
   description:
-    "Aged LinkedIn accounts sold on forums and marketplaces seem like a shortcut — but they violate LinkedIn's terms, get banned fast, and cost $200-2,000+ with no refund. Renting through Klabber is safer, cheaper, and reversible.",
+    "Aged LinkedIn accounts sold on forums and marketplaces seem like a shortcut — but they violate LinkedIn's terms, get banned fast, and cost $200-2,000+ with no refund. Renting through LinkedVelocity is safer, cheaper, and reversible.",
   alternates: { canonical: "/vs/buying-aged-linkedin-accounts" },
   openGraph: {
-    title: "Buying Aged LinkedIn Accounts vs Renting via Klabber",
+    title: "Buying Aged LinkedIn Accounts vs Renting via LinkedVelocity",
     description:
       "Why buying aged LinkedIn accounts from forums is risky and what to do instead.",
-    url: "https://klabber.co/vs/buying-aged-linkedin-accounts",
+    url: "https://linkedvelocity.com/vs/buying-aged-linkedin-accounts",
   },
 };
 
 const comparison = [
-  { feature: "LinkedIn TOS", klabber: "Compliant — no ownership transfer", alt: "Violates Section 8.2 (account sales prohibited)" },
-  { feature: "Account origin", klabber: "Real professionals who voluntarily share access", alt: "Often stolen, hacked, or abandoned accounts" },
-  { feature: "Seller accountability", klabber: "Klabber manages the relationship, support, and refunds", alt: "Anonymous sellers on forums — no recourse after payment" },
-  { feature: "Account survival", klabber: "0% restriction rate across all rentals", alt: "Most bought accounts get flagged within 2-6 weeks" },
-  { feature: "Price", klabber: "$10-500/month, cancel anytime", alt: "$200-2,000+ one-time, non-refundable" },
-  { feature: "If the account dies", klabber: "Swap to another account from your dashboard", alt: "Total loss — seller won't refund" },
-  { feature: "Profile authenticity", klabber: "Original owner maintains the profile (real photo, real history)", alt: "Abandoned profile with stale content, mismatched industry" },
-  { feature: "Account credentials", klabber: "Owner keeps credentials — renter gets managed browser session", alt: "Buyer gets password — but seller may still have access" },
-  { feature: "Payment safety", klabber: "Stripe or USDC — standard payment protection", alt: "Usually crypto or wire to anonymous accounts — irreversible" },
+  { feature: "LinkedIn TOS", linkedvelocity: "Compliant — no ownership transfer", alt: "Violates Section 8.2 (account sales prohibited)" },
+  { feature: "Account origin", linkedvelocity: "Real professionals who voluntarily share access", alt: "Often stolen, hacked, or abandoned accounts" },
+  { feature: "Seller accountability", linkedvelocity: "LinkedVelocity manages the relationship, support, and refunds", alt: "Anonymous sellers on forums — no recourse after payment" },
+  { feature: "Account survival", linkedvelocity: "0% restriction rate across all rentals", alt: "Most bought accounts get flagged within 2-6 weeks" },
+  { feature: "Price", linkedvelocity: "$10-500/month, cancel anytime", alt: "$200-2,000+ one-time, non-refundable" },
+  { feature: "If the account dies", linkedvelocity: "Swap to another account from your dashboard", alt: "Total loss — seller won't refund" },
+  { feature: "Profile authenticity", linkedvelocity: "Original owner maintains the profile (real photo, real history)", alt: "Abandoned profile with stale content, mismatched industry" },
+  { feature: "Account credentials", linkedvelocity: "Owner keeps credentials — renter gets managed browser session", alt: "Buyer gets password — but seller may still have access" },
+  { feature: "Payment safety", linkedvelocity: "Stripe or USDC — standard payment protection", alt: "Usually crypto or wire to anonymous accounts — irreversible" },
 ];
 
 const faqs = [
@@ -38,15 +38,15 @@ const faqs = [
   },
   {
     q: "Isn't renting the same as buying from LinkedIn's perspective?",
-    a: "No. When you buy an account, the original owner loses access and the buyer takes over completely — this is account transfer, which LinkedIn explicitly prohibits. When you rent through Klabber, the original owner keeps their credentials and continues using the account normally. The renter gets a separate browser session via GoLogin. LinkedIn sees two sessions from the same user's usual behaviour pattern, not a transfer of ownership.",
+    a: "No. When you buy an account, the original owner loses access and the buyer takes over completely — this is account transfer, which LinkedIn explicitly prohibits. When you rent through LinkedVelocity, the original owner keeps their credentials and continues using the account normally. The renter gets a separate browser session via GoLogin. LinkedIn sees two sessions from the same user's usual behaviour pattern, not a transfer of ownership.",
   },
   {
     q: "I found aged accounts for $50 — isn't that cheaper than renting?",
-    a: "Only if the account survives. At a 70%+ ban rate within 6 weeks, a $50 account costs ~$8/week for 6 weeks of use. A comparable Klabber rental at $25/month costs ~$6/week with no expiry risk and instant replacement if anything goes wrong. The rental is both cheaper per week and risk-free.",
+    a: "Only if the account survives. At a 70%+ ban rate within 6 weeks, a $50 account costs ~$8/week for 6 weeks of use. A comparable LinkedVelocity rental at $25/month costs ~$6/week with no expiry risk and instant replacement if anything goes wrong. The rental is both cheaper per week and risk-free.",
   },
   {
     q: "Can the original owner reclaim a bought account?",
-    a: "Yes. LinkedIn's account recovery process favours the person who created the account. If the original owner (or a hacker who originally stole the account) submits a recovery request with the original email or phone number, LinkedIn will lock the buyer out. With Klabber rentals, this isn't a risk — the owner is a willing participant who earns monthly income from the arrangement.",
+    a: "Yes. LinkedIn's account recovery process favours the person who created the account. If the original owner (or a hacker who originally stole the account) submits a recovery request with the original email or phone number, LinkedIn will lock the buyer out. With LinkedVelocity rentals, this isn't a risk — the owner is a willing participant who earns monthly income from the arrangement.",
   },
 ];
 
@@ -55,9 +55,9 @@ export default function BuyingAgedVsRentPage() {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://klabber.co" },
-      { "@type": "ListItem", position: 2, name: "Comparisons", item: "https://klabber.co/vs" },
-      { "@type": "ListItem", position: 3, name: "vs Buying Aged Accounts", item: "https://klabber.co/vs/buying-aged-linkedin-accounts" },
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://linkedvelocity.com" },
+      { "@type": "ListItem", position: 2, name: "Comparisons", item: "https://linkedvelocity.com/vs" },
+      { "@type": "ListItem", position: 3, name: "vs Buying Aged Accounts", item: "https://linkedvelocity.com/vs/buying-aged-linkedin-accounts" },
     ],
   };
 
@@ -84,7 +84,7 @@ export default function BuyingAgedVsRentPage() {
 
         <header className="vs-header">
           <div className="vs-label">Comparison</div>
-          <h1 className="vs-title">Buying aged LinkedIn accounts vs renting through Klabber</h1>
+          <h1 className="vs-title">Buying aged LinkedIn accounts vs renting through LinkedVelocity</h1>
           <p className="vs-subtitle">
             Aged LinkedIn accounts are sold on forums, Telegram groups, and underground
             marketplaces for $200-2,000+. They promise instant outreach capacity — but
@@ -98,7 +98,7 @@ export default function BuyingAgedVsRentPage() {
           <p>
             <strong>Buying aged accounts is gambling with bad odds.</strong> Most get
             banned within 6 weeks, sellers are anonymous, and refunds don&apos;t exist.
-            Klabber rents real accounts from willing owners for $10-500/month with a
+            LinkedVelocity rents real accounts from willing owners for $10-500/month with a
             0% restriction rate and instant swaps if anything goes wrong.
           </p>
         </div>
@@ -108,13 +108,13 @@ export default function BuyingAgedVsRentPage() {
           <div className="vs-table-wrap">
             <table className="vs-table">
               <thead>
-                <tr><th></th><th>Klabber (rent)</th><th>Buying aged accounts</th></tr>
+                <tr><th></th><th>LinkedVelocity (rent)</th><th>Buying aged accounts</th></tr>
               </thead>
               <tbody>
                 {comparison.map((row) => (
                   <tr key={row.feature}>
                     <td className="vs-feature">{row.feature}</td>
-                    <td className="vs-good">{row.klabber}</td>
+                    <td className="vs-good">{row.linkedvelocity}</td>
                     <td className="vs-bad">{row.alt}</td>
                   </tr>
                 ))}
@@ -143,7 +143,7 @@ export default function BuyingAgedVsRentPage() {
           </p>
           <h2>Why renting avoids these signals</h2>
           <p>
-            Klabber rentals don&apos;t involve ownership transfer. The original owner
+            LinkedVelocity rentals don&apos;t involve ownership transfer. The original owner
             keeps the account, keeps logging in, keeps their regular activity pattern.
             The renter accesses the account through a separate GoLogin browser session
             with a residential proxy in the owner&apos;s region. To LinkedIn, it looks
@@ -152,7 +152,7 @@ export default function BuyingAgedVsRentPage() {
           <h2>The economics</h2>
           <p>
             A $500 aged account that gets banned after 4 weeks costs $125/week with
-            zero recovery options. A comparable Klabber rental at $50/month costs
+            zero recovery options. A comparable LinkedVelocity rental at $50/month costs
             $12.50/week, includes a GoLogin browser and proxy, and can be swapped
             instantly if anything goes wrong. Over 6 months, the rental saves 80%+
             versus buying replacements.
@@ -174,7 +174,7 @@ export default function BuyingAgedVsRentPage() {
           <p>847+ verified accounts from real professionals. GoLogin browser + residential proxy included. Cancel anytime.</p>
           <div className="vs-cta-row">
             <Link href="/catalogue" className="vs-btn-primary">Browse Accounts →</Link>
-            <Link href="/how-it-works" className="vs-btn-secondary">How Klabber Works</Link>
+            <Link href="/how-it-works" className="vs-btn-secondary">How LinkedVelocity Works</Link>
           </div>
         </section>
       </div>

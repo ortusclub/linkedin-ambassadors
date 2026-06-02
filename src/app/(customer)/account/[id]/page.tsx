@@ -215,10 +215,10 @@ export default function AccountDetailPage() {
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">What You Get</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    { title: "Klabber Desktop App", desc: "Secure browser session managed through the Klabber app" },
+                    { title: "LinkedVelocity Desktop App", desc: "Secure browser session managed through the LinkedVelocity app" },
                     { title: "Dedicated Proxy", desc: "Residential proxy assigned exclusively to this account" },
                     { title: "Pre-Authenticated", desc: "LinkedIn session already logged in and ready to use" },
-                    { title: "Works Anywhere", desc: "Access from any device with the Klabber app installed" },
+                    { title: "Works Anywhere", desc: "Access from any device with the LinkedVelocity app installed" },
                     { title: "Cancel Anytime", desc: "No lock-in, cancel your subscription whenever you want" },
                     { title: "Email Reminders", desc: "Renewal notifications so you're always in control" },
                   ].map((item) => (
@@ -246,7 +246,7 @@ export default function AccountDetailPage() {
                   <div className="space-y-3">
                     {browserOpen ? (
                       <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-sm text-green-800">
-                        Browser is open. The Klabber window should be visible on your screen.
+                        Browser is open. The LinkedVelocity window should be visible on your screen.
                       </div>
                     ) : account.gologinProfileId ? (
                       <Button

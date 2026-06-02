@@ -201,7 +201,7 @@ function DashboardContent() {
 
   const handleOpenAccount = () => {
     if (appModalDismissed) {
-      window.location.href = "klabber://open";
+      window.location.href = "linkedvelocity://open";
     } else {
       setShowAppModal(true);
     }
@@ -870,9 +870,9 @@ function DashboardContent() {
       {showAppModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAppModal(false)}>
           <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900">Open via Klabber App</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Open via LinkedVelocity App</h3>
             <p className="mt-3 text-sm text-gray-600">
-              To protect your digital footprint, LinkedIn accounts can only be accessed through the Klabber desktop app. This prevents LinkedIn from detecting that multiple people are accessing the account at the same time.
+              To protect your digital footprint, LinkedIn accounts can only be accessed through the LinkedVelocity desktop app. This prevents LinkedIn from detecting that multiple people are accessing the account at the same time.
             </p>
             <label className="mt-4 flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
               <input
@@ -889,7 +889,7 @@ function DashboardContent() {
                   fetch("/api/user/dismiss-app-modal", { method: "POST" });
                   setAppModalDismissed(true);
                 }
-                window.location.href = "klabber://open";
+                window.location.href = "linkedvelocity://open";
                 setShowAppModal(false);
               }}>Open App</Button>
               <Link href="/api/download" className="w-full">
@@ -960,7 +960,7 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Klabber App Download Prompt */}
+      {/* LinkedVelocity App Download Prompt */}
       {showAppPrompt && (
         <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.5)',backdropFilter:'blur(4px)'}}>
           <div style={{background:'#fff',borderRadius:20,padding:32,maxWidth:440,width:'90%',position:'relative'}}>
@@ -973,22 +973,22 @@ function DashboardContent() {
 
             <div style={{textAlign:'center',marginBottom:24}}>
               <div style={{width:48,height:48,borderRadius:12,background:'#1D1B16',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:20,fontWeight:700,margin:'0 auto 16px',fontFamily:"'Instrument Sans',sans-serif"}}>kl</div>
-              <h3 style={{fontSize:20,fontWeight:700,color:'#0F1419',fontFamily:"'Instrument Sans',sans-serif"}}>Download the Klabber App</h3>
-              <p style={{fontSize:13,color:'#536471',marginTop:6}}>You need the Klabber desktop app to access your rented accounts securely.</p>
+              <h3 style={{fontSize:20,fontWeight:700,color:'#0F1419',fontFamily:"'Instrument Sans',sans-serif"}}>Download the LinkedVelocity App</h3>
+              <p style={{fontSize:13,color:'#536471',marginTop:6}}>You need the LinkedVelocity desktop app to access your rented accounts securely.</p>
             </div>
 
             <div style={{display:'flex',flexDirection:'column',gap:16,marginBottom:28}}>
               <div style={{display:'flex',gap:14,alignItems:'flex-start'}}>
                 <div style={{width:28,height:28,borderRadius:8,background:'#E8F1FA',color:'#0A66C2',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Instrument Sans',sans-serif"}}>1</div>
                 <div>
-                  <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Download the Klabber app</p>
+                  <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Download the LinkedVelocity app</p>
                   <p style={{fontSize:12,color:'#8899A6',marginTop:2}}>Available for Mac and Windows. Takes less than a minute.</p>
                 </div>
               </div>
               <div style={{display:'flex',gap:14,alignItems:'flex-start'}}>
                 <div style={{width:28,height:28,borderRadius:8,background:'#E6F9EE',color:'#00B85C',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Instrument Sans',sans-serif"}}>2</div>
                 <div>
-                  <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Log in with your Klabber account</p>
+                  <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Log in with your LinkedVelocity account</p>
                   <p style={{fontSize:12,color:'#8899A6',marginTop:2}}>Use the same email you signed up with. We&apos;ll send you a verification code.</p>
                 </div>
               </div>
@@ -1005,16 +1005,16 @@ function DashboardContent() {
               href="/api/download"
               style={{display:'block',width:'100%',padding:14,borderRadius:10,background:'#0A66C2',color:'#fff',fontSize:15,fontWeight:700,textAlign:'center',textDecoration:'none',fontFamily:"'DM Sans',sans-serif"}}
             >
-              Download Klabber App
+              Download LinkedVelocity App
             </a>
             <button
               onClick={() => {
-                window.location.href = 'klabber://open';
+                window.location.href = 'linkedvelocity://open';
                 setShowAppPrompt(false);
               }}
               style={{display:'block',width:'100%',padding:12,borderRadius:10,background:'transparent',border:'2px solid #E8E6E1',color:'#0F1419',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit',marginTop:8,textAlign:'center'}}
             >
-              I already have the app — Open Klabber
+              I already have the app — Open LinkedVelocity
             </button>
             <button
               onClick={() => setShowAppPrompt(false)}

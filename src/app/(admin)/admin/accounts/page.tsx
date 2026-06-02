@@ -338,7 +338,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         <h2 className="text-2xl font-bold text-gray-900">Linked Accounts</h2>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowImport(true)}>Import CSV</Button>
-          <Button variant="outline" onClick={() => { window.location.href = "klabber://open"; }}>Open Klabber App</Button>
+          <Button variant="outline" onClick={() => { window.location.href = "linkedvelocity://open"; }}>Open LinkedVelocity App</Button>
           <Link href="/admin/accounts/new">
             <Button>Add Account</Button>
           </Link>
@@ -586,7 +586,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = "klabber-import-template.csv";
+                    a.download = "linkedvelocity-import-template.csv";
                     a.click();
                     URL.revokeObjectURL(url);
                   }}

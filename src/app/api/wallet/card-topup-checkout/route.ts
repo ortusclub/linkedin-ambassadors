@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const origin = req.headers.get("origin") || "https://klabber.co";
+  const origin = req.headers.get("origin") || "https://linkedvelocity.com";
   const amountCents = Math.round(amount * 100);
 
   let customerId = user.stripeCustomerId;
@@ -60,8 +60,8 @@ export async function POST(req: Request) {
         price_data: {
           currency: "usd",
           product_data: {
-            name: `Klabber Balance Top-Up — $${amount.toFixed(2)} USDC`,
-            description: "Adds USDC to your Klabber wallet balance.",
+            name: `LinkedVelocity Balance Top-Up — $${amount.toFixed(2)} USDC`,
+            description: "Adds USDC to your LinkedVelocity wallet balance.",
           },
           unit_amount: amountCents,
         },

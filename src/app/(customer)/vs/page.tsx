@@ -3,15 +3,15 @@ import Link from "next/link";
 import { CompareStyle } from "./compare-style";
 
 export const metadata: Metadata = {
-  title: "Klabber Comparisons — Why Renting Beats the Alternatives",
+  title: "LinkedVelocity Comparisons — Why Renting Beats the Alternatives",
   description:
-    "How Klabber LinkedIn account rentals compare to buying accounts, sharing passwords, and creating multiple accounts yourself. Side-by-side breakdowns of cost, risk, and time-to-outreach.",
+    "How LinkedVelocity LinkedIn account rentals compare to buying accounts, sharing passwords, and creating multiple accounts yourself. Side-by-side breakdowns of cost, risk, and time-to-outreach.",
   alternates: { canonical: "/vs" },
   openGraph: {
-    title: "Klabber Comparisons",
+    title: "LinkedVelocity Comparisons",
     description:
-      "Side-by-side comparisons of Klabber vs the most common alternatives for scaling LinkedIn outreach.",
-    url: "https://klabber.co/vs",
+      "Side-by-side comparisons of LinkedVelocity vs the most common alternatives for scaling LinkedIn outreach.",
+    url: "https://linkedvelocity.com/vs",
   },
 };
 
@@ -41,35 +41,35 @@ const pages = [
     title: "vs Creating Multiple Accounts Yourself",
     href: "/vs/creating-multiple-linkedin-accounts",
     summary:
-      "Why DIY multi-account setups take 3 months to warm and get restricted at a 70% rate. Same-day access with Klabber instead.",
+      "Why DIY multi-account setups take 3 months to warm and get restricted at a 70% rate. Same-day access with LinkedVelocity instead.",
     tag: "Most expensive alternative",
   },
   {
     title: "vs MirrorProfiles",
     href: "/vs/mirrorprofiles",
     summary:
-      "MirrorProfiles rents synthetic accounts with fake identities. Klabber rents real accounts from real professionals — better trust, better rates, lower price.",
+      "MirrorProfiles rents synthetic accounts with fake identities. LinkedVelocity rents real accounts from real professionals — better trust, better rates, lower price.",
     tag: "Direct competitor",
   },
   {
     title: "vs SBL.so",
     href: "/vs/sbl",
     summary:
-      "SBL.so manages outreach for you via fractional SDRs. Klabber gives you the account directly so you control the messaging and tools. Control vs convenience.",
+      "SBL.so manages outreach for you via fractional SDRs. LinkedVelocity gives you the account directly so you control the messaging and tools. Control vs convenience.",
     tag: "Direct competitor",
   },
   {
     title: "vs Instantly",
     href: "/vs/instantly",
     summary:
-      "Instantly is a cold email platform. Klabber rents LinkedIn accounts. Different tools for different channels — many teams use both.",
+      "Instantly is a cold email platform. LinkedVelocity rents LinkedIn accounts. Different tools for different channels — many teams use both.",
     tag: "Complementary tool",
   },
   {
     title: "vs Smartlead",
     href: "/vs/smartlead",
     summary:
-      "Smartlead automates email with unlimited mailboxes. Klabber provides the LinkedIn accounts. Here's when to use which — or both.",
+      "Smartlead automates email with unlimited mailboxes. LinkedVelocity provides the LinkedIn accounts. Here's when to use which — or both.",
     tag: "Complementary tool",
   },
 ];
@@ -79,8 +79,8 @@ export default function ComparisonsPage() {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://klabber.co" },
-      { "@type": "ListItem", position: 2, name: "Comparisons", item: "https://klabber.co/vs" },
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://linkedvelocity.com" },
+      { "@type": "ListItem", position: 2, name: "Comparisons", item: "https://linkedvelocity.com/vs" },
     ],
   };
 
@@ -96,11 +96,11 @@ export default function ComparisonsPage() {
 
         <header className="vs-header">
           <div className="vs-label">Comparisons</div>
-          <h1 className="vs-title">Klabber vs the alternatives</h1>
+          <h1 className="vs-title">LinkedVelocity vs the alternatives</h1>
           <p className="vs-subtitle">
             Most teams scaling LinkedIn outreach end up choosing between three risky paths:
             buying accounts, sharing passwords, or creating accounts themselves. Here&apos;s how
-            each compares to renting through Klabber.
+            each compares to renting through LinkedVelocity.
           </p>
         </header>
 

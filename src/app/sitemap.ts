@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAllBlogPosts } from "@/lib/blog-posts";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://klabber.co";
+  const baseUrl = "https://linkedvelocity.com";
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
