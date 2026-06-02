@@ -7,6 +7,8 @@ import {
   sendPaymentFailedEmail,
   sendAccessRevokedEmail,
   sendAccountAvailableEmail,
+  sendTopUpNotification,
+  sendRentalNotification,
 } from "@/services/email";
 import Stripe from "stripe";
 
@@ -107,6 +109,24 @@ async function handleWalletTopUp(session: Stripe.Checkout.Session) {
       },
     }),
   ]);
+
+  // Notify admin of the new card top-up (non-blocking)
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, fullName: true },
+    });
+    if (user) {
+      await sendTopUpNotification({
+        customerEmail: user.email,
+        customerName: user.fullName,
+        amount: amountUsd,
+        method: "card",
+      });
+    }
+  } catch (e) {
+    console.error("Failed to send top-up notification:", e);
+  }
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
@@ -154,6 +174,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       : "Access instructions will be provided by our team shortly.";
 
     await sendWelcomeEmail(user.email, account.linkedinName, instructions);
+
+    // Notify admin of the new rental (non-blocking)
+    try {
+      await sendRentalNotification({
+        customerEmail: user.email,
+        customerName: user.fullName,
+        accountName: account.linkedinName,
+      });
+    } catch (e) {
+      console.error("Failed to send rental notification:", e);
+    }
   }
 
   // Remove from waitlist if any

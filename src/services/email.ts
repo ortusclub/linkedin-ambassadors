@@ -8,6 +8,8 @@ function getResend(): Resend {
   return _resend;
 }
 const from = process.env.RESEND_FROM_EMAIL || "noreply@linkedinambassadors.com";
+// Where internal admin notifications (top-ups, rentals) are sent.
+const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "info@klabber.co";
 
 interface EmailOptions {
   to: string;
@@ -269,6 +271,54 @@ export async function sendTestAccountLead(name: string, email: string) {
         <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;">
           <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Name:</strong> ${name}</p>
           <p style="margin:0;color:#0F1419;font-size:14px;"><strong>Email:</strong> <a href="mailto:${email}" style="color:#0A66C2;text-decoration:none;">${email}</a></p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+export async function sendTopUpNotification(opts: {
+  customerEmail: string;
+  customerName?: string | null;
+  amount: number | string;
+  method: "card" | "crypto";
+}) {
+  const amountStr = Number(opts.amount).toFixed(2);
+  const methodLabel = opts.method === "card" ? "Card (Stripe)" : "Crypto (USDC on Base)";
+  return sendEmail({
+    to: adminEmail,
+    subject: `💰 New top-up: $${amountStr} (${opts.method})`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 20px;">
+        <h2 style="color:#0F1419;margin-bottom:8px;">New Balance Top-Up</h2>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">A customer just added funds to their LinkedVelocity balance.</p>
+        <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;">
+          <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Amount:</strong> $${amountStr} USDC</p>
+          <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Method:</strong> ${methodLabel}</p>
+          ${opts.customerName ? `<p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Customer:</strong> ${opts.customerName}</p>` : ""}
+          <p style="margin:0;color:#0F1419;font-size:14px;"><strong>Email:</strong> <a href="mailto:${opts.customerEmail}" style="color:#0A66C2;text-decoration:none;">${opts.customerEmail}</a></p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+export async function sendRentalNotification(opts: {
+  customerEmail: string;
+  customerName?: string | null;
+  accountName: string;
+}) {
+  return sendEmail({
+    to: adminEmail,
+    subject: `🎉 New rental: ${opts.accountName}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 20px;">
+        <h2 style="color:#0F1419;margin-bottom:8px;">New Account Rental</h2>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">A customer just rented a LinkedIn account.</p>
+        <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;">
+          <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Account:</strong> ${opts.accountName}</p>
+          ${opts.customerName ? `<p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Customer:</strong> ${opts.customerName}</p>` : ""}
+          <p style="margin:0;color:#0F1419;font-size:14px;"><strong>Email:</strong> <a href="mailto:${opts.customerEmail}" style="color:#0A66C2;text-decoration:none;">${opts.customerEmail}</a></p>
         </div>
       </div>
     `,
