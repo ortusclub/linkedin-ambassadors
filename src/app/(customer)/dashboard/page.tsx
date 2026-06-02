@@ -972,7 +972,7 @@ function DashboardContent() {
             </button>
 
             <div style={{textAlign:'center',marginBottom:24}}>
-              <div style={{width:48,height:48,borderRadius:12,background:'#1D1B16',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:20,fontWeight:700,margin:'0 auto 16px',fontFamily:"'Instrument Sans',sans-serif"}}>kl</div>
+              <div style={{width:48,height:48,borderRadius:12,background:'#1D1B16',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:20,fontWeight:700,margin:'0 auto 16px',fontFamily:"'Instrument Sans',sans-serif"}}>LV</div>
               <h3 style={{fontSize:20,fontWeight:700,color:'#0F1419',fontFamily:"'Instrument Sans',sans-serif"}}>Download the LinkedVelocity App</h3>
               <p style={{fontSize:13,color:'#536471',marginTop:6}}>You need the LinkedVelocity desktop app to access your rented accounts securely.</p>
             </div>

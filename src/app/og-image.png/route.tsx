@@ -33,7 +33,7 @@ export async function GET() {
             color: "#fff",
           }}
         >
-          kl
+          LV
         </div>
 
         {/* Title */}
