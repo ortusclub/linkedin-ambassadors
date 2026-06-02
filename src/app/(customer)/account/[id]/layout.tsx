@@ -33,9 +33,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `Rent ${name}'s pre-warmed LinkedIn account for outreach. ${account.connectionCount.toLocaleString()} connections${account.industry ? ` in ${account.industry}` : ""}${account.hasSalesNav ? ", Sales Navigator included" : ""}. $${price}/month, cancel anytime.`,
     alternates: { canonical: `/account/${id}` },
     openGraph: {
-      title: `Rent ${name}'s LinkedIn — ${account.connectionCount.toLocaleString()} Connections | Klabber`,
+      title: `Rent ${name}'s LinkedIn — ${account.connectionCount.toLocaleString()} Connections | LinkedVelocity`,
       description: `Pre-warmed LinkedIn account for rent. ${account.connectionCount.toLocaleString()} connections${account.industry ? ` in ${account.industry}` : ""}. $${price}/mo.`,
-      url: `https://klabber.co/account/${id}`,
+      url: `https://linkedvelocity.com/account/${id}`,
     },
   };
 }
@@ -74,7 +74,7 @@ export default async function AccountLayout({ params, children }: Props) {
     "@type": "Product",
     name: `${name}'s LinkedIn Account Rental`,
     description: `Rent ${name}'s pre-warmed LinkedIn account for outreach. ${account.connectionCount.toLocaleString()} connections${account.industry ? ` in ${account.industry}` : ""}${account.hasSalesNav ? ", Sales Navigator included" : ""}. Instant access via GoLogin browser.`,
-    brand: { "@type": "Brand", name: "Klabber" },
+    brand: { "@type": "Brand", name: "LinkedVelocity" },
     category: "LinkedIn Account Rental",
     ...(account.profilePhotoUrl ? { image: account.profilePhotoUrl } : {}),
     offers: {
@@ -85,11 +85,11 @@ export default async function AccountLayout({ params, children }: Props) {
         account.status === "available"
           ? "https://schema.org/InStock"
           : "https://schema.org/OutOfStock",
-      url: `https://klabber.co/account/${id}`,
+      url: `https://linkedvelocity.com/account/${id}`,
       priceValidUntil: new Date(
         Date.now() + 30 * 24 * 60 * 60 * 1000
       ).toISOString().split("T")[0],
-      seller: { "@type": "Organization", name: "Klabber" },
+      seller: { "@type": "Organization", name: "LinkedVelocity" },
     },
     additionalProperty: [
       {
@@ -131,19 +131,19 @@ export default async function AccountLayout({ params, children }: Props) {
         "@type": "ListItem",
         position: 1,
         name: "Home",
-        item: "https://klabber.co",
+        item: "https://linkedvelocity.com",
       },
       {
         "@type": "ListItem",
         position: 2,
         name: "Catalogue",
-        item: "https://klabber.co/catalogue",
+        item: "https://linkedvelocity.com/catalogue",
       },
       {
         "@type": "ListItem",
         position: 3,
         name: `${name}'s Account`,
-        item: `https://klabber.co/account/${id}`,
+        item: `https://linkedvelocity.com/account/${id}`,
       },
     ],
   };

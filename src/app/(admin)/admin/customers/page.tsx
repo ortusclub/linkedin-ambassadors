@@ -78,7 +78,7 @@ export default function AdminCustomersPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Klabber Accounts</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">LinkedVelocity Accounts</h2>
 
       {customers.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-gray-500">No clapper accounts yet</CardContent></Card>

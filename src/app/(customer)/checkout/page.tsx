@@ -273,9 +273,9 @@ function CheckoutContent() {
             {/* Step 1 */}
             <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:28}}>
               <div style={{width:40,height:40,borderRadius:12,background:'#E8F1FA',color:'#0A66C2',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:18,fontFamily:"'Instrument Sans',sans-serif",marginBottom:16}}>1</div>
-              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Instrument Sans',sans-serif"}}>Download the Klabber App</h3>
+              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Instrument Sans',sans-serif"}}>Download the LinkedVelocity App</h3>
               <p style={{fontSize:13,color:'#536471',lineHeight:1.6}}>
-                Download and install the Klabber desktop app. Your rented accounts will appear automatically inside the app, ready to use.
+                Download and install the LinkedVelocity desktop app. Your rented accounts will appear automatically inside the app, ready to use.
               </p>
             </div>
 

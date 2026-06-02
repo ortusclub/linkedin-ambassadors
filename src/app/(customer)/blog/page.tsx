@@ -8,9 +8,9 @@ export const metadata: Metadata = {
     "Expert guides on LinkedIn outreach campaigns, connection limits, automation compliance, and scaling B2B lead generation. Updated for 2026.",
   alternates: { canonical: "/blog" },
   openGraph: {
-    title: "Klabber Blog — LinkedIn Outreach Strategy",
+    title: "LinkedVelocity Blog — LinkedIn Outreach Strategy",
     description: "Expert guides on LinkedIn outreach, limits, and scaling lead generation.",
-    url: "https://klabber.co/blog",
+    url: "https://linkedvelocity.com/blog",
   },
 };
 

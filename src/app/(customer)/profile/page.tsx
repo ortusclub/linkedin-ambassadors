@@ -434,7 +434,7 @@ export default function ProfilePage() {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-100">
                 <h2 className="text-lg font-semibold text-[#1D1B16]">Withdraw</h2>
-                <p className="text-sm text-gray-400 mt-1">Send USDC from your Klabber balance to an external wallet.</p>
+                <p className="text-sm text-gray-400 mt-1">Send USDC from your LinkedVelocity balance to an external wallet.</p>
               </div>
               <div className="px-6 py-5">
                 <div className="space-y-3">
@@ -514,7 +514,7 @@ export default function ProfilePage() {
                   <a href="https://t.me/klabber_support_bot" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                     Telegram
                   </a>
-                  <a href="mailto:info@klabber.co" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  <a href="mailto:info@linkedvelocity.com" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                     Email
                   </a>
                 </div>

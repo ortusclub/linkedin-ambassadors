@@ -1,26 +1,26 @@
-# Klabber — LinkedIn Account Rental Marketplace
+# LinkedVelocity — LinkedIn Account Rental Marketplace
 
-> Klabber is a marketplace where growth teams can rent premium, pre-warmed LinkedIn accounts for outreach and lead generation campaigns.
+> LinkedVelocity is a marketplace where growth teams can rent premium, pre-warmed LinkedIn accounts for outreach and lead generation campaigns.
 
-> For complete product documentation, see [llms-full.txt](https://klabber.co/llms-full.txt)
+> For complete product documentation, see [llms-full.txt](https://linkedvelocity.com/llms-full.txt)
 
-## What is Klabber?
+## What is LinkedVelocity?
 
-Klabber connects two groups:
+LinkedVelocity connects two groups:
 - **Growth teams** who need LinkedIn accounts for outreach, lead generation, and networking campaigns
 - **Professionals (Ambassadors)** who have LinkedIn accounts they're not actively using and want to earn passive income
 
 ## How It Works
 
 ### For Renters (Growth Teams)
-1. Browse the catalogue of available LinkedIn accounts at klabber.co/catalogue
+1. Browse the catalogue of available LinkedIn accounts at linkedvelocity.com/catalogue
 2. Filter by industry, connection count, Sales Navigator status, and account age
 3. Select and rent accounts starting from $10/month
 4. Access accounts instantly via GoLogin anti-detect browser
 5. Run outreach campaigns safely — 0% restriction rate
 
 ### For Ambassadors (Account Owners)
-1. Visit klabber.co/become-ambassador
+1. Visit linkedvelocity.com/become-ambassador
 2. Submit your LinkedIn profile for valuation
 3. Earn $10-$500/month depending on connections, age, and features
 4. Get paid via USDC, PayPal, Wise, or bank transfer
@@ -43,14 +43,14 @@ Klabber connects two groups:
 
 ## Contact
 
-- Website: https://klabber.co
+- Website: https://linkedvelocity.com
 - Support: https://t.me/klabber_support_bot
-- Email: support@klabber.co
-- Ambassador inquiries: ambassadors@klabber.co
+- Email: support@linkedvelocity.com
+- Ambassador inquiries: ambassadors@linkedvelocity.com
 
 ## Pages
 
-- Homepage: https://klabber.co
-- Browse Accounts: https://klabber.co/catalogue
-- Become an Ambassador: https://klabber.co/become-ambassador
-- FAQs: https://klabber.co/faqs
+- Homepage: https://linkedvelocity.com
+- Browse Accounts: https://linkedvelocity.com/catalogue
+- Become an Ambassador: https://linkedvelocity.com/become-ambassador
+- FAQs: https://linkedvelocity.com/faqs

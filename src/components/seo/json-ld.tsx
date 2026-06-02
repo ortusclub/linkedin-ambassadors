@@ -2,11 +2,11 @@ export function JsonLd() {
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Klabber",
-    url: "https://klabber.co",
-    logo: "https://klabber.co/favicon.svg",
+    name: "LinkedVelocity",
+    url: "https://linkedvelocity.com",
+    logo: "https://linkedvelocity.com/favicon.svg",
     description:
-      "Klabber is a marketplace for renting premium, pre-warmed LinkedIn accounts for outreach and lead generation.",
+      "LinkedVelocity is a marketplace for renting premium, pre-warmed LinkedIn accounts for outreach and lead generation.",
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer service",
@@ -19,13 +19,13 @@ export function JsonLd() {
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Klabber",
-    url: "https://klabber.co",
+    name: "LinkedVelocity",
+    url: "https://linkedvelocity.com",
     description:
       "Rent premium LinkedIn accounts for outreach, lead generation, and networking.",
     potentialAction: {
       "@type": "SearchAction",
-      target: "https://klabber.co/catalogue?q={search_term_string}",
+      target: "https://linkedvelocity.com/catalogue?q={search_term_string}",
       "query-input": "required name=search_term_string",
     },
   };
@@ -36,7 +36,7 @@ export function JsonLd() {
     name: "LinkedIn Account Rental",
     provider: {
       "@type": "Organization",
-      name: "Klabber",
+      name: "LinkedVelocity",
     },
     description:
       "Rent pre-warmed, verified LinkedIn accounts for B2B outreach and lead generation campaigns. Includes GoLogin browser access for safe, simultaneous use.",
@@ -55,10 +55,10 @@ export function JsonLd() {
   const aggregateRatingSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: "Klabber LinkedIn Account Rental",
+    name: "LinkedVelocity LinkedIn Account Rental",
     description:
       "Rent pre-warmed, verified LinkedIn accounts for B2B outreach and lead generation. Instant access via GoLogin browser.",
-    brand: { "@type": "Brand", name: "Klabber" },
+    brand: { "@type": "Brand", name: "LinkedVelocity" },
     offers: {
       "@type": "AggregateOffer",
       lowPrice: "10",

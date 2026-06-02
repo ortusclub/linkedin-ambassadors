@@ -4,20 +4,20 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "How It Works — Renting & Sharing LinkedIn Accounts",
   description:
-    "Step-by-step guide to how Klabber works. Rent a verified, pre-warmed LinkedIn account in minutes with GoLogin browser access, or earn $10-500/month sharing an account you no longer use.",
+    "Step-by-step guide to how LinkedVelocity works. Rent a verified, pre-warmed LinkedIn account in minutes with GoLogin browser access, or earn $10-500/month sharing an account you no longer use.",
   alternates: { canonical: "/how-it-works" },
   openGraph: {
-    title: "How Klabber Works — Rent or Share LinkedIn Accounts",
+    title: "How LinkedVelocity Works — Rent or Share LinkedIn Accounts",
     description:
       "Browse, rent, and access pre-warmed LinkedIn accounts in minutes. Or earn passive income by sharing accounts you no longer use.",
-    url: "https://klabber.co/how-it-works",
+    url: "https://linkedvelocity.com/how-it-works",
   },
 };
 
 const renterSteps = [
   {
     name: "Browse the catalogue",
-    text: "Open klabber.co/catalogue and filter by industry, connection count, geography, and Sales Navigator availability. Every account shows price, account stats, and current status.",
+    text: "Open linkedvelocity.com/catalogue and filter by industry, connection count, geography, and Sales Navigator availability. Every account shows price, account stats, and current status.",
   },
   {
     name: "Select your account(s)",
@@ -25,15 +25,15 @@ const renterSteps = [
   },
   {
     name: "Top up your USDC balance",
-    text: "Klabber bills in USDC. Deposit on Base network from any wallet — your balance updates within seconds. (You can also pay directly with Stripe when prompted.)",
+    text: "LinkedVelocity bills in USDC. Deposit on Base network from any wallet — your balance updates within seconds. (You can also pay directly with Stripe when prompted.)",
   },
   {
     name: "Pay and confirm rental",
     text: "Rentals are monthly subscriptions and renew automatically. Cancel anytime from your dashboard with no penalty.",
   },
   {
-    name: "Download the Klabber desktop app",
-    text: "Your rented accounts appear inside the Klabber desktop app, each as its own isolated GoLogin browser profile with a dedicated residential proxy.",
+    name: "Download the LinkedVelocity desktop app",
+    text: "Your rented accounts appear inside the LinkedVelocity desktop app, each as its own isolated GoLogin browser profile with a dedicated residential proxy.",
   },
   {
     name: "Open and run your campaigns",
@@ -44,11 +44,11 @@ const renterSteps = [
 const ambassadorSteps = [
   {
     name: "Apply for valuation",
-    text: "Visit klabber.co/become-ambassador, fill in your LinkedIn URL and contact details. We instantly value your account based on connections, industry, age, and Sales Navigator.",
+    text: "Visit linkedvelocity.com/become-ambassador, fill in your LinkedIn URL and contact details. We instantly value your account based on connections, industry, age, and Sales Navigator.",
   },
   {
     name: "Onboard the account",
-    text: "Our team imports your account into a managed GoLogin profile with a dedicated proxy. Your password, recovery email, and 2FA stay yours — Klabber never owns the account.",
+    text: "Our team imports your account into a managed GoLogin profile with a dedicated proxy. Your password, recovery email, and 2FA stay yours — LinkedVelocity never owns the account.",
   },
   {
     name: "Get paid monthly",
@@ -65,21 +65,21 @@ export default function HowItWorksPage() {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://klabber.co" },
-      { "@type": "ListItem", position: 2, name: "How It Works", item: "https://klabber.co/how-it-works" },
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://linkedvelocity.com" },
+      { "@type": "ListItem", position: 2, name: "How It Works", item: "https://linkedvelocity.com/how-it-works" },
     ],
   };
 
   const renterHowTo = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to rent a LinkedIn account on Klabber",
+    name: "How to rent a LinkedIn account on LinkedVelocity",
     description:
       "Rent a pre-warmed, verified LinkedIn account for outreach in minutes. Each rental includes GoLogin browser access with a dedicated residential proxy.",
     totalTime: "PT10M",
     estimatedCost: { "@type": "MonetaryAmount", currency: "USD", value: "10" },
     supply: [{ "@type": "HowToSupply", name: "Email address" }, { "@type": "HowToSupply", name: "USDC or credit card for monthly payment" }],
-    tool: [{ "@type": "HowToTool", name: "Klabber desktop app (Mac/Windows)" }],
+    tool: [{ "@type": "HowToTool", name: "LinkedVelocity desktop app (Mac/Windows)" }],
     step: renterSteps.map((s, i) => ({
       "@type": "HowToStep",
       position: i + 1,
@@ -91,7 +91,7 @@ export default function HowItWorksPage() {
   const ambassadorHowTo = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to share a LinkedIn account and earn passive income on Klabber",
+    name: "How to share a LinkedIn account and earn passive income on LinkedVelocity",
     description:
       "Submit your LinkedIn profile for instant valuation. Earn $10-500/month per account while keeping full ownership and ability to use the profile yourself.",
     totalTime: "PT5M",
@@ -161,7 +161,7 @@ export default function HowItWorksPage() {
           <div className="hiw-label">How it works</div>
           <h1 className="hiw-title">Rent a LinkedIn account in minutes. Or earn from one you don&apos;t use.</h1>
           <p className="hiw-subtitle">
-            Klabber is a two-sided marketplace. Growth teams rent pre-warmed, verified LinkedIn
+            LinkedVelocity is a two-sided marketplace. Growth teams rent pre-warmed, verified LinkedIn
             accounts for outreach. Professionals with dormant profiles earn $10-500/month while
             keeping full ownership. Here&apos;s exactly how each side works.
           </p>
@@ -199,7 +199,7 @@ export default function HowItWorksPage() {
             <strong>Why GoLogin matters.</strong> Each rented account runs in an isolated browser
             fingerprint with its own residential IP. To LinkedIn, the session looks identical to
             the original account holder logging in from their usual location — which is why
-            Klabber has maintained a 0% restriction rate across all rentals.
+            LinkedVelocity has maintained a 0% restriction rate across all rentals.
           </div>
         </section>
 
@@ -209,7 +209,7 @@ export default function HowItWorksPage() {
             <span className="hiw-section-tag">$10-500 per account per month</span>
           </div>
           <p className="hiw-section-lede">
-            If you have a LinkedIn account you don&apos;t actively use, Klabber turns it into a
+            If you have a LinkedIn account you don&apos;t actively use, LinkedVelocity turns it into a
             monthly income stream. You retain ownership, you&apos;re never locked out, and renters
             cannot change your profile content.
           </p>
@@ -237,7 +237,7 @@ export default function HowItWorksPage() {
           </div>
 
           <div className="hiw-note">
-            <strong>You&apos;re not selling the account.</strong> Klabber never asks for ownership
+            <strong>You&apos;re not selling the account.</strong> LinkedVelocity never asks for ownership
             transfer, and LinkedIn&apos;s terms prohibit account sales — not shared browser
             sessions. Because you keep the credentials, you can revoke access at any time.
           </div>

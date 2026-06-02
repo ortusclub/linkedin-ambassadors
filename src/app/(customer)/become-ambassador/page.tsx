@@ -987,7 +987,7 @@ export default function BecomeAmbassadorPage() {
                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" /></svg>
                         Watch Loom Walkthrough
                       </a>
-                      <a href="https://scribehow.com/viewer/Share_your_accounts_on_Klabber__jLAzNyl3SHeWQVy8ISk9BA" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors">
+                      <a href="https://scribehow.com/viewer/Share_your_accounts_on_LinkedVelocity__jLAzNyl3SHeWQVy8ISk9BA" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors">
                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
                         See Scribe Guide
                       </a>
@@ -1050,13 +1050,13 @@ export default function BecomeAmbassadorPage() {
                     <div className="flex items-start gap-4">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white flex-shrink-0">4</div>
                       <div>
-                        <p className="font-semibold text-gray-900">Share the profile with Klabber</p>
+                        <p className="font-semibold text-gray-900">Share the profile with LinkedVelocity</p>
                         <p className="text-sm text-gray-500 mt-1">Close the browser, then in GoLogin right-click the profile → <strong>Share</strong> → set permission to <strong>&quot;Can edit&quot;</strong> → share to:</p>
                         <div className="mt-2 flex items-center gap-2">
-                          <code className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white">info@klabber.co</code>
+                          <code className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white">info@linkedvelocity.com</code>
                           <button
                             type="button"
-                            onClick={() => { navigator.clipboard.writeText("info@klabber.co"); }}
+                            onClick={() => { navigator.clipboard.writeText("info@linkedvelocity.com"); }}
                             className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
                           >
                             Copy
@@ -1096,7 +1096,7 @@ export default function BecomeAmbassadorPage() {
 
                   <div className="space-y-4">
                     <a
-                      href="https://klabber.co/book"
+                      href="https://linkedvelocity.com/book"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-indigo-300 hover:bg-indigo-50"
@@ -1150,7 +1150,7 @@ export default function BecomeAmbassadorPage() {
                     </a>
 
                     <a
-                      href="mailto:ambassadors@klabber.co"
+                      href="mailto:ambassadors@linkedvelocity.com"
                       className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-purple-300 hover:bg-purple-50"
                     >
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 flex-shrink-0">
@@ -1161,7 +1161,7 @@ export default function BecomeAmbassadorPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">Email</p>
-                        <p className="text-sm text-gray-500">ambassadors@klabber.co</p>
+                        <p className="text-sm text-gray-500">ambassadors@linkedvelocity.com</p>
                       </div>
                     </a>
                   </div>
@@ -1183,7 +1183,7 @@ export default function BecomeAmbassadorPage() {
             <div className="py-4">
               <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Almost Done!</h2>
               <p className="text-center text-gray-500 mb-6">
-                The Klabber team is now assessing your profile to ensure everything is in place. We&apos;ll send you an email once it&apos;s approved.
+                The LinkedVelocity team is now assessing your profile to ensure everything is in place. We&apos;ll send you an email once it&apos;s approved.
               </p>
 
               <Card>
@@ -1213,13 +1213,13 @@ export default function BecomeAmbassadorPage() {
                         <p className="text-xs text-gray-500">@klabber_support_bot</p>
                       </div>
                     </a>
-                    <a href="mailto:info@klabber.co" className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-purple-50 hover:border-purple-200 transition-all">
+                    <a href="mailto:info@linkedvelocity.com" className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-purple-50 hover:border-purple-200 transition-all">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 flex-shrink-0">
                         <svg viewBox="0 0 24 24" className="h-4 w-4 text-purple-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4l-10 8L2 4"/></svg>
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-gray-900">Email</p>
-                        <p className="text-xs text-gray-500">info@klabber.co</p>
+                        <p className="text-xs text-gray-500">info@linkedvelocity.com</p>
                       </div>
                     </a>
                   </div>
@@ -1270,7 +1270,7 @@ export default function BecomeAmbassadorPage() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">Multiple payment options</p>
-                        <p className="text-sm text-gray-500">Receive payment via USDC directly into your Klabber wallet, or if you prefer an alternative method, our team can accommodate — just let us know.</p>
+                        <p className="text-sm text-gray-500">Receive payment via USDC directly into your LinkedVelocity wallet, or if you prefer an alternative method, our team can accommodate — just let us know.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">

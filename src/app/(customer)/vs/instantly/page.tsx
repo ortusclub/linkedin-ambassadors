@@ -3,56 +3,56 @@ import Link from "next/link";
 import { CompareStyle } from "../compare-style";
 
 export const metadata: Metadata = {
-  title: "Klabber vs Instantly — LinkedIn Outreach Compared",
+  title: "LinkedVelocity vs Instantly — LinkedIn Outreach Compared",
   description:
-    "Instantly is a cold email platform with a LinkedIn add-on. Klabber is a dedicated LinkedIn account rental marketplace. Here's when you need Klabber alongside or instead of Instantly for LinkedIn outreach at scale.",
+    "Instantly is a cold email platform with a LinkedIn add-on. LinkedVelocity is a dedicated LinkedIn account rental marketplace. Here's when you need LinkedVelocity alongside or instead of Instantly for LinkedIn outreach at scale.",
   alternates: { canonical: "/vs/instantly" },
   openGraph: {
-    title: "Klabber vs Instantly for LinkedIn Outreach",
+    title: "LinkedVelocity vs Instantly for LinkedIn Outreach",
     description:
-      "How Klabber's LinkedIn account rentals compare to Instantly's LinkedIn outreach features.",
-    url: "https://klabber.co/vs/instantly",
+      "How LinkedVelocity's LinkedIn account rentals compare to Instantly's LinkedIn outreach features.",
+    url: "https://linkedvelocity.com/vs/instantly",
   },
 };
 
 const comparison = [
-  { feature: "Core product", klabber: "LinkedIn account rental marketplace", alt: "Cold email platform with LinkedIn add-on" },
-  { feature: "LinkedIn accounts included", klabber: "Yes — rent 1 to 50+ real accounts", alt: "No — you must bring your own LinkedIn account" },
-  { feature: "Multi-account LinkedIn outreach", klabber: "Rent as many accounts as you need, each isolated", alt: "Limited to accounts you already own or control" },
-  { feature: "Account warming", klabber: "None — accounts are pre-warmed with real history", alt: "Email warming included; LinkedIn accounts need separate warming" },
-  { feature: "Anti-detect browser", klabber: "GoLogin included with every rental, dedicated residential proxy", alt: "Not included — need separate browser tool for LinkedIn" },
-  { feature: "Email outreach", klabber: "Not included — LinkedIn only", alt: "Core feature — email warmup, rotation, sequences" },
-  { feature: "Best for", klabber: "Teams who need more LinkedIn accounts for outreach", alt: "Teams who need a cold email engine with optional LinkedIn" },
-  { feature: "Pricing", klabber: "$10-500/mo per LinkedIn account", alt: "$30-97/mo for email platform; LinkedIn accounts extra" },
+  { feature: "Core product", linkedvelocity: "LinkedIn account rental marketplace", alt: "Cold email platform with LinkedIn add-on" },
+  { feature: "LinkedIn accounts included", linkedvelocity: "Yes — rent 1 to 50+ real accounts", alt: "No — you must bring your own LinkedIn account" },
+  { feature: "Multi-account LinkedIn outreach", linkedvelocity: "Rent as many accounts as you need, each isolated", alt: "Limited to accounts you already own or control" },
+  { feature: "Account warming", linkedvelocity: "None — accounts are pre-warmed with real history", alt: "Email warming included; LinkedIn accounts need separate warming" },
+  { feature: "Anti-detect browser", linkedvelocity: "GoLogin included with every rental, dedicated residential proxy", alt: "Not included — need separate browser tool for LinkedIn" },
+  { feature: "Email outreach", linkedvelocity: "Not included — LinkedIn only", alt: "Core feature — email warmup, rotation, sequences" },
+  { feature: "Best for", linkedvelocity: "Teams who need more LinkedIn accounts for outreach", alt: "Teams who need a cold email engine with optional LinkedIn" },
+  { feature: "Pricing", linkedvelocity: "$10-500/mo per LinkedIn account", alt: "$30-97/mo for email platform; LinkedIn accounts extra" },
 ];
 
 const faqs = [
   {
-    q: "Can I use Klabber and Instantly together?",
-    a: "Yes — many teams do. Use Instantly for cold email sequences and Klabber for LinkedIn outreach on rented accounts. They serve different channels and complement each other well. Run Instantly's LinkedIn extension inside the GoLogin browser session that comes with every Klabber rental.",
+    q: "Can I use LinkedVelocity and Instantly together?",
+    a: "Yes — many teams do. Use Instantly for cold email sequences and LinkedVelocity for LinkedIn outreach on rented accounts. They serve different channels and complement each other well. Run Instantly's LinkedIn extension inside the GoLogin browser session that comes with every LinkedVelocity rental.",
   },
   {
     q: "Does Instantly provide LinkedIn accounts?",
-    a: "No. Instantly is an email-first platform. Its LinkedIn features require you to connect your own LinkedIn account. If you need additional LinkedIn accounts for outreach, that's exactly what Klabber provides.",
+    a: "No. Instantly is an email-first platform. Its LinkedIn features require you to connect your own LinkedIn account. If you need additional LinkedIn accounts for outreach, that's exactly what LinkedVelocity provides.",
   },
   {
     q: "Which is cheaper for LinkedIn outreach?",
-    a: "For pure LinkedIn outreach, Klabber is more cost-effective because you get the accounts, browser, and proxy in one package. Instantly charges for the platform ($30-97/mo) but you still need to source and manage your own LinkedIn accounts separately.",
+    a: "For pure LinkedIn outreach, LinkedVelocity is more cost-effective because you get the accounts, browser, and proxy in one package. Instantly charges for the platform ($30-97/mo) but you still need to source and manage your own LinkedIn accounts separately.",
   },
   {
-    q: "Do I need Klabber if I already use Instantly?",
-    a: "If your LinkedIn outreach is limited to your personal account, you may not. But if you've hit LinkedIn's connection limits and need to scale across multiple accounts, Klabber gives you additional accounts to use — either through Instantly's LinkedIn integration or standalone tools like Dripify or Expandi.",
+    q: "Do I need LinkedVelocity if I already use Instantly?",
+    a: "If your LinkedIn outreach is limited to your personal account, you may not. But if you've hit LinkedIn's connection limits and need to scale across multiple accounts, LinkedVelocity gives you additional accounts to use — either through Instantly's LinkedIn integration or standalone tools like Dripify or Expandi.",
   },
 ];
 
-export default function InstantlyVsKlabberPage() {
+export default function InstantlyVsLinkedVelocityPage() {
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://klabber.co" },
-      { "@type": "ListItem", position: 2, name: "Comparisons", item: "https://klabber.co/vs" },
-      { "@type": "ListItem", position: 3, name: "vs Instantly", item: "https://klabber.co/vs/instantly" },
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://linkedvelocity.com" },
+      { "@type": "ListItem", position: 2, name: "Comparisons", item: "https://linkedvelocity.com/vs" },
+      { "@type": "ListItem", position: 3, name: "vs Instantly", item: "https://linkedvelocity.com/vs/instantly" },
     ],
   };
 
@@ -79,10 +79,10 @@ export default function InstantlyVsKlabberPage() {
 
         <header className="vs-header">
           <div className="vs-label">Comparison</div>
-          <h1 className="vs-title">Klabber vs Instantly for LinkedIn outreach</h1>
+          <h1 className="vs-title">LinkedVelocity vs Instantly for LinkedIn outreach</h1>
           <p className="vs-subtitle">
             Instantly is a cold email platform that added LinkedIn as a secondary channel.
-            Klabber is a marketplace dedicated to renting LinkedIn accounts for outreach.
+            LinkedVelocity is a marketplace dedicated to renting LinkedIn accounts for outreach.
             They solve different problems — and many teams use both.
           </p>
         </header>
@@ -91,9 +91,9 @@ export default function InstantlyVsKlabberPage() {
           <span className="vs-verdict-label">TL;DR</span>
           <p>
             <strong>Different tools, different jobs.</strong> Instantly is your cold email
-            engine. Klabber gives you the LinkedIn accounts to run outreach on. If
+            engine. LinkedVelocity gives you the LinkedIn accounts to run outreach on. If
             you&apos;ve hit LinkedIn&apos;s connection limits on your personal account,
-            Klabber is where you get more accounts — then run campaigns via Instantly,
+            LinkedVelocity is where you get more accounts — then run campaigns via Instantly,
             Dripify, or any other tool.
           </p>
         </div>
@@ -103,13 +103,13 @@ export default function InstantlyVsKlabberPage() {
           <div className="vs-table-wrap">
             <table className="vs-table">
               <thead>
-                <tr><th></th><th>Klabber</th><th>Instantly</th></tr>
+                <tr><th></th><th>LinkedVelocity</th><th>Instantly</th></tr>
               </thead>
               <tbody>
                 {comparison.map((row) => (
                   <tr key={row.feature}>
                     <td className="vs-feature">{row.feature}</td>
-                    <td className="vs-good">{row.klabber}</td>
+                    <td className="vs-good">{row.linkedvelocity}</td>
                     <td style={{ color: "#536471" }}>{row.alt}</td>
                   </tr>
                 ))}
@@ -119,11 +119,11 @@ export default function InstantlyVsKlabberPage() {
         </section>
 
         <section className="vs-detail">
-          <h2>When to use Klabber</h2>
+          <h2>When to use LinkedVelocity</h2>
           <p>
-            Use Klabber when you need more LinkedIn accounts than you currently have.
+            Use LinkedVelocity when you need more LinkedIn accounts than you currently have.
             If your team has 3 SDRs but needs to run campaigns from 15 LinkedIn
-            profiles, Klabber gives you 12 additional pre-warmed accounts with
+            profiles, LinkedVelocity gives you 12 additional pre-warmed accounts with
             GoLogin browser access and dedicated proxies. You can run any automation
             tool on them — including Instantly&apos;s LinkedIn module.
           </p>
@@ -137,10 +137,10 @@ export default function InstantlyVsKlabberPage() {
           </p>
           <h2>When to use both</h2>
           <p>
-            The most common setup is Instantly for email + Klabber for LinkedIn.
+            The most common setup is Instantly for email + LinkedVelocity for LinkedIn.
             Run your email sequences through Instantly&apos;s infrastructure, then
             connect-and-message the same prospects on LinkedIn through rented
-            Klabber accounts. Multi-channel outreach consistently outperforms
+            LinkedVelocity accounts. Multi-channel outreach consistently outperforms
             single-channel.
           </p>
         </section>
@@ -160,7 +160,7 @@ export default function InstantlyVsKlabberPage() {
           <p>Rent pre-warmed accounts with GoLogin browser access. Works with Instantly, Dripify, Expandi, and any Chrome tool.</p>
           <div className="vs-cta-row">
             <Link href="/catalogue" className="vs-btn-primary">Browse Accounts →</Link>
-            <Link href="/how-it-works" className="vs-btn-secondary">How Klabber Works</Link>
+            <Link href="/how-it-works" className="vs-btn-secondary">How LinkedVelocity Works</Link>
           </div>
         </section>
       </div>

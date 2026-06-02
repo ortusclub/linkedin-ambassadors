@@ -7,14 +7,14 @@ export const metadata: Metadata = {
     "Rent pre-warmed, verified LinkedIn accounts for B2B outreach and lead generation. 847+ accounts, 0% restriction rate, instant GoLogin browser access. Browse the catalogue and start sending messages today.",
   alternates: { canonical: "/rent-linkedin-accounts" },
   openGraph: {
-    title: "Rent LinkedIn Accounts — Klabber Marketplace",
+    title: "Rent LinkedIn Accounts — LinkedVelocity Marketplace",
     description:
       "The marketplace for renting LinkedIn accounts. Pre-warmed profiles, GoLogin browser access, dedicated proxies. From $10/month, cancel anytime.",
-    url: "https://klabber.co/rent-linkedin-accounts",
+    url: "https://linkedvelocity.com/rent-linkedin-accounts",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Rent LinkedIn Accounts — Klabber",
+    title: "Rent LinkedIn Accounts — LinkedVelocity",
     description:
       "Rent verified LinkedIn accounts for outreach. 847+ accounts, 0% restriction rate. From $10/mo.",
   },
@@ -73,11 +73,11 @@ const faqs = [
   },
   {
     q: "Is it safe to rent a LinkedIn account?",
-    a: "Yes. Klabber has maintained a 0% restriction rate across all rentals since launch. Each account runs in an isolated GoLogin anti-detect browser with a unique fingerprint and dedicated residential proxy. LinkedIn's detection systems see the renter's session as normal activity from the original account owner.",
+    a: "Yes. LinkedVelocity has maintained a 0% restriction rate across all rentals since launch. Each account runs in an isolated GoLogin anti-detect browser with a unique fingerprint and dedicated residential proxy. LinkedIn's detection systems see the renter's session as normal activity from the original account owner.",
   },
   {
     q: "How quickly can I start sending messages?",
-    a: "Same day. After checkout, your rented account appears in the Klabber desktop app. Click to open the GoLogin browser session — the account is already logged in and ready for outreach. Install your preferred automation tool and start sending connection requests and messages immediately.",
+    a: "Same day. After checkout, your rented account appears in the LinkedVelocity desktop app. Click to open the GoLogin browser session — the account is already logged in and ready for outreach. Install your preferred automation tool and start sending connection requests and messages immediately.",
   },
   {
     q: "Can I use my own LinkedIn tools with a rented account?",
@@ -85,7 +85,7 @@ const faqs = [
   },
   {
     q: "What's the difference between renting and buying LinkedIn accounts?",
-    a: "Buying LinkedIn accounts violates LinkedIn's User Agreement and typically results in permanent bans within weeks. Renting through Klabber keeps the account with its original owner — no ownership transfer, no TOS violation. You get a managed browser session, not the account itself. See our full comparison at klabber.co/vs/buying-linkedin-accounts.",
+    a: "Buying LinkedIn accounts violates LinkedIn's User Agreement and typically results in permanent bans within weeks. Renting through LinkedVelocity keeps the account with its original owner — no ownership transfer, no TOS violation. You get a managed browser session, not the account itself. See our full comparison at linkedvelocity.com/vs/buying-linkedin-accounts.",
   },
   {
     q: "Can I rent multiple accounts at the same time?",
@@ -106,8 +106,8 @@ export default function RentLinkedInAccountsPage() {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://klabber.co" },
-      { "@type": "ListItem", position: 2, name: "Rent LinkedIn Accounts", item: "https://klabber.co/rent-linkedin-accounts" },
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://linkedvelocity.com" },
+      { "@type": "ListItem", position: 2, name: "Rent LinkedIn Accounts", item: "https://linkedvelocity.com/rent-linkedin-accounts" },
     ],
   };
 
@@ -118,8 +118,8 @@ export default function RentLinkedInAccountsPage() {
     serviceType: "LinkedIn Account Rental Service",
     provider: {
       "@type": "Organization",
-      name: "Klabber",
-      url: "https://klabber.co",
+      name: "LinkedVelocity",
+      url: "https://linkedvelocity.com",
     },
     description:
       "Rent pre-warmed, verified LinkedIn accounts for B2B outreach and lead generation. Includes GoLogin anti-detect browser access and dedicated residential proxy. From $10/month, cancel anytime.",
@@ -255,8 +255,8 @@ export default function RentLinkedInAccountsPage() {
           <div className="rent-label">LinkedIn account rental</div>
           <h1 className="rent-title">Rent LinkedIn accounts for outreach and lead generation</h1>
           <p className="rent-subtitle">
-            Klabber is the marketplace for renting pre-warmed, verified LinkedIn accounts.
-            Growth teams, agencies, and SDRs use Klabber to scale LinkedIn outreach without
+            LinkedVelocity is the marketplace for renting pre-warmed, verified LinkedIn accounts.
+            Growth teams, agencies, and SDRs use LinkedVelocity to scale LinkedIn outreach without
             getting their primary accounts restricted. Plans start at $10/month with instant
             access via GoLogin anti-detect browser.
           </p>
@@ -272,7 +272,7 @@ export default function RentLinkedInAccountsPage() {
             </div>
             <div className="rent-stat">
               <span className="rent-stat-num">237</span>
-              <span className="rent-stat-label">teams using Klabber</span>
+              <span className="rent-stat-label">teams using LinkedVelocity</span>
             </div>
           </div>
 
@@ -352,7 +352,7 @@ export default function RentLinkedInAccountsPage() {
             {[
               { name: "Browse the catalogue", text: "Filter accounts by industry, connection count, geography, and Sales Navigator status. Every listing shows price, stats, and current availability." },
               { name: "Select and check out", text: "Add one or more accounts to your cart. Pay monthly via Stripe (credit card) or USDC (crypto on Base network). No upfront fees, no contracts." },
-              { name: "Download the Klabber app", text: "Your rented accounts appear in the Klabber desktop app (Mac/Windows). Each account is its own isolated GoLogin browser profile." },
+              { name: "Download the LinkedVelocity app", text: "Your rented accounts appear in the LinkedVelocity desktop app (Mac/Windows). Each account is its own isolated GoLogin browser profile." },
               { name: "Open and start outreach", text: "Click the account to open a real Chrome session. Install Dripify, Expandi, Linked Helper, or any extension. Send connection requests and messages the same day." },
             ].map((s, i) => (
               <div className="rent-step" key={s.name}>
@@ -370,7 +370,7 @@ export default function RentLinkedInAccountsPage() {
         <section className="rent-section">
           <h2 className="rent-section-title">Who rents LinkedIn accounts</h2>
           <p className="rent-section-lede">
-            Teams across B2B sales, recruitment, and lead generation use Klabber to
+            Teams across B2B sales, recruitment, and lead generation use LinkedVelocity to
             scale LinkedIn outreach beyond single-account limits.
           </p>
           {useCases.map((uc) => (
@@ -392,14 +392,14 @@ export default function RentLinkedInAccountsPage() {
             whatever they paid, with no recourse.
           </p>
           <p>
-            Renting through Klabber avoids this entirely. The account stays with its original
+            Renting through LinkedVelocity avoids this entirely. The account stays with its original
             owner. The renter gets a managed browser session through GoLogin, with a unique
             fingerprint and dedicated residential proxy. From LinkedIn&apos;s perspective,
             it&apos;s the same person logging in from their usual location.
           </p>
           <p>
             The cost math also favours renting. A $500 bought account that gets banned after
-            six weeks costs ~$80/week. A comparable Klabber rental at $50/month costs ~$12/week,
+            six weeks costs ~$80/week. A comparable LinkedVelocity rental at $50/month costs ~$12/week,
             with no upfront risk and no account-death cliff. And if outreach doesn&apos;t work
             for your use case, you simply cancel.
           </p>

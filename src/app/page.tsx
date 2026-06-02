@@ -181,7 +181,7 @@ export default async function HomePage() {
         .comparison-table .cell{padding:14px 20px}
         .comparison-table .cell.feature{color:var(--text-mid);font-weight:500}
         .comparison-table .cell.solo{color:var(--text-light)}
-        .comparison-table .cell.klabber{color:var(--blue);font-weight:600}
+        .comparison-table .cell.linkedvelocity{color:var(--blue);font-weight:600}
         .testimonials-bg{background:var(--surface-alt)}
         .testimonial-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
         .testimonial-card{padding:28px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border)}
@@ -259,7 +259,7 @@ export default async function HomePage() {
           <div className="hero-side hero-earn">
             <div className="hero-label fade-up">For professionals</div>
             <h2 className="hero-title fade-up d1">Earn $10–$500/mo from your LinkedIn</h2>
-            <p className="hero-desc fade-up d2">Every LinkedIn profile has value — from brand new to well-established. List yours on Klabber and get paid every month, guaranteed, whether we find a renter or not.</p>
+            <p className="hero-desc fade-up d2">Every LinkedIn profile has value — from brand new to well-established. List yours on LinkedVelocity and get paid every month, guaranteed, whether we find a renter or not.</p>
             <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
               <Link href="/become-ambassador" className="hero-btn hero-btn-white">Share Your Accounts →</Link>
               <a href="#" className="hero-video-btn" aria-label="Watch how earning works">
@@ -282,7 +282,7 @@ export default async function HomePage() {
           <div className="proof-inner" style={{justifyContent:'center',gap:64}}>
             <div className="proof-stat" style={{textAlign:'center'}}>
               <div className="proof-stat-num" id="counter-teams" suppressHydrationWarning>237</div>
-              <div className="proof-stat-label">Teams using Klabber</div>
+              <div className="proof-stat-label">Teams using LinkedVelocity</div>
             </div>
             <div style={{width:1,height:40,background:'var(--border)'}} />
             <div className="proof-stat" style={{textAlign:'center'}}>
@@ -348,7 +348,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* KLABBER BROWSER */}
+        {/* LINKEDVELOCITY BROWSER */}
         <section className="browser-section">
           <div className="kl-section">
             <div className="mobile-2col-wide">
@@ -452,7 +452,7 @@ export default async function HomePage() {
               <div className="section-label">See It For Yourself</div>
               <div className="section-title" style={{maxWidth:600,margin:'0 auto'}}>Don&apos;t just take our word for it — try it yourself</div>
               <p style={{fontSize:15,color:'var(--text-mid)',maxWidth:520,margin:'12px auto 0',lineHeight:1.7}}>
-                Click the button below and GoLogin will open a real LinkedIn account directly in your browser. No password needed, no verification steps — just instant, seamless access. That&apos;s exactly how it works for every renter on Klabber.
+                Click the button below and GoLogin will open a real LinkedIn account directly in your browser. No password needed, no verification steps — just instant, seamless access. That&apos;s exactly how it works for every renter on LinkedVelocity.
               </p>
               <TestAccountGate />
             </div>
@@ -536,7 +536,7 @@ export default async function HomePage() {
               <div style={{fontSize:12,fontWeight:600,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.5)',marginBottom:12}}>Why rent accounts</div>
               <h2 style={{fontSize:'clamp(28px,3.5vw,40px)',fontWeight:700,letterSpacing:'-0.03em',color:'#fff',marginBottom:16,fontFamily:'Instrument Sans,sans-serif'}}>LinkedIn is powerful — but limited</h2>
               <p style={{fontSize:16,color:'rgba(255,255,255,0.7)',maxWidth:600,margin:'0 auto',lineHeight:1.7}}>
-                With a single account, you&#39;re limited to around 100 connection requests per week, approximately 50 messages and InMails, and just one campaign at a time. Klabber removes those limits by giving you access to multiple verified accounts.
+                With a single account, you&#39;re limited to around 100 connection requests per week, approximately 50 messages and InMails, and just one campaign at a time. LinkedVelocity removes those limits by giving you access to multiple verified accounts.
               </p>
             </div>
 
@@ -618,7 +618,7 @@ export default async function HomePage() {
             <div className="section-title" style={{marginBottom:40}}>Trusted by growth teams and professionals worldwide</div>
             <div className="testimonial-grid">
               <div className="testimonial-card">
-                <div className="testimonial-quote">&quot;We went from 200 connection requests a week to over 2,000. Our pipeline tripled in the first month. Klabber is a no-brainer for any outbound team.&quot;</div>
+                <div className="testimonial-quote">&quot;We went from 200 connection requests a week to over 2,000. Our pipeline tripled in the first month. LinkedVelocity is a no-brainer for any outbound team.&quot;</div>
                 <div className="testimonial-author">
                   <div className="testimonial-avatar" style={{background:'var(--blue)'}}>DM</div>
                   <div><div className="testimonial-name">David M.</div><div className="testimonial-role">Head of Growth, Series B SaaS</div></div>
@@ -645,7 +645,7 @@ export default async function HomePage() {
         {/* FINAL CTA */}
         <section className="final-cta">
           <h2>Ready to break through LinkedIn&apos;s ceiling?</h2>
-          <p>Whether you want to scale your outreach or monetize your professional network, Klabber makes it happen.</p>
+          <p>Whether you want to scale your outreach or monetize your professional network, LinkedVelocity makes it happen.</p>
           <div className="cta-row">
             <Link href="/catalogue" className="btn-blue">Browse Accounts →</Link>
             <Link href="/become-ambassador" className="btn-green-solid">Share Your Accounts →</Link>
@@ -655,14 +655,14 @@ export default async function HomePage() {
         {/* FOOTER */}
         <footer className="kl-footer">
           <div style={{maxWidth:1200,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
-            <span style={{fontSize:18,fontWeight:600,color:'var(--text-mid)',letterSpacing:'-0.02em'}}>Klabber</span>
+            <span style={{fontSize:18,fontWeight:600,color:'var(--text-mid)',letterSpacing:'-0.02em'}}>LinkedVelocity</span>
             <div style={{display:'flex',gap:24}}>
               <a href="#" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Privacy</a>
               <a href="#" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Terms</a>
               <a href="#" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Contact</a>
               <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Book a Meeting</a>
             </div>
-            <div>© 2026 Klabber. All rights reserved.</div>
+            <div>© 2026 LinkedVelocity. All rights reserved.</div>
           </div>
         </footer>
 

@@ -7,10 +7,10 @@ export const metadata: Metadata = {
     "Browse our catalogue of pre-warmed, verified LinkedIn accounts available for rent. Filter by industry, connections, Sales Navigator status. From $10/month.",
   alternates: { canonical: "/catalogue" },
   openGraph: {
-    title: "Browse LinkedIn Accounts for Rent | Klabber",
+    title: "Browse LinkedIn Accounts for Rent | LinkedVelocity",
     description:
       "Browse pre-warmed LinkedIn accounts for outreach and lead gen. Filter by industry, connections, and more.",
-    url: "https://klabber.co/catalogue",
+    url: "https://linkedvelocity.com/catalogue",
   },
 };
 
@@ -38,7 +38,7 @@ async function getCatalogueSchema() {
     const itemList = {
       "@context": "https://schema.org",
       "@type": "ItemList",
-      name: "LinkedIn Accounts for Rent on Klabber",
+      name: "LinkedIn Accounts for Rent on LinkedVelocity",
       description:
         "Pre-warmed, verified LinkedIn accounts available for monthly rental. Each account includes GoLogin browser access for safe, simultaneous use.",
       numberOfItems: accounts.length,
@@ -52,23 +52,23 @@ async function getCatalogueSchema() {
         if (a.hasSalesNav) descParts.push("Sales Navigator enabled");
         const description =
           a.linkedinHeadline ||
-          `Rent ${displayName}'s LinkedIn account on Klabber${descParts.length ? ` — ${descParts.join(", ")}` : ""}.`;
+          `Rent ${displayName}'s LinkedIn account on LinkedVelocity${descParts.length ? ` — ${descParts.join(", ")}` : ""}.`;
 
         return {
           "@type": "ListItem",
           position: index + 1,
           item: {
             "@type": "Product",
-            "@id": `https://klabber.co/account/${a.id}`,
+            "@id": `https://linkedvelocity.com/account/${a.id}`,
             name: `Rent LinkedIn Account: ${displayName}`,
             description,
-            url: `https://klabber.co/account/${a.id}`,
+            url: `https://linkedvelocity.com/account/${a.id}`,
             image: a.profilePhotoUrl || undefined,
             category: a.industry || "LinkedIn Account Rental",
-            brand: { "@type": "Brand", name: "Klabber" },
+            brand: { "@type": "Brand", name: "LinkedVelocity" },
             offers: {
               "@type": "Offer",
-              url: `https://klabber.co/account/${a.id}`,
+              url: `https://linkedvelocity.com/account/${a.id}`,
               price: price.toFixed(2),
               priceCurrency: "USD",
               priceSpecification: {
@@ -80,7 +80,7 @@ async function getCatalogueSchema() {
               },
               availability: "https://schema.org/InStock",
               businessFunction: "https://purl.org/goodrelations/v1#LeaseOut",
-              seller: { "@type": "Organization", name: "Klabber", url: "https://klabber.co" },
+              seller: { "@type": "Organization", name: "LinkedVelocity", url: "https://linkedvelocity.com" },
             },
             additionalProperty: [
               a.connectionCount > 0
@@ -124,7 +124,7 @@ export default async function CatalogueLayout({
       >
         <h2>Rent LinkedIn Accounts for Outreach</h2>
         <p>
-          Browse Klabber&apos;s catalogue of verified, pre-warmed LinkedIn accounts available for
+          Browse LinkedVelocity&apos;s catalogue of verified, pre-warmed LinkedIn accounts available for
           monthly rental. Each account comes with an established connection network, account
           history, and instant access via GoLogin anti-detect browser.
         </p>

@@ -41,7 +41,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: DISALLOWED_PATHS,
       },
     ],
-    sitemap: "https://klabber.co/sitemap.xml",
-    host: "https://klabber.co",
+    sitemap: "https://linkedvelocity.com/sitemap.xml",
+    host: "https://linkedvelocity.com",
   };
 }

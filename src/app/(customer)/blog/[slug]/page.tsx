@@ -25,7 +25,7 @@ export async function generateMetadata({
     openGraph: {
       title: post.title,
       description: post.description,
-      url: `https://klabber.co/blog/${post.slug}`,
+      url: `https://linkedvelocity.com/blog/${post.slug}`,
       type: "article",
       publishedTime: post.date,
     },
@@ -56,13 +56,13 @@ export default async function BlogPostPage({
     headline: post.title,
     description: post.description,
     datePublished: post.date,
-    author: { "@type": "Organization", name: "Klabber" },
+    author: { "@type": "Organization", name: "LinkedVelocity" },
     publisher: {
       "@type": "Organization",
-      name: "Klabber",
-      url: "https://klabber.co",
+      name: "LinkedVelocity",
+      url: "https://linkedvelocity.com",
     },
-    mainEntityOfPage: `https://klabber.co/blog/${post.slug}`,
+    mainEntityOfPage: `https://linkedvelocity.com/blog/${post.slug}`,
   };
 
   return (

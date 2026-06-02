@@ -68,7 +68,7 @@ export function Navbar() {
       `}</style>
       <nav className="kl-navbar">
         <div className="kl-navbar-inner">
-          <Link href="/" className="kl-logo"><span className="kl-logo-mark">kl</span>Klabber</Link>
+          <Link href="/" className="kl-logo"><span className="kl-logo-mark">kl</span>LinkedVelocity</Link>
           <div className="kl-nav-links">
             <Link href="/catalogue">Browse Accounts</Link>
             <Link href="/become-ambassador">Share Accounts</Link>

@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Become an Ambassador — Earn From Your LinkedIn Account",
   description:
-    "Earn $10-$500/month by listing your LinkedIn account on Klabber. We handle everything — you just get paid. USDC, PayPal, Wise, or bank transfer.",
+    "Earn $10-$500/month by listing your LinkedIn account on LinkedVelocity. We handle everything — you just get paid. USDC, PayPal, Wise, or bank transfer.",
   alternates: { canonical: "/become-ambassador" },
   openGraph: {
-    title: "Earn Money From Your LinkedIn Account | Klabber",
+    title: "Earn Money From Your LinkedIn Account | LinkedVelocity",
     description:
       "List your unused LinkedIn account and earn up to $500/month passively. Safe, simple, and instant payouts.",
-    url: "https://klabber.co/become-ambassador",
+    url: "https://linkedvelocity.com/become-ambassador",
   },
 };
 
@@ -27,7 +27,7 @@ export default function AmbassadorLayout({
       >
         <h2>Earn Passive Income From Your LinkedIn Account</h2>
         <p>
-          Klabber&apos;s Ambassador program lets you earn $10 to $500 per month from a LinkedIn
+          LinkedVelocity&apos;s Ambassador program lets you earn $10 to $500 per month from a LinkedIn
           account you&apos;re not actively using. We handle everything — you just get paid.
         </p>
         <h3>How the Ambassador Program Works</h3>
