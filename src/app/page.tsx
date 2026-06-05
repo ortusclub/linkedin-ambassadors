@@ -668,7 +668,7 @@ export default async function HomePage() {
 
         {/* Telegram floating chat button */}
         <a
-          href="https://t.me/klabber_support_bot"
+          href="https://t.me/linkedvelocity_support_bot"
           target="_blank"
           rel="noopener noreferrer"
           className="tg-float"

@@ -307,7 +307,7 @@ A: Stripe (credit/debit card) and USDC cryptocurrency on the Base network.
 
 ## Contact & Support
 
-- **Live chat (Telegram):** https://t.me/klabber_support_bot
+- **Live chat (Telegram):** https://t.me/linkedvelocity_support_bot
 - **Email:** info@linkedvelocity.com
 - **Book a meeting:** https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq
 

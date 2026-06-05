@@ -80,7 +80,7 @@ Renters never own the account — they get a managed, isolated GoLogin browser s
 
 ## Contact
 
-- Sales / support chat: https://t.me/klabber_support_bot
+- Sales / support chat: https://t.me/linkedvelocity_support_bot
 - Book a meeting: https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq
 - Email: info@linkedvelocity.com
 

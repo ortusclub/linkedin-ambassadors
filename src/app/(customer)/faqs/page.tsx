@@ -93,7 +93,7 @@ export default function FAQsPage() {
         <div className="faq-cta">
           <p>Still have questions? We&apos;re happy to help.</p>
           <div className="faq-cta-actions">
-            <a href="https://t.me/klabber_support_bot" target="_blank" rel="noopener noreferrer" className="faq-cta-btn">Chat with us on Telegram →</a>
+            <a href="https://t.me/linkedvelocity_support_bot" target="_blank" rel="noopener noreferrer" className="faq-cta-btn">Chat with us on Telegram →</a>
             <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer" className="faq-cta-btn-alt">Book a Meeting →</a>
           </div>
         </div>
