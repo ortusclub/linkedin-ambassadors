@@ -44,7 +44,7 @@ LinkedVelocity connects two groups:
 ## Contact
 
 - Website: https://linkedvelocity.com
-- Support: https://t.me/klabber_support_bot
+- Support: https://t.me/linkedvelocity_support_bot
 - Email: support@linkedvelocity.com
 - Ambassador inquiries: ambassadors@linkedvelocity.com
 

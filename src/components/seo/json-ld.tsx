@@ -10,10 +10,10 @@ export function JsonLd() {
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer service",
-      url: "https://t.me/klabber_support_bot",
+      url: "https://t.me/linkedvelocity_support_bot",
       availableLanguage: "English",
     },
-    sameAs: ["https://t.me/klabber_support_bot"],
+    sameAs: ["https://t.me/linkedvelocity_support_bot"],
   };
 
   const websiteSchema = {
