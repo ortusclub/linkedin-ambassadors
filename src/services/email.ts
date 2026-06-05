@@ -220,7 +220,7 @@ export async function sendTelegramMessageNotification(opts: {
     : `tg://user?id=${opts.chatId}`;
   const escaped = opts.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return sendEmail({
-    to: ["info@linkedvelocity.com", "sam@ortusclub.com"],
+    to: ["info@linkedvelocity.com", "sam@ortusclub.com", "ardi@linkedvelocity.com"],
     subject: `New Telegram message from ${opts.fromName}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 20px;">
