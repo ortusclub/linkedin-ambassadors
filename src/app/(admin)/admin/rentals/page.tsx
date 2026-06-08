@@ -101,8 +101,11 @@ export default function AdminRentalsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Rental Agreements</h2>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Rental Agreements</h2>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">Every rental agreement, live and past — who is renting which profile and when it renews.</p>
+        </div>
         <Button onClick={openAddModal}>Add Rental</Button>
       </div>
 

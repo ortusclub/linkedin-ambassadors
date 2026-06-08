@@ -91,8 +91,11 @@ export default function AdminBalancesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">USDC Balances</h2>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">USDC Balances</h2>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">What you owe each ambassador and what has been paid — manage USDC balances and withdrawals.</p>
+        </div>
         <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-2">
           <span className="text-sm text-green-700">Total Held: </span>
           <span className="text-lg font-bold text-green-800">${parseFloat(totalBalance).toFixed(2)} USDC</span>

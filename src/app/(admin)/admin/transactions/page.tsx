@@ -39,7 +39,8 @@ export default function AdminTransactionsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Transactions</h2>
+      <h2 className="text-2xl font-bold text-gray-900">Transactions</h2>
+      <p className="mt-1 mb-6 max-w-2xl text-sm text-gray-500">All money moving through the platform — rental payments coming in and ambassador payouts going out.</p>
 
       {transactions.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-gray-500">No transactions yet</CardContent></Card>

@@ -75,8 +75,11 @@ export default function AdminAmbassadorsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Submissions</h2>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Submissions</h2>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">New ambassador applications. Review each one and set it to Accepted or Rejected — accepting automatically creates the profile in your inventory.</p>
+        </div>
         <p className="text-sm text-gray-500">{applications.length} total</p>
       </div>
 

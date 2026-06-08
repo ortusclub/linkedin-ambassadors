@@ -334,8 +334,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Linked Accounts</h2>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Linked Accounts</h2>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">The rentable LinkedIn profile inventory — add, edit, search and manage every listed profile.</p>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowImport(true)}>Import CSV</Button>
           <Button variant="outline" onClick={() => { window.location.href = "linkedvelocity://open"; }}>Open LinkedVelocity App</Button>

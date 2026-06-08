@@ -48,6 +48,10 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
+        <p className="mt-1 max-w-2xl text-sm text-gray-500">A snapshot of your marketplace — revenue, active rentals, available profiles and customer count at a glance.</p>
+      </div>
       <div className="grid gap-4 md:grid-cols-4">
         {statCards.map((s) => (
           <Card key={s.label}>
