@@ -59,6 +59,8 @@ export function Navbar() {
         .kl-nav-user:hover{background:rgba(29,27,22,0.12) !important;color:#1D1B16 !important}
         .kl-nav-btn{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;border:1px solid #E8E6E1;background:transparent;color:#536471;cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap}
         .kl-nav-btn:hover{color:#0F1419;border-color:#0F1419}
+        .kl-sidedoor{border:1px solid #E8E6E1;border-radius:8px;padding:6px 12px;color:#536471 !important;font-weight:500}
+        .kl-sidedoor:hover{border-color:#0F1419;color:#0F1419 !important}
         .kl-balance{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#E6F9EE;border:1px solid #BBF7D0;font-size:13px;font-weight:700;color:#166534;text-decoration:none;transition:all .15s;cursor:pointer;font-family:'DM Sans',system-ui,sans-serif}
         .kl-balance:hover{background:#D1FAE5;border-color:#86EFAC}
         .kl-balance-label{font-size:11px;font-weight:500;color:#22C55E;letter-spacing:0.02em}
@@ -71,9 +73,9 @@ export function Navbar() {
           <Link href="/" className="kl-logo"><span className="kl-logo-mark">LV</span>LinkedVelocity</Link>
           <div className="kl-nav-links">
             <Link href="/catalogue">Browse Accounts</Link>
-            <Link href="/become-ambassador">Share Accounts</Link>
             <Link href="/blog">Blog</Link>
             <Link href="/faqs">FAQs</Link>
+            <Link href="/become-ambassador" className="kl-sidedoor">Earn with your account ↗</Link>
             <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer">Book a Meeting</a>
             {user?.role === "admin" && (
               <Link href="/admin/dashboard">Admin</Link>

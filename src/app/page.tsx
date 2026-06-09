@@ -63,6 +63,14 @@ export default async function HomePage() {
         .kl-page h1,.kl-page h2,.kl-page h3,.kl-page h4,.kl-page h5{font-family:var(--font-instrument-sans),'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
         .nav-cta{padding:8px 20px;background:var(--accent);color:#fff !important;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;transition:transform .15s,box-shadow .15s}
         .nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
+        .hero-single{min-height:calc(78vh - 64px);display:flex;align-items:center;position:relative;overflow:hidden;padding:96px 40px;background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%);color:#fff}
+        .hero-single::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 22% 72%,rgba(255,255,255,0.07) 0%,transparent 60%);pointer-events:none}
+        .hero-single-inner{max-width:1200px;margin:0 auto;width:100%;position:relative}
+        .hero-title-lg{font-size:clamp(36px,5vw,58px);line-height:1.08;font-weight:700;letter-spacing:-0.03em;max-width:740px;margin-bottom:20px}
+        .hero-desc-lg{font-size:18px;line-height:1.6;opacity:0.82;max-width:560px;margin-bottom:32px}
+        .hero-sidedoor{display:inline-flex;align-items:center;gap:6px;margin-top:28px;font-size:14px;color:rgba(255,255,255,0.72);text-decoration:none;transition:color .15s}
+        .hero-sidedoor:hover{color:#fff}
+        .hero-sidedoor strong{color:#fff;font-weight:600;margin-left:5px}
         .hero{min-height:calc(100vh - 64px);display:grid;grid-template-columns:1fr 1fr;position:relative}
         .hero-side{padding:80px 60px 60px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden}
         .hero-rent{background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%);color:#fff}
@@ -228,21 +236,23 @@ export default async function HomePage() {
           .mobile-section-pad{padding:48px 16px !important}
           .cat-inner{padding:24px 16px 60px}
           .hero-btn{padding:12px 20px;font-size:13px}
+          .hero-single{padding:48px 20px;min-height:auto}
+          .hero-title-lg{font-size:30px}
+          .hero-desc-lg{font-size:15px}
           .hero-video-text{display:none}
         }
       `}</style>
 
       <div className={`kl-page ${dmSans.variable} ${instrumentSans.variable}`}>
-        {/* HERO SPLIT */}
-        <section className="hero">
-          <div className="hero-side hero-rent">
-            <div className="hero-label fade-up">For growth teams</div>
-            <h1 className="hero-title fade-up d1">Scale LinkedIn outreach without the limits</h1>
-            {/* Single H1 on the page — the second hero uses h2 for proper heading hierarchy */}
-            <p className="hero-desc fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories. Run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
+        {/* HERO — renter-first (single, no fork). Ambassador entry is a discreet side door. */}
+        <section className="hero-single">
+          <div className="hero-single-inner">
+            <div className="hero-label fade-up">For growth &amp; outreach teams</div>
+            <h1 className="hero-title-lg fade-up d1">Scale LinkedIn outreach without the limits</h1>
+            <p className="hero-desc-lg fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories. Run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
             <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
               <Link href="/catalogue" className="hero-btn hero-btn-solid">Browse Available Accounts →</Link>
-              <a href="#" className="hero-video-btn" aria-label="Watch how renting works">
+              <a href="#how" className="hero-video-btn" aria-label="Watch how renting works">
                 <span className="hero-video-play">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
                 </span>
@@ -254,26 +264,7 @@ export default async function HomePage() {
               <div><div className="hero-stat-num">3.2M</div><div className="hero-stat-label">Messages sent</div></div>
               <div><div className="hero-stat-num">98%</div><div className="hero-stat-label">Uptime</div></div>
             </div>
-          </div>
-          <div className="hero-divider">or</div>
-          <div className="hero-side hero-earn">
-            <div className="hero-label fade-up">For professionals</div>
-            <h2 className="hero-title fade-up d1">Earn $10–$500/mo from your LinkedIn</h2>
-            <p className="hero-desc fade-up d2">Every LinkedIn profile has value — from brand new to well-established. List yours on LinkedVelocity and get paid every month, guaranteed, whether we find a renter or not.</p>
-            <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-              <Link href="/become-ambassador" className="hero-btn hero-btn-white">Share Your Accounts →</Link>
-              <a href="#" className="hero-video-btn" aria-label="Watch how earning works">
-                <span className="hero-video-play">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
-                </span>
-                <span className="hero-video-text">Watch the video</span>
-              </a>
-            </div>
-            <div className="hero-stats fade-up d4">
-              <div><div className="hero-stat-num">$85</div><div className="hero-stat-label">Avg. per account/mo</div></div>
-              <div><div className="hero-stat-num">240+</div><div className="hero-stat-label">Ambassadors</div></div>
-              <div><div className="hero-stat-num">1st</div><div className="hero-stat-label">Monthly payout</div></div>
-            </div>
+            <Link href="/become-ambassador" className="hero-sidedoor fade-up d4">Own a LinkedIn account? <strong>Earn $10–$500/mo sharing it →</strong></Link>
           </div>
         </section>
 
