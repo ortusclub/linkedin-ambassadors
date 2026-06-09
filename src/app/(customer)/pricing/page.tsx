@@ -27,14 +27,25 @@ export default function PricingPage() {
         .pp-hero p{font-size:17px;color:#536471;max-width:560px;margin:0 auto;line-height:1.6}
         .pp-wrap{max-width:1080px;margin:0 auto;padding:30px 40px 40px}
         .pp-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-        .pp-tier{position:relative;border:1px solid #E8E6E1;border-radius:18px;padding:28px;background:#fff;transition:.2s}
-        .pp-tier:hover{transform:translateY(-3px);box-shadow:0 22px 44px -24px rgba(10,102,194,0.3)}
-        .pp-tier.feat{border-color:#bcd9f5;box-shadow:0 16px 34px -18px rgba(10,102,194,0.35)}
+        .pp-tiers{align-items:start}
+        .pp-tier{position:relative;border:1px solid #E8E6E1;border-radius:18px;padding:30px 28px;background:#fff;transition:.2s}
+        .pp-tier::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;border-radius:18px 18px 0 0;background:#9cc1ec}
+        .pp-tier.t-est::before{background:#0A66C2}
+        .pp-tier.t-prem::before{background:#0B2A52}
+        .pp-tier:hover{transform:translateY(-4px);box-shadow:0 22px 44px -24px rgba(10,102,194,0.3)}
+        .pp-tier.feat{border:2px solid #0A66C2;box-shadow:0 30px 60px -26px rgba(10,102,194,0.55);transform:translateY(-14px)}
+        .pp-tier.feat:hover{transform:translateY(-18px)}
+        .pp-strength{display:inline-flex;gap:4px;margin-left:9px;vertical-align:middle}
+        .pp-strength i{width:7px;height:7px;border-radius:50%;background:#D5DBE3;display:inline-block}
+        .pp-strength i.on{background:#0A66C2}
+        .pp-tier.t-prem .pp-strength i.on{background:#0B2A52}
         .pp-badge{position:absolute;top:-11px;left:28px;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:linear-gradient(135deg,#00B85C,#007A3D);padding:4px 11px;border-radius:999px}
         .pp-cat{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#0A66C2;background:#E8F1FA;border-radius:999px;padding:4px 11px;display:inline-block}
+        .pp-tier.t-est .pp-cat{color:#fff;background:#0A66C2}
+        .pp-tier.t-prem .pp-cat{color:#fff;background:#0B2A52}
         .pp-tier h3{font-size:20px;margin:14px 0 4px}
         .pp-tier .desc{font-size:13.5px;color:#536471;min-height:44px;line-height:1.5}
-        .pp-band{font-size:14px;font-weight:700;color:#0A66C2;margin:14px 0 4px}
+        .pp-band{font-size:16px;font-weight:800;color:#0A66C2;margin:16px 0 4px}
         .pp-band small{color:#8899A6;font-weight:600}
         .pp-eg{display:flex;align-items:center;gap:11px;margin:14px 0 10px;padding:11px 12px;border:1px solid #E8E6E1;border-radius:12px;background:#FAFBFC}
         .pp-eg-av{width:42px;height:42px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;position:relative;flex:0 0 42px}
@@ -78,9 +89,9 @@ export default function PricingPage() {
         <div className="pp-wrap">
           {/* TODO before full launch: replace the illustrative price bands below with real ranges */}
           <div className="pp-tiers">
-            <div className="pp-tier">
+            <div className="pp-tier t-basic">
               <span className="pp-cat">Entry</span>
-              <h3>New / Basic</h3>
+              <h3>New / Basic <span className="pp-strength"><i className="on" /><i /><i /></span></h3>
               <div className="pp-eg">
                 <div className="pp-eg-av" style={{ background: "linear-gradient(135deg,#9cc1ec,#5b91d1)" }}>JT<span className="pp-eg-dot" /></div>
                 <div>
@@ -96,10 +107,10 @@ export default function PricingPage() {
               <div className="desc">Newer profiles with fewer connections. Great for testing or higher-volume, lower-stakes outreach.</div>
               <div className="pp-band">Lower price <small>· e.g. from ~$40/mo</small></div>
             </div>
-            <div className="pp-tier feat">
+            <div className="pp-tier feat t-est">
               <span className="pp-badge">Most popular</span>
               <span className="pp-cat">Sweet spot</span>
-              <h3>Established</h3>
+              <h3>Established <span className="pp-strength"><i className="on" /><i className="on" /><i /></span></h3>
               <div className="pp-eg">
                 <div className="pp-eg-av" style={{ background: "linear-gradient(135deg,#4f90d9,#0A66C2)" }}>AK<span className="pp-eg-dot" /></div>
                 <div>
@@ -115,9 +126,9 @@ export default function PricingPage() {
               <div className="desc">Solid connection counts and an active history. The reliable middle ground most renters choose.</div>
               <div className="pp-band">Mid price <small>· e.g. ~$90–$130/mo</small></div>
             </div>
-            <div className="pp-tier">
+            <div className="pp-tier t-prem">
               <span className="pp-cat">Top tier</span>
-              <h3>Premium</h3>
+              <h3>Premium <span className="pp-strength"><i className="on" /><i className="on" /><i className="on" /></span></h3>
               <div className="pp-eg">
                 <div className="pp-eg-av" style={{ background: "linear-gradient(135deg,#0A66C2,#0B2A52)" }}>ML<span className="pp-eg-dot" /></div>
                 <div>
