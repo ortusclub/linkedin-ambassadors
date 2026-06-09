@@ -254,11 +254,11 @@ export default async function HomePage() {
         .tryit-desc{font-size:16px;color:rgba(255,255,255,0.82);max-width:520px;margin:0 auto;line-height:1.6}
         .price-snap{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
         .price-snap .pt{position:relative;padding:26px 24px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);transition:all .2s}
-        .price-snap .pt:hover{transform:translateY(-3px);box-shadow:0 16px 36px rgba(0,184,92,0.1);border-color:var(--green)}
-        .price-snap .pt.feat{border-color:#bbf0d4;box-shadow:0 14px 30px -16px rgba(0,184,92,0.3)}
+        .price-snap .pt:hover{transform:translateY(-3px);box-shadow:0 16px 36px rgba(10,102,194,0.1);border-color:var(--blue)}
+        .price-snap .pt.feat{border-color:#bcd9f5;box-shadow:0 14px 30px -16px rgba(10,102,194,0.3)}
         .price-snap .pt-badge{position:absolute;top:-11px;left:24px;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:linear-gradient(135deg,#00B85C,#007A3D);padding:4px 11px;border-radius:999px}
         .price-snap .pt-name{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:18px;font-weight:700}
-        .price-snap .pt-band{font-size:14px;font-weight:700;color:var(--green-dark);margin:6px 0 10px}
+        .price-snap .pt-band{font-size:14px;font-weight:700;color:var(--blue);margin:6px 0 10px}
         .price-snap .pt p{font-size:13.5px;color:var(--text-mid);line-height:1.55;margin:0}
         .kl-footer{border-top:1px solid var(--border);padding:40px;text-align:center;font-size:13px;color:var(--text-light)}
         .tg-float{position:fixed;bottom:24px;right:24px;z-index:50;width:56px;height:56px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform 0.2s,box-shadow 0.2s;text-decoration:none}
