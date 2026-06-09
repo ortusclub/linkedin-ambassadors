@@ -18,3 +18,19 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Scroll-reveal — only active when JS adds .js-reveal and motion is allowed.
+   Without JS (or with reduced-motion), content shows normally. */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-reveal .reveal {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.6s cubic-bezier(0.16, 0.84, 0.44, 1),
+      transform 0.6s cubic-bezier(0.16, 0.84, 0.44, 1);
+    will-change: opacity, transform;
+  }
+  html.js-reveal .reveal.in {
+    opacity: 1;
+    transform: none;
+  }
+}

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { JsonLd } from "@/components/seo/json-ld";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -88,6 +89,7 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased bg-gray-50`}>
         <JsonLd />
         <Navbar />
+        <ScrollReveal />
         <main>{children}</main>
         <Footer />
         <a
