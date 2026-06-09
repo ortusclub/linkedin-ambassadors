@@ -11,6 +11,9 @@ interface User {
   role: string;
 }
 
+const CALENDAR_URL =
+  "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
+
 export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -40,27 +43,37 @@ export function Navbar() {
     router.push("/");
   };
 
-  // No pages excluded — navbar shows everywhere
+  // Two "worlds": renter (default, blue) and ambassador (green) — the nav swaps with the route.
+  const isAmb = (pathname || "").startsWith("/become-ambassador");
 
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Karla:wght@400;500;600;700&display=swap');
-        .kl-navbar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(250,250,248,0.92);backdrop-filter:blur(20px);border-bottom:1px solid #E8E6E1}
+        .kl-navbar{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(20px);border-bottom:1px solid #E8E6E1;transition:background .2s,border-color .2s}
+        .kl-navbar.kl-renter{background:rgba(238,244,251,0.95);border-bottom-color:#cfe0f4}
+        .kl-navbar.kl-amb{background:rgba(241,250,244,0.95);border-bottom-color:#cdebd9}
         .kl-navbar-inner{max-width:1200px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between}
         .kl-logo{font-family:'Montserrat',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.03em;color:#1D1B16;text-decoration:none;display:flex;align-items:center;gap:8px}
-        .kl-logo-mark{width:36px;height:36px;background:#1D1B16;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;flex-shrink:0;letter-spacing:-0.03em}
+        .kl-logo-mark{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;flex-shrink:0;letter-spacing:-0.03em}
+        .kl-renter .kl-logo-mark{background:linear-gradient(135deg,#0A66C2,#004182)}
+        .kl-amb .kl-logo-mark{background:linear-gradient(135deg,#00B85C,#007A3D)}
+        .kl-tag{font-family:'Karla',sans-serif;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;margin-left:4px;white-space:nowrap}
+        .kl-tag-rent{color:#0A66C2;background:#E8F1FA;border:1px solid #bcd9f5}
+        .kl-tag-amb{color:#007A3D;background:#E6F9EE;border:1px solid #bbf0d4}
         .kl-nav-links{display:flex;align-items:center;gap:24px}
         .kl-nav-links a{font-family:'Karla','Montserrat',system-ui,sans-serif;font-size:14px;color:#536471;text-decoration:none;font-weight:500;transition:color .15s;white-space:nowrap}
         .kl-nav-links a:hover{color:#0F1419}
+        .kl-cross-rent{color:#0A66C2 !important;font-weight:700 !important}
+        .kl-cross-rent:hover{color:#004182 !important}
+        .kl-cross-amb{color:#007A3D !important;font-weight:700 !important}
+        .kl-cross-amb:hover{color:#005a2e !important}
         .kl-nav-cta{padding:8px 20px !important;background:#1D1B16 !important;color:#fff !important;border-radius:10px !important;font-size:13px !important;font-weight:600 !important;text-decoration:none;transition:transform .15s,box-shadow .15s;border:none;cursor:pointer;display:inline-flex;align-items:center}
         .kl-nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
-        .kl-nav-user{font-family:'Karla',system-ui,sans-serif;font-size:13px;color:#1D1B16 !important;font-weight:600;cursor:pointer;text-decoration:none !important;display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:8px;background:rgba(29,27,22,0.06);transition:all .15s}
-        .kl-nav-user:hover{background:rgba(29,27,22,0.12) !important;color:#1D1B16 !important}
+        .kl-cta-blue{background:linear-gradient(135deg,#0A66C2,#004182) !important}
+        .kl-cta-green{background:linear-gradient(135deg,#00B85C,#007A3D) !important}
         .kl-nav-btn{font-family:'Karla',system-ui,sans-serif;font-size:13px;font-weight:500;padding:6px 14px;border-radius:8px;border:1px solid #E8E6E1;background:transparent;color:#536471;cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap}
         .kl-nav-btn:hover{color:#0F1419;border-color:#0F1419}
-        .kl-sidedoor{border:1px solid #E8E6E1;border-radius:8px;padding:6px 12px;color:#536471 !important;font-weight:500}
-        .kl-sidedoor:hover{border-color:#0F1419;color:#0F1419 !important}
         .kl-balance{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#E6F9EE;border:1px solid #BBF7D0;font-size:13px;font-weight:700;color:#166534;text-decoration:none;transition:all .15s;cursor:pointer;font-family:'Karla',system-ui,sans-serif}
         .kl-balance:hover{background:#D1FAE5;border-color:#86EFAC}
         .kl-balance-label{font-size:11px;font-weight:500;color:#22C55E;letter-spacing:0.02em}
@@ -68,16 +81,30 @@ export function Navbar() {
         .kl-spacer{height:64px}
         @media(max-width:900px){.kl-nav-links{display:none}}
       `}</style>
-      <nav className="kl-navbar">
+      <nav className={`kl-navbar ${isAmb ? "kl-amb" : "kl-renter"}`}>
         <div className="kl-navbar-inner">
-          <Link href="/" className="kl-logo"><span className="kl-logo-mark">LV</span>LinkedVelocity</Link>
+          <Link href={isAmb ? "/become-ambassador" : "/"} className="kl-logo">
+            <span className="kl-logo-mark">LV</span>LinkedVelocity
+            <span className={`kl-tag ${isAmb ? "kl-tag-amb" : "kl-tag-rent"}`}>{isAmb ? "for Ambassadors" : "for Teams"}</span>
+          </Link>
           <div className="kl-nav-links">
-            <Link href="/catalogue">Browse Accounts</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/blog">Blog</Link>
-            <Link href="/faqs">FAQs</Link>
-            <Link href="/become-ambassador" className="kl-sidedoor">Earn with your account ↗</Link>
-            <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer">Book a Meeting</a>
+            {isAmb ? (
+              <>
+                <a href="#how">How it works</a>
+                <a href="#earn">Earnings</a>
+                <a href="#faq">FAQ</a>
+                <Link href="/catalogue" className="kl-cross-amb">← Rent a profile</Link>
+              </>
+            ) : (
+              <>
+                <Link href="/catalogue">Browse Accounts</Link>
+                <Link href="/pricing">Pricing</Link>
+                <Link href="/blog">Blog</Link>
+                <Link href="/faqs">FAQs</Link>
+                <Link href="/become-ambassador" className="kl-cross-rent">Earn with your account →</Link>
+                <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer">Book a Meeting</a>
+              </>
+            )}
             {user?.role === "admin" && (
               <Link href="/admin/dashboard">Admin</Link>
             )}
@@ -94,10 +121,12 @@ export function Navbar() {
                 </Link>
                 <button className="kl-nav-btn" onClick={handleLogout}>Sign Out</button>
               </>
+            ) : isAmb ? (
+              <a href="#amb-hero" className="kl-nav-cta kl-cta-green">Get my valuation</a>
             ) : (
               <>
                 <Link href="/login" className="kl-nav-btn">Sign In</Link>
-                <Link href="/register" className="kl-nav-cta">Sign Up</Link>
+                <Link href="/register" className="kl-nav-cta kl-cta-blue">Sign Up</Link>
               </>
             )}
           </div>

@@ -19,6 +19,9 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Anchored sections clear the fixed navbar when scrolled to */
+section[id] { scroll-margin-top: 84px; }
+
 /* Scroll-reveal — only active when JS adds .js-reveal and motion is allowed.
    Without JS (or with reduced-motion), content shows normally. */
 @media (prefers-reduced-motion: no-preference) {

@@ -319,7 +319,7 @@ export default function BecomeAmbassadorPage() {
       `}</style>
 
       {/* Hero — green-primary (ambassador side), brand-blue accents */}
-      <section className="relative overflow-hidden" style={{background:'linear-gradient(160deg,#06231A 0%,#0A4D30 42%,#00B85C 125%)'}}>
+      <section id="amb-hero" className="relative overflow-hidden" style={{background:'linear-gradient(160deg,#06231A 0%,#0A4D30 42%,#00B85C 125%)'}}>
         <div aria-hidden className="pointer-events-none absolute -top-24 right-[6%] h-80 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(79,144,217,0.22),transparent 70%)'}} />
         <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(255,255,255,0.08),transparent 70%)'}} />
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 text-center">
@@ -340,7 +340,7 @@ export default function BecomeAmbassadorPage() {
       </section>
 
       {/* Earnings tiers — same card design as renter pricing, green-primary */}
-      <section className="bg-[#FAFAF8]" style={{borderBottom:'1px solid #E8E6E1'}}>
+      <section id="earn" className="bg-[#FAFAF8]" style={{borderBottom:'1px solid #E8E6E1'}}>
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-10">
             <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>What you can earn</div>
@@ -449,7 +449,7 @@ export default function BecomeAmbassadorPage() {
       {step === "choice" && (
         <>
           {/* HOW IT WORKS */}
-          <section className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
+          <section id="how" className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
               <div className="text-center max-w-2xl mx-auto mb-10">
                 <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>How it works</div>
@@ -617,7 +617,7 @@ export default function BecomeAmbassadorPage() {
           </section>
 
           {/* FAQ */}
-          <section className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
+          <section id="faq" className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
             <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
               <div className="text-center mb-8">
                 <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>FAQ</div>

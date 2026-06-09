@@ -36,33 +36,6 @@ const RENTER_FAQS = [
   },
 ];
 
-const AMBASSADOR_FAQS = [
-  {
-    q: "How much can I earn as an ambassador?",
-    a: "$10–$500 per account per month, based on connection count, industry, and account age — paid guaranteed on the 1st of every month, whether or not your account is rented.",
-  },
-  {
-    q: "Will sharing my account affect it?",
-    a: "No. Access is proxy-protected and human-paced within LinkedIn's limits, so your profile stays safe. Real, established accounts used for normal outreach don't get flagged.",
-  },
-  {
-    q: "Can I still use my account while it's shared?",
-    a: "Yes. Simultaneous access means you and the renter can both be logged in at the same time, with no conflicts or session clashes.",
-  },
-  {
-    q: "Will renters change my profile?",
-    a: "Never. Your name, photo, and headline stay exactly as they are. The account is used only for connection requests and messaging — no profile edits allowed.",
-  },
-  {
-    q: "When and how do I get paid?",
-    a: "On the 1st of every month, via USDC (crypto) by default. Prefer PayPal or Wise? Just let us know during onboarding.",
-  },
-  {
-    q: "Can I stop anytime?",
-    a: "Yes — you can withdraw your account whenever you like. There's no lock-in and no penalties.",
-  },
-];
-
 export default function FAQsPage() {
   return (
     <>
@@ -106,24 +79,11 @@ export default function FAQsPage() {
         <div className="faq-header">
           <div className="faq-label">Frequently asked questions</div>
           <h1 className="faq-title">Questions, answered</h1>
-          <p className="faq-subtitle">Renting a profile or sharing yours? Here&apos;s everything you need to know.</p>
+          <p className="faq-subtitle">Everything you need to know about renting a verified LinkedIn account. Want to <a href="/become-ambassador" style={{color:'#0A66C2',fontWeight:700,textDecoration:'none'}}>earn by sharing yours</a>?</p>
         </div>
 
         <div className="faq-group renter">
-          <div className="faq-grouplabel">For renters</div>
-          <h2>Renting an account</h2>
           {RENTER_FAQS.map((f, i) => (
-            <details key={i} className="faq-q">
-              <summary>{f.q}<span className="plus">+</span></summary>
-              <p>{f.a}</p>
-            </details>
-          ))}
-        </div>
-
-        <div className="faq-group amb">
-          <div className="faq-grouplabel">For ambassadors</div>
-          <h2>Sharing your account</h2>
-          {AMBASSADOR_FAQS.map((f, i) => (
             <details key={i} className="faq-q">
               <summary>{f.q}<span className="plus">+</span></summary>
               <p>{f.a}</p>
