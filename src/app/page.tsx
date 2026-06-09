@@ -48,6 +48,7 @@ export default async function HomePage() {
   } catch {
     accounts = SAMPLE_ACCOUNTS;
   }
+  const heroAccounts = accounts.slice(0, 3);
   return (
     <>
       <style>{`
@@ -71,6 +72,23 @@ export default async function HomePage() {
         .hero-sidedoor{display:inline-flex;align-items:center;gap:6px;margin-top:28px;font-size:14px;color:rgba(255,255,255,0.72);text-decoration:none;transition:color .15s}
         .hero-sidedoor:hover{color:#fff}
         .hero-sidedoor strong{color:#fff;font-weight:600;margin-left:5px}
+        .hero-single::after{content:'';position:absolute;bottom:-140px;right:-60px;width:460px;height:460px;background:radial-gradient(closest-side,rgba(0,184,92,0.12),transparent 70%);pointer-events:none}
+        .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center}
+        .hero-cards{position:relative;min-height:360px}
+        .gcard{position:absolute;width:300px;background:rgba(255,255,255,0.1);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px 18px;box-shadow:0 26px 50px -20px rgba(0,0,0,0.6)}
+        .gcard .grow{display:flex;align-items:center;gap:11px}
+        .gcard .gav{width:42px;height:42px;border-radius:50%;flex:0 0 42px;position:relative;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;overflow:hidden}
+        .gcard .gav .on{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:#34d399;border:2px solid #0a3161}
+        .gcard .gnm{font-weight:700;font-size:14px;display:flex;align-items:center;gap:5px}
+        .gcard .gvf{color:#7FD3FF}
+        .gcard .grl{font-size:12px;color:rgba(255,255,255,0.65);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .gcard .gft{display:flex;align-items:center;justify-content:space-between;margin-top:13px;padding-top:11px;border-top:1px solid rgba(255,255,255,0.14)}
+        .gcard .gpr{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-weight:700;font-size:18px}
+        .gcard .gpr small{font-size:11px;color:rgba(255,255,255,0.6);font-weight:400}
+        .gcard .gtg{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:100px;background:rgba(127,211,255,0.18);color:#bfe6ff}
+        .gc1{top:0;left:20px;transform:rotate(-3deg);z-index:3}
+        .gc2{top:118px;left:120px;transform:rotate(2deg);z-index:2}
+        .gc3{top:236px;left:30px;transform:rotate(-1deg);z-index:1;opacity:.95}
         .hero{min-height:calc(100vh - 64px);display:grid;grid-template-columns:1fr 1fr;position:relative}
         .hero-side{padding:80px 60px 60px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden}
         .hero-rent{background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%);color:#fff}
@@ -239,32 +257,62 @@ export default async function HomePage() {
           .hero-single{padding:48px 20px;min-height:auto}
           .hero-title-lg{font-size:30px}
           .hero-desc-lg{font-size:15px}
+          .hero-grid{grid-template-columns:1fr;gap:28px}
+          .hero-cards{min-height:0;display:flex;flex-direction:column;gap:14px;margin-top:8px}
+          .gcard{position:static;width:100%}
+          .gc1,.gc2,.gc3{transform:none}
           .hero-video-text{display:none}
         }
       `}</style>
 
       <div className={`kl-page ${dmSans.variable} ${instrumentSans.variable}`}>
-        {/* HERO — renter-first (single, no fork). Ambassador entry is a discreet side door. */}
+        {/* HERO — renter-first. Headline + real available-account cards. Ambassador entry is a discreet side door. */}
         <section className="hero-single">
-          <div className="hero-single-inner">
-            <div className="hero-label fade-up">For growth &amp; outreach teams</div>
-            <h1 className="hero-title-lg fade-up d1">Scale LinkedIn outreach without the limits</h1>
-            <p className="hero-desc-lg fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories. Run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
-            <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-              <Link href="/catalogue" className="hero-btn hero-btn-solid">Browse Available Accounts →</Link>
-              <a href="#how" className="hero-video-btn" aria-label="Watch how renting works">
-                <span className="hero-video-play">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
-                </span>
-                <span className="hero-video-text">See how it works</span>
-              </a>
+          <div className="hero-single-inner hero-grid">
+            <div>
+              <div className="hero-label fade-up">For growth &amp; outreach teams</div>
+              <h1 className="hero-title-lg fade-up d1">Scale LinkedIn outreach<br />without the limits</h1>
+              <p className="hero-desc-lg fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories. Run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
+              <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+                <Link href="/catalogue" className="hero-btn hero-btn-solid">Browse Available Accounts →</Link>
+                <a href="#how" className="hero-video-btn" aria-label="Watch how renting works">
+                  <span className="hero-video-play">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                  </span>
+                  <span className="hero-video-text">See how it works</span>
+                </a>
+              </div>
+              <div className="hero-stats fade-up d4">
+                <div><div className="hero-stat-num">847</div><div className="hero-stat-label">Accounts live</div></div>
+                <div><div className="hero-stat-num">3.2M</div><div className="hero-stat-label">Messages sent</div></div>
+                <div><div className="hero-stat-num">98%</div><div className="hero-stat-label">Uptime</div></div>
+              </div>
+              <Link href="/become-ambassador" className="hero-sidedoor fade-up d4">Own a LinkedIn account? <strong>Earn $10–$500/mo sharing it →</strong></Link>
             </div>
-            <div className="hero-stats fade-up d4">
-              <div><div className="hero-stat-num">847</div><div className="hero-stat-label">Accounts live</div></div>
-              <div><div className="hero-stat-num">3.2M</div><div className="hero-stat-label">Messages sent</div></div>
-              <div><div className="hero-stat-num">98%</div><div className="hero-stat-label">Uptime</div></div>
+            <div className="hero-cards fade-up d3">
+              {heroAccounts.map((a, i) => {
+                const dn = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+                const tag = `${a.connectionCount > 0 ? formatNumber(a.connectionCount) + " conn." : "Established"}${a.hasSalesNav ? " · Sales Nav" : ""}`;
+                return (
+                  <div key={a.id} className={`gcard gc${i + 1}`}>
+                    <div className="grow">
+                      <div className="gav" style={{background:getAvatarColor(a.linkedinName)}}>
+                        {a.profilePhotoUrl ? <Image src={a.profilePhotoUrl} alt={dn} width={42} height={42} style={{objectFit:"cover"}} /> : getInitials(a.linkedinName)}
+                        <span className="on" />
+                      </div>
+                      <div>
+                        <div className="gnm">{dn} <span className="gvf">✔</span></div>
+                        <div className="grl">{a.linkedinHeadline || a.industry || "LinkedIn account"}</div>
+                      </div>
+                    </div>
+                    <div className="gft">
+                      <span className="gtg">{tag}</span>
+                      <span className="gpr">{formatCurrency(Number(a.monthlyPrice))}<small>/mo</small></span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <Link href="/become-ambassador" className="hero-sidedoor fade-up d4">Own a LinkedIn account? <strong>Earn $10–$500/mo sharing it →</strong></Link>
           </div>
         </section>
 
