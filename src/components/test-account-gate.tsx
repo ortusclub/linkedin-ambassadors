@@ -105,7 +105,7 @@ export function TestAccountGate() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  style={{flex:1.4,padding:'13px',borderRadius:10,background:'#FF6B00',color:'#fff',fontSize:14,fontWeight:700,border:'none',cursor:submitting?'wait':'pointer',fontFamily:'inherit',opacity:submitting?0.7:1}}
+                  style={{flex:1.4,padding:'13px',borderRadius:10,background:'linear-gradient(135deg, #00B85C, #007A3D)',color:'#fff',fontSize:14,fontWeight:700,border:'none',cursor:submitting?'wait':'pointer',fontFamily:'inherit',opacity:submitting?0.7:1}}
                 >
                   {submitting ? "Opening..." : "Open Test Account →"}
                 </button>
