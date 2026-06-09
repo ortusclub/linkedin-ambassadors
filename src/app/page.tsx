@@ -134,8 +134,8 @@ export default async function HomePage() {
         .section-desc{font-size:16px;color:var(--text-mid);line-height:1.6;max-width:520px;margin-bottom:48px}
         .how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
         .how-card{padding:36px 32px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);position:relative;transition:all .2s}
-        .how-card:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:0 12px 32px rgba(10,102,194,0.08)}
-        .how-num{width:36px;height:36px;border-radius:50%;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-bottom:20px}
+        .how-card:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:0 16px 36px rgba(0,184,92,0.12)}
+        .how-num{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#00B85C,#007A3D);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-bottom:20px;box-shadow:0 10px 20px -8px rgba(0,184,92,0.6)}
         .how-card h4{font-size:18px;margin-bottom:8px}
         .how-card p{font-size:14px;color:var(--text-mid);line-height:1.6}
         .marketplace-bg{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
@@ -217,14 +217,17 @@ export default async function HomePage() {
         .comparison-table .cell.feature{color:var(--text-mid);font-weight:500}
         .comparison-table .cell.solo{color:var(--text-light)}
         .comparison-table .cell.linkedvelocity{color:var(--blue);font-weight:600}
-        .testimonials-bg{background:var(--surface-alt)}
+        .testimonials-bg{background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 45%,#0A66C2 115%);position:relative;overflow:hidden}
+        .testimonials-bg::before{content:'';position:absolute;top:-80px;left:10%;width:420px;height:340px;background:radial-gradient(closest-side,rgba(0,184,92,0.16),transparent 70%);pointer-events:none}
+        .testimonials-bg .section-label{color:rgba(255,255,255,0.55)}
+        .testimonials-bg .section-title{color:#fff}
         .testimonial-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-        .testimonial-card{padding:28px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border)}
-        .testimonial-quote{font-size:15px;line-height:1.6;color:var(--text);margin-bottom:20px;font-style:italic}
+        .testimonial-card{padding:28px;border-radius:var(--radius-lg);background:rgba(255,255,255,0.08);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.14);box-shadow:0 22px 44px -26px rgba(0,0,0,0.5);position:relative}
+        .testimonial-quote{font-size:15px;line-height:1.6;color:#fff;margin-bottom:20px;font-style:italic}
         .testimonial-author{display:flex;align-items:center;gap:12px}
         .testimonial-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;color:#fff}
-        .testimonial-name{font-weight:600;font-size:13px}
-        .testimonial-role{font-size:12px;color:var(--text-light)}
+        .testimonial-name{font-weight:600;font-size:13px;color:#fff}
+        .testimonial-role{font-size:12px;color:rgba(255,255,255,0.6)}
         .final-cta{text-align:center;padding:120px 40px;max-width:700px;margin:0 auto}
         .final-cta h2{font-size:clamp(32px,4vw,48px);letter-spacing:-0.03em;margin-bottom:16px}
         .final-cta p{font-size:16px;color:var(--text-mid);margin-bottom:36px;line-height:1.6}
@@ -650,10 +653,10 @@ export default async function HomePage() {
                 </div>
               </div>
               <div className="testimonial-card">
-                <div className="testimonial-quote">&quot;I earn $650 a month from an account I barely use anymore. The setup took 10 minutes and I haven&apos;t had to do anything since.&quot;</div>
+                <div className="testimonial-quote">&quot;We spun up five accounts and split our outreach across industries. We booked more qualified demos in a month than the whole previous quarter.&quot;</div>
                 <div className="testimonial-author">
                   <div className="testimonial-avatar" style={{background:'var(--green)'}}>SK</div>
-                  <div><div className="testimonial-name">Sarah K.</div><div className="testimonial-role">Former VP Marketing, Ambassador</div></div>
+                  <div><div className="testimonial-name">Sana K.</div><div className="testimonial-role">Demand Gen Lead, B2B SaaS</div></div>
                 </div>
               </div>
               <div className="testimonial-card">
