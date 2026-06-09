@@ -111,8 +111,8 @@ export default function HowItWorksPage() {
           --blue:#0A66C2;--blue-dark:#004182;--blue-light:#E8F1FA;--green:#00B85C;--green-dark:#007A3D;--green-light:#E6F9EE;
           --accent:#1D1B16;--radius:10px;--radius-lg:16px;--radius-xl:24px;
         }
-        body{font-family:'DM Sans','Instrument Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
-        h1,h2,h3,h4,h5{font-family:'Instrument Sans','DM Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
+        body{font-family:'Karla','Montserrat',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+        h1,h2,h3,h4,h5{font-family:'Montserrat','Karla',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
         .hiw-page{max-width:1100px;margin:0 auto;padding:64px 40px 120px}
         .hiw-crumb{font-size:13px;color:var(--text-light);margin-bottom:24px}
         .hiw-crumb a{color:var(--text-light);text-decoration:none}
@@ -130,7 +130,7 @@ export default function HowItWorksPage() {
         .hiw-steps{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
         .hiw-step{display:grid;grid-template-columns:56px 1fr;gap:20px;padding:24px 28px;border-bottom:1px solid var(--border)}
         .hiw-step:last-child{border-bottom:none}
-        .hiw-step-num{width:36px;height:36px;border-radius:10px;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;font-family:'Instrument Sans',sans-serif}
+        .hiw-step-num{width:36px;height:36px;border-radius:10px;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;font-family:'Montserrat',sans-serif}
         .hiw-step-num.green{background:var(--green-light);color:var(--green-dark)}
         .hiw-step-body h3{font-size:17px;margin:0 0 6px;font-weight:600}
         .hiw-step-body p{font-size:14px;color:var(--text-mid);line-height:1.65;margin:0}

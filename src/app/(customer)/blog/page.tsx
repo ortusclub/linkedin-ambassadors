@@ -21,7 +21,7 @@ export default function BlogPage() {
     <>
       <style>{`
         :root{--bg:#FAFAF8;--surface:#FFFFFF;--surface-alt:#F3F2EE;--text:#0F1419;--text-mid:#536471;--text-light:#8899A6;--border:#E8E6E1;--blue:#0A66C2;--blue-dark:#004182;--blue-light:#E8F1FA;--accent:#1D1B16;--radius:10px;--radius-lg:16px}
-        body{font-family:'DM Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+        body{font-family:'Karla',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
         .blog-page{max-width:900px;margin:0 auto;padding:80px 24px 120px}
         .blog-header{margin-bottom:64px}
         .blog-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}

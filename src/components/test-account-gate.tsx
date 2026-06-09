@@ -54,12 +54,12 @@ export function TestAccountGate() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{background:'#fff',borderRadius:20,maxWidth:440,width:'100%',padding:32,boxShadow:'0 24px 60px rgba(15,20,25,0.25)',fontFamily:"'DM Sans','Instrument Sans',system-ui,sans-serif",textAlign:'left'}}
+            style={{background:'#fff',borderRadius:20,maxWidth:440,width:'100%',padding:32,boxShadow:'0 24px 60px rgba(15,20,25,0.25)',fontFamily:"'Karla','Montserrat',system-ui,sans-serif",textAlign:'left'}}
           >
             <div style={{width:56,height:56,borderRadius:16,background:'#E6F9EE',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00B85C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </div>
-            <h2 style={{fontSize:22,fontWeight:700,color:'#0F1419',letterSpacing:'-0.02em',marginBottom:8,fontFamily:"'Instrument Sans','DM Sans',system-ui,sans-serif"}}>
+            <h2 style={{fontSize:22,fontWeight:700,color:'#0F1419',letterSpacing:'-0.02em',marginBottom:8,fontFamily:"'Montserrat','Karla',system-ui,sans-serif"}}>
               Try our test account
             </h2>
             <p style={{fontSize:14,color:'#536471',lineHeight:1.55,marginBottom:20}}>

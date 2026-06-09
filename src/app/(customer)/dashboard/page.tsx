@@ -972,28 +972,28 @@ function DashboardContent() {
             </button>
 
             <div style={{textAlign:'center',marginBottom:24}}>
-              <div style={{width:48,height:48,borderRadius:12,background:'#1D1B16',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:20,fontWeight:700,margin:'0 auto 16px',fontFamily:"'Instrument Sans',sans-serif"}}>LV</div>
-              <h3 style={{fontSize:20,fontWeight:700,color:'#0F1419',fontFamily:"'Instrument Sans',sans-serif"}}>Download the LinkedVelocity App</h3>
+              <div style={{width:48,height:48,borderRadius:12,background:'#1D1B16',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:20,fontWeight:700,margin:'0 auto 16px',fontFamily:"'Montserrat',sans-serif"}}>LV</div>
+              <h3 style={{fontSize:20,fontWeight:700,color:'#0F1419',fontFamily:"'Montserrat',sans-serif"}}>Download the LinkedVelocity App</h3>
               <p style={{fontSize:13,color:'#536471',marginTop:6}}>You need the LinkedVelocity desktop app to access your rented accounts securely.</p>
             </div>
 
             <div style={{display:'flex',flexDirection:'column',gap:16,marginBottom:28}}>
               <div style={{display:'flex',gap:14,alignItems:'flex-start'}}>
-                <div style={{width:28,height:28,borderRadius:8,background:'#E8F1FA',color:'#0A66C2',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Instrument Sans',sans-serif"}}>1</div>
+                <div style={{width:28,height:28,borderRadius:8,background:'#E8F1FA',color:'#0A66C2',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Montserrat',sans-serif"}}>1</div>
                 <div>
                   <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Download the LinkedVelocity app</p>
                   <p style={{fontSize:12,color:'#8899A6',marginTop:2}}>Available for Mac and Windows. Takes less than a minute.</p>
                 </div>
               </div>
               <div style={{display:'flex',gap:14,alignItems:'flex-start'}}>
-                <div style={{width:28,height:28,borderRadius:8,background:'#E6F9EE',color:'#00B85C',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Instrument Sans',sans-serif"}}>2</div>
+                <div style={{width:28,height:28,borderRadius:8,background:'#E6F9EE',color:'#00B85C',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Montserrat',sans-serif"}}>2</div>
                 <div>
                   <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Log in with your LinkedVelocity account</p>
                   <p style={{fontSize:12,color:'#8899A6',marginTop:2}}>Use the same email you signed up with. We&apos;ll send you a verification code.</p>
                 </div>
               </div>
               <div style={{display:'flex',gap:14,alignItems:'flex-start'}}>
-                <div style={{width:28,height:28,borderRadius:8,background:'#F3E8FF',color:'#7C3AED',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Instrument Sans',sans-serif"}}>3</div>
+                <div style={{width:28,height:28,borderRadius:8,background:'#F3E8FF',color:'#7C3AED',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:13,flexShrink:0,fontFamily:"'Montserrat',sans-serif"}}>3</div>
                 <div>
                   <p style={{fontSize:14,fontWeight:600,color:'#0F1419'}}>Your accounts will appear automatically</p>
                   <p style={{fontSize:12,color:'#8899A6',marginTop:2}}>Open any account directly from the app with a secure, isolated Chrome profile.</p>
@@ -1003,7 +1003,7 @@ function DashboardContent() {
 
             <a
               href="/api/download"
-              style={{display:'block',width:'100%',padding:14,borderRadius:10,background:'#0A66C2',color:'#fff',fontSize:15,fontWeight:700,textAlign:'center',textDecoration:'none',fontFamily:"'DM Sans',sans-serif"}}
+              style={{display:'block',width:'100%',padding:14,borderRadius:10,background:'#0A66C2',color:'#fff',fontSize:15,fontWeight:700,textAlign:'center',textDecoration:'none',fontFamily:"'Karla',sans-serif"}}
             >
               Download LinkedVelocity App
             </a>

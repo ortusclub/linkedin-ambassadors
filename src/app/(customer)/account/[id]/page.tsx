@@ -345,12 +345,12 @@ export default function AccountDetailPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{background:'#fff',borderRadius:20,maxWidth:440,width:'100%',padding:32,boxShadow:'0 24px 60px rgba(15,20,25,0.25)',fontFamily:"'DM Sans','Instrument Sans',system-ui,sans-serif"}}
+            style={{background:'#fff',borderRadius:20,maxWidth:440,width:'100%',padding:32,boxShadow:'0 24px 60px rgba(15,20,25,0.25)',fontFamily:"'Karla','Montserrat',system-ui,sans-serif"}}
           >
             <div style={{width:56,height:56,borderRadius:16,background:'#FFF4E5',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF6B00" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
-            <h2 style={{fontSize:22,fontWeight:700,color:'#0F1419',letterSpacing:'-0.02em',marginBottom:8,fontFamily:"'Instrument Sans','DM Sans',system-ui,sans-serif"}}>
+            <h2 style={{fontSize:22,fontWeight:700,color:'#0F1419',letterSpacing:'-0.02em',marginBottom:8,fontFamily:"'Montserrat','Karla',system-ui,sans-serif"}}>
               Top up to rent this account
             </h2>
             <p style={{fontSize:14,color:'#536471',lineHeight:1.55,marginBottom:20}}>

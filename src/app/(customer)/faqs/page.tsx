@@ -23,8 +23,8 @@ export default function FAQsPage() {
           --blue:#0A66C2;--blue-dark:#004182;--blue-light:#E8F1FA;--green:#00B85C;--green-dark:#007A3D;--green-light:#E6F9EE;
           --accent:#1D1B16;--radius:10px;--radius-lg:16px;--radius-xl:24px;
         }
-        body{font-family:'DM Sans','Instrument Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
-        h1,h2,h3,h4,h5{font-family:'Instrument Sans','DM Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
+        body{font-family:'Karla','Montserrat',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+        h1,h2,h3,h4,h5{font-family:'Montserrat','Karla',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
         .faq-page{max-width:1200px;margin:0 auto;padding:80px 40px 120px}
         .faq-header{text-align:center;margin-bottom:64px}
         .faq-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}

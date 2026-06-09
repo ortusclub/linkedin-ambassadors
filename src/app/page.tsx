@@ -4,11 +4,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { formatNumber, formatCurrency } from "@/lib/utils";
-import { DM_Sans, Instrument_Sans } from "next/font/google";
+import { Montserrat, Karla } from "next/font/google";
 import { TestAccountGate } from "@/components/test-account-gate";
 
-const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-dm-sans" });
-const instrumentSans = Instrument_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-instrument-sans" });
+// Brand fonts: Montserrat (headings) + Karla (body). Variable names kept for minimal churn.
+const dmSans = Karla({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-dm-sans" });
+const instrumentSans = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-instrument-sans" });
 
 const AVATAR_COLORS = [
   "linear-gradient(135deg,#0A66C2,#004182)",
@@ -65,9 +66,9 @@ export default async function HomePage() {
           --accent:#1D1B16;--radius:10px;--radius-lg:16px;--radius-xl:24px;
         }
         html{scroll-behavior:smooth}
-        body{font-family:var(--font-dm-sans),'DM Sans',system-ui,sans-serif;color:var(--text);background:var(--bg) !important;-webkit-font-smoothing:antialiased;overflow-x:hidden;max-width:100vw}
+        body{font-family:var(--font-dm-sans),'Karla',system-ui,sans-serif;color:var(--text);background:var(--bg) !important;-webkit-font-smoothing:antialiased;overflow-x:hidden;max-width:100vw}
         .kl-page{overflow-x:hidden}
-        .kl-page h1,.kl-page h2,.kl-page h3,.kl-page h4,.kl-page h5{font-family:var(--font-instrument-sans),'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
+        .kl-page h1,.kl-page h2,.kl-page h3,.kl-page h4,.kl-page h5{font-family:var(--font-instrument-sans),'Montserrat',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
         .nav-cta{padding:8px 20px;background:var(--accent);color:#fff !important;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;transition:transform .15s,box-shadow .15s}
         .nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
         .hero-single{min-height:calc(78vh - 64px);display:flex;align-items:center;position:relative;overflow:hidden;padding:96px 40px;background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%);color:#fff}
@@ -92,7 +93,7 @@ export default async function HomePage() {
         .gcard .gvf{color:#7FD3FF}
         .gcard .grl{font-size:12px;color:rgba(255,255,255,0.65);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .gcard .gft{display:flex;align-items:center;justify-content:space-between;margin-top:13px;padding-top:11px;border-top:1px solid rgba(255,255,255,0.14)}
-        .gcard .gpr{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-weight:700;font-size:18px}
+        .gcard .gpr{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-weight:700;font-size:18px}
         .gcard .gpr small{font-size:11px;color:rgba(255,255,255,0.6);font-weight:400}
         .gcard .gtg{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:100px;background:rgba(127,211,255,0.18);color:#bfe6ff}
         .gc1{top:0;left:20px;transform:rotate(-3deg);z-index:3}
@@ -115,9 +116,9 @@ export default async function HomePage() {
         .hero-video-btn:hover{opacity:0.8}
         .hero-video-play{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);border:1.5px solid rgba(255,255,255,0.35);display:flex;align-items:center;justify-content:center;transition:all .2s}
         .hero-video-btn:hover .hero-video-play{background:rgba(255,255,255,0.3);transform:scale(1.08)}
-        .hero-video-text{font-size:14px;font-weight:500;color:rgba(255,255,255,0.8);font-family:'DM Sans',system-ui,sans-serif}
+        .hero-video-text{font-size:14px;font-weight:500;color:rgba(255,255,255,0.8);font-family:'Karla',system-ui,sans-serif}
         .hero-stats{display:flex;gap:32px;margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.15)}
-        .hero-stat-num{font-size:28px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;letter-spacing:-0.03em}
+        .hero-stat-num{font-size:28px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;letter-spacing:-0.03em}
         .hero-stat-label{font-size:12px;opacity:0.6;margin-top:2px}
         .hero-divider{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10;width:56px;height:56px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--text-mid);box-shadow:0 4px 24px rgba(0,0,0,0.1)}
         .proof-bar{background:linear-gradient(180deg,#F3F2EE 0%,#FAFAF8 100%);border-bottom:1px solid var(--border);padding:28px 0}
@@ -127,7 +128,7 @@ export default async function HomePage() {
         .proof-logo{font-size:13px;font-weight:600;color:var(--text-light);letter-spacing:-0.01em;opacity:0.5}
         .proof-stats{display:flex;gap:40px}
         .proof-stat{text-align:center}
-        .proof-stat-num{font-size:26px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;color:var(--blue);letter-spacing:-0.02em}
+        .proof-stat-num{font-size:26px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;color:var(--blue);letter-spacing:-0.02em}
         .proof-stat-label{font-size:11px;color:var(--text-light);margin-top:2px}
         .kl-section{padding:100px 40px;max-width:1200px;margin:0 auto}
         .section-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
@@ -153,14 +154,14 @@ export default async function HomePage() {
         .account-role{font-size:13px;color:var(--text-mid)}
         .account-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
         .account-meta-item{background:var(--surface-alt);padding:8px 12px;border-radius:8px}
-        .account-meta-item .val{font-size:15px;font-weight:600;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif}
+        .account-meta-item .val{font-size:15px;font-weight:600;font-family:var(--font-instrument-sans),'Montserrat',sans-serif}
         .account-meta-item .lbl{font-size:11px;color:var(--text-light);margin-top:1px}
         .account-tags{display:flex;gap:6px;flex-wrap:wrap}
         .account-tag{font-size:11px;padding:4px 10px;border-radius:100px;background:var(--blue-light);color:var(--blue);font-weight:500}
         .account-tag.green{background:var(--green-light);color:var(--green-dark)}
         .account-badge{position:absolute;top:12px;right:12px;font-size:10px;font-weight:600;padding:4px 10px;border-radius:100px;background:var(--green-light);color:var(--green-dark)}
         .account-price{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:baseline;justify-content:space-between}
-        .account-price .price{font-size:22px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;letter-spacing:-0.02em}
+        .account-price .price{font-size:22px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;letter-spacing:-0.02em}
         .account-price .period{font-size:13px;color:var(--text-light)}
         .account-price .rent-btn{padding:8px 18px;border-radius:var(--radius);background:var(--blue);color:#fff;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s}
         .account-price .rent-btn:hover{background:var(--blue-dark);transform:translateY(-1px)}
@@ -196,7 +197,7 @@ export default async function HomePage() {
         .li-role{font-size:12px;color:var(--text-mid)}
         .li-stats-row{display:flex;gap:16px}
         .li-stat{display:flex;flex-direction:column;align-items:center;flex:1;padding:8px;background:var(--surface);border-radius:8px}
-        .li-stat-num{font-size:16px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif}
+        .li-stat-num{font-size:16px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif}
         .li-stat-lbl{font-size:10px;color:var(--text-light)}
         .browser-shield{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--green);font-weight:500;padding:10px 14px;background:var(--green-light);border-radius:8px}
         .ambassador-section{background:linear-gradient(160deg,#0A2618 0%,#0A4D30 40%,#00B85C 100%);color:#fff;border-radius:var(--radius-xl);margin:0 40px;padding:80px 60px;position:relative;overflow:hidden}
@@ -208,7 +209,7 @@ export default async function HomePage() {
         .earn-card{padding:28px 24px;border-radius:var(--radius-lg);background:rgba(255,255,255,0.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1)}
         .earn-card h4{font-size:16px;margin-bottom:6px;font-weight:600}
         .earn-card p{font-size:13px;opacity:0.7;line-height:1.5}
-        .earn-card .earn-amount{font-size:32px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;letter-spacing:-0.03em;margin-bottom:4px}
+        .earn-card .earn-amount{font-size:32px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;letter-spacing:-0.03em;margin-bottom:4px}
         .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
         .comparison-table{border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface)}
         .comparison-table .row{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);font-size:14px}
@@ -241,7 +242,7 @@ export default async function HomePage() {
         .btn-green-solid:hover{background:var(--green-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,184,92,0.2)}
         .amb-band{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;background:linear-gradient(160deg,#0A2618 0%,#0A4D30 45%,#00B85C 120%);border-radius:var(--radius-xl);padding:36px 44px;color:#fff}
         .amb-band-label{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:8px}
-        .amb-band-title{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.02em}
+        .amb-band-title{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.02em}
         .amb-band-desc{font-size:14px;color:rgba(255,255,255,0.78);margin-top:6px}
         .amb-band-btn{flex-shrink:0;background:#fff;color:#007A3D;font-weight:700;padding:13px 24px;border-radius:var(--radius);text-decoration:none;transition:transform .15s}
         .amb-band-btn:hover{transform:translateY(-1px)}
@@ -250,7 +251,7 @@ export default async function HomePage() {
         .tryit-card > *{position:relative;z-index:1}
         .tryit-pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:#fff;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:6px 14px;margin-bottom:18px}
         .tryit-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,0.25)}
-        .tryit-title{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-0.03em;max-width:600px;margin:0 auto 14px;color:#fff}
+        .tryit-title{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-0.03em;max-width:600px;margin:0 auto 14px;color:#fff}
         .tryit-desc{font-size:16px;color:rgba(255,255,255,0.82);max-width:520px;margin:0 auto;line-height:1.6}
         .pricing-bg{background:#F3F2EE;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
         .price-snap{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start}
@@ -265,7 +266,7 @@ export default async function HomePage() {
         .price-snap .pt-cat{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--blue);background:var(--blue-light);border-radius:999px;padding:4px 11px;display:inline-block}
         .price-snap .pt.t-est .pt-cat{color:#fff;background:var(--blue)}
         .price-snap .pt.t-prem .pt-cat{color:#fff;background:#0B2A52}
-        .price-snap .pt-name{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:19px;font-weight:700;margin-top:13px}
+        .price-snap .pt-name{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:19px;font-weight:700;margin-top:13px}
         .price-snap .pt-strength{display:inline-flex;gap:4px;margin-left:9px;vertical-align:middle}
         .price-snap .pt-strength i{width:7px;height:7px;border-radius:50%;background:#D5DBE3;display:inline-block}
         .price-snap .pt-strength i.on{background:var(--blue)}
@@ -278,14 +279,14 @@ export default async function HomePage() {
         .price-snap .pt-eg-role{font-size:12px;color:var(--text-mid)}
         .price-snap .pt-egstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
         .price-snap .pt-egstats > div{background:#F4F7FB;border-radius:9px;padding:8px 6px;text-align:center}
-        .price-snap .pt-egstats b{display:block;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:15px;color:var(--blue)}
+        .price-snap .pt-egstats b{display:block;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:15px;color:var(--blue)}
         .price-snap .pt-egstats span{font-size:10px;color:var(--text-light)}
         .price-snap .pt p{font-size:13.5px;color:var(--text-mid);line-height:1.55;margin:10px 0 0}
         .price-snap .pt-band{font-size:16px;font-weight:800;color:var(--blue);margin:14px 0 0}
         .price-snap .pt-band small{color:var(--text-light);font-weight:600}
         .kl-footer{background:#0B1A2E;color:rgba(255,255,255,0.7);font-size:13px;text-align:left}
         .foot-inner{max-width:1200px;margin:0 auto;padding:56px 40px 36px;display:grid;grid-template-columns:1.3fr 2fr;gap:48px}
-        .foot-logo{display:flex;align-items:center;gap:9px;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-weight:700;font-size:20px;color:#fff;letter-spacing:-0.02em}
+        .foot-logo{display:flex;align-items:center;gap:9px;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-weight:700;font-size:20px;color:#fff;letter-spacing:-0.02em}
         .foot-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--blue),#0a4f96);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
         .foot-tag{margin:14px 0 16px;max-width:300px;line-height:1.6;color:rgba(255,255,255,0.6)}
         .foot-chat{display:inline-flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font-weight:600;border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:9px 14px;font-size:13px;transition:background .15s}
@@ -687,14 +688,14 @@ export default async function HomePage() {
           <div style={{maxWidth:1200,margin:'0 auto',position:'relative'}}>
             <div style={{textAlign:'center',marginBottom:48}}>
               <div style={{fontSize:12,fontWeight:600,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.5)',marginBottom:12}}>Why rent accounts</div>
-              <h2 style={{fontSize:'clamp(28px,3.5vw,40px)',fontWeight:700,letterSpacing:'-0.03em',color:'#fff',marginBottom:16,fontFamily:'Instrument Sans,sans-serif'}}>LinkedIn is powerful — but limited</h2>
+              <h2 style={{fontSize:'clamp(28px,3.5vw,40px)',fontWeight:700,letterSpacing:'-0.03em',color:'#fff',marginBottom:16,fontFamily:'Montserrat,sans-serif'}}>LinkedIn is powerful — but limited</h2>
               <p style={{fontSize:16,color:'rgba(255,255,255,0.7)',maxWidth:600,margin:'0 auto',lineHeight:1.7}}>
                 With a single account, you&#39;re limited to around 100 connection requests per week, approximately 50 messages and InMails, and just one campaign at a time. LinkedVelocity removes those limits by giving you access to multiple verified accounts.
               </p>
             </div>
 
             <div style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.14)',borderRadius:16,padding:'24px 16px',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}>
-              <h3 style={{fontSize:22,fontWeight:700,letterSpacing:'-0.02em',color:'#fff',marginBottom:24,fontFamily:'Instrument Sans,sans-serif'}}>Scale with real, verified accounts</h3>
+              <h3 style={{fontSize:22,fontWeight:700,letterSpacing:'-0.02em',color:'#fff',marginBottom:24,fontFamily:'Montserrat,sans-serif'}}>Scale with real, verified accounts</h3>
               <div className="mobile-2col">
                 <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
                   <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(0,184,92,0.28)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>

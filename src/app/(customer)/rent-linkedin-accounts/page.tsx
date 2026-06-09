@@ -180,8 +180,8 @@ export default function RentLinkedInAccountsPage() {
           --blue:#0A66C2;--blue-dark:#004182;--blue-light:#E8F1FA;--green:#00B85C;--green-dark:#007A3D;--green-light:#E6F9EE;
           --radius:10px;--radius-lg:16px;
         }
-        body{font-family:'DM Sans','Instrument Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
-        h1,h2,h3,h4{font-family:'Instrument Sans','DM Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
+        body{font-family:'Karla','Montserrat',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+        h1,h2,h3,h4{font-family:'Montserrat','Karla',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
         .rent-page{max-width:1100px;margin:0 auto;padding:64px 40px 120px}
         .rent-crumb{font-size:13px;color:var(--text-light);margin-bottom:24px}
         .rent-crumb a{color:var(--text-light);text-decoration:none}
@@ -192,7 +192,7 @@ export default function RentLinkedInAccountsPage() {
         .rent-subtitle{font-size:18px;color:var(--text-mid);line-height:1.65;margin-bottom:24px}
         .rent-stats{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px}
         .rent-stat{display:flex;align-items:baseline;gap:6px}
-        .rent-stat-num{font-size:24px;font-weight:700;color:var(--text);font-family:'Instrument Sans',sans-serif}
+        .rent-stat-num{font-size:24px;font-weight:700;color:var(--text);font-family:'Montserrat',sans-serif}
         .rent-stat-label{font-size:13px;color:var(--text-mid)}
         .rent-cta{display:inline-flex;align-items:center;gap:8px;padding:16px 32px;border-radius:var(--radius);background:var(--blue);color:#fff;font-size:16px;font-weight:600;text-decoration:none;transition:background .2s}
         .rent-cta:hover{background:var(--blue-dark)}
@@ -214,7 +214,7 @@ export default function RentLinkedInAccountsPage() {
         .rent-steps{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
         .rent-step{display:grid;grid-template-columns:56px 1fr;gap:20px;padding:24px 28px;border-bottom:1px solid var(--border)}
         .rent-step:last-child{border-bottom:none}
-        .rent-step-num{width:36px;height:36px;border-radius:10px;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;font-family:'Instrument Sans',sans-serif}
+        .rent-step-num{width:36px;height:36px;border-radius:10px;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;font-family:'Montserrat',sans-serif}
         .rent-step h3{font-size:17px;margin:0 0 6px;font-weight:600}
         .rent-step p{font-size:14px;color:var(--text-mid);line-height:1.65;margin:0}
         .rent-usecase{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px 28px;margin-bottom:16px}

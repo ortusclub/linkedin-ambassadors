@@ -293,7 +293,7 @@ export default function BecomeAmbassadorPage() {
         .atier:hover{transform:translateY(-4px);box-shadow:0 22px 44px -24px rgba(0,184,92,0.3)}
         .atier.feat{border:2px solid #00B85C;box-shadow:0 30px 60px -26px rgba(0,184,92,0.5);transform:translateY(-14px)}
         .atier.feat:hover{transform:translateY(-18px)}
-        .atier h3{font-family:'Instrument Sans',sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.02em;margin:14px 0 4px;color:#0F1419}
+        .atier h3{font-family:'Montserrat',sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.02em;margin:14px 0 4px;color:#0F1419}
         .a-badge{position:absolute;top:-11px;left:28px;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:linear-gradient(135deg,#00B85C,#007A3D);padding:4px 11px;border-radius:999px}
         .a-cat{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#007A3D;background:#E6F9EE;border-radius:999px;padding:4px 11px;display:inline-block}
         .atier.t-est .a-cat{color:#fff;background:#00B85C}
@@ -303,14 +303,14 @@ export default function BecomeAmbassadorPage() {
         .a-strength i.on{background:#00B85C}
         .atier.t-prem .a-strength i.on{background:#0A4D30}
         .a-eg{display:flex;align-items:center;gap:11px;margin:14px 0 10px;padding:11px 12px;border:1px solid #E8E6E1;border-radius:12px;background:#FAFBFC}
-        .a-eg-av{width:42px;height:42px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;position:relative;flex:0 0 42px;font-family:'Instrument Sans',sans-serif}
+        .a-eg-av{width:42px;height:42px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;position:relative;flex:0 0 42px;font-family:'Montserrat',sans-serif}
         .a-eg-dot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:#0A66C2;border:2px solid #FAFBFC}
         .a-eg-name{font-weight:700;font-size:14px;color:#0F1419}
         .a-eg-tag{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8899A6;background:#EEF0F4;border-radius:6px;padding:2px 6px;margin-left:6px}
         .a-eg-role{font-size:12px;color:#536471}
         .a-egstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
         .a-egstats > div{background:#F2FAF5;border-radius:9px;padding:8px 6px;text-align:center}
-        .a-egstats b{display:block;font-family:'Instrument Sans',sans-serif;font-size:15px;color:#007A3D}
+        .a-egstats b{display:block;font-family:'Montserrat',sans-serif;font-size:15px;color:#007A3D}
         .a-egstats span{font-size:10px;color:#8899A6}
         .a-desc{font-size:13.5px;color:#536471;line-height:1.55;margin:10px 0 0}
         .a-band{font-size:16px;font-weight:800;color:#007A3D;margin:14px 0 0}
@@ -344,7 +344,7 @@ export default function BecomeAmbassadorPage() {
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-10">
             <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>What you can earn</div>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Your account&apos;s quality sets your pay</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Your account&apos;s quality sets your pay</h2>
             <p className="mt-3 text-gray-600">The stronger the profile, the more it earns each month. Here&apos;s roughly what each tier pays.</p>
           </div>
           <div className="atiers">
@@ -453,7 +453,7 @@ export default function BecomeAmbassadorPage() {
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
               <div className="text-center max-w-2xl mx-auto mb-10">
                 <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>How it works</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>From sign-up to your first payout</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>From sign-up to your first payout</h2>
                 <p className="mt-3 text-gray-600">Four simple steps. No technical know-how needed.</p>
               </div>
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -478,7 +478,7 @@ export default function BecomeAmbassadorPage() {
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
               <div className="text-center max-w-2xl mx-auto mb-10">
                 <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Ambassador benefits</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Why ambassadors love this</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Why ambassadors love this</h2>
                 <p className="mt-3 text-gray-600">Everything you gain — nothing you lose.</p>
               </div>
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -505,7 +505,7 @@ export default function BecomeAmbassadorPage() {
             <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
               <div className="text-center max-w-2xl mx-auto mb-8">
                 <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Why you&apos;re needed</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Why businesses need real profiles</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Why businesses need real profiles</h2>
                 <p className="mt-3 text-gray-600">Messages from real professionals vastly outperform automated bot accounts — that&apos;s why companies partner with verified individuals.</p>
               </div>
               <div className="overflow-x-auto rounded-2xl border border-[#E8E6E1] bg-white">
@@ -543,7 +543,7 @@ export default function BecomeAmbassadorPage() {
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
               <div className="text-center max-w-2xl mx-auto mb-10">
                 <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Safe &amp; in your control</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Your account always stays yours</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Your account always stays yours</h2>
                 <p className="mt-3 text-gray-600">Sharing an account doesn&apos;t mean giving it away. Here&apos;s how we keep you protected.</p>
               </div>
               <div className="grid gap-5 sm:grid-cols-2 max-w-3xl mx-auto">
@@ -572,7 +572,7 @@ export default function BecomeAmbassadorPage() {
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
               <div className="text-center max-w-2xl mx-auto mb-10">
                 <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Payouts</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Get paid every month — guaranteed</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Get paid every month — guaranteed</h2>
                 <p className="mt-3 text-gray-600">Whether or not we find a renter, you get paid.</p>
               </div>
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 max-w-4xl mx-auto">
@@ -583,7 +583,7 @@ export default function BecomeAmbassadorPage() {
                   {h:"+",t:"Scale up",d:"Add more accounts (yours or family's) for more income."},
                 ].map((s,i)=>(
                   <div key={i} className="rounded-2xl border border-[#E8E6E1] bg-[#FAFAF8] p-6 text-center">
-                    <div className="text-2xl font-bold" style={{fontFamily:"'Instrument Sans',sans-serif",color:'#0A66C2'}}>{s.h}</div>
+                    <div className="text-2xl font-bold" style={{fontFamily:"'Montserrat',sans-serif",color:'#0A66C2'}}>{s.h}</div>
                     <h3 className="mt-2 text-[15px] font-semibold text-gray-900">{s.t}</h3>
                     <p className="mt-1 text-sm text-gray-600 leading-relaxed">{s.d}</p>
                   </div>
@@ -597,7 +597,7 @@ export default function BecomeAmbassadorPage() {
             <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
               <div className="text-center mb-10">
                 <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>What&apos;s next</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>After you submit</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>After you submit</h2>
                 <p className="mt-3 text-gray-600">No mystery — here&apos;s exactly what happens.</p>
               </div>
               <div className="space-y-4">
@@ -621,7 +621,7 @@ export default function BecomeAmbassadorPage() {
             <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
               <div className="text-center mb-8">
                 <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>FAQ</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Common questions</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Common questions</h2>
               </div>
               <div>
                 {[
@@ -648,7 +648,7 @@ export default function BecomeAmbassadorPage() {
           <section className="relative overflow-hidden" style={{background:'linear-gradient(160deg,#06231A 0%,#0A4D30 45%,#00B85C 130%)'}}>
             <div aria-hidden className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-72 w-[34rem] rounded-full" style={{background:'radial-gradient(closest-side,rgba(79,144,217,0.22),transparent 70%)'}} />
             <div className="relative mx-auto max-w-3xl px-4 py-20 text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Ready to start earning?</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Ready to start earning?</h2>
               <p className="mt-3 text-lg text-white/80">Get a free, instant valuation — no sign-up needed.</p>
               <div className="mt-7">
                 <button type="button" onClick={() => setStep("info")} className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-bold text-[#06231A] transition hover:-translate-y-0.5" style={{boxShadow:'0 18px 36px -14px rgba(0,0,0,0.6)'}}>Get my free valuation →</button>

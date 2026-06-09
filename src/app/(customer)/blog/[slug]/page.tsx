@@ -69,7 +69,7 @@ export default async function BlogPostPage({
     <>
       <style>{`
         :root{--bg:#FAFAF8;--surface:#FFFFFF;--text:#0F1419;--text-mid:#536471;--text-light:#8899A6;--border:#E8E6E1;--blue:#0A66C2;--blue-dark:#004182;--blue-light:#E8F1FA;--accent:#1D1B16;--radius:10px;--radius-lg:16px}
-        body{font-family:'DM Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+        body{font-family:'Karla',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
         .article-page{max-width:760px;margin:0 auto;padding:60px 24px 120px}
         .article-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-mid);text-decoration:none;margin-bottom:32px;font-weight:500;transition:color .2s}
         .article-back:hover{color:var(--blue)}

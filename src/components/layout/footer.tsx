@@ -17,9 +17,9 @@ export function Footer() {
   return (
     <footer className="lv-footer">
       <style>{`
-        .lv-footer{background:#0B1A2E;color:rgba(255,255,255,0.7);font-size:13px;font-family:'DM Sans',system-ui,sans-serif}
+        .lv-footer{background:#0B1A2E;color:rgba(255,255,255,0.7);font-size:13px;font-family:'Karla',system-ui,sans-serif}
         .lv-foot-inner{max-width:1200px;margin:0 auto;padding:56px 40px 36px;display:grid;grid-template-columns:1.3fr 2fr;gap:48px}
-        .lv-foot-logo{display:flex;align-items:center;gap:9px;font-family:'Instrument Sans',sans-serif;font-weight:700;font-size:20px;color:#fff;letter-spacing:-0.02em}
+        .lv-foot-logo{display:flex;align-items:center;gap:9px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:20px;color:#fff;letter-spacing:-0.02em}
         .lv-foot-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#0A66C2,#0a4f96);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
         .lv-foot-tag{margin:14px 0 16px;max-width:300px;line-height:1.6;color:rgba(255,255,255,0.6)}
         .lv-foot-chat{display:inline-flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font-weight:600;border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:9px 14px;font-size:13px;transition:background .15s}

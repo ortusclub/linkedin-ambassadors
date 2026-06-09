@@ -119,11 +119,11 @@ function CheckoutContent() {
   }
 
   return (
-    <div style={{minHeight:'100vh',background:'#FAFAF8',fontFamily:"'DM Sans','Instrument Sans',system-ui,sans-serif",WebkitFontSmoothing:'antialiased'}}>
+    <div style={{minHeight:'100vh',background:'#FAFAF8',fontFamily:"'Karla','Montserrat',system-ui,sans-serif",WebkitFontSmoothing:'antialiased'}}>
       <div style={{maxWidth:900,margin:'0 auto',padding:'48px 24px 80px'}}>
 
         {/* Header */}
-        <h1 style={{fontSize:'clamp(24px,3vw,36px)',fontWeight:700,letterSpacing:'-0.03em',color:'#0F1419',marginBottom:8,fontFamily:"'Instrument Sans','DM Sans',system-ui,sans-serif"}}>
+        <h1 style={{fontSize:'clamp(24px,3vw,36px)',fontWeight:700,letterSpacing:'-0.03em',color:'#0F1419',marginBottom:8,fontFamily:"'Montserrat','Karla',system-ui,sans-serif"}}>
           Checkout
         </h1>
         <p style={{fontSize:14,color:'#536471',marginBottom:32}}>
@@ -177,7 +177,7 @@ function CheckoutContent() {
           {/* Right: Summary + Checkout */}
           <div>
             <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:24,position:'sticky',top:24}}>
-              <h3 style={{fontSize:16,fontWeight:700,color:'#0F1419',marginBottom:16,fontFamily:"'Instrument Sans',sans-serif"}}>Order Summary</h3>
+              <h3 style={{fontSize:16,fontWeight:700,color:'#0F1419',marginBottom:16,fontFamily:"'Montserrat',sans-serif"}}>Order Summary</h3>
               <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:20}}>
                 <div style={{display:'flex',justifyContent:'space-between',fontSize:14}}>
                   <span style={{color:'#536471'}}>{accounts.length} account{accounts.length !== 1 ? "s" : ""}</span>
@@ -262,7 +262,7 @@ function CheckoutContent() {
 
         {/* What Happens Next */}
         <div style={{marginTop:48}}>
-          <h2 style={{fontSize:'clamp(20px,2.5vw,28px)',fontWeight:700,letterSpacing:'-0.02em',color:'#0F1419',marginBottom:8,fontFamily:"'Instrument Sans','DM Sans',system-ui,sans-serif"}}>
+          <h2 style={{fontSize:'clamp(20px,2.5vw,28px)',fontWeight:700,letterSpacing:'-0.02em',color:'#0F1419',marginBottom:8,fontFamily:"'Montserrat','Karla',system-ui,sans-serif"}}>
             What Happens Next
           </h2>
           <p style={{fontSize:14,color:'#536471',marginBottom:32}}>
@@ -272,8 +272,8 @@ function CheckoutContent() {
           <div style={{display:'grid',gap:20,gridTemplateColumns:'repeat(3,1fr)'}}>
             {/* Step 1 */}
             <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:28}}>
-              <div style={{width:40,height:40,borderRadius:12,background:'#E8F1FA',color:'#0A66C2',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:18,fontFamily:"'Instrument Sans',sans-serif",marginBottom:16}}>1</div>
-              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Instrument Sans',sans-serif"}}>Download the LinkedVelocity App</h3>
+              <div style={{width:40,height:40,borderRadius:12,background:'#E8F1FA',color:'#0A66C2',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:18,fontFamily:"'Montserrat',sans-serif",marginBottom:16}}>1</div>
+              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Montserrat',sans-serif"}}>Download the LinkedVelocity App</h3>
               <p style={{fontSize:13,color:'#536471',lineHeight:1.6}}>
                 Download and install the LinkedVelocity desktop app. Your rented accounts will appear automatically inside the app, ready to use.
               </p>
@@ -281,8 +281,8 @@ function CheckoutContent() {
 
             {/* Step 2 */}
             <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:28}}>
-              <div style={{width:40,height:40,borderRadius:12,background:'#E6F9EE',color:'#00B85C',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:18,fontFamily:"'Instrument Sans',sans-serif",marginBottom:16}}>2</div>
-              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Instrument Sans',sans-serif"}}>Open Your Chrome Profiles</h3>
+              <div style={{width:40,height:40,borderRadius:12,background:'#E6F9EE',color:'#00B85C',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:18,fontFamily:"'Montserrat',sans-serif",marginBottom:16}}>2</div>
+              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Montserrat',sans-serif"}}>Open Your Chrome Profiles</h3>
               <p style={{fontSize:13,color:'#536471',lineHeight:1.6}}>
                 Each account opens as an isolated Chrome profile with its own digital fingerprint and dedicated residential proxy. This means you can access the LinkedIn account without it being flagged or restricted — it looks like normal, everyday usage.
               </p>
@@ -290,8 +290,8 @@ function CheckoutContent() {
 
             {/* Step 3 */}
             <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:28}}>
-              <div style={{width:40,height:40,borderRadius:12,background:'#F3E8FF',color:'#7C3AED',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:18,fontFamily:"'Instrument Sans',sans-serif",marginBottom:16}}>3</div>
-              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Instrument Sans',sans-serif"}}>Run Your Campaigns</h3>
+              <div style={{width:40,height:40,borderRadius:12,background:'#F3E8FF',color:'#7C3AED',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:18,fontFamily:"'Montserrat',sans-serif",marginBottom:16}}>3</div>
+              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Montserrat',sans-serif"}}>Run Your Campaigns</h3>
               <p style={{fontSize:13,color:'#536471',lineHeight:1.6}}>
                 Inside each Chrome profile, you have full access to run your outreach campaigns — connection requests, introduction messages, and open profile campaigns. You can also use Chrome extensions to help automate your workflows.
               </p>
@@ -301,7 +301,7 @@ function CheckoutContent() {
 
         {/* Campaign Types */}
         <div style={{marginTop:36}}>
-          <h3 style={{fontSize:18,fontWeight:700,color:'#0F1419',marginBottom:16,fontFamily:"'Instrument Sans','DM Sans',system-ui,sans-serif"}}>
+          <h3 style={{fontSize:18,fontWeight:700,color:'#0F1419',marginBottom:16,fontFamily:"'Montserrat','Karla',system-ui,sans-serif"}}>
             Campaign Types You Can Run
           </h3>
           <div style={{display:'grid',gap:12,gridTemplateColumns:'repeat(3,1fr)'}}>
@@ -333,7 +333,7 @@ function CheckoutContent() {
 
         {/* Automation Benefits */}
         <div style={{marginTop:36,background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:28}}>
-          <h3 style={{fontSize:18,fontWeight:700,color:'#0F1419',marginBottom:6,fontFamily:"'Instrument Sans','DM Sans',system-ui,sans-serif"}}>
+          <h3 style={{fontSize:18,fontWeight:700,color:'#0F1419',marginBottom:6,fontFamily:"'Montserrat','Karla',system-ui,sans-serif"}}>
             Supercharge with Automation
           </h3>
           <p style={{fontSize:13,color:'#536471',marginBottom:20,lineHeight:1.6}}>

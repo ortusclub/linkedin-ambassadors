@@ -138,8 +138,8 @@ function RegisterForm() {
     <div className="flex min-h-[80vh] items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-[#1D1B16] flex items-center justify-center text-white text-sm font-bold" style={{ fontFamily: "'Instrument Sans', sans-serif", letterSpacing: "-0.03em" }}>LV</div>
-          <span className="text-xl font-bold text-[#1D1B16]" style={{ fontFamily: "'Instrument Sans', sans-serif", letterSpacing: "-0.03em" }}>LinkedVelocity</span>
+          <div className="w-8 h-8 rounded-lg bg-[#1D1B16] flex items-center justify-center text-white text-sm font-bold" style={{ fontFamily: "'Montserrat', sans-serif", letterSpacing: "-0.03em" }}>LV</div>
+          <span className="text-xl font-bold text-[#1D1B16]" style={{ fontFamily: "'Montserrat', sans-serif", letterSpacing: "-0.03em" }}>LinkedVelocity</span>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 text-center">Create your account</h1>
         <p className="mt-2 text-center text-sm text-gray-500 mb-8">Start renting or sharing LinkedIn accounts in minutes.</p>

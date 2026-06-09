@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DM_Sans, Instrument_Sans } from "next/font/google";
+import { Montserrat, Karla } from "next/font/google";
 
-const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-dm-sans" });
-const instrumentSans = Instrument_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-instrument-sans" });
+const dmSans = Karla({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-dm-sans" });
+const instrumentSans = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-instrument-sans" });
 
 export const metadata: Metadata = {
   title: "Pricing — How LinkedVelocity Account Rental Pricing Works",
@@ -16,8 +16,8 @@ export default function PricingPage() {
   return (
     <>
       <style>{`
-        .pp{font-family:var(--font-dm-sans),'DM Sans',system-ui,sans-serif;color:#0F1419;background:#FAFAF8}
-        .pp h1,.pp h2,.pp h3,.pp h4{font-family:var(--font-instrument-sans),'Instrument Sans',system-ui,sans-serif;letter-spacing:-0.02em}
+        .pp{font-family:var(--font-dm-sans),'Karla',system-ui,sans-serif;color:#0F1419;background:#FAFAF8}
+        .pp h1,.pp h2,.pp h3,.pp h4{font-family:var(--font-instrument-sans),'Montserrat',system-ui,sans-serif;letter-spacing:-0.02em}
         .pp-hero{position:relative;overflow:hidden;text-align:center;padding:72px 40px 26px}
         .pp-hero::before{content:'';position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:600px;height:320px;background:radial-gradient(closest-side,rgba(10,102,194,0.13),transparent 70%);pointer-events:none}
         .pp-hero > *{position:relative;z-index:1}
@@ -55,7 +55,7 @@ export default function PricingPage() {
         .pp-eg-role{font-size:12px;color:#536471}
         .pp-egstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
         .pp-egstats > div{background:#F4F7FB;border-radius:9px;padding:8px 6px;text-align:center}
-        .pp-egstats b{display:block;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:15px;color:#0A66C2}
+        .pp-egstats b{display:block;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:15px;color:#0A66C2}
         .pp-egstats span{font-size:10px;color:#8899A6}
         .pp-tier ul{margin:12px 0 0;padding:0;list-style:none}
         .pp-tier li{font-size:13.5px;color:#3b4658;padding:5px 0 5px 24px;position:relative}

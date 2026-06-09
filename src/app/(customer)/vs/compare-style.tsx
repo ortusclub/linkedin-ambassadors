@@ -6,8 +6,8 @@ export function CompareStyle() {
         --blue:#0A66C2;--blue-dark:#004182;--blue-light:#E8F1FA;--green:#00B85C;--green-dark:#007A3D;--green-light:#E6F9EE;--red:#DC2626;--red-light:#FEF2F2;
         --radius:10px;--radius-lg:16px;
       }
-      body{font-family:'DM Sans','Instrument Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
-      h1,h2,h3{font-family:'Instrument Sans','DM Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
+      body{font-family:'Karla','Montserrat',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+      h1,h2,h3{font-family:'Montserrat','Karla',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
       .vs-page{max-width:1080px;margin:0 auto;padding:56px 40px 120px}
       .vs-crumb{font-size:13px;color:var(--text-light);margin-bottom:24px}
       .vs-crumb a{color:var(--text-light);text-decoration:none}

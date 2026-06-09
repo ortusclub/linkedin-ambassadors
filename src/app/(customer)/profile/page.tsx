@@ -217,12 +217,12 @@ export default function ProfilePage() {
           </Link>
           <div className="flex items-center gap-5">
             <div className="h-16 w-16 rounded-full bg-[#1D1B16] flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-xl font-semibold tracking-tight" style={{ fontFamily: "'Instrument Sans', sans-serif" }}>
+              <span className="text-white text-xl font-semibold tracking-tight" style={{ fontFamily: "'Montserrat', sans-serif" }}>
                 {user ? getInitials(user.fullName) : ""}
               </span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-[#1D1B16] tracking-tight" style={{ fontFamily: "'Instrument Sans', sans-serif" }}>
+              <h1 className="text-2xl font-bold text-[#1D1B16] tracking-tight" style={{ fontFamily: "'Montserrat', sans-serif" }}>
                 {user?.fullName}
               </h1>
               <p className="text-sm text-gray-400 mt-0.5">{user?.email}</p>
@@ -338,7 +338,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Available Balance</p>
-                    <p className="text-3xl font-bold text-[#1D1B16] mt-1" style={{ fontFamily: "'Instrument Sans', sans-serif" }}>
+                    <p className="text-3xl font-bold text-[#1D1B16] mt-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
                       ${parseFloat(usdcBalance).toFixed(2)}
                       <span className="text-sm font-normal text-gray-400 ml-1">USDC</span>
                     </p>
