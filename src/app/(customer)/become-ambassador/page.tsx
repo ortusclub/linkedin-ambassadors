@@ -333,6 +333,9 @@ export default function BecomeAmbassadorPage() {
           <p className="mx-auto mt-5 max-w-2xl text-lg text-white/80">
             Every LinkedIn account has value — whether you&apos;re a student, a retiree, a professional, or someone who barely uses LinkedIn. Companies need real accounts for outreach, and we pay <strong className="text-white">$10 to $500/month</strong> for every account shared.
           </p>
+          <div className="mt-8">
+            <button type="button" onClick={() => setStep("info")} className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[15px] font-bold text-[#06231A] transition hover:-translate-y-0.5" style={{boxShadow:'0 16px 32px -14px rgba(0,0,0,0.6)'}}>Get my free valuation →</button>
+          </div>
         </div>
       </section>
 
@@ -442,6 +445,142 @@ export default function BecomeAmbassadorPage() {
         </section>
       )}
 
+      {/* === Landing marketing (only on the choice/landing step) === */}
+      {step === "choice" && (
+        <>
+          {/* HOW IT WORKS */}
+          <section className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
+            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+              <div className="text-center max-w-2xl mx-auto mb-10">
+                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>How it works</div>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>From sign-up to your first payout</h2>
+                <p className="mt-3 text-gray-600">Four simple steps. No technical know-how needed.</p>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  {t:"Get a free valuation",d:"Enter your profile and see what it's worth instantly — no sign-up needed."},
+                  {t:"Share your profile securely",d:"We set up protected, proxy-based access. Your login stays safe."},
+                  {t:"We review & approve",d:"Our team checks the account and lists it for renters."},
+                  {t:"Get paid monthly",d:"Earn every month via USDC, PayPal or Wise — guaranteed."},
+                ].map((s,i)=>(
+                  <div key={i} className="rounded-2xl border border-[#E8E6E1] bg-white p-6">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl text-white font-bold" style={{background:'linear-gradient(135deg,#00B85C,#007A3D)',boxShadow:'0 10px 20px -8px rgba(0,184,92,0.6)'}}>{i+1}</div>
+                    <h3 className="mt-4 text-base font-semibold text-gray-900">{s.t}</h3>
+                    <p className="mt-1.5 text-sm text-gray-600 leading-relaxed">{s.d}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* TRUST & SAFETY */}
+          <section className="bg-[#FAFAF8] border-t" style={{borderColor:'#E8E6E1'}}>
+            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+              <div className="text-center max-w-2xl mx-auto mb-10">
+                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Safe &amp; in your control</div>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Your account always stays yours</h2>
+                <p className="mt-3 text-gray-600">Sharing an account doesn&apos;t mean giving it away. Here&apos;s how we keep you protected.</p>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2 max-w-3xl mx-auto">
+                {[
+                  {t:"You stay in control",d:"Your name, photo and headline never change. The account is used for outreach only."},
+                  {t:"Protected access",d:"Every account runs through a dedicated proxy and a secure anti-detect browser (GoLogin)."},
+                  {t:"Nothing posted as you",d:"Renters can't change your profile or post on your behalf."},
+                  {t:"Stop whenever",d:"Withdraw your account at any time. No lock-in, no penalties."},
+                ].map((s,i)=>(
+                  <div key={i} className="flex gap-3.5 rounded-2xl border border-[#E8E6E1] bg-white p-5">
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg" style={{background:'#E6F9EE'}}>
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="#00B85C" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    </div>
+                    <div>
+                      <h3 className="text-[15px] font-semibold text-gray-900">{s.t}</h3>
+                      <p className="mt-1 text-sm text-gray-600 leading-relaxed">{s.d}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* PAYOUTS */}
+          <section className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
+            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+              <div className="text-center max-w-2xl mx-auto mb-10">
+                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Payouts</div>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Get paid every month — guaranteed</h2>
+                <p className="mt-3 text-gray-600">Whether or not we find a renter, you get paid.</p>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 max-w-4xl mx-auto">
+                {[
+                  {h:"1st",t:"Paid monthly",d:"On the 1st of every month, like clockwork."},
+                  {h:"3 ways",t:"Your choice",d:"USDC, PayPal, or Wise — whatever suits you."},
+                  {h:"100%",t:"Guaranteed",d:"Paid even in months your account isn't rented."},
+                  {h:"+",t:"Scale up",d:"Add more accounts (yours or family's) for more income."},
+                ].map((s,i)=>(
+                  <div key={i} className="rounded-2xl border border-[#E8E6E1] bg-[#FAFAF8] p-6 text-center">
+                    <div className="text-2xl font-bold" style={{fontFamily:"'Instrument Sans',sans-serif",color:'#0A66C2'}}>{s.h}</div>
+                    <h3 className="mt-2 text-[15px] font-semibold text-gray-900">{s.t}</h3>
+                    <p className="mt-1 text-sm text-gray-600 leading-relaxed">{s.d}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* WHAT HAPPENS NEXT */}
+          <section className="bg-[#FAFAF8] border-t" style={{borderColor:'#E8E6E1'}}>
+            <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+              <div className="text-center mb-10">
+                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>What&apos;s next</div>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>After you submit</h2>
+                <p className="mt-3 text-gray-600">No mystery — here&apos;s exactly what happens.</p>
+              </div>
+              <div className="space-y-4">
+                {[
+                  {t:"Instant valuation",d:"You see your estimated monthly value right away."},
+                  {t:"Quick review",d:"Our team verifies the account, usually within a couple of days."},
+                  {t:"You're notified & listed",d:"We let you know it's approved and add it to the marketplace."},
+                  {t:"Earnings begin",d:"You start earning on your next monthly payout."},
+                ].map((s,i)=>(
+                  <div key={i} className="flex gap-4 rounded-2xl border border-[#E8E6E1] bg-white p-5">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{background:'#00B85C'}}>{i+1}</div>
+                    <div><h3 className="text-[15px] font-semibold text-gray-900">{s.t}</h3><p className="mt-0.5 text-sm text-gray-600">{s.d}</p></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* FAQ */}
+          <section className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
+            <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+              <div className="text-center mb-8">
+                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>FAQ</div>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Common questions</h2>
+              </div>
+              <div>
+                {[
+                  {q:"Is it safe to share my account?",a:"Yes. Access is proxy-protected through a secure anti-detect browser, and the account is used for outreach only. Your password and profile stay yours."},
+                  {q:"Will this affect my LinkedIn account?",a:"No. Real, established accounts used for normal outreach don't get flagged, and nothing about your profile is changed."},
+                  {q:"When and how do I get paid?",a:"On the 1st of each month via USDC, PayPal, or Wise — guaranteed, whether or not your account is rented that month."},
+                  {q:"Do I have to do anything day-to-day?",a:"No. Once it's set up, it runs in the background. You just get paid."},
+                  {q:"Can I stop anytime?",a:"Yes — you can withdraw your account whenever you like. There's no lock-in."},
+                  {q:"Can I submit accounts that aren't mine?",a:"Family members' accounts are welcome with their permission — submit each one and earn for each."},
+                ].map((f,i)=>(
+                  <details key={i} className="group border-b border-[#E8E6E1] py-4">
+                    <summary className="flex cursor-pointer items-center justify-between font-semibold text-gray-900" style={{listStyle:'none'}}>
+                      {f.q}
+                      <span className="ml-4 text-xl leading-none transition-transform group-open:rotate-45" style={{color:'#00B85C'}}>+</span>
+                    </summary>
+                    <p className="mt-3 text-sm text-gray-600 leading-relaxed">{f.a}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
       {/* Logged-in Choice Screen */}
       {step === "logged-in-choice" && (
         <section className="py-6">
@@ -497,8 +636,8 @@ export default function BecomeAmbassadorPage() {
           <div className="flex items-start justify-between">
             {[
               { n: "1", title: "Get a Valuation", active: step === "info" || step === "scanning" || step === "result" || step === "bank", done: ["account-details","login","complete","done"].includes(step as string), goTo: "info" as Step, color: "#0A66C2" },
-              { n: "2", title: "Share Your Profile", active: step === "account-details" || step === "login", done: ["complete","done"].includes(step as string), goTo: "account-details" as Step, color: "#7C3AED" },
-              { n: "3", title: "Get Approved", active: step === "complete", done: step === "done", goTo: "complete" as Step, color: "#D97706" },
+              { n: "2", title: "Share Your Profile", active: step === "account-details" || step === "login", done: ["complete","done"].includes(step as string), goTo: "account-details" as Step, color: "#00B85C" },
+              { n: "3", title: "Get Approved", active: step === "complete", done: step === "done", goTo: "complete" as Step, color: "#0A66C2" },
               { n: "4", title: "Get Paid Monthly", active: false, done: step === "done", goTo: "done" as Step, color: "#00B85C" },
             ].map((s, i, arr) => (
               <div key={s.n} className="flex items-start" style={{flex:1}}>
