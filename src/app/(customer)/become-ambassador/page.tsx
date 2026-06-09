@@ -578,6 +578,18 @@ export default function BecomeAmbassadorPage() {
               </div>
             </div>
           </section>
+
+          {/* CLOSING CTA */}
+          <section className="relative overflow-hidden" style={{background:'linear-gradient(160deg,#06231A 0%,#0A4D30 45%,#00B85C 130%)'}}>
+            <div aria-hidden className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-72 w-[34rem] rounded-full" style={{background:'radial-gradient(closest-side,rgba(79,144,217,0.22),transparent 70%)'}} />
+            <div className="relative mx-auto max-w-3xl px-4 py-20 text-center">
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Ready to start earning?</h2>
+              <p className="mt-3 text-lg text-white/80">Get a free, instant valuation — no sign-up needed.</p>
+              <div className="mt-7">
+                <button type="button" onClick={() => setStep("info")} className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-bold text-[#06231A] transition hover:-translate-y-0.5" style={{boxShadow:'0 18px 36px -14px rgba(0,0,0,0.6)'}}>Get my free valuation →</button>
+              </div>
+            </div>
+          </section>
         </>
       )}
 

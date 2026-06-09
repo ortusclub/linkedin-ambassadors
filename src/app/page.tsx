@@ -792,41 +792,7 @@ export default async function HomePage() {
           <p style={{marginTop:20,fontSize:14,color:'var(--text-mid)'}}>Own a LinkedIn account? <Link href="/become-ambassador" style={{color:'var(--blue)',fontWeight:600,textDecoration:'none'}}>Earn by sharing it →</Link></p>
         </section>
 
-        {/* FOOTER */}
-        <footer className="kl-footer">
-          <div className="foot-inner">
-            <div className="foot-brand">
-              <div className="foot-logo"><span className="foot-mark">LV</span>LinkedVelocity</div>
-              <p className="foot-tag">Rent warmed-up LinkedIn accounts for outreach — or earn by sharing one you no longer use.</p>
-              <a href="https://t.me/linkedvelocity_support_bot" target="_blank" rel="noopener noreferrer" className="foot-chat">💬 Chat with us on Telegram</a>
-            </div>
-            <div className="foot-cols">
-              <div className="foot-col">
-                <b>Product</b>
-                <Link href="/catalogue">Browse profiles</Link>
-                <Link href="/pricing">Pricing</Link>
-                <Link href="/how-it-works">How it works</Link>
-                <Link href="/blog">Blog</Link>
-                <Link href="/faqs">FAQs</Link>
-              </div>
-              <div className="foot-col">
-                <b>For ambassadors</b>
-                <Link href="/become-ambassador">Earn with your account</Link>
-                <Link href="/become-ambassador">How payouts work</Link>
-              </div>
-              <div className="foot-col">
-                <b>Company</b>
-                <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer">Book a meeting</a>
-                <a href="https://t.me/linkedvelocity_support_bot" target="_blank" rel="noopener noreferrer">Contact</a>
-                <a href="#">About</a>
-              </div>
-            </div>
-          </div>
-          <div className="foot-bottom">
-            <span>© 2026 LinkedVelocity. All rights reserved.</span>
-            <div className="foot-legal"><a href="#">Privacy</a><a href="#">Terms</a></div>
-          </div>
-        </footer>
+        {/* Footer is now global (src/components/layout/footer.tsx) via the root layout */}
 
         {/* Telegram floating chat button */}
         <a
