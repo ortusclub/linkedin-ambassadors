@@ -252,6 +252,14 @@ export default async function HomePage() {
         .tryit-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,0.25)}
         .tryit-title{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-0.03em;max-width:600px;margin:0 auto 14px;color:#fff}
         .tryit-desc{font-size:16px;color:rgba(255,255,255,0.82);max-width:520px;margin:0 auto;line-height:1.6}
+        .price-snap{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+        .price-snap .pt{position:relative;padding:26px 24px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);transition:all .2s}
+        .price-snap .pt:hover{transform:translateY(-3px);box-shadow:0 16px 36px rgba(0,184,92,0.1);border-color:var(--green)}
+        .price-snap .pt.feat{border-color:#bbf0d4;box-shadow:0 14px 30px -16px rgba(0,184,92,0.3)}
+        .price-snap .pt-badge{position:absolute;top:-11px;left:24px;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:linear-gradient(135deg,#00B85C,#007A3D);padding:4px 11px;border-radius:999px}
+        .price-snap .pt-name{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:18px;font-weight:700}
+        .price-snap .pt-band{font-size:14px;font-weight:700;color:var(--green-dark);margin:6px 0 10px}
+        .price-snap .pt p{font-size:13.5px;color:var(--text-mid);line-height:1.55;margin:0}
         .kl-footer{border-top:1px solid var(--border);padding:40px;text-align:center;font-size:13px;color:var(--text-light)}
         .tg-float{position:fixed;bottom:24px;right:24px;z-index:50;width:56px;height:56px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform 0.2s,box-shadow 0.2s;text-decoration:none}
         .tg-float:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(0,0,0,0.25)}
@@ -270,7 +278,7 @@ export default async function HomePage() {
           .hero-stats{gap:20px;flex-wrap:wrap}
           .hero-stat-num{font-size:22px}
           .hero-divider{position:relative;top:auto;left:auto;transform:none;margin:-28px auto}
-          .how-grid,.earn-grid,.testimonial-grid{grid-template-columns:1fr}
+          .how-grid,.earn-grid,.testimonial-grid,.price-snap{grid-template-columns:1fr}
           .trust-grid{grid-template-columns:1fr}
           .browser-section .kl-section > div{grid-template-columns:1fr}
           .account-grid{grid-template-columns:1fr}
@@ -407,6 +415,33 @@ export default async function HomePage() {
               <p>Connect your outreach tool. Each account gets its own connection and messaging limits — multiply your reach without multiplying your risk.</p>
             </div>
           </div>
+        </section>
+
+        {/* PRICING SNAPSHOT — short version; full explainer at /pricing */}
+        {/* TODO before full launch: replace illustrative price bands with real ranges */}
+        <section className="kl-section" id="pricing">
+          <div className="section-label">Pricing</div>
+          <div className="section-title">Pay per account — priced by quality</div>
+          <div className="section-desc">Every profile is priced on its own merits. Here&apos;s roughly what to expect.</div>
+          <div className="price-snap">
+            <div className="pt">
+              <div className="pt-name">New / Basic</div>
+              <div className="pt-band">from ~$40/mo</div>
+              <p>Newer profiles, fewer connections. Great for testing.</p>
+            </div>
+            <div className="pt feat">
+              <div className="pt-badge">Most popular</div>
+              <div className="pt-name">Established</div>
+              <div className="pt-band">~$90–$130/mo</div>
+              <p>Solid connections, aged &amp; trusted. The sweet spot.</p>
+            </div>
+            <div className="pt">
+              <div className="pt-name">Premium</div>
+              <div className="pt-band">$150+/mo</div>
+              <p>Large senior network + Sales Navigator. Maximum reach.</p>
+            </div>
+          </div>
+          <div className="browse-all"><Link href="/pricing">See how pricing works →</Link></div>
         </section>
 
         {/* LINKEDVELOCITY BROWSER */}

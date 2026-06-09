@@ -73,6 +73,7 @@ export function Navbar() {
           <Link href="/" className="kl-logo"><span className="kl-logo-mark">LV</span>LinkedVelocity</Link>
           <div className="kl-nav-links">
             <Link href="/catalogue">Browse Accounts</Link>
+            <Link href="/pricing">Pricing</Link>
             <Link href="/blog">Blog</Link>
             <Link href="/faqs">FAQs</Link>
             <Link href="/become-ambassador" className="kl-sidedoor">Earn with your account ↗</Link>
