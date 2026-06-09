@@ -283,7 +283,22 @@ export default async function HomePage() {
         .price-snap .pt p{font-size:13.5px;color:var(--text-mid);line-height:1.55;margin:10px 0 0}
         .price-snap .pt-band{font-size:16px;font-weight:800;color:var(--blue);margin:14px 0 0}
         .price-snap .pt-band small{color:var(--text-light);font-weight:600}
-        .kl-footer{border-top:1px solid var(--border);padding:40px;text-align:center;font-size:13px;color:var(--text-light)}
+        .kl-footer{background:#0B1A2E;color:rgba(255,255,255,0.7);font-size:13px;text-align:left}
+        .foot-inner{max-width:1200px;margin:0 auto;padding:56px 40px 36px;display:grid;grid-template-columns:1.3fr 2fr;gap:48px}
+        .foot-logo{display:flex;align-items:center;gap:9px;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-weight:700;font-size:20px;color:#fff;letter-spacing:-0.02em}
+        .foot-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--blue),#0a4f96);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
+        .foot-tag{margin:14px 0 16px;max-width:300px;line-height:1.6;color:rgba(255,255,255,0.6)}
+        .foot-chat{display:inline-flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font-weight:600;border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:9px 14px;font-size:13px;transition:background .15s}
+        .foot-chat:hover{background:rgba(255,255,255,0.08)}
+        .foot-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:32px}
+        .foot-col b{display:block;color:#fff;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;font-weight:700}
+        .foot-col a{display:block;color:rgba(255,255,255,0.62);text-decoration:none;margin:9px 0;font-size:14px;transition:color .15s}
+        .foot-col a:hover{color:#fff}
+        .foot-bottom{border-top:1px solid rgba(255,255,255,0.1);max-width:1200px;margin:0 auto;padding:20px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;color:rgba(255,255,255,0.5);font-size:12.5px}
+        .foot-legal{display:flex;gap:20px}
+        .foot-legal a{color:rgba(255,255,255,0.5);text-decoration:none}
+        .foot-legal a:hover{color:#fff}
+        @media(max-width:760px){.foot-inner{grid-template-columns:1fr;gap:32px;padding:40px 20px 28px}.foot-cols{grid-template-columns:1fr 1fr}.foot-bottom{padding:18px 20px}}
         .tg-float{position:fixed;bottom:24px;right:24px;z-index:50;width:56px;height:56px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform 0.2s,box-shadow 0.2s;text-decoration:none}
         .tg-float:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(0,0,0,0.25)}
         @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
@@ -779,15 +794,37 @@ export default async function HomePage() {
 
         {/* FOOTER */}
         <footer className="kl-footer">
-          <div style={{maxWidth:1200,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
-            <span style={{fontSize:18,fontWeight:600,color:'var(--text-mid)',letterSpacing:'-0.02em'}}>LinkedVelocity</span>
-            <div style={{display:'flex',gap:24}}>
-              <a href="#" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Privacy</a>
-              <a href="#" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Terms</a>
-              <a href="#" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Contact</a>
-              <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer" style={{color:'var(--text-light)',textDecoration:'none',fontSize:13}}>Book a Meeting</a>
+          <div className="foot-inner">
+            <div className="foot-brand">
+              <div className="foot-logo"><span className="foot-mark">LV</span>LinkedVelocity</div>
+              <p className="foot-tag">Rent warmed-up LinkedIn accounts for outreach — or earn by sharing one you no longer use.</p>
+              <a href="https://t.me/linkedvelocity_support_bot" target="_blank" rel="noopener noreferrer" className="foot-chat">💬 Chat with us on Telegram</a>
             </div>
-            <div>© 2026 LinkedVelocity. All rights reserved.</div>
+            <div className="foot-cols">
+              <div className="foot-col">
+                <b>Product</b>
+                <Link href="/catalogue">Browse profiles</Link>
+                <Link href="/pricing">Pricing</Link>
+                <Link href="/how-it-works">How it works</Link>
+                <Link href="/blog">Blog</Link>
+                <Link href="/faqs">FAQs</Link>
+              </div>
+              <div className="foot-col">
+                <b>For ambassadors</b>
+                <Link href="/become-ambassador">Earn with your account</Link>
+                <Link href="/become-ambassador">How payouts work</Link>
+              </div>
+              <div className="foot-col">
+                <b>Company</b>
+                <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer">Book a meeting</a>
+                <a href="https://t.me/linkedvelocity_support_bot" target="_blank" rel="noopener noreferrer">Contact</a>
+                <a href="#">About</a>
+              </div>
+            </div>
+          </div>
+          <div className="foot-bottom">
+            <span>© 2026 LinkedVelocity. All rights reserved.</span>
+            <div className="foot-legal"><a href="#">Privacy</a><a href="#">Terms</a></div>
           </div>
         </footer>
 
