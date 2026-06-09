@@ -120,13 +120,14 @@ export default async function HomePage() {
         .hero-stat-num{font-size:28px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;letter-spacing:-0.03em}
         .hero-stat-label{font-size:12px;opacity:0.6;margin-top:2px}
         .hero-divider{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10;width:56px;height:56px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--text-mid);box-shadow:0 4px 24px rgba(0,0,0,0.1)}
-        .proof-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:20px 0}
+        .proof-bar{background:linear-gradient(180deg,#F3F2EE 0%,#FAFAF8 100%);border-bottom:1px solid var(--border);padding:28px 0}
+        .proof-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 32px;text-align:center;min-width:190px;box-shadow:0 1px 3px rgba(16,24,40,0.04)}
         .proof-inner{max-width:1200px;margin:0 auto;padding:0 40px;display:flex;align-items:center;justify-content:space-between;gap:40px}
         .proof-logos{display:flex;align-items:center;gap:24px}
         .proof-logo{font-size:13px;font-weight:600;color:var(--text-light);letter-spacing:-0.01em;opacity:0.5}
         .proof-stats{display:flex;gap:40px}
         .proof-stat{text-align:center}
-        .proof-stat-num{font-size:20px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;color:var(--text);letter-spacing:-0.02em}
+        .proof-stat-num{font-size:26px;font-weight:700;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;color:var(--blue);letter-spacing:-0.02em}
         .proof-stat-label{font-size:11px;color:var(--text-light);margin-top:2px}
         .kl-section{padding:100px 40px;max-width:1200px;margin:0 auto}
         .section-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
@@ -339,19 +340,18 @@ export default async function HomePage() {
         </section>
 
         {/* SOCIAL PROOF BAR */}
+        {/* TODO before full launch: replace these placeholder numbers (237 / 847 / 0) with real figures */}
         <div className="proof-bar">
-          <div className="proof-inner" style={{justifyContent:'center',gap:64}}>
-            <div className="proof-stat" style={{textAlign:'center'}}>
+          <div className="proof-inner" style={{justifyContent:'center',gap:20}}>
+            <div className="proof-card">
               <div className="proof-stat-num" id="counter-teams" suppressHydrationWarning>237</div>
               <div className="proof-stat-label">Teams using LinkedVelocity</div>
             </div>
-            <div style={{width:1,height:40,background:'var(--border)'}} />
-            <div className="proof-stat" style={{textAlign:'center'}}>
+            <div className="proof-card">
               <div className="proof-stat-num" id="counter-accounts" suppressHydrationWarning>847</div>
               <div className="proof-stat-label">Verified accounts provided</div>
             </div>
-            <div style={{width:1,height:40,background:'var(--border)'}} />
-            <div className="proof-stat" style={{textAlign:'center'}}>
+            <div className="proof-card">
               <div className="proof-stat-num" style={{color:'#00B85C'}}>0</div>
               <div className="proof-stat-label">Accounts restricted</div>
             </div>
