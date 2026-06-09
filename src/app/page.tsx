@@ -233,6 +233,12 @@ export default async function HomePage() {
         .btn-blue:hover{background:var(--blue-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(10,102,194,0.2)}
         .btn-green-solid{padding:16px 32px;border-radius:var(--radius);background:var(--green);color:#fff;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
         .btn-green-solid:hover{background:var(--green-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,184,92,0.2)}
+        .amb-band{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;background:linear-gradient(160deg,#0A2618 0%,#0A4D30 45%,#00B85C 120%);border-radius:var(--radius-xl);padding:36px 44px;color:#fff}
+        .amb-band-label{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:8px}
+        .amb-band-title{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.02em}
+        .amb-band-desc{font-size:14px;color:rgba(255,255,255,0.78);margin-top:6px}
+        .amb-band-btn{flex-shrink:0;background:#fff;color:#007A3D;font-weight:700;padding:13px 24px;border-radius:var(--radius);text-decoration:none;transition:transform .15s}
+        .amb-band-btn:hover{transform:translateY(-1px)}
         .kl-footer{border-top:1px solid var(--border);padding:40px;text-align:center;font-size:13px;color:var(--text-light)}
         .tg-float{position:fixed;bottom:24px;right:24px;z-index:50;width:56px;height:56px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform 0.2s,box-shadow 0.2s;text-decoration:none}
         .tg-float:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(0,0,0,0.25)}
@@ -515,56 +521,45 @@ export default async function HomePage() {
             {accounts.length === 0 ? (
               <div style={{textAlign:'center',padding:'60px 20px',color:'var(--text-mid)'}}>
                 <p style={{fontSize:16,fontWeight:500}}>No accounts available yet</p>
-                <p style={{fontSize:14,marginTop:8}}>Check back soon or become an ambassador to list yours.</p>
+                <p style={{fontSize:14,marginTop:8}}>Check back soon — new profiles are added regularly.</p>
               </div>
             ) : (
-              <div className="mobile-table-wrap" style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)'}}>
-                <table style={{width:'100%',borderCollapse:'collapse',fontSize:14,minWidth:700}}>
-                  <thead>
-                    <tr style={{borderBottom:'1px solid var(--border)',textAlign:'left',fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-light)'}}>
-                      <th style={{padding:'12px 16px'}}>Profile</th>
-                      <th style={{padding:'12px 16px'}}>Connections</th>
-                      <th style={{padding:'12px 16px'}}>Industry</th>
-                      <th style={{padding:'12px 16px'}}>Location</th>
-                      <th style={{padding:'12px 16px'}}>Account Age</th>
-                      <th style={{padding:'12px 16px'}}>Price</th>
-                      <th style={{padding:'12px 16px'}}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {accounts.map((a) => {
-                      const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
-                      const initials = getInitials(a.linkedinName);
-                      const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
-                      const price = Number(a.monthlyPrice);
-                      return (
-                        <tr key={a.id} style={{borderBottom:'1px solid var(--surface-alt)',transition:'background .15s'}}>
-                          <td style={{padding:'12px 16px'}}>
-                            <div style={{display:'flex',alignItems:'center',gap:12}}>
-                              <div style={{width:36,height:36,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden',background:getAvatarColor(a.linkedinName)}}>
-                                {a.profilePhotoUrl ? (
-                                  <Image src={a.profilePhotoUrl} alt={displayName} width={36} height={36} style={{objectFit:'cover'}} loading="lazy" />
-                                ) : initials}
-                              </div>
-                              <div>
-                                <div style={{fontWeight:600,color:'var(--text)'}}>{displayName}</div>
-                                {a.linkedinHeadline && <div style={{fontSize:12,color:'var(--text-light)',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.linkedinHeadline}</div>}
-                              </div>
-                            </div>
-                          </td>
-                          <td style={{padding:'12px 16px',color:'var(--text)',fontWeight:500}}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</td>
-                          <td style={{padding:'12px 16px',color:'var(--text-mid)'}}>{a.industry || '—'}</td>
-                          <td style={{padding:'12px 16px',color:'var(--text-mid)'}}>{a.location || '—'}</td>
-                          <td style={{padding:'12px 16px',color:'var(--text-mid)'}}>{ageYears && ageYears > 0 ? `${ageYears}+ yrs` : '—'}{a.hasSalesNav ? ' · SN' : ''}</td>
-                          <td style={{padding:'12px 16px',fontWeight:700,color:'var(--text)',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'var(--text-light)',fontSize:12}}>/mo</span></td>
-                          <td style={{padding:'12px 16px',textAlign:'right'}}>
-                            <Link href={`/account/${a.id}`} className="rent-btn" style={{display:'inline-block',textDecoration:'none',fontSize:12,padding:'6px 14px'}}>View Profile</Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="account-grid">
+                {accounts.slice(0, 6).map((a) => {
+                  const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+                  const initials = getInitials(a.linkedinName);
+                  const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
+                  const price = Number(a.monthlyPrice);
+                  return (
+                    <Link href={`/account/${a.id}`} key={a.id} className="account-card" style={{display:'block',textDecoration:'none',color:'inherit'}}>
+                      <div className="account-badge">Available</div>
+                      <div className="account-header">
+                        <div className="account-avatar" style={{background:getAvatarColor(a.linkedinName)}}>
+                          {a.profilePhotoUrl ? (
+                            <Image src={a.profilePhotoUrl} alt={displayName} width={48} height={48} style={{objectFit:'cover',borderRadius:12}} loading="lazy" />
+                          ) : initials}
+                        </div>
+                        <div>
+                          <div className="account-name">{displayName}</div>
+                          <div className="account-role">{a.linkedinHeadline || a.industry || 'LinkedIn account'}</div>
+                        </div>
+                      </div>
+                      <div className="account-meta">
+                        <div className="account-meta-item"><div className="val">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</div><div className="lbl">Connections</div></div>
+                        <div className="account-meta-item"><div className="val">{ageYears && ageYears > 0 ? `${ageYears}+ yrs` : '—'}</div><div className="lbl">Account age</div></div>
+                      </div>
+                      <div className="account-tags">
+                        {a.industry && <span className="account-tag">{a.industry}</span>}
+                        {a.hasSalesNav && <span className="account-tag green">Sales Nav</span>}
+                        {a.location && <span className="account-tag">{a.location}</span>}
+                      </div>
+                      <div className="account-price">
+                        <div><span className="price">{formatCurrency(price)}</span><span className="period">/mo</span></div>
+                        <span className="rent-btn">View profile</span>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
             <div className="browse-all"><Link href="/catalogue">View all accounts →</Link></div>
@@ -627,29 +622,16 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* AMBASSADOR CTA */}
-        <section id="ambassador" style={{padding:'20px 0 100px'}}>
-          <div className="ambassador-section">
-            <div className="section-label">For professionals</div>
-            <div className="section-title">Your LinkedIn has been earning you connections. Now let it earn you cash.</div>
-            <div className="section-desc">Any LinkedIn account qualifies — new or established. List yours and start earning immediately. We pay you every month, guaranteed, whether we find a renter or not.</div>
-            <div style={{marginTop:32}}><Link href="/become-ambassador" className="hero-btn hero-btn-white" style={{display:'inline-flex',textDecoration:'none'}}>Share Your Accounts →</Link></div>
-            <div className="earn-grid">
-              <div className="earn-card">
-                <div className="earn-amount">$10–$500</div>
-                <h4>Monthly earnings per account</h4>
-                <p>Earn $10–$500 every month for each account you provide. Based on connection count, industry, and account age.</p>
+        {/* AMBASSADOR — slim band that routes to the dedicated ambassador page */}
+        <section id="ambassador" style={{padding:'20px 40px 100px'}}>
+          <div style={{maxWidth:1200,margin:'0 auto'}}>
+            <div className="amb-band">
+              <div>
+                <div className="amb-band-label">For professionals</div>
+                <div className="amb-band-title">Own a LinkedIn account? Earn $10–$500/mo.</div>
+                <p className="amb-band-desc">List your profile and get paid every month — guaranteed, whether we find a renter or not.</p>
               </div>
-              <div className="earn-card">
-                <div className="earn-amount">100%</div>
-                <h4>Identity control</h4>
-                <p>Your name, photo, and headline stay yours. Renters use the account for outreach only — no profile changes.</p>
-              </div>
-              <div className="earn-card">
-                <div className="earn-amount">1st</div>
-                <h4>Monthly payouts</h4>
-                <p>Get paid on the 1st of every month directly via crypto (USDC). Prefer another method? Just let us know.</p>
-              </div>
+              <Link href="/become-ambassador" className="amb-band-btn">Learn about earning →</Link>
             </div>
           </div>
         </section>
@@ -685,14 +667,14 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* FINAL CTA */}
+        {/* FINAL CTA — renter-focused */}
         <section className="final-cta">
           <h2>Ready to break through LinkedIn&apos;s ceiling?</h2>
-          <p>Whether you want to scale your outreach or monetize your professional network, LinkedVelocity makes it happen.</p>
+          <p>Rent verified, pre-warmed accounts and scale your outreach today.</p>
           <div className="cta-row">
             <Link href="/catalogue" className="btn-blue">Browse Accounts →</Link>
-            <Link href="/become-ambassador" className="btn-green-solid">Share Your Accounts →</Link>
           </div>
+          <p style={{marginTop:20,fontSize:14,color:'var(--text-mid)'}}>Own a LinkedIn account? <Link href="/become-ambassador" style={{color:'var(--blue)',fontWeight:600,textDecoration:'none'}}>Earn by sharing it →</Link></p>
         </section>
 
         {/* FOOTER */}
