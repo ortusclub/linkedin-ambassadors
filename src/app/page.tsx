@@ -19,6 +19,12 @@ const AVATAR_COLORS = [
   "linear-gradient(135deg,#0891B2,#155E75)",
 ];
 
+const HERO_CARD_COLORS = [
+  "linear-gradient(135deg,#7da7e8,#0A66C2)",
+  "linear-gradient(135deg,#7fe0ab,#00B85C)",
+  "linear-gradient(135deg,#f3a8cf,#d6609e)",
+];
+
 function getAvatarColor(name: string) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -69,6 +75,9 @@ export default async function HomePage() {
         .hero-single-inner{max-width:1200px;margin:0 auto;width:100%;position:relative}
         .hero-title-lg{font-size:clamp(36px,5vw,58px);line-height:1.08;font-weight:700;letter-spacing:-0.03em;max-width:740px;margin-bottom:20px}
         .hero-desc-lg{font-size:18px;line-height:1.6;opacity:0.82;max-width:560px;margin-bottom:32px}
+        .hero-pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:#fff;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:6px 14px;margin-bottom:18px}
+        .hero-pill-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,0.25)}
+        .hero-title-lg .hl{color:#34d399;white-space:nowrap}
         .hero-sidedoor{display:inline-flex;align-items:center;gap:6px;margin-top:28px;font-size:14px;color:rgba(255,255,255,0.72);text-decoration:none;transition:color .15s}
         .hero-sidedoor:hover{color:#fff}
         .hero-sidedoor strong{color:#fff;font-weight:600;margin-left:5px}
@@ -270,17 +279,12 @@ export default async function HomePage() {
         <section className="hero-single">
           <div className="hero-single-inner hero-grid">
             <div>
-              <div className="hero-label fade-up">For growth &amp; outreach teams</div>
-              <h1 className="hero-title-lg fade-up d1">Scale LinkedIn outreach<br />without the limits</h1>
+              <div className="hero-pill fade-up"><span className="hero-pill-dot" /> For growth &amp; outreach teams</div>
+              <h1 className="hero-title-lg fade-up d1">Scale LinkedIn outreach<br /><span className="hl">without the limits</span></h1>
               <p className="hero-desc-lg fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories. Run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
               <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
                 <Link href="/catalogue" className="hero-btn hero-btn-solid">Browse Available Accounts →</Link>
-                <a href="#how" className="hero-video-btn" aria-label="Watch how renting works">
-                  <span className="hero-video-play">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
-                  </span>
-                  <span className="hero-video-text">See how it works</span>
-                </a>
+                <a href="#how" className="hero-btn hero-btn-white">See how it works</a>
               </div>
               <div className="hero-stats fade-up d4">
                 <div><div className="hero-stat-num">847</div><div className="hero-stat-label">Accounts live</div></div>
@@ -296,8 +300,8 @@ export default async function HomePage() {
                 return (
                   <div key={a.id} className={`gcard gc${i + 1}`}>
                     <div className="grow">
-                      <div className="gav" style={{background:getAvatarColor(a.linkedinName)}}>
-                        {a.profilePhotoUrl ? <Image src={a.profilePhotoUrl} alt={dn} width={42} height={42} style={{objectFit:"cover"}} /> : getInitials(a.linkedinName)}
+                      <div className="gav" style={{background:HERO_CARD_COLORS[i % HERO_CARD_COLORS.length]}}>
+                        {getInitials(a.linkedinName)}
                         <span className="on" />
                       </div>
                       <div>
