@@ -473,6 +473,71 @@ export default function BecomeAmbassadorPage() {
             </div>
           </section>
 
+          {/* WHY AMBASSADORS LOVE THIS — benefits */}
+          <section className="bg-[#FAFAF8] border-t" style={{borderColor:'#E8E6E1'}}>
+            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+              <div className="text-center max-w-2xl mx-auto mb-10">
+                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Ambassador benefits</div>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Why ambassadors love this</h2>
+                <p className="mt-3 text-gray-600">Everything you gain — nothing you lose.</p>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  {icon:"💵",tint:"green",t:"Earn monthly income",d:"Predictable recurring payouts every month your account is active."},
+                  {icon:"🙌",tint:"blue",t:"Completely hands-off",d:"You don't run campaigns, reply to messages, or manage anything — we handle it all."},
+                  {icon:"🎛️",tint:"green",t:"Stay in full control",d:"Pause or withdraw whenever you want. No lock-in, no penalties."},
+                  {icon:"🛡️",tint:"blue",t:"Safe & protected",d:"Human-paced activity within LinkedIn's limits. Your profile stays protected."},
+                  {icon:"🌐",tint:"green",t:"Grow your network",d:"Real, relevant connections get added as outreach runs on your behalf."},
+                  {icon:"💤",tint:"blue",t:"Even idle accounts pay",d:"Barely use LinkedIn? Accounts you — or family — don't use still earn."},
+                ].map((b,i)=>(
+                  <div key={i} className="rounded-2xl border border-[#E8E6E1] bg-white p-6">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl text-lg" style={{background: b.tint==="blue" ? "#E8F1FA" : "#E6F9EE"}}>{b.icon}</div>
+                    <h3 className="mt-4 text-base font-semibold text-gray-900">{b.t}</h3>
+                    <p className="mt-1.5 text-sm text-gray-600 leading-relaxed">{b.d}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* WHY YOU'RE NEEDED — bot vs real comparison */}
+          <section className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
+            <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
+              <div className="text-center max-w-2xl mx-auto mb-8">
+                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Why you&apos;re needed</div>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Why businesses need real profiles</h2>
+                <p className="mt-3 text-gray-600">Messages from real professionals vastly outperform automated bot accounts — that&apos;s why companies partner with verified individuals.</p>
+              </div>
+              <div className="overflow-x-auto rounded-2xl border border-[#E8E6E1] bg-white">
+                <table className="w-full text-left text-sm" style={{minWidth:520}}>
+                  <thead>
+                    <tr className="border-b border-[#E8E6E1] bg-[#FAFAF8]">
+                      <th className="px-5 py-3.5 font-semibold text-gray-500">Feature</th>
+                      <th className="px-5 py-3.5 font-semibold" style={{color:'#DC2626'}}>Bot outreach</th>
+                      <th className="px-5 py-3.5 font-semibold" style={{color:'#007A3D'}}>Real profile outreach</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      {f:"Account type",bot:"Fake / recycled accounts",real:"Verified real professional"},
+                      {f:"Restriction risk",bot:"High restriction risk",real:"Low restriction rate"},
+                      {f:"Acceptance rates",bot:"Low acceptance rates",real:"Higher acceptance rates"},
+                      {f:"Messaging feel",bot:"Feels spammy",real:"Human communication"},
+                      {f:"Trust level",bot:"No trust",real:"Trusted company representative"},
+                    ].map((r,i)=>(
+                      <tr key={i} className="border-b border-[#F0F1F3] last:border-0">
+                        <td className="px-5 py-3.5 font-medium text-gray-900">{r.f}</td>
+                        <td className="px-5 py-3.5 text-gray-600"><span className="mr-1.5" style={{color:'#DC2626'}}>✗</span>{r.bot}</td>
+                        <td className="px-5 py-3.5 text-gray-700"><span className="mr-1.5" style={{color:'#00B85C'}}>✓</span>{r.real}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-6 text-center text-gray-600">Companies pay for trust &amp; deliverability — <strong className="text-gray-900">your real identity makes outreach work.</strong></p>
+            </div>
+          </section>
+
           {/* TRUST & SAFETY */}
           <section className="bg-[#FAFAF8] border-t" style={{borderColor:'#E8E6E1'}}>
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
