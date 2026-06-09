@@ -1,18 +1,67 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "FAQs — LinkedIn Account Rental Questions Answered",
   description:
-    "Common questions about renting LinkedIn accounts on LinkedVelocity. Learn about safety, pricing, restrictions, simultaneous use, payouts, and more.",
+    "Common questions about renting LinkedIn accounts on LinkedVelocity, and about earning as an ambassador — safety, pricing, payouts, and more.",
   alternates: { canonical: "/faqs" },
   openGraph: {
     title: "Frequently Asked Questions | LinkedVelocity",
     description:
-      "Everything you need to know about renting LinkedIn accounts safely and earning as an Ambassador.",
+      "Everything you need to know about renting LinkedIn accounts safely and earning as an ambassador.",
     url: "https://linkedvelocity.com/faqs",
   },
 };
+
+const RENTER_FAQS = [
+  {
+    q: "What is LinkedVelocity?",
+    a: "A marketplace where growth teams rent verified, pre-warmed LinkedIn accounts for outreach — and professionals earn by sharing accounts they no longer actively use.",
+  },
+  {
+    q: "How does renting work?",
+    a: "Browse the catalogue, rent a profile monthly, and open it in a secure browser. You're running outreach from an established account in minutes — no warm-up period.",
+  },
+  {
+    q: "Will a rented account get restricted?",
+    a: "No. Every session runs through an anti-detect browser with a dedicated proxy and isolated fingerprint, so LinkedIn sees one consistent user. We've maintained a 0% restriction rate across the platform.",
+  },
+  {
+    q: "What tools can I use with a rented account?",
+    a: "Any Chrome extension or LinkedIn automation tool — Dripify, Expandi, Linked Helper and others all work inside the browser session.",
+  },
+  {
+    q: "How am I charged, and can I cancel?",
+    a: "A flat monthly fee per account, paid by card (Stripe) or USDC. No contracts — cancel anytime and the account is freed up immediately.",
+  },
+];
+
+const AMBASSADOR_FAQS = [
+  {
+    q: "How much can I earn as an ambassador?",
+    a: "$10–$500 per account per month, based on connection count, industry, and account age — paid guaranteed on the 1st of every month, whether or not your account is rented.",
+  },
+  {
+    q: "Will sharing my account affect it?",
+    a: "No. Access is proxy-protected and human-paced within LinkedIn's limits, so your profile stays safe. Real, established accounts used for normal outreach don't get flagged.",
+  },
+  {
+    q: "Can I still use my account while it's shared?",
+    a: "Yes. Simultaneous access means you and the renter can both be logged in at the same time, with no conflicts or session clashes.",
+  },
+  {
+    q: "Will renters change my profile?",
+    a: "Never. Your name, photo, and headline stay exactly as they are. The account is used only for connection requests and messaging — no profile edits allowed.",
+  },
+  {
+    q: "When and how do I get paid?",
+    a: "On the 1st of every month, via USDC (crypto) by default. Prefer PayPal or Wise? Just let us know during onboarding.",
+  },
+  {
+    q: "Can I stop anytime?",
+    a: "Yes — you can withdraw your account whenever you like. There's no lock-in and no penalties.",
+  },
+];
 
 export default function FAQsPage() {
   return (
@@ -24,70 +73,62 @@ export default function FAQsPage() {
           --accent:#1D1B16;--radius:10px;--radius-lg:16px;--radius-xl:24px;
         }
         body{font-family:'Karla','Montserrat',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
-        h1,h2,h3,h4,h5{font-family:'Montserrat','Karla',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
-        .faq-page{max-width:1200px;margin:0 auto;padding:80px 40px 120px}
-        .faq-header{text-align:center;margin-bottom:64px}
-        .faq-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
-        .faq-title{font-size:clamp(28px,3.5vw,42px);line-height:1.15;letter-spacing:-0.03em;margin-bottom:16px}
+        h1,h2,h3{font-family:'Montserrat','Karla',system-ui,sans-serif;letter-spacing:-0.02em}
+        .faq-page{max-width:820px;margin:0 auto;padding:80px 24px 100px}
+        .faq-header{text-align:center;margin-bottom:36px}
+        .faq-label{font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
+        .faq-title{font-size:clamp(30px,3.5vw,44px);line-height:1.12;letter-spacing:-0.03em;margin-bottom:14px;font-weight:800}
         .faq-subtitle{font-size:16px;color:var(--text-mid);line-height:1.6;max-width:520px;margin:0 auto}
-        .faq-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
-        .faq-card{padding:28px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);transition:all .2s}
-        .faq-card:hover{border-color:var(--blue);box-shadow:0 8px 24px rgba(10,102,194,0.06);transform:translateY(-2px)}
-        .faq-card h3{font-size:16px;margin-bottom:10px;font-weight:600;color:var(--text)}
-        .faq-card p{font-size:14px;color:var(--text-mid);line-height:1.7}
-        .faq-cta{text-align:center;margin-top:64px}
+        .faq-group{margin-top:44px}
+        .faq-grouplabel{font-size:12px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px}
+        .faq-group.renter .faq-grouplabel{color:var(--blue)}
+        .faq-group.amb .faq-grouplabel{color:var(--green-dark)}
+        .faq-group h2{font-size:24px;font-weight:700;margin-bottom:8px}
+        .faq-q{border-bottom:1px solid var(--border)}
+        .faq-q summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none;padding:18px 2px;font-weight:700;font-size:16px;color:var(--text)}
+        .faq-q summary::-webkit-details-marker{display:none}
+        .faq-q .plus{font-size:24px;line-height:1;flex-shrink:0;transition:transform .2s ease}
+        .faq-group.renter .faq-q .plus{color:var(--blue)}
+        .faq-group.amb .faq-q .plus{color:var(--green)}
+        .faq-q[open] .plus{transform:rotate(45deg)}
+        .faq-q p{font-size:14.5px;color:var(--text-mid);line-height:1.7;padding:0 2px 18px;margin:0;max-width:680px}
+        .faq-cta{text-align:center;margin-top:56px;padding-top:40px;border-top:1px solid var(--border)}
         .faq-cta p{font-size:16px;color:var(--text-mid);margin-bottom:20px}
         .faq-cta-actions{display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center}
-        .faq-cta-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:var(--radius);background:var(--blue);color:#fff;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
+        .faq-cta-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:var(--radius);background:var(--blue);color:#fff;font-size:15px;font-weight:700;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
         .faq-cta-btn:hover{background:var(--blue-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(10,102,194,0.2)}
-        .faq-cta-btn-alt{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:var(--radius);background:#fff;color:var(--text-dark);font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;border:1px solid #E8E6E1;cursor:pointer}
-        .faq-cta-btn-alt:hover{border-color:var(--text-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(15,20,25,0.08)}
-        @media(max-width:900px){
-          .faq-page{padding:48px 16px 80px}
-          .faq-grid{grid-template-columns:1fr}
-        }
+        .faq-cta-btn-alt{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:var(--radius);background:#fff;color:var(--text);font-size:15px;font-weight:700;text-decoration:none;transition:all .2s;border:1px solid var(--border);cursor:pointer}
+        .faq-cta-btn-alt:hover{border-color:var(--accent);transform:translateY(-1px)}
+        @media(max-width:900px){.faq-page{padding:48px 16px 80px}}
       `}</style>
 
       <div className="faq-page">
         <div className="faq-header">
           <div className="faq-label">Frequently asked questions</div>
-          <h1 className="faq-title">LinkedIn Account Rental FAQ</h1>
-          <p className="faq-subtitle">Got questions about renting or sharing LinkedIn accounts? We&apos;ve got answers.</p>
+          <h1 className="faq-title">Questions, answered</h1>
+          <p className="faq-subtitle">Renting a profile or sharing yours? Here&apos;s everything you need to know.</p>
         </div>
 
-        <div className="faq-grid">
-          <div className="faq-card">
-            <h3>What is LinkedVelocity?</h3>
-            <p>LinkedVelocity is a marketplace where growth teams can rent verified LinkedIn accounts for outreach, and professionals can earn passive income by sharing accounts they no longer actively use.</p>
-          </div>
-          <div className="faq-card">
-            <h3>Will my LinkedIn account get restricted?</h3>
-            <p>No. Every session runs through GoLogin&apos;s anti-detect browser with dedicated proxies, fingerprint isolation, and shared cookie environments. We&apos;ve maintained a 0% restriction rate across all accounts on the platform.</p>
-          </div>
-          <div className="faq-card">
-            <h3>Can I still use my account while it&apos;s rented?</h3>
-            <p>Yes. GoLogin allows simultaneous access, so you and the renter can use the account at the same time without conflicts or session clashes.</p>
-          </div>
-          <div className="faq-card">
-            <h3>How much can I earn as an ambassador?</h3>
-            <p>Ambassadors earn between $10 and $500 per month per account, depending on connection count, industry, and account age. Payments are guaranteed on the 1st of every month.</p>
-          </div>
-          <div className="faq-card">
-            <h3>How are renters charged?</h3>
-            <p>Renters pay a monthly subscription per account. You can pay with a credit card via Stripe or with USDC. Cancel anytime — no long-term contracts.</p>
-          </div>
-          <div className="faq-card">
-            <h3>Will renters change my profile information?</h3>
-            <p>No. Your name, photo, headline, and profile content stay exactly as they are. Renters only use the account for connection requests and messaging — no profile edits allowed.</p>
-          </div>
-          <div className="faq-card">
-            <h3>What tools work with rented accounts?</h3>
-            <p>Any Chrome extension or LinkedIn automation tool works — including Dripify, Expandi, Linked Helper, and others. The GoLogin browser session supports all standard extensions.</p>
-          </div>
-          <div className="faq-card">
-            <h3>How do ambassador payouts work?</h3>
-            <p>Payouts are sent on the 1st of every month via USDC (crypto) by default. If you prefer bank transfer, PayPal, or Wise, just let us know during onboarding.</p>
-          </div>
+        <div className="faq-group renter">
+          <div className="faq-grouplabel">For renters</div>
+          <h2>Renting an account</h2>
+          {RENTER_FAQS.map((f, i) => (
+            <details key={i} className="faq-q">
+              <summary>{f.q}<span className="plus">+</span></summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </div>
+
+        <div className="faq-group amb">
+          <div className="faq-grouplabel">For ambassadors</div>
+          <h2>Sharing your account</h2>
+          {AMBASSADOR_FAQS.map((f, i) => (
+            <details key={i} className="faq-q">
+              <summary>{f.q}<span className="plus">+</span></summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
         </div>
 
         <div className="faq-cta">
