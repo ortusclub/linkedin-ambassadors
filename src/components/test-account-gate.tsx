@@ -41,7 +41,7 @@ export function TestAccountGate() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,marginTop:28,padding:'18px 36px',background:'linear-gradient(135deg, #FF6B00, #FF8C33)',color:'white',borderRadius:14,fontSize:17,fontWeight:700,border:'none',cursor:'pointer',boxShadow:'0 4px 14px rgba(255,107,0,0.35)',transition:'transform 0.2s, box-shadow 0.2s',fontFamily:'inherit'}}
+        style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:10,marginTop:28,padding:'18px 36px',background:'linear-gradient(135deg, #00B85C, #007A3D)',color:'white',borderRadius:14,fontSize:17,fontWeight:700,border:'none',cursor:'pointer',boxShadow:'0 8px 22px rgba(0,184,92,0.4)',transition:'transform 0.2s, box-shadow 0.2s',fontFamily:'inherit'}}
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         Try Our Test Account
@@ -56,8 +56,8 @@ export function TestAccountGate() {
             onClick={(e) => e.stopPropagation()}
             style={{background:'#fff',borderRadius:20,maxWidth:440,width:'100%',padding:32,boxShadow:'0 24px 60px rgba(15,20,25,0.25)',fontFamily:"'DM Sans','Instrument Sans',system-ui,sans-serif",textAlign:'left'}}
           >
-            <div style={{width:56,height:56,borderRadius:16,background:'#FFF4E5',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF6B00" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            <div style={{width:56,height:56,borderRadius:16,background:'#E6F9EE',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00B85C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </div>
             <h2 style={{fontSize:22,fontWeight:700,color:'#0F1419',letterSpacing:'-0.02em',marginBottom:8,fontFamily:"'Instrument Sans','DM Sans',system-ui,sans-serif"}}>
               Try our test account

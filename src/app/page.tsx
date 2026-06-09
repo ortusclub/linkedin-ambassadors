@@ -244,6 +244,13 @@ export default async function HomePage() {
         .amb-band-desc{font-size:14px;color:rgba(255,255,255,0.78);margin-top:6px}
         .amb-band-btn{flex-shrink:0;background:#fff;color:#007A3D;font-weight:700;padding:13px 24px;border-radius:var(--radius);text-decoration:none;transition:transform .15s}
         .amb-band-btn:hover{transform:translateY(-1px)}
+        .tryit-card{position:relative;overflow:hidden;text-align:center;padding:72px 32px;border-radius:var(--radius-xl);background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 45%,#0A66C2 120%);color:#fff}
+        .tryit-card::before{content:'';position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:520px;height:300px;background:radial-gradient(closest-side,rgba(0,184,92,0.2),transparent 70%);pointer-events:none}
+        .tryit-card > *{position:relative;z-index:1}
+        .tryit-pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:#fff;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:6px 14px;margin-bottom:18px}
+        .tryit-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,0.25)}
+        .tryit-title{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-0.03em;max-width:600px;margin:0 auto 14px;color:#fff}
+        .tryit-desc{font-size:16px;color:rgba(255,255,255,0.82);max-width:520px;margin:0 auto;line-height:1.6}
         .kl-footer{border-top:1px solid var(--border);padding:40px;text-align:center;font-size:13px;color:var(--text-light)}
         .tg-float{position:fixed;bottom:24px;right:24px;z-index:50;width:56px;height:56px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform 0.2s,box-shadow 0.2s;text-decoration:none}
         .tg-float:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(0,0,0,0.25)}
@@ -502,12 +509,10 @@ export default async function HomePage() {
         {/* TRY IT YOURSELF */}
         <section>
           <div className="kl-section">
-            <div style={{background:'linear-gradient(160deg,#F6FBF8 0%,#F3F2EE 100%)',border:'1px solid var(--border)',borderRadius:'var(--radius-xl)',padding:'56px 32px',textAlign:'center'}}>
-              <div className="section-label">See It For Yourself</div>
-              <div className="section-title" style={{maxWidth:600,margin:'0 auto'}}>Don&apos;t just take our word for it — try it yourself</div>
-              <p style={{fontSize:15,color:'var(--text-mid)',maxWidth:520,margin:'12px auto 0',lineHeight:1.7}}>
-                Click the button below and GoLogin will open a real LinkedIn account directly in your browser. No password needed, no verification steps — just instant, seamless access. That&apos;s exactly how it works for every renter on LinkedVelocity.
-              </p>
+            <div className="tryit-card">
+              <div className="tryit-pill"><span className="tryit-dot" /> Interactive demo</div>
+              <h2 className="tryit-title">Don&apos;t take our word for it — open a real account</h2>
+              <p className="tryit-desc">Click below and a live LinkedIn account opens right in your browser — no password, no verification, no setup. Exactly what every renter gets on LinkedVelocity.</p>
               <TestAccountGate />
             </div>
           </div>
