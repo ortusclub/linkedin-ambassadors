@@ -284,50 +284,117 @@ export default function BecomeAmbassadorPage() {
 
   return (
     <div>
-      {/* Hero — green-primary (ambassador side), blue highlights */}
+      <style>{`
+        .atiers{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start;max-width:1080px;margin:0 auto}
+        .atier{position:relative;border:1px solid #E8E6E1;border-radius:18px;padding:30px 28px;background:#fff;transition:.2s;text-align:left}
+        .atier::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;border-radius:18px 18px 0 0;background:#9be0b8}
+        .atier.t-est::before{background:#00B85C}
+        .atier.t-prem::before{background:#0A4D30}
+        .atier:hover{transform:translateY(-4px);box-shadow:0 22px 44px -24px rgba(0,184,92,0.3)}
+        .atier.feat{border:2px solid #00B85C;box-shadow:0 30px 60px -26px rgba(0,184,92,0.5);transform:translateY(-14px)}
+        .atier.feat:hover{transform:translateY(-18px)}
+        .atier h3{font-family:'Instrument Sans',sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.02em;margin:14px 0 4px;color:#0F1419}
+        .a-badge{position:absolute;top:-11px;left:28px;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:linear-gradient(135deg,#00B85C,#007A3D);padding:4px 11px;border-radius:999px}
+        .a-cat{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#007A3D;background:#E6F9EE;border-radius:999px;padding:4px 11px;display:inline-block}
+        .atier.t-est .a-cat{color:#fff;background:#00B85C}
+        .atier.t-prem .a-cat{color:#fff;background:#0A4D30}
+        .a-strength{display:inline-flex;gap:4px;margin-left:9px;vertical-align:middle}
+        .a-strength i{width:7px;height:7px;border-radius:50%;background:#D5DBE3;display:inline-block}
+        .a-strength i.on{background:#00B85C}
+        .atier.t-prem .a-strength i.on{background:#0A4D30}
+        .a-eg{display:flex;align-items:center;gap:11px;margin:14px 0 10px;padding:11px 12px;border:1px solid #E8E6E1;border-radius:12px;background:#FAFBFC}
+        .a-eg-av{width:42px;height:42px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;position:relative;flex:0 0 42px;font-family:'Instrument Sans',sans-serif}
+        .a-eg-dot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:#0A66C2;border:2px solid #FAFBFC}
+        .a-eg-name{font-weight:700;font-size:14px;color:#0F1419}
+        .a-eg-tag{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8899A6;background:#EEF0F4;border-radius:6px;padding:2px 6px;margin-left:6px}
+        .a-eg-role{font-size:12px;color:#536471}
+        .a-egstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+        .a-egstats > div{background:#F2FAF5;border-radius:9px;padding:8px 6px;text-align:center}
+        .a-egstats b{display:block;font-family:'Instrument Sans',sans-serif;font-size:15px;color:#007A3D}
+        .a-egstats span{font-size:10px;color:#8899A6}
+        .a-desc{font-size:13.5px;color:#536471;line-height:1.55;margin:10px 0 0}
+        .a-band{font-size:16px;font-weight:800;color:#007A3D;margin:14px 0 0}
+        .a-band small{color:#8899A6;font-weight:600}
+        @media(max-width:860px){.atiers{grid-template-columns:1fr}}
+      `}</style>
+
+      {/* Hero — green-primary (ambassador side), brand-blue accents */}
       <section className="relative overflow-hidden" style={{background:'linear-gradient(160deg,#06231A 0%,#0A4D30 42%,#00B85C 125%)'}}>
-        <div aria-hidden className="pointer-events-none absolute -top-24 right-[6%] h-80 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(127,211,255,0.18),transparent 70%)'}} />
+        <div aria-hidden className="pointer-events-none absolute -top-24 right-[6%] h-80 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(79,144,217,0.22),transparent 70%)'}} />
         <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(255,255,255,0.08),transparent 70%)'}} />
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white">
-              <span className="h-1.5 w-1.5 rounded-full" style={{background:'#7FD3FF',boxShadow:'0 0 0 3px rgba(127,211,255,0.25)'}} />
-              For account owners &amp; professionals
-            </span>
-            <h1 className="mt-5 text-5xl font-bold tracking-tight text-white" style={{letterSpacing:'-0.03em'}}>
-              <span style={{color:'#7FD3FF'}}>Get paid</span> for your<br />LinkedIn accounts
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-lg text-white/80">
-              Every LinkedIn account has value — whether you&apos;re a student, a retiree, a professional, or someone who barely uses LinkedIn. Companies need real accounts for outreach, and we pay <strong className="text-white">$10 to $500/month</strong> for every account shared.
-            </p>
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white">
+            <span className="h-1.5 w-1.5 rounded-full" style={{background:'#4f90d9',boxShadow:'0 0 0 3px rgba(79,144,217,0.3)'}} />
+            For account owners &amp; professionals
+          </span>
+          <h1 className="mt-5 text-5xl font-bold tracking-tight text-white" style={{letterSpacing:'-0.03em'}}>
+            <span style={{color:'#4f90d9'}}>Get paid</span> for your<br />LinkedIn accounts
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-lg text-white/80">
+            Every LinkedIn account has value — whether you&apos;re a student, a retiree, a professional, or someone who barely uses LinkedIn. Companies need real accounts for outreach, and we pay <strong className="text-white">$10 to $500/month</strong> for every account shared.
+          </p>
+        </div>
+      </section>
+
+      {/* Earnings tiers — same card design as renter pricing, green-primary */}
+      <section className="bg-[#FAFAF8]" style={{borderBottom:'1px solid #E8E6E1'}}>
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>What you can earn</div>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif",letterSpacing:'-0.03em'}}>Your account&apos;s quality sets your pay</h2>
+            <p className="mt-3 text-gray-600">The stronger the profile, the more it earns each month. Here&apos;s roughly what each tier pays.</p>
           </div>
-
-          {/* Value breakdown — glass tiers */}
-          <div className="mx-auto mt-12 max-w-3xl">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="rounded-xl border border-white/20 bg-white/10 p-5 text-center backdrop-blur">
-                <p className="text-2xl font-bold" style={{fontFamily:"'Instrument Sans',sans-serif",color:'#7FD3FF'}}>$10–$30</p>
-                <p className="text-xs text-white/70 mt-1">New or basic accounts</p>
-                <p className="text-xs text-white/50 mt-1">Students, new profiles, fewer connections</p>
+          <div className="atiers">
+            <div className="atier t-basic">
+              <span className="a-cat">Entry</span>
+              <h3>New / Basic <span className="a-strength"><i className="on" /><i /><i /></span></h3>
+              <div className="a-eg">
+                <div className="a-eg-av" style={{background:'linear-gradient(135deg,#9be0b8,#4caf80)'}}>JT<span className="a-eg-dot" /></div>
+                <div><div><span className="a-eg-name">Jordan T.</span><span className="a-eg-tag">Example</span></div><div className="a-eg-role">Sales Associate</div></div>
               </div>
-              <div className="rounded-xl border border-white/20 bg-white/10 p-5 text-center backdrop-blur">
-                <p className="text-2xl font-bold" style={{fontFamily:"'Instrument Sans',sans-serif",color:'#7FD3FF'}}>$30–$100</p>
-                <p className="text-xs text-white/70 mt-1">Established accounts</p>
-                <p className="text-xs text-white/50 mt-1">Good connections, active history</p>
+              <div className="a-egstats">
+                <div><b>~900</b><span>connections</span></div>
+                <div><b>1 yr</b><span>account age</span></div>
+                <div><b style={{color:'#C4CAD3'}}>—</b><span>Sales Nav</span></div>
               </div>
-              <div className="rounded-xl border border-white/20 bg-white/10 p-5 text-center backdrop-blur">
-                <p className="text-2xl font-bold" style={{fontFamily:"'Instrument Sans',sans-serif",color:'#7FD3FF'}}>$100–$500</p>
-                <p className="text-xs text-white/70 mt-1">Premium accounts</p>
-                <p className="text-xs text-white/50 mt-1">Senior connections, large network, Sales Nav</p>
-              </div>
+              <p className="a-desc">Newer profiles, fewer connections. Every account still earns.</p>
+              <div className="a-band">You earn <small>· $10–$30/mo</small></div>
             </div>
-
-            <div className="rounded-xl border border-white/20 bg-white/10 p-5 text-center backdrop-blur">
-              <p className="text-sm font-semibold text-white mb-1">It&apos;s not just your account</p>
-              <p className="text-sm text-white/75">
-                Got family members who don&apos;t use their LinkedIn? Your brothers, sisters, parents, aunties, uncles — submit their accounts too and get paid for each one. If the account exists, it has value.
-              </p>
+            <div className="atier feat t-est">
+              <span className="a-badge">Most common</span>
+              <span className="a-cat">Sweet spot</span>
+              <h3>Established <span className="a-strength"><i className="on" /><i className="on" /><i /></span></h3>
+              <div className="a-eg">
+                <div className="a-eg-av" style={{background:'linear-gradient(135deg,#6fd99e,#00B85C)'}}>AK<span className="a-eg-dot" /></div>
+                <div><div><span className="a-eg-name">Anna K.</span><span className="a-eg-tag">Example</span></div><div className="a-eg-role">Marketing Manager</div></div>
+              </div>
+              <div className="a-egstats">
+                <div><b>4,200</b><span>connections</span></div>
+                <div><b>4 yrs</b><span>account age</span></div>
+                <div><b style={{color:'#0A66C2'}}>✓</b><span>Sales Nav</span></div>
+              </div>
+              <p className="a-desc">Solid connections and an active history — the most common earner.</p>
+              <div className="a-band">You earn <small>· $30–$100/mo</small></div>
             </div>
+            <div className="atier t-prem">
+              <span className="a-cat">Top tier</span>
+              <h3>Premium <span className="a-strength"><i className="on" /><i className="on" /><i className="on" /></span></h3>
+              <div className="a-eg">
+                <div className="a-eg-av" style={{background:'linear-gradient(135deg,#00B85C,#0A4D30)'}}>ML<span className="a-eg-dot" /></div>
+                <div><div><span className="a-eg-name">Marcus L.</span><span className="a-eg-tag">Example</span></div><div className="a-eg-role">VP of Sales</div></div>
+              </div>
+              <div className="a-egstats">
+                <div><b>12,000</b><span>connections</span></div>
+                <div><b>9 yrs</b><span>account age</span></div>
+                <div><b style={{color:'#0A66C2'}}>✓</b><span>Sales Nav</span></div>
+              </div>
+              <p className="a-desc">Senior, large networks with Sales Navigator. Top monthly payouts.</p>
+              <div className="a-band">You earn <small>· $100–$500/mo</small></div>
+            </div>
+          </div>
+          <div className="mx-auto mt-10 max-w-3xl rounded-xl border border-green-200 bg-green-50 p-5 text-center">
+            <p className="text-sm font-semibold text-green-800 mb-1">It&apos;s not just your account</p>
+            <p className="text-sm text-green-700">Got family members who don&apos;t use their LinkedIn? Your brothers, sisters, parents, aunties, uncles — submit their accounts too and get paid for each one. If the account exists, it has value.</p>
           </div>
         </div>
       </section>
