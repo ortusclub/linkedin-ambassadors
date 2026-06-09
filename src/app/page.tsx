@@ -252,14 +252,37 @@ export default async function HomePage() {
         .tryit-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,0.25)}
         .tryit-title{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-0.03em;max-width:600px;margin:0 auto 14px;color:#fff}
         .tryit-desc{font-size:16px;color:rgba(255,255,255,0.82);max-width:520px;margin:0 auto;line-height:1.6}
-        .price-snap{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-        .price-snap .pt{position:relative;padding:26px 24px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);transition:all .2s}
-        .price-snap .pt:hover{transform:translateY(-3px);box-shadow:0 16px 36px rgba(10,102,194,0.1);border-color:var(--blue)}
-        .price-snap .pt.feat{border-color:#bcd9f5;box-shadow:0 14px 30px -16px rgba(10,102,194,0.3)}
+        .pricing-bg{background:#F3F2EE;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+        .price-snap{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start}
+        .price-snap .pt{position:relative;padding:30px 26px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);transition:all .2s}
+        .price-snap .pt::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;border-radius:var(--radius-lg) var(--radius-lg) 0 0;background:#9cc1ec}
+        .price-snap .pt.t-est::before{background:var(--blue)}
+        .price-snap .pt.t-prem::before{background:#0B2A52}
+        .price-snap .pt:hover{transform:translateY(-4px);box-shadow:0 22px 44px -24px rgba(10,102,194,0.3);border-color:var(--blue)}
+        .price-snap .pt.feat{border:2px solid var(--blue);box-shadow:0 30px 60px -26px rgba(10,102,194,0.5);transform:translateY(-14px)}
+        .price-snap .pt.feat:hover{transform:translateY(-18px)}
         .price-snap .pt-badge{position:absolute;top:-11px;left:24px;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:linear-gradient(135deg,#00B85C,#007A3D);padding:4px 11px;border-radius:999px}
-        .price-snap .pt-name{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:18px;font-weight:700}
-        .price-snap .pt-band{font-size:14px;font-weight:700;color:var(--blue);margin:6px 0 10px}
-        .price-snap .pt p{font-size:13.5px;color:var(--text-mid);line-height:1.55;margin:0}
+        .price-snap .pt-cat{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--blue);background:var(--blue-light);border-radius:999px;padding:4px 11px;display:inline-block}
+        .price-snap .pt.t-est .pt-cat{color:#fff;background:var(--blue)}
+        .price-snap .pt.t-prem .pt-cat{color:#fff;background:#0B2A52}
+        .price-snap .pt-name{font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:19px;font-weight:700;margin-top:13px}
+        .price-snap .pt-strength{display:inline-flex;gap:4px;margin-left:9px;vertical-align:middle}
+        .price-snap .pt-strength i{width:7px;height:7px;border-radius:50%;background:#D5DBE3;display:inline-block}
+        .price-snap .pt-strength i.on{background:var(--blue)}
+        .price-snap .pt.t-prem .pt-strength i.on{background:#0B2A52}
+        .price-snap .pt-eg{display:flex;align-items:center;gap:11px;margin:14px 0 10px;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:#FAFBFC}
+        .price-snap .pt-eg-av{width:42px;height:42px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;position:relative;flex:0 0 42px}
+        .price-snap .pt-eg-dot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid #FAFBFC}
+        .price-snap .pt-eg-name{font-weight:700;font-size:14px}
+        .price-snap .pt-eg-tag{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-light);background:#EEF0F4;border-radius:6px;padding:2px 6px;margin-left:6px}
+        .price-snap .pt-eg-role{font-size:12px;color:var(--text-mid)}
+        .price-snap .pt-egstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+        .price-snap .pt-egstats > div{background:#F4F7FB;border-radius:9px;padding:8px 6px;text-align:center}
+        .price-snap .pt-egstats b{display:block;font-family:var(--font-instrument-sans),'Instrument Sans',sans-serif;font-size:15px;color:var(--blue)}
+        .price-snap .pt-egstats span{font-size:10px;color:var(--text-light)}
+        .price-snap .pt p{font-size:13.5px;color:var(--text-mid);line-height:1.55;margin:10px 0 0}
+        .price-snap .pt-band{font-size:16px;font-weight:800;color:var(--blue);margin:14px 0 0}
+        .price-snap .pt-band small{color:var(--text-light);font-weight:600}
         .kl-footer{border-top:1px solid var(--border);padding:40px;text-align:center;font-size:13px;color:var(--text-light)}
         .tg-float{position:fixed;bottom:24px;right:24px;z-index:50;width:56px;height:56px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform 0.2s,box-shadow 0.2s;text-decoration:none}
         .tg-float:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(0,0,0,0.25)}
@@ -417,31 +440,63 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* PRICING SNAPSHOT — short version; full explainer at /pricing */}
+        {/* PRICING SNAPSHOT — full tier cards; deeper explainer at /pricing */}
         {/* TODO before full launch: replace illustrative price bands with real ranges */}
-        <section className="kl-section" id="pricing">
-          <div className="section-label">Pricing</div>
-          <div className="section-title">Pay per account — priced by quality</div>
-          <div className="section-desc">Every profile is priced on its own merits. Here&apos;s roughly what to expect.</div>
-          <div className="price-snap">
-            <div className="pt">
-              <div className="pt-name">New / Basic</div>
-              <div className="pt-band">from ~$40/mo</div>
-              <p>Newer profiles, fewer connections. Great for testing.</p>
+        <section className="pricing-bg" id="pricing">
+          <div className="kl-section">
+            <div className="section-label">Pricing</div>
+            <div className="section-title">Pay per account — priced by quality</div>
+            <div className="section-desc">Every profile is priced on its own merits. Compare the tiers, then see full details.</div>
+            <div className="price-snap">
+              <div className="pt t-basic">
+                <span className="pt-cat">Entry</span>
+                <div className="pt-name">New / Basic <span className="pt-strength"><i className="on" /><i /><i /></span></div>
+                <div className="pt-eg">
+                  <div className="pt-eg-av" style={{background:'linear-gradient(135deg,#9cc1ec,#5b91d1)'}}>JT<span className="pt-eg-dot" /></div>
+                  <div><div><span className="pt-eg-name">Jordan T.</span><span className="pt-eg-tag">Example</span></div><div className="pt-eg-role">Sales Associate</div></div>
+                </div>
+                <div className="pt-egstats">
+                  <div><b>~900</b><span>connections</span></div>
+                  <div><b>1 yr</b><span>account age</span></div>
+                  <div><b style={{color:'#C4CAD3'}}>—</b><span>Sales Nav</span></div>
+                </div>
+                <p>Newer profiles, fewer connections. Great for testing.</p>
+                <div className="pt-band">Lower price <small>· from ~$40/mo</small></div>
+              </div>
+              <div className="pt feat t-est">
+                <span className="pt-badge">Most popular</span>
+                <span className="pt-cat">Sweet spot</span>
+                <div className="pt-name">Established <span className="pt-strength"><i className="on" /><i className="on" /><i /></span></div>
+                <div className="pt-eg">
+                  <div className="pt-eg-av" style={{background:'linear-gradient(135deg,#4f90d9,#0A66C2)'}}>AK<span className="pt-eg-dot" /></div>
+                  <div><div><span className="pt-eg-name">Anna K.</span><span className="pt-eg-tag">Example</span></div><div className="pt-eg-role">Marketing Manager</div></div>
+                </div>
+                <div className="pt-egstats">
+                  <div><b>4,200</b><span>connections</span></div>
+                  <div><b>4 yrs</b><span>account age</span></div>
+                  <div><b style={{color:'#00B85C'}}>✓</b><span>Sales Nav</span></div>
+                </div>
+                <p>Solid connections, aged &amp; trusted. The sweet spot.</p>
+                <div className="pt-band">Mid price <small>· ~$90–$130/mo</small></div>
+              </div>
+              <div className="pt t-prem">
+                <span className="pt-cat">Top tier</span>
+                <div className="pt-name">Premium <span className="pt-strength"><i className="on" /><i className="on" /><i className="on" /></span></div>
+                <div className="pt-eg">
+                  <div className="pt-eg-av" style={{background:'linear-gradient(135deg,#0A66C2,#0B2A52)'}}>ML<span className="pt-eg-dot" /></div>
+                  <div><div><span className="pt-eg-name">Marcus L.</span><span className="pt-eg-tag">Example</span></div><div className="pt-eg-role">VP of Sales</div></div>
+                </div>
+                <div className="pt-egstats">
+                  <div><b>12,000</b><span>connections</span></div>
+                  <div><b>9 yrs</b><span>account age</span></div>
+                  <div><b style={{color:'#00B85C'}}>✓</b><span>Sales Nav</span></div>
+                </div>
+                <p>Large senior network + Sales Navigator. Maximum reach.</p>
+                <div className="pt-band">Top price <small>· $150+/mo</small></div>
+              </div>
             </div>
-            <div className="pt feat">
-              <div className="pt-badge">Most popular</div>
-              <div className="pt-name">Established</div>
-              <div className="pt-band">~$90–$130/mo</div>
-              <p>Solid connections, aged &amp; trusted. The sweet spot.</p>
-            </div>
-            <div className="pt">
-              <div className="pt-name">Premium</div>
-              <div className="pt-band">$150+/mo</div>
-              <p>Large senior network + Sales Navigator. Maximum reach.</p>
-            </div>
+            <div className="browse-all"><Link href="/pricing">See full pricing details →</Link></div>
           </div>
-          <div className="browse-all"><Link href="/pricing">See how pricing works →</Link></div>
         </section>
 
         {/* LINKEDVELOCITY BROWSER */}
