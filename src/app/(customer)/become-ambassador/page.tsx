@@ -284,42 +284,47 @@ export default function BecomeAmbassadorPage() {
 
   return (
     <div>
-      {/* Hero */}
-      <section className="bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      {/* Hero — green-primary (ambassador side), blue highlights */}
+      <section className="relative overflow-hidden" style={{background:'linear-gradient(160deg,#06231A 0%,#0A4D30 42%,#00B85C 125%)'}}>
+        <div aria-hidden className="pointer-events-none absolute -top-24 right-[6%] h-80 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(127,211,255,0.18),transparent 70%)'}} />
+        <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(255,255,255,0.08),transparent 70%)'}} />
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-5xl font-bold tracking-tight text-gray-900">
-              Get Paid for Your
-              <span className="text-green-600"> LinkedIn Accounts</span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white">
+              <span className="h-1.5 w-1.5 rounded-full" style={{background:'#7FD3FF',boxShadow:'0 0 0 3px rgba(127,211,255,0.25)'}} />
+              For account owners &amp; professionals
+            </span>
+            <h1 className="mt-5 text-5xl font-bold tracking-tight text-white" style={{letterSpacing:'-0.03em'}}>
+              <span style={{color:'#7FD3FF'}}>Get paid</span> for your<br />LinkedIn accounts
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
-              Every LinkedIn account has value — whether you&apos;re a student, a retiree, a professional, or someone who barely uses LinkedIn. Companies need real accounts for outreach, and we pay <strong>$10 to $500/month</strong> for every account shared.
+            <p className="mx-auto mt-5 max-w-2xl text-lg text-white/80">
+              Every LinkedIn account has value — whether you&apos;re a student, a retiree, a professional, or someone who barely uses LinkedIn. Companies need real accounts for outreach, and we pay <strong className="text-white">$10 to $500/month</strong> for every account shared.
             </p>
           </div>
 
-          {/* Value breakdown */}
+          {/* Value breakdown — glass tiers */}
           <div className="mx-auto mt-12 max-w-3xl">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
-                <p className="text-2xl font-bold text-gray-900" style={{fontFamily:"'Instrument Sans',sans-serif"}}>$10–$30</p>
-                <p className="text-xs text-gray-500 mt-1">New or basic accounts</p>
-                <p className="text-xs text-gray-400 mt-1">Students, new profiles, fewer connections</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="rounded-xl border border-white/20 bg-white/10 p-5 text-center backdrop-blur">
+                <p className="text-2xl font-bold" style={{fontFamily:"'Instrument Sans',sans-serif",color:'#7FD3FF'}}>$10–$30</p>
+                <p className="text-xs text-white/70 mt-1">New or basic accounts</p>
+                <p className="text-xs text-white/50 mt-1">Students, new profiles, fewer connections</p>
               </div>
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 text-center">
-                <p className="text-2xl font-bold text-blue-700" style={{fontFamily:"'Instrument Sans',sans-serif"}}>$30–$100</p>
-                <p className="text-xs text-gray-500 mt-1">Established accounts</p>
-                <p className="text-xs text-gray-400 mt-1">Good connections, active history</p>
+              <div className="rounded-xl border border-white/20 bg-white/10 p-5 text-center backdrop-blur">
+                <p className="text-2xl font-bold" style={{fontFamily:"'Instrument Sans',sans-serif",color:'#7FD3FF'}}>$30–$100</p>
+                <p className="text-xs text-white/70 mt-1">Established accounts</p>
+                <p className="text-xs text-white/50 mt-1">Good connections, active history</p>
               </div>
-              <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center">
-                <p className="text-2xl font-bold text-green-700" style={{fontFamily:"'Instrument Sans',sans-serif"}}>$100–$500</p>
-                <p className="text-xs text-gray-500 mt-1">Premium accounts</p>
-                <p className="text-xs text-gray-400 mt-1">Senior connections, large network, Sales Nav</p>
+              <div className="rounded-xl border border-white/20 bg-white/10 p-5 text-center backdrop-blur">
+                <p className="text-2xl font-bold" style={{fontFamily:"'Instrument Sans',sans-serif",color:'#7FD3FF'}}>$100–$500</p>
+                <p className="text-xs text-white/70 mt-1">Premium accounts</p>
+                <p className="text-xs text-white/50 mt-1">Senior connections, large network, Sales Nav</p>
               </div>
             </div>
 
-            <div className="rounded-xl bg-green-50 border border-green-200 p-5 text-center">
-              <p className="text-sm font-semibold text-green-800 mb-1">It&apos;s not just your account</p>
-              <p className="text-sm text-green-700">
+            <div className="rounded-xl border border-white/20 bg-white/10 p-5 text-center backdrop-blur">
+              <p className="text-sm font-semibold text-white mb-1">It&apos;s not just your account</p>
+              <p className="text-sm text-white/75">
                 Got family members who don&apos;t use their LinkedIn? Your brothers, sisters, parents, aunties, uncles — submit their accounts too and get paid for each one. If the account exists, it has value.
               </p>
             </div>
