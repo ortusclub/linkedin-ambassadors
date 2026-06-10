@@ -612,7 +612,8 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* TRY IT YOURSELF */}
+        {/* TRY IT YOURSELF — hidden: the demo account (tau) is now rented. Restore (false -> true) once a new demo account is confirmed. */}
+        {false && (
         <section>
           <div className="kl-section">
             <div className="tryit-card">
@@ -623,6 +624,7 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+        )}
 
         {/* MARKETPLACE PREVIEW */}
         <section className="marketplace-bg" id="marketplace">
