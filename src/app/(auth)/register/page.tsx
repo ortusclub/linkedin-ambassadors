@@ -33,6 +33,10 @@ function RegisterForm() {
       setError("Please enter your first and last name.");
       return;
     }
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
     if (!contactHandle) {
       setError("Please provide your WhatsApp number or Telegram username.");
       return;
