@@ -81,17 +81,31 @@ export async function addCookies(profileId: string, cookies: object[]) {
   });
 }
 
+// Grant a renter access to a profile (role "guest" = can run/view, not edit).
 export async function shareProfile(profileId: string, email: string, token?: string) {
-  return gologinFetch(`/browser/${profileId}/share`, {
+  return gologinFetch(`/share/multi`, {
     method: "POST",
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({
+      type: "profile",
+      instanceIds: [profileId],
+      role: "guest",
+      recepients: [email], // GoLogin's API spells it "recepients"
+    }),
   }, token);
 }
 
+// Revoke a renter's access. NOTE: GoLogin's public API does not (yet) document
+// a per-profile unshare — attempting the mirror of /share/multi. If this 404s,
+// we switch to folder-based sharing (DELETE /share/folder/{id}).
 export async function unshareProfile(profileId: string, email: string, token?: string) {
-  return gologinFetch(`/browser/${profileId}/share`, {
+  return gologinFetch(`/share/multi`, {
     method: "DELETE",
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({
+      type: "profile",
+      instanceIds: [profileId],
+      role: "guest",
+      recepients: [email],
+    }),
   }, token);
 }
 
