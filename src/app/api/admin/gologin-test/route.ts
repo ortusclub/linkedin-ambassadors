@@ -7,17 +7,18 @@ import { shareProfile, unshareProfile } from "@/services/gologin";
 export async function POST(req: Request) {
   try {
     await requireAdmin();
-    const { profileId, email, action } = await req.json();
+    const { profileId, email, action, token } = await req.json();
     if (!profileId || !email || (action !== "share" && action !== "unshare")) {
       return NextResponse.json(
         { error: "profileId, email, and action ('share' or 'unshare') are required" },
         { status: 400 }
       );
     }
+    const overrideToken = typeof token === "string" && token.trim() ? token.trim() : undefined;
     const result =
       action === "share"
-        ? await shareProfile(profileId, email)
-        : await unshareProfile(profileId, email);
+        ? await shareProfile(profileId, email, overrideToken)
+        : await unshareProfile(profileId, email, overrideToken);
     return NextResponse.json({ ok: true, action, result });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";

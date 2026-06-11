@@ -1,16 +1,16 @@
 const GOLOGIN_API_BASE = "https://api.gologin.com";
 
-function headers() {
+function headers(token?: string) {
   return {
-    Authorization: `Bearer ${process.env.GOLOGIN_API_TOKEN}`,
+    Authorization: `Bearer ${token || process.env.GOLOGIN_API_TOKEN}`,
     "Content-Type": "application/json",
   };
 }
 
-async function gologinFetch(path: string, options: RequestInit = {}) {
+async function gologinFetch(path: string, options: RequestInit = {}, token?: string) {
   const res = await fetch(`${GOLOGIN_API_BASE}${path}`, {
     ...options,
-    headers: { ...headers(), ...options.headers },
+    headers: { ...headers(token), ...options.headers },
   });
   if (!res.ok) {
     const body = await res.text();
@@ -81,18 +81,18 @@ export async function addCookies(profileId: string, cookies: object[]) {
   });
 }
 
-export async function shareProfile(profileId: string, email: string) {
+export async function shareProfile(profileId: string, email: string, token?: string) {
   return gologinFetch(`/browser/${profileId}/share`, {
     method: "POST",
     body: JSON.stringify({ email }),
-  });
+  }, token);
 }
 
-export async function unshareProfile(profileId: string, email: string) {
+export async function unshareProfile(profileId: string, email: string, token?: string) {
   return gologinFetch(`/browser/${profileId}/share`, {
     method: "DELETE",
     body: JSON.stringify({ email }),
-  });
+  }, token);
 }
 
 export async function getProfile(profileId: string) {

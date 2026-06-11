@@ -3,8 +3,9 @@
 import { useState } from "react";
 
 export default function AccessTestPage() {
-  const [profileId, setProfileId] = useState("689eefb399a57ac17a976c70");
+  const [profileId, setProfileId] = useState("");
   const [email, setEmail] = useState("milee+lvtest@linkedvelocity.com");
+  const [token, setToken] = useState("");
   const [busy, setBusy] = useState<"share" | "unshare" | null>(null);
   const [result, setResult] = useState<string>("");
 
@@ -15,7 +16,7 @@ export default function AccessTestPage() {
       const res = await fetch("/api/admin/gologin-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: profileId.trim(), email: email.trim(), action }),
+        body: JSON.stringify({ profileId: profileId.trim(), email: email.trim(), action, token: token.trim() }),
       });
       const data = await res.json();
       setResult(
@@ -53,6 +54,16 @@ export default function AccessTestPage() {
         onChange={(e) => setEmail(e.target.value)}
         className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-5"
         placeholder="renter@example.com"
+      />
+
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        GoLogin API token <span className="font-normal text-gray-400">(testing only — must be from the SAME account that owns the profile above; leave blank to use the site&apos;s saved token)</span>
+      </label>
+      <input
+        value={token}
+        onChange={(e) => setToken(e.target.value)}
+        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-5 font-mono"
+        placeholder="paste the GoLogin account's API token"
       />
 
       <div className="flex gap-3">
