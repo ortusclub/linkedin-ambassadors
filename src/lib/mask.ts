@@ -15,14 +15,14 @@ export function maskName(name: string | null | undefined): string {
 }
 
 /**
- * Strip identifying fields from a public account object:
- * mask the name, and remove the profile URL, photo, and screenshot entirely.
+ * Strip identifying fields from a public account object: mask the name and
+ * remove the profile URL + full-profile screenshot. The avatar photo is kept
+ * (it makes listings look like real accounts) — names stay masked.
  */
 export function maskPublicAccount<T extends object>(a: T): T {
   const out = { ...a } as Record<string, unknown>;
   if ("linkedinName" in out) out.linkedinName = maskName(out.linkedinName as string | null | undefined);
   if ("linkedinUrl" in out) out.linkedinUrl = null;
-  if ("profilePhotoUrl" in out) out.profilePhotoUrl = null;
   if ("profileScreenshotUrl" in out) out.profileScreenshotUrl = null;
   return out as T;
 }
