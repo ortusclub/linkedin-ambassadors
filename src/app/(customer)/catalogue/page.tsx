@@ -124,9 +124,19 @@ export default function CataloguePage() {
     .filter((a) => selected.has(a.id))
     .reduce((sum, a) => sum + Number(a.monthlyPrice), 0);
 
+  // Balance the list: alternate real and showcase accounts so it's a healthy mix
+  // (each group keeps its own order from the API sort).
+  const realAccts = accounts.filter((a) => !a.showcase);
+  const showcaseAccts = accounts.filter((a) => a.showcase);
+  const ordered: Account[] = [];
+  for (let i = 0; i < Math.max(realAccts.length, showcaseAccts.length); i++) {
+    if (realAccts[i]) ordered.push(realAccts[i]);
+    if (showcaseAccts[i]) ordered.push(showcaseAccts[i]);
+  }
+
   // Teaser gate: logged-out visitors see a preview; the full list requires sign-in.
-  const visibleAccounts = user ? accounts : accounts.slice(0, 6);
-  const gatedCount = accounts.length - visibleAccounts.length;
+  const visibleAccounts = user ? ordered : ordered.slice(0, 6);
+  const gatedCount = ordered.length - visibleAccounts.length;
 
   return (
     <>

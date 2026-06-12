@@ -198,20 +198,77 @@ export default function AccountDetailPage() {
         <div className="grid gap-10 lg:grid-cols-3">
           {/* Left: Screenshot + About */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Profile screenshot */}
-            {account.profileScreenshotUrl && (
-              <div>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Profile Preview</h2>
-                <img
-                  src={account.profileScreenshotUrl}
-                  alt={`${displayName}'s LinkedIn profile`}
-                  className="rounded-2xl border border-gray-200 shadow-sm w-full"
-                />
+            {/* Blurred profile preview — looks legit, identity hidden, no real screenshot exposed */}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Profile Preview</h2>
+              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div className="h-24" style={{ background: "linear-gradient(120deg,#0A66C2,#004182)" }} />
+                <div className="px-6 pb-6">
+                  <div className="-mt-10 mb-3">
+                    {account.profilePhotoUrl ? (
+                      <img src={account.profilePhotoUrl} alt="" className="h-20 w-20 rounded-full border-4 border-white object-cover shadow" />
+                    ) : (
+                      <div className="h-20 w-20 rounded-full border-4 border-white bg-gradient-to-br from-[#0A66C2] to-[#004182] flex items-center justify-center text-2xl font-bold text-white shadow">{displayName.charAt(0)}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-bold text-gray-900">{displayName}</span>
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Verified</span>
+                  </div>
+                  {account.linkedinHeadline && <p className="mt-0.5 text-sm text-gray-600">{account.linkedinHeadline}</p>}
+                  <p className="mt-1 text-xs text-gray-400">{account.location ? `${account.location} · ` : ""}{formatNumber(account.connectionCount)} connections</p>
+                  <div className="relative mt-6">
+                    <div aria-hidden className="space-y-5 select-none pointer-events-none" style={{ filter: "blur(5px)" }}>
+                      <div>
+                        <div className="mb-2.5 h-3 w-20 rounded bg-gray-300" />
+                        <div className="mb-2 h-2.5 w-full rounded bg-gray-200" />
+                        <div className="mb-2 h-2.5 w-11/12 rounded bg-gray-200" />
+                        <div className="h-2.5 w-3/4 rounded bg-gray-200" />
+                      </div>
+                      {[1, 2].map((i) => (
+                        <div key={i} className="flex gap-3">
+                          <div className="h-11 w-11 flex-shrink-0 rounded-lg bg-gray-300" />
+                          <div className="flex-1 pt-1">
+                            <div className="mb-2 h-2.5 w-1/2 rounded bg-gray-300" />
+                            <div className="mb-1.5 h-2 w-1/3 rounded bg-gray-200" />
+                            <div className="h-2 w-2/3 rounded bg-gray-200" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white/90 px-4 py-2 shadow-sm">
+                        <span>🔒</span>
+                        <span className="text-xs font-semibold text-gray-700">Full profile unlocked after rental</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* How renting works */}
+            <div className="rounded-2xl bg-white border border-gray-200 p-6">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">How renting works</h2>
+              <ol className="space-y-4">
+                {[
+                  { n: 1, t: "Rent the account", d: "Subscribe monthly — access is set up instantly. No passwords to manage, no setup." },
+                  { n: 2, t: "Open it in the LinkedVelocity browser", d: "The account is pre-warmed and already logged in. You and the owner can both be online at the same time." },
+                  { n: 3, t: "Run your outreach", d: "Send connection requests and messages from an established, real profile. The owner's name & photo stay as-is. Cancel anytime." },
+                ].map((s) => (
+                  <li key={s.n} className="flex gap-4">
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">{s.n}</div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{s.t}</p>
+                      <p className="mt-0.5 text-sm text-gray-500">{s.d}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
 
             {/* What you get */}
-            {!isAdmin && (
+            {(
               <div className="rounded-2xl bg-white border border-gray-200 p-6">
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">What You Get</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -259,7 +316,12 @@ export default function AccountDetailPage() {
                       >
                         Open Browser Session
                       </Button>
-                    ) : null}
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-3xl font-bold text-gray-900">{formatCurrency(price)}<span className="text-base font-normal text-gray-500">/mo</span></p>
+                        <p className="mt-2 text-xs text-gray-400">Admin preview — renters see a Rent button here.</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
