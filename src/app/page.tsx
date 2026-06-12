@@ -7,7 +7,6 @@ import { maskPublicAccount } from "@/lib/mask";
 import { formatNumber, formatCurrency } from "@/lib/utils";
 import { Montserrat, Karla } from "next/font/google";
 import { TestAccountGate } from "@/components/test-account-gate";
-import type { CSSProperties } from "react";
 
 // Brand fonts: Montserrat (headings) + Karla (body). Variable names kept for minimal churn.
 const dmSans = Karla({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-dm-sans" });
@@ -37,10 +36,6 @@ function getAvatarColor(name: string) {
 function getInitials(name: string) {
   return name.replace(/\s*\(.*\)\s*$/, "").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
-
-const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
-const BTN_BLUE: CSSProperties = { display: "inline-block", padding: "7px 14px", borderRadius: 8, background: "#0A66C2", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" };
-const BTN_GREEN: CSSProperties = { display: "inline-block", padding: "7px 14px", borderRadius: 8, background: "#00B85C", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" };
 
 const SAMPLE_ACCOUNTS = [
   { id: "1", linkedinName: "Alex Chen", linkedinHeadline: "VP of Engineering", connectionCount: 8500, industry: "Technology", location: "San Francisco, CA", accountAgeMonths: 96, monthlyPrice: 350, status: "available" as const, profilePhotoUrl: null, hasSalesNav: false },
@@ -659,73 +654,49 @@ export default async function HomePage() {
                 <p style={{fontSize:14,marginTop:8}}>Check back soon — new profiles are added regularly.</p>
               </div>
             ) : (
-              <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,overflow:'hidden'}}>
-                <div style={{overflowX:'auto'}}>
-                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:14,minWidth:780}}>
-                    <thead>
-                      <tr style={{borderBottom:'1px solid #E8E6E1',textAlign:'left',fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'#8899A6'}}>
-                        <th style={{padding:'14px 16px'}}>Profile</th>
-                        <th style={{padding:'14px 16px'}}>Connections</th>
-                        <th style={{padding:'14px 16px'}}>Industry</th>
-                        <th style={{padding:'14px 16px'}}>Location</th>
-                        <th style={{padding:'14px 16px',textAlign:'center'}}>Sales Nav</th>
-                        <th style={{padding:'14px 16px'}}>Status</th>
-                        <th style={{padding:'14px 16px'}}>Price</th>
-                        <th style={{padding:'14px 16px'}} />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {accounts.slice(0, 6).map((a) => {
-                        const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
-                        const initials = getInitials(a.linkedinName);
-                        const price = Number(a.monthlyPrice);
-                        const showcase = (a as { showcase?: boolean }).showcase;
-                        const isAvailable = a.status === "available";
-                        const sc = ({ available:{bg:'#E6F9EE',text:'#007A3D',dot:'#00B85C'}, rented:{bg:'#FEF3C7',text:'#92400E',dot:'#D97706'} } as Record<string,{bg:string;text:string;dot:string}>)[a.status] || {bg:'#F3F2EE',text:'#536471',dot:'#8899A6'};
-                        return (
-                          <tr key={a.id} style={{borderBottom:'1px solid #F0EFEB'}}>
-                            <td style={{padding:'12px 16px'}}>
-                              <div style={{display:'flex',alignItems:'center',gap:12}}>
-                                <div style={{width:36,height:36,borderRadius:9,overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:13,background:getAvatarColor(a.linkedinName)}}>
-                                  {a.profilePhotoUrl ? <Image src={a.profilePhotoUrl} alt={displayName} width={36} height={36} style={{objectFit:'cover',width:36,height:36}} loading="lazy" /> : initials}
-                                </div>
-                                <div style={{minWidth:0}}>
-                                  <div style={{fontWeight:600,color:'#0F1419'}}>{displayName}</div>
-                                  {a.linkedinHeadline && <div style={{fontSize:12,color:'#8899A6',maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.linkedinHeadline}</div>}
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{padding:'12px 16px',color:'#0F1419',fontWeight:500,whiteSpace:'nowrap'}}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</td>
-                            <td style={{padding:'12px 16px',color:'#536471'}}>{a.industry || '—'}</td>
-                            <td style={{padding:'12px 16px',color:'#536471'}}>{a.location || '—'}</td>
-                            <td style={{padding:'12px 16px',textAlign:'center'}}>
-                              {a.hasSalesNav
-                                ? <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:'50%',background:'#E6F9EE',color:'#00B85C',fontSize:12,fontWeight:700}}>✓</span>
-                                : <span style={{color:'#C9CDD3'}}>—</span>}
-                            </td>
-                            <td style={{padding:'12px 16px'}}>
-                              <span style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 10px',borderRadius:100,fontSize:12,fontWeight:600,background:sc.bg,color:sc.text,whiteSpace:'nowrap'}}>
-                                <span style={{width:6,height:6,borderRadius:'50%',background:sc.dot}} />
-                                {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
-                              </span>
-                            </td>
-                            <td style={{padding:'12px 16px',fontWeight:700,color:'#0F1419',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'#8899A6',fontSize:12}}>/mo</span></td>
-                            <td style={{padding:'12px 16px',textAlign:'right'}}>
-                              {showcase ? (
-                                <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={BTN_GREEN}>Request access</a>
-                              ) : (
-                                <div style={{display:'inline-flex',gap:6,justifyContent:'flex-end'}}>
-                                  <Link href={`/account/${a.id}`} style={BTN_BLUE}>View Profile</Link>
-                                  {isAvailable && <Link href={`/account/${a.id}`} style={BTN_GREEN}>Rent</Link>}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="account-grid">
+                {accounts.slice(0, 6).map((a) => {
+                  const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+                  const initials = getInitials(a.linkedinName);
+                  const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
+                  const price = Number(a.monthlyPrice);
+                  const showcase = (a as { showcase?: boolean }).showcase;
+                  const statusLabel = a.status.charAt(0).toUpperCase() + a.status.slice(1);
+                  const badgeStyle = a.status === "rented"
+                    ? { background: "#FEF3C7", color: "#92400E" }
+                    : a.status === "available"
+                    ? undefined
+                    : { background: "#F3F2EE", color: "#536471" };
+                  return (
+                    <Link href={`/account/${a.id}`} key={a.id} className="account-card" style={{display:'block',textDecoration:'none',color:'inherit'}}>
+                      <div className="account-badge" style={badgeStyle}>{statusLabel}</div>
+                      <div className="account-header">
+                        <div className="account-avatar" style={{background:getAvatarColor(a.linkedinName)}}>
+                          {a.profilePhotoUrl ? (
+                            <Image src={a.profilePhotoUrl} alt={displayName} width={48} height={48} style={{objectFit:'cover',borderRadius:12}} loading="lazy" />
+                          ) : initials}
+                        </div>
+                        <div>
+                          <div className="account-name">{displayName}</div>
+                          <div className="account-role">{a.linkedinHeadline || a.industry || 'LinkedIn account'}</div>
+                        </div>
+                      </div>
+                      <div className="account-meta">
+                        <div className="account-meta-item"><div className="val">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</div><div className="lbl">Connections</div></div>
+                        <div className="account-meta-item"><div className="val">{ageYears && ageYears > 0 ? `${ageYears}+ yrs` : '—'}</div><div className="lbl">Account age</div></div>
+                      </div>
+                      <div className="account-tags">
+                        {a.industry && <span className="account-tag">{a.industry}</span>}
+                        {a.hasSalesNav && <span className="account-tag green">Sales Nav</span>}
+                        {a.location && <span className="account-tag">{a.location}</span>}
+                      </div>
+                      <div className="account-price">
+                        <div><span className="price">{formatCurrency(price)}</span><span className="period">/mo</span></div>
+                        <span className="rent-btn">{showcase ? 'Request access' : 'View profile'}</span>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
             <div className="browse-all"><Link href="/catalogue">View all accounts →</Link></div>
