@@ -58,6 +58,15 @@ export default async function HomePage() {
   }
   // Never expose real identities publicly — mask name, drop photo/url.
   accounts = accounts.map((a) => maskPublicAccount(a));
+  // Balance real + showcase so the homepage isn't all showcase accounts.
+  const realA = accounts.filter((a) => !(a as { showcase?: boolean }).showcase);
+  const showA = accounts.filter((a) => (a as { showcase?: boolean }).showcase);
+  const mixed: typeof realA = [];
+  for (let i = 0; i < Math.max(realA.length, showA.length); i++) {
+    if (realA[i]) mixed.push(realA[i]);
+    if (showA[i]) mixed.push(showA[i]);
+  }
+  accounts = mixed;
   const heroAccounts = accounts.slice(0, 3);
   return (
     <>
@@ -636,7 +645,7 @@ export default async function HomePage() {
               <div>
                 <div className="section-label">Marketplace</div>
                 <div className="section-title" style={{marginBottom:8}}>Browse available accounts</div>
-                <p style={{fontSize:14,color:'var(--text-mid)'}}>{accounts.length} accounts ready to rent right now</p>
+                <p style={{fontSize:14,color:'var(--text-mid)'}}>{accounts.length} verified accounts available now</p>
               </div>
             </div>
             {accounts.length === 0 ? (
