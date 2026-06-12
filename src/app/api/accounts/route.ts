@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { maskPublicAccount } from "@/lib/mask";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -58,5 +59,5 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ accounts });
+  return NextResponse.json({ accounts: accounts.map(maskPublicAccount) });
 }

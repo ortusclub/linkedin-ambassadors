@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { maskName } from "@/lib/mask";
 import { notFound } from "next/navigation";
 
 interface Props {
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!account || account.status !== "available") return {};
 
-  const name = account.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+  const name = maskName(account.linkedinName);
   const price = Number(account.monthlyPrice);
 
   return {
@@ -66,7 +67,7 @@ export default async function AccountLayout({ params, children }: Props) {
 
   if (!account || !account.listed) return <>{children}</>;
 
-  const name = account.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+  const name = maskName(account.linkedinName);
   const price = Number(account.monthlyPrice);
 
   const productSchema = {
@@ -76,7 +77,7 @@ export default async function AccountLayout({ params, children }: Props) {
     description: `Rent ${name}'s pre-warmed LinkedIn account for outreach. ${account.connectionCount.toLocaleString()} connections${account.industry ? ` in ${account.industry}` : ""}${account.hasSalesNav ? ", Sales Navigator included" : ""}. Instant access via GoLogin browser.`,
     brand: { "@type": "Brand", name: "LinkedVelocity" },
     category: "LinkedIn Account Rental",
-    ...(account.profilePhotoUrl ? { image: account.profilePhotoUrl } : {}),
+    // profile photo intentionally omitted — never expose the real account photo publicly
     offers: {
       "@type": "Offer",
       price: price.toFixed(2),

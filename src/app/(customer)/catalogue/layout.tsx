@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { maskName } from "@/lib/mask";
 
 export const metadata: Metadata = {
   title: "Browse LinkedIn Accounts for Rent",
@@ -43,16 +44,16 @@ async function getCatalogueSchema() {
         "Pre-warmed, verified LinkedIn accounts available for monthly rental. Each account includes GoLogin browser access for safe, simultaneous use.",
       numberOfItems: accounts.length,
       itemListElement: accounts.map((a, index) => {
-        const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+        const displayName = maskName(a.linkedinName);
         const price = Number(a.monthlyPrice);
         const descParts: string[] = [];
         if (a.connectionCount > 0) descParts.push(`${a.connectionCount.toLocaleString()}+ connections`);
         if (a.industry) descParts.push(a.industry);
         if (a.location) descParts.push(a.location);
         if (a.hasSalesNav) descParts.push("Sales Navigator enabled");
+        // Generic description only — never publish the real headline (can name a company/person).
         const description =
-          a.linkedinHeadline ||
-          `Rent ${displayName}'s LinkedIn account on LinkedVelocity${descParts.length ? ` — ${descParts.join(", ")}` : ""}.`;
+          `Pre-warmed LinkedIn account for rent on LinkedVelocity${descParts.length ? ` — ${descParts.join(", ")}` : ""}.`;
 
         return {
           "@type": "ListItem",
@@ -63,7 +64,7 @@ async function getCatalogueSchema() {
             name: `Rent LinkedIn Account: ${displayName}`,
             description,
             url: `https://linkedvelocity.com/account/${a.id}`,
-            image: a.profilePhotoUrl || undefined,
+            // image intentionally omitted — never expose the real profile photo
             category: a.industry || "LinkedIn Account Rental",
             brand: { "@type": "Brand", name: "LinkedVelocity" },
             offers: {

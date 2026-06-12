@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import { maskPublicAccount } from "@/lib/mask";
 import { formatNumber, formatCurrency } from "@/lib/utils";
 import { Montserrat, Karla } from "next/font/google";
 import { TestAccountGate } from "@/components/test-account-gate";
@@ -55,6 +56,8 @@ export default async function HomePage() {
   } catch {
     accounts = SAMPLE_ACCOUNTS;
   }
+  // Never expose real identities publicly — mask name, drop photo/url.
+  accounts = accounts.map((a) => maskPublicAccount(a));
   const heroAccounts = accounts.slice(0, 3);
   return (
     <>

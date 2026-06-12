@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { maskPublicAccount } from "@/lib/mask";
 
 export async function GET(
   _req: Request,
@@ -30,5 +31,5 @@ export async function GET(
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ account });
+  return NextResponse.json({ account: maskPublicAccount(account) });
 }
