@@ -18,6 +18,7 @@ interface Account {
   monthlyPrice: number;
   status: string;
   linkedinUrl: string | null;
+  showcase?: boolean;
 }
 
 const AVATAR_COLORS = [
@@ -38,6 +39,8 @@ function getAvatarColor(name: string) {
 function getInitials(name: string) {
   return name.replace(/\s*\(.*\)\s*$/, "").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
+
+const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
 
 export default function CataloguePage() {
   const router = useRouter();
@@ -100,7 +103,7 @@ export default function CataloguePage() {
   };
 
   const toggleSelectAll = () => {
-    const available = accounts.filter((a) => a.status === "available");
+    const available = accounts.filter((a) => a.status === "available" && !a.showcase);
     if (selected.size === available.length && available.length > 0) {
       setSelected(new Set());
     } else {
@@ -120,6 +123,10 @@ export default function CataloguePage() {
   const selectedTotal = accounts
     .filter((a) => selected.has(a.id))
     .reduce((sum, a) => sum + Number(a.monthlyPrice), 0);
+
+  // Teaser gate: logged-out visitors see a preview; the full list requires sign-in.
+  const visibleAccounts = user ? accounts : accounts.slice(0, 6);
+  const gatedCount = accounts.length - visibleAccounts.length;
 
   return (
     <>
@@ -261,7 +268,7 @@ export default function CataloguePage() {
                     <th style={{padding:'12px 12px 12px 16px',width:40}}>
                       <input
                         type="checkbox"
-                        checked={selected.size > 0 && selected.size === accounts.filter(a => a.status === 'available').length}
+                        checked={selected.size > 0 && selected.size === accounts.filter(a => a.status === 'available' && !a.showcase).length}
                         onChange={toggleSelectAll}
                         style={{accentColor:'#0A66C2',cursor:'pointer'}}
                       />
@@ -277,11 +284,12 @@ export default function CataloguePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {accounts.map((a) => {
+                  {visibleAccounts.map((a) => {
                     const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
                     const initials = getInitials(a.linkedinName);
                     const price = Number(a.monthlyPrice);
                     const isAvailable = a.status === 'available';
+                    const isRentable = isAvailable && !a.showcase;
                     const isSelected = selected.has(a.id);
                     const statusColors: Record<string, {bg:string,text:string,dot:string}> = {
                       available: {bg:'#E6F9EE',text:'#007A3D',dot:'#00B85C'},
@@ -298,7 +306,7 @@ export default function CataloguePage() {
                         onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background='transparent'; }}
                       >
                         <td style={{padding:'12px 12px 12px 16px',width:40}}>
-                          {isAvailable ? (
+                          {isRentable ? (
                             <input
                               type="checkbox"
                               checked={isSelected}
@@ -345,26 +353,32 @@ export default function CataloguePage() {
                         <td style={{padding:'12px 16px',fontWeight:700,color:'#0F1419',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'#8899A6',fontSize:12}}>/mo</span></td>
                         <td style={{padding:'12px 16px',textAlign:'right'}}>
                           <div style={{display:'flex',gap:4,justifyContent:'flex-end'}}>
-                            {a.linkedinUrl ? (
-                              <a
-                                href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="cat-view-btn"
-                                style={{display:'inline-block',textDecoration:'none'}}
-                              >
-                                View Profile
-                              </a>
-                            ) : (
-                              <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none'}}>
-                                View Profile
-                              </Link>
+                            {!a.showcase && (
+                              a.linkedinUrl ? (
+                                <a
+                                  href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="cat-view-btn"
+                                  style={{display:'inline-block',textDecoration:'none'}}
+                                >
+                                  View Profile
+                                </a>
+                              ) : (
+                                <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none'}}>
+                                  View Profile
+                                </Link>
+                              )
                             )}
-                            {isAvailable && (
+                            {a.showcase ? (
+                              <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
+                                Request access
+                              </a>
+                            ) : isAvailable ? (
                               <Link href={`/account/${a.id}`} className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
                                 Rent
                               </Link>
-                            )}
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -372,6 +386,18 @@ export default function CataloguePage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {!loading && !user && gatedCount > 0 && (
+            <div style={{marginTop:24,background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:'28px 32px',textAlign:'center'}}>
+              <div style={{fontSize:26,marginBottom:8}}>🔒</div>
+              <h3 style={{fontSize:20,fontWeight:600,color:'#0F1419',marginBottom:6,letterSpacing:'-0.02em'}}>{gatedCount}+ more accounts available</h3>
+              <p style={{fontSize:14,color:'#536471',marginBottom:18,maxWidth:460,marginLeft:'auto',marginRight:'auto',lineHeight:1.5}}>You&apos;re viewing a preview of our catalogue. Sign in to see the full list and rent accounts.</p>
+              <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
+                <Link href="/register" style={{padding:'11px 22px',borderRadius:10,background:'linear-gradient(135deg,#0A66C2,#004182)',color:'#fff',fontSize:14,fontWeight:600,textDecoration:'none'}}>Create free account</Link>
+                <Link href="/login" style={{padding:'11px 22px',borderRadius:10,background:'#F3F2EE',color:'#0F1419',fontSize:14,fontWeight:600,textDecoration:'none'}}>Sign in</Link>
+              </div>
             </div>
           )}
 

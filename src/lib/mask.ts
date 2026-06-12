@@ -24,5 +24,9 @@ export function maskPublicAccount<T extends object>(a: T): T {
   if ("linkedinName" in out) out.linkedinName = maskName(out.linkedinName as string | null | undefined);
   if ("linkedinUrl" in out) out.linkedinUrl = null;
   if ("profileScreenshotUrl" in out) out.profileScreenshotUrl = null;
+  // Derive a public "showcase" flag from the notes marker, then drop notes.
+  const notes = out.notes;
+  out.showcase = typeof notes === "string" && notes.includes("[SHOWCASE]");
+  if ("notes" in out) delete out.notes;
   return out as T;
 }

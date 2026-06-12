@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
       monthlyPrice: true,
       status: true,
       linkedinUrl: true,
+      notes: true,
     },
   });
 

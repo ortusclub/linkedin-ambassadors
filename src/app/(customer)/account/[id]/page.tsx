@@ -21,6 +21,7 @@ interface Account {
   status: string;
   notes: string | null;
   gologinProfileId: string | null;
+  showcase?: boolean;
 }
 
 interface User {
@@ -281,7 +282,16 @@ export default function AccountDetailPage() {
                           View Profile
                         </a>
                       )}
-                      {account.status === "available" ? (
+                      {account.showcase ? (
+                        <a
+                          href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center rounded-lg bg-blue-600 h-11 text-sm font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                        >
+                          Request access
+                        </a>
+                      ) : account.status === "available" ? (
                         <button onClick={handleRent} disabled={actionLoading} className="flex-1 flex items-center justify-center rounded-lg bg-blue-600 h-11 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 whitespace-nowrap">
                           {actionLoading ? "Processing..." : "Rent Account"}
                         </button>
