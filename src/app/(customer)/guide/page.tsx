@@ -207,7 +207,7 @@ export default function GuidePage() {
           <div className="g-card" style={{ background: "#FEF2F2", borderColor: "#FECACA" }}>
             <h2 className="g-h" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, color: "#B91C1C" }}>If something goes wrong</h2>
             <p style={{ fontSize: 15, color: "#374151", lineHeight: 1.7, margin: "0 0 12px" }}>
-              If the account gets flagged or restricted, or you notice unusual activity — <strong>contact us on Telegram immediately</strong>. Don&apos;t try to fix it yourself.
+              If the account gets flagged or restricted, or you notice unusual activity — <strong>contact us on Telegram immediately</strong> (<a href="https://t.me/klabber_support_bot" target="_blank" rel="noopener noreferrer" style={{ color: "#B91C1C", fontWeight: 700 }}>@klabber_support_bot</a>). Don&apos;t try to fix it yourself.
             </p>
             <p style={{ fontSize: 15, color: "#374151", lineHeight: 1.7, margin: "0 0 12px" }}>
               We stay in direct contact with all account owners so we can resolve issues quickly. In most cases we can recover a flagged account or provide a replacement.
@@ -248,7 +248,7 @@ export default function GuidePage() {
           <div className="g-card" style={{ textAlign: "center", padding: "40px 26px" }}>
             <h2 className="g-h" style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Need help?</h2>
             <p style={{ fontSize: 15, color: "#536471", margin: "0 0 6px", lineHeight: 1.6 }}>We&apos;re here to make sure your campaigns run smoothly. Reach out any time.</p>
-            <p style={{ fontSize: 14, color: "#8899A6", margin: "0 0 22px" }}>Telegram <strong style={{ color: "#0A66C2" }}>@LinkedVelocity</strong> &nbsp;·&nbsp; Response within a few hours during business hours</p>
+            <p style={{ fontSize: 14, color: "#8899A6", margin: "0 0 22px" }}>Telegram <a href="https://t.me/klabber_support_bot" target="_blank" rel="noopener noreferrer" style={{ color: "#0A66C2", fontWeight: 700, textDecoration: "none" }}>@klabber_support_bot</a> &nbsp;·&nbsp; Response within a few hours during business hours</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
               <Link href="/catalogue" style={{ background: "#0A66C2", color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 14, padding: "12px 22px", borderRadius: 10 }}>Browse accounts</Link>
               <Link href="/dashboard" style={{ background: "#F3F2EE", color: "#0F1419", textDecoration: "none", fontWeight: 600, fontSize: 14, padding: "12px 22px", borderRadius: 10 }}>Go to dashboard</Link>

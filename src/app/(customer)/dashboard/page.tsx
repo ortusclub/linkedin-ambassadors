@@ -283,11 +283,46 @@ function DashboardContent() {
     );
   }
 
+  const showRentalSuccess = searchParams.get("rental") === "success";
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
+        <a
+          href="/guide"
+          className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors whitespace-nowrap"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+          Getting started
+        </a>
       </div>
+
+      {/* Post-payment confirmation — what to do now */}
+      {showRentalSuccess && (
+        <div className="mb-8 rounded-xl border border-green-200 bg-green-50 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-green-100">
+              <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-green-900">Payment received — let&apos;s get you set up!</p>
+              <p className="mt-1 text-sm text-green-800 leading-relaxed">
+                Your account is reserved. Next: download GoLogin and create it with <strong>this same email</strong> — that&apos;s how we share your rented profile. We&apos;ll have it ready within 24 hours and email you when it&apos;s live.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a href="https://gologin.com/download" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 transition-colors">
+                  Download GoLogin
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
+                </a>
+                <a href="/guide" className="inline-flex items-center gap-1.5 rounded-md border border-green-300 bg-white px-3 py-1.5 text-sm font-medium text-green-700 hover:bg-green-50 transition-colors">
+                  Read the guide
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* USDC Wallet */}
       <section id="wallet" className="mb-8">

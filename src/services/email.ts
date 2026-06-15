@@ -59,6 +59,24 @@ function brandWrap(inner: string) {
   `;
 }
 
+// Sent right after a user signs up — the most important touchpoint. Welcomes them
+// and points to the guide so they know exactly how it all works before renting.
+export async function sendSignupWelcomeEmail(email: string, fullName: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  const firstName = (fullName || "").trim().split(" ")[0] || "there";
+  return sendEmail({
+    to: email,
+    subject: `Welcome to LinkedVelocity, ${firstName} 👋`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 8px;"><strong>Welcome aboard, ${firstName}!</strong></p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">LinkedVelocity gives you access to real, established LinkedIn accounts so you can scale your outreach without creating new profiles or hiring more people.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 24px;">Here's everything you need to get started — how it works, setting up GoLogin, daily limits, and using your account safely:</p>
+      <a href="${appUrl}/guide" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;margin-bottom:14px;">Read the getting-started guide</a>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:14px 0 0;">Ready to dive in? <a href="${appUrl}/catalogue" style="color:#0A66C2;font-weight:600;">Browse available accounts →</a></p>
+    `),
+  });
+}
+
 // Sent immediately after payment (card or USDC). Access is granted by our team
 // after vetting + freeing the account internally — so this email is about what to
 // do NOW (set up GoLogin) and what to expect, not "you're live yet".
