@@ -21,12 +21,6 @@ const AVATAR_COLORS = [
   "linear-gradient(135deg,#0891B2,#155E75)",
 ];
 
-const HERO_CARD_COLORS = [
-  "linear-gradient(135deg,#7da7e8,#0A66C2)",
-  "linear-gradient(135deg,#7fe0ab,#00B85C)",
-  "linear-gradient(135deg,#f3a8cf,#d6609e)",
-];
-
 function getAvatarColor(name: string) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -67,7 +61,6 @@ export default async function HomePage() {
     if (showA[i]) mixed.push(showA[i]);
   }
   accounts = mixed;
-  const heroAccounts = accounts.slice(0, 3);
   return (
     <>
       <style>{`
@@ -95,6 +88,18 @@ export default async function HomePage() {
         .hero-sidedoor:hover{color:#fff}
         .hero-sidedoor strong{color:#fff;font-weight:600;margin-left:5px}
         .hero-single::after{content:'';position:absolute;bottom:-140px;right:-60px;width:460px;height:460px;background:radial-gradient(closest-side,rgba(0,184,92,0.12),transparent 70%);pointer-events:none}
+        /* Option B — bold & minimal centered hero */
+        .hero-b{background:radial-gradient(circle at 50% 16%,#103a6b 0%,#0B1A2E 62%)}
+        .hero-b::before{display:none}
+        .hero-b::after{content:'';position:absolute;left:50%;bottom:-180px;right:auto;transform:translateX(-50%);width:680px;height:400px;background:radial-gradient(closest-side,rgba(0,184,92,0.16),transparent 70%);pointer-events:none}
+        .hero-center{max-width:880px;margin:0 auto;width:100%;position:relative;text-align:center;display:flex;flex-direction:column;align-items:center}
+        .hero-center .hero-title-lg{max-width:780px;margin-left:auto;margin-right:auto;font-size:clamp(38px,5.4vw,62px)}
+        .hero-center .hero-desc-lg{max-width:580px;margin-left:auto;margin-right:auto}
+        .hero-center .hero-btns{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+        .hero-proofstrip{display:flex;gap:44px;justify-content:center;margin-top:44px;padding-top:28px;border-top:1px solid rgba(255,255,255,0.12);flex-wrap:wrap}
+        .hero-proofstrip .ps{display:flex;flex-direction:column;align-items:center}
+        .hero-proofstrip .ps .n{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-weight:800;font-size:24px;letter-spacing:-0.02em}
+        .hero-proofstrip .ps .l{font-size:12.5px;color:rgba(255,255,255,0.6);margin-top:2px}
         .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center}
         .hero-cards{position:relative;min-height:360px}
         .gcard{position:absolute;width:300px;background:rgba(255,255,255,0.1);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px 18px;box-shadow:0 26px 50px -20px rgba(0,0,0,0.6)}
@@ -353,48 +358,22 @@ export default async function HomePage() {
       `}</style>
 
       <div className={`kl-page ${dmSans.variable} ${instrumentSans.variable}`}>
-        {/* HERO — renter-first. Headline + real available-account cards. Ambassador entry is a discreet side door. */}
-        <section className="hero-single">
-          <div className="hero-single-inner hero-grid">
-            <div>
-              <div className="hero-pill fade-up"><span className="hero-pill-dot" /> For growth &amp; outreach teams</div>
-              <h1 className="hero-title-lg fade-up d1">Scale LinkedIn outreach<br /><span className="hl">without the limits</span></h1>
-              <p className="hero-desc-lg fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories. Run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
-              <div className="fade-up d3" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-                <Link href="/catalogue" className="hero-btn hero-btn-solid">Browse Available Accounts →</Link>
-                <a href="#how" className="hero-btn hero-btn-white">See how it works</a>
-              </div>
-              <div className="hero-stats fade-up d4">
-                <div><div className="hero-stat-num">847</div><div className="hero-stat-label">Accounts live</div></div>
-                <div><div className="hero-stat-num">3.2M</div><div className="hero-stat-label">Messages sent</div></div>
-                <div><div className="hero-stat-num">98%</div><div className="hero-stat-label">Uptime</div></div>
-              </div>
-              <Link href="/become-ambassador" className="hero-sidedoor fade-up d4">Own a LinkedIn account? <strong>Earn $10–$500/mo sharing it →</strong></Link>
+        {/* HERO — Option B: bold & minimal. Centered headline + CTAs + proof strip. No account cards. */}
+        <section className="hero-single hero-b">
+          <div className="hero-single-inner hero-center">
+            <div className="hero-pill fade-up"><span className="hero-pill-dot" /> For growth &amp; outreach teams</div>
+            <h1 className="hero-title-lg fade-up d1">Scale LinkedIn outreach<br /><span className="hl">without the limits</span></h1>
+            <p className="hero-desc-lg fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories — run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
+            <div className="hero-btns fade-up d3">
+              <Link href="/catalogue" className="hero-btn hero-btn-solid">Browse Available Accounts →</Link>
+              <a href="#how" className="hero-btn hero-btn-white">See how it works</a>
             </div>
-            <div className="hero-cards fade-up d3">
-              {heroAccounts.map((a, i) => {
-                const dn = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
-                const tag = `${a.connectionCount > 0 ? formatNumber(a.connectionCount) + " conn." : "Established"}${a.hasSalesNav ? " · Sales Nav" : ""}`;
-                return (
-                  <div key={a.id} className={`gcard gc${i + 1}`}>
-                    <div className="grow">
-                      <div className="gav" style={{background:HERO_CARD_COLORS[i % HERO_CARD_COLORS.length]}}>
-                        {getInitials(a.linkedinName)}
-                        <span className="on" />
-                      </div>
-                      <div>
-                        <div className="gnm">{dn} <span className="gvf">✔</span></div>
-                        <div className="grl">{a.linkedinHeadline || a.industry || "LinkedIn account"}</div>
-                      </div>
-                    </div>
-                    <div className="gft">
-                      <span className="gtg">{tag}</span>
-                      <span className="gpr">{formatCurrency(Number(a.monthlyPrice))}<small>/mo</small></span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="hero-proofstrip fade-up d4">
+              <div className="ps"><div className="n">Hundreds</div><div className="l">of accounts</div></div>
+              <div className="ps"><div className="n">Real &amp; aged</div><div className="l">verified profiles</div></div>
+              <div className="ps"><div className="n">Cancel anytime</div><div className="l">no lock-in</div></div>
             </div>
+            <Link href="/become-ambassador" className="hero-sidedoor fade-up d4">Own a LinkedIn account? <strong>Earn $10–$500/mo sharing it →</strong></Link>
           </div>
         </section>
 
