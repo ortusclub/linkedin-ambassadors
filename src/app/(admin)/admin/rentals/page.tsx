@@ -39,7 +39,8 @@ export default function AdminRentalsPage() {
     fetch("/api/admin/rentals").then((r) => r.json()).then((d) => setRentals(d.rentals || []));
 
   // Pause = revoke the renter's GoLogin access; Resume/Grant = (re)share it.
-  const handleAccess = async (rentalId: string, action: "grant" | "revoke") => {
+  const handleAccess = async (rentalId: string, action: "grant" | "revoke" | "end") => {
+    if (action === "end" && !window.confirm("End this rental permanently? This cuts the renter's GoLogin access and marks the rental cancelled (no resume).")) return;
     setAccessBusy(rentalId);
     try {
       const res = await fetch(`/api/admin/rentals/${rentalId}/access`, {
@@ -172,22 +173,30 @@ export default function AdminRentalsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{r.autoRenew ? "Yes" : "No"}</td>
                   <td className="px-4 py-3">
-                    {r.paused ? (
-                      <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id}
-                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">
-                        {accessBusy === r.id ? "…" : "Resume access"}
-                      </button>
-                    ) : (r.gologinShareIds?.length ?? 0) > 0 ? (
-                      <button onClick={() => handleAccess(r.id, "revoke")} disabled={accessBusy === r.id}
-                        className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap">
-                        {accessBusy === r.id ? "…" : "Pause access"}
-                      </button>
-                    ) : (
-                      <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id}
-                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
-                        {accessBusy === r.id ? "…" : "Grant access"}
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {r.paused ? (
+                        <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id}
+                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">
+                          {accessBusy === r.id ? "…" : "Resume access"}
+                        </button>
+                      ) : (r.gologinShareIds?.length ?? 0) > 0 ? (
+                        <button onClick={() => handleAccess(r.id, "revoke")} disabled={accessBusy === r.id}
+                          className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap">
+                          {accessBusy === r.id ? "…" : "Pause access"}
+                        </button>
+                      ) : (
+                        <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id}
+                          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
+                          {accessBusy === r.id ? "…" : "Grant access"}
+                        </button>
+                      )}
+                      {(r.status === "active" || r.status === "payment_failed") && (
+                        <button onClick={() => handleAccess(r.id, "end")} disabled={accessBusy === r.id}
+                          className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 whitespace-nowrap">
+                          End
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

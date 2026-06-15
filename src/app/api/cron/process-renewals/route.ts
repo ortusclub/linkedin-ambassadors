@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { revokeRentalAccess } from "@/lib/rental-access";
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -57,19 +58,33 @@ export async function POST(req: NextRequest) {
         });
         renewed++;
       } else {
-        // Insufficient balance — mark as failed
+        // Insufficient balance — mark as failed and cut the renter's access
         await prisma.rental.update({
           where: { id: rental.id },
           data: { status: "payment_failed" },
         });
+        try { await revokeRentalAccess(rental.id); } catch (e) { console.error("revoke on payment_failed", rental.id, e); }
         failed++;
       }
+    }
+
+    // Expire non-renewing rentals whose term has ended, and cut their GoLogin access.
+    const expiredRentals = await prisma.rental.findMany({
+      where: { status: "active", autoRenew: false, currentPeriodEnd: { lt: new Date() } },
+      select: { id: true },
+    });
+    let expired = 0;
+    for (const r of expiredRentals) {
+      await prisma.rental.update({ where: { id: r.id }, data: { status: "expired" } });
+      try { await revokeRentalAccess(r.id); } catch (e) { console.error("revoke on expire", r.id, e); }
+      expired++;
     }
 
     return NextResponse.json({
       processed: dueRentals.length,
       renewed,
       failed,
+      expired,
     });
   } catch (error) {
     console.error("Renewal processing error:", error);
