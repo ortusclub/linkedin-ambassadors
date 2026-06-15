@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, createSession } from "@/lib/auth";
-import { sendSignupNotification, sendSignupWelcomeEmail } from "@/services/email";
+import { sendSignupNotification } from "@/services/email";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -40,13 +40,8 @@ export async function POST(req: Request) {
     } catch (emailError) {
       console.error("Signup notification email failed:", emailError);
     }
-
-    // Welcome the new user + point them to the getting-started guide.
-    try {
-      await sendSignupWelcomeEmail(user.email, user.fullName);
-    } catch (emailError) {
-      console.error("Signup welcome email failed:", emailError);
-    }
+    // NOTE: the customer welcome email is sent AFTER they verify their email
+    // (in /api/auth/verify-code), not here — so it never arrives pre-verification.
 
     return NextResponse.json({
       id: user.id,

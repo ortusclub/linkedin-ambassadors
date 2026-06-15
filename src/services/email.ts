@@ -51,7 +51,7 @@ function brandWrap(inner: string) {
       <h2 style="color:#0A66C2;margin:0 0 24px;font-size:22px;letter-spacing:-0.02em;">LinkedVelocity</h2>
       ${inner}
       <p style="color:#8899A6;font-size:12px;margin-top:32px;border-top:1px solid #E8E6E1;padding-top:16px;">
-        Need help? Just reply to this email. &nbsp;·&nbsp;
+        Need help? Message us on Telegram <a href="https://t.me/klabber_support_bot" style="color:#0A66C2;text-decoration:none;">@klabber_support_bot</a> &nbsp;·&nbsp;
         <a href="${appUrl}/dashboard" style="color:#0A66C2;text-decoration:none;">Your dashboard</a>
       </p>
       <p style="color:#8899A6;font-size:12px;margin-top:8px;">&mdash; The LinkedVelocity Team</p>

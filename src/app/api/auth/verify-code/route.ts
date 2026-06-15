@@ -3,6 +3,7 @@ import { z } from "zod";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
+import { sendSignupWelcomeEmail } from "@/services/email";
 
 const schema = z.object({
   email: z.string().email(),
@@ -63,6 +64,8 @@ export async function POST(req: Request) {
       where: { email: emailLower },
     });
 
+    // Send the customer welcome email exactly once — when the user first verifies.
+    let justVerified = false;
     if (!user) {
       user = await prisma.user.create({
         data: {
@@ -73,11 +76,21 @@ export async function POST(req: Request) {
           emailVerified: new Date(),
         },
       });
+      justVerified = true;
     } else if (!user.emailVerified) {
       user = await prisma.user.update({
         where: { id: user.id },
         data: { emailVerified: new Date() },
       });
+      justVerified = true;
+    }
+
+    if (justVerified) {
+      try {
+        await sendSignupWelcomeEmail(user.email, user.fullName);
+      } catch (e) {
+        console.error("Signup welcome email failed:", e);
+      }
     }
 
     if (source === "web") {
