@@ -12,6 +12,8 @@ interface Rental {
   startDate: string;
   currentPeriodEnd: string | null;
   autoRenew: boolean;
+  paused: boolean;
+  gologinShareIds: { email: string; shareId: string }[];
   user: { id: string; fullName: string; email: string };
   linkedinAccount: { id: string; linkedinName: string; connectionCount: number; notes: string | null };
 }
@@ -31,6 +33,31 @@ export default function AdminRentalsPage() {
   const [addForm, setAddForm] = useState({ userEmail: "", linkedinAccountId: "", startDate: new Date().toISOString().split("T")[0], endDate: "", autoRenew: true });
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
+  const [accessBusy, setAccessBusy] = useState<string | null>(null);
+
+  const refreshRentals = () =>
+    fetch("/api/admin/rentals").then((r) => r.json()).then((d) => setRentals(d.rentals || []));
+
+  // Pause = revoke the renter's GoLogin access; Resume/Grant = (re)share it.
+  const handleAccess = async (rentalId: string, action: "grant" | "revoke") => {
+    setAccessBusy(rentalId);
+    try {
+      const res = await fetch(`/api/admin/rentals/${rentalId}/access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) {
+        alert(`Failed: ${data.error || "unknown error"}`);
+      }
+      await refreshRentals();
+    } catch (e) {
+      alert("Request failed: " + (e instanceof Error ? e.message : ""));
+    } finally {
+      setAccessBusy(null);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/admin/rentals")
@@ -122,6 +149,7 @@ export default function AdminRentalsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Started</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Expires</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Auto-Renew</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Access</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -133,13 +161,34 @@ export default function AdminRentalsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{(r.linkedinAccount.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || r.linkedinAccount.linkedinName}</td>
                   <td className="px-4 py-3">
-                    <Badge variant={statusVariant(r.status)}>{r.status.replace("_", " ")}</Badge>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Badge variant={statusVariant(r.status)}>{r.status.replace("_", " ")}</Badge>
+                      {r.paused && <Badge variant="warning">Paused</Badge>}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{formatDate(r.startDate)}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {r.currentPeriodEnd ? formatDate(r.currentPeriodEnd) : "—"}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{r.autoRenew ? "Yes" : "No"}</td>
+                  <td className="px-4 py-3">
+                    {r.paused ? (
+                      <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id}
+                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">
+                        {accessBusy === r.id ? "…" : "Resume access"}
+                      </button>
+                    ) : (r.gologinShareIds?.length ?? 0) > 0 ? (
+                      <button onClick={() => handleAccess(r.id, "revoke")} disabled={accessBusy === r.id}
+                        className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap">
+                        {accessBusy === r.id ? "…" : "Pause access"}
+                      </button>
+                    ) : (
+                      <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
+                        {accessBusy === r.id ? "…" : "Grant access"}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

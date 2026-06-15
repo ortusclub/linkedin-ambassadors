@@ -13,6 +13,7 @@ import { CardTopUp } from "./card-topup";
 interface Rental {
   id: string;
   status: string;
+  paused?: boolean;
   startDate: string;
   currentPeriodEnd: string | null;
   autoRenew: boolean;
@@ -600,10 +601,17 @@ function DashboardContent() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${rental.status === "active" ? "text-green-600" : "text-red-600"}`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${rental.status === "active" ? "bg-green-500" : "bg-red-500"}`} />
-                      {rental.status === "active" ? "Active" : rental.status.replace("_", " ")}
-                    </span>
+                    {rental.paused ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        Paused
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${rental.status === "active" ? "text-green-600" : "text-red-600"}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${rental.status === "active" ? "bg-green-500" : "bg-red-500"}`} />
+                        {rental.status === "active" ? "Active" : rental.status.replace("_", " ")}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{formatDate(rental.startDate)}</td>
                   <td className="px-4 py-3 text-gray-500">{rental.currentPeriodEnd ? formatDate(rental.currentPeriodEnd) : "—"}</td>
@@ -628,7 +636,11 @@ function DashboardContent() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center gap-2 justify-end">
-                      {rental.linkedinAccount.gologinShareLink && (
+                      {rental.paused ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-400 whitespace-nowrap">
+                          Access paused
+                        </span>
+                      ) : rental.linkedinAccount.gologinShareLink ? (
                         <button
                           onClick={() => {
                             try {
@@ -643,7 +655,7 @@ function DashboardContent() {
                           GoLogin
                           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
                         </button>
-                      )}
+                      ) : null}
                       {rental.autoRenew && (
                         <button
                           onClick={() => handleCancel(rental.id)}
