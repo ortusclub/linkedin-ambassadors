@@ -1,4 +1,7 @@
 const GOLOGIN_API_BASE = "https://api.gologin.com";
+// Workspace that owns the rental profiles. The share API needs this in the query
+// string — without it (and with the wrong body `type`) shares become non-functional "ghosts".
+const GOLOGIN_WORKSPACE_ID = process.env.GOLOGIN_WORKSPACE_ID || "68654b73cd7edf1e3ed6d13f";
 
 function headers(token?: string) {
   return {
@@ -84,10 +87,10 @@ export async function addCookies(profileId: string, cookies: object[]) {
 
 // Grant a renter access to a profile (role "guest" = can run/view, not edit).
 export async function shareProfile(profileId: string, email: string, token?: string) {
-  return gologinFetch(`/share/multi`, {
+  return gologinFetch(`/share/multi?currentWorkspace=${GOLOGIN_WORKSPACE_ID}`, {
     method: "POST",
     body: JSON.stringify({
-      type: "profile",
+      type: "browser", // GoLogin uses "browser" here, not "profile"
       instanceIds: [profileId],
       role: "guest",
       recepients: [email], // GoLogin's API spells it "recepients"
@@ -98,7 +101,7 @@ export async function shareProfile(profileId: string, email: string, token?: str
 // Revoke a renter's access by the SHARE id (returned when the share was created
 // via shareProfile). GoLogin exposes an (undocumented) DELETE /share/{shareId}.
 export async function unshareProfile(shareId: string, token?: string) {
-  return gologinFetch(`/share/${shareId}`, { method: "DELETE" }, token);
+  return gologinFetch(`/share/${shareId}?currentWorkspace=${GOLOGIN_WORKSPACE_ID}`, { method: "DELETE" }, token);
 }
 
 export async function getProfile(profileId: string) {
