@@ -30,6 +30,8 @@ export async function grantRentalAccess(rentalId: string): Promise<{ shareId: st
   await prisma.rental.update({
     where: { id: rentalId },
     data: {
+      // Granting (re)activates the rental — revives a paused/ended one.
+      status: "active",
       paused: false,
       gologinShareIds: next as unknown as Prisma.InputJsonValue,
       accessGrantedAt: new Date(),
