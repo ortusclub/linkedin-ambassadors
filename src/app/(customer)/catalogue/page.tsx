@@ -402,8 +402,8 @@ export default function CataloguePage() {
           {!loading && !user && gatedCount > 0 && (
             <div style={{marginTop:24,background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:'28px 32px',textAlign:'center'}}>
               <div style={{fontSize:26,marginBottom:8}}>🔒</div>
-              <h3 style={{fontSize:20,fontWeight:600,color:'#0F1419',marginBottom:6,letterSpacing:'-0.02em'}}>{gatedCount}+ more accounts available</h3>
-              <p style={{fontSize:14,color:'#536471',marginBottom:18,maxWidth:460,marginLeft:'auto',marginRight:'auto',lineHeight:1.5}}>You&apos;re viewing a preview of our catalogue. Sign in to see the full list and rent accounts.</p>
+              <h3 style={{fontSize:20,fontWeight:600,color:'#0F1419',marginBottom:6,letterSpacing:'-0.02em'}}>Hundreds more accounts available</h3>
+              <p style={{fontSize:14,color:'#536471',marginBottom:18,maxWidth:460,marginLeft:'auto',marginRight:'auto',lineHeight:1.5}}>You&apos;re viewing a small preview of our catalogue. Sign in to browse the full list and rent.</p>
               <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
                 <Link href="/register" style={{padding:'11px 22px',borderRadius:10,background:'linear-gradient(135deg,#0A66C2,#004182)',color:'#fff',fontSize:14,fontWeight:600,textDecoration:'none'}}>Create free account</Link>
                 <Link href="/login" style={{padding:'11px 22px',borderRadius:10,background:'#F3F2EE',color:'#0F1419',fontSize:14,fontWeight:600,textDecoration:'none'}}>Sign in</Link>
