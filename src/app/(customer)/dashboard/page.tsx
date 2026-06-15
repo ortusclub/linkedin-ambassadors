@@ -788,7 +788,6 @@ function DashboardContent() {
       )}
 
       {/* My Submissions */}
-      {/* My Submissions */}
       <section className="mb-12">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">My Submissions</h2>
         {submissions.length === 0 ? (
@@ -891,20 +890,6 @@ function DashboardContent() {
         )}
       </section>
 
-      {/* Share Accounts CTA — only show if they have no ambassador accounts */}
-      {ambassadorAccounts.length === 0 && (
-        <section>
-          <Card>
-            <CardContent className="py-8 text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Earn Money From Your LinkedIn Account</h3>
-              <p className="mt-2 text-gray-500">Share your LinkedIn account and get paid monthly.</p>
-              <Link href="/become-ambassador">
-                <Button className="mt-4" variant="primary">Share Your Accounts</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </section>
-      )}
       {/* Remove Account Modal */}
       {removeAccountId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setRemoveAccountId(null)}>
