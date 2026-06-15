@@ -94,19 +94,10 @@ export async function shareProfile(profileId: string, email: string, token?: str
   }, token);
 }
 
-// Revoke a renter's access. NOTE: GoLogin's public API does not (yet) document
-// a per-profile unshare — attempting the mirror of /share/multi. If this 404s,
-// we switch to folder-based sharing (DELETE /share/folder/{id}).
-export async function unshareProfile(profileId: string, email: string, token?: string) {
-  return gologinFetch(`/share/multi`, {
-    method: "DELETE",
-    body: JSON.stringify({
-      type: "profile",
-      instanceIds: [profileId],
-      role: "guest",
-      recepients: [email],
-    }),
-  }, token);
+// Revoke a renter's access by the SHARE id (returned when the share was created
+// via shareProfile). GoLogin exposes an (undocumented) DELETE /share/{shareId}.
+export async function unshareProfile(shareId: string, token?: string) {
+  return gologinFetch(`/share/${shareId}`, { method: "DELETE" }, token);
 }
 
 export async function getProfile(profileId: string) {

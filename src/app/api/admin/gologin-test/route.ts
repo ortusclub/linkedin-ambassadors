@@ -7,19 +7,24 @@ import { shareProfile, unshareProfile } from "@/services/gologin";
 export async function POST(req: Request) {
   try {
     await requireAdmin();
-    const { profileId, email, action, token } = await req.json();
-    if (!profileId || !email || (action !== "share" && action !== "unshare")) {
-      return NextResponse.json(
-        { error: "profileId, email, and action ('share' or 'unshare') are required" },
-        { status: 400 }
-      );
-    }
+    const { profileId, email, action, token, shareId } = await req.json();
     const overrideToken = typeof token === "string" && token.trim() ? token.trim() : undefined;
-    const result =
-      action === "share"
-        ? await shareProfile(profileId, email, overrideToken)
-        : await unshareProfile(profileId, email, overrideToken);
-    return NextResponse.json({ ok: true, action, result });
+    if (action === "share") {
+      if (!profileId || !email) {
+        return NextResponse.json({ error: "profileId and email are required to share" }, { status: 400 });
+      }
+      const result = await shareProfile(profileId, email, overrideToken);
+      const newShareId = Array.isArray(result) ? result[0]?.id : result?.id;
+      return NextResponse.json({ ok: true, action, result, shareId: newShareId });
+    }
+    if (action === "unshare") {
+      if (!shareId) {
+        return NextResponse.json({ error: "shareId is required to revoke — copy it from a Grant result" }, { status: 400 });
+      }
+      const result = await unshareProfile(shareId, overrideToken);
+      return NextResponse.json({ ok: true, action, result });
+    }
+    return NextResponse.json({ error: "action must be 'share' or 'unshare'" }, { status: 400 });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     if (msg === "Forbidden" || msg === "Unauthorized") {

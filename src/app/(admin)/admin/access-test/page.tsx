@@ -3,9 +3,10 @@
 import { useState } from "react";
 
 export default function AccessTestPage() {
-  const [profileId, setProfileId] = useState("");
-  const [email, setEmail] = useState("milee+lvtest@linkedvelocity.com");
+  const [profileId, setProfileId] = useState("689eefb399a57ac17a976c70");
+  const [email, setEmail] = useState("ardianacomia@gmail.com");
   const [token, setToken] = useState("");
+  const [shareId, setShareId] = useState("");
   const [busy, setBusy] = useState<"share" | "unshare" | null>(null);
   const [result, setResult] = useState<string>("");
 
@@ -16,12 +17,23 @@ export default function AccessTestPage() {
       const res = await fetch("/api/admin/gologin-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: profileId.trim(), email: email.trim(), action, token: token.trim() }),
+        body: JSON.stringify({
+          profileId: profileId.trim(),
+          email: email.trim(),
+          action,
+          token: token.trim(),
+          shareId: shareId.trim(),
+        }),
       });
       const data = await res.json();
+      // Auto-fill the Share ID after a successful grant so revoke is one click.
+      if (res.ok && action === "share" && data.shareId) setShareId(data.shareId);
       setResult(
         res.ok
           ? `✅ ${action === "share" ? "Access granted" : "Access revoked"} — GoLogin responded:\n` +
+              (action === "share" && data.shareId
+                ? `Share ID: ${data.shareId}  ← auto-filled below; click Revoke to remove it\n\n`
+                : "") +
               JSON.stringify(data.result, null, 2)
           : `❌ Error: ${data.error}`
       );
@@ -36,8 +48,8 @@ export default function AccessTestPage() {
     <div className="max-w-xl">
       <h2 className="text-2xl font-bold text-gray-900">GoLogin access test</h2>
       <p className="mt-1 mb-6 text-sm text-gray-500">
-        Internal tool to verify adding/removing a renter&apos;s email on a GoLogin profile. Only touches the
-        profile below — safe for testing.
+        Internal tool to verify adding/removing a renter&apos;s access on a GoLogin profile. Grant returns a
+        Share ID; Revoke deletes that Share ID. Safe — only touches the profile/share below.
       </p>
 
       <label className="block text-sm font-medium text-gray-700 mb-1">GoLogin profile ID</label>
@@ -48,16 +60,26 @@ export default function AccessTestPage() {
         placeholder="e.g. 689eefb399a57ac17a976c70"
       />
 
-      <label className="block text-sm font-medium text-gray-700 mb-1">Renter email</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Renter email <span className="font-normal text-gray-400">(used by Grant)</span></label>
       <input
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-5"
+        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-4"
         placeholder="renter@example.com"
       />
 
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        GoLogin API token <span className="font-normal text-gray-400">(testing only — must be from the SAME account that owns the profile above; leave blank to use the site&apos;s saved token)</span>
+        Share ID <span className="font-normal text-gray-400">(used by Revoke — auto-fills after a Grant)</span>
+      </label>
+      <input
+        value={shareId}
+        onChange={(e) => setShareId(e.target.value)}
+        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-4 font-mono"
+        placeholder="e.g. 6a2a8de6ad53c433b34e6024"
+      />
+
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        GoLogin API token <span className="font-normal text-gray-400">(testing only — same account that owns the profile; blank = site token)</span>
       </label>
       <input
         value={token}
