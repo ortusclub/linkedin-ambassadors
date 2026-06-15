@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { CardTopUp } from "./card-topup";
+import { startDashboardTour } from "@/lib/dashboard-tour";
 
 interface Rental {
   id: string;
@@ -144,6 +145,14 @@ function DashboardContent() {
       setShowWithdraw(false);
     }
   }, [searchParams]);
+
+  // Auto-run the guided tour once for new users, after the dashboard has rendered
+  // (so the highlighted elements exist in the DOM).
+  useEffect(() => {
+    if (loading) return;
+    const t = setTimeout(() => startDashboardTour(false), 700);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   const handleWithdraw = async () => {
     setWithdrawing(true);
@@ -289,13 +298,31 @@ function DashboardContent() {
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
-        <a
-          href="/guide"
-          className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors whitespace-nowrap"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-          Getting started
-        </a>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => startDashboardTour(true)}
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors whitespace-nowrap"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
+            Take a tour
+          </button>
+          <Link
+            href="/catalogue"
+            data-tour="browse"
+            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+            Browse accounts
+          </Link>
+          <a
+            href="/guide"
+            data-tour="getting-started"
+            className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors whitespace-nowrap"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+            Getting started
+          </a>
+        </div>
       </div>
 
       {/* Post-payment confirmation — what to do now */}
@@ -325,7 +352,7 @@ function DashboardContent() {
       )}
 
       {/* USDC Wallet */}
-      <section id="wallet" className="mb-8">
+      <section id="wallet" data-tour="wallet" className="mb-8">
         <Card>
           <CardContent className="px-5 py-4">
             <div className="flex items-center justify-between">
@@ -598,7 +625,7 @@ function DashboardContent() {
       )}
 
       {/* My Rented Accounts */}
-      <section className="mb-12">
+      <section data-tour="rentals" className="mb-12">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">My Rented Accounts</h2>
         <Card>
             <CardContent className="p-0">
