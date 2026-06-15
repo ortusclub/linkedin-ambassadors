@@ -12,11 +12,12 @@ async function gologinFetch(path: string, options: RequestInit = {}, token?: str
     ...options,
     headers: { ...headers(token), ...options.headers },
   });
+  const text = await res.text();
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`GoLogin API error ${res.status}: ${body}`);
+    throw new Error(`GoLogin API error ${res.status}: ${text}`);
   }
-  return res.json();
+  // DELETE/revoke (and some calls) return an empty body — don't choke parsing it.
+  return text ? JSON.parse(text) : null;
 }
 
 export async function createProfile(options: {

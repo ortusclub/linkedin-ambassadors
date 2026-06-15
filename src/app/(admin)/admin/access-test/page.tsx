@@ -25,17 +25,21 @@ export default function AccessTestPage() {
           shareId: shareId.trim(),
         }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: { ok?: boolean; error?: string; shareId?: string; result?: unknown } = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { /* non-JSON response */ }
+      if (!res.ok || data.ok === false) {
+        setResult(`❌ Error ${res.status}: ${data.error || text || "(empty response from server)"}`);
+        return;
+      }
       // Auto-fill the Share ID after a successful grant so revoke is one click.
-      if (res.ok && action === "share" && data.shareId) setShareId(data.shareId);
+      if (action === "share" && data.shareId) setShareId(data.shareId);
       setResult(
-        res.ok
-          ? `✅ ${action === "share" ? "Access granted" : "Access revoked"} — GoLogin responded:\n` +
-              (action === "share" && data.shareId
-                ? `Share ID: ${data.shareId}  ← auto-filled below; click Revoke to remove it\n\n`
-                : "") +
-              JSON.stringify(data.result, null, 2)
-          : `❌ Error: ${data.error}`
+        `✅ ${action === "share" ? "Access granted" : "Access revoked"} — GoLogin responded:\n` +
+          (action === "share" && data.shareId
+            ? `Share ID: ${data.shareId}  ← auto-filled below; click Revoke to remove it\n\n`
+            : "") +
+          JSON.stringify(data.result, null, 2)
       );
     } catch (e) {
       setResult("❌ " + (e instanceof Error ? e.message : "Request failed"));
