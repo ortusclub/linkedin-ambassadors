@@ -126,7 +126,7 @@ export async function sendAccessReadyEmail(email: string, accountName: string) {
         <li>Click <strong>Start</strong> to launch the browser with LinkedIn already logged in.</li>
       </ol>
       <a href="${appUrl}/dashboard" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;margin-bottom:20px;">Open your dashboard</a>
-      <p style="font-size:13px;color:#536471;line-height:1.6;margin:20px 0 0;">Reminder: please follow our <a href="${appUrl}/guide" style="color:#0A66C2;">safe-use guide</a> to keep the account healthy. Don't change the password or profile details.</p>
+      <p style="font-size:13px;color:#536471;line-height:1.6;margin:20px 0 0;">Reminder: please follow our <a href="${appUrl}/guide" style="color:#0A66C2;">safe-use guide</a> to keep the account healthy. Always access it through GoLogin, and don't change the account's login or profile details.</p>
     `),
   });
 }
