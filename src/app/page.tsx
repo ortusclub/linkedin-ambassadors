@@ -369,7 +369,7 @@ export default async function HomePage() {
               <a href="#how" className="hero-btn hero-btn-white">See how it works</a>
             </div>
             <div className="hero-proofstrip fade-up d4">
-              <div className="ps"><div className="n">Hundreds</div><div className="l">of accounts</div></div>
+              <div className="ps"><div className="n">200+</div><div className="l">accounts available</div></div>
               <div className="ps"><div className="n">Real &amp; aged</div><div className="l">verified profiles</div></div>
               <div className="ps"><div className="n">Cancel anytime</div><div className="l">no lock-in</div></div>
             </div>
@@ -624,7 +624,7 @@ export default async function HomePage() {
               <div>
                 <div className="section-label">Marketplace</div>
                 <div className="section-title" style={{marginBottom:8}}>Browse available accounts</div>
-                <p style={{fontSize:14,color:'var(--text-mid)'}}>{accounts.length} verified accounts in the marketplace</p>
+                <p style={{fontSize:14,color:'var(--text-mid)'}}>200+ verified accounts in the marketplace</p>
               </div>
             </div>
             {accounts.length === 0 ? (
