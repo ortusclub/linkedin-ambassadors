@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { cookies, headers } from "next/headers";
 import { z } from "zod";
-import { grantRentalAccess, revokeRentalAccess } from "@/lib/rental-access";
 
 async function getUser() {
   // First try Bearer token (from Electron app)
@@ -110,26 +109,8 @@ export async function PATCH(req: Request) {
       data: filtered,
     });
 
-    // Ambassador self-pause: pausing (unavailable) cuts the active renter's access;
-    // re-enabling (available) restores it.
-    if (data.status === "unavailable" || data.status === "available") {
-      const activeRentals = await prisma.rental.findMany({
-        where: { linkedinAccountId: id, status: "active" },
-        select: { id: true },
-      });
-      for (const r of activeRentals) {
-        try {
-          if (data.status === "unavailable") {
-            await revokeRentalAccess(r.id);
-            await prisma.rental.update({ where: { id: r.id }, data: { paused: true } });
-          } else {
-            await grantRentalAccess(r.id);
-          }
-        } catch (e) {
-          console.error("Ambassador pause/resume access change failed", r.id, e);
-        }
-      }
-    }
+    // Note: ambassadors can only pause UNRENTED accounts (the dashboard hides
+    // "Pause" while rented), so active renters are never cut by a self-pause.
 
     return NextResponse.json({ account: updated });
   } catch (error) {
