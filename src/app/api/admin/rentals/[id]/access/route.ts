@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { grantRentalAccess, revokeRentalAccess } from "@/lib/rental-access";
+import { sendAccessReadyEmail } from "@/services/email";
 
 // Manage a rental's renter GoLogin access.
 // Body: { action: "grant" | "revoke" | "end" }
@@ -22,6 +23,16 @@ export async function POST(
 
     if (action === "grant") {
       const { shareId, email } = await grantRentalAccess(id);
+      // Tell the renter they're live (non-blocking).
+      try {
+        const rental = await prisma.rental.findUnique({
+          where: { id },
+          select: { linkedinAccount: { select: { linkedinName: true } } },
+        });
+        if (rental) await sendAccessReadyEmail(email, rental.linkedinAccount.linkedinName);
+      } catch (e) {
+        console.error("Failed to send access-ready email:", e);
+      }
       return NextResponse.json({ ok: true, action, shareId, sharedWith: email });
     }
 

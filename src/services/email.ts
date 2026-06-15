@@ -43,22 +43,73 @@ export async function sendVerificationCode(email: string, code: string) {
   });
 }
 
-export async function sendWelcomeEmail(
-  email: string,
-  accountName: string,
-  accessInstructions: string
-) {
+// Shared branded wrapper so all customer emails look consistent.
+function brandWrap(inner: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  return `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:36px 24px;color:#0F1419;">
+      <h2 style="color:#0A66C2;margin:0 0 24px;font-size:22px;letter-spacing:-0.02em;">LinkedVelocity</h2>
+      ${inner}
+      <p style="color:#8899A6;font-size:12px;margin-top:32px;border-top:1px solid #E8E6E1;padding-top:16px;">
+        Need help? Just reply to this email. &nbsp;·&nbsp;
+        <a href="${appUrl}/dashboard" style="color:#0A66C2;text-decoration:none;">Your dashboard</a>
+      </p>
+      <p style="color:#8899A6;font-size:12px;margin-top:8px;">&mdash; The LinkedVelocity Team</p>
+    </div>
+  `;
+}
+
+// Sent immediately after payment (card or USDC). Access is granted by our team
+// after vetting + freeing the account internally — so this email is about what to
+// do NOW (set up GoLogin) and what to expect, not "you're live yet".
+export async function sendRentalOnboardingEmail(email: string, accountName: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
   return sendEmail({
     to: email,
-    subject: `Welcome! Your LinkedIn account "${accountName}" is ready`,
-    html: `
-      <h2>Your LinkedIn account rental is active!</h2>
-      <p>You now have access to the LinkedIn account: <strong>${accountName}</strong></p>
-      <h3>How to access your account:</h3>
-      <p>${accessInstructions}</p>
-      <p>Visit your <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard">dashboard</a> to manage your rental.</p>
-      <p>— LinkedIn Ambassadors Team</p>
-    `,
+    subject: `You're in! Let's get "${accountName}" ready for you`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 8px;"><strong>Thanks for your rental — ${accountName} is reserved for you. 🎉</strong></p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 24px;">Here's exactly what happens next. Step 1 is on you and takes 2 minutes — please do it now so we can hand over access smoothly.</p>
+
+      <div style="background:#F3F8FE;border:1px solid #D6E3F2;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
+        <p style="margin:0 0 4px;font-weight:700;font-size:15px;color:#0A66C2;">Step 1 — Set up GoLogin (do this now)</p>
+        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">Download the free <strong>GoLogin</strong> app from <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> and create your account using <strong>this exact email (${email})</strong>. This is important — we can only share the account with the GoLogin account on this email.</p>
+      </div>
+
+      <div style="background:#F7F7F4;border:1px solid #E8E6E1;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
+        <p style="margin:0 0 4px;font-weight:700;font-size:15px;">Step 2 — We get it ready (within 24 hours)</p>
+        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">Our team prepares and verifies the account, then shares the profile to your GoLogin. Sharing can take a few minutes to appear after we send it.</p>
+      </div>
+
+      <div style="background:#F7F7F4;border:1px solid #E8E6E1;border-radius:12px;padding:18px 20px;margin-bottom:24px;">
+        <p style="margin:0 0 4px;font-weight:700;font-size:15px;">Step 3 — You're live</p>
+        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">You'll get a "your account is ready" email. Open the profile from GoLogin (or your dashboard) and you're in — LinkedIn already logged in.</p>
+      </div>
+
+      <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 20px;">New to this? Read our short guide on <a href="${appUrl}/guide" style="color:#0A66C2;font-weight:600;">how renting works &amp; using LinkedIn safely with us →</a></p>
+
+      <a href="${appUrl}/guide" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;">Read the renting guide</a>
+    `),
+  });
+}
+
+// Fired automatically when an admin clicks "Grant access" — the renter is now live.
+export async function sendAccessReadyEmail(email: string, accountName: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  return sendEmail({
+    to: email,
+    subject: `Your LinkedIn account "${accountName}" is ready 🎉`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 8px;"><strong>You're live — ${accountName} is ready to use.</strong></p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">We've shared the account to your GoLogin (<strong>${email}</strong>). Here's how to open it:</p>
+      <ol style="font-size:14px;color:#374151;line-height:1.8;margin:0 0 24px;padding-left:20px;">
+        <li>Open the <strong>GoLogin</strong> app (signed in with ${email}).</li>
+        <li>Find the shared profile in your dashboard — it may take a few minutes to appear.</li>
+        <li>Click <strong>Start</strong> to launch the browser with LinkedIn already logged in.</li>
+      </ol>
+      <a href="${appUrl}/dashboard" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;margin-bottom:20px;">Open your dashboard</a>
+      <p style="font-size:13px;color:#536471;line-height:1.6;margin:20px 0 0;">Reminder: please follow our <a href="${appUrl}/guide" style="color:#0A66C2;">safe-use guide</a> to keep the account healthy. Don't change the password or profile details.</p>
+    `),
   });
 }
 

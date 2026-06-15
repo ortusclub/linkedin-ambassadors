@@ -256,7 +256,7 @@ function DashboardContent() {
     );
   };
 
-  const activeRentals = rentals.filter((r) => r.status === "active" || r.status === "payment_failed");
+  const activeRentals = rentals.filter((r) => r.status === "active" || r.status === "payment_failed" || r.status === "pending_access");
   const pastRentals = rentals.filter((r) => r.status === "expired" || r.status === "cancelled");
 
   const statusBadge = (status: string) => {
@@ -606,6 +606,11 @@ function DashboardContent() {
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                         Paused
                       </span>
+                    ) : rental.status === "pending_access" ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                        Preparing
+                      </span>
                     ) : (
                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${rental.status === "active" ? "text-green-600" : "text-red-600"}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${rental.status === "active" ? "bg-green-500" : "bg-red-500"}`} />
@@ -640,6 +645,19 @@ function DashboardContent() {
                         <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-400 whitespace-nowrap">
                           Access paused
                         </span>
+                      ) : rental.status === "pending_access" ? (
+                        <div className="flex flex-col items-end gap-1">
+                          <a
+                            href="https://gologin.com/download"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                          >
+                            Download GoLogin
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
+                          </a>
+                          <span className="text-[11px] text-gray-400 whitespace-nowrap">Preparing — ready within 24h. <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
+                        </div>
                       ) : rental.linkedinAccount.gologinShareLink ? (
                         <button
                           onClick={() => {

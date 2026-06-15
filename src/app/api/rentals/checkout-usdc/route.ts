@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
+import { sendRentalOnboardingEmail, sendRentalNotification } from "@/services/email";
 
 export async function POST(req: Request) {
   try {
@@ -60,9 +61,10 @@ export async function POST(req: Request) {
               linkedinAccountId: account.id,
               usdcPayment: true,
               autoRenew: !!autoRenew,
-              status: "active",
+              // pending_access: paid + reserved, but our team grants GoLogin access
+              // after vetting + freeing the account internally.
+              status: "pending_access",
               currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
-              accessGrantedAt: new Date(),
             },
           });
 
@@ -86,6 +88,24 @@ export async function POST(req: Request) {
 
         return ids;
       });
+
+      // Onboarding email (what to do now + what to expect) + admin notify, per account.
+      for (const account of accounts) {
+        try {
+          await sendRentalOnboardingEmail(user.email, account.linkedinName);
+        } catch (e) {
+          console.error("Failed to send onboarding email:", e);
+        }
+        try {
+          await sendRentalNotification({
+            customerEmail: user.email,
+            customerName: user.fullName,
+            accountName: account.linkedinName,
+          });
+        } catch (e) {
+          console.error("Failed to send rental notification:", e);
+        }
+      }
 
       return NextResponse.json({ success: true, rentalIds });
     } catch (rentalError) {

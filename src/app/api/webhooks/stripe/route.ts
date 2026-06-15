@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import {
-  sendWelcomeEmail,
+  sendRentalOnboardingEmail,
   sendRenewalConfirmation,
   sendPaymentFailedEmail,
   sendAccessRevokedEmail,
@@ -131,51 +131,59 @@ async function handleWalletTopUp(session: Stripe.Checkout.Session) {
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.userId;
-  const linkedinAccountId = session.metadata?.linkedinAccountId;
+  // Checkout writes the (possibly multi-account) list as a comma-joined string.
+  const accountIds = (session.metadata?.linkedinAccountIds || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const subscriptionRef = session.subscription;
   const subscriptionId = typeof subscriptionRef === "string"
     ? subscriptionRef
     : subscriptionRef?.id;
 
-  if (!userId || !linkedinAccountId || !subscriptionId) return;
-
-  // Idempotency: check if rental already exists
-  const existing = await prisma.rental.findFirst({
-    where: { stripeSubscriptionId: subscriptionId },
-  });
-  if (existing) return;
+  if (!userId || accountIds.length === 0 || !subscriptionId) return;
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-
-  await prisma.rental.create({
-    data: {
-      userId,
-      linkedinAccountId,
-      stripeSubscriptionId: subscriptionId,
-      currentPeriodEnd: getPeriodEnd(subscription),
-      accessGrantedAt: new Date(),
-    },
-  });
-
-  await prisma.linkedInAccount.update({
-    where: { id: linkedinAccountId },
-    data: { status: "rented" },
-  });
-
-  // Send welcome email
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  const account = await prisma.linkedInAccount.findUnique({
-    where: { id: linkedinAccountId },
-  });
+  if (!user) return;
 
-  if (user && account) {
-    const instructions = account.gologinProfileId
-      ? `1. Download GoLogin (free plan) from gologin.com\n2. Log in with the email: ${user.email}\n3. You'll find the shared profile in your GoLogin dashboard\n4. Click "Start" to launch the browser with LinkedIn already logged in.`
-      : "Access instructions will be provided by our team shortly.";
+  for (const linkedinAccountId of accountIds) {
+    // Per-(subscription, account) idempotency — one subscription can cover several accounts.
+    const existing = await prisma.rental.findFirst({
+      where: { stripeSubscriptionId: subscriptionId, linkedinAccountId },
+    });
+    if (existing) continue;
 
-    await sendWelcomeEmail(user.email, account.linkedinName, instructions);
+    const account = await prisma.linkedInAccount.findUnique({
+      where: { id: linkedinAccountId },
+    });
+    if (!account) continue;
 
-    // Notify admin of the new rental (non-blocking)
+    // Created in "pending_access": paid + account reserved, but our team still vets
+    // the renter and frees the account internally before granting GoLogin access.
+    await prisma.rental.create({
+      data: {
+        userId,
+        linkedinAccountId,
+        stripeSubscriptionId: subscriptionId,
+        currentPeriodEnd: getPeriodEnd(subscription),
+        status: "pending_access",
+      },
+    });
+
+    await prisma.linkedInAccount.update({
+      where: { id: linkedinAccountId },
+      data: { status: "rented" },
+    });
+
+    // Onboarding email — what to do now (set up GoLogin) + what to expect.
+    try {
+      await sendRentalOnboardingEmail(user.email, account.linkedinName);
+    } catch (e) {
+      console.error("Failed to send onboarding email:", e);
+    }
+
+    // Notify admin so they can vet + free the account + grant access.
     try {
       await sendRentalNotification({
         customerEmail: user.email,
@@ -185,10 +193,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     } catch (e) {
       console.error("Failed to send rental notification:", e);
     }
-  }
 
-  // Remove from waitlist if any
-  await prisma.waitlist.deleteMany({ where: { linkedinAccountId } });
+    // Remove from waitlist if any
+    await prisma.waitlist.deleteMany({ where: { linkedinAccountId } });
+  }
 }
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {

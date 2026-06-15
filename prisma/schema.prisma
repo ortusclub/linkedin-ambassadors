@@ -33,6 +33,7 @@ enum RentalStatus {
   expired
   cancelled
   payment_failed
+  pending_access
 }
 
 model User {
