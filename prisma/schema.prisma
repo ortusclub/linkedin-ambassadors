@@ -147,6 +147,9 @@ model Rental {
   campaignGoal          String?      @map("campaign_goal")
   // LinkedVelocity point of contact — who owns this renter relationship.
   lvPoc                 String?      @map("lv_poc")
+  // Which renewal-cadence emails have fired this cycle (e.g. ["reminder_3d","grace"]);
+  // cleared on renewal. Prevents duplicate sends from the daily cron.
+  renewalRemindersSent  Json         @default("[]") @map("renewal_reminders_sent")
   notes                 String?
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")

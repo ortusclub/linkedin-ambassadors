@@ -6,6 +6,10 @@
     {
       "path": "/api/cron/detect-deposits",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/process-renewals",
+      "schedule": "0 9 * * *"
     }
   ]
 }

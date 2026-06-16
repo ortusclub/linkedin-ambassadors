@@ -2,92 +2,108 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { revokeRentalAccess } from "@/lib/rental-access";
+import {
+  sendRenewalReminder3d,
+  sendRenewalGraceNotice,
+  sendRenewalWinBack,
+  sendRenewalConfirmation,
+} from "@/services/email";
 
+const DAY = 24 * 60 * 60 * 1000;
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+const firstNameOf = (full: string | null) => (full || "").trim().split(" ")[0] || "";
+
+// Daily renewal pass:
+//  - USDC auto-renew: charge from wallet at period end.
+//  - Manual renewals (auto-renew OFF): the 3-touch cadence — reminder (3d before) →
+//    grace notice (day of, 24h grace) → lapse+revoke (after grace) → win-back (+7d).
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const now = new Date();
+  const result = { renewed: 0, failed: 0, reminded: 0, graceNoticed: 0, lapsed: 0, winBack: 0 };
+
   try {
-    // Find USDC rentals due for renewal (within 24 hours or past due)
-    const cutoff = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const dueRentals = await prisma.rental.findMany({
-      where: {
-        usdcPayment: true,
-        status: "active",
-        autoRenew: true,
-        currentPeriodEnd: { lte: cutoff },
-      },
-      include: {
-        user: true,
-        linkedinAccount: true,
-      },
+    // 1) USDC auto-renew — charge from wallet balance at (or just before) period end.
+    const dueUsdc = await prisma.rental.findMany({
+      where: { usdcPayment: true, status: "active", autoRenew: true, currentPeriodEnd: { lte: new Date(now.getTime() + DAY) } },
+      include: { user: true, linkedinAccount: true },
     });
-
-    let renewed = 0;
-    let failed = 0;
-
-    for (const rental of dueRentals) {
-      const price = rental.linkedinAccount.monthlyPrice;
-
-      if (rental.user.usdcBalance.greaterThanOrEqualTo(price)) {
-        // Sufficient balance — renew
+    for (const r of dueUsdc) {
+      const price = r.linkedinAccount.monthlyPrice;
+      if (r.user.usdcBalance.greaterThanOrEqualTo(price)) {
+        const base = r.currentPeriodEnd && r.currentPeriodEnd > now ? new Date(r.currentPeriodEnd) : now;
+        const next = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
         await prisma.$transaction(async (tx) => {
-          await tx.user.update({
-            where: { id: rental.userId },
-            data: { usdcBalance: { decrement: price } },
-          });
-
+          await tx.user.update({ where: { id: r.userId }, data: { usdcBalance: { decrement: price } } });
           await tx.rental.update({
-            where: { id: rental.id },
-            data: {
-              currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
-            },
+            where: { id: r.id },
+            data: { currentPeriodEnd: next, renewalRemindersSent: [] as unknown as Prisma.InputJsonValue },
           });
-
           await tx.transaction.create({
             data: {
-              userId: rental.userId,
-              type: "rental_payment",
-              amount: new Prisma.Decimal(price.toString()).negated(),
-              rentalId: rental.id,
-              description: `Monthly renewal for ${rental.linkedinAccount.linkedinName}`,
+              userId: r.userId, type: "rental_payment",
+              amount: new Prisma.Decimal(price).negated(), rentalId: r.id,
+              description: `Monthly renewal for ${r.linkedinAccount.linkedinName}`,
             },
           });
         });
-        renewed++;
+        try { await sendRenewalConfirmation(r.user.email, r.linkedinAccount.linkedinName); } catch (e) { console.error(e); }
+        result.renewed++;
       } else {
-        // Insufficient balance — mark as failed and cut the renter's access
-        await prisma.rental.update({
-          where: { id: rental.id },
-          data: { status: "payment_failed" },
-        });
-        try { await revokeRentalAccess(rental.id); } catch (e) { console.error("revoke on payment_failed", rental.id, e); }
-        failed++;
+        await prisma.rental.update({ where: { id: r.id }, data: { status: "payment_failed" } });
+        try { await revokeRentalAccess(r.id); } catch (e) { console.error("revoke on payment_failed", r.id, e); }
+        result.failed++;
       }
     }
 
-    // Expire non-renewing rentals whose term has ended, and cut their GoLogin access.
-    const expiredRentals = await prisma.rental.findMany({
-      where: { status: "active", autoRenew: false, currentPeriodEnd: { lt: new Date() } },
-      select: { id: true },
+    // 2) Manual-renewal cadence — auto-renew OFF rentals (active or recently expired).
+    const manual = await prisma.rental.findMany({
+      where: { autoRenew: false, status: { in: ["active", "expired"] } },
+      include: { user: true, linkedinAccount: true },
     });
-    let expired = 0;
-    for (const r of expiredRentals) {
-      await prisma.rental.update({ where: { id: r.id }, data: { status: "expired" } });
-      try { await revokeRentalAccess(r.id); } catch (e) { console.error("revoke on expire", r.id, e); }
-      expired++;
+    for (const r of manual) {
+      if (!r.currentPeriodEnd) continue;
+      const end = new Date(r.currentPeriodEnd);
+      const sent = Array.isArray(r.renewalRemindersSent) ? (r.renewalRemindersSent as string[]) : [];
+      const renewUrl = `${APP_URL}/api/rentals/${r.id}/renew`;
+      const first = firstNameOf(r.user.fullName);
+      const name = r.linkedinAccount.linkedinName;
+      const amount = `$${Number(r.linkedinAccount.monthlyPrice).toFixed(0)}`;
+      const markSent = (stage: string) =>
+        prisma.rental.update({ where: { id: r.id }, data: { renewalRemindersSent: [...sent, stage] as unknown as Prisma.InputJsonValue } });
+
+      // Reminder — within 3 days before the end date.
+      if (r.status === "active" && now < end && end.getTime() - now.getTime() <= 3 * DAY && !sent.includes("reminder_3d")) {
+        try { await sendRenewalReminder3d(r.user.email, first, name, renewUrl, fmtDate(end), amount); await markSent("reminder_3d"); result.reminded++; } catch (e) { console.error(e); }
+        continue;
+      }
+      // Grace notice — on/after expiry, still within the 24h grace window.
+      if (r.status === "active" && now >= end && now < new Date(end.getTime() + DAY) && !sent.includes("grace")) {
+        try { await sendRenewalGraceNotice(r.user.email, first, name, renewUrl, fmtDate(new Date(end.getTime() + DAY)), amount); await markSent("grace"); result.graceNoticed++; } catch (e) { console.error(e); }
+        continue;
+      }
+      // Lapse — grace window passed, still unpaid → revoke + expire.
+      if (r.status === "active" && now >= new Date(end.getTime() + DAY)) {
+        await prisma.rental.update({ where: { id: r.id }, data: { status: "expired" } });
+        try { await revokeRentalAccess(r.id); } catch (e) { console.error("revoke on lapse", r.id, e); }
+        result.lapsed++;
+        continue;
+      }
+      // Soft win-back — 7 days after expiry, final touch.
+      if (r.status === "expired" && now >= new Date(end.getTime() + 7 * DAY) && !sent.includes("winback")) {
+        try { await sendRenewalWinBack(r.user.email, first, name, renewUrl, amount); await markSent("winback"); result.winBack++; } catch (e) { console.error(e); }
+        continue;
+      }
     }
 
-    return NextResponse.json({
-      processed: dueRentals.length,
-      renewed,
-      failed,
-      expired,
-    });
+    return NextResponse.json({ ok: true, ...result });
   } catch (error) {
-    console.error("Renewal processing error:", error);
+    console.error("Renewal cron error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -158,7 +158,7 @@ async function handleRentalRenewal(session: Stripe.Checkout.Session) {
 
   await prisma.rental.update({
     where: { id: rentalId },
-    data: { currentPeriodEnd: nextEnd, status: "active" },
+    data: { currentPeriodEnd: nextEnd, status: "active", renewalRemindersSent: [] },
   });
   await prisma.transaction.create({
     data: {
