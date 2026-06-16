@@ -34,6 +34,7 @@ export default function AdminCustomersPage() {
   const [editingDetails, setEditingDetails] = useState<Customer | null>(null);
   const [detailsText, setDetailsText] = useState("");
   const [savingDetails, setSavingDetails] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/customers")
@@ -74,6 +75,26 @@ export default function AdminCustomersPage() {
     setEditingDetails(null);
   };
 
+  const handleDelete = async (c: Customer) => {
+    if (!window.confirm(`Permanently delete ${c.fullName} (${c.email}) and ALL their data — rentals, transactions, sessions? This can't be undone.`)) return;
+    setDeleting(c.id);
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: c.id }),
+      });
+      if (res.ok) {
+        setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert("Failed: " + (d.error || res.status));
+      }
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   if (loading) return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-200" />)}</div>;
 
   return (
@@ -97,6 +118,7 @@ export default function AdminCustomersPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Active Rentals</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Total Rentals</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Joined</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -143,6 +165,17 @@ export default function AdminCustomersPage() {
                   <td className="px-4 py-3 text-sm text-gray-600">{c.activeRentals}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{c.totalRentals}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{formatDate(c.createdAt)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => handleDelete(c)}
+                      disabled={deleting === c.id}
+                      className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 whitespace-nowrap"
+                      title="Permanently delete this customer + all their data"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      {deleting === c.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
