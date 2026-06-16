@@ -24,8 +24,10 @@ export async function GET(req: NextRequest) {
     const amount = "$72";
 
     const sent: string[] = [];
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const send = async (label: string, fn: () => Promise<unknown>) => {
       try { await fn(); sent.push(label); } catch (e) { sent.push(`${label} (FAILED: ${e instanceof Error ? e.message : "err"})`); }
+      await sleep(700); // stay under Resend's ~2/sec rate limit
     };
 
     // Auto-renew OFF cadence
