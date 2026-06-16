@@ -112,6 +112,9 @@ model LinkedInAccount {
   gologinShareLink      String?       @map("gologin_share_link")
   linkedinAccountHealth String?       @default("unchecked") @map("linkedin_account_health")
   healthCheckedAt       DateTime?     @map("health_checked_at")
+  // Internal proof the account is real (email-exchange screenshot links / notes).
+  // Never shown publicly — shared with a renter per-case.
+  verificationProof     String?       @map("verification_proof")
   notes                 String?
   removedAt             DateTime?     @map("removed_at")
   removedBy             String?       @map("removed_by")

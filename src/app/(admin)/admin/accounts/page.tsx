@@ -30,6 +30,7 @@ interface Account {
   gologinShareLink: string | null;
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
+  verificationProof: string | null;
   removedAt: string | null;
   removedBy: string | null;
   rentals: Array<{
@@ -42,6 +43,7 @@ export default function AdminAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [savingProof, setSavingProof] = useState<string | null>(null);
 
   const [opening, setOpening] = useState<string | null>(null);
   const [openProfiles, setOpenProfiles] = useState<Set<string>>(new Set());
@@ -332,12 +334,32 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     }
   };
 
+  // Save the internal verification proof (email-screenshot links / notes) for an account.
+  const saveProof = async (id: string, current: string | null, value: string) => {
+    if (value === (current || "")) return;
+    setSavingProof(id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verificationProof: value || null }),
+      });
+      if (res.ok) {
+        setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, verificationProof: value || null } : a));
+      } else {
+        alert("Failed to save verification proof");
+      }
+    } finally {
+      setSavingProof(null);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Linked Accounts</h2>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">The rentable LinkedIn profile inventory — add, edit, search and manage every listed profile.</p>
+          <h2 className="text-2xl font-bold text-gray-900">Inventory</h2>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">Every LinkedIn account we own — status, who&apos;s renting it now, and internal verification proof. Add, edit, search and manage the rentable inventory.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowImport(true)}>Import CSV</Button>
@@ -417,6 +439,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Renter</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
@@ -428,6 +451,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">GoLogin Share</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Health</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500 min-w-[180px]">Verification</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase text-gray-500">For Rent</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -459,6 +483,16 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={statusVariant(a.status)}>{getDisplayStatus(a.status)}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    {a.rentals && a.rentals.length > 0 ? (
+                      <div>
+                        <p className="font-medium text-gray-900">{a.rentals[0].user.fullName}</p>
+                        <p className="text-gray-400">{a.rentals[0].user.email}</p>
+                      </div>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600">{a.ownerEmail || "—"}</td>
                   <td className="px-4 py-3 text-xs text-gray-600">{a.location || "—"}</td>
@@ -525,6 +559,16 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     {a.healthCheckedAt && (
                       <div className="text-[10px] text-gray-400 mt-0.5">{new Date(a.healthCheckedAt).toLocaleDateString()}</div>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <textarea
+                      defaultValue={a.verificationProof || ""}
+                      placeholder="Proof links / notes (private)…"
+                      rows={2}
+                      onBlur={(e) => saveProof(a.id, a.verificationProof, e.target.value.trim())}
+                      className="w-44 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
+                    />
+                    {savingProof === a.id && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end">

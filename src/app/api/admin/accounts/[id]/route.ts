@@ -25,6 +25,7 @@ const updateSchema = z.object({
   status: z.enum(["under_review", "available", "rented", "unavailable", "maintenance", "retired", "removed"]).optional(),
   gologinProfileId: z.string().nullable().optional(),
   gologinShareLink: z.string().nullable().optional(),
+  verificationProof: z.string().nullable().optional(),
 }).partial();
 
 export async function GET(
