@@ -46,6 +46,7 @@ model User {
   status            UserStatus @default(active)
   emailVerified     DateTime?  @map("email_verified")
   contactNumber     String?    @map("contact_number")
+  company           String?    @map("company")
   image             String?
   usdcBalance       Decimal    @default(0) @map("usdc_balance") @db.Decimal(18, 6)
   dismissAppModalUntil DateTime? @map("dismiss_app_modal_until")
@@ -138,6 +139,8 @@ model Rental {
   // GoLogin shares created for this rental, so we can revoke them on pause:
   // [{ email, shareId }]
   gologinShareIds       Json         @default("[]") @map("gologin_share_ids")
+  // Admin-only tracker note: campaign goal, flagged issues, etc.
+  notes                 String?
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")
 
