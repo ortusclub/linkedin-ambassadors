@@ -112,24 +112,14 @@ export async function DELETE(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const me = await requireAdmin();
+    await requireAdmin();
 
-    const { email, paymentMethod, paymentDetails, role } = await req.json();
+    const { email, paymentMethod, paymentDetails } = await req.json();
     if (!email) {
       return NextResponse.json({ error: "Missing email" }, { status: 400 });
     }
-
-    // Promote/demote a user's role (admin <-> customer).
-    if (role !== undefined) {
-      if (role !== "admin" && role !== "customer") {
-        return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-      }
-      const target = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-      if (target && target.id === me.id && role === "customer") {
-        return NextResponse.json({ error: "You can't remove your own admin access." }, { status: 400 });
-      }
-      await prisma.user.update({ where: { email }, data: { role } });
-    }
+    // Note: role/admin promotion is intentionally NOT editable here — granting admin
+    // is a rare, deliberate action done directly (not a casual button on a renter row).
 
     // Update payment method on ambassador application
     if (paymentMethod) {
