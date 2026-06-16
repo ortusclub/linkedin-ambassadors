@@ -131,6 +131,27 @@ export async function sendAccessReadyEmail(email: string, accountName: string) {
   });
 }
 
+// "Your rental renews soon — pay here" reminder with a Stripe payment link.
+// Used for manual/one-off renewals (e.g. manikaran) and as the pay-now building block.
+export async function sendRenewalLinkEmail(
+  email: string,
+  accountName: string,
+  payUrl: string,
+  dueDate: string,
+  amount: string
+) {
+  return sendEmail({
+    to: email,
+    subject: `Your LinkedVelocity rental of "${accountName}" renews soon`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 8px;"><strong>Time to renew "${accountName}".</strong></p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">Your rental renews on <strong>${dueDate}</strong>. To keep your access running with no interruption, complete your <strong>${amount}</strong> payment below.</p>
+      <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Pay &amp; renew →</a>
+      <p style="font-size:13px;color:#536471;line-height:1.6;margin:20px 0 0;">Please pay before ${dueDate} to avoid any downtime. Once paid, your rental extends automatically.</p>
+    `),
+  });
+}
+
 export async function sendRenewalReminder(
   email: string,
   accountName: string,
@@ -165,12 +186,11 @@ export async function sendRenewalReminder(
 export async function sendRenewalConfirmation(email: string, accountName: string) {
   return sendEmail({
     to: email,
-    subject: `Renewal confirmed: "${accountName}"`,
-    html: `
-      <h2>Renewal Successful</h2>
-      <p>Your rental of <strong>${accountName}</strong> has been renewed for another month.</p>
-      <p>— LinkedIn Ambassadors Team</p>
-    `,
+    subject: `Renewal confirmed — "${accountName}"`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 8px;"><strong>You're renewed! 🎉</strong></p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your rental of <strong>${accountName}</strong> has been renewed for another month — your access continues uninterrupted.</p>
+    `),
   });
 }
 

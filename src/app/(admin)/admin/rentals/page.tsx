@@ -108,6 +108,25 @@ export default function AdminRentalsPage() {
     }
   };
 
+  // Email the renter a Stripe payment link to renew their next month.
+  const handleSendRenewalLink = async (id: string) => {
+    if (!window.confirm("Email this renter a payment link to renew their next month?")) return;
+    setAccessBusy(id);
+    try {
+      const res = await fetch(`/api/admin/rentals/${id}/renewal-link`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        alert(`Renewal link emailed to ${data.sentTo}.`);
+      } else {
+        alert("Failed: " + (data.error || res.status));
+      }
+    } catch (e) {
+      alert("Request failed: " + (e instanceof Error ? e.message : ""));
+    } finally {
+      setAccessBusy(null);
+    }
+  };
+
   // Inline-edit tracker fields. company/industry live on the user; notes/campaignGoal on the rental.
   const USER_FIELDS = new Set(["company", "industry"]);
   const saveField = async (r: Rental, field: "company" | "industry" | "notes" | "campaignGoal" | "lvPoc", value: string) => {
@@ -332,6 +351,9 @@ export default function AdminRentalsPage() {
                           <button onClick={() => handleAccess(r.id, "revoke", isManualGrant(r))} disabled={accessBusy === r.id} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Pause"}</button>
                         ) : (
                           <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Grant"}</button>
+                        )}
+                        {(r.status === "active" || r.status === "payment_failed" || r.status === "expired") && (
+                          <button onClick={() => handleSendRenewalLink(r.id)} disabled={accessBusy === r.id} className="rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50 whitespace-nowrap">Send renewal link</button>
                         )}
                         {(r.status === "active" || r.status === "payment_failed" || r.status === "pending_access") && (
                           <button onClick={() => handleAccess(r.id, "end")} disabled={accessBusy === r.id} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 whitespace-nowrap">End</button>

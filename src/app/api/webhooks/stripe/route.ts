@@ -48,6 +48,8 @@ export async function POST(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.metadata?.type === "wallet_topup") {
           await handleWalletTopUp(session);
+        } else if (session.metadata?.type === "rental_renewal") {
+          await handleRentalRenewal(session);
         } else {
           await handleCheckoutCompleted(session);
         }
@@ -126,6 +128,51 @@ async function handleWalletTopUp(session: Stripe.Checkout.Session) {
     }
   } catch (e) {
     console.error("Failed to send top-up notification:", e);
+  }
+}
+
+// A one-off "renew this rental" payment (from the admin "Send renewal link"). Extends
+// the rental's period by a month, marks it active, logs the payment, confirms by email.
+async function handleRentalRenewal(session: Stripe.Checkout.Session) {
+  const rentalId = session.metadata?.rentalId;
+  if (!rentalId || session.payment_status !== "paid") return;
+
+  // Idempotency — don't double-extend if Stripe re-delivers the event.
+  const existing = await prisma.transaction.findFirst({
+    where: { description: `rental_renewal:${session.id}` },
+  });
+  if (existing) return;
+
+  const rental = await prisma.rental.findUnique({
+    where: { id: rentalId },
+    include: { user: true, linkedinAccount: true },
+  });
+  if (!rental) return;
+
+  // Extend from the later of (current period end, now) + 1 month.
+  const base = rental.currentPeriodEnd && rental.currentPeriodEnd > new Date()
+    ? new Date(rental.currentPeriodEnd)
+    : new Date();
+  const nextEnd = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
+  const price = Number(rental.linkedinAccount.monthlyPrice);
+
+  await prisma.rental.update({
+    where: { id: rentalId },
+    data: { currentPeriodEnd: nextEnd, status: "active" },
+  });
+  await prisma.transaction.create({
+    data: {
+      userId: rental.userId,
+      type: "rental_payment",
+      amount: -price,
+      rentalId,
+      description: `rental_renewal:${session.id}`,
+    },
+  });
+  try {
+    await sendRenewalConfirmation(rental.user.email, rental.linkedinAccount.linkedinName);
+  } catch (e) {
+    console.error("Failed to send renewal confirmation:", e);
   }
 }
 
