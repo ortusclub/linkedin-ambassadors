@@ -255,29 +255,52 @@ export async function sendRenewalConfirmation(email: string) {
   });
 }
 
-export async function sendPaymentFailedEmail(email: string, accountName: string) {
+// --- Auto-renew ON emails ---
+
+// Reassuring heads-up sent ~3 days before an auto-renewing rental renews.
+export async function sendRenewalHeadsUp(email: string, firstName: string, renewDate: string) {
+  const hi = firstName ? `Hi ${firstName},` : "Hi there,";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
   return sendEmail({
     to: email,
-    subject: `Payment failed for "${accountName}" — action required`,
-    html: `
-      <h2>Payment Failed</h2>
-      <p>We couldn't process payment for your rental of <strong>${accountName}</strong>.</p>
-      <p>Please <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard">update your payment method</a> to avoid losing access.</p>
-      <p>— LinkedIn Ambassadors Team</p>
-    `,
+    subject: `Your LinkedVelocity rental renews on ${renewDate} — nothing to do`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Just a quick heads-up that your LinkedVelocity rental renews on <strong>${renewDate}</strong>. Your account will keep running exactly as it is — no interruption.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 18px;">You don't need to do anything right now. If you'd like to review your plan or update your billing details, you can do that anytime below.</p>
+      <a href="${appUrl}/dashboard" style="display:inline-block;background:#F3F2EE;color:#0F1419;text-decoration:none;font-weight:600;font-size:14px;padding:11px 22px;border-radius:10px;">Manage billing</a>
+    `),
   });
 }
 
-export async function sendAccessRevokedEmail(email: string, accountName: string) {
+// Payment hiccup on an auto-renewing rental — access stays ON, we keep retrying.
+export async function sendPaymentFailedEmail(email: string, firstName: string, payUrl: string) {
+  const hi = firstName ? `Hi ${firstName},` : "Hi there,";
   return sendEmail({
     to: email,
-    subject: `Access revoked: "${accountName}"`,
-    html: `
-      <h2>Access Revoked</h2>
-      <p>Your rental of <strong>${accountName}</strong> has ended. Access has been revoked.</p>
-      <p>Browse our <a href="${process.env.NEXT_PUBLIC_APP_URL}/catalogue">catalogue</a> to rent another account.</p>
-      <p>— LinkedIn Ambassadors Team</p>
-    `,
+    subject: `Quick payment hiccup on your LinkedVelocity rental`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">We had trouble processing your latest payment — but no worries, <strong>your access is still on</strong>. We'll keep retrying automatically over the next few days.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 18px;">To avoid any interruption, you can settle it now in one click:</p>
+      <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Pay now →</a>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Having trouble? Message us on Telegram <a href="https://t.me/klabber_support_bot" style="color:#0A66C2;">@klabber_support_bot</a> and we'll sort it out.</p>
+    `),
+  });
+}
+
+// Access paused after payment couldn't be collected — pay to restore right away.
+export async function sendAccessRevokedEmail(email: string, firstName: string, payUrl: string) {
+  const hi = firstName ? `Hi ${firstName},` : "Hi there,";
+  return sendEmail({
+    to: email,
+    subject: `Your LinkedVelocity access has been paused`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">We weren't able to collect payment for your rental, so access has been paused for now. Your account and everything in it are safe — settle below and we'll restore your access right away.</p>
+      <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Pay &amp; restore →</a>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Questions? We're here on Telegram <a href="https://t.me/klabber_support_bot" style="color:#0A66C2;">@klabber_support_bot</a>.</p>
+    `),
   });
 }
 

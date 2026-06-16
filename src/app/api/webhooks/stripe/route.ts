@@ -266,6 +266,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     data: {
       currentPeriodEnd: getPeriodEnd(subscription),
       status: "active",
+      renewalRemindersSent: [],
     },
   });
 
@@ -287,10 +288,9 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     data: { status: "payment_failed" },
   });
 
-  await sendPaymentFailedEmail(
-    rental.user.email,
-    rental.linkedinAccount.linkedinName
-  );
+  const firstName = (rental.user.fullName || "").trim().split(" ")[0] || "";
+  const renewUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com"}/api/rentals/${rental.id}/renew`;
+  await sendPaymentFailedEmail(rental.user.email, firstName, renewUrl);
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -313,10 +313,9 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     data: { status: "available" },
   });
 
-  await sendAccessRevokedEmail(
-    rental.user.email,
-    rental.linkedinAccount.linkedinName
-  );
+  const firstName = (rental.user.fullName || "").trim().split(" ")[0] || "";
+  const renewUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com"}/api/rentals/${rental.id}/renew`;
+  await sendAccessRevokedEmail(rental.user.email, firstName, renewUrl);
 
   // Notify waitlist users
   const waitlistEntries = await prisma.waitlist.findMany({

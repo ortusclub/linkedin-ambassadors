@@ -7,6 +7,8 @@ import {
   sendRenewalGraceNotice,
   sendRenewalWinBack,
   sendRenewalConfirmation,
+  sendRenewalHeadsUp,
+  sendAccessRevokedEmail,
 } from "@/services/email";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -25,9 +27,24 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const result = { renewed: 0, failed: 0, reminded: 0, graceNoticed: 0, lapsed: 0, winBack: 0 };
+  const result = { renewed: 0, failed: 0, reminded: 0, graceNoticed: 0, lapsed: 0, winBack: 0, headsUp: 0 };
 
   try {
+    // 0) Auto-renew ON — reassuring heads-up ~3 days before renewal (Stripe + USDC).
+    const upcomingAuto = await prisma.rental.findMany({
+      where: { autoRenew: true, status: "active", currentPeriodEnd: { gt: now, lte: new Date(now.getTime() + 3 * DAY) } },
+      include: { user: true },
+    });
+    for (const r of upcomingAuto) {
+      const sent = Array.isArray(r.renewalRemindersSent) ? (r.renewalRemindersSent as string[]) : [];
+      if (sent.includes("heads_up") || !r.currentPeriodEnd) continue;
+      try {
+        await sendRenewalHeadsUp(r.user.email, firstNameOf(r.user.fullName), fmtDate(new Date(r.currentPeriodEnd)));
+        await prisma.rental.update({ where: { id: r.id }, data: { renewalRemindersSent: [...sent, "heads_up"] as unknown as Prisma.InputJsonValue } });
+        result.headsUp++;
+      } catch (e) { console.error(e); }
+    }
+
     // 1) USDC auto-renew — charge from wallet balance at (or just before) period end.
     const dueUsdc = await prisma.rental.findMany({
       where: { usdcPayment: true, status: "active", autoRenew: true, currentPeriodEnd: { lte: new Date(now.getTime() + DAY) } },
@@ -57,6 +74,7 @@ export async function POST(req: NextRequest) {
       } else {
         await prisma.rental.update({ where: { id: r.id }, data: { status: "payment_failed" } });
         try { await revokeRentalAccess(r.id); } catch (e) { console.error("revoke on payment_failed", r.id, e); }
+        try { await sendAccessRevokedEmail(r.user.email, firstNameOf(r.user.fullName), `${APP_URL}/api/rentals/${r.id}/renew`); } catch (e) { console.error(e); }
         result.failed++;
       }
     }
