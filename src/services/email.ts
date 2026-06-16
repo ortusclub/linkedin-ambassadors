@@ -136,7 +136,6 @@ export async function sendAccessReadyEmail(email: string, accountName: string) {
 export async function sendRenewalLinkEmail(
   email: string,
   firstName: string,
-  accountName: string,
   payUrl: string,
   dueDate: string,
   amount: string
@@ -144,10 +143,10 @@ export async function sendRenewalLinkEmail(
   const hi = firstName ? `Hi ${firstName},` : "Hi there,";
   return sendEmail({
     to: email,
-    subject: `Time to renew your LinkedVelocity account — "${accountName}"`,
+    subject: `Time to renew your LinkedVelocity rental`,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your rental of <strong>${accountName}</strong> is up for renewal on <strong>${dueDate}</strong>. We'd love for you to keep it going — renew below and your access carries on with <strong>zero interruption</strong>:</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your LinkedVelocity rental is up for renewal on <strong>${dueDate}</strong>. We'd love for you to keep it going — renew below and your access carries on with <strong>zero interruption</strong>:</p>
       <ul style="font-size:14px;color:#374151;line-height:1.9;margin:0 0 20px;padding-left:4px;list-style:none;">
         <li>✅ Your account stays exactly as it is — connections, history, everything</li>
         <li>✅ Your campaigns and outreach keep running, no re-setup</li>
@@ -165,15 +164,15 @@ export async function sendRenewalLinkEmail(
 
 // Email 1 — 3 days before the rental ends.
 export async function sendRenewalReminder3d(
-  email: string, firstName: string, accountName: string, renewUrl: string, endDate: string, amount: string
+  email: string, firstName: string, renewUrl: string, endDate: string, amount: string
 ) {
   const hi = firstName ? `Hi ${firstName},` : "Hi there,";
   return sendEmail({
     to: email,
-    subject: `Your "${accountName}" rental ends ${endDate} — renew to keep it going`,
+    subject: `Your LinkedVelocity rental ends ${endDate} — renew to keep it going`,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Quick heads-up — your rental of <strong>${accountName}</strong> ends on <strong>${endDate}</strong>. It's not set to auto-renew, so you'll need to renew to keep your access going.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Quick heads-up — your LinkedVelocity rental ends on <strong>${endDate}</strong>. It's not set to auto-renew, so you'll need to renew to keep your access going.</p>
       <a href="${renewUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Renew now → (${amount}/month)</a>
       <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Thanks for being part of LinkedVelocity! 💙</p>
     `),
@@ -182,16 +181,16 @@ export async function sendRenewalReminder3d(
 
 // Email 2 — day of expiry. Access stays on for a 24h grace window.
 export async function sendRenewalGraceNotice(
-  email: string, firstName: string, accountName: string, renewUrl: string, graceDeadline: string, amount: string
+  email: string, firstName: string, renewUrl: string, graceDeadline: string, amount: string
 ) {
   const hi = firstName ? `Hi ${firstName},` : "Hi there,";
   return sendEmail({
     to: email,
-    subject: `Your "${accountName}" access stays on for 24 more hours`,
+    subject: `Your LinkedVelocity rental — 24 hours left to renew`,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your rental of <strong>${accountName}</strong> ended today — but your access stays active for the next <strong>24 hours</strong> (until <strong>${graceDeadline}</strong>), so there's still time.</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 18px;">If it lapses, you'll lose access to the <strong>${accountName}</strong> profile through GoLogin, and any campaigns running on it will stop.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your LinkedVelocity rental ended today — but your access stays active for the next <strong>24 hours</strong> (until <strong>${graceDeadline}</strong>), so there's still time.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 18px;">If it lapses, you'll lose access to your rented account through GoLogin, and any campaigns running on it will stop.</p>
       <a href="${renewUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Renew now → (${amount}/month)</a>
     `),
   });
@@ -199,15 +198,15 @@ export async function sendRenewalGraceNotice(
 
 // Email 3 — 7 days after expiry, soft win-back. Final touch.
 export async function sendRenewalWinBack(
-  email: string, firstName: string, accountName: string, renewUrl: string, amount: string
+  email: string, firstName: string, renewUrl: string, amount: string
 ) {
   const hi = firstName ? `Hi ${firstName},` : "Hi there,";
   return sendEmail({
     to: email,
-    subject: `Your "${accountName}" is still here whenever you're ready`,
+    subject: `Your LinkedVelocity rental is still here whenever you're ready`,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your rental of <strong>${accountName}</strong> lapsed last week — but everything's intact and waiting for you. Coming back is zero-friction: the account is exactly where you left it, no re-setup.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your LinkedVelocity rental lapsed last week — but everything's intact and waiting for you. Coming back is zero-friction: the account is exactly where you left it, no re-setup.</p>
       <a href="${renewUrl}" style="display:inline-block;background:#00B85C;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Reactivate → (${amount}/month)</a>
       <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">That's the last we'll nudge you — thanks for being part of LinkedVelocity.</p>
     `),
@@ -245,13 +244,13 @@ export async function sendRenewalReminder(
   });
 }
 
-export async function sendRenewalConfirmation(email: string, accountName: string) {
+export async function sendRenewalConfirmation(email: string) {
   return sendEmail({
     to: email,
-    subject: `Renewal confirmed — "${accountName}"`,
+    subject: `Your LinkedVelocity rental is renewed 🎉`,
     html: brandWrap(`
       <p style="font-size:16px;margin:0 0 8px;"><strong>You're renewed! 🎉</strong></p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your rental of <strong>${accountName}</strong> has been renewed for another month — your access continues uninterrupted.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your LinkedVelocity rental has been renewed for another month — your access continues uninterrupted.</p>
     `),
   });
 }

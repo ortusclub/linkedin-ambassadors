@@ -70,7 +70,6 @@ export async function POST(
     await sendRenewalLinkEmail(
       rental.user.email,
       firstName,
-      rental.linkedinAccount.linkedinName,
       session.url,
       dueDate,
       `$${price.toFixed(0)}`,

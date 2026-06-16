@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
             },
           });
         });
-        try { await sendRenewalConfirmation(r.user.email, r.linkedinAccount.linkedinName); } catch (e) { console.error(e); }
+        try { await sendRenewalConfirmation(r.user.email); } catch (e) { console.error(e); }
         result.renewed++;
       } else {
         await prisma.rental.update({ where: { id: r.id }, data: { status: "payment_failed" } });
@@ -72,19 +72,18 @@ export async function POST(req: NextRequest) {
       const sent = Array.isArray(r.renewalRemindersSent) ? (r.renewalRemindersSent as string[]) : [];
       const renewUrl = `${APP_URL}/api/rentals/${r.id}/renew`;
       const first = firstNameOf(r.user.fullName);
-      const name = r.linkedinAccount.linkedinName;
       const amount = `$${Number(r.linkedinAccount.monthlyPrice).toFixed(0)}`;
       const markSent = (stage: string) =>
         prisma.rental.update({ where: { id: r.id }, data: { renewalRemindersSent: [...sent, stage] as unknown as Prisma.InputJsonValue } });
 
       // Reminder — within 3 days before the end date.
       if (r.status === "active" && now < end && end.getTime() - now.getTime() <= 3 * DAY && !sent.includes("reminder_3d")) {
-        try { await sendRenewalReminder3d(r.user.email, first, name, renewUrl, fmtDate(end), amount); await markSent("reminder_3d"); result.reminded++; } catch (e) { console.error(e); }
+        try { await sendRenewalReminder3d(r.user.email, first, renewUrl, fmtDate(end), amount); await markSent("reminder_3d"); result.reminded++; } catch (e) { console.error(e); }
         continue;
       }
       // Grace notice — on/after expiry, still within the 24h grace window.
       if (r.status === "active" && now >= end && now < new Date(end.getTime() + DAY) && !sent.includes("grace")) {
-        try { await sendRenewalGraceNotice(r.user.email, first, name, renewUrl, fmtDate(new Date(end.getTime() + DAY)), amount); await markSent("grace"); result.graceNoticed++; } catch (e) { console.error(e); }
+        try { await sendRenewalGraceNotice(r.user.email, first, renewUrl, fmtDate(new Date(end.getTime() + DAY)), amount); await markSent("grace"); result.graceNoticed++; } catch (e) { console.error(e); }
         continue;
       }
       // Lapse — grace window passed, still unpaid → revoke + expire.
@@ -96,7 +95,7 @@ export async function POST(req: NextRequest) {
       }
       // Soft win-back — 7 days after expiry, final touch.
       if (r.status === "expired" && now >= new Date(end.getTime() + 7 * DAY) && !sent.includes("winback")) {
-        try { await sendRenewalWinBack(r.user.email, first, name, renewUrl, amount); await markSent("winback"); result.winBack++; } catch (e) { console.error(e); }
+        try { await sendRenewalWinBack(r.user.email, first, renewUrl, amount); await markSent("winback"); result.winBack++; } catch (e) { console.error(e); }
         continue;
       }
     }
