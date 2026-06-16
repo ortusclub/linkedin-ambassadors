@@ -58,7 +58,6 @@ const createRentalSchema = z.object({
   userEmail: z.string().email(),
   linkedinAccountId: z.string().uuid(),
   startDate: z.string(),
-  endDate: z.string().optional(),
   autoRenew: z.boolean().default(true),
 });
 
@@ -79,13 +78,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
+    // Rentals are monthly — the period is always exactly 1 calendar month from start.
+    const start = new Date(data.startDate);
+    const periodEnd = new Date(start.getFullYear(), start.getMonth() + 1, start.getDate());
+
     const rental = await prisma.rental.create({
       data: {
         userId: user.id,
         linkedinAccountId: data.linkedinAccountId,
         status: "active",
-        startDate: new Date(data.startDate),
-        currentPeriodEnd: data.endDate ? new Date(data.endDate) : new Date(new Date(data.startDate).getTime() + 30 * 24 * 60 * 60 * 1000),
+        startDate: start,
+        currentPeriodEnd: periodEnd,
         autoRenew: data.autoRenew,
       },
     });

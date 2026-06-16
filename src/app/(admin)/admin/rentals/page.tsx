@@ -59,7 +59,7 @@ export default function AdminRentalsPage() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [addForm, setAddForm] = useState({ userEmail: "", linkedinAccountId: "", startDate: new Date().toISOString().split("T")[0], endDate: "", autoRenew: true });
+  const [addForm, setAddForm] = useState({ userEmail: "", linkedinAccountId: "", startDate: new Date().toISOString().split("T")[0], autoRenew: true });
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
   const [accessBusy, setAccessBusy] = useState<string | null>(null);
@@ -175,7 +175,7 @@ export default function AdminRentalsPage() {
     const res = await fetch("/api/admin/rentals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...addForm, endDate: addForm.endDate || undefined }),
+      body: JSON.stringify(addForm),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -185,7 +185,7 @@ export default function AdminRentalsPage() {
     }
     setShowAdd(false);
     setAdding(false);
-    setAddForm({ userEmail: "", linkedinAccountId: "", startDate: new Date().toISOString().split("T")[0], endDate: "", autoRenew: true });
+    setAddForm({ userEmail: "", linkedinAccountId: "", startDate: new Date().toISOString().split("T")[0], autoRenew: true });
     refreshRentals();
   };
 
@@ -421,15 +421,10 @@ export default function AdminRentalsPage() {
                   {accounts.map((a) => (<option key={a.id} value={a.id}>{getAccountLabel(a)}</option>))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                  <input type="date" value={addForm.startDate} onChange={(e) => setAddForm(f => ({ ...f, startDate: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date <span className="text-gray-400 font-normal">(optional)</span></label>
-                  <input type="date" value={addForm.endDate} onChange={(e) => setAddForm(f => ({ ...f, endDate: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <input type="date" value={addForm.startDate} onChange={(e) => setAddForm(f => ({ ...f, startDate: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                <p className="mt-1 text-xs text-gray-400">Billing period is 1 month — next billing date is set automatically to one month after the start date.</p>
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={addForm.autoRenew} onChange={(e) => setAddForm(f => ({ ...f, autoRenew: e.target.checked }))} className="rounded border-gray-300" />
