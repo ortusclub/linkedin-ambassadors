@@ -12,6 +12,14 @@ export interface TrackerRental {
   gologinShareIds?: unknown;
 }
 
+// True when access was granted but the system has no stored GoLogin share to
+// auto-revoke (e.g. it was shared manually). Such rentals still show "Granted",
+// but pausing them needs a manual GoLogin step too.
+export function isManualGrant(r: TrackerRental): boolean {
+  const shares = Array.isArray(r.gologinShareIds) ? (r.gologinShareIds as ShareRef[]) : [];
+  return shares.length === 0 && !!r.accessGrantedAt && !r.accessRevokedAt && !r.paused;
+}
+
 export function paymentMethod(r: TrackerRental): "USDC" | "Stripe" {
   return r.usdcPayment ? "USDC" : "Stripe";
 }
@@ -39,6 +47,8 @@ export function accessStatus(r: TrackerRental): "Granted" | "Paused" | "Revoked"
   if (r.paused) return "Paused";
   const shares = Array.isArray(r.gologinShareIds) ? (r.gologinShareIds as ShareRef[]) : [];
   if (shares.length > 0) return "Granted";
+  // Granted manually (no stored share) — still counts as granted.
+  if (r.accessGrantedAt && !r.accessRevokedAt) return "Granted";
   if (r.accessRevokedAt) return "Revoked";
   return "Not granted";
 }

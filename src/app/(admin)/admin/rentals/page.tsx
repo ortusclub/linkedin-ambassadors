@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { paymentMethod, paymentStatus, accessStatus } from "@/lib/rental-tracker";
+import { paymentMethod, paymentStatus, accessStatus, isManualGrant } from "@/lib/rental-tracker";
 
 interface Rental {
   id: string;
@@ -68,8 +68,11 @@ export default function AdminRentalsPage() {
   const refreshRentals = () =>
     fetch("/api/admin/rentals").then((r) => r.json()).then((d) => setRentals(d.rentals || []));
 
-  const handleAccess = async (rentalId: string, action: "grant" | "revoke" | "end") => {
+  const handleAccess = async (rentalId: string, action: "grant" | "revoke" | "end", manualGrant = false) => {
     if (action === "end" && !window.confirm("End this rental permanently? This cuts the renter's GoLogin access and marks the rental cancelled (no resume).")) return;
+    // Access was shared manually (no system-tracked share), so we can mark it
+    // paused but can't auto-cut it — the admin must also remove it in GoLogin.
+    if (action === "revoke" && manualGrant && !window.confirm("This access was granted manually, so there's no stored share for us to revoke automatically. We'll mark it Paused here — but you must ALSO remove the share in GoLogin yourself. Continue?")) return;
     setAccessBusy(rentalId);
     try {
       const res = await fetch(`/api/admin/rentals/${rentalId}/access`, {
@@ -311,10 +314,10 @@ export default function AdminRentalsPage() {
                     <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmt(r.accessGrantedAt)}</td>
                     <td className="px-3 py-3">
                       <div className="flex flex-col gap-1.5">
-                        {r.paused ? (
+                        {acc === "Paused" ? (
                           <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Resume"}</button>
-                        ) : (r.gologinShareIds?.length ?? 0) > 0 ? (
-                          <button onClick={() => handleAccess(r.id, "revoke")} disabled={accessBusy === r.id} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Pause"}</button>
+                        ) : acc === "Granted" ? (
+                          <button onClick={() => handleAccess(r.id, "revoke", isManualGrant(r))} disabled={accessBusy === r.id} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Pause"}</button>
                         ) : (
                           <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Grant"}</button>
                         )}
