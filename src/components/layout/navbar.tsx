@@ -53,12 +53,12 @@ export function Navbar() {
         .kl-navbar{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(20px);border-bottom:1px solid #E8E6E1;transition:background .2s,border-color .2s}
         .kl-navbar.kl-renter{background:rgba(238,244,251,0.95);border-bottom-color:#cfe0f4}
         .kl-navbar.kl-amb{background:rgba(241,250,244,0.95);border-bottom-color:#cdebd9}
-        .kl-navbar-inner{max-width:1200px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between}
-        .kl-logo{font-family:'Montserrat',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.03em;color:#1D1B16;text-decoration:none;display:flex;align-items:center;gap:8px}
+        .kl-navbar-inner{max-width:1200px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;gap:28px}
+        .kl-logo{font-family:'Montserrat',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.03em;color:#1D1B16;text-decoration:none;display:flex;align-items:center;gap:8px;flex-shrink:0}
         .kl-logo-mark{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;flex-shrink:0;letter-spacing:-0.03em}
         .kl-renter .kl-logo-mark{background:linear-gradient(135deg,#0A66C2,#004182)}
         .kl-amb .kl-logo-mark{background:linear-gradient(135deg,#00B85C,#007A3D)}
-        .kl-tag{font-family:'Karla',sans-serif;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;margin-left:4px;white-space:nowrap}
+        .kl-tag{font-family:'Karla',sans-serif;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap;flex-shrink:0}
         .kl-tag-rent{color:#0A66C2;background:#E8F1FA;border:1px solid #bcd9f5}
         .kl-tag-amb{color:#007A3D;background:#E6F9EE;border:1px solid #bbf0d4}
         .kl-nav-links{display:flex;align-items:center;gap:24px}
