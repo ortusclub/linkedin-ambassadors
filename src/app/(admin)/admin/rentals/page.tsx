@@ -17,6 +17,7 @@ interface Rental {
   accessRevokedAt: string | null;
   notes: string | null;
   campaignGoal: string | null;
+  lvPoc: string | null;
   renterAccountsLive: number;
   gologinShareIds: { email: string; shareId: string }[];
   user: { id: string; fullName: string; email: string; contactNumber: string | null; company: string | null; industry: string | null; createdAt: string };
@@ -109,11 +110,12 @@ export default function AdminRentalsPage() {
 
   // Inline-edit tracker fields. company/industry live on the user; notes/campaignGoal on the rental.
   const USER_FIELDS = new Set(["company", "industry"]);
-  const saveField = async (r: Rental, field: "company" | "industry" | "notes" | "campaignGoal", value: string) => {
+  const saveField = async (r: Rental, field: "company" | "industry" | "notes" | "campaignGoal" | "lvPoc", value: string) => {
     const current =
       field === "company" ? (r.user.company || "") :
       field === "industry" ? (r.user.industry || "") :
-      field === "campaignGoal" ? (r.campaignGoal || "") : (r.notes || "");
+      field === "campaignGoal" ? (r.campaignGoal || "") :
+      field === "lvPoc" ? (r.lvPoc || "") : (r.notes || "");
     if (value === current) return;
     setSavingField(`${r.id}:${field}`);
     try {
@@ -174,7 +176,7 @@ export default function AdminRentalsPage() {
   };
 
   const downloadCsv = () => {
-    const headers = ["Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry", "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date", "Auto-Renew", "Payment Method", "Payment Status", "Campaign Goal", "Notes"];
+    const headers = ["Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry", "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date", "Auto-Renew", "Payment Method", "Payment Status", "LV PoC", "Campaign Goal", "Notes"];
     const cell = (v: unknown) => {
       const s = v === null || v === undefined ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -184,7 +186,7 @@ export default function AdminRentalsPage() {
       r.user.company || r.user.fullName, r.user.fullName, r.user.email, r.user.contactNumber || "",
       r.user.industry || "", String(r.renterAccountsLive), r.linkedinAccount.linkedinName,
       d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", paymentMethod(r), paymentStatus(r),
-      r.campaignGoal || "", r.notes || "",
+      r.lvPoc || "", r.campaignGoal || "", r.notes || "",
     ]);
     const csv = [headers, ...rows].map((row) => row.map(cell).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -236,6 +238,7 @@ export default function AdminRentalsPage() {
                 <th className="px-3 py-3">Billing</th>
                 <th className="px-3 py-3 text-center">Auto-Renew</th>
                 <th className="px-3 py-3">Payment</th>
+                <th className="px-3 py-3">LV PoC</th>
                 <th className="px-3 py-3 min-w-[170px]">Campaign Goal</th>
                 <th className="px-3 py-3 min-w-[180px]">Notes</th>
                 <th className="px-3 py-3">Access</th>
@@ -287,6 +290,15 @@ export default function AdminRentalsPage() {
                     <td className="px-3 py-3">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${PAY_BADGE[pay]}`}>{pay}</span>
                       <p className="mt-1 text-xs text-gray-500">{paymentMethod(r)}</p>
+                    </td>
+                    <td className="px-3 py-3">
+                      <input
+                        defaultValue={r.lvPoc || ""}
+                        placeholder="—"
+                        onBlur={(e) => saveField(r, "lvPoc", e.target.value.trim())}
+                        className="w-24 rounded border border-transparent bg-transparent px-1.5 py-1 text-sm hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none"
+                      />
+                      {savingField === `${r.id}:lvPoc` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                     </td>
                     <td className="px-3 py-3">
                       <textarea

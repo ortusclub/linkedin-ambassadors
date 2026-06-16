@@ -142,6 +142,8 @@ model Rental {
   gologinShareIds       Json         @default("[]") @map("gologin_share_ids")
   // Admin-only tracker fields (match the internal Renter sheet).
   campaignGoal          String?      @map("campaign_goal")
+  // LinkedVelocity point of contact — who owns this renter relationship.
+  lvPoc                 String?      @map("lv_poc")
   notes                 String?
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")

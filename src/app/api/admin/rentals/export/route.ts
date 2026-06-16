@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   const headers = [
     "Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry",
     "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date",
-    "Auto-Renew", "Payment Method", "Payment Status", "Campaign Goal", "Notes",
+    "Auto-Renew", "Payment Method", "Payment Status", "LV PoC", "Campaign Goal", "Notes",
   ];
 
   const rows = rentals.map((r) => [
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
     r.autoRenew ? "Yes" : "No",
     paymentMethod(r),
     paymentStatus(r),
+    r.lvPoc || "",
     r.campaignGoal || "",
     r.notes || "",
   ]);

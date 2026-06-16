@@ -116,6 +116,7 @@ const patchSchema = z.object({
   company: z.string().nullable().optional(),
   industry: z.string().nullable().optional(),
   campaignGoal: z.string().nullable().optional(),
+  lvPoc: z.string().nullable().optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -131,9 +132,10 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Rental not found" }, { status: 404 });
     }
 
-    const rentalData: { notes?: string | null; campaignGoal?: string | null } = {};
+    const rentalData: { notes?: string | null; campaignGoal?: string | null; lvPoc?: string | null } = {};
     if (data.notes !== undefined) rentalData.notes = data.notes;
     if (data.campaignGoal !== undefined) rentalData.campaignGoal = data.campaignGoal;
+    if (data.lvPoc !== undefined) rentalData.lvPoc = data.lvPoc;
     if (Object.keys(rentalData).length) {
       await prisma.rental.update({ where: { id: data.id }, data: rentalData });
     }
