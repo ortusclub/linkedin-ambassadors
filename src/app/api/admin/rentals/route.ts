@@ -16,6 +16,7 @@ export async function GET() {
             email: true,
             contactNumber: true,
             company: true,
+            industry: true,
             createdAt: true,
           },
         },
@@ -113,6 +114,8 @@ const patchSchema = z.object({
   id: z.string().uuid(),
   notes: z.string().nullable().optional(),
   company: z.string().nullable().optional(),
+  industry: z.string().nullable().optional(),
+  campaignGoal: z.string().nullable().optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -128,11 +131,17 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Rental not found" }, { status: 404 });
     }
 
-    if (data.notes !== undefined) {
-      await prisma.rental.update({ where: { id: data.id }, data: { notes: data.notes } });
+    const rentalData: { notes?: string | null; campaignGoal?: string | null } = {};
+    if (data.notes !== undefined) rentalData.notes = data.notes;
+    if (data.campaignGoal !== undefined) rentalData.campaignGoal = data.campaignGoal;
+    if (Object.keys(rentalData).length) {
+      await prisma.rental.update({ where: { id: data.id }, data: rentalData });
     }
-    if (data.company !== undefined) {
-      await prisma.user.update({ where: { id: rental.userId }, data: { company: data.company } });
+    const userData: { company?: string | null; industry?: string | null } = {};
+    if (data.company !== undefined) userData.company = data.company;
+    if (data.industry !== undefined) userData.industry = data.industry;
+    if (Object.keys(userData).length) {
+      await prisma.user.update({ where: { id: rental.userId }, data: userData });
     }
 
     return NextResponse.json({ ok: true });

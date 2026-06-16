@@ -16,9 +16,10 @@ interface Rental {
   accessGrantedAt: string | null;
   accessRevokedAt: string | null;
   notes: string | null;
+  campaignGoal: string | null;
   renterAccountsLive: number;
   gologinShareIds: { email: string; shareId: string }[];
-  user: { id: string; fullName: string; email: string; contactNumber: string | null; company: string | null; createdAt: string };
+  user: { id: string; fullName: string; email: string; contactNumber: string | null; company: string | null; industry: string | null; createdAt: string };
   linkedinAccount: { id: string; linkedinName: string; connectionCount: number; gologinProfileId: string | null; notes: string | null };
 }
 
@@ -103,9 +104,13 @@ export default function AdminRentalsPage() {
     }
   };
 
-  // Save an inline-edited Company (on the user) or Notes (on the rental).
-  const saveField = async (r: Rental, field: "company" | "notes", value: string) => {
-    const current = field === "company" ? (r.user.company || "") : (r.notes || "");
+  // Inline-edit tracker fields. company/industry live on the user; notes/campaignGoal on the rental.
+  const USER_FIELDS = new Set(["company", "industry"]);
+  const saveField = async (r: Rental, field: "company" | "industry" | "notes" | "campaignGoal", value: string) => {
+    const current =
+      field === "company" ? (r.user.company || "") :
+      field === "industry" ? (r.user.industry || "") :
+      field === "campaignGoal" ? (r.campaignGoal || "") : (r.notes || "");
     if (value === current) return;
     setSavingField(`${r.id}:${field}`);
     try {
@@ -116,9 +121,8 @@ export default function AdminRentalsPage() {
       });
       setRentals((prev) => prev.map((x) => {
         if (x.id !== r.id) return x;
-        return field === "company"
-          ? { ...x, user: { ...x.user, company: value || null } }
-          : { ...x, notes: value || null };
+        if (USER_FIELDS.has(field)) return { ...x, user: { ...x.user, [field]: value || null } };
+        return { ...x, [field]: value || null };
       }));
     } catch {
       alert("Failed to save");
@@ -167,17 +171,17 @@ export default function AdminRentalsPage() {
   };
 
   const downloadCsv = () => {
-    const headers = ["Renter", "Email", "Contact", "Company", "Account", "GoLogin Profile ID", "Accounts Rented", "Start Date", "Next Billing", "Payment Method", "Payment Status", "Auto-Renew", "Access Status", "Joined", "Onboarded", "Notes"];
+    const headers = ["Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry", "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date", "Auto-Renew", "Payment Method", "Payment Status", "Campaign Goal", "Notes"];
     const cell = (v: unknown) => {
       const s = v === null || v === undefined ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const d = (s: string | null) => (s ? new Date(s).toISOString().slice(0, 10) : "");
     const rows = rentals.map((r) => [
-      r.user.fullName, r.user.email, r.user.contactNumber || "", r.user.company || "",
-      r.linkedinAccount.linkedinName, r.linkedinAccount.gologinProfileId || "", String(r.renterAccountsLive),
-      d(r.startDate), d(r.currentPeriodEnd), paymentMethod(r), paymentStatus(r),
-      r.autoRenew ? "On" : "Off", accessStatus(r), d(r.user.createdAt), d(r.accessGrantedAt), r.notes || "",
+      r.user.company || r.user.fullName, r.user.fullName, r.user.email, r.user.contactNumber || "",
+      r.user.industry || "", String(r.renterAccountsLive), r.linkedinAccount.linkedinName,
+      d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", paymentMethod(r), paymentStatus(r),
+      r.campaignGoal || "", r.notes || "",
     ]);
     const csv = [headers, ...rows].map((row) => row.map(cell).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -206,7 +210,7 @@ export default function AdminRentalsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Rentals &amp; Contracts</h2>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">Live tracker of every rental — renter, company, payment, access, and notes. Editable Company &amp; Notes save automatically.</p>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">Live tracker of every rental, matching the internal Renters sheet. Editable Company, Industry, Campaign Goal &amp; Notes save automatically. Download CSV / Google Sheets exports use the same column order.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={downloadCsv}>Download CSV</Button>
@@ -222,16 +226,17 @@ export default function AdminRentalsPage() {
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                <th className="px-3 py-3">Renter</th>
-                <th className="px-3 py-3">Company</th>
-                <th className="px-3 py-3">Account</th>
+                <th className="px-3 py-3">Renter / Company</th>
+                <th className="px-3 py-3">Industry</th>
+                <th className="px-3 py-3">Account(s)</th>
                 <th className="px-3 py-3 text-center">Accts</th>
+                <th className="px-3 py-3">Billing</th>
+                <th className="px-3 py-3 text-center">Auto-Renew</th>
                 <th className="px-3 py-3">Payment</th>
-                <th className="px-3 py-3">Dates</th>
-                <th className="px-3 py-3 text-center">Auto</th>
+                <th className="px-3 py-3 min-w-[170px]">Campaign Goal</th>
+                <th className="px-3 py-3 min-w-[180px]">Notes</th>
                 <th className="px-3 py-3">Access</th>
-                <th className="px-3 py-3">Joined / Live</th>
-                <th className="px-3 py-3 min-w-[200px]">Notes</th>
+                <th className="px-3 py-3">Live</th>
                 <th className="px-3 py-3">Manage</th>
               </tr>
             </thead>
@@ -242,18 +247,25 @@ export default function AdminRentalsPage() {
                 return (
                   <tr key={r.id} className="hover:bg-gray-50/60">
                     <td className="px-3 py-3">
-                      <p className="font-medium text-gray-900 whitespace-nowrap">{r.user.fullName}</p>
+                      <input
+                        defaultValue={r.user.company || ""}
+                        placeholder="Company…"
+                        onBlur={(e) => saveField(r, "company", e.target.value.trim())}
+                        className="w-32 rounded border border-transparent bg-transparent px-1.5 py-0.5 text-sm font-medium text-gray-900 hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none"
+                      />
+                      {savingField === `${r.id}:company` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
+                      <p className="text-xs text-gray-600 whitespace-nowrap mt-0.5">{r.user.fullName}</p>
                       <p className="text-xs text-gray-500">{r.user.email}</p>
                       {r.user.contactNumber && <p className="text-xs text-gray-400">{r.user.contactNumber}</p>}
                     </td>
                     <td className="px-3 py-3">
                       <input
-                        defaultValue={r.user.company || ""}
+                        defaultValue={r.user.industry || ""}
                         placeholder="—"
-                        onBlur={(e) => saveField(r, "company", e.target.value.trim())}
+                        onBlur={(e) => saveField(r, "industry", e.target.value.trim())}
                         className="w-28 rounded border border-transparent bg-transparent px-1.5 py-1 text-sm hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none"
                       />
-                      {savingField === `${r.id}:company` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
+                      {savingField === `${r.id}:industry` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                     </td>
                     <td className="px-3 py-3">
                       <p className="text-gray-800 whitespace-nowrap">{(r.linkedinAccount.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || r.linkedinAccount.linkedinName}</p>
@@ -262,34 +274,41 @@ export default function AdminRentalsPage() {
                       )}
                     </td>
                     <td className="px-3 py-3 text-center font-semibold text-gray-700">{r.renterAccountsLive}</td>
-                    <td className="px-3 py-3">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${PAY_BADGE[pay]}`}>{pay}</span>
-                      <p className="mt-1 text-xs text-gray-500">{paymentMethod(r)}</p>
-                    </td>
                     <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
                       <p>Start: {fmt(r.startDate)}</p>
                       <p>Next: {fmt(r.currentPeriodEnd)}</p>
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${r.autoRenew ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{r.autoRenew ? "On" : "Off"}</span>
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${r.autoRenew ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{r.autoRenew ? "Yes" : "No"}</span>
                     </td>
                     <td className="px-3 py-3">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${ACCESS_BADGE[acc]}`}>{acc}</span>
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${PAY_BADGE[pay]}`}>{pay}</span>
+                      <p className="mt-1 text-xs text-gray-500">{paymentMethod(r)}</p>
                     </td>
-                    <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
-                      <p>Joined: {fmt(r.user.createdAt)}</p>
-                      <p>Live: {fmt(r.accessGrantedAt)}</p>
+                    <td className="px-3 py-3">
+                      <textarea
+                        defaultValue={r.campaignGoal || ""}
+                        placeholder="Campaign goal…"
+                        rows={2}
+                        onBlur={(e) => saveField(r, "campaignGoal", e.target.value.trim())}
+                        className="w-40 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
+                      />
+                      {savingField === `${r.id}:campaignGoal` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                     </td>
                     <td className="px-3 py-3">
                       <textarea
                         defaultValue={r.notes || ""}
-                        placeholder="Campaign goal, issues…"
+                        placeholder="Issues, internal notes…"
                         rows={2}
                         onBlur={(e) => saveField(r, "notes", e.target.value.trim())}
-                        className="w-48 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
+                        className="w-44 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
                       />
                       {savingField === `${r.id}:notes` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                     </td>
+                    <td className="px-3 py-3">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${ACCESS_BADGE[acc]}`}>{acc}</span>
+                    </td>
+                    <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmt(r.accessGrantedAt)}</td>
                     <td className="px-3 py-3">
                       <div className="flex flex-col gap-1.5">
                         {r.paused ? (

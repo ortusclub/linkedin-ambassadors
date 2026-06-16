@@ -29,8 +29,8 @@ export async function GET(req: NextRequest) {
 
   const rentals = await prisma.rental.findMany({
     include: {
-      user: { select: { id: true, fullName: true, email: true, contactNumber: true, company: true, createdAt: true } },
-      linkedinAccount: { select: { linkedinName: true, gologinProfileId: true } },
+      user: { select: { id: true, fullName: true, email: true, contactNumber: true, company: true, industry: true } },
+      linkedinAccount: { select: { linkedinName: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -42,28 +42,27 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Column order mirrors the internal "Renters" sheet so it drops straight in.
   const headers = [
-    "Renter", "Email", "Contact", "Company", "Account", "GoLogin Profile ID",
-    "Accounts Rented", "Start Date", "Next Billing", "Payment Method",
-    "Payment Status", "Auto-Renew", "Access Status", "Joined", "Onboarded", "Notes",
+    "Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry",
+    "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date",
+    "Auto-Renew", "Payment Method", "Payment Status", "Campaign Goal", "Notes",
   ];
 
   const rows = rentals.map((r) => [
+    r.user.company || r.user.fullName,
     r.user.fullName,
     r.user.email,
     r.user.contactNumber || "",
-    r.user.company || "",
-    r.linkedinAccount.linkedinName,
-    r.linkedinAccount.gologinProfileId || "",
+    r.user.industry || "",
     String(liveCounts.get(r.userId) || 0),
+    r.linkedinAccount.linkedinName,
     fmtDate(r.startDate),
     fmtDate(r.currentPeriodEnd),
+    r.autoRenew ? "Yes" : "No",
     paymentMethod(r),
     paymentStatus(r),
-    r.autoRenew ? "On" : "Off",
-    accessStatus({ ...r, gologinShareIds: r.gologinShareIds }),
-    fmtDate(r.user.createdAt),
-    fmtDate(r.accessGrantedAt),
+    r.campaignGoal || "",
     r.notes || "",
   ]);
 
