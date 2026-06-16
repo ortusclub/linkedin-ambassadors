@@ -131,23 +131,31 @@ export async function sendAccessReadyEmail(email: string, accountName: string) {
   });
 }
 
-// "Your rental renews soon — pay here" reminder with a Stripe payment link.
+// Friendly "your rental renews soon — pay here" reminder with a Stripe payment link.
 // Used for manual/one-off renewals (e.g. manikaran) and as the pay-now building block.
 export async function sendRenewalLinkEmail(
   email: string,
+  firstName: string,
   accountName: string,
   payUrl: string,
   dueDate: string,
   amount: string
 ) {
+  const hi = firstName ? `Hi ${firstName},` : "Hi there,";
   return sendEmail({
     to: email,
-    subject: `Your LinkedVelocity rental of "${accountName}" renews soon`,
+    subject: `Time to renew your LinkedVelocity account — "${accountName}"`,
     html: brandWrap(`
-      <p style="font-size:16px;margin:0 0 8px;"><strong>Time to renew "${accountName}".</strong></p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">Your rental renews on <strong>${dueDate}</strong>. To keep your access running with no interruption, complete your <strong>${amount}</strong> payment below.</p>
-      <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Pay &amp; renew →</a>
-      <p style="font-size:13px;color:#536471;line-height:1.6;margin:20px 0 0;">Please pay before ${dueDate} to avoid any downtime. Once paid, your rental extends automatically.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your rental of <strong>${accountName}</strong> is up for renewal on <strong>${dueDate}</strong>. We'd love for you to keep it going — renew below and your access carries on with <strong>zero interruption</strong>:</p>
+      <ul style="font-size:14px;color:#374151;line-height:1.9;margin:0 0 20px;padding-left:4px;list-style:none;">
+        <li>✅ Your account stays exactly as it is — connections, history, everything</li>
+        <li>✅ Your campaigns and outreach keep running, no re-setup</li>
+        <li>✅ Locked in for another month at <strong>${amount}</strong></li>
+      </ul>
+      <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Renew now →</a>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">It takes about a minute, and once it's done you're set for the month. Need a hand? Just reach out on Telegram <a href="https://t.me/klabber_support_bot" style="color:#0A66C2;">@klabber_support_bot</a> — happy to help.</p>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:14px 0 0;">Thanks for being part of LinkedVelocity! 💙</p>
     `),
   });
 }

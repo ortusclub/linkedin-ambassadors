@@ -66,8 +66,10 @@ export async function POST(
       ? new Date(rental.currentPeriodEnd).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
       : "your renewal date";
 
+    const firstName = (rental.user.fullName || "").trim().split(" ")[0] || "";
     await sendRenewalLinkEmail(
       rental.user.email,
+      firstName,
       rental.linkedinAccount.linkedinName,
       session.url,
       dueDate,
