@@ -150,6 +150,9 @@ model Rental {
   // Which renewal-cadence emails have fired this cycle (e.g. ["reminder_3d","grace"]);
   // cleared on renewal. Prevents duplicate sends from the daily cron.
   renewalRemindersSent  Json         @default("[]") @map("renewal_reminders_sent")
+  // Auto-grant retry counter: how many times the cron has tried to share GoLogin
+  // access (the renter must have set up GoLogin first). Bounded to avoid looping.
+  accessGrantAttempts   Int          @default(0) @map("access_grant_attempts")
   notes                 String?
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")
