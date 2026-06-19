@@ -7,9 +7,9 @@ function getResend(): Resend {
   }
   return _resend;
 }
-const from = process.env.RESEND_FROM_EMAIL || "noreply@linkedinambassadors.com";
+const from = process.env.RESEND_FROM_EMAIL || "LinkedVelocity <noreply@linkedvelocity.com>";
 // Where internal admin notifications (top-ups, rentals) are sent.
-const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "info@klabber.co";
+const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "info@linkedvelocity.com";
 
 interface EmailOptions {
   to: string | string[];
@@ -450,6 +450,39 @@ export async function sendTestAccountLead(name: string, email: string) {
   });
 }
 
+// Customer-facing receipt sent the moment a top-up lands (card via Stripe webhook,
+// or crypto via the deposit-detection cron). Method-aware so a card payment isn't
+// mislabelled as "USDC".
+export async function sendTopUpConfirmation(opts: {
+  email: string;
+  amount: number | string;
+  method: "card" | "crypto";
+  newBalance?: number | string;
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  const amountStr = Number(opts.amount).toFixed(2);
+  const paidLine = opts.method === "card"
+    ? "Your card payment went through and the funds are now on your balance."
+    : "Your USDC deposit was received and added to your balance.";
+  const balanceLine = opts.newBalance != null
+    ? `<p style="font-size:14px;color:#536471;line-height:1.6;margin:0 0 18px;">New balance: <strong style="color:#0F1419;">$${Number(opts.newBalance).toFixed(2)}</strong></p>`
+    : "";
+  return sendEmail({
+    to: opts.email,
+    subject: `Top-up confirmed — $${amountStr} added to your LinkedVelocity balance`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 8px;"><strong>You're topped up ✅</strong></p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">${paidLine}</p>
+      <div style="background:#F8F8F5;border-radius:12px;padding:16px 20px;margin:0 0 16px;">
+        <p style="margin:0;color:#0F1419;font-size:15px;"><strong>Amount added:</strong> $${amountStr}</p>
+        <p style="margin:8px 0 0;color:#536471;font-size:13px;">Paid by ${opts.method === "card" ? "card" : "USDC (Base network)"}</p>
+      </div>
+      ${balanceLine}
+      <a href="${appUrl}/catalogue" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 22px;border-radius:10px;">Browse accounts</a>
+    `),
+  });
+}
+
 export async function sendTopUpNotification(opts: {
   customerEmail: string;
   customerName?: string | null;
@@ -458,6 +491,7 @@ export async function sendTopUpNotification(opts: {
 }) {
   const amountStr = Number(opts.amount).toFixed(2);
   const methodLabel = opts.method === "card" ? "Card (Stripe)" : "Crypto (USDC on Base)";
+  const amountUnit = opts.method === "card" ? `$${amountStr}` : `$${amountStr} USDC`;
   return sendEmail({
     to: adminEmail,
     subject: `💰 New top-up: $${amountStr} (${opts.method})`,
@@ -466,7 +500,7 @@ export async function sendTopUpNotification(opts: {
         <h2 style="color:#0F1419;margin-bottom:8px;">New Balance Top-Up</h2>
         <p style="color:#536471;font-size:14px;margin-bottom:20px;">A customer just added funds to their LinkedVelocity balance.</p>
         <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;">
-          <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Amount:</strong> $${amountStr} USDC</p>
+          <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Amount:</strong> ${amountUnit}</p>
           <p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Method:</strong> ${methodLabel}</p>
           ${opts.customerName ? `<p style="margin:0 0 8px;color:#0F1419;font-size:14px;"><strong>Customer:</strong> ${opts.customerName}</p>` : ""}
           <p style="margin:0;color:#0F1419;font-size:14px;"><strong>Email:</strong> <a href="mailto:${opts.customerEmail}" style="color:#0A66C2;text-decoration:none;">${opts.customerEmail}</a></p>

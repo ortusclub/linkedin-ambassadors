@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ethers } from "ethers";
 import { getBaseProvider, getUsdcContract, getChildWallet, getTreasuryAddress, getTreasuryWallet, formatUsdc, parseUsdc } from "@/lib/wallet";
-import { sendTopUpNotification } from "@/services/email";
+import { sendTopUpNotification, sendTopUpConfirmation } from "@/services/email";
 
 export async function detectDeposits() {
   const deposits = await prisma.depositAddress.findMany({
@@ -44,6 +44,17 @@ export async function detectDeposits() {
         });
 
         results.push({ userId: deposit.userId, amount, address: deposit.address });
+
+        // Confirm to the customer (non-blocking)
+        try {
+          await sendTopUpConfirmation({
+            email: deposit.user.email,
+            amount,
+            method: "crypto",
+          });
+        } catch (e) {
+          console.error("Failed to send top-up confirmation:", e);
+        }
 
         // Notify admin of the new crypto top-up (non-blocking)
         try {

@@ -8,6 +8,7 @@ import {
   sendAccessRevokedEmail,
   sendAccountAvailableEmail,
   sendTopUpNotification,
+  sendTopUpConfirmation,
   sendRentalNotification,
 } from "@/services/email";
 import Stripe from "stripe";
@@ -97,10 +98,11 @@ async function handleWalletTopUp(session: Stripe.Checkout.Session) {
   });
   if (existing) return;
 
-  await prisma.$transaction([
+  const [updatedUser] = await prisma.$transaction([
     prisma.user.update({
       where: { id: userId },
       data: { usdcBalance: { increment: amountUsd } },
+      select: { email: true, fullName: true, usdcBalance: true },
     }),
     prisma.transaction.create({
       data: {
@@ -112,20 +114,26 @@ async function handleWalletTopUp(session: Stripe.Checkout.Session) {
     }),
   ]);
 
+  // Confirm to the customer (non-blocking) — they paid by card, so don't call it USDC.
+  try {
+    await sendTopUpConfirmation({
+      email: updatedUser.email,
+      amount: amountUsd,
+      method: "card",
+      newBalance: Number(updatedUser.usdcBalance),
+    });
+  } catch (e) {
+    console.error("Failed to send top-up confirmation:", e);
+  }
+
   // Notify admin of the new card top-up (non-blocking)
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true, fullName: true },
+    await sendTopUpNotification({
+      customerEmail: updatedUser.email,
+      customerName: updatedUser.fullName,
+      amount: amountUsd,
+      method: "card",
     });
-    if (user) {
-      await sendTopUpNotification({
-        customerEmail: user.email,
-        customerName: user.fullName,
-        amount: amountUsd,
-        method: "card",
-      });
-    }
   } catch (e) {
     console.error("Failed to send top-up notification:", e);
   }
