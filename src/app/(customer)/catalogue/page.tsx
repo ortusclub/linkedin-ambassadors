@@ -134,9 +134,8 @@ export default function CataloguePage() {
     if (showcaseAccts[i]) ordered.push(showcaseAccts[i]);
   }
 
-  // Teaser gate: logged-out visitors see a preview; the full list requires sign-in.
-  const visibleAccounts = user ? ordered : ordered.slice(0, 6);
-  const gatedCount = ordered.length - visibleAccounts.length;
+  // Show the full catalogue to everyone — we list exactly what we have, nothing hidden.
+  const visibleAccounts = ordered;
 
   return (
     <>
@@ -397,11 +396,10 @@ export default function CataloguePage() {
             </div>
           )}
 
-          {!loading && !user && gatedCount > 0 && (
+          {!loading && !user && (
             <div style={{marginTop:24,background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:'28px 32px',textAlign:'center'}}>
-              <div style={{fontSize:26,marginBottom:8}}>🔒</div>
-              <h3 style={{fontSize:20,fontWeight:600,color:'#0F1419',marginBottom:6,letterSpacing:'-0.02em'}}>Unlock the full catalogue</h3>
-              <p style={{fontSize:14,color:'#536471',marginBottom:18,maxWidth:460,marginLeft:'auto',marginRight:'auto',lineHeight:1.5}}>You&apos;re viewing a small preview. Create a free account to browse every available profile and rent.</p>
+              <h3 style={{fontSize:20,fontWeight:600,color:'#0F1419',marginBottom:6,letterSpacing:'-0.02em'}}>Ready to rent?</h3>
+              <p style={{fontSize:14,color:'#536471',marginBottom:18,maxWidth:460,marginLeft:'auto',marginRight:'auto',lineHeight:1.5}}>Create a free account to rent any of these profiles — it only takes a minute.</p>
               <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
                 <Link href="/register" style={{padding:'11px 22px',borderRadius:10,background:'linear-gradient(135deg,#0A66C2,#004182)',color:'#fff',fontSize:14,fontWeight:600,textDecoration:'none'}}>Create free account</Link>
                 <Link href="/login" style={{padding:'11px 22px',borderRadius:10,background:'#F3F2EE',color:'#0F1419',fontSize:14,fontWeight:600,textDecoration:'none'}}>Sign in</Link>
@@ -412,9 +410,9 @@ export default function CataloguePage() {
           {!loading && accounts.length > 0 && (
             <div style={{marginTop:32,background:'linear-gradient(135deg,#0A66C2 0%,#004182 100%)',borderRadius:16,padding:'32px 40px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:24,flexWrap:'wrap',color:'#fff'}}>
               <div style={{flex:'1 1 320px',minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:600,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.7)',marginBottom:8}}>Plus 100s more accounts</div>
+                <div style={{fontSize:12,fontWeight:600,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.7)',marginBottom:8}}>Need a hand?</div>
                 <h3 style={{fontSize:22,fontWeight:600,letterSpacing:'-0.02em',marginBottom:6,color:'#fff'}}>Looking for something specific?</h3>
-                <p style={{fontSize:14,color:'rgba(255,255,255,0.85)',lineHeight:1.5}}>Book a meeting to explore more opportunities — we have hundreds of additional accounts not listed here.</p>
+                <p style={{fontSize:14,color:'rgba(255,255,255,0.85)',lineHeight:1.5}}>Book a quick call and we&apos;ll help match you to the right account for your campaign.</p>
               </div>
               <a
                 href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
