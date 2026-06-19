@@ -273,9 +273,9 @@ function CheckoutContent() {
             {/* Step 1 */}
             <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:28}}>
               <div style={{width:40,height:40,borderRadius:12,background:'#E8F1FA',color:'#0A66C2',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:18,fontFamily:"'Montserrat',sans-serif",marginBottom:16}}>1</div>
-              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Montserrat',sans-serif"}}>Download the LinkedVelocity App</h3>
+              <h3 style={{fontSize:17,fontWeight:700,color:'#0F1419',marginBottom:8,fontFamily:"'Montserrat',sans-serif"}}>Open Your Account in GoLogin</h3>
               <p style={{fontSize:13,color:'#536471',lineHeight:1.6}}>
-                Download and install the LinkedVelocity desktop app. Your rented accounts will appear automatically inside the app, ready to use.
+                Each rented account&apos;s browser profile is shared straight to your own GoLogin account. Just sign in to GoLogin and it&apos;s there, ready to open in one click.
               </p>
             </div>
 

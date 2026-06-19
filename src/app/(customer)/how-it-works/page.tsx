@@ -32,8 +32,8 @@ const renterSteps = [
     text: "Rentals are monthly subscriptions and renew automatically. Cancel anytime from your dashboard with no penalty.",
   },
   {
-    name: "Download the LinkedVelocity desktop app",
-    text: "Your rented accounts appear inside the LinkedVelocity desktop app, each as its own isolated GoLogin browser profile with a dedicated residential proxy.",
+    name: "Open your account in GoLogin",
+    text: "Each rented account's browser profile is shared straight to your own GoLogin account, each as its own isolated profile with a dedicated residential proxy.",
   },
   {
     name: "Open and run your campaigns",
@@ -79,7 +79,7 @@ export default function HowItWorksPage() {
     totalTime: "PT10M",
     estimatedCost: { "@type": "MonetaryAmount", currency: "USD", value: "10" },
     supply: [{ "@type": "HowToSupply", name: "Email address" }, { "@type": "HowToSupply", name: "USDC or credit card for monthly payment" }],
-    tool: [{ "@type": "HowToTool", name: "LinkedVelocity desktop app (Mac/Windows)" }],
+    tool: [{ "@type": "HowToTool", name: "GoLogin account (Mac/Windows)" }],
     step: renterSteps.map((s, i) => ({
       "@type": "HowToStep",
       position: i + 1,

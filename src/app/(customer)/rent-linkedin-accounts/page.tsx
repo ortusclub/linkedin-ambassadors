@@ -77,7 +77,7 @@ const faqs = [
   },
   {
     q: "How quickly can I start sending messages?",
-    a: "Same day. After checkout, your rented account appears in the LinkedVelocity desktop app. Click to open the GoLogin browser session — the account is already logged in and ready for outreach. Install your preferred automation tool and start sending connection requests and messages immediately.",
+    a: "Same day. After checkout, the account's browser profile is shared straight to your own GoLogin account. Click to open the GoLogin browser session — the account is already logged in and ready for outreach. Install your preferred automation tool and start sending connection requests and messages immediately.",
   },
   {
     q: "Can I use my own LinkedIn tools with a rented account?",
@@ -352,7 +352,7 @@ export default function RentLinkedInAccountsPage() {
             {[
               { name: "Browse the catalogue", text: "Filter accounts by industry, connection count, geography, and Sales Navigator status. Every listing shows price, stats, and current availability." },
               { name: "Select and check out", text: "Add one or more accounts to your cart. Pay monthly via Stripe (credit card) or USDC (crypto on Base network). No upfront fees, no contracts." },
-              { name: "Download the LinkedVelocity app", text: "Your rented accounts appear in the LinkedVelocity desktop app (Mac/Windows). Each account is its own isolated GoLogin browser profile." },
+              { name: "Open your account in GoLogin", text: "Each rented account's browser profile is shared straight to your own GoLogin account. Each account is its own isolated GoLogin browser profile." },
               { name: "Open and start outreach", text: "Click the account to open a real Chrome session. Install Dripify, Expandi, Linked Helper, or any extension. Send connection requests and messages the same day." },
             ].map((s, i) => (
               <div className="rent-step" key={s.name}>

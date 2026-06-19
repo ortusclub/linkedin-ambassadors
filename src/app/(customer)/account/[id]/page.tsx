@@ -273,10 +273,10 @@ export default function AccountDetailPage() {
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">What You Get</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    { title: "LinkedVelocity Desktop App", desc: "Secure browser session managed through the LinkedVelocity app" },
+                    { title: "Opens in GoLogin", desc: "Browser profile shared straight to your own GoLogin account" },
                     { title: "Dedicated Proxy", desc: "Residential proxy assigned exclusively to this account" },
                     { title: "Pre-Authenticated", desc: "LinkedIn session already logged in and ready to use" },
-                    { title: "Works Anywhere", desc: "Access from any device with the LinkedVelocity app installed" },
+                    { title: "Works Anywhere", desc: "Access from any device with GoLogin installed" },
                     { title: "Cancel Anytime", desc: "No lock-in, cancel your subscription whenever you want" },
                     { title: "Email Reminders", desc: "Renewal notifications so you're always in control" },
                   ].map((item) => (
