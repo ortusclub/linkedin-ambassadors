@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       include: { user: true, linkedinAccount: true },
     });
     for (const r of dueUsdc) {
-      const price = r.linkedinAccount.monthlyPrice;
+      const price = r.lockedPrice ?? r.linkedinAccount.monthlyPrice;
       if (r.user.usdcBalance.greaterThanOrEqualTo(price)) {
         const base = r.currentPeriodEnd && r.currentPeriodEnd > now ? new Date(r.currentPeriodEnd) : now;
         const next = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       const sent = Array.isArray(r.renewalRemindersSent) ? (r.renewalRemindersSent as string[]) : [];
       const renewUrl = `${APP_URL}/api/rentals/${r.id}/renew`;
       const first = firstNameOf(r.user.fullName);
-      const amount = `$${Number(r.linkedinAccount.monthlyPrice).toFixed(0)}`;
+      const amount = `$${Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice).toFixed(0)}`;
       const markSent = (stage: string) =>
         prisma.rental.update({ where: { id: r.id }, data: { renewalRemindersSent: [...sent, stage] as unknown as Prisma.InputJsonValue } });
 

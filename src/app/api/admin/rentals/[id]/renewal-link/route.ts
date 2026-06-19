@@ -25,7 +25,7 @@ export async function POST(
     });
     if (!rental) return NextResponse.json({ error: "Rental not found" }, { status: 404 });
 
-    const price = Number(rental.linkedinAccount.monthlyPrice);
+    const price = Number(rental.lockedPrice ?? rental.linkedinAccount.monthlyPrice);
     if (!price || price <= 0) {
       return NextResponse.json({ error: "This account has no monthly price set." }, { status: 400 });
     }

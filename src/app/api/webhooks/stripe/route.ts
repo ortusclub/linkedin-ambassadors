@@ -162,7 +162,7 @@ async function handleRentalRenewal(session: Stripe.Checkout.Session) {
     ? new Date(rental.currentPeriodEnd)
     : new Date();
   const nextEnd = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
-  const price = Number(rental.linkedinAccount.monthlyPrice);
+  const price = Number(rental.lockedPrice ?? rental.linkedinAccount.monthlyPrice);
 
   await prisma.rental.update({
     where: { id: rentalId },

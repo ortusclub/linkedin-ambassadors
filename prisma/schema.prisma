@@ -138,6 +138,10 @@ model Rental {
   status                RentalStatus @default(active)
   accessGrantedAt       DateTime?    @map("access_granted_at")
   usdcPayment           Boolean      @default(false) @map("usdc_payment")
+  // Per-rental price lock: when set, billing charges this instead of the account's
+  // current listed price. Lets us raise catalogue prices while grandfathering existing
+  // renters at their original rate (e.g. Nico locked at $50 while inventory lists $75).
+  lockedPrice           Decimal?     @map("locked_price") @db.Decimal(10, 2)
   accessRevokedAt       DateTime?    @map("access_revoked_at")
   paused                Boolean      @default(false)
   // GoLogin shares created for this rental, so we can revoke them on pause:
