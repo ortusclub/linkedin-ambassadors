@@ -19,21 +19,19 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    // Look up payment methods from ambassador applications
-    const emails = customers.map((c) => c.email);
-    const applications = emails.length > 0
-      ? await prisma.ambassadorApplication.findMany({
-          where: { email: { in: emails } },
-          select: { email: true, paymentMethod: true },
-          orderBy: { createdAt: "desc" },
+    // Auto-detect payment method from how they actually funded us:
+    // a Stripe card top-up => "Card", a crypto deposit => "Crypto Wallet".
+    const userIds = customers.map((c) => c.id);
+    const deposits = userIds.length > 0
+      ? await prisma.transaction.findMany({
+          where: { userId: { in: userIds }, type: "deposit" },
+          select: { userId: true, description: true },
         })
       : [];
-
-    const paymentMap = new Map<string, string>();
-    for (const app of applications) {
-      if (app.paymentMethod && !paymentMap.has(app.email)) {
-        paymentMap.set(app.email, app.paymentMethod);
-      }
+    const fundingByUser = new Map<string, "Card" | "Crypto Wallet">();
+    for (const d of deposits) {
+      if ((d.description || "").startsWith("stripe_topup")) fundingByUser.set(d.userId, "Card");
+      else if (!fundingByUser.has(d.userId)) fundingByUser.set(d.userId, "Crypto Wallet");
     }
 
     const result = customers.map((c) => ({
@@ -45,8 +43,7 @@ export async function GET() {
       createdAt: c.createdAt,
       activeRentals: c.rentals.filter((r) => r.status === "active").length,
       totalRentals: c._count.rentals,
-      paymentMethod: paymentMap.get(c.email) || "crypto_wallet",
-      paymentDetails: c.paymentDetails || "",
+      paymentMethod: fundingByUser.get(c.id) || "—",
     }));
 
     return NextResponse.json({ customers: result });
