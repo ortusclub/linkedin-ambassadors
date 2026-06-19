@@ -217,13 +217,37 @@ export default function AccountDetailPage() {
                   </div>
                   {account.linkedinHeadline && <p className="mt-0.5 text-sm text-gray-600">{account.linkedinHeadline}</p>}
                   <p className="mt-1 text-xs text-gray-400">{account.location ? `${account.location} · ` : ""}{formatNumber(account.connectionCount)} connections</p>
+
+                  {/* Highlights from the data we have — looks like a profile snapshot, no fakes */}
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    {[
+                      { label: "Connections", value: `${formatNumber(account.connectionCount)}+` },
+                      account.industry ? { label: "Industry", value: account.industry } : null,
+                      account.accountAgeMonths ? { label: "Account age", value: account.accountAgeMonths >= 12 ? `${Math.floor(account.accountAgeMonths / 12)}+ yr${Math.floor(account.accountAgeMonths / 12) > 1 ? "s" : ""}` : `${account.accountAgeMonths} mo` } : null,
+                      account.hasSalesNav ? { label: "Sales Navigator", value: "Active" } : null,
+                      account.location ? { label: "Location", value: account.location } : null,
+                    ].filter(Boolean).map((s) => (
+                      <div key={(s as { label: string }).label} className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{(s as { label: string }).label}</p>
+                        <p className="mt-0.5 text-sm font-semibold text-gray-900">{(s as { value: string }).value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Real profile screenshot if one's been uploaded for this account */}
+                  {account.profileScreenshotUrl && (
+                    <div className="mt-5 overflow-hidden rounded-xl border border-gray-200">
+                      <img src={account.profileScreenshotUrl} alt={`${displayName} LinkedIn profile`} className="w-full" />
+                    </div>
+                  )}
+
                   <div className="mt-6">
                     {account.linkedinUrl ? (
                       <a
                         href={account.linkedinUrl.startsWith("http") ? account.linkedinUrl : `https://${account.linkedinUrl}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#004182] transition-colors"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#004182] transition-colors"
                       >
                         View full profile on LinkedIn
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
