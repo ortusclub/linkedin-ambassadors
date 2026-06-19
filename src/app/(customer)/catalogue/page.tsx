@@ -144,7 +144,7 @@ export default function CataloguePage() {
         @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500&display=swap');
         .cat-page{font-family:'Karla','Montserrat',system-ui,sans-serif;background:#FAFAF8;min-height:100vh;-webkit-font-smoothing:antialiased}
         .cat-page h1,.cat-page h2,.cat-page h3,.cat-page h4{font-family:'Montserrat','Karla',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
-        .cat-inner{max-width:1200px;margin:0 auto;padding:40px 40px 80px}
+        .cat-inner{max-width:1320px;margin:0 auto;padding:40px 40px 80px}
         .cat-header{margin-bottom:32px}
         .cat-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#0A66C2;margin-bottom:12px}
         .cat-title{font-size:clamp(28px,3.5vw,42px);line-height:1.15;letter-spacing:-0.03em;margin-bottom:8px;color:#0F1419}
@@ -271,8 +271,8 @@ export default function CataloguePage() {
               <p style={{fontSize:14,marginTop:8}}>Check back soon or adjust your filters.</p>
             </div>
           ) : (
-            <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,overflow:'hidden'}}>
-              <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
+            <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:14,minWidth:980}}>
                 <thead>
                   <tr style={{borderBottom:'1px solid #E8E6E1',textAlign:'left',fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'#8899A6'}}>
                     <th style={{padding:'12px 12px 12px 16px',width:40}}>
@@ -400,8 +400,8 @@ export default function CataloguePage() {
           {!loading && !user && gatedCount > 0 && (
             <div style={{marginTop:24,background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:'28px 32px',textAlign:'center'}}>
               <div style={{fontSize:26,marginBottom:8}}>🔒</div>
-              <h3 style={{fontSize:20,fontWeight:600,color:'#0F1419',marginBottom:6,letterSpacing:'-0.02em'}}>200+ more accounts available</h3>
-              <p style={{fontSize:14,color:'#536471',marginBottom:18,maxWidth:460,marginLeft:'auto',marginRight:'auto',lineHeight:1.5}}>You&apos;re viewing a small preview of our catalogue. Sign in to browse the full list and rent.</p>
+              <h3 style={{fontSize:20,fontWeight:600,color:'#0F1419',marginBottom:6,letterSpacing:'-0.02em'}}>Unlock the full catalogue</h3>
+              <p style={{fontSize:14,color:'#536471',marginBottom:18,maxWidth:460,marginLeft:'auto',marginRight:'auto',lineHeight:1.5}}>You&apos;re viewing a small preview. Create a free account to browse every available profile and rent.</p>
               <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
                 <Link href="/register" style={{padding:'11px 22px',borderRadius:10,background:'linear-gradient(135deg,#0A66C2,#004182)',color:'#fff',fontSize:14,fontWeight:600,textDecoration:'none'}}>Create free account</Link>
                 <Link href="/login" style={{padding:'11px 22px',borderRadius:10,background:'#F3F2EE',color:'#0F1419',fontSize:14,fontWeight:600,textDecoration:'none'}}>Sign in</Link>
