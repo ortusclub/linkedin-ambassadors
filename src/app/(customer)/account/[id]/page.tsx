@@ -198,7 +198,7 @@ export default function AccountDetailPage() {
         <div className="grid gap-10 lg:grid-cols-3">
           {/* Left: Screenshot + About */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Blurred profile preview — looks legit, identity hidden, no real screenshot exposed */}
+            {/* Profile preview — full identity visible + direct link to the real LinkedIn (Sam's call) */}
             <div>
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Profile Preview</h2>
               <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -217,31 +217,20 @@ export default function AccountDetailPage() {
                   </div>
                   {account.linkedinHeadline && <p className="mt-0.5 text-sm text-gray-600">{account.linkedinHeadline}</p>}
                   <p className="mt-1 text-xs text-gray-400">{account.location ? `${account.location} · ` : ""}{formatNumber(account.connectionCount)} connections</p>
-                  <div className="relative mt-6">
-                    <div aria-hidden className="space-y-5 select-none pointer-events-none" style={{ filter: "blur(5px)" }}>
-                      <div>
-                        <div className="mb-2.5 h-3 w-20 rounded bg-gray-300" />
-                        <div className="mb-2 h-2.5 w-full rounded bg-gray-200" />
-                        <div className="mb-2 h-2.5 w-11/12 rounded bg-gray-200" />
-                        <div className="h-2.5 w-3/4 rounded bg-gray-200" />
-                      </div>
-                      {[1, 2].map((i) => (
-                        <div key={i} className="flex gap-3">
-                          <div className="h-11 w-11 flex-shrink-0 rounded-lg bg-gray-300" />
-                          <div className="flex-1 pt-1">
-                            <div className="mb-2 h-2.5 w-1/2 rounded bg-gray-300" />
-                            <div className="mb-1.5 h-2 w-1/3 rounded bg-gray-200" />
-                            <div className="h-2 w-2/3 rounded bg-gray-200" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white/90 px-4 py-2 shadow-sm">
-                        <span>🔒</span>
-                        <span className="text-xs font-semibold text-gray-700">Full profile unlocked after rental</span>
-                      </div>
-                    </div>
+                  <div className="mt-6">
+                    {account.linkedinUrl ? (
+                      <a
+                        href={account.linkedinUrl.startsWith("http") ? account.linkedinUrl : `https://${account.linkedinUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#004182] transition-colors"
+                      >
+                        View full profile on LinkedIn
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
+                      </a>
+                    ) : (
+                      <p className="text-sm text-gray-400">LinkedIn profile link coming soon.</p>
+                    )}
                   </div>
                 </div>
               </div>
