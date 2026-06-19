@@ -91,7 +91,7 @@ export async function sendRentalOnboardingEmail(email: string, accountName: stri
 
       <div style="background:#F3F8FE;border:1px solid #D6E3F2;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
         <p style="margin:0 0 4px;font-weight:700;font-size:15px;color:#0A66C2;">Step 1 — Set up GoLogin (do this now)</p>
-        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">Download the free <strong>GoLogin</strong> app from <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> and create your account using <strong>this exact email (${email})</strong>. This is important — we can only share the account with the GoLogin account on this email.</p>
+        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;"><strong>New to GoLogin?</strong> Download it free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> and create your account with <strong>this exact email (${email})</strong>. <strong>Already have GoLogin?</strong> Just make sure you're signed in with <strong>this email</strong>. It has to match — we share the account with the GoLogin account on this email.</p>
       </div>
 
       <div style="background:#F7F7F4;border:1px solid #E8E6E1;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
@@ -119,7 +119,8 @@ export async function sendAccessReadyEmail(email: string, accountName: string) {
     subject: `Your LinkedIn account "${accountName}" is ready 🎉`,
     html: brandWrap(`
       <p style="font-size:16px;margin:0 0 8px;"><strong>You're live — ${accountName} is ready to use.</strong></p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">We've shared the account to your GoLogin (<strong>${email}</strong>). Here's how to open it:</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 8px;">We've shared the account to your GoLogin (<strong>${email}</strong>). Here's how to open it:</p>
+      <p style="font-size:13px;color:#536471;line-height:1.6;margin:0 0 16px;"><strong>New to GoLogin?</strong> Get it free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> and sign in with this email first.</p>
       <ol style="font-size:14px;color:#374151;line-height:1.8;margin:0 0 24px;padding-left:20px;">
         <li>Open the <strong>GoLogin</strong> app (signed in with ${email}).</li>
         <li>Find the shared profile in your dashboard — it may take a few minutes to appear.</li>
