@@ -363,26 +363,24 @@ export default function CataloguePage() {
                         <td style={{padding:'12px 16px',fontWeight:700,color:'#0F1419',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'#8899A6',fontSize:12}}>/mo</span></td>
                         <td style={{padding:'12px 16px',textAlign:'right'}}>
                           <div style={{display:'flex',gap:4,justifyContent:'flex-end'}}>
-                            {!a.showcase && (
-                              a.linkedinUrl ? (
-                                <a
-                                  href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="cat-view-btn"
-                                  style={{display:'inline-block',textDecoration:'none'}}
-                                >
-                                  View Profile
-                                </a>
-                              ) : (
-                                <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none'}}>
-                                  View Profile
-                                </Link>
-                              )
-                            )}
+                            {a.linkedinUrl ? (
+                              <a
+                                href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="cat-view-btn"
+                                style={{display:'inline-block',textDecoration:'none'}}
+                              >
+                                View Profile
+                              </a>
+                            ) : !a.showcase ? (
+                              <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none'}}>
+                                View Profile
+                              </Link>
+                            ) : null}
                             {a.showcase ? (
                               <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
-                                Request access
+                                Book a call
                               </a>
                             ) : isAvailable ? (
                               <Link href={`/account/${a.id}`} className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>

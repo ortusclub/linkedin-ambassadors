@@ -364,7 +364,7 @@ export default function AccountDetailPage() {
                           rel="noopener noreferrer"
                           className="flex-1 flex items-center justify-center rounded-lg bg-blue-600 h-11 text-sm font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
                         >
-                          Request access
+                          Book a call
                         </a>
                       ) : account.status === "available" ? (
                         <button onClick={handleRent} disabled={actionLoading} className="flex-1 flex items-center justify-center rounded-lg bg-blue-600 h-11 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 whitespace-nowrap">
