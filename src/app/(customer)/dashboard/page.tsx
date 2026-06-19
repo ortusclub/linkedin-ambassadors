@@ -668,6 +668,11 @@ function DashboardContent() {
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                         Paused
                       </span>
+                    ) : rental.linkedinAccount.gologinShareLink ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                        Active
+                      </span>
                     ) : rental.status === "pending_access" ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
@@ -707,19 +712,6 @@ function DashboardContent() {
                         <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-400 whitespace-nowrap">
                           Access paused
                         </span>
-                      ) : rental.status === "pending_access" ? (
-                        <div className="flex flex-col items-end gap-1">
-                          <a
-                            href="https://gologin.com/download"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
-                          >
-                            Download GoLogin
-                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
-                          </a>
-                          <span className="text-[11px] text-gray-400 whitespace-nowrap">Preparing — ready within 24h. <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
-                        </div>
                       ) : rental.linkedinAccount.gologinShareLink ? (
                         <button
                           onClick={() => {
@@ -732,9 +724,11 @@ function DashboardContent() {
                           }}
                           className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
                         >
-                          GoLogin
+                          Open in GoLogin
                           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
                         </button>
+                      ) : rental.status === "pending_access" ? (
+                        <span className="text-[11px] text-gray-400 whitespace-nowrap">Preparing — ready soon. <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
                       ) : null}
                       {rental.autoRenew && (
                         <button
@@ -754,11 +748,11 @@ function DashboardContent() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-600">
-                          NK
+                          JL
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900">Nitin Kumar</p>
+                            <p className="font-medium text-gray-900">Jeremiah Lofranco</p>
                             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Demo</span>
                           </div>
                           <p className="text-xs text-gray-400">This is a test account to show how renting works</p>
@@ -777,7 +771,7 @@ function DashboardContent() {
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => {
-                          window.location.href = "gologin://share/nitin.kumar%40ortus.solutions/x1gQJgdu9l";
+                          window.location.href = "gologin://share/jeremiah.lofranco%40klabber.co/MHsjRdOlhL";
                         }}
                         className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors whitespace-nowrap cursor-pointer border-none"
                       >
