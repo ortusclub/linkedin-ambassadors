@@ -34,6 +34,7 @@ interface Account {
   removedAt: string | null;
   removedBy: string | null;
   rentals: Array<{
+    lockedPrice: string | number | null;
     user: { fullName: string; email: string };
   }>;
 }
@@ -506,7 +507,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   <td className="px-4 py-3 text-xs">{a.hasSalesNav ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
                   <td className="px-4 py-3 text-xs">{a.listed ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
                   <td className="px-4 py-3 text-xs font-medium text-gray-900">
-                    {Number(a.monthlyPrice) > 0 ? `$${Number(a.monthlyPrice).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
+                    {a.rentals?.[0]?.lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0 ? (
+                      <>${Number(a.rentals[0].lockedPrice).toFixed(0)} <span className="text-gray-400 font-normal text-[10px]">locked</span></>
+                    ) : Number(a.monthlyPrice) > 0 ? `$${Number(a.monthlyPrice).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>
                   <td className="px-4 py-3 text-xs font-medium text-gray-900">
                     {Number(a.ambassadorPayment) > 0 ? `$${Number(a.ambassadorPayment).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
