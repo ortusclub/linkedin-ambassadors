@@ -9,6 +9,8 @@ import {
   sendRenewalHeadsUp,
   sendPaymentFailedEmail,
   sendAccessRevokedEmail,
+  sendTopUpConfirmation,
+  sendTopUpNotification,
 } from "@/services/email";
 
 // Admin-only preview: sends every renewal email (both cadences) to ?to=<email>
@@ -41,6 +43,10 @@ export async function GET(req: NextRequest) {
     await send("ON · heads-up", () => sendRenewalHeadsUp(to, name, "July 7, 2026"));
     await send("ON · payment hiccup (dunning)", () => sendPaymentFailedEmail(to, name, link));
     await send("ON · access paused", () => sendAccessRevokedEmail(to, name, link));
+    // Top-up flow (new) — customer receipt (card + crypto) + the internal admin alert
+    await send("TOPUP · customer receipt (card)", () => sendTopUpConfirmation({ email: to, amount: 25, method: "card", newBalance: 125 }));
+    await send("TOPUP · customer receipt (crypto)", () => sendTopUpConfirmation({ email: to, amount: 50, method: "crypto", newBalance: 175 }));
+    await send("TOPUP · admin alert (card)", () => sendTopUpNotification({ customerEmail: to, customerName: name, amount: 25, method: "card" }));
 
     return NextResponse.json({ ok: true, to, sent });
   } catch (error) {
