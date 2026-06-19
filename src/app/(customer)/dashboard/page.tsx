@@ -714,12 +714,20 @@ function DashboardContent() {
                         </span>
                       ) : rental.linkedinAccount.gologinShareLink ? (
                         <button
-                          onClick={() => {
+                          onClick={async () => {
+                            const open = (link: string) => {
+                              try { const u = new URL(link); window.location.href = `gologin:/${u.pathname}`; }
+                              catch { window.open(link, "_blank"); }
+                            };
+                            // Fire the API share first (captures a share id so access is revocable),
+                            // then open the profile. Falls back to opening directly on any error.
                             try {
-                              const shareUrl = new URL(rental.linkedinAccount.gologinShareLink!);
-                              window.location.href = `gologin:/${shareUrl.pathname}`;
+                              const res = await fetch(`/api/rentals/${rental.id}/access`, { method: "POST" });
+                              const data = await res.json().catch(() => ({}));
+                              if (res.status === 403) { alert(data.error || "Access to this account is paused."); return; }
+                              open(data.shareLink || rental.linkedinAccount.gologinShareLink!);
                             } catch {
-                              window.open(rental.linkedinAccount.gologinShareLink!, "_blank");
+                              open(rental.linkedinAccount.gologinShareLink!);
                             }
                           }}
                           className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
