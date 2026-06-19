@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { paymentMethod, paymentStatus, accessStatus, isManualGrant } from "@/lib/rental-tracker";
+import { paymentStatus, accessStatus, isManualGrant } from "@/lib/rental-tracker";
 
 interface Rental {
   id: string;
@@ -16,9 +16,9 @@ interface Rental {
   accessGrantedAt: string | null;
   accessRevokedAt: string | null;
   notes: string | null;
-  campaignGoal: string | null;
   lvPoc: string | null;
   renterAccountsLive: number;
+  paymentMethodResolved: "USDC" | "Stripe";
   gologinShareIds: { email: string; shareId: string }[];
   user: { id: string; fullName: string; email: string; contactNumber: string | null; company: string | null; industry: string | null; createdAt: string };
   linkedinAccount: { id: string; linkedinName: string; connectionCount: number; gologinProfileId: string | null; notes: string | null };
@@ -127,13 +127,12 @@ export default function AdminRentalsPage() {
     }
   };
 
-  // Inline-edit tracker fields. company/industry live on the user; notes/campaignGoal on the rental.
+  // Inline-edit tracker fields. company/industry live on the user; notes on the rental.
   const USER_FIELDS = new Set(["company", "industry"]);
-  const saveField = async (r: Rental, field: "company" | "industry" | "notes" | "campaignGoal" | "lvPoc", value: string) => {
+  const saveField = async (r: Rental, field: "company" | "industry" | "notes" | "lvPoc", value: string) => {
     const current =
       field === "company" ? (r.user.company || "") :
       field === "industry" ? (r.user.industry || "") :
-      field === "campaignGoal" ? (r.campaignGoal || "") :
       field === "lvPoc" ? (r.lvPoc || "") : (r.notes || "");
     if (value === current) return;
     setSavingField(`${r.id}:${field}`);
@@ -195,7 +194,7 @@ export default function AdminRentalsPage() {
   };
 
   const downloadCsv = () => {
-    const headers = ["Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry", "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date", "Auto-Renew", "Payment Method", "Payment Status", "LV PoC", "Campaign Goal", "Notes"];
+    const headers = ["Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry", "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date", "Auto-Renew", "Payment Method", "Payment Status", "LV PoC", "Notes"];
     const cell = (v: unknown) => {
       const s = v === null || v === undefined ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -204,8 +203,8 @@ export default function AdminRentalsPage() {
     const rows = rentals.map((r) => [
       r.user.company || r.user.fullName, r.user.fullName, r.user.email, r.user.contactNumber || "",
       r.user.industry || "", String(r.renterAccountsLive), r.linkedinAccount.linkedinName,
-      d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", paymentMethod(r), paymentStatus(r),
-      r.lvPoc || "", r.campaignGoal || "", r.notes || "",
+      d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", r.paymentMethodResolved, paymentStatus(r),
+      r.lvPoc || "", r.notes || "",
     ]);
     const csv = [headers, ...rows].map((row) => row.map(cell).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -234,7 +233,7 @@ export default function AdminRentalsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Rentals &amp; Contracts</h2>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">Live tracker of every rental, matching the internal Renters sheet. Editable Company, Industry, Campaign Goal &amp; Notes save automatically. Download CSV / Google Sheets exports use the same column order.</p>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">Live tracker of every rental, matching the internal Renters sheet. Editable Company, Industry &amp; Notes save automatically. Download CSV / Google Sheets exports use the same column order.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={downloadCsv}>Download CSV</Button>
@@ -258,7 +257,6 @@ export default function AdminRentalsPage() {
                 <th className="px-3 py-3 text-center">Auto-Renew</th>
                 <th className="px-3 py-3">Payment</th>
                 <th className="px-3 py-3">LV PoC</th>
-                <th className="px-3 py-3 min-w-[170px]">Campaign Goal</th>
                 <th className="px-3 py-3 min-w-[180px]">Notes</th>
                 <th className="px-3 py-3">Access</th>
                 <th className="px-3 py-3">Live</th>
@@ -308,7 +306,7 @@ export default function AdminRentalsPage() {
                     </td>
                     <td className="px-3 py-3">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${PAY_BADGE[pay]}`}>{pay}</span>
-                      <p className="mt-1 text-xs text-gray-500">{paymentMethod(r)}</p>
+                      <p className="mt-1 text-xs text-gray-500">{r.paymentMethodResolved}</p>
                     </td>
                     <td className="px-3 py-3">
                       <input
@@ -318,16 +316,6 @@ export default function AdminRentalsPage() {
                         className="w-24 rounded border border-transparent bg-transparent px-1.5 py-1 text-sm hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none"
                       />
                       {savingField === `${r.id}:lvPoc` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
-                    </td>
-                    <td className="px-3 py-3">
-                      <textarea
-                        defaultValue={r.campaignGoal || ""}
-                        placeholder="Campaign goal…"
-                        rows={2}
-                        onBlur={(e) => saveField(r, "campaignGoal", e.target.value.trim())}
-                        className="w-40 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
-                      />
-                      {savingField === `${r.id}:campaignGoal` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                     </td>
                     <td className="px-3 py-3">
                       <textarea

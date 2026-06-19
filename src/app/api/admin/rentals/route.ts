@@ -40,9 +40,30 @@ export async function GET() {
         liveCounts.set(r.userId, (liveCounts.get(r.userId) || 0) + 1);
       }
     }
+
+    // Payment method by how the renter actually funded us: a Stripe card top-up =>
+    // "Stripe", a crypto deposit => "USDC". (A wallet-paid rental otherwise just reads
+    // "USDC" even when the wallet was funded by card — this corrects that.)
+    const userIds = [...new Set(rentals.map((r) => r.userId))];
+    const deposits = userIds.length
+      ? await prisma.transaction.findMany({
+          where: { userId: { in: userIds }, type: "deposit" },
+          select: { userId: true, description: true },
+        })
+      : [];
+    const fundingByUser = new Map<string, "Stripe" | "USDC">();
+    for (const d of deposits) {
+      if ((d.description || "").startsWith("stripe_topup")) {
+        fundingByUser.set(d.userId, "Stripe"); // any card top-up => card payer
+      } else if (!fundingByUser.has(d.userId)) {
+        fundingByUser.set(d.userId, "USDC");
+      }
+    }
+
     const enriched = rentals.map((r) => ({
       ...r,
       renterAccountsLive: liveCounts.get(r.userId) || 0,
+      paymentMethodResolved: fundingByUser.get(r.userId) || (r.usdcPayment ? "USDC" : "Stripe"),
     }));
 
     return NextResponse.json({ rentals: enriched });

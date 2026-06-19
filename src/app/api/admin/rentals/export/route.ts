@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { paymentMethod, paymentStatus, accessStatus } from "@/lib/rental-tracker";
+import { paymentStatus, accessStatus } from "@/lib/rental-tracker";
 
 // CSV export of the renter tracker, for Google Sheets to auto-pull via
 // =IMPORTDATA("https://linkedvelocity.com/api/admin/rentals/export?key=XXXX").
@@ -42,11 +42,23 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Payment method by how the renter funded us (card top-up => Stripe, crypto => USDC).
+  const userIds = [...new Set(rentals.map((r) => r.userId))];
+  const deposits = userIds.length
+    ? await prisma.transaction.findMany({ where: { userId: { in: userIds }, type: "deposit" }, select: { userId: true, description: true } })
+    : [];
+  const fundingByUser = new Map<string, "Stripe" | "USDC">();
+  for (const d of deposits) {
+    if ((d.description || "").startsWith("stripe_topup")) fundingByUser.set(d.userId, "Stripe");
+    else if (!fundingByUser.has(d.userId)) fundingByUser.set(d.userId, "USDC");
+  }
+  const payMethod = (r: { userId: string; usdcPayment: boolean }) => fundingByUser.get(r.userId) || (r.usdcPayment ? "USDC" : "Stripe");
+
   // Column order mirrors the internal "Renters" sheet so it drops straight in.
   const headers = [
     "Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry",
     "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date",
-    "Auto-Renew", "Payment Method", "Payment Status", "LV PoC", "Campaign Goal", "Notes",
+    "Auto-Renew", "Payment Method", "Payment Status", "LV PoC", "Notes",
   ];
 
   const rows = rentals.map((r) => [
@@ -60,10 +72,9 @@ export async function GET(req: NextRequest) {
     fmtDate(r.startDate),
     fmtDate(r.currentPeriodEnd),
     r.autoRenew ? "Yes" : "No",
-    paymentMethod(r),
+    payMethod(r),
     paymentStatus(r),
     r.lvPoc || "",
-    r.campaignGoal || "",
     r.notes || "",
   ]);
 
