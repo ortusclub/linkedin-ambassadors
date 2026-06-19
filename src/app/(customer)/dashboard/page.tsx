@@ -347,7 +347,7 @@ function DashboardContent() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A66C2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5c0-1.38-1.34-2.5-3-2.5S9 8.12 9 9.5 10.34 12 12 12s3 1.12 3 2.5-1.34 2.5-3 2.5-3-1.12-3-2.5"/></svg>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-medium">USDC Balance</p>
+                  <p className="text-xs text-gray-500 font-medium">Balance</p>
                   <p className="text-xl font-bold text-gray-900 -mt-0.5">${parseFloat(usdcBalance).toFixed(2)}</p>
                 </div>
               </div>

@@ -192,14 +192,14 @@ function CheckoutContent() {
               {/* USDC Balance */}
               <div style={{background:hasSufficientBalance ? '#E6F9EE' : '#FEF2F2',border:`1px solid ${hasSufficientBalance ? '#BBF7D0' : '#FECACA'}`,borderRadius:10,padding:14,marginBottom:16}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-                  <span style={{fontSize:12,fontWeight:600,color:hasSufficientBalance ? '#166534' : '#991B1B',textTransform:'uppercase',letterSpacing:'0.05em'}}>USDC Balance</span>
+                  <span style={{fontSize:12,fontWeight:600,color:hasSufficientBalance ? '#166534' : '#991B1B',textTransform:'uppercase',letterSpacing:'0.05em'}}>Balance</span>
                   <span style={{fontSize:16,fontWeight:700,color:hasSufficientBalance ? '#166534' : '#991B1B'}}>
                     ${usdcBalance !== null ? usdcBalance.toFixed(2) : '—'}
                   </span>
                 </div>
                 {!hasSufficientBalance && (
                   <p style={{fontSize:12,color:'#991B1B',marginTop:4}}>
-                    You need ${(total - (usdcBalance || 0)).toFixed(2)} more USDC to complete this order.
+                    You need ${(total - (usdcBalance || 0)).toFixed(2)} more to complete this order.
                   </p>
                 )}
               </div>
@@ -214,7 +214,7 @@ function CheckoutContent() {
                 />
                 <div>
                   <p style={{fontSize:13,fontWeight:600,color:'#0F1419'}}>Auto-renew monthly</p>
-                  <p style={{fontSize:11,color:'#8899A6',marginTop:2}}>Renews on the same date each month. Your USDC balance will be deducted automatically. Cancel anytime.</p>
+                  <p style={{fontSize:11,color:'#8899A6',marginTop:2}}>Renews on the same date each month. Your balance will be deducted automatically. Cancel anytime.</p>
                 </div>
               </label>
 
@@ -231,14 +231,14 @@ function CheckoutContent() {
                 </div>
               ) : (
                 <>
-                  <p style={{fontSize:12,color:'#8899A6',marginBottom:12}}>Pay with USDC on Base. Cancel anytime.</p>
+                  <p style={{fontSize:12,color:'#8899A6',marginBottom:12}}>Paid from your balance. Cancel anytime.</p>
                   {hasSufficientBalance ? (
                     <button
                       onClick={handleCheckout}
                       disabled={checkingOut}
                       style={{width:'100%',padding:'14px',borderRadius:10,background:'#0A66C2',color:'#fff',fontSize:15,fontWeight:700,border:'none',cursor:'pointer',fontFamily:'inherit',transition:'all .15s',opacity:checkingOut?0.6:1}}
                     >
-                      {checkingOut ? "Processing..." : `Pay ${formatCurrency(total)} USDC`}
+                      {checkingOut ? "Processing..." : `Pay ${formatCurrency(total)}`}
                     </button>
                   ) : (
                     <button
