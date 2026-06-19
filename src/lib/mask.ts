@@ -15,16 +15,14 @@ export function maskName(name: string | null | undefined): string {
 }
 
 /**
- * Strip identifying fields from a public account object: mask the name and
- * remove the profile URL + full-profile screenshot. The avatar photo is kept
- * (it makes listings look like real accounts) — names stay masked.
+ * Prepare an account for public display. Per Sam's decision, listings now show the
+ * full identity — real name, profile URL (so customers can click through to the real
+ * LinkedIn profile), and screenshot. We still strip the internal `notes` field, but
+ * surface the showcase flag derived from it. (maskName is kept for any internal use.)
  */
 export function maskPublicAccount<T extends object>(a: T): T {
   const out = { ...a } as Record<string, unknown>;
-  if ("linkedinName" in out) out.linkedinName = maskName(out.linkedinName as string | null | undefined);
-  if ("linkedinUrl" in out) out.linkedinUrl = null;
-  if ("profileScreenshotUrl" in out) out.profileScreenshotUrl = null;
-  // Derive a public "showcase" flag from the notes marker, then drop notes.
+  // Derive a public "showcase" flag from the notes marker, then drop the internal notes.
   const notes = out.notes;
   out.showcase = typeof notes === "string" && notes.includes("[SHOWCASE]");
   if ("notes" in out) delete out.notes;
