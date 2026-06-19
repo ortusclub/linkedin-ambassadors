@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 const STEPS = [
   { n: "1", title: "Sign up & browse the catalogue", body: "Create your account on linkedvelocity.com and browse available profiles. Each listing shows the account's location, connection count, and industry." },
   { n: "2", title: "Select an account & pay", body: "Choose the account that fits your target audience and pay securely (card or wallet). The account is reserved for you and you'll get a confirmation email straight away." },
-  { n: "3", title: "Download & set up GoLogin", body: "GoLogin is the tool that gives you secure access to the rented account. Create it with the same email you used here (steps below) so we can share the profile to you." },
-  { n: "4", title: "We prepare & share it (within 24h)", body: "Our team verifies the account and frees it for you, then shares the profile to your GoLogin. You'll get a 'your account is ready' email — sharing can take a few minutes to appear." },
+  { n: "3", title: "Set up GoLogin (or sign in if you have it)", body: "GoLogin is the tool that gives you secure access to the rented account. Install it and sign in with the same email you used here (steps below). Already have GoLogin? Just make sure you're signed in with this email." },
+  { n: "4", title: "Open it instantly", body: "Your account is ready right away — from your dashboard, click 'Open in GoLogin' and the profile opens with LinkedIn already logged in. No waiting." },
   { n: "5", title: "Run your outreach campaign", body: "You're live! Open the profile in GoLogin (LinkedIn already logged in) and start sending connection requests and messages. Stay within the daily limits below to keep the account healthy." },
   { n: "6", title: "Renew or cancel", body: "Accounts renew monthly. You'll get a reminder before your next billing date — cancel any time before renewal if you no longer need the account." },
 ];

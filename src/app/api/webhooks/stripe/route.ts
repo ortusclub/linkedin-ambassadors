@@ -3,6 +3,7 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import {
   sendRentalOnboardingEmail,
+  sendAccessReadyEmail,
   sendRenewalConfirmation,
   sendPaymentFailedEmail,
   sendAccessRevokedEmail,
@@ -214,15 +215,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     });
     if (!account) continue;
 
-    // Created in "pending_access": paid + account reserved, but our team still vets
-    // the renter and frees the account internally before granting GoLogin access.
+    // Share-link accounts are openable immediately -> active. Others wait for a manual grant.
+    const instant = !!account.gologinShareLink;
     await prisma.rental.create({
       data: {
         userId,
         linkedinAccountId,
         stripeSubscriptionId: subscriptionId,
         currentPeriodEnd: getPeriodEnd(subscription),
-        status: "pending_access",
+        status: instant ? "active" : "pending_access",
+        accessGrantedAt: instant ? new Date() : null,
       },
     });
 
@@ -231,11 +233,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       data: { status: "rented" },
     });
 
-    // Onboarding email — what to do now (set up GoLogin) + what to expect.
+    // Instant accounts get the "you're live" email; others get the "we're getting it ready" one.
     try {
-      await sendRentalOnboardingEmail(user.email, account.linkedinName);
+      if (instant) {
+        await sendAccessReadyEmail(user.email, account.linkedinName);
+      } else {
+        await sendRentalOnboardingEmail(user.email, account.linkedinName);
+      }
     } catch (e) {
-      console.error("Failed to send onboarding email:", e);
+      console.error("Failed to send rental email:", e);
     }
 
     // Notify admin so they can vet + free the account + grant access.

@@ -333,9 +333,9 @@ function DashboardContent() {
               <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-green-900">Payment received — let&apos;s get you set up!</p>
+              <p className="font-semibold text-green-900">Payment received — your account is ready! 🎉</p>
               <p className="mt-1 text-sm text-green-800 leading-relaxed">
-                Your account is reserved. Next: download GoLogin and create it with <strong>this same email</strong> — that&apos;s how we share your rented profile. We&apos;ll have it ready within 24 hours and email you when it&apos;s live.
+                Open it from your rentals below with <strong>&quot;Open in GoLogin.&quot;</strong> Just make sure GoLogin is installed and signed in with <strong>this same email</strong> — that&apos;s how your rented profile opens. New to GoLogin? Grab it free below and sign in with this email.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <a href="https://gologin.com/download" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 transition-colors">

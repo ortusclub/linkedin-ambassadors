@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
-import { sendRentalOnboardingEmail, sendRentalNotification } from "@/services/email";
+import { sendRentalOnboardingEmail, sendAccessReadyEmail, sendRentalNotification } from "@/services/email";
 
 export async function POST(req: Request) {
   try {
@@ -55,15 +55,17 @@ export async function POST(req: Request) {
         const ids: string[] = [];
 
         for (const account of accounts) {
+          // Accounts with a GoLogin share link are openable immediately -> active.
+          // Anything without one waits for a manual grant (pending_access).
+          const instant = !!account.gologinShareLink;
           const rental = await tx.rental.create({
             data: {
               userId: user.id,
               linkedinAccountId: account.id,
               usdcPayment: true,
               autoRenew: !!autoRenew,
-              // pending_access: paid + reserved, but our team grants GoLogin access
-              // after vetting + freeing the account internally.
-              status: "pending_access",
+              status: instant ? "active" : "pending_access",
+              accessGrantedAt: instant ? new Date() : null,
               currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
             },
           });
@@ -89,12 +91,17 @@ export async function POST(req: Request) {
         return ids;
       });
 
-      // Onboarding email (what to do now + what to expect) + admin notify, per account.
+      // Email + admin notify, per account. Instant (share-link) accounts get the
+      // "you're live" email; others get the "we're getting it ready" onboarding email.
       for (const account of accounts) {
         try {
-          await sendRentalOnboardingEmail(user.email, account.linkedinName);
+          if (account.gologinShareLink) {
+            await sendAccessReadyEmail(user.email, account.linkedinName);
+          } else {
+            await sendRentalOnboardingEmail(user.email, account.linkedinName);
+          }
         } catch (e) {
-          console.error("Failed to send onboarding email:", e);
+          console.error("Failed to send rental email:", e);
         }
         try {
           await sendRentalNotification({
