@@ -76,7 +76,7 @@ export default function CataloguePage() {
 
   useEffect(() => {
     fetchAccounts();
-  }, [sort, hasSalesNav]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sort, hasSalesNav, industry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,12 +85,8 @@ export default function CataloguePage() {
 
   const handleFilterClick = (filter: string) => {
     setActiveFilter(filter);
-    if (filter === "All") {
-      setIndustry("");
-    } else {
-      setIndustry(filter);
-    }
-    setTimeout(() => fetchAccounts(), 0);
+    setIndustry(filter === "All" ? "" : filter);
+    // The effect above refetches when `industry` changes.
   };
 
   const toggleSelect = (id: string) => {
@@ -202,7 +198,7 @@ export default function CataloguePage() {
 
           <div className="cat-toolbar">
             <div className="cat-filters">
-              {["All", "Technology", "Finance", "Healthcare", "Marketing", "Sales"].map(f => (
+              {["All", "Sales", "Marketing", "Technology", "Operations", "Finance"].map(f => (
                 <span
                   key={f}
                   className={`cat-chip ${activeFilter === f ? "active" : ""}`}
