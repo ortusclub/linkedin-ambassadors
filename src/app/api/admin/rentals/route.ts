@@ -24,7 +24,9 @@ export async function GET() {
           select: {
             id: true,
             linkedinName: true,
+            linkedinUrl: true,
             connectionCount: true,
+            monthlyPrice: true,
             gologinProfileId: true,
             notes: true,
           },

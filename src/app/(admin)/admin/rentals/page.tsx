@@ -17,11 +17,12 @@ interface Rental {
   accessRevokedAt: string | null;
   notes: string | null;
   lvPoc: string | null;
+  lockedPrice: string | number | null;
   renterAccountsLive: number;
   paymentMethodResolved: "USDC" | "Stripe";
   gologinShareIds: { email: string; shareId: string }[];
   user: { id: string; fullName: string; email: string; contactNumber: string | null; company: string | null; industry: string | null; createdAt: string };
-  linkedinAccount: { id: string; linkedinName: string; connectionCount: number; gologinProfileId: string | null; notes: string | null };
+  linkedinAccount: { id: string; linkedinName: string; linkedinUrl: string | null; connectionCount: number; monthlyPrice: string | number | null; gologinProfileId: string | null; notes: string | null };
 }
 
 interface Account {
@@ -194,18 +195,24 @@ export default function AdminRentalsPage() {
   };
 
   const downloadCsv = () => {
-    const headers = ["Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry", "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date", "Auto-Renew", "Payment Method", "Payment Status", "LV PoC", "Notes"];
+    const headers = ["LinkedIn Account", "LinkedIn URL", "Number of Connections", "Renter Name", "Renter Email", "Renter TG/WA", "Amount", "Payment Status", "Payment Type", "Rental Start Period", "Rental Stop Period", "Auto Renew", "LV PoC"];
     const cell = (v: unknown) => {
       const s = v === null || v === undefined ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const d = (s: string | null) => (s ? new Date(s).toISOString().slice(0, 10) : "");
-    const rows = rentals.map((r) => [
-      r.user.company || r.user.fullName, r.user.fullName, r.user.email, r.user.contactNumber || "",
-      r.user.industry || "", String(r.renterAccountsLive), r.linkedinAccount.linkedinName,
-      d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", r.paymentMethodResolved, paymentStatus(r),
-      r.lvPoc || "", r.notes || "",
-    ]);
+    const rows = rentals.map((r) => {
+      const amt = r.lockedPrice != null && Number(r.lockedPrice) > 0
+        ? Number(r.lockedPrice)
+        : Number(r.linkedinAccount.monthlyPrice || 0);
+      return [
+        r.linkedinAccount.linkedinName, r.linkedinAccount.linkedinUrl || "",
+        r.linkedinAccount.connectionCount > 0 ? String(r.linkedinAccount.connectionCount) : "",
+        r.user.fullName, r.user.email, r.user.contactNumber || "",
+        amt > 0 ? `$${amt.toFixed(0)}` : "", paymentStatus(r), r.paymentMethodResolved,
+        d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", r.lvPoc || "",
+      ];
+    });
     const csv = [headers, ...rows].map((row) => row.map(cell).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
