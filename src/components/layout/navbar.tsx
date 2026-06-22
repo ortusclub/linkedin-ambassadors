@@ -112,7 +112,7 @@ export function Navbar() {
               <>
                 <Link href="/dashboard">Dashboard</Link>
                 <Link href="/dashboard#wallet" className="kl-balance">
-                  <span className="kl-balance-label">USDC</span>
+                  <span className="kl-balance-label">Balance</span>
                   ${balance !== null ? parseFloat(balance).toFixed(2) : '—'}
                   <span className="kl-topup">Top Up</span>
                 </Link>
