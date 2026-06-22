@@ -53,6 +53,18 @@ export default function AdminAccountsPage() {
   const [closing, setClosing] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [sheets, setSheets] = useState<{ open: boolean; url?: string; configured?: boolean }>({ open: false });
+
+  const openSheets = async () => {
+    setSheets({ open: true });
+    try {
+      const res = await fetch("/api/admin/accounts/export-url");
+      const data = await res.json();
+      setSheets({ open: true, url: data.url, configured: data.configured });
+    } catch {
+      setSheets({ open: true, configured: false });
+    }
+  };
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -374,6 +386,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowImport(true)}>Import CSV</Button>
+          <Button variant="outline" onClick={openSheets}>Google Sheets</Button>
           <Button variant="outline" onClick={() => { window.location.href = "linkedvelocity://open"; }}>Open LinkedVelocity App</Button>
           <Link href="/admin/accounts/new">
             <Button>Add Account</Button>
@@ -653,6 +666,39 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         </div>
         </div>
       )}
+
+      {/* Google Sheets connect modal */}
+      {sheets.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSheets({ open: false })}>
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Connect Inventory to Google Sheets</h3>
+            {sheets.configured === false ? (
+              <div className="text-sm text-gray-600 space-y-2">
+                <p>Live sync isn&apos;t set up yet. Add an env var <code className="rounded bg-gray-100 px-1">RENTALS_EXPORT_KEY</code> (any long random string) in Vercel, redeploy, then come back here to get your sheet link.</p>
+                <p>This is the same key used by the Rentals export.</p>
+              </div>
+            ) : sheets.url ? (
+              <div className="text-sm text-gray-600 space-y-3">
+                <p>In a Google Sheet, paste this into cell <strong>A1</strong> — it auto-pulls the live inventory (refreshes about hourly):</p>
+                <div className="rounded-lg bg-gray-900 p-3">
+                  <code className="block break-all text-xs text-green-300">=IMPORTDATA(&quot;{sheets.url}&quot;)</code>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard?.writeText(`=IMPORTDATA("${sheets.url}")`)}
+                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                >Copy formula</button>
+                <p className="text-xs text-amber-600">⚠️ Anyone with this link can see the inventory data — keep the sheet (and link) private.</p>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Loading…</p>
+            )}
+            <div className="mt-5 flex justify-end">
+              <Button variant="outline" onClick={() => setSheets({ open: false })}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CSV Import Modal */}
       {showImport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowImport(false)}>

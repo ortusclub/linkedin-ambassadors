@@ -47,6 +47,8 @@ export async function GET(req: NextRequest) {
     else if (!fundingByUser.has(d.userId)) fundingByUser.set(d.userId, "USDC");
   }
   const payMethod = (r: { userId: string; usdcPayment: boolean }) => fundingByUser.get(r.userId) || (r.usdcPayment ? "USDC" : "Stripe");
+  // Customer-friendly label for the sheet: card top-up => "Card", crypto => "Crypto".
+  const payType = (r: { userId: string; usdcPayment: boolean }) => (payMethod(r) === "USDC" ? "Crypto" : "Card");
 
   // Column order mirrors Sam's "Rental Dashboard" sheet so it drops straight in.
   const headers = [
@@ -69,7 +71,7 @@ export async function GET(req: NextRequest) {
       r.user.contactNumber || "",
       amt > 0 ? `$${amt.toFixed(0)}` : "",
       paymentStatus(r),
-      payMethod(r),
+      payType(r),
       fmtDate(r.startDate),
       fmtDate(r.currentPeriodEnd),
       r.autoRenew ? "Yes" : "No",

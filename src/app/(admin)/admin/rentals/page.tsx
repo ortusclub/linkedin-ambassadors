@@ -209,7 +209,7 @@ export default function AdminRentalsPage() {
         r.linkedinAccount.linkedinName, r.linkedinAccount.linkedinUrl || "",
         r.linkedinAccount.connectionCount > 0 ? String(r.linkedinAccount.connectionCount) : "",
         r.user.fullName, r.user.email, r.user.contactNumber || "",
-        amt > 0 ? `$${amt.toFixed(0)}` : "", paymentStatus(r), r.paymentMethodResolved,
+        amt > 0 ? `$${amt.toFixed(0)}` : "", paymentStatus(r), r.paymentMethodResolved === "USDC" ? "Crypto" : "Card",
         d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", r.lvPoc || "",
       ];
     });
@@ -313,7 +313,7 @@ export default function AdminRentalsPage() {
                     </td>
                     <td className="px-3 py-3">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${PAY_BADGE[pay]}`}>{pay}</span>
-                      <p className="mt-1 text-xs text-gray-500">{r.paymentMethodResolved}</p>
+                      <p className="mt-1 text-xs text-gray-500">{r.paymentMethodResolved === "USDC" ? "Crypto" : "Card"}</p>
                     </td>
                     <td className="px-3 py-3">
                       <input
