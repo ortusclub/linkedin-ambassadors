@@ -1,36 +1,45 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await requireAdmin();
+
+    // Live by default: hide test customers + their rentals from the headline numbers.
+    // Pass ?includeTest=1 to show everything.
+    const includeTest = req.nextUrl.searchParams.get("includeTest") === "1";
+    const liveUser = includeTest ? {} : { isTest: false };
+    const activeWhere = { status: "active" as const, ...(includeTest ? {} : { user: { isTest: false } }) };
 
     const [
       totalAccounts,
       availableAccounts,
       rentedAccounts,
-      activeRentals,
       totalCustomers,
-      recentRentals,
+      activeRentalsList,
     ] = await Promise.all([
       prisma.linkedInAccount.count({ where: { status: { not: "retired" } } }),
       prisma.linkedInAccount.count({ where: { status: "available" } }),
       prisma.linkedInAccount.count({ where: { status: "rented" } }),
-      prisma.rental.count({ where: { status: "active" } }),
-      prisma.user.count({ where: { role: "customer", status: "active" } }),
+      prisma.user.count({ where: { role: "customer", status: "active", ...liveUser } }),
       prisma.rental.findMany({
-        where: { status: "active" },
+        where: activeWhere,
         include: {
-          user: { select: { fullName: true, email: true } },
+          user: { select: { fullName: true, email: true, isTest: true } },
           linkedinAccount: { select: { linkedinName: true, monthlyPrice: true } },
         },
         orderBy: { createdAt: "desc" },
-        take: 10,
       }),
     ]);
 
-    const mrr = rentedAccounts * 50; // $50/account for V1
+    const activeRentals = activeRentalsList.length;
+    // MRR from the actual prices of live active rentals (locked price if set, else list price).
+    const mrr = activeRentalsList.reduce(
+      (sum, r) => sum + Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice ?? 0),
+      0
+    );
+    const recentRentals = activeRentalsList.slice(0, 10);
 
     return NextResponse.json({
       stats: {

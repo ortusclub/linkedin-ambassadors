@@ -15,6 +15,7 @@ interface Customer {
   activeRentals: number;
   totalRentals: number;
   paymentMethod: string;
+  isTest: boolean;
 }
 
 export default function AdminCustomersPage() {
@@ -28,6 +29,20 @@ export default function AdminCustomersPage() {
       .then((data) => setCustomers(data.customers || []))
       .finally(() => setLoading(false));
   }, []);
+
+  const toggleTest = async (c: Customer) => {
+    const next = !c.isTest;
+    setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, isTest: next } : x));
+    const res = await fetch("/api/admin/customers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: c.id, isTest: next }),
+    });
+    if (!res.ok) {
+      setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, isTest: !next } : x));
+      alert("Failed to update test flag");
+    }
+  };
 
   const handleDelete = async (c: Customer) => {
     if (!window.confirm(`Permanently delete ${c.fullName} (${c.email}) and ALL their data — rentals, transactions, sessions? This can't be undone.`)) return;
@@ -77,7 +92,12 @@ export default function AdminCustomersPage() {
             <tbody className="divide-y divide-gray-200">
               {customers.map((c) => (
                 <tr key={c.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900 text-sm">{c.fullName}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900 text-sm">
+                    <span className="inline-flex items-center gap-2">
+                      {c.fullName}
+                      {c.isTest && <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">TEST</span>}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{c.email}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {c.contactNumber ? (
@@ -98,7 +118,14 @@ export default function AdminCustomersPage() {
                   <td className="px-4 py-3 text-sm text-gray-600">{c.activeRentals}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{c.totalRentals}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{formatDate(c.createdAt)}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button
+                      onClick={() => toggleTest(c)}
+                      className={`mr-1 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${c.isTest ? "bg-purple-100 text-purple-700 hover:bg-purple-200" : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                      title="Toggle test flag — test customers are hidden from live dashboard numbers"
+                    >
+                      {c.isTest ? "Test" : "Mark test"}
+                    </button>
                     <button
                       onClick={() => handleDelete(c)}
                       disabled={deleting === c.id}

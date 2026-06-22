@@ -4,6 +4,7 @@ import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
 import { sendSignupWelcomeEmail, sendAmbassadorSignupWelcomeEmail } from "@/services/email";
+import { isLikelyTestEmail } from "@/lib/test-mode";
 
 const schema = z.object({
   email: z.string().email(),
@@ -75,6 +76,7 @@ export async function POST(req: Request) {
           role: "customer",
           status: "active",
           emailVerified: new Date(),
+          isTest: isLikelyTestEmail(emailLower),
         },
       });
       justVerified = true;

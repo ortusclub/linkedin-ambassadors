@@ -61,6 +61,7 @@ export async function GET() {
       activeRentals: c.rentals.filter((r) => r.status === "active").length,
       totalRentals: c._count.rentals,
       paymentMethod: fundingByUser.get(c.id) || "—",
+      isTest: c.isTest,
     }));
 
     return NextResponse.json({ customers: result });
@@ -128,7 +129,14 @@ export async function PATCH(req: Request) {
   try {
     await requireAdmin();
 
-    const { email, paymentMethod, paymentDetails } = await req.json();
+    const { email, paymentMethod, paymentDetails, id, isTest } = await req.json();
+
+    // Toggle a customer's test flag (by id) — keeps them out of / in live dashboard numbers.
+    if (id && typeof isTest === "boolean") {
+      await prisma.user.update({ where: { id }, data: { isTest } });
+      return NextResponse.json({ ok: true });
+    }
+
     if (!email) {
       return NextResponse.json({ error: "Missing email" }, { status: 400 });
     }

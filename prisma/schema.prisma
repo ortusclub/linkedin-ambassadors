@@ -52,6 +52,7 @@ model User {
   usdcBalance       Decimal    @default(0) @map("usdc_balance") @db.Decimal(18, 6)
   dismissAppModalUntil DateTime? @map("dismiss_app_modal_until")
   paymentDetails    String?    @map("payment_details")
+  isTest            Boolean    @default(false) @map("is_test")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 

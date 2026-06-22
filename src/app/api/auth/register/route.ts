@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, createSession } from "@/lib/auth";
 import { sendSignupNotification } from "@/services/email";
+import { isLikelyTestEmail } from "@/lib/test-mode";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
     const passwordHash = password ? await hashPassword(password) : null;
     const contactNumber = contactHandle ? `${contactMethod || "whatsapp"}:${contactHandle}` : null;
     const user = await prisma.user.create({
-      data: { email, passwordHash, fullName, contactNumber },
+      data: { email, passwordHash, fullName, contactNumber, isTest: isLikelyTestEmail(email) },
     });
 
     // Don't create session here — user will verify email first
