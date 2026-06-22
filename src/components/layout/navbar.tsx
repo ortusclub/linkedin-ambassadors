@@ -122,7 +122,7 @@ export function Navbar() {
                 <button className="kl-nav-btn" onClick={handleLogout}>Sign Out</button>
               </>
             ) : isAmb ? (
-              <a href="#amb-hero" className="kl-nav-cta kl-cta-green">Get my valuation</a>
+              <a href="/become-ambassador?valuation=1" className="kl-nav-cta kl-cta-green">Get my valuation</a>
             ) : (
               <>
                 <Link href="/login" className="kl-nav-btn">Sign In</Link>

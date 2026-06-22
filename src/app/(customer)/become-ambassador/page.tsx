@@ -153,8 +153,11 @@ export default function BecomeAmbassadorPage() {
   const updateBank = (field: string, value: string) =>
     setBankForm((prev) => ({ ...prev, [field]: value }));
 
-  // Pre-fill from logged-in user and skip choice step
+  // Pre-fill from logged-in user and skip choice step. If "?valuation=1" is in the URL
+  // (e.g. the "Get my valuation" nav button), jump straight into the form.
   useEffect(() => {
+    let wantValuation = false;
+    try { wantValuation = !!new URLSearchParams(window.location.search).get("valuation"); } catch {}
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((data) => {
@@ -168,13 +171,13 @@ export default function BecomeAmbassadorPage() {
             contactHandle: prev.contactHandle || (data.user.contactNumber?.replace(/^(whatsapp|telegram):/, "") || ""),
           }));
           setIsLoggedIn(true);
-          setStep("logged-in-choice");
+          setStep(wantValuation ? "info" : "logged-in-choice");
         } else {
-          setStep("choice");
+          setStep(wantValuation ? "info" : "choice");
         }
       })
       .catch(() => {
-        setStep("choice");
+        setStep(wantValuation ? "info" : "choice");
       });
   }, []);
 
