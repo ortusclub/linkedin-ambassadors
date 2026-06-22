@@ -11,19 +11,22 @@ interface Transaction {
   txHash: string | null;
   description: string | null;
   createdAt: string;
-  user: { fullName: string; email: string };
+  user: { fullName: string; email: string; isTest?: boolean };
 }
 
 export default function AdminTransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [includeTest, setIncludeTest] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/transactions")
+    let active = true;
+    fetch(`/api/admin/transactions?includeTest=${includeTest ? "1" : "0"}`)
       .then((r) => r.json())
-      .then((data) => setTransactions(data.transactions || []))
-      .finally(() => setLoading(false));
-  }, []);
+      .then((data) => { if (active) setTransactions(data.transactions || []); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [includeTest]);
 
   const typeColors: Record<string, string> = {
     deposit: "success",
@@ -39,8 +42,16 @@ export default function AdminTransactionsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900">Transactions</h2>
-      <p className="mt-1 mb-6 max-w-2xl text-sm text-gray-500">All money moving through the platform — rental payments coming in and ambassador payouts going out.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Transactions</h2>
+          <p className="mt-1 mb-6 max-w-2xl text-sm text-gray-500">Money coming in from renters — deposits and rental payments. (Ambassador payouts are under Ambassadors → Payouts.)</p>
+        </div>
+        <div className="flex flex-shrink-0 items-center rounded-lg border border-gray-200 bg-white p-0.5 text-sm">
+          <button onClick={() => setIncludeTest(false)} className={`rounded-md px-3 py-1 font-medium transition-colors ${!includeTest ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-800"}`}>Live</button>
+          <button onClick={() => setIncludeTest(true)} className={`rounded-md px-3 py-1 font-medium transition-colors ${includeTest ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-800"}`}>All (incl. test)</button>
+        </div>
+      </div>
 
       {transactions.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-gray-500">No transactions yet</CardContent></Card>
@@ -66,7 +77,10 @@ export default function AdminTransactionsPage() {
                       {new Date(tx.createdAt).toLocaleDateString()} {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm font-medium">{tx.user.fullName}</div>
+                      <div className="text-sm font-medium">
+                        {tx.user.fullName}
+                        {tx.user.isTest && <span className="ml-1.5 rounded bg-purple-100 px-1 py-0.5 text-[9px] font-semibold text-purple-700 align-middle">TEST</span>}
+                      </div>
                       <div className="text-xs text-gray-500">{tx.user.email}</div>
                     </td>
                     <td className="px-4 py-3">

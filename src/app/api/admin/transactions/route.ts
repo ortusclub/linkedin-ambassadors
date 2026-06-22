@@ -1,14 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await requireAdmin();
 
+    // Live by default — hide test customers' transactions. ?includeTest=1 shows all.
+    const includeTest = req.nextUrl.searchParams.get("includeTest") === "1";
+
     const transactions = await prisma.transaction.findMany({
+      where: includeTest ? {} : { user: { isTest: false } },
       include: {
-        user: { select: { fullName: true, email: true } },
+        user: { select: { fullName: true, email: true, isTest: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
