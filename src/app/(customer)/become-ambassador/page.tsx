@@ -997,6 +997,13 @@ export default function BecomeAmbassadorPage() {
                   </Button>
                 )}
               </div>
+              <p className="mt-4 text-center text-xs text-gray-400">
+                By accepting, you agree to the{" "}
+                <a href="/ambassador-terms" target="_blank" rel="noopener noreferrer" className="text-green-700 underline hover:text-green-800">
+                  Ambassador Agreement
+                </a>{" "}
+                (LinkedIn Account Access &amp; Usage terms).
+              </p>
             </div>
           )}
 
