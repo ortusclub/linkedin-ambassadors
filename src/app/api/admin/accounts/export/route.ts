@@ -57,10 +57,13 @@ export async function GET(req: NextRequest) {
   const rank: Record<string, number> = { available: 0, rented: 1, unavailable: 2, maintenance: 2, retired: 2, under_review: 3 };
   const sorted = [...accounts].sort((a, b) => (rank[a.status] ?? 5) - (rank[b.status] ?? 5));
 
+  // Grouped left->right: identity/quality, rental state, money, profile detail, access.
   const headers = [
-    "LinkedIn Account", "Headline / Title", "LinkedIn URL", "Status", "Renter", "Rented Until",
-    "Auto Renew", "Owner", "Location", "Number of Connections", "Sales Navigator",
-    "Monthly Price", "Ambassador Payout", "Verified", "GoLogin Profile ID", "Shareable Link",
+    "LinkedIn Account", "Headline / Title", "Status", "Verified",
+    "Renter", "Rented Until", "Auto Renew",
+    "Monthly Price", "Ambassador Payout", "Owner",
+    "Location", "Number of Connections", "Sales Navigator", "LinkedIn URL",
+    "GoLogin Profile ID", "Shareable Link",
   ];
 
   const rows = sorted.map((a) => {
@@ -74,18 +77,18 @@ export async function GET(req: NextRequest) {
     return [
       profileEmail || a.linkedinName,
       a.linkedinHeadline || "",
-      a.linkedinUrl || "",
       displayStatus(a.status),
+      a.verificationProof ? "Yes" : "No",
       rental ? rental.user.fullName : "",
       rental ? fmtDate(rental.currentPeriodEnd) : "",
       rental ? (rental.autoRenew ? "Yes" : "No") : "",
+      price > 0 ? `$${price.toFixed(0)}` : "",
+      payout > 0 ? `$${payout.toFixed(0)}` : "",
       ownerMap.get(ownerEmail) || ownerEmail || "",
       a.location || "",
       a.connectionCount > 0 ? String(a.connectionCount) : "",
       a.hasSalesNav ? "Yes" : "No",
-      price > 0 ? `$${price.toFixed(0)}` : "",
-      payout > 0 ? `$${payout.toFixed(0)}` : "",
-      a.verificationProof ? "Yes" : "No",
+      a.linkedinUrl || "",
       a.gologinProfileId || "",
       a.gologinShareLink || "",
     ];
