@@ -3,12 +3,13 @@ import { z } from "zod";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
-import { sendSignupWelcomeEmail } from "@/services/email";
+import { sendSignupWelcomeEmail, sendAmbassadorSignupWelcomeEmail } from "@/services/email";
 
 const schema = z.object({
   email: z.string().email(),
   code: z.string().length(6),
   source: z.enum(["web", "electron"]).optional(),
+  isAmbassador: z.boolean().optional(),
 });
 
 const MAX_ATTEMPTS = 5;
@@ -16,7 +17,7 @@ const MAX_ATTEMPTS = 5;
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, code, source } = schema.parse(body);
+    const { email, code, source, isAmbassador } = schema.parse(body);
     const emailLower = email.toLowerCase();
 
     const entry = await prisma.verificationCode.findUnique({
@@ -87,7 +88,11 @@ export async function POST(req: Request) {
 
     if (justVerified) {
       try {
-        await sendSignupWelcomeEmail(user.email, user.fullName);
+        if (isAmbassador) {
+          await sendAmbassadorSignupWelcomeEmail(user.email, user.fullName);
+        } else {
+          await sendSignupWelcomeEmail(user.email, user.fullName);
+        }
       } catch (e) {
         console.error("Signup welcome email failed:", e);
       }

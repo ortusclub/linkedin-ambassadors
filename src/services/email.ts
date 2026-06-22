@@ -77,6 +77,28 @@ export async function sendSignupWelcomeEmail(email: string, fullName: string) {
   });
 }
 
+// Sent right after an AMBASSADOR signs up (the share-your-account side). Toned for
+// earning, not renting — points them back to finish their application.
+export async function sendAmbassadorSignupWelcomeEmail(email: string, fullName: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  const firstName = (fullName || "").trim().split(" ")[0] || "there";
+  return sendEmail({
+    to: email,
+    subject: `Welcome to LinkedVelocity, ${firstName} 👋 — let's get you earning`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 8px;"><strong>Welcome aboard, ${firstName}!</strong></p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">You're all set to share your LinkedIn account and earn a monthly payout — your account stays safely yours, it's just used for outreach.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 8px;"><strong>What's next:</strong></p>
+      <ol style="font-size:14px;color:#374151;line-height:1.8;margin:0 0 20px;padding-left:20px;">
+        <li>Choose how you'd like to get paid (bank, crypto, PayPal, or Wise).</li>
+        <li>Share your profile securely through GoLogin — <strong>your password stays private.</strong></li>
+        <li>That's it — you start earning on the next monthly payout.</li>
+      </ol>
+      <a href="${appUrl}/become-ambassador" style="display:inline-block;background:#00B85C;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;">Finish setting up →</a>
+    `),
+  });
+}
+
 // Sent immediately after payment (card or USDC). Access is granted by our team
 // after vetting + freeing the account internally — so this email is about what to
 // do NOW (set up GoLogin) and what to expect, not "you're live yet".
