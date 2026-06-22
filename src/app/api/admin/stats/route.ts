@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 
+// A real (sellable) inventory account: not a showcase/dummy, not a leftover test account.
+function isRealAccount(a: { notes: string | null; linkedinName: string }) {
+  return !(a.notes || "").includes("[SHOWCASE]") && !a.linkedinName.toUpperCase().includes("(TEST)");
+}
+
 export async function GET(req: NextRequest) {
   try {
     await requireAdmin();
@@ -10,54 +15,76 @@ export async function GET(req: NextRequest) {
     // Pass ?includeTest=1 to show everything.
     const includeTest = req.nextUrl.searchParams.get("includeTest") === "1";
     const liveUser = includeTest ? {} : { isTest: false };
-    const activeWhere = { status: "active" as const, ...(includeTest ? {} : { user: { isTest: false } }) };
+    const liveRental = includeTest ? {} : { user: { isTest: false } };
+    const now = new Date();
+    const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const [
       inventoryAccounts,
       totalCustomers,
+      newCustomers30d,
       activeRentalsList,
+      renewalsDue30d,
+      atRisk,
+      appsToReview,
+      recentSignups,
+      recentSubmissions,
     ] = await Promise.all([
-      // Real inventory only — exclude removed/retired AND showcase/dummy accounts.
+      // Real inventory — exclude removed/retired; showcase + test filtered in JS.
       prisma.linkedInAccount.findMany({
         where: { status: { notIn: ["removed", "retired"] } },
-        select: { status: true, notes: true },
+        select: { status: true, notes: true, linkedinName: true },
       }),
       // Customers who have actually rented (a signup with zero rentals isn't a customer yet).
       prisma.user.count({ where: { role: "customer", status: "active", ...liveUser, rentals: { some: {} } } }),
+      prisma.user.count({ where: { role: "customer", status: "active", ...liveUser, rentals: { some: { createdAt: { gte: last30d } } } } }),
       prisma.rental.findMany({
-        where: activeWhere,
+        where: { status: "active", ...liveRental },
         include: {
           user: { select: { fullName: true, email: true, isTest: true } },
-          linkedinAccount: { select: { linkedinName: true, monthlyPrice: true } },
+          linkedinAccount: { select: { linkedinName: true, monthlyPrice: true, ambassadorPayment: true } },
         },
         orderBy: { createdAt: "desc" },
       }),
+      prisma.rental.count({ where: { status: "active", ...liveRental, currentPeriodEnd: { gte: now, lte: in30d } } }),
+      prisma.rental.count({ where: { ...liveRental, OR: [{ status: "payment_failed" }, { status: "active", autoRenew: false }] } }),
+      prisma.ambassadorApplication.count({ where: { status: { in: ["reviewing", "pending"] } } }),
+      prisma.user.findMany({ where: { role: "customer", ...liveUser }, select: { fullName: true, email: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 5 }),
+      prisma.ambassadorApplication.findMany({ select: { fullName: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 5 }),
     ]);
 
-    const realAccounts = inventoryAccounts.filter((a) => !(a.notes || "").includes("[SHOWCASE]"));
+    const realAccounts = inventoryAccounts.filter(isRealAccount);
     const totalAccounts = realAccounts.length;
     const availableAccounts = realAccounts.filter((a) => a.status === "available").length;
+    const offlineAccounts = realAccounts.filter((a) => a.status === "unavailable" || a.status === "maintenance").length;
 
     const activeRentals = activeRentalsList.length;
-    // Rented inventory == live active rentals (so a test-held account doesn't inflate it).
-    const rentedAccounts = activeRentals;
-    // MRR from the actual prices of live active rentals (locked price if set, else list price).
-    const mrr = activeRentalsList.reduce(
-      (sum, r) => sum + Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice ?? 0),
-      0
-    );
-    const recentRentals = activeRentalsList.slice(0, 10);
+    const rentedAccounts = activeRentals; // a test-held account doesn't inflate this
+    const mrr = activeRentalsList.reduce((s, r) => s + Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice ?? 0), 0);
+    const payouts = activeRentalsList.reduce((s, r) => s + Number(r.linkedinAccount.ambassadorPayment ?? 0), 0);
+    const netProfit = mrr - payouts;
+    const utilization = totalAccounts > 0 ? Math.round((rentedAccounts / totalAccounts) * 100) : 0;
+
+    // Merge into one activity feed, newest first.
+    const recentActivity = [
+      ...activeRentalsList.map((r) => ({ type: "rental" as const, label: `${r.user.fullName} → ${r.linkedinAccount.linkedinName}`, date: r.createdAt, isTest: r.user.isTest })),
+      ...recentSignups.map((u) => ({ type: "signup" as const, label: `New signup — ${u.fullName}`, date: u.createdAt, isTest: false })),
+      ...recentSubmissions.map((s) => ({ type: "submission" as const, label: `Ambassador application — ${s.fullName}`, date: s.createdAt, isTest: false })),
+    ]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 8);
 
     return NextResponse.json({
       stats: {
-        totalAccounts,
-        availableAccounts,
-        rentedAccounts,
-        activeRentals,
-        totalCustomers,
-        mrr,
+        // money
+        netProfit, mrr, payouts, activeRentals,
+        // demand
+        totalCustomers, newCustomers30d, renewalsDue30d, atRisk,
+        // supply
+        totalAccounts, availableAccounts, rentedAccounts, offlineAccounts, utilization, appsToReview,
       },
-      recentRentals,
+      recentActivity,
     });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
