@@ -484,20 +484,20 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500 min-w-[180px]">Verification</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Renter</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rented Until</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rental</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payout</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Age</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">SN</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Listed</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rental</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payout</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">GoLogin Share</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Health</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500 min-w-[180px]">Verification</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase text-gray-500">For Rent</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -536,6 +536,16 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   <td className="px-4 py-3">
                     <Badge variant={statusVariant(a.status)}>{getDisplayStatus(a.status)}</Badge>
                   </td>
+                  <td className="px-4 py-3">
+                    <textarea
+                      defaultValue={a.verificationProof || ""}
+                      placeholder="Proof links / notes (private)…"
+                      rows={2}
+                      onBlur={(e) => saveProof(a.id, a.verificationProof, e.target.value.trim())}
+                      className="w-44 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
+                    />
+                    {savingProof === a.id && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
+                  </td>
                   <td className="px-4 py-3 text-xs">
                     {a.rentals && a.rentals.length > 0 ? (
                       <div>
@@ -563,12 +573,6 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">{a.ownerEmail || "—"}</td>
-                  <td className="px-4 py-3 text-xs text-gray-600">{a.location || "—"}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</td>
-                  <td className="px-4 py-3 text-xs text-gray-600">{a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"}</td>
-                  <td className="px-4 py-3 text-xs">{a.hasSalesNav ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
-                  <td className="px-4 py-3 text-xs">{a.listed ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
                   <td className="px-4 py-3 text-xs font-medium text-gray-900">
                     {a.rentals?.[0]?.lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0 ? (
                       <>${Number(a.rentals[0].lockedPrice).toFixed(0)} <span className="text-gray-400 font-normal text-[10px]">locked</span></>
@@ -577,9 +581,12 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   <td className="px-4 py-3 text-xs font-medium text-gray-900">
                     {Number(a.ambassadorPayment) > 0 ? `$${Number(a.ambassadorPayment).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">
-                    {a.proxyHost ? <span className="font-mono">{a.proxyHost}:{a.proxyPort}</span> : <span className="text-gray-400">None</span>}
-                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{a.ownerEmail || "—"}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{a.location || "—"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"}</td>
+                  <td className="px-4 py-3 text-xs">{a.hasSalesNav ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
+                  <td className="px-4 py-3 text-xs">{a.listed ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
                   <td className="px-4 py-3 text-xs text-gray-600">
                     {a.gologinShareLink ? (
                       <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium">Link</a>
@@ -587,6 +594,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     {a.gologinProfileId && (
                       <p className="mt-0.5 font-mono text-[10px] text-gray-400 max-w-[120px] truncate" title={a.gologinProfileId}>ID: {a.gologinProfileId}</p>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-600">
+                    {a.proxyHost ? <span className="font-mono">{a.proxyHost}:{a.proxyPort}</span> : <span className="text-gray-400">None</span>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
@@ -633,16 +643,6 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     {a.healthCheckedAt && (
                       <div className="text-[10px] text-gray-400 mt-0.5">{new Date(a.healthCheckedAt).toLocaleDateString()}</div>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <textarea
-                      defaultValue={a.verificationProof || ""}
-                      placeholder="Proof links / notes (private)…"
-                      rows={2}
-                      onBlur={(e) => saveProof(a.id, a.verificationProof, e.target.value.trim())}
-                      className="w-44 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
-                    />
-                    {savingProof === a.id && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end">
