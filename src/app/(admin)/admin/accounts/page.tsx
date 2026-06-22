@@ -585,7 +585,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     {(a.notes || "").includes("[SHOWCASE]")
                       ? <span className="font-medium text-amber-600">Dummy</span>
                       : [(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1], a.ownerEmail].some((e) => (e || "").toLowerCase().endsWith("@ortus.solutions"))
-                      ? <span className="font-medium text-gray-900">ORTUS</span>
+                      ? <span className="font-medium text-gray-900">Ortus</span>
                       : (a.ownerEmail || "—")}
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600">{a.location || "—"}</td>

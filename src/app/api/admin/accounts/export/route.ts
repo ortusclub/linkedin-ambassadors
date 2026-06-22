@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     // otherwise the ambassador who supplied it.
     const isShowcase = (a.notes || "").includes("[SHOWCASE]");
     const isOrtus = [profileEmail, ownerEmail].some((e) => (e || "").toLowerCase().endsWith("@ortus.solutions"));
-    const ownerDisplay = isShowcase ? "Dummy" : isOrtus ? "ORTUS" : (ownerMap.get(ownerEmail) || ownerEmail || "");
+    const ownerDisplay = isShowcase ? "Dummy" : isOrtus ? "Ortus" : (ownerMap.get(ownerEmail) || ownerEmail || "");
     return [
       profileEmail || a.linkedinName,
       a.linkedinHeadline || "",
