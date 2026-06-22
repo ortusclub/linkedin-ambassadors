@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       profileEmail || a.linkedinName,
       a.linkedinHeadline || "",
       displayStatus(a.status),
-      a.verificationProof ? "Yes" : "No",
+      a.linkedinVerified ? "Yes" : "No",
       rental ? rental.user.fullName : "",
       rental ? fmtDate(rental.currentPeriodEnd) : "",
       rental ? (rental.autoRenew ? "Yes" : "No") : "",

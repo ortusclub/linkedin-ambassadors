@@ -26,6 +26,7 @@ const updateSchema = z.object({
   gologinProfileId: z.string().nullable().optional(),
   gologinShareLink: z.string().nullable().optional(),
   verificationProof: z.string().nullable().optional(),
+  linkedinVerified: z.boolean().optional(),
 }).partial();
 
 export async function GET(

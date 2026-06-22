@@ -115,6 +115,7 @@ model LinkedInAccount {
   // Internal proof the account is real (email-exchange screenshot links / notes).
   // Never shown publicly — shared with a renter per-case.
   verificationProof     String?       @map("verification_proof")
+  linkedinVerified      Boolean       @default(false) @map("linkedin_verified")
   notes                 String?
   removedAt             DateTime?     @map("removed_at")
   removedBy             String?       @map("removed_by")

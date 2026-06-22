@@ -31,6 +31,7 @@ interface Account {
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
   verificationProof: string | null;
+  linkedinVerified: boolean;
   removedAt: string | null;
   removedBy: string | null;
   rentals: Array<{
@@ -377,6 +378,19 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     }
   };
 
+  const toggleVerified = async (id: string, current: boolean) => {
+    setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, linkedinVerified: !current } : a));
+    const res = await fetch(`/api/admin/accounts/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ linkedinVerified: !current }),
+    });
+    if (!res.ok) {
+      setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, linkedinVerified: current } : a));
+      alert("Failed to update verified status");
+    }
+  };
+
   return (
     <div>
       <div className="flex items-start justify-between mb-6">
@@ -530,6 +544,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       {(a.notes || "").includes("[SHOWCASE]") && (
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 whitespace-nowrap">Dummy</span>
                       )}
+                      {a.linkedinVerified && (
+                        <span title="LinkedIn verified" className="inline-flex items-center gap-0.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 whitespace-nowrap">✓ Verified</span>
+                      )}
                     </div>
                     {a.linkedinHeadline && <p className="mt-0.5 text-xs text-gray-500 max-w-[220px] truncate" title={a.linkedinHeadline}>{a.linkedinHeadline}</p>}
                   </td>
@@ -537,12 +554,19 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     <Badge variant={statusVariant(a.status)}>{getDisplayStatus(a.status)}</Badge>
                   </td>
                   <td className="px-4 py-3">
+                    <button
+                      onClick={() => toggleVerified(a.id, a.linkedinVerified)}
+                      className={`mb-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors ${a.linkedinVerified ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+                      title="LinkedIn verified checkmark — click to toggle"
+                    >
+                      {a.linkedinVerified ? "✓ Verified" : "Not verified"}
+                    </button>
                     <textarea
                       defaultValue={a.verificationProof || ""}
                       placeholder="Proof links / notes (private)…"
                       rows={2}
                       onBlur={(e) => saveProof(a.id, a.verificationProof, e.target.value.trim())}
-                      className="w-44 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
+                      className="block w-44 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
                     />
                     {savingProof === a.id && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                   </td>
