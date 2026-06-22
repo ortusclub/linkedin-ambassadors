@@ -403,6 +403,27 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         ))}
       </div>
 
+      {/* Legend — what each status means */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-gray-100 bg-gray-50 px-4 py-2.5 text-xs text-gray-600">
+        <span className="font-medium text-gray-400 uppercase tracking-wider">Status key</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-green-500" />
+          <strong className="font-semibold text-gray-900">Available</strong> — live &amp; rentable, no one&apos;s on it
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-blue-500" />
+          <strong className="font-semibold text-gray-900">Rented</strong> — currently rented by a customer
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-gray-400" />
+          <strong className="font-semibold text-gray-900">Offline</strong> — temporarily not rentable (paused, under review, or maintenance)
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-red-500" />
+          <strong className="font-semibold text-gray-900">Removed</strong> — taken out of inventory (paper trail only)
+        </span>
+      </div>
+
       <div className="mb-4">
         <input
           type="text"
