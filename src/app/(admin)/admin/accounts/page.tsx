@@ -401,7 +401,6 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowImport(true)}>Import CSV</Button>
           <Button variant="outline" onClick={openSheets}>Google Sheets</Button>
-          <Button variant="outline" onClick={() => { window.location.href = "linkedvelocity://open"; }}>Open LinkedVelocity App</Button>
           <Link href="/admin/accounts/new">
             <Button>Add Account</Button>
           </Link>
