@@ -30,17 +30,10 @@ export async function GET(req: NextRequest) {
   const rentals = await prisma.rental.findMany({
     include: {
       user: { select: { id: true, fullName: true, email: true, contactNumber: true, company: true, industry: true } },
-      linkedinAccount: { select: { linkedinName: true } },
+      linkedinAccount: { select: { linkedinName: true, linkedinUrl: true, connectionCount: true, monthlyPrice: true } },
     },
     orderBy: { createdAt: "desc" },
   });
-
-  const liveCounts = new Map<string, number>();
-  for (const r of rentals) {
-    if (r.status === "active" || r.status === "pending_access") {
-      liveCounts.set(r.userId, (liveCounts.get(r.userId) || 0) + 1);
-    }
-  }
 
   // Payment method by how the renter funded us (card top-up => Stripe, crypto => USDC).
   const userIds = [...new Set(rentals.map((r) => r.userId))];
@@ -54,29 +47,34 @@ export async function GET(req: NextRequest) {
   }
   const payMethod = (r: { userId: string; usdcPayment: boolean }) => fundingByUser.get(r.userId) || (r.usdcPayment ? "USDC" : "Stripe");
 
-  // Column order mirrors the internal "Renters" sheet so it drops straight in.
+  // Column order mirrors Sam's "Rental Dashboard" sheet so it drops straight in.
   const headers = [
-    "Renter / Company", "Contact Name", "Email", "Phone / Telegram", "Industry",
-    "Accounts Rented", "Account(s) Used", "Billing Start Date", "Next Billing Date",
-    "Auto-Renew", "Payment Method", "Payment Status", "LV PoC", "Notes",
+    "LinkedIn Account", "LinkedIn URL", "Number of Connections", "Renter Name",
+    "Renter Email", "Renter TG/WA", "Amount", "Payment Status", "Payment Type",
+    "Rental Start Period", "Rental Stop Period", "Auto Renew", "LV PoC",
   ];
 
-  const rows = rentals.map((r) => [
-    r.user.company || r.user.fullName,
-    r.user.fullName,
-    r.user.email,
-    r.user.contactNumber || "",
-    r.user.industry || "",
-    String(liveCounts.get(r.userId) || 0),
-    r.linkedinAccount.linkedinName,
-    fmtDate(r.startDate),
-    fmtDate(r.currentPeriodEnd),
-    r.autoRenew ? "Yes" : "No",
-    payMethod(r),
-    paymentStatus(r),
-    r.lvPoc || "",
-    r.notes || "",
-  ]);
+  const rows = rentals.map((r) => {
+    // Amount = the grandfathered locked price if set, otherwise the account's list price.
+    const amt = r.lockedPrice != null && Number(r.lockedPrice) > 0
+      ? Number(r.lockedPrice)
+      : Number(r.linkedinAccount.monthlyPrice || 0);
+    return [
+      r.linkedinAccount.linkedinName,
+      r.linkedinAccount.linkedinUrl || "",
+      r.linkedinAccount.connectionCount > 0 ? String(r.linkedinAccount.connectionCount) : "",
+      r.user.fullName,
+      r.user.email,
+      r.user.contactNumber || "",
+      amt > 0 ? `$${amt.toFixed(0)}` : "",
+      paymentStatus(r),
+      payMethod(r),
+      fmtDate(r.startDate),
+      fmtDate(r.currentPeriodEnd),
+      r.autoRenew ? "Yes" : "No",
+      r.lvPoc || "",
+    ];
+  });
 
   const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
 
