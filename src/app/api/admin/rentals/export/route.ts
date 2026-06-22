@@ -17,7 +17,8 @@ function csvCell(v: unknown): string {
 
 function fmtDate(d: Date | null): string {
   if (!d) return "";
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD — Sheets-friendly
+  // Human-readable (e.g. "Jun 15, 2026") so Sheets shows a real date, not a serial number.
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 export async function GET(req: NextRequest) {

@@ -200,7 +200,7 @@ export default function AdminRentalsPage() {
       const s = v === null || v === undefined ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const d = (s: string | null) => (s ? new Date(s).toISOString().slice(0, 10) : "");
+    const d = (s: string | null) => (s ? new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
     const rows = rentals.map((r) => {
       const amt = r.lockedPrice != null && Number(r.lockedPrice) > 0
         ? Number(r.lockedPrice)
