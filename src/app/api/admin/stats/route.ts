@@ -13,16 +13,17 @@ export async function GET(req: NextRequest) {
     const activeWhere = { status: "active" as const, ...(includeTest ? {} : { user: { isTest: false } }) };
 
     const [
-      totalAccounts,
-      availableAccounts,
-      rentedAccounts,
+      inventoryAccounts,
       totalCustomers,
       activeRentalsList,
     ] = await Promise.all([
-      prisma.linkedInAccount.count({ where: { status: { not: "retired" } } }),
-      prisma.linkedInAccount.count({ where: { status: "available" } }),
-      prisma.linkedInAccount.count({ where: { status: "rented" } }),
-      prisma.user.count({ where: { role: "customer", status: "active", ...liveUser } }),
+      // Real inventory only — exclude removed/retired AND showcase/dummy accounts.
+      prisma.linkedInAccount.findMany({
+        where: { status: { notIn: ["removed", "retired"] } },
+        select: { status: true, notes: true },
+      }),
+      // Customers who have actually rented (a signup with zero rentals isn't a customer yet).
+      prisma.user.count({ where: { role: "customer", status: "active", ...liveUser, rentals: { some: {} } } }),
       prisma.rental.findMany({
         where: activeWhere,
         include: {
@@ -33,7 +34,13 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    const realAccounts = inventoryAccounts.filter((a) => !(a.notes || "").includes("[SHOWCASE]"));
+    const totalAccounts = realAccounts.length;
+    const availableAccounts = realAccounts.filter((a) => a.status === "available").length;
+
     const activeRentals = activeRentalsList.length;
+    // Rented inventory == live active rentals (so a test-held account doesn't inflate it).
+    const rentedAccounts = activeRentals;
     // MRR from the actual prices of live active rentals (locked price if set, else list price).
     const mrr = activeRentalsList.reduce(
       (sum, r) => sum + Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice ?? 0),
