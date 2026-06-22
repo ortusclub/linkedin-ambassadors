@@ -258,6 +258,18 @@ function DashboardContent() {
   const hasRealRentals = activeRentals.length > 0 || pastRentals.length > 0;
   const showRenterSide = !isAmbassador || hasRealRentals; // pure ambassadors hide renter-only bits
 
+  // Ambassador summary: how many profiles they've shared, how many are still being
+  // reviewed/valued, and what they earn per month from the live ones.
+  const liveSharedCount = ambassadorAccounts.length;
+  const pendingSharedCount = submissions.filter(
+    (s) => s.status !== "rejected"
+  ).length;
+  const totalSharedCount = liveSharedCount + pendingSharedCount;
+  const monthlyEarnings = ambassadorAccounts.reduce((sum, a) => {
+    const p = typeof a.ambassadorPayment === "string" ? parseFloat(a.ambassadorPayment) : a.ambassadorPayment;
+    return sum + (p && p > 0 ? p : 0);
+  }, 0);
+
   const statusBadge = (status: string) => {
     const map: Record<string, "success" | "warning" | "danger" | "default" | "info"> = {
       active: "success",
@@ -289,31 +301,84 @@ function DashboardContent() {
       <div className="flex items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => startDashboardTour(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors whitespace-nowrap"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
-            Take a tour
-          </button>
-          <Link
-            href="/catalogue"
-            data-tour="browse"
-            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-            Browse accounts
-          </Link>
-          <a
-            href="/guide"
-            data-tour="getting-started"
-            className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors whitespace-nowrap"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-            Getting started
-          </a>
+          {isAmbassador ? (
+            // Ambassador header: book a setup call (this is how we get GoLogin connected).
+            <a
+              href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#00B85C] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#00A050] transition-colors whitespace-nowrap"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              Book a call
+            </a>
+          ) : (
+            <>
+              <button
+                onClick={() => startDashboardTour(true)}
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors whitespace-nowrap"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
+                Take a tour
+              </button>
+              <Link
+                href="/catalogue"
+                data-tour="browse"
+                className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                Browse accounts
+              </Link>
+              <a
+                href="/guide"
+                data-tour="getting-started"
+                className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors whitespace-nowrap"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                Getting started
+              </a>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Ambassador summary — profiles shared, monthly earnings, next step */}
+      {isAmbassador && (
+        <div className="mb-8 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/70 to-white p-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Accounts shared</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{totalSharedCount}</p>
+              <p className="text-xs text-gray-500">
+                {liveSharedCount > 0 ? `${liveSharedCount} live` : "0 live"}
+                {pendingSharedCount > 0 ? ` · ${pendingSharedCount} in review` : ""}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Monthly earnings</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {monthlyEarnings > 0 ? formatCurrency(monthlyEarnings) : <span className="text-gray-400">Being valued</span>}
+              </p>
+              <p className="text-xs text-gray-500">{monthlyEarnings > 0 ? "from your live accounts" : "we'll confirm your rate shortly"}</p>
+            </div>
+            <div className="flex flex-col justify-center gap-2">
+              <Link href="/become-ambassador" className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#00B85C] px-3 py-2 text-sm font-semibold text-white hover:bg-[#00A050] transition-colors">
+                Add another profile
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" /></svg>
+              </Link>
+              <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 rounded-md border border-green-300 bg-white px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-50 transition-colors">
+                Book a setup call
+              </a>
+            </div>
+          </div>
+          {pendingSharedCount > 0 && (
+            <p className="mt-4 border-t border-green-100 pt-3 text-sm text-gray-600">
+              <span className="font-medium text-gray-900">We&apos;re reviewing your account.</span>{" "}
+              Once it&apos;s approved we&apos;ll connect it through GoLogin so it&apos;s ready to earn — book a quick call above and we can set it up together.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Post-payment confirmation — what to do now */}
       {showRentalSuccess && (
