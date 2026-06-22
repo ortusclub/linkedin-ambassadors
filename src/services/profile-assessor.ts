@@ -149,11 +149,12 @@ export function assessProfile(data: ProfileData): AssessmentResult {
     baseAmount = 20;
   } else {
     tier = "starter";
-    baseAmount = 12;
+    baseAmount = 16;
   }
 
-  // Apply industry multiplier to base amount
-  const offeredAmount = Math.round(baseAmount * industryMult);
+  // Starter is a flat $16 (the current standard payout — ~1000 PHP). Higher tiers
+  // stay aspirational and scale by industry.
+  const offeredAmount = tier === "starter" ? 16 : Math.round(baseAmount * industryMult);
 
   // Auto-approve if score is high enough and they have a photo
   const autoApproved = totalScore >= 25 && (data.hasProfilePhoto !== false);

@@ -94,7 +94,7 @@ function calculateOffer(data: {
     amount = 15 + Math.floor((baseScore - 30) / 10) * 5;
     tier = "Standard";
   } else {
-    amount = 10 + Math.floor(baseScore / 10) * 2;
+    amount = 16;
     tier = "Starter";
   }
 
@@ -193,14 +193,15 @@ export default function BecomeAmbassadorPage() {
   useEffect(() => {
     if (step !== "scanning") return;
     if (scanIndex >= SCAN_STEPS.length) {
-      // Done scanning — calculate offer and show result
-      const result = calculateOffer({
+      // Show the server's assessed offer (captured in handleSubmit). Fall back to the
+      // local estimate only if the apply call didn't return one — so the number the
+      // applicant sees always matches what's stored + emailed + paid.
+      setOffer((prev) => prev ?? calculateOffer({
         connectionCount: Number(form.connectionCount) || 0,
         verified: form.verified as unknown as boolean,
         hasSalesNav: form.hasSalesNav as unknown as boolean,
         notes: form.notes,
-      });
-      setOffer(result);
+      }));
       setTimeout(() => setStep("result"), 500);
       return;
     }
@@ -216,9 +217,10 @@ export default function BecomeAmbassadorPage() {
       return;
     }
 
-    // Create ambassador application immediately so it appears in admin
+    // Create ambassador application immediately so it appears in admin, and capture
+    // the server's assessed offer so the applicant sees the SAME number we store/pay.
     try {
-      await fetch("/api/ambassador/apply", {
+      const res = await fetch("/api/ambassador/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -236,6 +238,19 @@ export default function BecomeAmbassadorPage() {
           ].filter(Boolean).join(". ") || undefined,
         }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        const a = data.assessment;
+        if (a) {
+          setOffer({
+            amount: a.offeredAmount,
+            tier: a.tier ? a.tier.charAt(0).toUpperCase() + a.tier.slice(1) : "Starter",
+            reasons: (a.breakdown || []).map((b: { category: string; reason: string; points: number }) => ({
+              label: b.category, detail: b.reason, positive: b.points > 0,
+            })),
+          });
+        }
+      }
     } catch {} // Don't block the flow if this fails
 
     setScanIndex(0);
