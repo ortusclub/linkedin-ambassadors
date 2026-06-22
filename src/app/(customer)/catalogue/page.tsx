@@ -120,18 +120,12 @@ export default function CataloguePage() {
     .filter((a) => selected.has(a.id))
     .reduce((sum, a) => sum + Number(a.monthlyPrice), 0);
 
-  // Balance the list: alternate real and showcase accounts so it's a healthy mix
-  // (each group keeps its own order from the API sort).
-  const realAccts = accounts.filter((a) => !a.showcase);
-  const showcaseAccts = accounts.filter((a) => a.showcase);
-  const ordered: Account[] = [];
-  for (let i = 0; i < Math.max(realAccts.length, showcaseAccts.length); i++) {
-    if (realAccts[i]) ordered.push(realAccts[i]);
-    if (showcaseAccts[i]) ordered.push(showcaseAccts[i]);
-  }
-
-  // Show the full catalogue to everyone — we list exactly what we have, nothing hidden.
-  const visibleAccounts = ordered;
+  // Group by status so the action buttons line up cleanly instead of scattering:
+  // rentable accounts first (real "Rent" before showcase "Book a call"), then rented
+  // accounts at the bottom. A stable sort preserves the user's chosen sort within
+  // each group (price / connections / etc.).
+  const statusRank = (a: Account) => (a.status === "available" ? (a.showcase ? 1 : 0) : 2);
+  const visibleAccounts = [...accounts].sort((a, b) => statusRank(a) - statusRank(b));
 
   return (
     <>
