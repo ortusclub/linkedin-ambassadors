@@ -581,7 +581,13 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   <td className="px-4 py-3 text-xs font-medium text-gray-900">
                     {Number(a.ambassadorPayment) > 0 ? `$${Number(a.ambassadorPayment).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">{a.ownerEmail || "—"}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">
+                    {(a.notes || "").includes("[SHOWCASE]")
+                      ? <span className="font-medium text-amber-600">Dummy</span>
+                      : [(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1], a.ownerEmail].some((e) => (e || "").toLowerCase().endsWith("@ortus.solutions"))
+                      ? <span className="font-medium text-gray-900">ORTUS</span>
+                      : (a.ownerEmail || "—")}
+                  </td>
                   <td className="px-4 py-3 text-xs text-gray-600">{a.location || "—"}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</td>
                   <td className="px-4 py-3 text-xs text-gray-600">{a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"}</td>

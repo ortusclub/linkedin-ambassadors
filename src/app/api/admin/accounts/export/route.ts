@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.
   const headers = [
-    "LinkedIn Account", "Type", "Headline / Title", "Status", "Verified",
+    "LinkedIn Account", "Headline / Title", "Status", "Verified",
     "Renter", "Rented Until", "Auto Renew",
     "Monthly Price", "Ambassador Payout", "Owner",
     "Location", "Number of Connections", "Sales Navigator", "LinkedIn URL",
@@ -74,9 +74,13 @@ export async function GET(req: NextRequest) {
       ? Number(rental.lockedPrice)
       : Number(a.monthlyPrice || 0);
     const payout = Number(a.ambassadorPayment || 0);
+    // Owner: showcase/demo accounts => "Dummy"; our own Ortus accounts => "ORTUS";
+    // otherwise the ambassador who supplied it.
+    const isShowcase = (a.notes || "").includes("[SHOWCASE]");
+    const isOrtus = [profileEmail, ownerEmail].some((e) => (e || "").toLowerCase().endsWith("@ortus.solutions"));
+    const ownerDisplay = isShowcase ? "Dummy" : isOrtus ? "ORTUS" : (ownerMap.get(ownerEmail) || ownerEmail || "");
     return [
       profileEmail || a.linkedinName,
-      (a.notes || "").includes("[SHOWCASE]") ? "Dummy" : "Real",
       a.linkedinHeadline || "",
       displayStatus(a.status),
       a.verificationProof ? "Yes" : "No",
@@ -85,7 +89,7 @@ export async function GET(req: NextRequest) {
       rental ? (rental.autoRenew ? "Yes" : "No") : "",
       price > 0 ? `$${price.toFixed(0)}` : "",
       payout > 0 ? `$${payout.toFixed(0)}` : "",
-      ownerMap.get(ownerEmail) || ownerEmail || "",
+      ownerDisplay,
       a.location || "",
       a.connectionCount > 0 ? String(a.connectionCount) : "",
       a.hasSalesNav ? "Yes" : "No",
