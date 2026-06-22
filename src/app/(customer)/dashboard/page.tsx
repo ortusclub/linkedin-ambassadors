@@ -253,6 +253,10 @@ function DashboardContent() {
 
   const activeRentals = rentals.filter((r) => r.status === "active" || r.status === "payment_failed" || r.status === "pending_access");
   const pastRentals = rentals.filter((r) => r.status === "expired" || r.status === "cancelled");
+  // Adaptive dashboard: lean ambassador-first if they share/submit accounts.
+  const isAmbassador = ambassadorAccounts.length > 0 || submissions.length > 0;
+  const hasRealRentals = activeRentals.length > 0 || pastRentals.length > 0;
+  const showRenterSide = !isAmbassador || hasRealRentals; // pure ambassadors hide renter-only bits
 
   const statusBadge = (status: string) => {
     const map: Record<string, "success" | "warning" | "danger" | "default" | "info"> = {
@@ -337,7 +341,8 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* USDC Wallet */}
+      {/* Wallet — renter side (top up to rent). Hidden for pure ambassadors. */}
+      {showRenterSide && (
       <section id="wallet" data-tour="wallet" className="mb-8">
         <Card>
           <CardContent className="px-5 py-4">
@@ -441,27 +446,49 @@ function DashboardContent() {
           </CardContent>
         </Card>
       </section>
+      )}
 
-      {/* Rent an Account CTA */}
+      {/* Primary CTA — share & earn (ambassadors) or rent (renters) */}
       <section className="mb-8">
-        <Link
-          href="/catalogue"
-          className="flex items-center justify-between gap-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white px-5 py-4 transition-all hover:border-blue-300 hover:shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        {isAmbassador ? (
+          <Link
+            href="/become-ambassador"
+            className="flex items-center justify-between gap-4 rounded-xl border border-green-100 bg-gradient-to-r from-green-50 to-white px-5 py-4 transition-all hover:border-green-300 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#00B85C]">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Share Another Account</p>
+                <p className="text-xs text-gray-500">Add another LinkedIn account and earn more each month</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Rent an Account</p>
-              <p className="text-xs text-gray-500">Browse available LinkedIn accounts in the marketplace</p>
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#00B85C] px-4 py-2 text-xs font-semibold text-white">
+              Share &amp; Earn
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </Link>
+        ) : (
+          <Link
+            href="/catalogue"
+            className="flex items-center justify-between gap-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white px-5 py-4 transition-all hover:border-blue-300 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Rent an Account</p>
+                <p className="text-xs text-gray-500">Browse available LinkedIn accounts in the marketplace</p>
+              </div>
             </div>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white">
-            Browse Accounts
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </span>
-        </Link>
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white">
+              Browse Accounts
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </Link>
+        )}
       </section>
 
       {/* Ambassador Accounts */}
@@ -610,7 +637,8 @@ function DashboardContent() {
         </section>
       )}
 
-      {/* My Rented Accounts */}
+      {/* My Rented Accounts — hidden for pure ambassadors (no real rentals) */}
+      {showRenterSide && (
       <section data-tour="rentals" className="mb-12">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">My Rented Accounts</h2>
         <Card>
@@ -737,7 +765,8 @@ function DashboardContent() {
                 </tr>
               );
             })}
-                  {/* Demo test account — always visible */}
+                  {/* Demo test account — hidden for ambassadors */}
+                  {!isAmbassador && (
                   <tr className="bg-amber-50/40">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -774,11 +803,13 @@ function DashboardContent() {
                       </button>
                     </td>
                   </tr>
+                  )}
                 </tbody>
               </table>
             </CardContent>
         </Card>
       </section>
+      )}
 
       {/* Past Rentals */}
       {pastRentals.length > 0 && (
