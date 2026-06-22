@@ -96,14 +96,14 @@ export default function AdminDashboardPage() {
 
       <Band title="💰 Money — is the business making money?">
         <Tile label="Net Profit / mo" value={formatCurrency(stats.netProfit)} sub={`${margin}% margin`} color="text-green-600" />
-        <Tile label="Revenue (MRR)" value={formatCurrency(stats.mrr)} sub="money in" color="text-gray-900" />
+        <Tile label="Monthly Revenue" value={formatCurrency(stats.mrr)} sub="recurring, money in" color="text-gray-900" />
         <Tile label="Ambassador Payouts" value={formatCurrency(stats.payouts)} sub="money out" color="text-gray-900" />
         <Tile label="Active Rentals" value={stats.activeRentals} sub="live now" color="text-blue-600" />
       </Band>
 
       <Band title="🧑‍💻 Demand — renters">
-        <Tile label="Customers" value={stats.totalCustomers} sub="have rented" />
-        <Tile label="New (30d)" value={stats.newCustomers30d} sub="started renting" />
+        <Tile label="Customers" value={stats.totalCustomers} sub={`renting ${stats.activeRentals} accounts`} />
+        <Tile label="New (30d)" value={stats.newCustomers30d} sub="new this month" />
         <Tile label="Renewals ≤30d" value={stats.renewalsDue30d} sub="coming up" />
         <Tile label="At-risk" value={stats.atRisk} sub="may churn" color={stats.atRisk > 0 ? "text-amber-600" : "text-gray-900"} />
       </Band>
