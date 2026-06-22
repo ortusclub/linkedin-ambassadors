@@ -35,6 +35,8 @@ interface Account {
   removedBy: string | null;
   rentals: Array<{
     lockedPrice: string | number | null;
+    currentPeriodEnd: string | null;
+    autoRenew: boolean;
     user: { fullName: string; email: string };
   }>;
 }
@@ -322,6 +324,14 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     return "Offline";
   };
 
+  // Group rows by status so available, rented, and offline accounts sit together.
+  const statusRank = (s: string) => {
+    const order: Record<string, number> = {
+      available: 0, rented: 1, unavailable: 2, maintenance: 2, retired: 2, under_review: 3, removed: 4,
+    };
+    return order[s] ?? 5;
+  };
+
   const toggleForRent = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "available" ? "unavailable" : "available";
     const newListed = newStatus === "available";
@@ -441,6 +451,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Renter</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rented Until</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
@@ -469,7 +480,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   (a.notes || "").toLowerCase().includes(q) ||
                   (a.proxyHost || "").includes(q)
                 );
-              }).map((a) => (
+              }).sort((a, b) => statusRank(a.status) - statusRank(b.status)).map((a) => (
                 <tr key={a.id} className={`hover:bg-gray-50 ${selected.has(a.id) ? "bg-red-50/50" : ""}`}>
                   <td className="px-4 py-3 w-10">
                     <input
@@ -495,6 +506,23 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       <div>
                         <p className="font-medium text-gray-900">{a.rentals[0].user.fullName}</p>
                         <p className="text-gray-400">{a.rentals[0].user.email}</p>
+                      </div>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    {a.rentals && a.rentals.length > 0 ? (
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {a.rentals[0].currentPeriodEnd
+                            ? new Date(a.rentals[0].currentPeriodEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                            : "—"}
+                        </p>
+                        <span className={`inline-flex items-center gap-1 ${a.rentals[0].autoRenew ? "text-green-600" : "text-gray-400"}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${a.rentals[0].autoRenew ? "bg-green-500" : "bg-gray-300"}`} />
+                          {a.rentals[0].autoRenew ? "Auto-renews" : "No auto-renew"}
+                        </span>
                       </div>
                     ) : (
                       <span className="text-gray-300">—</span>
