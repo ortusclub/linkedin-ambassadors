@@ -58,9 +58,9 @@ export async function GET(req: NextRequest) {
   const sorted = [...accounts].sort((a, b) => (rank[a.status] ?? 5) - (rank[b.status] ?? 5));
 
   const headers = [
-    "LinkedIn Account", "LinkedIn URL", "Status", "Renter", "Rented Until",
+    "LinkedIn Account", "Headline / Title", "LinkedIn URL", "Status", "Renter", "Rented Until",
     "Auto Renew", "Owner", "Location", "Number of Connections", "Sales Navigator",
-    "Monthly Price", "Ambassador Payout",
+    "Monthly Price", "Ambassador Payout", "Verified", "GoLogin Profile ID", "Shareable Link",
   ];
 
   const rows = sorted.map((a) => {
@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
     const payout = Number(a.ambassadorPayment || 0);
     return [
       profileEmail || a.linkedinName,
+      a.linkedinHeadline || "",
       a.linkedinUrl || "",
       displayStatus(a.status),
       rental ? rental.user.fullName : "",
@@ -84,6 +85,9 @@ export async function GET(req: NextRequest) {
       a.hasSalesNav ? "Yes" : "No",
       price > 0 ? `$${price.toFixed(0)}` : "",
       payout > 0 ? `$${payout.toFixed(0)}` : "",
+      a.verificationProof ? "Yes" : "No",
+      a.gologinProfileId || "",
+      a.gologinShareLink || "",
     ];
   });
 

@@ -531,6 +531,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 whitespace-nowrap">Dummy</span>
                       )}
                     </div>
+                    {a.linkedinHeadline && <p className="mt-0.5 text-xs text-gray-500 max-w-[220px] truncate" title={a.linkedinHeadline}>{a.linkedinHeadline}</p>}
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={statusVariant(a.status)}>{getDisplayStatus(a.status)}</Badge>
@@ -583,6 +584,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     {a.gologinShareLink ? (
                       <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium">Link</a>
                     ) : <span className="text-gray-400">—</span>}
+                    {a.gologinProfileId && (
+                      <p className="mt-0.5 font-mono text-[10px] text-gray-400 max-w-[120px] truncate" title={a.gologinProfileId}>ID: {a.gologinProfileId}</p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
