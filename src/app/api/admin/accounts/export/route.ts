@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isCompanyEmail } from "@/lib/company";
 
 // CSV export of the inventory, for Google Sheets to auto-pull via
 // =IMPORTDATA("https://linkedvelocity.com/api/admin/accounts/export?key=XXXX").
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
     // Owner: showcase/demo accounts => "Dummy"; our own Ortus accounts => "ORTUS";
     // otherwise the ambassador who supplied it.
     const isShowcase = (a.notes || "").includes("[SHOWCASE]");
-    const isOrtus = [profileEmail, ownerEmail].some((e) => (e || "").toLowerCase().endsWith("@ortus.solutions"));
+    const isOrtus = [profileEmail, ownerEmail].some((e) => isCompanyEmail(e));
     const ownerDisplay = isShowcase ? "Dummy" : isOrtus ? "Ortus" : (ownerMap.get(ownerEmail) || ownerEmail || "");
     return [
       profileEmail || a.linkedinName,

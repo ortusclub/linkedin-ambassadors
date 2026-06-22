@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { isCompanyEmail } from "@/lib/company";
 
 // Ambassador payouts = what we owe the people who SUPPLIED accounts (not renters,
 // not our own Ortus accounts, not showcase dummies). Grouped by owner, summing the
@@ -19,7 +20,7 @@ export async function GET() {
       if ((a.notes || "").includes("[SHOWCASE]")) continue; // dummy
       const ownerEmail = (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "");
       if (!ownerEmail) continue;
-      if (ownerEmail.toLowerCase().endsWith("@ortus.solutions")) continue; // company-owned, not an ambassador
+      if (isCompanyEmail(ownerEmail)) continue; // company-owned (Ortus/LinkedVelocity/etc.), not an ambassador
       const key = ownerEmail.toLowerCase();
       if (!byOwner.has(key)) byOwner.set(key, { email: ownerEmail, accounts: [], owed: 0 });
       const o = byOwner.get(key)!;

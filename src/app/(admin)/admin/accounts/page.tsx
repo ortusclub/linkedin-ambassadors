@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatNumber } from "@/lib/utils";
+import { isCompanyEmail } from "@/lib/company";
 
 interface Account {
   id: string;
@@ -599,7 +600,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   <td className="px-4 py-3 text-xs text-gray-600">
                     {(a.notes || "").includes("[SHOWCASE]")
                       ? <span className="font-medium text-amber-600">Dummy</span>
-                      : [(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1], a.ownerEmail].some((e) => (e || "").toLowerCase().endsWith("@ortus.solutions"))
+                      : [(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1], a.ownerEmail].some((e) => isCompanyEmail(e))
                       ? <span className="font-medium text-gray-900">Ortus</span>
                       : (a.ownerEmail || "—")}
                   </td>
