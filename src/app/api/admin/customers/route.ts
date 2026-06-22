@@ -34,7 +34,24 @@ export async function GET() {
       else if (!fundingByUser.has(d.userId)) fundingByUser.set(d.userId, "Crypto Wallet");
     }
 
-    const result = customers.map((c) => ({
+    // Everyone signs up as role "customer" — renters AND ambassadors. The Renters tab
+    // should only show renters, so exclude "pure ambassadors": anyone who submitted an
+    // ambassador application and isn't actually renting. (A user who both shares and
+    // rents still has rentals, so they stay listed here.)
+    const emails = customers.map((c) => c.email);
+    const ambEmails = new Set(
+      (emails.length > 0
+        ? await prisma.ambassadorApplication.findMany({
+            where: { email: { in: emails } },
+            select: { email: true },
+          })
+        : []
+      ).map((a) => a.email)
+    );
+
+    const result = customers
+      .filter((c) => c.rentals.length > 0 || !ambEmails.has(c.email))
+      .map((c) => ({
       id: c.id,
       fullName: c.fullName,
       email: c.email,
