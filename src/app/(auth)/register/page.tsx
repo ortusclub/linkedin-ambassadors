@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,21 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState("");
+
+  // Pre-fill from the valuation flow so users don't re-type what they already entered.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("lv_signup_prefill");
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (p.firstName) setFirstName(p.firstName);
+      if (p.lastName) setLastName(p.lastName);
+      if (p.email) setEmail(p.email);
+      if (p.contactMethod === "whatsapp" || p.contactMethod === "telegram") setContactMethod(p.contactMethod);
+      if (p.contactHandle) setContactHandle(p.contactHandle);
+      localStorage.removeItem("lv_signup_prefill");
+    } catch {}
+  }, []);
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();

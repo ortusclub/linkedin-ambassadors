@@ -257,6 +257,20 @@ export default function BecomeAmbassadorPage() {
     setStep("scanning");
   }, [form]);
 
+  // Stash what they already typed so the signup page pre-fills it (no re-entering).
+  const stashSignupPrefill = () => {
+    try {
+      const parts = (form.fullName || "").trim().split(/\s+/);
+      localStorage.setItem("lv_signup_prefill", JSON.stringify({
+        firstName: parts[0] || "",
+        lastName: parts.slice(1).join(" "),
+        email: form.email || "",
+        contactMethod: form.contactMethod || "whatsapp",
+        contactHandle: form.contactHandle || "",
+      }));
+    } catch {}
+  };
+
   const handleBankSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -780,7 +794,8 @@ export default function BecomeAmbassadorPage() {
                   if (isLoggedIn) {
                     setStep("account-details");
                   } else {
-                    window.location.href = "/login?message=Please sign up or sign in before sharing your profile.";
+                    stashSignupPrefill();
+                    window.location.href = "/register?redirect=/become-ambassador";
                   }
                 }}
                 className="block mx-auto mb-6 text-sm text-blue-600 hover:text-blue-800 font-medium"
@@ -955,7 +970,8 @@ export default function BecomeAmbassadorPage() {
               <div className="mt-6 flex gap-4">
                 <Button onClick={() => {
                   if (!isLoggedIn) {
-                    window.location.href = "/login?redirect=/become-ambassador";
+                    stashSignupPrefill();
+                    window.location.href = "/register?redirect=/become-ambassador";
                     return;
                   }
                   setStep("account-details");
