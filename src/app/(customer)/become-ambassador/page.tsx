@@ -350,6 +350,10 @@ export default function BecomeAmbassadorPage() {
         @media(max-width:860px){.atiers{grid-template-columns:1fr}}
       `}</style>
 
+      {/* Landing marketing (hero + earnings) — only on the choice/landing steps so it
+          hides once the user starts the valuation form. */}
+      {(step === "choice" || step === "logged-in-choice") && (
+      <>
       {/* Hero — green-primary (ambassador side), brand-blue accents */}
       <section id="amb-hero" className="relative overflow-hidden" style={{background:'linear-gradient(160deg,#06231A 0%,#0A4D30 42%,#00B85C 125%)'}}>
         <div aria-hidden className="pointer-events-none absolute -top-24 right-[6%] h-80 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(79,144,217,0.22),transparent 70%)'}} />
@@ -433,6 +437,8 @@ export default function BecomeAmbassadorPage() {
           </div>
         </div>
       </section>
+      </>
+      )}
 
       {/* Choice Screen */}
       {step === "choice" && (
