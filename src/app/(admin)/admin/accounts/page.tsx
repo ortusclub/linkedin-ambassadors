@@ -539,15 +539,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-gray-900">{(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName}</p>
-                      {(a.notes || "").includes("[SHOWCASE]") && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 whitespace-nowrap">Dummy</span>
-                      )}
-                      {a.linkedinVerified && (
-                        <span title="LinkedIn verified" className="inline-flex items-center gap-0.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 whitespace-nowrap">✓ Verified</span>
-                      )}
-                    </div>
+                    <p className="text-sm font-medium text-gray-900">{(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName}</p>
                     {a.linkedinHeadline && <p className="mt-0.5 text-xs text-gray-500 max-w-[220px] truncate" title={a.linkedinHeadline}>{a.linkedinHeadline}</p>}
                   </td>
                   <td className="px-4 py-3">
