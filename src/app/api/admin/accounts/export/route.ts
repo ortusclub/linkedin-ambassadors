@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.
   const headers = [
-    "LinkedIn Account", "Headline / Title", "Status", "Verified",
+    "LinkedIn Account", "Type", "Headline / Title", "Status", "Verified",
     "Renter", "Rented Until", "Auto Renew",
     "Monthly Price", "Ambassador Payout", "Owner",
     "Location", "Number of Connections", "Sales Navigator", "LinkedIn URL",
@@ -76,6 +76,7 @@ export async function GET(req: NextRequest) {
     const payout = Number(a.ambassadorPayment || 0);
     return [
       profileEmail || a.linkedinName,
+      (a.notes || "").includes("[SHOWCASE]") ? "Dummy" : "Real",
       a.linkedinHeadline || "",
       displayStatus(a.status),
       a.verificationProof ? "Yes" : "No",
