@@ -369,6 +369,32 @@ function DashboardContent() {
         </div>
       )}
 
+      {/* Ambassador getting-started — how the programme works */}
+      {isAmbassador && (
+        <div className="mb-8 rounded-xl border border-gray-100 bg-white p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-gray-900">How it works</p>
+            <span className="text-xs text-gray-400">Share as many LinkedIn accounts as you like — each one earns separately.</span>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            {[
+              { n: "1", t: "Submit your account", d: "Add your LinkedIn profile — or several." },
+              { n: "2", t: "Book a setup call", d: "We hop on a quick call together." },
+              { n: "3", t: "We connect GoLogin", d: "Set up securely on the call — you keep full control." },
+              { n: "4", t: "Get paid monthly", d: "On the 1st, every month it stays active." },
+            ].map((s) => (
+              <div key={s.n} className="flex gap-3">
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">{s.n}</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{s.t}</p>
+                  <p className="text-xs text-gray-500">{s.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Post-payment confirmation — what to do now */}
       {showRentalSuccess && (
         <div className="mb-8 rounded-xl border border-green-200 bg-green-50 p-5">
