@@ -1069,7 +1069,7 @@ export default function BecomeAmbassadorPage() {
                 </a>
 
                 <a
-                  href="https://t.me/clabber_support"
+                  href="https://t.me/linkedvelocity_support_bot"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
@@ -1081,12 +1081,12 @@ export default function BecomeAmbassadorPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">Telegram Us</p>
-                    <p className="text-sm text-gray-500">@clabber_support</p>
+                    <p className="text-sm text-gray-500">@linkedvelocity_support_bot</p>
                   </div>
                 </a>
 
                 <a
-                  href="mailto:ambassadors@clabber.co"
+                  href="mailto:info@linkedvelocity.com"
                   className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
@@ -1097,7 +1097,7 @@ export default function BecomeAmbassadorPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">Email Us</p>
-                    <p className="text-sm text-gray-500">ambassadors@clabber.co</p>
+                    <p className="text-sm text-gray-500">info@linkedvelocity.com</p>
                   </div>
                 </a>
               </div>
@@ -1520,7 +1520,7 @@ export default function BecomeAmbassadorPage() {
                     </a>
 
                     <a
-                      href="mailto:ambassadors@linkedvelocity.com"
+                      href="mailto:info@linkedvelocity.com"
                       className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-purple-300 hover:bg-purple-50"
                     >
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 flex-shrink-0">
@@ -1531,7 +1531,7 @@ export default function BecomeAmbassadorPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">Email</p>
-                        <p className="text-sm text-gray-500">ambassadors@linkedvelocity.com</p>
+                        <p className="text-sm text-gray-500">info@linkedvelocity.com</p>
                       </div>
                     </a>
                   </div>
