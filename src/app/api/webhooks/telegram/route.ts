@@ -30,6 +30,52 @@ interface TelegramUpdate {
   channel_post?: TelegramMessage;
 }
 
+const CALENDAR_URL =
+  "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
+
+// Tappable menu shown under every reply so people always have a path forward.
+const MENU = {
+  inline_keyboard: [
+    [{ text: "🔹 Rent LinkedIn accounts", url: "https://linkedvelocity.com/catalogue" }],
+    [{ text: "💸 Earn by sharing your account", url: "https://linkedvelocity.com/become-ambassador" }],
+    [{ text: "📅 Book a call", url: CALENDAR_URL }],
+  ],
+};
+
+// Reply to the user via the Telegram Bot API. Needs TELEGRAM_BOT_TOKEN in env.
+async function sendTelegramReply(chatId: number, text: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    console.warn("TELEGRAM_BOT_TOKEN not set — bot can receive but cannot reply.");
+    return;
+  }
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+        reply_markup: MENU,
+      }),
+    });
+  } catch (e) {
+    console.error("Telegram sendMessage failed:", e);
+  }
+}
+
+const WELCOME =
+  "👋 <b>Welcome to LinkedVelocity!</b>\n\n" +
+  "We help you either <b>rent LinkedIn accounts</b> for B2B outreach, or <b>earn by sharing</b> your own account.\n\n" +
+  "A team member will personally reach out during business hours (<b>9am–6pm GMT+8</b>). " +
+  "In the meantime, pick an option below 👇";
+
+const ACK =
+  "Thanks for your message! 🙌 A member of our team will get back to you personally during business hours " +
+  "(<b>9am–6pm GMT+8</b>).\n\nWhile you wait, these might help 👇";
+
 export async function POST(req: Request) {
   try {
     const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -57,6 +103,10 @@ export async function POST(req: Request) {
         message.from.username ||
         `User ${message.from.id}`
       : "Unknown sender";
+
+    // Reply to the user so they're never left in silence, then notify the team.
+    const isStart = text.trim().toLowerCase().startsWith("/start");
+    await sendTelegramReply(message.chat.id, isStart ? WELCOME : ACK);
 
     await sendTelegramMessageNotification({
       fromName,
