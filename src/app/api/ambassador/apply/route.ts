@@ -14,6 +14,7 @@ const applySchema = z.object({
   industry: z.string().optional(),
   location: z.string().optional(),
   notes: z.string().optional(),
+  referralSource: z.string().optional(),
 });
 
 export async function POST(req: Request) {

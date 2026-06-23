@@ -11,12 +11,13 @@ const registerSchema = z.object({
   fullName: z.string().min(1),
   contactMethod: z.enum(["whatsapp", "telegram"]).optional(),
   contactHandle: z.string().optional(),
+  referralSource: z.string().optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, password, fullName, contactMethod, contactHandle } = registerSchema.parse(body);
+    const { email, password, fullName, contactMethod, contactHandle, referralSource } = registerSchema.parse(body);
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
     const passwordHash = password ? await hashPassword(password) : null;
     const contactNumber = contactHandle ? `${contactMethod || "whatsapp"}:${contactHandle}` : null;
     const user = await prisma.user.create({
-      data: { email, passwordHash, fullName, contactNumber, isTest: isLikelyTestEmail(email) },
+      data: { email, passwordHash, fullName, contactNumber, referralSource: referralSource || null, isTest: isLikelyTestEmail(email) },
     });
 
     // Don't create session here — user will verify email first

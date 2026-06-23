@@ -18,6 +18,7 @@ interface Application {
   industry: string | null;
   location: string | null;
   notes: string | null;
+  referralSource: string | null;
   status: string;
   offeredAmount: string | number | null;
   adminNotes: string | null;
@@ -173,7 +174,7 @@ export default function AdminAmbassadorsPage() {
                 <tr className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                   <th colSpan={2} className="px-3 pt-2 pb-1 text-left">👤 Owner (POC)</th>
                   <th colSpan={5} className="px-3 pt-2 pb-1 text-left border-l border-gray-200">🔗 LinkedIn Account</th>
-                  <th colSpan={2} className="px-3 pt-2 pb-1 text-left border-l border-gray-200">📋 Review</th>
+                  <th colSpan={3} className="px-3 pt-2 pb-1 text-left border-l border-gray-200">📋 Review</th>
                 </tr>
                 <tr>
                   <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Owner Email</th>
@@ -185,6 +186,7 @@ export default function AdminAmbassadorsPage() {
                   <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Location</th>
                   <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500 border-l border-gray-200">Status</th>
                   <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Applied</th>
+                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Heard From</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -233,6 +235,7 @@ export default function AdminAmbassadorsPage() {
                         </select>
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-500">{formatDate(app.createdAt)}</td>
+                      <td className="px-3 py-2 text-sm text-gray-600">{app.referralSource || "—"}</td>
                     </tr>
                   );
                 })}

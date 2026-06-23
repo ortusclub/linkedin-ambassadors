@@ -22,6 +22,7 @@ function RegisterForm() {
   const [email, setEmail] = useState("");
   const [contactMethod, setContactMethod] = useState<"whatsapp" | "telegram">("whatsapp");
   const [contactHandle, setContactHandle] = useState("");
+  const [referralSource, setReferralSource] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
@@ -69,6 +70,7 @@ function RegisterForm() {
           fullName: `${firstName.trim()} ${lastName.trim()}`,
           contactMethod,
           contactHandle,
+          referralSource: referralSource || undefined,
         }),
       }).catch(() => {});
 
@@ -222,6 +224,23 @@ function RegisterForm() {
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <p className="text-xs text-gray-400 mt-1">Only used for account communication — never for marketing.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">How did you hear about us?</label>
+            <select
+              value={referralSource}
+              onChange={(e) => setReferralSource(e.target.value)}
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Select an option (optional)</option>
+              <option>Google search</option>
+              <option>LinkedIn</option>
+              <option>ChatGPT / AI tool</option>
+              <option>Social media</option>
+              <option>Reddit</option>
+              <option>Friend or referral</option>
+              <option>Other</option>
+            </select>
           </div>
           <Button type="submit" loading={loading} className="w-full">
             Continue

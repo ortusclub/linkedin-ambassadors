@@ -129,6 +129,7 @@ export default function BecomeAmbassadorPage() {
     verified: false,
     hasSalesNav: false,
     notes: "",
+    referralSource: "",
   });
 
   const [accountName, setAccountName] = useState("");
@@ -241,6 +242,7 @@ export default function BecomeAmbassadorPage() {
           linkedinUrl: form.linkedinUrl,
           connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
           location: form.location || undefined,
+          referralSource: form.referralSource || undefined,
           notes: [
             form.verified ? "Verified profile" : "",
             form.hasSalesNav ? "Sales Navigator" : "",
@@ -892,6 +894,26 @@ export default function BecomeAmbassadorPage() {
                       <Input id="linkedinUrl" label="LinkedIn Profile URL *" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} required />
                     </div>
                   </div>
+
+                  {/* How did you hear about us? */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">How did you hear about us?</label>
+                    <select
+                      value={form.referralSource}
+                      onChange={(e) => update("referralSource", e.target.value)}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">Select an option (optional)</option>
+                      <option>Google search</option>
+                      <option>LinkedIn</option>
+                      <option>ChatGPT / AI tool</option>
+                      <option>Social media</option>
+                      <option>Reddit</option>
+                      <option>Friend or referral</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+
                   <Button type="submit" className="w-full" size="lg">Get Profile Valuation</Button>
                 </CardContent>
               </Card>

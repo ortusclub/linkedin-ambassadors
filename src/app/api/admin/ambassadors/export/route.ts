@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   const headers = [
     "Account Name", "Owner Email (POC)", "LinkedIn Login Email", "LinkedIn URL", "Contact",
-    "Connections", "Location", "Status", "Payment Method", "Notes", "Applied",
+    "Connections", "Location", "Status", "Payment Method", "Heard From", "Notes", "Applied",
   ];
 
   const rows = applications.map((a) => [
@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
     a.location || "",
     a.status,
     a.paymentMethod || (a.paypalEmail ? `PayPal: ${a.paypalEmail}` : a.wiseEmail ? `Wise: ${a.wiseEmail}` : ""),
+    a.referralSource || "",
     a.notes || "",
     fmtDate(a.createdAt),
   ]);

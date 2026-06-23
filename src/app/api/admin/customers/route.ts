@@ -62,6 +62,7 @@ export async function GET() {
       totalRentals: c._count.rentals,
       paymentMethod: fundingByUser.get(c.id) || "—",
       isTest: c.isTest,
+      referralSource: c.referralSource,
     }));
 
     return NextResponse.json({ customers: result });

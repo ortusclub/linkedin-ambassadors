@@ -16,6 +16,7 @@ interface Customer {
   totalRentals: number;
   paymentMethod: string;
   isTest: boolean;
+  referralSource: string | null;
 }
 
 export default function AdminCustomersPage() {
@@ -83,6 +84,7 @@ export default function AdminCustomersPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Contact</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payment Method</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Heard From</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Active Rentals</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Total Rentals</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Joined</th>
@@ -115,6 +117,7 @@ export default function AdminCustomersPage() {
                   <td className="px-4 py-3">
                     <span className="text-sm text-gray-700">{c.paymentMethod}</span>
                   </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{c.referralSource || "—"}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{c.activeRentals}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{c.totalRentals}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{formatDate(c.createdAt)}</td>
