@@ -371,26 +371,35 @@ function DashboardContent() {
 
       {/* Ambassador getting-started — how the programme works */}
       {isAmbassador && (
-        <div className="mb-8 rounded-xl border border-gray-100 bg-white p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-gray-900">How it works</p>
-            <span className="text-xs text-gray-400">Share as many LinkedIn accounts as you like — each one earns separately.</span>
+        <div className="mb-8 overflow-hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/80 via-white to-white p-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#00B85C]/10 text-base">💸</span>
+              <p className="text-base font-bold text-gray-900">Turn your LinkedIn into monthly income</p>
+            </div>
+            <span className="text-xs font-medium text-green-700">Share as many accounts as you like — each one earns separately</span>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             {[
-              { n: "1", t: "Submit your account", d: "Add your LinkedIn profile — or several." },
-              { n: "2", t: "Book a setup call", d: "We hop on a quick call together." },
-              { n: "3", t: "We connect GoLogin", d: "Set up securely on the call — you keep full control." },
-              { n: "4", t: "Get paid monthly", d: "On the 1st, every month it stays active." },
-            ].map((s) => (
-              <div key={s.n} className="flex gap-3">
-                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">{s.n}</div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{s.t}</p>
-                  <p className="text-xs text-gray-500">{s.d}</p>
+              { t: "Share your profile", d: "Add your LinkedIn — or several. Takes 2 minutes.", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /> },
+              { t: "Hop on a quick call", d: "We set everything up with you, live.", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /> },
+              { t: "We do the work", d: "We run outreach via GoLogin. You keep full control.", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.042 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.746 3.746 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /> },
+              { t: "Get paid, every month", d: "Passive income on the 1st — even while you sleep.", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /> },
+            ].map((s, i) => (
+              <div key={i} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#00B85C] to-[#007A3D] text-white">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>{s.icon}</svg>
                 </div>
+                <p className="text-sm font-bold text-gray-900">{s.t}</p>
+                <p className="mt-1 text-xs leading-relaxed text-gray-500">{s.d}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-green-100 pt-4 text-xs font-medium text-gray-600">
+            <span className="inline-flex items-center gap-1"><span className="text-[#00B85C]">✓</span> You keep full control</span>
+            <span className="inline-flex items-center gap-1"><span className="text-[#00B85C]">✓</span> Cancel anytime</span>
+            <span className="inline-flex items-center gap-1"><span className="text-[#00B85C]">✓</span> Paid monthly, guaranteed</span>
+            <span className="inline-flex items-center gap-1"><span className="text-[#00B85C]">✓</span> Your network grows with high-level execs</span>
           </div>
         </div>
       )}
