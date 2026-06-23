@@ -51,7 +51,7 @@ function brandWrap(inner: string) {
       <h2 style="color:#0A66C2;margin:0 0 24px;font-size:22px;letter-spacing:-0.02em;">LinkedVelocity</h2>
       ${inner}
       <p style="color:#8899A6;font-size:12px;margin-top:32px;border-top:1px solid #E8E6E1;padding-top:16px;">
-        Need help? Message us on Telegram <a href="https://t.me/klabber_support_bot" style="color:#0A66C2;text-decoration:none;">@klabber_support_bot</a> &nbsp;·&nbsp;
+        Need help? Message us on Telegram <a href="https://t.me/linkedvelocity_support_bot" style="color:#0A66C2;text-decoration:none;">@linkedvelocity_support_bot</a> &nbsp;·&nbsp;
         <a href="${appUrl}/dashboard" style="color:#0A66C2;text-decoration:none;">Your dashboard</a>
       </p>
       <p style="color:#8899A6;font-size:12px;margin-top:8px;">&mdash; The LinkedVelocity Team</p>
@@ -176,7 +176,7 @@ export async function sendRenewalLinkEmail(
         <li>✅ Locked in for another month at <strong>${amount}</strong></li>
       </ul>
       <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Renew now →</a>
-      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">It takes about a minute, and once it's done you're set for the month. Need a hand? Just reach out on Telegram <a href="https://t.me/klabber_support_bot" style="color:#0A66C2;">@klabber_support_bot</a> — happy to help.</p>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">It takes about a minute, and once it's done you're set for the month. Need a hand? Just reach out on Telegram <a href="https://t.me/linkedvelocity_support_bot" style="color:#0A66C2;">@linkedvelocity_support_bot</a> — happy to help.</p>
       <p style="font-size:14px;color:#536471;line-height:1.6;margin:14px 0 0;">Thanks for being part of LinkedVelocity! 💙</p>
     `),
   });
@@ -307,7 +307,7 @@ export async function sendPaymentFailedEmail(email: string, firstName: string, p
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">We had trouble processing your latest payment — but no worries, <strong>your access is still on</strong>. We'll keep retrying automatically over the next few days.</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 18px;">To avoid any interruption, you can settle it now in one click:</p>
       <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Pay now →</a>
-      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Having trouble? Message us on Telegram <a href="https://t.me/klabber_support_bot" style="color:#0A66C2;">@klabber_support_bot</a> and we'll sort it out.</p>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Having trouble? Message us on Telegram <a href="https://t.me/linkedvelocity_support_bot" style="color:#0A66C2;">@linkedvelocity_support_bot</a> and we'll sort it out.</p>
     `),
   });
 }
@@ -322,7 +322,7 @@ export async function sendAccessRevokedEmail(email: string, firstName: string, p
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">We weren't able to collect payment for your rental, so access has been paused for now. Your account and everything in it are safe — settle below and we'll restore your access right away.</p>
       <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Pay &amp; restore →</a>
-      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Questions? We're here on Telegram <a href="https://t.me/klabber_support_bot" style="color:#0A66C2;">@klabber_support_bot</a>.</p>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Questions? We're here on Telegram <a href="https://t.me/linkedvelocity_support_bot" style="color:#0A66C2;">@linkedvelocity_support_bot</a>.</p>
     `),
   });
 }
