@@ -301,18 +301,7 @@ function DashboardContent() {
       <div className="flex items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
         <div className="flex items-center gap-2">
-          {isAmbassador ? (
-            // Ambassador header: book a setup call (this is how we get GoLogin connected).
-            <a
-              href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md bg-[#00B85C] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#00A050] transition-colors whitespace-nowrap"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              Book a call
-            </a>
-          ) : (
+          {!isAmbassador && (
             <>
               <button
                 onClick={() => startDashboardTour(true)}
@@ -513,48 +502,29 @@ function DashboardContent() {
       </section>
       )}
 
-      {/* Primary CTA — share & earn (ambassadors) or rent (renters) */}
+      {/* Primary CTA — rent (renters / both). Pure ambassadors add accounts from the summary card. */}
+      {showRenterSide && (
       <section className="mb-8">
-        {isAmbassador ? (
-          <Link
-            href="/become-ambassador?submit=1"
-            className="flex items-center justify-between gap-4 rounded-xl border border-green-100 bg-gradient-to-r from-green-50 to-white px-5 py-4 transition-all hover:border-green-300 hover:shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#00B85C]">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Share Another Account</p>
-                <p className="text-xs text-gray-500">Add another LinkedIn account and earn more each month</p>
-              </div>
+        <Link
+          href="/catalogue"
+          className="flex items-center justify-between gap-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white px-5 py-4 transition-all hover:border-blue-300 hover:shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#00B85C] px-4 py-2 text-xs font-semibold text-white">
-              Share &amp; Earn
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </span>
-          </Link>
-        ) : (
-          <Link
-            href="/catalogue"
-            className="flex items-center justify-between gap-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white px-5 py-4 transition-all hover:border-blue-300 hover:shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Rent an Account</p>
-                <p className="text-xs text-gray-500">Browse available LinkedIn accounts in the marketplace</p>
-              </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Rent an Account</p>
+              <p className="text-xs text-gray-500">Browse available LinkedIn accounts in the marketplace</p>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white">
-              Browse Accounts
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </span>
-          </Link>
-        )}
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white">
+            Browse Accounts
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </span>
+        </Link>
       </section>
+      )}
 
       {/* Ambassador Accounts */}
       {ambassadorAccounts.length > 0 && (
