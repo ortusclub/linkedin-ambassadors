@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
-type Step = "choice" | "logged-in-choice" | "info" | "scanning" | "result" | "bank" | "account-details" | "login" | "complete" | "done" | "review";
+type Step = "choice" | "logged-in-choice" | "info" | "scanning" | "result" | "bank" | "account-details" | "login" | "complete" | "done" | "review" | "scheduled";
 
 const SCAN_STEPS = [
   "Locating your LinkedIn profile...",
@@ -157,7 +157,12 @@ export default function BecomeAmbassadorPage() {
   // (e.g. the "Get my valuation" nav button), jump straight into the form.
   useEffect(() => {
     let wantValuation = false;
-    try { wantValuation = !!new URLSearchParams(window.location.search).get("valuation"); } catch {}
+    let booked = false;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      wantValuation = !!sp.get("valuation");
+      booked = !!sp.get("booked"); // returning here after signing up — show the book-a-call step
+    } catch {}
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((data) => {
@@ -171,13 +176,13 @@ export default function BecomeAmbassadorPage() {
             contactHandle: prev.contactHandle || (data.user.contactNumber?.replace(/^(whatsapp|telegram):/, "") || ""),
           }));
           setIsLoggedIn(true);
-          setStep(wantValuation ? "info" : "logged-in-choice");
+          setStep(booked ? "scheduled" : wantValuation ? "info" : "logged-in-choice");
         } else {
-          setStep(wantValuation ? "info" : "choice");
+          setStep(booked ? "scheduled" : wantValuation ? "info" : "choice");
         }
       })
       .catch(() => {
-        setStep(wantValuation ? "info" : "choice");
+        setStep(booked ? "scheduled" : wantValuation ? "info" : "choice");
       });
   }, []);
 
@@ -801,10 +806,10 @@ export default function BecomeAmbassadorPage() {
                 type="button"
                 onClick={() => {
                   if (isLoggedIn) {
-                    setStep("account-details");
+                    setStep("scheduled");
                   } else {
                     stashSignupPrefill();
-                    window.location.href = "/register?redirect=/become-ambassador";
+                    window.location.href = "/register?redirect=" + encodeURIComponent("/become-ambassador?booked=1");
                   }
                 }}
                 className="block mx-auto mb-6 text-sm text-blue-600 hover:text-blue-800 font-medium"
@@ -980,12 +985,12 @@ export default function BecomeAmbassadorPage() {
                 <Button onClick={() => {
                   if (!isLoggedIn) {
                     stashSignupPrefill();
-                    window.location.href = "/register?redirect=/become-ambassador";
+                    window.location.href = "/register?redirect=" + encodeURIComponent("/become-ambassador?booked=1");
                     return;
                   }
-                  setStep("account-details");
+                  setStep("scheduled");
                 }} size="lg" className="flex-1">
-                  Accept Assessment
+                  Accept &amp; Continue
                 </Button>
                 {offer.reasons.filter((r) => r.positive).length <= 1 ? (
                   <Button variant="outline" size="lg" onClick={() => setStep("review")} className="flex-1">
@@ -1004,6 +1009,42 @@ export default function BecomeAmbassadorPage() {
                 </a>{" "}
                 (LinkedIn Account Access &amp; Usage terms).
               </p>
+            </div>
+          )}
+
+          {/* STEP: Book your onboarding call (interim — after accepting + signing up) */}
+          {step === "scheduled" && (
+            <div className="text-center">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#E6F9EE]">
+                <svg className="h-8 w-8 text-[#00B85C]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">You&apos;re in{form.fullName ? `, ${form.fullName.split(" ")[0]}` : ""}! 🎉</h2>
+              <p className="mt-2 text-gray-600 max-w-md mx-auto">
+                We&apos;ve got your details. The last step is a quick onboarding call so we can verify your profile and get you set up to start earning.
+              </p>
+
+              <a
+                href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#00B85C] px-7 py-3.5 text-[15px] font-bold text-white transition hover:bg-[#00A050]"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                Book your onboarding call
+              </a>
+
+              <div className="mt-8 max-w-md mx-auto rounded-xl border border-green-100 bg-green-50/50 p-5 text-left">
+                <p className="text-sm font-semibold text-gray-900 mb-2">What happens on the call</p>
+                <ol className="space-y-1.5 text-sm text-gray-600">
+                  <li>1. We quickly verify your LinkedIn profile.</li>
+                  <li>2. We connect your account securely via GoLogin (you keep full control).</li>
+                  <li>3. You start earning every month it&apos;s active.</li>
+                </ol>
+              </div>
+
+              <a href="/dashboard" className="mt-6 inline-block text-sm font-medium text-gray-500 hover:text-gray-700">
+                Skip for now — go to my dashboard →
+              </a>
             </div>
           )}
 
