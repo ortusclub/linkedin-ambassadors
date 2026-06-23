@@ -468,7 +468,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       ) : (
         <div>
         {selected.size > 0 && (
-          <div className="mb-3 flex items-center justify-between rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+          <div className="mb-3 flex items-center justify-between rounded-lg bg-red-50 border border-red-200 px-3 py-2">
             <span className="text-sm font-medium text-red-800">{selected.size} account{selected.size > 1 ? "s" : ""} selected</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelected(new Set())} className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100">
@@ -488,7 +488,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 w-10">
+                <th className="px-3 py-2 w-10">
                   <input
                     type="checkbox"
                     checked={selected.size > 0 && selected.size === accounts.length}
@@ -496,24 +496,24 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     className="rounded border-gray-300 cursor-pointer"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500 min-w-[180px]">Verification</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Renter</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rented Until</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Rental</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payout</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Age</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">SN</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Listed</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">GoLogin Share</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Health</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase text-gray-500">For Rent</th>
-                <th className="px-4 py-3"></th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Account</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Status</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 min-w-[180px]">Verification</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Renter</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Rented Until</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Rental</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Payout</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Location</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Age</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">SN</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Listed</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">GoLogin Share</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Health</th>
+                <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">For Rent</th>
+                <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -530,7 +530,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 );
               }).sort((a, b) => statusRank(a.status) - statusRank(b.status)).map((a) => (
                 <tr key={a.id} className={`hover:bg-gray-50 ${selected.has(a.id) ? "bg-red-50/50" : ""}`}>
-                  <td className="px-4 py-3 w-10">
+                  <td className="px-3 py-2 w-10">
                     <input
                       type="checkbox"
                       checked={selected.has(a.id)}
@@ -538,14 +538,14 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       className="rounded border-gray-300 cursor-pointer"
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2">
                     <p className="text-sm font-medium text-gray-900">{(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName}</p>
                     {a.linkedinHeadline && <p className="mt-0.5 text-xs text-gray-500 max-w-[220px] truncate" title={a.linkedinHeadline}>{a.linkedinHeadline}</p>}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2">
                     <Badge variant={statusVariant(a.status)}>{getDisplayStatus(a.status)}</Badge>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2">
                     <button
                       onClick={() => toggleVerified(a.id, a.linkedinVerified)}
                       className={`mb-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors ${a.linkedinVerified ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
@@ -562,7 +562,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     />
                     {savingProof === a.id && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs">
+                  <td className="px-3 py-2 text-xs">
                     {a.rentals && a.rentals.length > 0 ? (
                       <div>
                         <p className="font-medium text-gray-900">{a.rentals[0].user.fullName}</p>
@@ -572,7 +572,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs">
+                  <td className="px-3 py-2 text-xs">
                     {a.rentals && a.rentals.length > 0 ? (
                       <div>
                         <p className="font-medium text-gray-900">
@@ -589,27 +589,27 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs font-medium text-gray-900">
+                  <td className="px-3 py-2 text-xs font-medium text-gray-900">
                     {a.rentals?.[0]?.lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0 ? (
                       <>${Number(a.rentals[0].lockedPrice).toFixed(0)} <span className="text-gray-400 font-normal text-[10px]">locked</span></>
                     ) : Number(a.monthlyPrice) > 0 ? `$${Number(a.monthlyPrice).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs font-medium text-gray-900">
+                  <td className="px-3 py-2 text-xs font-medium text-gray-900">
                     {Number(a.ambassadorPayment) > 0 ? `$${Number(a.ambassadorPayment).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">
+                  <td className="px-3 py-2 text-xs text-gray-600">
                     {(a.notes || "").includes("[SHOWCASE]")
                       ? <span className="font-medium text-amber-600">Dummy</span>
                       : [(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1], a.ownerEmail].some((e) => isCompanyEmail(e))
                       ? <span className="font-medium text-gray-900">Ortus</span>
                       : (a.ownerEmail || "—")}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">{a.location || "—"}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</td>
-                  <td className="px-4 py-3 text-xs text-gray-600">{a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"}</td>
-                  <td className="px-4 py-3 text-xs">{a.hasSalesNav ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
-                  <td className="px-4 py-3 text-xs">{a.listed ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
-                  <td className="px-4 py-3 text-xs text-gray-600">
+                  <td className="px-3 py-2 text-xs text-gray-600">{a.location || "—"}</td>
+                  <td className="px-3 py-2 text-sm text-gray-600">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</td>
+                  <td className="px-3 py-2 text-xs text-gray-600">{a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"}</td>
+                  <td className="px-3 py-2 text-xs">{a.hasSalesNav ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
+                  <td className="px-3 py-2 text-xs">{a.listed ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
+                  <td className="px-3 py-2 text-xs text-gray-600">
                     {a.gologinShareLink ? (
                       <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium">Link</a>
                     ) : <span className="text-gray-400">—</span>}
@@ -617,10 +617,10 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       <p className="mt-0.5 font-mono text-[10px] text-gray-400 max-w-[120px] truncate" title={a.gologinProfileId}>ID: {a.gologinProfileId}</p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">
+                  <td className="px-3 py-2 text-xs text-gray-600">
                     {a.proxyHost ? <span className="font-mono">{a.proxyHost}:{a.proxyPort}</span> : <span className="text-gray-400">None</span>}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2">
                     <div className="flex items-center gap-1.5">
                       {a.linkedinAccountHealth === "active" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700">
@@ -666,7 +666,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       <div className="text-[10px] text-gray-400 mt-0.5">{new Date(a.healthCheckedAt).toLocaleDateString()}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2">
                     <div className="flex justify-end">
                       {a.status === "rented" ? (
                         <div className="relative w-10 h-[22px] rounded-full bg-green-500 opacity-50 cursor-not-allowed">
@@ -682,7 +682,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2">
                     <Link href={`/admin/accounts/${a.id}`} className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200">Edit</Link>
                   </td>
                 </tr>
