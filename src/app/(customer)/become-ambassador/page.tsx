@@ -992,15 +992,9 @@ export default function BecomeAmbassadorPage() {
                 }} size="lg" className="flex-1">
                   Accept &amp; Continue
                 </Button>
-                {offer.reasons.filter((r) => r.positive).length <= 1 ? (
-                  <Button variant="outline" size="lg" onClick={() => setStep("review")} className="flex-1">
-                    Request Manual Review
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="lg" onClick={() => { setStep("info"); setOffer(null); }} className="flex-1">
-                    No, Thank You
-                  </Button>
-                )}
+                <Button variant="outline" size="lg" onClick={() => setStep("review")} className="flex-1">
+                  Request Manual Review
+                </Button>
               </div>
               <p className="mt-4 text-center text-xs text-gray-400">
                 By accepting, you agree to the{" "}
