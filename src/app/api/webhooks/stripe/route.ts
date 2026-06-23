@@ -115,6 +115,26 @@ async function handleWalletTopUp(session: Stripe.Checkout.Session) {
     }),
   ]);
 
+  // Save the card on file (brand/last4 + payment-method id) so future renewals can
+  // charge the shortfall off-session. Stripe vaults the card; we keep only display bits.
+  try {
+    if (session.payment_intent) {
+      const pi = await stripe.paymentIntents.retrieve(
+        typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent.id,
+        { expand: ["payment_method"] }
+      );
+      const pm = pi.payment_method;
+      if (pm && typeof pm !== "string" && pm.card) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { stripePaymentMethodId: pm.id, cardBrand: pm.card.brand, cardLast4: pm.card.last4 },
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Failed to save card on file:", e);
+  }
+
   // Confirm to the customer (non-blocking) — they paid by card, so don't call it USDC.
   try {
     await sendTopUpConfirmation({

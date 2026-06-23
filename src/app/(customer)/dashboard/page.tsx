@@ -91,6 +91,13 @@ function DashboardContent() {
   const [deletingSubmission, setDeletingSubmission] = useState<string | null>(null);
   const [depositPolling, setDepositPolling] = useState(false);
   const [lastDetectedBalance, setLastDetectedBalance] = useState<string>("0");
+  const [cardOnFile, setCardOnFile] = useState<{ brand: string | null; last4: string } | null>(null);
+
+  const removeCard = async () => {
+    if (!confirm("Remove your saved card? Renewals won't be able to charge a shortfall not covered by your balance.")) return;
+    const res = await fetch("/api/wallet/card", { method: "DELETE" });
+    if (res.ok) setCardOnFile(null);
+  };
 
   // Poll balance every 10 seconds when deposit panel is open
   useEffect(() => {
@@ -122,13 +129,15 @@ function DashboardContent() {
       fetch("/api/wallet/balance").then((r) => r.json()).catch(() => ({ balance: "0" })),
       fetch("/api/wallet/deposit-address").then((r) => r.json()).catch(() => ({ address: null })),
       fetch("/api/ambassador/my-submissions").then((r) => r.json()).catch(() => ({ submissions: [] })),
-    ]).then(([rentalData, ambassadorData, balanceData, addressData, submissionsData]) => {
+      fetch("/api/wallet/card").then((r) => r.json()).catch(() => ({ card: null })),
+    ]).then(([rentalData, ambassadorData, balanceData, addressData, submissionsData, cardData]) => {
       if (rentalData) setRentals(rentalData.rentals || []);
       setAmbassadorAccounts(ambassadorData.accounts || []);
       setRemovedAccounts(ambassadorData.removedAccounts || []);
       setUsdcBalance(balanceData.balance || "0");
       setDepositAddress(addressData.address || null);
       setSubmissions(submissionsData.submissions || []);
+      setCardOnFile(cardData.card || null);
       setLoading(false);
     });
   }, [router]);
@@ -470,6 +479,18 @@ function DashboardContent() {
               </div>
             </div>
 
+            {/* Card on file — used to cover any renewal shortfall not met by balance */}
+            {cardOnFile && (
+              <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 text-xs">
+                <span className="inline-flex items-center gap-1.5 text-gray-600">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                  Card on file: <span className="font-medium text-gray-900">{cardOnFile.brand ? `${cardOnFile.brand} ` : ""}•••• {cardOnFile.last4}</span>
+                  <span className="text-gray-400">— covers any renewal shortfall not met by your balance</span>
+                </span>
+                <button onClick={removeCard} className="font-medium text-red-500 hover:text-red-700">Remove</button>
+              </div>
+            )}
+
             {/* Deposit Panel */}
             {showTopUp && (
               <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
@@ -505,6 +526,11 @@ function DashboardContent() {
                 </div>
                 {/* Card deposit */}
                 <CardTopUp />
+                {!cardOnFile && (
+                  <p className="text-[11px] text-gray-400 leading-relaxed">
+                    We&apos;ll securely save this card so future renewals can cover any shortfall not met by your balance. You can remove it anytime.
+                  </p>
+                )}
               </div>
             )}
 

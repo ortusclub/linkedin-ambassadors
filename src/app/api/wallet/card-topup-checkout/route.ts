@@ -74,6 +74,9 @@ export async function POST(req: Request) {
       amountUsd: amount.toFixed(2),
     },
     payment_intent_data: {
+      // Save the card to the customer so renewals can charge any shortfall not covered
+      // by wallet balance (off-session). Stripe vaults it; we only store brand/last4.
+      setup_future_usage: "off_session",
       metadata: {
         userId: user.id,
         type: "wallet_topup",
