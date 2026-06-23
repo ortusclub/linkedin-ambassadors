@@ -256,18 +256,18 @@ export default function AdminRentalsPage() {
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                <th className="px-3 py-3">Renter / Company</th>
-                <th className="px-3 py-3">Industry</th>
-                <th className="px-3 py-3">Account(s)</th>
-                <th className="px-3 py-3 text-center">Accts</th>
-                <th className="px-3 py-3">Billing</th>
-                <th className="px-3 py-3 text-center">Auto-Renew</th>
-                <th className="px-3 py-3">Payment</th>
-                <th className="px-3 py-3">LV PoC</th>
-                <th className="px-3 py-3 min-w-[180px]">Notes</th>
-                <th className="px-3 py-3">Access</th>
-                <th className="px-3 py-3">Live</th>
-                <th className="px-3 py-3">Manage</th>
+                <th className="px-3 py-2">Renter / Company</th>
+                <th className="px-3 py-2">Industry</th>
+                <th className="px-3 py-2">Account(s)</th>
+                <th className="px-3 py-2 text-center">Accts</th>
+                <th className="px-3 py-2">Billing</th>
+                <th className="px-3 py-2 text-center">Auto-Renew</th>
+                <th className="px-3 py-2">Payment</th>
+                <th className="px-3 py-2">LV PoC</th>
+                <th className="px-3 py-2 min-w-[180px]">Notes</th>
+                <th className="px-3 py-2">Access</th>
+                <th className="px-3 py-2">Live</th>
+                <th className="px-3 py-2">Manage</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 align-top">
@@ -276,7 +276,7 @@ export default function AdminRentalsPage() {
                 const acc = accessStatus(r);
                 return (
                   <tr key={r.id} className="hover:bg-gray-50/60">
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <input
                         defaultValue={r.user.company || ""}
                         placeholder="Company…"
@@ -288,7 +288,7 @@ export default function AdminRentalsPage() {
                       <p className="text-xs text-gray-500">{r.user.email}</p>
                       {r.user.contactNumber && <p className="text-xs text-gray-400">{r.user.contactNumber}</p>}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <input
                         defaultValue={r.user.industry || ""}
                         placeholder="—"
@@ -297,25 +297,25 @@ export default function AdminRentalsPage() {
                       />
                       {savingField === `${r.id}:industry` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <p className="text-gray-800 whitespace-nowrap">{(r.linkedinAccount.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || r.linkedinAccount.linkedinName}</p>
                       {r.linkedinAccount.gologinProfileId && (
                         <p className="font-mono text-[10px] text-gray-400" title="GoLogin profile ID">{r.linkedinAccount.gologinProfileId}</p>
                       )}
                     </td>
-                    <td className="px-3 py-3 text-center font-semibold text-gray-700">{r.renterAccountsLive}</td>
-                    <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
+                    <td className="px-3 py-2 text-center font-semibold text-gray-700">{r.renterAccountsLive}</td>
+                    <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
                       <p>Start: {fmt(r.startDate)}</p>
                       <p>Next: {fmt(r.currentPeriodEnd)}</p>
                     </td>
-                    <td className="px-3 py-3 text-center">
+                    <td className="px-3 py-2 text-center">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${r.autoRenew ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{r.autoRenew ? "Yes" : "No"}</span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${PAY_BADGE[pay]}`}>{pay}</span>
                       <p className="mt-1 text-xs text-gray-500">{r.paymentMethodResolved === "USDC" ? "Crypto" : "Card"}</p>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <input
                         defaultValue={r.lvPoc || ""}
                         placeholder="—"
@@ -324,7 +324,7 @@ export default function AdminRentalsPage() {
                       />
                       {savingField === `${r.id}:lvPoc` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <textarea
                         defaultValue={r.notes || ""}
                         placeholder="Issues, internal notes…"
@@ -334,11 +334,11 @@ export default function AdminRentalsPage() {
                       />
                       {savingField === `${r.id}:notes` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${ACCESS_BADGE[acc]}`}>{acc}</span>
                     </td>
-                    <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmt(r.accessGrantedAt)}</td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{fmt(r.accessGrantedAt)}</td>
+                    <td className="px-3 py-2">
                       <div className="flex flex-col gap-1.5">
                         {acc === "Paused" ? (
                           <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Resume"}</button>
