@@ -1038,19 +1038,9 @@ export default function BecomeAmbassadorPage() {
                 </ol>
               </div>
 
-              <div className="mt-6 flex flex-col items-center gap-2">
-                {isLoggedIn && (
-                  <button
-                    onClick={() => { setAccountName(""); setAccountEmail(""); setAccountLinkedinUrl(""); setStep("account-details"); }}
-                    className="text-sm font-semibold text-[#00B85C] hover:text-[#00A050]"
-                  >
-                    + Submit another account
-                  </button>
-                )}
-                <a href="/dashboard" className="text-sm font-medium text-gray-500 hover:text-gray-700">
-                  Go to my dashboard →
-                </a>
-              </div>
+              <a href="/dashboard" className="mt-6 inline-block text-sm font-medium text-gray-500 hover:text-gray-700">
+                Go to my dashboard →
+              </a>
             </div>
           )}
 
@@ -1282,7 +1272,7 @@ export default function BecomeAmbassadorPage() {
 
               <div className="mx-auto max-w-md space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Name <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     value={accountName}
@@ -1292,7 +1282,7 @@ export default function BecomeAmbassadorPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Email <span className="text-red-500">*</span></label>
                   <input
                     type="email"
                     value={accountEmail}
@@ -1302,7 +1292,7 @@ export default function BecomeAmbassadorPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn Profile URL</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn Profile URL <span className="text-red-500">*</span></label>
                   <input
                     type="url"
                     value={accountLinkedinUrl}
@@ -1311,12 +1301,15 @@ export default function BecomeAmbassadorPage() {
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                   />
                 </div>
+                {error && <p className="text-sm text-red-600">{error}</p>}
 
                 <Button
                   className="w-full"
                   disabled={!accountName || !accountEmail || !accountLinkedinUrl}
                   onClick={async () => {
-                    // Submit as a valuation/application
+                    setError("");
+                    if (!/\S+@\S+\.\S+/.test(accountEmail)) { setError("Please enter a valid account email address."); return; }
+                    if (!/linkedin\.com\/in\//i.test(accountLinkedinUrl)) { setError("Please enter a valid LinkedIn profile URL (e.g. https://www.linkedin.com/in/yourprofile)."); return; }
                     try {
                       const res = await fetch("/api/ambassador/apply", {
                         method: "POST",
@@ -1340,7 +1333,8 @@ export default function BecomeAmbassadorPage() {
                     } catch (e) {
                       console.error("Submission error:", e);
                     }
-                    setStep("scheduled");
+                    // Land on the dashboard so the new account shows under "My Submissions" (reviewing).
+                    window.location.href = "/dashboard";
                   }}
                 >
                   Submit account
