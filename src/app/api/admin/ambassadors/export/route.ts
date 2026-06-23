@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const cleanContact = (c: string | null) => (c || "").replace(/^(whatsapp|telegram):/, "");
 
   const headers = [
-    "Name", "Owner Email", "Account Email", "LinkedIn URL", "Contact",
+    "Account Name", "Owner Email (POC)", "LinkedIn Login Email", "LinkedIn URL", "Contact",
     "Connections", "Location", "Status", "Payment Method", "Notes", "Applied",
   ];
 

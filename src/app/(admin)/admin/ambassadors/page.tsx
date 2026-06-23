@@ -77,11 +77,23 @@ export default function AdminAmbassadorsPage() {
     return map[s] || "default";
   };
 
-  const filtered = filter
+  const filteredRaw = filter
     ? filter === "pending"
       ? applications.filter((a) => a.status === "pending" || a.status === "reviewing")
       : applications.filter((a) => a.status === filter)
     : applications;
+
+  // Group a person's submissions together (same Owner Email = same POC), most-recent
+  // owner first so new submitters surface at the top.
+  const lastSeen = new Map<string, number>();
+  filteredRaw.forEach((a) => {
+    const t = new Date(a.createdAt).getTime();
+    lastSeen.set(a.email, Math.max(lastSeen.get(a.email) ?? 0, t));
+  });
+  const filtered = [...filteredRaw].sort((a, b) => {
+    if (a.email !== b.email) return (lastSeen.get(b.email)! - lastSeen.get(a.email)!);
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   if (loading) return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-200" />)}</div>;
 
@@ -158,10 +170,10 @@ export default function AdminAmbassadorsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner Email</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account Email</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">LinkedIn</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner Email <span className="font-normal normal-case text-gray-400">(POC)</span></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">LinkedIn Login Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">LinkedIn URL</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Contact</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
