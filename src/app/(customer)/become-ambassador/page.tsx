@@ -158,10 +158,12 @@ export default function BecomeAmbassadorPage() {
   useEffect(() => {
     let wantValuation = false;
     let booked = false;
+    let wantSubmit = false;
     try {
       const sp = new URLSearchParams(window.location.search);
       wantValuation = !!sp.get("valuation");
       booked = !!sp.get("booked"); // returning here after signing up — show the book-a-call step
+      wantSubmit = !!sp.get("submit"); // logged-in user adding an account — skip valuation, go straight to the form
     } catch {}
     fetch("/api/auth/me")
       .then((r) => r.json())
@@ -176,7 +178,7 @@ export default function BecomeAmbassadorPage() {
             contactHandle: prev.contactHandle || (data.user.contactNumber?.replace(/^(whatsapp|telegram):/, "") || ""),
           }));
           setIsLoggedIn(true);
-          setStep(booked ? "scheduled" : wantValuation ? "info" : "logged-in-choice");
+          setStep(booked ? "scheduled" : wantSubmit ? "account-details" : wantValuation ? "info" : "logged-in-choice");
         } else {
           setStep(booked ? "scheduled" : wantValuation ? "info" : "choice");
         }
@@ -1003,6 +1005,12 @@ export default function BecomeAmbassadorPage() {
                 </a>{" "}
                 (LinkedIn Account Access &amp; Usage terms).
               </p>
+              <button
+                onClick={() => setStep("scheduled")}
+                className="mt-3 block mx-auto text-sm font-medium text-gray-500 hover:text-gray-800"
+              >
+                Prefer to talk first? Book a call instead →
+              </button>
             </div>
           )}
 
@@ -1036,9 +1044,19 @@ export default function BecomeAmbassadorPage() {
                 </ol>
               </div>
 
-              <a href="/dashboard" className="mt-6 inline-block text-sm font-medium text-gray-500 hover:text-gray-700">
-                Skip for now — go to my dashboard →
-              </a>
+              <div className="mt-6 flex flex-col items-center gap-2">
+                {isLoggedIn && (
+                  <button
+                    onClick={() => { setAccountName(""); setAccountEmail(""); setAccountLinkedinUrl(""); setStep("account-details"); }}
+                    className="text-sm font-semibold text-[#00B85C] hover:text-[#00A050]"
+                  >
+                    + Submit another account
+                  </button>
+                )}
+                <a href="/dashboard" className="text-sm font-medium text-gray-500 hover:text-gray-700">
+                  Go to my dashboard →
+                </a>
+              </div>
             </div>
           )}
 
@@ -1328,10 +1346,10 @@ export default function BecomeAmbassadorPage() {
                     } catch (e) {
                       console.error("Submission error:", e);
                     }
-                    setStep("login");
+                    setStep("scheduled");
                   }}
                 >
-                  Continue
+                  Submit account
                 </Button>
               </div>
             </div>
