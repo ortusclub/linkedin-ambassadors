@@ -233,6 +233,14 @@ function RegisterForm() {
             Log in
           </Link>
         </p>
+        {redirect?.includes("become-ambassador") && (
+          <p className="mt-3 text-center text-sm text-gray-500">
+            Prefer to talk first?{" "}
+            <a href="/become-ambassador?booked=1" className="font-medium text-green-700 hover:text-green-800">
+              Book a call instead →
+            </a>
+          </p>
+        )}
       </div>
     </div>
   );

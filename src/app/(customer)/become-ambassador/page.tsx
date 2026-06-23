@@ -1005,12 +1005,6 @@ export default function BecomeAmbassadorPage() {
                 </a>{" "}
                 (LinkedIn Account Access &amp; Usage terms).
               </p>
-              <button
-                onClick={() => setStep("scheduled")}
-                className="mt-3 block mx-auto text-sm font-medium text-gray-500 hover:text-gray-800"
-              >
-                Prefer to talk first? Book a call instead →
-              </button>
             </div>
           )}
 
