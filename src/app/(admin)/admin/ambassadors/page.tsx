@@ -169,16 +169,21 @@ export default function AdminAmbassadorsPage() {
           <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
+                <tr className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  <th colSpan={2} className="px-4 pt-3 pb-1 text-left">👤 Owner (POC)</th>
+                  <th colSpan={5} className="px-4 pt-3 pb-1 text-left border-l border-gray-200">🔗 LinkedIn Account</th>
+                  <th colSpan={2} className="px-4 pt-3 pb-1 text-left border-l border-gray-200">📋 Review</th>
+                </tr>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Account Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Owner Email <span className="font-normal normal-case text-gray-400">(POC)</span></th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">LinkedIn Login Email</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">LinkedIn URL</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Contact</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Location</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Applied</th>
+                  <th className="px-4 pb-3 pt-1 text-left text-xs font-medium uppercase text-gray-500">Owner Email</th>
+                  <th className="px-4 pb-3 pt-1 text-left text-xs font-medium uppercase text-gray-500">Contact</th>
+                  <th className="px-4 pb-3 pt-1 text-left text-xs font-medium uppercase text-gray-500 border-l border-gray-200">Account Name</th>
+                  <th className="px-4 pb-3 pt-1 text-left text-xs font-medium uppercase text-gray-500">LinkedIn URL</th>
+                  <th className="px-4 pb-3 pt-1 text-left text-xs font-medium uppercase text-gray-500">Login Email</th>
+                  <th className="px-4 pb-3 pt-1 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
+                  <th className="px-4 pb-3 pt-1 text-left text-xs font-medium uppercase text-gray-500">Location</th>
+                  <th className="px-4 pb-3 pt-1 text-left text-xs font-medium uppercase text-gray-500 border-l border-gray-200">Status</th>
+                  <th className="px-4 pb-3 pt-1 text-left text-xs font-medium uppercase text-gray-500">Applied</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -188,24 +193,24 @@ export default function AdminAmbassadorsPage() {
                     : null;
                   return (
                     <tr key={app.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{app.email}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{app.contactNumber || "—"}</td>
+                      <td className="px-4 py-3 border-l border-gray-100">
                         <a href={app.linkedinUrl.startsWith("http") ? app.linkedinUrl : `https://${app.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-900 hover:text-blue-600">
                           {app.fullName}
                         </a>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{app.email}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{app.linkedinEmail && app.linkedinEmail !== app.email ? app.linkedinEmail : <span className="text-gray-400">Same as owner</span>}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         <a href={app.linkedinUrl.startsWith("http") ? app.linkedinUrl : `https://${app.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
                           {app.linkedinUrl.replace("https://www.linkedin.com/in/", "").replace("https://linkedin.com/in/", "").replace(/\/$/, "") || "—"}
                         </a>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{app.contactNumber || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{app.linkedinEmail && app.linkedinEmail !== app.email ? app.linkedinEmail : <span className="text-gray-400">Same as owner</span>}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {app.connectionCount ? app.connectionCount.toLocaleString() : "—"}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{app.location || app.industry || "—"}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 border-l border-gray-100">
                         <select
                           value={app.status}
                           onChange={(e) => updateStatus(app.id, e.target.value)}
