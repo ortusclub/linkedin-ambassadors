@@ -62,19 +62,17 @@ export default function AdminDashboardPage() {
   if (stats.offlineAccounts > 0) attention.push({ label: `${stats.offlineAccounts} account${stats.offlineAccounts > 1 ? "s" : ""} offline`, tone: "warn" });
 
   const Tile = ({ label, value, sub, color }: { label: string; value: React.ReactNode; sub?: React.ReactNode; color?: string }) => (
-    <Card>
-      <CardContent className="py-4">
-        <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</p>
-        <p className={`mt-1 text-2xl font-bold ${color || "text-gray-900"}`}>{value}</p>
-        {sub && <p className="mt-0.5 text-xs text-gray-500">{sub}</p>}
-      </CardContent>
-    </Card>
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">{label}</p>
+      <p className={`mt-0.5 text-lg font-bold leading-tight ${color || "text-gray-900"}`}>{value}</p>
+      {sub && <p className="text-[11px] text-gray-500 leading-tight">{sub}</p>}
+    </div>
   );
 
   const Band = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="mt-6">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{title}</p>
-      <div className="grid gap-4 md:grid-cols-4">{children}</div>
+    <div className="mt-4">
+      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">{title}</p>
+      <div className="grid gap-2.5 grid-cols-2 md:grid-cols-4">{children}</div>
     </div>
   );
 

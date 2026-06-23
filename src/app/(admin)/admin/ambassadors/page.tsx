@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDate, formatCurrency } from "@/lib/utils";
+import { isLikelyTestEmail } from "@/lib/test-mode";
 
 interface Application {
   id: string;
@@ -193,7 +194,12 @@ export default function AdminAmbassadorsPage() {
                     : null;
                   return (
                     <tr key={app.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{app.email}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        <span className="inline-flex items-center gap-1.5">
+                          {app.email}
+                          {isLikelyTestEmail(app.email) && <span className="rounded bg-purple-100 px-1 py-0.5 text-[9px] font-semibold text-purple-700">TEST</span>}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{app.contactNumber || "—"}</td>
                       <td className="px-4 py-3 border-l border-gray-100">
                         <a href={app.linkedinUrl.startsWith("http") ? app.linkedinUrl : `https://${app.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-900 hover:text-blue-600">
