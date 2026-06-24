@@ -134,6 +134,36 @@ export async function sendRentalOnboardingEmail(email: string, accountName: stri
 }
 
 // Fired automatically when an admin clicks "Grant access" — the renter is now live.
+// One consolidated email for a whole rental order (avoids a burst of near-identical
+// per-account emails that Gmail threads / Resend rate-limits).
+export async function sendRentalReadyEmail(email: string, accounts: { name: string; ready: boolean }[]) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  const count = accounts.length;
+  const headline = count === 1
+    ? `You're live — <strong>${accounts[0].name}</strong> is ready to use.`
+    : `You're live — your <strong>${count} rented accounts</strong> are ready to use.`;
+  const list = accounts
+    .map((a) => `<li style="margin:0 0 4px;"><strong>${a.name}</strong>${a.ready ? "" : ' <span style="color:#8899A6;">— being prepared, ready shortly</span>'}</li>`)
+    .join("");
+  return sendEmail({
+    to: email,
+    subject: count === 1 ? `Your LinkedIn account "${accounts[0].name}" is ready 🎉` : `Your ${count} LinkedIn accounts are ready 🎉`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 12px;">${headline}</p>
+      <ul style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;padding-left:20px;">${list}</ul>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 8px;">We've shared ${count === 1 ? "it" : "them"} to your GoLogin (<strong>${email}</strong>). Here's how to open:</p>
+      <p style="font-size:13px;color:#536471;line-height:1.6;margin:0 0 16px;"><strong>New to GoLogin?</strong> Get it free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> and sign in with this email first.</p>
+      <ol style="font-size:14px;color:#374151;line-height:1.8;margin:0 0 24px;padding-left:20px;">
+        <li>Open the <strong>GoLogin</strong> app (signed in with ${email}).</li>
+        <li>Find the shared profile${count === 1 ? "" : "s"} in your dashboard — may take a few minutes to appear.</li>
+        <li>Click <strong>Start</strong> to launch the browser with LinkedIn already logged in.</li>
+      </ol>
+      <a href="${appUrl}/dashboard" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;margin-bottom:20px;">Open your dashboard</a>
+      <p style="font-size:13px;color:#536471;line-height:1.6;margin:20px 0 0;">Please follow our <a href="${appUrl}/guide" style="color:#0A66C2;">safe-use guide</a> to keep the account${count === 1 ? "" : "s"} healthy. Always access through GoLogin, and don't change login or profile details.</p>
+    `),
+  });
+}
+
 export async function sendAccessReadyEmail(email: string, accountName: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
   return sendEmail({

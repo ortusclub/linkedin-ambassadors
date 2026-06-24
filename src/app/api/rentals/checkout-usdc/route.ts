@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
-import { sendRentalOnboardingEmail, sendAccessReadyEmail, sendRentalNotification } from "@/services/email";
+import { sendRentalReadyEmail, sendRentalNotification } from "@/services/email";
 
 export async function POST(req: Request) {
   try {
@@ -91,27 +91,24 @@ export async function POST(req: Request) {
         return ids;
       });
 
-      // Email + admin notify, per account. Instant (share-link) accounts get the
-      // "you're live" email; others get the "we're getting it ready" onboarding email.
-      for (const account of accounts) {
-        try {
-          if (account.gologinShareLink) {
-            await sendAccessReadyEmail(user.email, account.linkedinName);
-          } else {
-            await sendRentalOnboardingEmail(user.email, account.linkedinName);
-          }
-        } catch (e) {
-          console.error("Failed to send rental email:", e);
-        }
-        try {
-          await sendRentalNotification({
-            customerEmail: user.email,
-            customerName: user.fullName,
-            accountName: account.linkedinName,
-          });
-        } catch (e) {
-          console.error("Failed to send rental notification:", e);
-        }
+      // ONE consolidated email for the whole order (not one per account — that fires a
+      // burst of near-identical emails that get rate-limited / threaded into one).
+      try {
+        await sendRentalReadyEmail(
+          user.email,
+          accounts.map((a) => ({ name: a.linkedinName, ready: !!a.gologinShareLink }))
+        );
+      } catch (e) {
+        console.error("Failed to send rental email:", e);
+      }
+      try {
+        await sendRentalNotification({
+          customerEmail: user.email,
+          customerName: user.fullName,
+          accountName: accounts.map((a) => a.linkedinName).join(", "),
+        });
+      } catch (e) {
+        console.error("Failed to send rental notification:", e);
       }
 
       return NextResponse.json({ success: true, rentalIds });
