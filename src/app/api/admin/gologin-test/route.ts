@@ -7,8 +7,25 @@ import { shareProfile, unshareProfile } from "@/services/gologin";
 export async function POST(req: Request) {
   try {
     await requireAdmin();
-    const { profileId, email, action, token, shareId } = await req.json();
+    const { profileId, email, action, token, shareId, method, path, body } = await req.json();
     const overrideToken = typeof token === "string" && token.trim() ? token.trim() : undefined;
+
+    // TEMP probe: call any GoLogin API path server-side to map the public share-link API.
+    if (action === "raw") {
+      if (!path) return NextResponse.json({ error: "path required" }, { status: 400 });
+      const res = await fetch(`https://api.gologin.com${path}`, {
+        method: method || "GET",
+        headers: {
+          Authorization: `Bearer ${overrideToken || process.env.GOLOGIN_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const text = await res.text();
+      let parsed: unknown; try { parsed = JSON.parse(text); } catch { parsed = text; }
+      return NextResponse.json({ ok: res.ok, status: res.status, body: parsed });
+    }
+
     if (action === "share") {
       if (!profileId || !email) {
         return NextResponse.json({ error: "profileId and email are required to share" }, { status: 400 });
