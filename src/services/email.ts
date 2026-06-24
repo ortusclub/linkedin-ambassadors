@@ -219,18 +219,22 @@ export async function sendRenewalGraceNotice(
   });
 }
 
-// Email 3 — 7 days after expiry, soft win-back. Final touch.
+// Email 3 — last chance before we release the held profile to other renters.
 export async function sendRenewalWinBack(
-  email: string, firstName: string, renewUrl: string, amount: string
+  email: string, firstName: string, renewUrl: string, amount: string, accountName?: string, releaseDate?: string
 ) {
   const hi = firstName ? `Hi ${firstName},` : "Hi there,";
+  const acct = accountName ? `<strong>${accountName}</strong>` : "your account";
+  const deadline = releaseDate
+    ? `We're about to <strong>release ${acct} to other renters on ${releaseDate}</strong>. This is your last chance to keep it.`
+    : `Your rental lapsed — but everything's intact and waiting for you.`;
   return sendEmail({
     to: email,
-    subject: `Your LinkedVelocity rental is still here whenever you're ready`,
+    subject: releaseDate ? `Last chance to keep your LinkedVelocity account` : `Your LinkedVelocity rental is still here whenever you're ready`,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your LinkedVelocity rental lapsed last week — but everything's intact and waiting for you. Coming back is zero-friction: the account is exactly where you left it, no re-setup.</p>
-      <a href="${renewUrl}" style="display:inline-block;background:#00B85C;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Reactivate → (${amount}/month)</a>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">${deadline} Re-activate now and you pick up the same account exactly where you left off — no re-setup. After that it's first-come, first-served for everyone.</p>
+      <a href="${renewUrl}" style="display:inline-block;background:#00B85C;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Reactivate &amp; keep it → (${amount}/month)</a>
       <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">That's the last we'll nudge you — thanks for being part of LinkedVelocity.</p>
     `),
   });
@@ -313,15 +317,23 @@ export async function sendPaymentFailedEmail(email: string, firstName: string, p
 }
 
 // Access paused after payment couldn't be collected — pay to restore right away.
-export async function sendAccessRevokedEmail(email: string, firstName: string, payUrl: string) {
+export async function sendAccessRevokedEmail(
+  email: string, firstName: string, payUrl: string, releaseDate?: string, accountName?: string
+) {
   const hi = firstName ? `Hi ${firstName},` : "Hi there,";
+  const acct = accountName ? `<strong>${accountName}</strong>` : "your rented account";
+  // If we're holding the profile for a reclaim window, make that crystal clear.
+  const reclaim = releaseDate
+    ? `<p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we're <strong>holding ${acct} for you</strong>. Re-activate before <strong>${releaseDate}</strong> and you'll pick up the <strong>same account</strong> exactly where you left off, campaigns and all. After that date it'll be released and available for anyone to rent.</p>`
+    : `<p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your account and everything in it are safe — settle below and we'll restore your access right away.</p>`;
   return sendEmail({
     to: email,
     subject: `Your LinkedVelocity access has been paused`,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">We weren't able to collect payment for your rental, so access has been paused for now. Your account and everything in it are safe — settle below and we'll restore your access right away.</p>
-      <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Pay &amp; restore →</a>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">We weren't able to collect payment for your rental, so access to ${acct} has been paused for now.</p>
+      ${reclaim}
+      <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Re-activate &amp; keep this account →</a>
       <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Questions? We're here on Telegram <a href="https://t.me/linkedvelocity_support_bot" style="color:#0A66C2;">@linkedvelocity_support_bot</a>.</p>
     `),
   });

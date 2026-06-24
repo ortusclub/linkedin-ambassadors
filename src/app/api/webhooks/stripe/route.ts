@@ -8,7 +8,6 @@ import {
   sendRenewalConfirmation,
   sendPaymentFailedEmail,
   sendAccessRevokedEmail,
-  sendAccountAvailableEmail,
   sendTopUpNotification,
   sendTopUpConfirmation,
   sendRentalNotification,
@@ -350,26 +349,16 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     console.error("revoke on subscription deleted failed:", rental.id, e);
   }
 
-  await prisma.linkedInAccount.update({
-    where: { id: rental.linkedinAccountId },
-    data: { status: "available" },
-  });
+  // HOLD the account for the reclaim window (don't free it to others yet). The renewals
+  // cron releases it + notifies the waitlist once the window passes unpaid.
+  const RECLAIM_DAYS = 3;
+  const periodEnd = rental.currentPeriodEnd ? new Date(rental.currentPeriodEnd) : new Date();
+  const releaseDate = new Date(periodEnd.getTime() + RECLAIM_DAYS * 24 * 60 * 60 * 1000);
+  const releaseLabel = releaseDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
   const firstName = (rental.user.fullName || "").trim().split(" ")[0] || "";
   const renewUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com"}/api/rentals/${rental.id}/renew`;
-  await sendAccessRevokedEmail(rental.user.email, firstName, renewUrl);
-
-  // Notify waitlist users
-  const waitlistEntries = await prisma.waitlist.findMany({
-    where: { linkedinAccountId: rental.linkedinAccountId },
-    include: { user: true },
-  });
-  for (const entry of waitlistEntries) {
-    await sendAccountAvailableEmail(
-      entry.user.email,
-      rental.linkedinAccount.linkedinName
-    );
-  }
+  await sendAccessRevokedEmail(rental.user.email, firstName, renewUrl, releaseLabel, rental.linkedinAccount.linkedinName);
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {

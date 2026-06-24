@@ -9,6 +9,7 @@ import {
   sendRenewalConfirmation,
   sendRenewalHeadsUp,
   sendAccessRevokedEmail,
+  sendAccountAvailableEmail,
 } from "@/services/email";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -27,7 +28,11 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const result = { renewed: 0, failed: 0, reminded: 0, graceNoticed: 0, lapsed: 0, winBack: 0, headsUp: 0 };
+  const result = { renewed: 0, failed: 0, reminded: 0, graceNoticed: 0, lapsed: 0, winBack: 0, headsUp: 0, released: 0 };
+
+  // Reclaim window: after a rental ends, hold the profile this many days so the same
+  // renter can re-pay and keep it, before it's released to others.
+  const RECLAIM_DAYS = 3;
 
   try {
     // 0) Auto-renew ON — reassuring heads-up ~3 days before renewal (Stripe + USDC).
@@ -104,17 +109,50 @@ export async function POST(req: NextRequest) {
         try { await sendRenewalGraceNotice(r.user.email, first, renewUrl, fmtDate(new Date(end.getTime() + DAY)), amount); await markSent("grace"); result.graceNoticed++; } catch (e) { console.error(e); }
         continue;
       }
-      // Lapse — grace window passed, still unpaid → revoke + expire.
+      // Lapse — grace window passed, still unpaid → revoke + expire (but the account is
+      // HELD for the reclaim window, not released yet).
       if (r.status === "active" && now >= new Date(end.getTime() + DAY)) {
         await prisma.rental.update({ where: { id: r.id }, data: { status: "expired" } });
         try { await revokeRentalAccess(r.id); } catch (e) { console.error("revoke on lapse", r.id, e); }
+        const releaseDate = new Date(end.getTime() + RECLAIM_DAYS * DAY);
+        try { await sendAccessRevokedEmail(r.user.email, first, renewUrl, fmtDate(releaseDate), r.linkedinAccount.linkedinName); } catch (e) { console.error(e); }
         result.lapsed++;
         continue;
       }
-      // Soft win-back — 7 days after expiry, final touch.
-      if (r.status === "expired" && now >= new Date(end.getTime() + 7 * DAY) && !sent.includes("winback")) {
-        try { await sendRenewalWinBack(r.user.email, first, renewUrl, amount); await markSent("winback"); result.winBack++; } catch (e) { console.error(e); }
+      // Last chance — 1 day before the profile is released to others.
+      if (r.status === "expired" && now >= new Date(end.getTime() + (RECLAIM_DAYS - 1) * DAY) && now < new Date(end.getTime() + RECLAIM_DAYS * DAY) && !sent.includes("winback")) {
+        const releaseDate = new Date(end.getTime() + RECLAIM_DAYS * DAY);
+        try { await sendRenewalWinBack(r.user.email, first, renewUrl, amount, r.linkedinAccount.linkedinName, fmtDate(releaseDate)); await markSent("winback"); result.winBack++; } catch (e) { console.error(e); }
         continue;
+      }
+    }
+
+    // 3) Release held profiles — reclaim window is over and still unpaid → free the
+    // account for other renters + notify the waitlist.
+    const heldOut = await prisma.rental.findMany({
+      where: {
+        status: { in: ["expired", "cancelled"] },
+        currentPeriodEnd: { lte: new Date(now.getTime() - RECLAIM_DAYS * DAY) },
+        linkedinAccount: { status: "rented" },
+      },
+      include: { linkedinAccount: true },
+    });
+    for (const r of heldOut) {
+      const sent = Array.isArray(r.renewalRemindersSent) ? (r.renewalRemindersSent as string[]) : [];
+      if (sent.includes("released")) continue;
+      // Don't release if the renter reclaimed it (a fresh active/pending rental exists).
+      const reclaimed = await prisma.rental.count({
+        where: { linkedinAccountId: r.linkedinAccountId, status: { in: ["active", "pending_access"] } },
+      });
+      if (reclaimed > 0) { await prisma.rental.update({ where: { id: r.id }, data: { renewalRemindersSent: [...sent, "released"] as unknown as Prisma.InputJsonValue } }); continue; }
+
+      await prisma.linkedInAccount.update({ where: { id: r.linkedinAccountId }, data: { status: "available" } });
+      await prisma.rental.update({ where: { id: r.id }, data: { renewalRemindersSent: [...sent, "released"] as unknown as Prisma.InputJsonValue } });
+      result.released++;
+
+      const waitlist = await prisma.waitlist.findMany({ where: { linkedinAccountId: r.linkedinAccountId }, include: { user: true } });
+      for (const w of waitlist) {
+        try { await sendAccountAvailableEmail(w.user.email, r.linkedinAccount.linkedinName); } catch (e) { console.error(e); }
       }
     }
 
