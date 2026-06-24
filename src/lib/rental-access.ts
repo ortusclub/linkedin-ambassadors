@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { unshareProfile, regeneratePublicShareLink, deletePublicShareLink } from "@/services/gologin";
+import { unshareProfile, regeneratePublicShareLink, deletePublicShareLink, getPublicShareLink } from "@/services/gologin";
 import { Prisma } from "@/generated/prisma/client";
 
 export type ShareRef = { email: string; shareId: string };
@@ -55,12 +55,18 @@ export async function revokeRentalAccess(
   if (!rental) throw new Error("Rental not found");
   const results: { ok: boolean; error?: string }[] = [];
 
-  // 1) Delete the public g.camp link (primary mechanism).
+  // 1) Delete the profile's public g.camp link. We look it up on the profile (not just
+  // the stored id) so this also kills links created manually in the GoLogin UI — which
+  // is how current renters were set up (no stored linkId). One delete kills all access.
   const profileId = rental.linkedinAccount.gologinProfileId;
-  if (rental.gologinShareLinkId && profileId) {
+  if (profileId) {
     try {
-      await deletePublicShareLink(rental.gologinShareLinkId, profileId);
-      results.push({ ok: true });
+      const existing = await getPublicShareLink(profileId);
+      const linkId = existing?.linkId || rental.gologinShareLinkId;
+      if (linkId) {
+        await deletePublicShareLink(linkId, profileId);
+        results.push({ ok: true });
+      }
     } catch (e) {
       results.push({ ok: false, error: e instanceof Error ? e.message : "failed to delete share link" });
     }
