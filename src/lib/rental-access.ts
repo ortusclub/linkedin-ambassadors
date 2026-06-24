@@ -15,7 +15,7 @@ export async function grantRentalAccess(
     where: { id: rentalId },
     include: {
       user: { select: { email: true } },
-      linkedinAccount: { select: { gologinProfileId: true, linkedinName: true } },
+      linkedinAccount: { select: { gologinProfileId: true } },
     },
   });
   if (!rental) throw new Error("Rental not found");
@@ -24,7 +24,9 @@ export async function grantRentalAccess(
     throw new Error("This account has no GoLogin profile ID, so access can't be managed automatically.");
   }
   const email = rental.user.email;
-  const link = await regeneratePublicShareLink(profileId, rental.linkedinAccount.linkedinName);
+  // No name passed — regenerate reads the profile's real GoLogin name (the g.camp link
+  // embeds it and must match exactly, or it resolves to "link not found").
+  const link = await regeneratePublicShareLink(profileId);
   await prisma.rental.update({
     where: { id: rentalId },
     data: {

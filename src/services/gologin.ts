@@ -130,11 +130,24 @@ function toPublicLink(raw: { _id: string; url: string; paused?: boolean; role?: 
   return { linkId: raw._id, url: raw.url, publicUrl: `${GOLOGIN_GCAMP_BASE}${raw.url}`, paused: raw.paused, role: raw.role };
 }
 
+// The g.camp link embeds the profile's REAL GoLogin name — it must match exactly or
+// the link resolves to "link not found". So we always read the name from GoLogin
+// itself rather than trusting a caller-supplied label (e.g. the catalogue display name).
+async function resolveProfileName(profileId: string, name: string | undefined, token?: string): Promise<string> {
+  if (name) return name;
+  const p = await gologinFetch(`/browser/${profileId}`, {}, token);
+  const real = (p as { name?: string } | null)?.name;
+  if (!real) throw new Error("Could not read the GoLogin profile name for the share link");
+  return real;
+}
+
 // Create a fresh public share link for a profile. Returns the new link.
-export async function createPublicShareLink(profileId: string, name: string, token?: string): Promise<PublicShareLink> {
+// Omit `name` to use the profile's real GoLogin name (recommended — see resolveProfileName).
+export async function createPublicShareLink(profileId: string, name?: string, token?: string): Promise<PublicShareLink> {
+  const n = await resolveProfileName(profileId, name, token);
   const res = await gologinFetch("/share-links/profiles", {
     method: "POST",
-    body: JSON.stringify({ profiles: [{ name, id: profileId, role: "owner", notes: "" }] }),
+    body: JSON.stringify({ profiles: [{ name: n, id: profileId, role: "owner", notes: "" }] }),
   }, token);
   const link = toPublicLink(res as { _id: string; url: string });
   if (!link) throw new Error("GoLogin did not return a share link");
@@ -142,10 +155,11 @@ export async function createPublicShareLink(profileId: string, name: string, tok
 }
 
 // Look up the existing public share link for a profile (null if none). Does NOT create.
-export async function getPublicShareLink(profileId: string, name: string, token?: string): Promise<PublicShareLink | null> {
+export async function getPublicShareLink(profileId: string, name?: string, token?: string): Promise<PublicShareLink | null> {
+  const n = await resolveProfileName(profileId, name, token);
   const res = await gologinFetch("/share-links/profiles/search", {
     method: "POST",
-    body: JSON.stringify({ profiles: [{ name, id: profileId, role: "owner", notes: "" }] }),
+    body: JSON.stringify({ profiles: [{ name: n, id: profileId, role: "owner", notes: "" }] }),
   }, token);
   const first = (res as { links?: { _id: string; url: string; paused?: boolean; role?: string }[] } | null)?.links?.[0];
   return toPublicLink(first ?? null);
@@ -169,12 +183,14 @@ export async function deletePublicShareLink(linkId: string, profileId: string, t
 
 // Regenerate: delete any existing link for the profile, then create a brand-new one.
 // Guarantees a fresh URL per rental — an old renter's saved link can never re-grant access.
-export async function regeneratePublicShareLink(profileId: string, name: string, token?: string): Promise<PublicShareLink> {
+export async function regeneratePublicShareLink(profileId: string, name?: string, token?: string): Promise<PublicShareLink> {
+  // Resolve the real name ONCE so create + cleanup agree (and we don't double-fetch).
+  const n = await resolveProfileName(profileId, name, token);
   try {
-    const existing = await getPublicShareLink(profileId, name, token);
+    const existing = await getPublicShareLink(profileId, n, token);
     if (existing) await deletePublicShareLink(existing.linkId, profileId, token);
   } catch (e) {
     console.error("regeneratePublicShareLink: cleanup of existing link failed (continuing)", e);
   }
-  return createPublicShareLink(profileId, name, token);
+  return createPublicShareLink(profileId, n, token);
 }
