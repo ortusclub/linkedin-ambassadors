@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
+import { revokeRentalAccess } from "@/lib/rental-access";
 import {
   sendRentalOnboardingEmail,
   sendAccessReadyEmail,
@@ -341,6 +342,13 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
       accessRevokedAt: new Date(),
     },
   });
+
+  // Actually cut GoLogin access (not just the DB status), so a saved share link stops working.
+  try {
+    await revokeRentalAccess(rental.id);
+  } catch (e) {
+    console.error("revoke on subscription deleted failed:", rental.id, e);
+  }
 
   await prisma.linkedInAccount.update({
     where: { id: rental.linkedinAccountId },
