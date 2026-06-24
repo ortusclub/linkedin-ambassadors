@@ -18,7 +18,6 @@ interface Rental {
   startDate: string;
   currentPeriodEnd: string | null;
   autoRenew: boolean;
-  gologinShareLinkUrl: string | null;
   linkedinAccount: {
     id: string;
     linkedinName: string;
@@ -424,7 +423,7 @@ function DashboardContent() {
             <div className="flex-1">
               <p className="font-semibold text-green-900">Payment received — your account is ready! 🎉</p>
               <p className="mt-1 text-sm text-green-800 leading-relaxed">
-                Open it from your rentals below with <strong>&quot;Open in GoLogin.&quot;</strong> Just make sure the GoLogin app is installed — your private access link opens the profile straight in the app, with LinkedIn already logged in. New to GoLogin? Grab it free below.
+                Open it from your rentals below with <strong>&quot;Open in GoLogin.&quot;</strong> Just make sure GoLogin is installed and signed in with <strong>this same email</strong> — that&apos;s how your rented profile opens. New to GoLogin? Grab it free below and sign in with this email.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <a href="https://gologin.com/download" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 transition-colors">
@@ -779,7 +778,7 @@ function DashboardContent() {
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                         Paused
                       </span>
-                    ) : (rental.status === "active" || rental.gologinShareLinkUrl || rental.linkedinAccount.gologinShareLink) ? (
+                    ) : rental.linkedinAccount.gologinShareLink ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                         Active
@@ -823,29 +822,22 @@ function DashboardContent() {
                         <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-400 whitespace-nowrap">
                           Access paused
                         </span>
-                      ) : (rental.status === "active" || rental.gologinShareLinkUrl || rental.linkedinAccount.gologinShareLink) ? (
+                      ) : rental.linkedinAccount.gologinShareLink ? (
                         <button
                           onClick={async () => {
                             const open = (link: string) => {
-                              if (!link) return;
-                              // Public g.camp links open straight in the browser (hands off to GoLogin).
-                              if (link.includes("g.camp")) { window.open(link, "_blank"); return; }
-                              // Legacy app.gologin.com deep links -> gologin:// protocol.
                               try { const u = new URL(link); window.location.href = `gologin:/${u.pathname}`; }
                               catch { window.open(link, "_blank"); }
                             };
-                            // Ask the API for the live access link (generates one on demand if needed),
-                            // then open it. Falls back to any stored link on error.
+                            // Fire the API share first (captures a share id so access is revocable),
+                            // then open the profile. Falls back to opening directly on any error.
                             try {
                               const res = await fetch(`/api/rentals/${rental.id}/access`, { method: "POST" });
                               const data = await res.json().catch(() => ({}));
                               if (res.status === 403) { alert(data.error || "Access to this account is paused."); return; }
-                              const link = data.shareLink || rental.gologinShareLinkUrl || rental.linkedinAccount.gologinShareLink;
-                              if (!link) { alert(data.error || "Could not open this account yet. Please contact support."); return; }
-                              open(link);
+                              open(data.shareLink || rental.linkedinAccount.gologinShareLink!);
                             } catch {
-                              const link = rental.gologinShareLinkUrl || rental.linkedinAccount.gologinShareLink;
-                              if (link) open(link);
+                              open(rental.linkedinAccount.gologinShareLink!);
                             }
                           }}
                           className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"

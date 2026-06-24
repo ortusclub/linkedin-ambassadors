@@ -22,18 +22,18 @@ export async function POST(
     }
 
     if (action === "grant") {
-      const { publicUrl, linkId, email } = await grantRentalAccess(id);
-      // Tell the renter they're live (non-blocking) — include the openable link.
+      const { shareId, email } = await grantRentalAccess(id);
+      // Tell the renter they're live (non-blocking).
       try {
         const rental = await prisma.rental.findUnique({
           where: { id },
           select: { linkedinAccount: { select: { linkedinName: true } } },
         });
-        if (rental) await sendAccessReadyEmail(email, rental.linkedinAccount.linkedinName, publicUrl);
+        if (rental) await sendAccessReadyEmail(email, rental.linkedinAccount.linkedinName);
       } catch (e) {
         console.error("Failed to send access-ready email:", e);
       }
-      return NextResponse.json({ ok: true, action, linkId, shareLink: publicUrl, sharedWith: email });
+      return NextResponse.json({ ok: true, action, shareId, sharedWith: email });
     }
 
     const revoked = await revokeRentalAccess(id);
