@@ -151,8 +151,13 @@ model Rental {
   accessRevokedAt       DateTime?    @map("access_revoked_at")
   paused                Boolean      @default(false)
   // GoLogin shares created for this rental, so we can revoke them on pause:
-  // [{ email, shareId }]
+  // [{ email, shareId }] — LEGACY email-share method (kept for backward compat).
   gologinShareIds       Json         @default("[]") @map("gologin_share_ids")
+  // Current public g.camp share link for this rental (the access mechanism).
+  // linkId = GoLogin _id used to pause/delete; url = full openable g.camp link.
+  // Regenerated per rental; deleted (and cleared) on revoke/expire/end.
+  gologinShareLinkId    String?      @map("gologin_share_link_id")
+  gologinShareLinkUrl   String?      @map("gologin_share_link_url")
   // Admin-only tracker fields (match the internal Renter sheet).
   campaignGoal          String?      @map("campaign_goal")
   // LinkedVelocity point of contact — who owns this renter relationship.

@@ -34,11 +34,11 @@ export async function POST(req: NextRequest) {
   for (const r of pending) {
     await prisma.rental.update({ where: { id: r.id }, data: { accessGrantAttempts: { increment: 1 } } });
     try {
-      await grantRentalAccess(r.id); // shares profile + sets status "active" + accessGrantedAt
-      try { await sendAccessReadyEmail(r.user.email, r.linkedinAccount.linkedinName); } catch (e) { console.error("ready email", r.id, e); }
+      const { publicUrl } = await grantRentalAccess(r.id); // creates g.camp link + sets status "active"
+      try { await sendAccessReadyEmail(r.user.email, r.linkedinAccount.linkedinName, publicUrl); } catch (e) { console.error("ready email", r.id, e); }
       granted++;
     } catch {
-      // Renter hasn't set up GoLogin yet (or share not possible) — retry next run.
+      // Couldn't create the share link (e.g. GoLogin API down) — retry next run.
       stillPending++;
     }
   }

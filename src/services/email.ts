@@ -112,18 +112,18 @@ export async function sendRentalOnboardingEmail(email: string, accountName: stri
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 24px;">Here's exactly what happens next. Step 1 is on you and takes 2 minutes — please do it now so we can hand over access smoothly.</p>
 
       <div style="background:#F3F8FE;border:1px solid #D6E3F2;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
-        <p style="margin:0 0 4px;font-weight:700;font-size:15px;color:#0A66C2;">Step 1 — Set up GoLogin (do this now)</p>
-        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;"><strong>New to GoLogin?</strong> Download it free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> and create your account with <strong>this exact email (${email})</strong>. <strong>Already have GoLogin?</strong> Just make sure you're signed in with <strong>this email</strong>. It has to match — we share the account with the GoLogin account on this email.</p>
+        <p style="margin:0 0 4px;font-weight:700;font-size:15px;color:#0A66C2;">Step 1 — Install GoLogin (do this now)</p>
+        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">Download the GoLogin app free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a>. That's it — <strong>no account or email matching needed</strong>. We'll send you a private access link that opens the profile straight in the app.</p>
       </div>
 
       <div style="background:#F7F7F4;border:1px solid #E8E6E1;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
         <p style="margin:0 0 4px;font-weight:700;font-size:15px;">Step 2 — We get it ready (within 24 hours)</p>
-        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">Our team prepares and verifies the account, then shares the profile to your GoLogin. Sharing can take a few minutes to appear after we send it.</p>
+        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">Our team prepares and verifies the account, then generates your private access link.</p>
       </div>
 
       <div style="background:#F7F7F4;border:1px solid #E8E6E1;border-radius:12px;padding:18px 20px;margin-bottom:24px;">
         <p style="margin:0 0 4px;font-weight:700;font-size:15px;">Step 3 — You're live</p>
-        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">You'll get a "your account is ready" email. Open the profile from GoLogin (or your dashboard) and you're in — LinkedIn already logged in.</p>
+        <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">You'll get a "your account is ready" email with your access link. Open it (or use your dashboard) and you're in — LinkedIn already logged in.</p>
       </div>
 
       <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 20px;">New to this? Read our short guide on <a href="${appUrl}/guide" style="color:#0A66C2;font-weight:600;">how renting works &amp; using LinkedIn safely with us →</a></p>
@@ -151,35 +151,29 @@ export async function sendRentalReadyEmail(email: string, accounts: { name: stri
     html: brandWrap(`
       <p style="font-size:16px;margin:0 0 12px;">${headline}</p>
       <ul style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;padding-left:20px;">${list}</ul>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 8px;">We've shared ${count === 1 ? "it" : "them"} to your GoLogin (<strong>${email}</strong>). Here's how to open:</p>
-      <p style="font-size:13px;color:#536471;line-height:1.6;margin:0 0 16px;"><strong>New to GoLogin?</strong> Get it free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> and sign in with this email first.</p>
-      <ol style="font-size:14px;color:#374151;line-height:1.8;margin:0 0 24px;padding-left:20px;">
-        <li>Open the <strong>GoLogin</strong> app (signed in with ${email}).</li>
-        <li>Find the shared profile${count === 1 ? "" : "s"} in your dashboard — may take a few minutes to appear.</li>
-        <li>Click <strong>Start</strong> to launch the browser with LinkedIn already logged in.</li>
-      </ol>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 8px;">Open ${count === 1 ? "it" : "them"} from your dashboard with <strong>"Open in GoLogin"</strong> — your private access link launches the profile straight in the app, with LinkedIn already logged in.</p>
+      <p style="font-size:13px;color:#536471;line-height:1.6;margin:0 0 16px;"><strong>New to GoLogin?</strong> Get the app free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> — no account or email matching needed.</p>
       <a href="${appUrl}/dashboard" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;margin-bottom:20px;">Open your dashboard</a>
       <p style="font-size:13px;color:#536471;line-height:1.6;margin:20px 0 0;">Please follow our <a href="${appUrl}/guide" style="color:#0A66C2;">safe-use guide</a> to keep the account${count === 1 ? "" : "s"} healthy. Always access through GoLogin, and don't change login or profile details.</p>
     `),
   });
 }
 
-export async function sendAccessReadyEmail(email: string, accountName: string) {
+export async function sendAccessReadyEmail(email: string, accountName: string, shareLink?: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  const openButton = shareLink
+    ? `<a href="${shareLink}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;margin-bottom:8px;">Open the account in GoLogin</a>
+       <p style="font-size:12px;color:#9CA3AF;line-height:1.5;margin:6px 0 20px;word-break:break-all;">Or paste this link: ${shareLink}</p>`
+    : `<a href="${appUrl}/dashboard" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;margin-bottom:20px;">Open your dashboard</a>`;
   return sendEmail({
     to: email,
     subject: `Your LinkedIn account "${accountName}" is ready 🎉`,
     html: brandWrap(`
       <p style="font-size:16px;margin:0 0 8px;"><strong>You're live — ${accountName} is ready to use.</strong></p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 8px;">We've shared the account to your GoLogin (<strong>${email}</strong>). Here's how to open it:</p>
-      <p style="font-size:13px;color:#536471;line-height:1.6;margin:0 0 16px;"><strong>New to GoLogin?</strong> Get it free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> and sign in with this email first.</p>
-      <ol style="font-size:14px;color:#374151;line-height:1.8;margin:0 0 24px;padding-left:20px;">
-        <li>Open the <strong>GoLogin</strong> app (signed in with ${email}).</li>
-        <li>Find the shared profile in your dashboard — it may take a few minutes to appear.</li>
-        <li>Click <strong>Start</strong> to launch the browser with LinkedIn already logged in.</li>
-      </ol>
-      <a href="${appUrl}/dashboard" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;margin-bottom:20px;">Open your dashboard</a>
-      <p style="font-size:13px;color:#536471;line-height:1.6;margin:20px 0 0;">Reminder: please follow our <a href="${appUrl}/guide" style="color:#0A66C2;">safe-use guide</a> to keep the account healthy. Always access it through GoLogin, and don't change the account's login or profile details.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 8px;">Open the account with your private access link — no GoLogin account needed:</p>
+      <p style="font-size:13px;color:#536471;line-height:1.6;margin:0 0 16px;"><strong>First time?</strong> Get the GoLogin app free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a>, then click the link below — the profile opens straight in the app with LinkedIn already logged in.</p>
+      ${openButton}
+      <p style="font-size:13px;color:#536471;line-height:1.6;margin:20px 0 0;">This link is private to you — please don't share it. Reminder: follow our <a href="${appUrl}/guide" style="color:#0A66C2;">safe-use guide</a> to keep the account healthy, and don't change the account's login or profile details.</p>
     `),
   });
 }

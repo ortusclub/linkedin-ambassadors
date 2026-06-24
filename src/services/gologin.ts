@@ -107,3 +107,74 @@ export async function unshareProfile(shareId: string, token?: string) {
 export async function getProfile(profileId: string) {
   return gologinFetch(`/browser/${profileId}`);
 }
+
+// ---------------------------------------------------------------------------
+// PUBLIC SHARE LINKS (g.camp) — the frictionless rental access mechanism.
+// Unlike email shares (/share/multi), a public link works for ANYONE with the
+// URL: the recipient does NOT need a registered/active GoLogin account. We can
+// create / look up / pause / delete / regenerate them via the (undocumented)
+// /share-links/ API, validated 2026-06-24. See gologin-pause-automation memory.
+// ---------------------------------------------------------------------------
+const GOLOGIN_GCAMP_BASE = "https://g.camp/share/";
+
+export type PublicShareLink = {
+  linkId: string;   // the _id used in pause/delete paths
+  url: string;      // raw url fragment GoLogin returns (e.g. "name%40x.com/abc123")
+  publicUrl: string; // full openable link: https://g.camp/share/<url>
+  paused?: boolean;
+  role?: string;
+};
+
+function toPublicLink(raw: { _id: string; url: string; paused?: boolean; role?: string } | null): PublicShareLink | null {
+  if (!raw?._id || !raw?.url) return null;
+  return { linkId: raw._id, url: raw.url, publicUrl: `${GOLOGIN_GCAMP_BASE}${raw.url}`, paused: raw.paused, role: raw.role };
+}
+
+// Create a fresh public share link for a profile. Returns the new link.
+export async function createPublicShareLink(profileId: string, name: string, token?: string): Promise<PublicShareLink> {
+  const res = await gologinFetch("/share-links/profiles", {
+    method: "POST",
+    body: JSON.stringify({ profiles: [{ name, id: profileId, role: "owner", notes: "" }] }),
+  }, token);
+  const link = toPublicLink(res as { _id: string; url: string });
+  if (!link) throw new Error("GoLogin did not return a share link");
+  return link;
+}
+
+// Look up the existing public share link for a profile (null if none). Does NOT create.
+export async function getPublicShareLink(profileId: string, name: string, token?: string): Promise<PublicShareLink | null> {
+  const res = await gologinFetch("/share-links/profiles/search", {
+    method: "POST",
+    body: JSON.stringify({ profiles: [{ name, id: profileId, role: "owner", notes: "" }] }),
+  }, token);
+  const first = (res as { links?: { _id: string; url: string; paused?: boolean; role?: string }[] } | null)?.links?.[0];
+  return toPublicLink(first ?? null);
+}
+
+// Pause (disable) or unpause a public link without deleting it.
+export async function setPublicShareLinkPaused(linkId: string, profileId: string, paused: boolean, token?: string) {
+  return gologinFetch(`/share-links/${linkId}/profiles`, {
+    method: "PATCH",
+    body: JSON.stringify({ paused, profileIds: [profileId] }),
+  }, token);
+}
+
+// Permanently delete a public link (the URL stops working immediately and can't be revived).
+export async function deletePublicShareLink(linkId: string, profileId: string, token?: string) {
+  return gologinFetch(`/share-links/${linkId}/profiles`, {
+    method: "DELETE",
+    body: JSON.stringify({ profileIds: [profileId] }),
+  }, token);
+}
+
+// Regenerate: delete any existing link for the profile, then create a brand-new one.
+// Guarantees a fresh URL per rental — an old renter's saved link can never re-grant access.
+export async function regeneratePublicShareLink(profileId: string, name: string, token?: string): Promise<PublicShareLink> {
+  try {
+    const existing = await getPublicShareLink(profileId, name, token);
+    if (existing) await deletePublicShareLink(existing.linkId, profileId, token);
+  } catch (e) {
+    console.error("regeneratePublicShareLink: cleanup of existing link failed (continuing)", e);
+  }
+  return createPublicShareLink(profileId, name, token);
+}
