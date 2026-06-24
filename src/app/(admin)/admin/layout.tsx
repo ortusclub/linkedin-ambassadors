@@ -75,9 +75,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Level 1: section tabs */}
-      <div className="mb-3 flex items-center gap-6">
+      <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2">
         <h1 className="text-xl font-bold text-gray-900">Admin</h1>
-        <nav className="flex gap-1">
+        <nav className="flex flex-wrap gap-1">
           {sections.map((s) => (
             <Link
               key={s.name}

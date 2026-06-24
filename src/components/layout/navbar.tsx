@@ -20,6 +20,7 @@ export function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -80,6 +81,12 @@ export function Navbar() {
         .kl-topup{font-size:10px;font-weight:600;color:#0A66C2;background:#E8F1FA;padding:2px 6px;border-radius:4px;margin-left:2px}
         .kl-spacer{height:64px}
         @media(max-width:900px){.kl-nav-links{display:none}}
+        .kl-burger{display:none;background:none;border:none;cursor:pointer;padding:8px;color:#0F1419}
+        .kl-mobile-menu{display:none;flex-direction:column;background:#fff;border-bottom:1px solid #E8E6E1;padding:8px 24px 16px}
+        .kl-mobile-menu a,.kl-mobile-menu button{display:block;text-align:left;width:100%;padding:11px 0;font-family:'Karla',system-ui,sans-serif;font-size:15px;color:#0F1419;text-decoration:none;background:none;border:none;border-bottom:1px solid #F1F0EC;cursor:pointer}
+        .kl-mobile-signout{color:#B91C1C !important;font-weight:600}
+        @media(max-width:900px){.kl-burger{display:inline-flex}.kl-mobile-menu.open{display:flex}}
+        @media(min-width:901px){.kl-mobile-menu,.kl-burger{display:none !important}}
       `}</style>
       <nav className={`kl-navbar ${isAmb ? "kl-amb" : "kl-renter"}`}>
         <div className="kl-navbar-inner">
@@ -130,6 +137,36 @@ export function Navbar() {
               </>
             )}
           </div>
+
+          {/* Mobile hamburger — the desktop nav links (incl. Sign Out) are hidden < 900px */}
+          <button className="kl-burger" aria-label="Menu" onClick={() => setMobileOpen((o) => !o)}>
+            {mobileOpen ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            )}
+          </button>
+        </div>
+
+        {/* Mobile dropdown */}
+        <div className={`kl-mobile-menu ${mobileOpen ? "open" : ""}`} onClick={() => setMobileOpen(false)}>
+          <Link href="/catalogue">Browse Accounts</Link>
+          <Link href="/become-ambassador">Earn with your account</Link>
+          <Link href="/faqs">FAQs</Link>
+          {loading ? null : user ? (
+            <>
+              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/dashboard#wallet">Balance &amp; Top Up{balance !== null ? ` — $${parseFloat(balance).toFixed(2)}` : ""}</Link>
+              {user.role === "admin" && <Link href="/admin/dashboard">Admin</Link>}
+              <Link href="/profile">{user.fullName}</Link>
+              <button className="kl-mobile-signout" onClick={handleLogout}>Sign Out</button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">Sign In</Link>
+              <Link href="/register">Sign Up</Link>
+            </>
+          )}
         </div>
       </nav>
       <div className="kl-spacer" />
