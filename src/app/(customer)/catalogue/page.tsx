@@ -15,6 +15,7 @@ interface Account {
   profilePhotoUrl: string | null;
   accountAgeMonths: number | null;
   hasSalesNav: boolean;
+  linkedinVerified?: boolean;
   monthlyPrice: number;
   status: string;
   linkedinUrl: string | null;
@@ -324,7 +325,15 @@ export default function CataloguePage() {
                               ) : initials}
                             </div>
                             <div>
-                              <div style={{fontWeight:600,color:'#0F1419'}}>{displayName}</div>
+                              <div style={{fontWeight:600,color:'#0F1419',display:'flex',alignItems:'center',gap:6}}>
+                                {displayName}
+                                {a.linkedinVerified && (
+                                  <span title="LinkedIn verified" style={{display:'inline-flex',alignItems:'center',gap:3,background:'#E8F1FA',color:'#0A66C2',fontSize:10,fontWeight:700,padding:'2px 6px',borderRadius:999,whiteSpace:'nowrap'}}>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                    Verified
+                                  </span>
+                                )}
+                              </div>
                               {a.linkedinHeadline && <div style={{fontSize:12,color:'#8899A6',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.linkedinHeadline}</div>}
                             </div>
                           </div>

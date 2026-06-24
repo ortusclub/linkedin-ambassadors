@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
       profilePhotoUrl: true,
       accountAgeMonths: true,
       hasSalesNav: true,
+      linkedinVerified: true,
       monthlyPrice: true,
       status: true,
       linkedinUrl: true,
