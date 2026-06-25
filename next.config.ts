@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "randomuser.me" },
     ],
   },
+  async rewrites() {
+    return [
+      // Static dashboard-layout mockup (to show Sam) — clean URL -> the public/ html file.
+      { source: "/dashboard-mockup", destination: "/dashboard-mockup.html" },
+    ];
+  },
 };
 
 export default nextConfig;
