@@ -56,9 +56,8 @@ export function Navbar() {
         .kl-navbar.kl-amb{background:rgba(241,250,244,0.95);border-bottom-color:#cdebd9}
         .kl-navbar-inner{max-width:1200px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;gap:28px}
         .kl-logo{font-family:'Montserrat',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.03em;color:#1D1B16;text-decoration:none;display:flex;align-items:center;gap:8px;flex-shrink:0}
-        .kl-logo-mark{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;flex-shrink:0;letter-spacing:-0.03em}
-        .kl-renter .kl-logo-mark{background:linear-gradient(135deg,#0A66C2,#004182)}
-        .kl-amb .kl-logo-mark{background:linear-gradient(135deg,#00B85C,#007A3D)}
+        .kl-logo-mark{width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .kl-word-velo{color:#00B85C}
         .kl-tag{font-family:'Karla',sans-serif;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap;flex-shrink:0}
         .kl-tag-rent{color:#0A66C2;background:#E8F1FA;border:1px solid #bcd9f5}
         .kl-tag-amb{color:#007A3D;background:#E6F9EE;border:1px solid #bbf0d4}
@@ -101,7 +100,15 @@ export function Navbar() {
       <nav className={`kl-navbar ${isAmb ? "kl-amb" : "kl-renter"}`}>
         <div className="kl-navbar-inner">
           <Link href={isAmb ? "/become-ambassador" : "/"} className="kl-logo">
-            <span className="kl-logo-mark">LV</span>LinkedVelocity
+            <span className="kl-logo-mark" aria-hidden="true">
+              <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100" height="100" rx="16" fill="#0B1B2D" />
+                <polygon points="26,74 39,74 53,26 40,26" fill="#1C3A5E" />
+                <polygon points="44,74 57,74 71,26 58,26" fill="#0A66C2" />
+                <polygon points="62,74 75,74 89,26 76,26" fill="#00B85C" />
+              </svg>
+            </span>
+            <span>Linked<span className="kl-word-velo">Velocity</span></span>
             <span className={`kl-tag ${isAmb ? "kl-tag-amb" : "kl-tag-rent"}`}>{isAmb ? "for Ambassadors" : "for Teams"}</span>
           </Link>
           <div className="kl-nav-right">
