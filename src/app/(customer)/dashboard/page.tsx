@@ -590,9 +590,13 @@ function DashboardContent() {
       {/* Ambassador Accounts */}
       {ambassadorAccounts.length > 0 && (
         <section className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">My Shared Accounts</h2>
-            <Link href="/become-ambassador?submit=1">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-1.5 h-10 rounded bg-gradient-to-b from-[#00B85C] to-[#007A3D] shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold text-[#007A3D] leading-tight">Accounts I&apos;m Renting Out</h2>
+              <p className="text-sm text-gray-500 leading-snug">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
+            </div>
+            <Link href="/become-ambassador?submit=1" className="ml-auto shrink-0">
               <Button variant="outline" size="sm">Add Another Account</Button>
             </Link>
           </div>
@@ -736,7 +740,13 @@ function DashboardContent() {
       {/* My Rented Accounts — hidden for pure ambassadors (no real rentals) */}
       {showRenterSide && (
       <section data-tour="rentals" className="mb-12">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">My Rented Accounts</h2>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-1.5 h-10 rounded bg-gradient-to-b from-[#0A66C2] to-[#004182] shrink-0" />
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-[#004182] leading-tight">Accounts I&apos;m Renting</h2>
+            <p className="text-sm text-gray-500 leading-snug">Accounts you&apos;re renting from other members — open them in GoLogin.</p>
+          </div>
+        </div>
         <Card>
             <CardContent className="p-0">
               <table className="w-full text-sm">
