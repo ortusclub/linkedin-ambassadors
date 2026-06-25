@@ -20,7 +20,8 @@ export function Footer() {
         .lv-footer{background:#0B1A2E;color:rgba(255,255,255,0.7);font-size:13px;font-family:'Karla',system-ui,sans-serif}
         .lv-foot-inner{max-width:1200px;margin:0 auto;padding:56px 40px 36px;display:grid;grid-template-columns:1.3fr 2fr;gap:48px}
         .lv-foot-logo{display:flex;align-items:center;gap:9px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:20px;color:#fff;letter-spacing:-0.02em}
-        .lv-foot-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#0A66C2,#0a4f96);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
+        .lv-foot-mark{width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+        .lv-foot-velo{color:#00B85C}
         .lv-foot-tag{margin:14px 0 16px;max-width:300px;line-height:1.6;color:rgba(255,255,255,0.6)}
         .lv-foot-chat{display:inline-flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font-weight:600;border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:9px 14px;font-size:13px;transition:background .15s}
         .lv-foot-chat:hover{background:rgba(255,255,255,0.08)}
@@ -36,7 +37,17 @@ export function Footer() {
       `}</style>
       <div className="lv-foot-inner">
         <div>
-          <div className="lv-foot-logo"><span className="lv-foot-mark">LV</span>LinkedVelocity</div>
+          <div className="lv-foot-logo">
+            <span className="lv-foot-mark" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100" height="100" rx="16" fill="#0B1B2D" />
+                <polygon points="26,74 39,74 53,26 40,26" fill="#1C3A5E" />
+                <polygon points="44,74 57,74 71,26 58,26" fill="#0A66C2" />
+                <polygon points="62,74 75,74 89,26 76,26" fill="#00B85C" />
+              </svg>
+            </span>
+            <span>Linked<span className="lv-foot-velo">Velocity</span></span>
+          </div>
           <p className="lv-foot-tag">Rent warmed-up LinkedIn accounts for outreach — or earn by sharing one you no longer use.</p>
           <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="lv-foot-chat">💬 Chat with us on Telegram</a>
         </div>

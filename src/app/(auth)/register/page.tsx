@@ -159,8 +159,13 @@ function RegisterForm() {
     <div className="flex min-h-[80vh] items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-[#1D1B16] flex items-center justify-center text-white text-sm font-bold" style={{ fontFamily: "'Montserrat', sans-serif", letterSpacing: "-0.03em" }}>LV</div>
-          <span className="text-xl font-bold text-[#1D1B16]" style={{ fontFamily: "'Montserrat', sans-serif", letterSpacing: "-0.03em" }}>LinkedVelocity</span>
+          <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" rx="16" fill="#0B1B2D" />
+            <polygon points="26,74 39,74 53,26 40,26" fill="#1C3A5E" />
+            <polygon points="44,74 57,74 71,26 58,26" fill="#0A66C2" />
+            <polygon points="62,74 75,74 89,26 76,26" fill="#00B85C" />
+          </svg>
+          <span className="text-xl font-bold text-[#1D1B16]" style={{ fontFamily: "'Montserrat', sans-serif", letterSpacing: "-0.03em" }}>Linked<span style={{ color: "#00B85C" }}>Velocity</span></span>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 text-center">Create your account</h1>
         <p className="mt-2 text-center text-sm text-gray-500 mb-8">Start renting or sharing LinkedIn accounts in minutes.</p>
