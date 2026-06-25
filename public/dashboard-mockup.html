@@ -3,183 +3,93 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>LinkedVelocity — Dashboard layout options</title>
+<title>LinkedVelocity — New dashboard (Option A, built)</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--blue:#0A66C2;--blue-dark:#004182;--green:#00B85C;--green-dark:#007A3D;--ink:#0F1419;--muted:#536471;--line:#E8E6E1;}
   *{box-sizing:border-box}
-  body{margin:0;background:#F4F6F8;font-family:'Karla',system-ui,sans-serif;color:var(--ink);}
-  .wrap{max-width:1040px;margin:0 auto;padding:32px 24px 80px;}
-  .pagetitle{font-family:'Montserrat';font-weight:800;font-size:15px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;}
-  .opt-banner{display:flex;align-items:center;gap:12px;margin:48px 0 18px;padding:14px 18px;border-radius:12px;background:#fff;border:1px solid var(--line);box-shadow:0 1px 3px rgba(0,0,0,.04);}
-  .opt-banner .tag{font-family:'Montserrat';font-weight:800;font-size:13px;color:#fff;background:var(--ink);border-radius:8px;padding:5px 12px;}
-  .opt-banner h2{font-family:'Montserrat';font-weight:700;font-size:18px;margin:0;}
-  .opt-banner p{margin:0;color:var(--muted);font-size:13.5px;}
-  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:26px 26px 30px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
-  h1.dash{font-family:'Montserrat';font-weight:800;font-size:28px;margin:0 0 22px;}
-
-  /* Section header (Option A / C) */
-  .section{margin:0 0 26px;}
-  .sec-head{display:flex;align-items:center;gap:12px;padding:0 0 4px;}
-  .sec-bar{width:6px;height:34px;border-radius:6px;}
-  .sec-title{font-family:'Montserrat';font-weight:700;font-size:19px;margin:0;letter-spacing:-.01em;}
+  body{margin:0;background:#F9FAFB;font-family:'Karla',system-ui,sans-serif;color:var(--ink);}
+  .wrap{max-width:960px;margin:0 auto;padding:36px 24px 90px;}
+  .banner{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--muted);}
+  .banner b{color:var(--ink)}
+  h1.dash{font-family:'Montserrat';font-weight:800;font-size:28px;margin:0 0 24px;}
+  .section{margin:0 0 30px;}
+  .sec-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .sec-bar{width:6px;height:42px;border-radius:6px;flex-shrink:0;}
+  .sec-title{font-family:'Montserrat';font-weight:700;font-size:20px;margin:0;line-height:1.15;letter-spacing:-.01em;}
   .sec-sub{margin:2px 0 0;color:var(--muted);font-size:13.5px;}
-  .pill{margin-left:auto;font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px;}
+  .add{margin-left:auto;font-weight:700;font-size:13px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;color:var(--ink);cursor:pointer;white-space:nowrap;}
   .green .sec-bar{background:linear-gradient(180deg,var(--green),var(--green-dark));}
   .green .sec-title{color:var(--green-dark);}
-  .green .pill{background:#E6F9EE;color:var(--green-dark);border:1px solid #bbf0d4;}
   .blue .sec-bar{background:linear-gradient(180deg,var(--blue),var(--blue-dark));}
   .blue .sec-title{color:var(--blue-dark);}
-  .blue .pill{background:#E8F1FA;color:var(--blue-dark);border:1px solid #bcd9f5;}
-
-  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;}
-  @media(max-width:640px){.cards{grid-template-columns:1fr}}
-  .card{display:flex;align-items:center;gap:13px;border:1px solid var(--line);border-radius:13px;padding:14px 16px;background:#fff;}
-  .ava{width:44px;height:44px;border-radius:50%;flex-shrink:0;background:#dde3ea;display:flex;align-items:center;justify-content:center;font-weight:700;color:#64748b;font-size:15px;}
-  .card .nm{font-weight:700;font-size:14.5px;}
-  .card .role{font-size:12.5px;color:var(--muted);}
-  .card .meta{margin-left:auto;text-align:right;}
-  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;}
-  .badge.act{background:#E6F9EE;color:#166534;}
-  .badge.earn{background:#FEF9C3;color:#854d0e;}
-  .money{font-weight:800;font-size:14px;}
-  .money.g{color:var(--green-dark);}
-  .btn{font-weight:700;font-size:13px;border-radius:10px;padding:9px 16px;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
-  .btn.green{background:var(--green);color:#fff;}
-  .btn.blue{background:var(--blue);color:#fff;}
-  .btn.ghost{background:#fff;border:1px dashed #cbd5e1;color:var(--muted);}
-  .addcard{display:flex;align-items:center;justify-content:center;border:1.5px dashed #cbd5e1;border-radius:13px;color:var(--muted);font-weight:700;font-size:13.5px;min-height:72px;cursor:pointer;background:#fafbfc;}
-
-  /* Tabs (Option B) */
-  .tabs{display:inline-flex;background:#EEF1F4;border-radius:12px;padding:5px;gap:4px;margin-bottom:22px;}
-  .tab{border:none;background:transparent;font-family:'Karla';font-weight:700;font-size:14px;color:var(--muted);padding:9px 18px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:8px;}
-  .tab.active{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);}
-  .tab .dot{width:8px;height:8px;border-radius:50%;}
-  .tab .dot.g{background:var(--green);}
-  .tab .dot.b{background:var(--blue);}
-  .tabpane{display:none;}
-  .tabpane.show{display:block;}
-  .note{color:var(--muted);font-size:13px;margin:8px 0 0;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  thead tr{border-bottom:1px solid var(--line);}
+  th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;padding:12px 16px;}
+  td{padding:13px 16px;border-bottom:1px solid #F1F0EC;vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  .prof{display:flex;align-items:center;gap:11px;}
+  .ava{width:38px;height:38px;border-radius:50%;background:#dde3ea;display:flex;align-items:center;justify-content:center;font-weight:700;color:#64748b;font-size:13px;flex-shrink:0;}
+  .nm{font-weight:700;}
+  .role{font-size:12px;color:var(--muted);}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+  .b-act{background:#E6F9EE;color:#166534;}
+  .b-earn{background:#FEF9C3;color:#854d0e;}
+  .money{font-weight:800;color:var(--green-dark);}
+  .open{font-weight:700;font-size:12px;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;}
+  .ar{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#E6F9EE;color:#166534;}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <p class="pagetitle">LinkedVelocity · Dashboard layout — for Sam</p>
-  <p style="color:#536471;max-width:680px;font-size:14px;line-height:1.6;margin:0 0 8px;">Same data, three ways to split the two sides. <b>“Renting out”</b> = accounts Sam owns &amp; earns from. <b>“Renting”</b> = accounts he’s using from other members.</p>
+  <div class="banner">✅ <span>This is the <b>built</b> layout (Option A) now live on <b>/dashboard</b> — one dashboard, two clear sections, row tables. Sample data shown for someone who does <b>both</b> sides.</span></div>
 
-  <!-- ================= OPTION A: CLEARER HEADERS ================= -->
-  <div class="opt-banner">
-    <span class="tag">OPTION A</span>
-    <div><h2>Clearer headers — both sides visible</h2><p>One page, unmistakable sections. Nothing hidden. Lightest change.</p></div>
-  </div>
-  <div class="panel">
-    <h1 class="dash">My Dashboard</h1>
+  <h1 class="dash">My Dashboard</h1>
 
-    <div class="section green">
-      <div class="sec-head">
-        <div class="sec-bar"></div>
-        <div>
-          <h3 class="sec-title">🟢 Accounts I’m Renting Out</h3>
-          <p class="sec-sub">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
-        </div>
-        <span class="pill">Earning $120 / mo</span>
+  <!-- GREEN: renting out -->
+  <div class="section green">
+    <div class="sec-head">
+      <div class="sec-bar"></div>
+      <div>
+        <h2 class="sec-title">Accounts I’m Renting Out</h2>
+        <p class="sec-sub">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
       </div>
-      <div class="cards">
-        <div class="card"><div class="ava">SA</div><div><div class="nm">Sam Adcock</div><div class="role">Founder · Apex Guesting</div></div><div class="meta"><span class="badge earn">Earning</span><div class="money g">$75/mo</div></div></div>
-        <div class="card"><div class="ava">RJ</div><div><div class="nm">Robert Jae Junio</div><div class="role">Growth Consultant</div></div><div class="meta"><span class="badge earn">Earning</span><div class="money g">$45/mo</div></div></div>
-        <div class="addcard">＋ Add another account to earn</div>
-      </div>
+      <button class="add">＋ Add Another Account</button>
     </div>
-
-    <div class="section blue">
-      <div class="sec-head">
-        <div class="sec-bar"></div>
-        <div>
-          <h3 class="sec-title">🔵 Accounts I’m Renting</h3>
-          <p class="sec-sub">Accounts you’re renting from other members — open them in GoLogin.</p>
-        </div>
-        <span class="pill">2 active</span>
-      </div>
-      <div class="cards">
-        <div class="card"><div class="ava">AM</div><div><div class="nm">Andrea Medrano</div><div class="role">Renews Jul 24</div></div><div class="meta"><span class="badge act">● Active</span><div style="margin-top:6px"><a class="btn blue" style="padding:6px 12px;font-size:12px">Open in GoLogin ↗</a></div></div></div>
-        <div class="card"><div class="ava">EM</div><div><div class="nm">Eclat Maswi</div><div class="role">Renews Jul 18</div></div><div class="meta"><span class="badge act">● Active</span><div style="margin-top:6px"><a class="btn blue" style="padding:6px 12px;font-size:12px">Open in GoLogin ↗</a></div></div></div>
-      </div>
-      <p style="margin-top:14px"><a class="btn ghost">Browse more accounts to rent →</a></p>
+    <div class="card">
+      <table>
+        <thead><tr><th>Profile</th><th>Status</th><th>Monthly earnings</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><div class="prof"><div class="ava">SA</div><div><div class="nm">Sam Adcock</div><div class="role">Founder · Apex Guesting</div></div></div></td><td><span class="badge b-earn">Earning</span></td><td><span class="money">$75.00 / mo</span></td><td style="text-align:right"><span class="role">Next payout Jul 9</span></td></tr>
+          <tr><td><div class="prof"><div class="ava">RJ</div><div><div class="nm">Robert Jae Junio</div><div class="role">Growth Consultant</div></div></div></td><td><span class="badge b-earn">Earning</span></td><td><span class="money">$45.00 / mo</span></td><td style="text-align:right"><span class="role">Next payout Jul 9</span></td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
-  <!-- ================= OPTION B: TABS ================= -->
-  <div class="opt-banner">
-    <span class="tag">OPTION B</span>
-    <div><h2>Tabs — one side at a time</h2><p>Cleanest per view, but the other side is hidden behind a click. Try the tabs below.</p></div>
-  </div>
-  <div class="panel">
-    <h1 class="dash">My Dashboard</h1>
-    <div class="tabs">
-      <button class="tab active" onclick="showTab(event,'out')"><span class="dot g"></span>Renting Out (earn)</button>
-      <button class="tab" onclick="showTab(event,'in')"><span class="dot b"></span>Renting (use)</button>
-    </div>
-    <div id="out" class="tabpane show">
-      <div class="cards">
-        <div class="card"><div class="ava">SA</div><div><div class="nm">Sam Adcock</div><div class="role">Founder · Apex Guesting</div></div><div class="meta"><span class="badge earn">Earning</span><div class="money g">$75/mo</div></div></div>
-        <div class="card"><div class="ava">RJ</div><div><div class="nm">Robert Jae Junio</div><div class="role">Growth Consultant</div></div><div class="meta"><span class="badge earn">Earning</span><div class="money g">$45/mo</div></div></div>
-        <div class="addcard">＋ Add another account to earn</div>
+  <!-- BLUE: renting -->
+  <div class="section blue">
+    <div class="sec-head">
+      <div class="sec-bar"></div>
+      <div>
+        <h2 class="sec-title">Accounts I’m Renting</h2>
+        <p class="sec-sub">Accounts you’re renting from other members — open them in GoLogin.</p>
       </div>
-      <p class="note">You earn <b>$120 / month</b> across 2 shared accounts.</p>
     </div>
-    <div id="in" class="tabpane">
-      <div class="cards">
-        <div class="card"><div class="ava">AM</div><div><div class="nm">Andrea Medrano</div><div class="role">Renews Jul 24</div></div><div class="meta"><span class="badge act">● Active</span><div style="margin-top:6px"><a class="btn blue" style="padding:6px 12px;font-size:12px">Open in GoLogin ↗</a></div></div></div>
-        <div class="card"><div class="ava">EM</div><div><div class="nm">Eclat Maswi</div><div class="role">Renews Jul 18</div></div><div class="meta"><span class="badge act">● Active</span><div style="margin-top:6px"><a class="btn blue" style="padding:6px 12px;font-size:12px">Open in GoLogin ↗</a></div></div></div>
-      </div>
-      <p class="note">Renting <b>2 accounts</b> from other members. <a href="#" style="color:var(--blue);font-weight:700">Browse more →</a></p>
+    <div class="card">
+      <table>
+        <thead><tr><th>Profile</th><th>Status</th><th>Started</th><th>Next billing</th><th>Auto-renew</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><div class="prof"><div class="ava">AM</div><div><div class="nm">Andrea Medrano</div><div class="role">Marketing Lead</div></div></div></td><td><span class="badge b-act">● Active</span></td><td>Jun 24, 2026</td><td>Jul 24, 2026</td><td><span class="ar">● On</span></td><td style="text-align:right"><button class="open">Open in GoLogin ↗</button></td></tr>
+          <tr><td><div class="prof"><div class="ava">EM</div><div><div class="nm">Eclat Maswi</div><div class="role">Sales Consultant</div></div></div></td><td><span class="badge b-act">● Active</span></td><td>Jun 18, 2026</td><td>Jul 18, 2026</td><td><span class="ar">● On</span></td><td style="text-align:right"><button class="open">Open in GoLogin ↗</button></td></tr>
+          <tr><td><div class="prof"><div class="ava">SS</div><div><div class="nm">Steven Sengimana</div><div class="role">Recruiter</div></div></div></td><td><span class="badge b-act">● Active</span></td><td>Jun 12, 2026</td><td>Jul 12, 2026</td><td><span class="ar">● On</span></td><td style="text-align:right"><button class="open">Open in GoLogin ↗</button></td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
-  <!-- ================= OPTION C: HEADERS + TOGGLE ================= -->
-  <div class="opt-banner">
-    <span class="tag">OPTION C</span>
-    <div><h2>Headers + a “show” toggle</h2><p>Clear headers for everyone, plus a filter that only appears for people doing both sides.</p></div>
-  </div>
-  <div class="panel">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-      <h1 class="dash" style="margin-bottom:0">My Dashboard</h1>
-      <select style="font-family:'Karla';font-weight:700;font-size:13px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#fff" onchange="filterC(this.value)">
-        <option value="all">Show: Everything</option>
-        <option value="out">Show: Only renting out</option>
-        <option value="in">Show: Only renting</option>
-      </select>
-    </div>
-    <div style="height:18px"></div>
-    <div class="section green" id="c-out">
-      <div class="sec-head"><div class="sec-bar"></div><div><h3 class="sec-title">🟢 Accounts I’m Renting Out</h3><p class="sec-sub">Earning every month.</p></div><span class="pill">$120 / mo</span></div>
-      <div class="cards">
-        <div class="card"><div class="ava">SA</div><div><div class="nm">Sam Adcock</div><div class="role">Founder</div></div><div class="meta"><span class="badge earn">Earning</span><div class="money g">$75/mo</div></div></div>
-        <div class="addcard">＋ Add account</div>
-      </div>
-    </div>
-    <div class="section blue" id="c-in">
-      <div class="sec-head"><div class="sec-bar"></div><div><h3 class="sec-title">🔵 Accounts I’m Renting</h3><p class="sec-sub">Using from other members.</p></div><span class="pill">2 active</span></div>
-      <div class="cards">
-        <div class="card"><div class="ava">AM</div><div><div class="nm">Andrea Medrano</div><div class="role">Renews Jul 24</div></div><div class="meta"><span class="badge act">● Active</span></div></div>
-        <div class="card"><div class="ava">EM</div><div><div class="nm">Eclat Maswi</div><div class="role">Renews Jul 18</div></div><div class="meta"><span class="badge act">● Active</span></div></div>
-      </div>
-    </div>
-  </div>
-
-  <p style="text-align:center;color:#94a3b8;font-size:12.5px;margin-top:40px">Mockup only — sample data. Pick a direction and I’ll build it into the real dashboard.</p>
+  <p style="text-align:center;color:#94a3b8;font-size:12.5px;margin-top:36px">Sample data. A pure renter (like nico) sees only the blue section; a pure ambassador sees only the green one; someone doing both sees both, as above.</p>
 </div>
-<script>
-  function showTab(e,id){
-    document.querySelectorAll('#out,#in').forEach(p=>p.classList.remove('show'));
-    document.getElementById(id).classList.add('show');
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    e.currentTarget.classList.add('active');
-  }
-  function filterC(v){
-    document.getElementById('c-out').style.display = (v==='all'||v==='out')?'block':'none';
-    document.getElementById('c-in').style.display  = (v==='all'||v==='in') ?'block':'none';
-  }
-</script>
 </body>
 </html>
