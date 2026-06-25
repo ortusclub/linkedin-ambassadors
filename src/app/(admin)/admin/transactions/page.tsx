@@ -45,7 +45,7 @@ export default function AdminTransactionsPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Transactions</h2>
-          <p className="mt-1 mb-6 max-w-2xl text-sm text-gray-500">Money coming in from renters — deposits and rental payments. (Ambassador payouts are under Ambassadors → Payouts.)</p>
+          <p className="mt-1 mb-6 max-w-2xl text-sm text-gray-500">Money coming in from renters — deposits and rental payments.</p>
         </div>
         <div className="flex flex-shrink-0 items-center rounded-lg border border-gray-200 bg-white p-0.5 text-sm">
           <button onClick={() => setIncludeTest(false)} className={`rounded-md px-3 py-1 font-medium transition-colors ${!includeTest ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-800"}`}>Live</button>

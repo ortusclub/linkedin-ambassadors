@@ -93,9 +93,8 @@ export default function AdminDashboardPage() {
       </div>
 
       <Band title="💰 Money — is the business making money?">
-        <Tile label="Net Profit / mo" value={formatCurrency(stats.netProfit)} sub={`${margin}% margin`} color="text-green-600" />
-        <Tile label="Monthly Revenue" value={formatCurrency(stats.mrr)} sub="recurring, money in" color="text-gray-900" />
-        <Tile label="Ambassador Payouts" value={formatCurrency(stats.payouts)} sub="money out" color="text-gray-900" />
+        <Tile label="Monthly Revenue" value={formatCurrency(stats.mrr)} sub="recurring, money in" color="text-green-600" />
+        <Tile label="Net Profit / mo" value={formatCurrency(stats.netProfit)} sub={`${margin}% margin`} color="text-gray-900" />
         <Tile label="Active Rentals" value={stats.activeRentals} sub="live now" color="text-blue-600" />
       </Band>
 

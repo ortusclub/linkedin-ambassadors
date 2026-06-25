@@ -27,7 +27,8 @@ const sections = [
       { href: "/admin/ambassadors", label: "Applications" },
       { href: "/admin/owners", label: "Ambassadors" },
       { href: "/admin/accounts", label: "Inventory" },
-      { href: "/admin/balances", label: "Payouts" },
+      // Payouts (/admin/balances) hidden for now — no ambassador payouts yet.
+      // Page kept; re-add this when the first real ambassador needs paying.
     ],
   },
 ];
