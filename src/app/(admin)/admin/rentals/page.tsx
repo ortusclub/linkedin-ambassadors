@@ -258,8 +258,7 @@ export default function AdminRentalsPage() {
               <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                 <th className="px-3 py-2">Renter / Company</th>
                 <th className="px-3 py-2">Industry</th>
-                <th className="px-3 py-2">Account(s)</th>
-                <th className="px-3 py-2 text-center">Accts</th>
+                <th className="px-3 py-2">Account</th>
                 <th className="px-3 py-2">Billing</th>
                 <th className="px-3 py-2 text-center">Auto-Renew</th>
                 <th className="px-3 py-2">Payment</th>
@@ -303,7 +302,6 @@ export default function AdminRentalsPage() {
                         <p className="font-mono text-[10px] text-gray-400" title="GoLogin profile ID">{r.linkedinAccount.gologinProfileId}</p>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-center font-semibold text-gray-700">{r.renterAccountsLive}</td>
                     <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
                       <p>Start: {fmt(r.startDate)}</p>
                       <p>Next: {fmt(r.currentPeriodEnd)}</p>
