@@ -101,12 +101,8 @@ export function Navbar() {
         <div className="kl-navbar-inner">
           <Link href={isAmb ? "/become-ambassador" : "/"} className="kl-logo">
             <span className="kl-logo-mark" aria-hidden="true">
-              <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="100" height="100" rx="16" fill="#0B1B2D" />
-                <polygon points="26,74 39,74 53,26 40,26" fill="#1C3A5E" />
-                <polygon points="44,74 57,74 71,26 58,26" fill="#0A66C2" />
-                <polygon points="62,74 75,74 89,26 76,26" fill="#00B85C" />
-              </svg>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/linkedvelocity-mark.png" alt="" width={36} height={36} style={{ borderRadius: 8 }} />
             </span>
             <span>Linked<span className="kl-word-velo">Velocity</span></span>
             <span className={`kl-tag ${isAmb ? "kl-tag-amb" : "kl-tag-rent"}`}>{isAmb ? "for Ambassadors" : "for Teams"}</span>
