@@ -587,9 +587,10 @@ function DashboardContent() {
       </section>
       )}
 
-      {/* Ambassador Accounts */}
-      {ambassadorAccounts.length > 0 && (
-        <section className="mb-12">
+      {/* ===== Account sections — reordered via flex order: Renting (1) on top, Renting Out (3) at bottom ===== */}
+      <div className="flex flex-col">
+      {/* Accounts I'm Renting Out — always shown (empty state when none) */}
+        <section className="mb-12 order-3">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-1.5 h-10 rounded bg-gradient-to-b from-[#00B85C] to-[#007A3D] shrink-0" />
             <div className="min-w-0">
@@ -600,6 +601,7 @@ function DashboardContent() {
               <Button variant="outline" size="sm">Add Another Account</Button>
             </Link>
           </div>
+          {ambassadorAccounts.length > 0 ? (
           <Card>
             <CardContent className="p-0">
               <table className="w-full text-sm">
@@ -674,12 +676,19 @@ function DashboardContent() {
               </table>
             </CardContent>
           </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-gray-500">
+                You haven&apos;t shared any accounts yet.{" "}
+                <Link href="/become-ambassador?submit=1" className="font-semibold text-[#007A3D] hover:underline">Share an account to start earning →</Link>
+              </CardContent>
+            </Card>
+          )}
         </section>
-      )}
 
       {/* Removed Accounts */}
       {removedAccounts.length > 0 && (
-        <section className="mb-12">
+        <section className="mb-12 order-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Removed Accounts</h2>
             <span className="text-xs text-gray-400">Paper trail of removed accounts</span>
@@ -737,9 +746,8 @@ function DashboardContent() {
         </section>
       )}
 
-      {/* My Rented Accounts — hidden for pure ambassadors (no real rentals) */}
-      {showRenterSide && (
-      <section data-tour="rentals" className="mb-12">
+      {/* Accounts I'm Renting — always shown (empty state when none) */}
+      <section data-tour="rentals" className="mb-12 order-1">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-1.5 h-10 rounded bg-gradient-to-b from-[#0A66C2] to-[#004182] shrink-0" />
           <div className="min-w-0">
@@ -747,6 +755,14 @@ function DashboardContent() {
             <p className="text-sm text-gray-500 leading-snug">Accounts you&apos;re renting from other members — open them in GoLogin.</p>
           </div>
         </div>
+        {(activeRentals.length === 0 && isAmbassador) ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-gray-500">
+              You&apos;re not renting any accounts yet.{" "}
+              <Link href="/catalogue" className="font-semibold text-[#0A66C2] hover:underline">Browse accounts to rent →</Link>
+            </CardContent>
+          </Card>
+        ) : (
         <Card>
             <CardContent className="p-0">
               <table className="w-full text-sm">
@@ -914,12 +930,12 @@ function DashboardContent() {
               </table>
             </CardContent>
         </Card>
+        )}
       </section>
-      )}
 
       {/* Past Rentals */}
       {pastRentals.length > 0 && (
-        <section className="mb-12">
+        <section className="mb-12 order-2">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Past Rentals</h2>
           <div className="space-y-3">
             {pastRentals.map((rental) => (
@@ -938,6 +954,8 @@ function DashboardContent() {
           </div>
         </section>
       )}
+      </div>
+      {/* ===== end reordered account sections ===== */}
 
       {/* My Submissions */}
       <section className="mb-12">
