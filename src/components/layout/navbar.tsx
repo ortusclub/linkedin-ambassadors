@@ -62,7 +62,12 @@ export function Navbar() {
         .kl-tag{font-family:'Karla',sans-serif;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap;flex-shrink:0}
         .kl-tag-rent{color:#0A66C2;background:#E8F1FA;border:1px solid #bcd9f5}
         .kl-tag-amb{color:#007A3D;background:#E6F9EE;border:1px solid #bbf0d4}
-        .kl-nav-links{display:flex;align-items:center;gap:24px}
+        .kl-nav-links{display:flex;align-items:center;gap:22px}
+        .kl-nav-right{display:flex;align-items:center;gap:20px;margin-left:auto;min-width:0}
+        .kl-nav-account{display:flex;align-items:center;gap:12px;flex-shrink:0}
+        .kl-nav-name{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block}
+        .kl-nav-dash{font-family:'Karla',system-ui,sans-serif;font-size:14px;color:#536471;text-decoration:none;font-weight:500;white-space:nowrap;transition:color .15s}
+        .kl-nav-dash:hover{color:#0F1419}
         .kl-nav-links a{font-family:'Karla','Montserrat',system-ui,sans-serif;font-size:14px;color:#536471;text-decoration:none;font-weight:500;transition:color .15s;white-space:nowrap}
         .kl-nav-links a:hover{color:#0F1419}
         .kl-cross-rent{color:#0A66C2 !important;font-weight:700 !important}
@@ -80,13 +85,18 @@ export function Navbar() {
         .kl-balance-label{font-size:11px;font-weight:500;color:#22C55E;letter-spacing:0.02em}
         .kl-topup{font-size:10px;font-weight:600;color:#0A66C2;background:#E8F1FA;padding:2px 6px;border-radius:4px;margin-left:2px}
         .kl-spacer{height:64px}
-        @media(max-width:900px){.kl-nav-links{display:none}}
+        /* Marketing links collapse into the hamburger first (1100px); the account
+           cluster (incl. Sign Out) stays pinned right and visible much longer. */
+        @media(max-width:1100px){.kl-nav-links{display:none}}
+        @media(max-width:900px){.kl-nav-dash{display:none}}
+        @media(max-width:820px){.kl-tag{display:none}.kl-nav-name{display:none}}
+        @media(max-width:700px){.kl-nav-account{display:none}}
         .kl-burger{display:none;background:none;border:none;cursor:pointer;padding:8px;color:#0F1419}
         .kl-mobile-menu{display:none;flex-direction:column;background:#fff;border-bottom:1px solid #E8E6E1;padding:8px 24px 16px}
         .kl-mobile-menu a,.kl-mobile-menu button{display:block;text-align:left;width:100%;padding:11px 0;font-family:'Karla',system-ui,sans-serif;font-size:15px;color:#0F1419;text-decoration:none;background:none;border:none;border-bottom:1px solid #F1F0EC;cursor:pointer}
         .kl-mobile-signout{color:#B91C1C !important;font-weight:600}
-        @media(max-width:900px){.kl-burger{display:inline-flex}.kl-mobile-menu.open{display:flex}}
-        @media(min-width:901px){.kl-mobile-menu,.kl-burger{display:none !important}}
+        @media(max-width:1100px){.kl-burger{display:inline-flex}.kl-mobile-menu.open{display:flex}}
+        @media(min-width:1101px){.kl-mobile-menu,.kl-burger{display:none !important}}
       `}</style>
       <nav className={`kl-navbar ${isAmb ? "kl-amb" : "kl-renter"}`}>
         <div className="kl-navbar-inner">
@@ -94,51 +104,58 @@ export function Navbar() {
             <span className="kl-logo-mark">LV</span>LinkedVelocity
             <span className={`kl-tag ${isAmb ? "kl-tag-amb" : "kl-tag-rent"}`}>{isAmb ? "for Ambassadors" : "for Teams"}</span>
           </Link>
-          <div className="kl-nav-links">
-            {isAmb ? (
-              <>
-                <a href="#how">How it works</a>
-                <a href="#earn">Earnings</a>
-                <a href="#faq">FAQ</a>
-                <Link href="/catalogue" className="kl-cross-amb">← Rent a profile</Link>
-              </>
-            ) : (
-              <>
-                <Link href="/catalogue">Browse Accounts</Link>
-                <Link href="/pricing">Pricing</Link>
-                <Link href="/blog">Blog</Link>
-                <Link href="/faqs">FAQs</Link>
-                <Link href="/become-ambassador" className="kl-cross-rent">Earn with your account →</Link>
-                <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer">Book a Meeting</a>
-              </>
-            )}
-            {user?.role === "admin" && (
-              <Link href="/admin/dashboard">Admin</Link>
-            )}
-            {loading ? null : user ? (
-              <>
-                <Link href="/dashboard">Dashboard</Link>
-                <Link href="/dashboard#wallet" className="kl-balance">
-                  <span className="kl-balance-label">Balance</span>
-                  ${balance !== null ? parseFloat(balance).toFixed(2) : '—'}
-                  <span className="kl-topup">Top Up</span>
-                </Link>
-                <Link href="/profile" className="kl-nav-btn">
-                  {user.fullName}
-                </Link>
-                <button className="kl-nav-btn" onClick={handleLogout}>Sign Out</button>
-              </>
-            ) : isAmb ? (
-              <a href="/become-ambassador?valuation=1" className="kl-nav-cta kl-cta-green">Get my valuation</a>
-            ) : (
-              <>
-                <Link href="/login" className="kl-nav-btn">Sign In</Link>
-                <Link href="/register" className="kl-nav-cta kl-cta-blue">Sign Up</Link>
-              </>
-            )}
+          <div className="kl-nav-right">
+            {/* Marketing links — first to collapse into the hamburger */}
+            <div className="kl-nav-links">
+              {isAmb ? (
+                <>
+                  <a href="#how">How it works</a>
+                  <a href="#earn">Earnings</a>
+                  <a href="#faq">FAQ</a>
+                  <Link href="/catalogue" className="kl-cross-amb">← Rent a profile</Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/catalogue">Browse Accounts</Link>
+                  <Link href="/pricing">Pricing</Link>
+                  <Link href="/blog">Blog</Link>
+                  <Link href="/faqs">FAQs</Link>
+                  <Link href="/become-ambassador" className="kl-cross-rent">Earn with your account →</Link>
+                  <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer">Book a Meeting</a>
+                </>
+              )}
+              {user?.role === "admin" && (
+                <Link href="/admin/dashboard">Admin</Link>
+              )}
+            </div>
+
+            {/* Account cluster — stays pinned right and visible far longer so Sign Out is always reachable */}
+            <div className="kl-nav-account">
+              {loading ? null : user ? (
+                <>
+                  <Link href="/dashboard" className="kl-nav-dash">Dashboard</Link>
+                  <Link href="/dashboard#wallet" className="kl-balance">
+                    <span className="kl-balance-label">Balance</span>
+                    ${balance !== null ? parseFloat(balance).toFixed(2) : '—'}
+                    <span className="kl-topup">Top Up</span>
+                  </Link>
+                  <Link href="/profile" className="kl-nav-btn kl-nav-name">
+                    {user.fullName}
+                  </Link>
+                  <button className="kl-nav-btn" onClick={handleLogout}>Sign Out</button>
+                </>
+              ) : isAmb ? (
+                <a href="/become-ambassador?valuation=1" className="kl-nav-cta kl-cta-green">Get my valuation</a>
+              ) : (
+                <>
+                  <Link href="/login" className="kl-nav-btn">Sign In</Link>
+                  <Link href="/register" className="kl-nav-cta kl-cta-blue">Sign Up</Link>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Mobile hamburger — the desktop nav links (incl. Sign Out) are hidden < 900px */}
+          {/* Mobile hamburger — marketing links collapse here < 1100px; account cluster < 700px */}
           <button className="kl-burger" aria-label="Menu" onClick={() => setMobileOpen((o) => !o)}>
             {mobileOpen ? (
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
@@ -150,9 +167,22 @@ export function Navbar() {
 
         {/* Mobile dropdown */}
         <div className={`kl-mobile-menu ${mobileOpen ? "open" : ""}`} onClick={() => setMobileOpen(false)}>
-          <Link href="/catalogue">Browse Accounts</Link>
-          <Link href="/become-ambassador">Earn with your account</Link>
-          <Link href="/faqs">FAQs</Link>
+          {isAmb ? (
+            <>
+              <a href="#how">How it works</a>
+              <a href="#earn">Earnings</a>
+              <a href="#faq">FAQ</a>
+              <Link href="/catalogue">← Rent a profile</Link>
+            </>
+          ) : (
+            <>
+              <Link href="/catalogue">Browse Accounts</Link>
+              <Link href="/pricing">Pricing</Link>
+              <Link href="/become-ambassador">Earn with your account</Link>
+              <Link href="/faqs">FAQs</Link>
+              <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer">Book a Meeting</a>
+            </>
+          )}
           {loading ? null : user ? (
             <>
               <Link href="/dashboard">Dashboard</Link>
@@ -161,6 +191,8 @@ export function Navbar() {
               <Link href="/profile">{user.fullName}</Link>
               <button className="kl-mobile-signout" onClick={handleLogout}>Sign Out</button>
             </>
+          ) : isAmb ? (
+            <a href="/become-ambassador?valuation=1">Get my valuation</a>
           ) : (
             <>
               <Link href="/login">Sign In</Link>
