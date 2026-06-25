@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>LinkedVelocity — New dashboard (Option A)</title>
+<title>LinkedVelocity — New dashboard (final)</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--blue:#0A66C2;--blue-dark:#004182;--green:#00B85C;--green-dark:#007A3D;--ink:#0F1419;--muted:#536471;--line:#E8E6E1;}
   *{box-sizing:border-box}
   body{margin:0;background:#F9FAFB;font-family:'Karla',system-ui,sans-serif;color:var(--ink);}
-  .wrap{max-width:960px;margin:0 auto;padding:36px 24px 90px;}
+  .wrap{max-width:1000px;margin:0 auto;padding:36px 24px 90px;}
   .banner{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--muted);line-height:1.5;}
   .banner b{color:var(--ink)}
   h1.dash{font-family:'Montserrat';font-weight:800;font-size:28px;margin:0 0 24px;}
@@ -18,11 +18,11 @@
   .sec-bar{width:6px;height:42px;border-radius:6px;flex-shrink:0;}
   .sec-title{font-family:'Montserrat';font-weight:700;font-size:20px;margin:0;line-height:1.15;letter-spacing:-.01em;}
   .sec-sub{margin:2px 0 0;color:var(--muted);font-size:13.5px;}
-  .add{margin-left:auto;font-weight:700;font-size:13px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;color:var(--ink);cursor:pointer;white-space:nowrap;}
   .green .sec-bar{background:linear-gradient(180deg,var(--green),var(--green-dark));}
   .green .sec-title{color:var(--green-dark);}
   .blue .sec-bar{background:linear-gradient(180deg,var(--blue),var(--blue-dark));}
   .blue .sec-title{color:var(--blue-dark);}
+  .add-green{margin-left:auto;font-weight:700;font-size:13px;border:none;background:var(--green);color:#fff;border-radius:9px;padding:9px 15px;cursor:pointer;white-space:nowrap;}
   .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
   table{width:100%;border-collapse:collapse;font-size:13.5px;}
   thead tr{border-bottom:1px solid var(--line);}
@@ -39,56 +39,55 @@
   .money{font-weight:800;color:var(--green-dark);}
   .open{font-weight:700;font-size:12px;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;}
   .ar{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#E6F9EE;color:#166534;}
-  .empty{padding:30px 20px;text-align:center;color:var(--muted);font-size:13.5px;}
-  .empty a{color:var(--green-dark);font-weight:700;text-decoration:none;}
-  .toggle{margin:20px 0 26px;display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);}
-  .toggle button{font-family:'Karla';font-weight:700;font-size:12.5px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--ink);}
-  .toggle button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  /* summary card */
+  .summary{border:1px solid #BBF0D4;background:linear-gradient(90deg,rgba(230,249,238,.7),#fff);border-radius:14px;padding:20px;margin-bottom:18px;}
+  .summary .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:center;}
+  @media(max-width:680px){.summary .grid{grid-template-columns:1fr}}
+  .lbl{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;}
+  .big{font-size:24px;font-weight:800;margin-top:2px;}
+  .sub2{font-size:12px;color:var(--muted);}
+  .col-actions{display:flex;flex-direction:column;gap:8px;}
+  .btn-greenfill{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--green);color:#fff;font-weight:700;font-size:13px;border:none;border-radius:8px;padding:9px 14px;text-decoration:none;cursor:pointer;}
+  .btn-greenout{display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--green-dark);font-weight:600;font-size:13px;border:1px solid #BBF0D4;border-radius:8px;padding:9px 14px;text-decoration:none;}
+  /* how it works */
+  .how{border:1px solid #BBF0D4;background:linear-gradient(135deg,rgba(230,249,238,.8),#fff);border-radius:16px;padding:22px;}
+  .how-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:16px;}
+  .how-top .t{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;}
+  .how-top .note{font-size:12px;font-weight:600;color:var(--green-dark);}
+  .how-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:680px){.how-grid{grid-template-columns:1fr 1fr}}
+  .step{border:1px solid #eef0f2;background:#fff;border-radius:12px;padding:14px;}
+  .step .ic{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--green),var(--green-dark));display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;margin-bottom:10px;}
+  .step .st{font-size:13.5px;font-weight:800;}
+  .step .sd{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45;}
+  .checks{display:flex;flex-wrap:wrap;gap:14px;border-top:1px solid #d8f0e2;margin-top:16px;padding-top:14px;font-size:12px;font-weight:600;color:#475569;}
+  .checks span b{color:var(--green);}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="banner">✅ <span><b>Option A</b> — one dashboard, two clear sections, both <b>always visible</b>. Order: <b>Accounts I’m Renting</b> on top, <b>Accounts I’m Renting Out</b> at the bottom. Toggle below to see how it looks for a renter who has nothing shared yet.</span></div>
-
-  <div class="toggle">Preview as:
-    <button class="on" onclick="setView('both',event)">Someone doing both</button>
-    <button onclick="setView('renter',event)">Renter with nothing shared yet</button>
-  </div>
+  <div class="banner">✅ <span><b>Final dashboard</b> (now live on <b>/dashboard</b>) for someone who does <b>both</b>. Renter stuff on top → then <b>Accounts I’m Renting</b> → then <b>Accounts I’m Renting Out</b> → and the ambassador <b>summary + “how it works”</b> grouped at the very bottom.</span></div>
 
   <h1 class="dash">My Dashboard</h1>
 
-  <!-- BLUE: renting (TOP) -->
+  <!-- BLUE: renting -->
   <div class="section blue">
-    <div class="sec-head">
-      <div class="sec-bar"></div>
-      <div>
-        <h2 class="sec-title">Accounts I’m Renting</h2>
-        <p class="sec-sub">Accounts you’re renting from other members — open them in GoLogin.</p>
-      </div>
-    </div>
+    <div class="sec-head"><div class="sec-bar"></div><div><h2 class="sec-title">Accounts I’m Renting</h2><p class="sec-sub">Accounts you’re renting from other members — open them in GoLogin.</p></div></div>
     <div class="card">
       <table>
         <thead><tr><th>Profile</th><th>Status</th><th>Started</th><th>Next billing</th><th>Auto-renew</th><th></th></tr></thead>
         <tbody>
           <tr><td><div class="prof"><div class="ava">AM</div><div><div class="nm">Andrea Medrano</div><div class="role">Marketing Lead</div></div></div></td><td><span class="badge b-act">● Active</span></td><td>Jun 24, 2026</td><td>Jul 24, 2026</td><td><span class="ar">● On</span></td><td style="text-align:right"><button class="open">Open in GoLogin ↗</button></td></tr>
           <tr><td><div class="prof"><div class="ava">EM</div><div><div class="nm">Eclat Maswi</div><div class="role">Sales Consultant</div></div></div></td><td><span class="badge b-act">● Active</span></td><td>Jun 18, 2026</td><td>Jul 18, 2026</td><td><span class="ar">● On</span></td><td style="text-align:right"><button class="open">Open in GoLogin ↗</button></td></tr>
-          <tr><td><div class="prof"><div class="ava">SS</div><div><div class="nm">Steven Sengimana</div><div class="role">Recruiter</div></div></div></td><td><span class="badge b-act">● Active</span></td><td>Jun 12, 2026</td><td>Jul 12, 2026</td><td><span class="ar">● On</span></td><td style="text-align:right"><button class="open">Open in GoLogin ↗</button></td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- GREEN: renting out (BOTTOM) -->
+  <!-- GREEN: renting out -->
   <div class="section green">
-    <div class="sec-head">
-      <div class="sec-bar"></div>
-      <div>
-        <h2 class="sec-title">Accounts I’m Renting Out</h2>
-        <p class="sec-sub">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
-      </div>
-      <button class="add">＋ Add Another Account</button>
-    </div>
-    <div class="card" id="green-full">
+    <div class="sec-head"><div class="sec-bar"></div><div><h2 class="sec-title">Accounts I’m Renting Out</h2><p class="sec-sub">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p></div><button class="add-green">Add Another Account</button></div>
+    <div class="card">
       <table>
         <thead><tr><th>Profile</th><th>Status</th><th>Monthly earnings</th><th></th></tr></thead>
         <tbody>
@@ -97,21 +96,41 @@
         </tbody>
       </table>
     </div>
-    <div class="card" id="green-empty" style="display:none">
-      <div class="empty">You haven’t shared any accounts yet. <a href="#">Share an account to start earning →</a></div>
+  </div>
+
+  <!-- AMBASSADOR SUMMARY (bottom) -->
+  <div class="summary">
+    <div class="grid">
+      <div><div class="lbl">Accounts shared</div><div class="big">2</div><div class="sub2">2 live</div></div>
+      <div><div class="lbl">Monthly earnings</div><div class="big">$120.00</div><div class="sub2">from your live accounts</div></div>
+      <div class="col-actions">
+        <a class="btn-greenfill">Add another profile ＋</a>
+        <a class="btn-greenout">Book a setup call</a>
+      </div>
     </div>
   </div>
 
-  <p style="text-align:center;color:#94a3b8;font-size:12.5px;margin-top:36px">Both sections always show. If you’re only on one side, the other shows a short prompt instead of disappearing — so the structure stays consistent.</p>
+  <!-- HOW IT WORKS (very bottom) -->
+  <div class="how">
+    <div class="how-top">
+      <div class="t"><span>💸</span> Turn your LinkedIn into monthly income</div>
+      <div class="note">Share as many accounts as you like — each one earns separately</div>
+    </div>
+    <div class="how-grid">
+      <div class="step"><div class="ic">👤</div><div class="st">Share your profile</div><div class="sd">Add your LinkedIn — or several. Takes 2 minutes.</div></div>
+      <div class="step"><div class="ic">📅</div><div class="st">Hop on a quick call</div><div class="sd">We set everything up with you, live.</div></div>
+      <div class="step"><div class="ic">✅</div><div class="st">We do the work</div><div class="sd">We run outreach via GoLogin. You keep full control.</div></div>
+      <div class="step"><div class="ic">💵</div><div class="st">Get paid, every month</div><div class="sd">Passive income on the 1st — even while you sleep.</div></div>
+    </div>
+    <div class="checks">
+      <span><b>✓</b> You keep full control</span>
+      <span><b>✓</b> Cancel anytime</span>
+      <span><b>✓</b> Paid monthly, guaranteed</span>
+      <span><b>✓</b> Your network grows with high-level execs</span>
+    </div>
+  </div>
+
+  <p style="text-align:center;color:#94a3b8;font-size:12.5px;margin-top:36px">A pure renter sees only the blue section; the green section + summary + guide only appear for people sharing accounts (ambassadors).</p>
 </div>
-<script>
-  function setView(v,e){
-    document.querySelectorAll('.toggle button').forEach(b=>b.classList.remove('on'));
-    e.currentTarget.classList.add('on');
-    const empty = v==='renter';
-    document.getElementById('green-full').style.display = empty?'none':'block';
-    document.getElementById('green-empty').style.display = empty?'block':'none';
-  }
-</script>
 </body>
 </html>
