@@ -267,3 +267,26 @@ model Transaction {
 
   @@map("transactions")
 }
+
+// Inbound leads — people who proactively reach out (Telegram messages, call
+// bookings). One row per person per channel (upserted). Powers the live
+// "Inbound" admin tab + Google Sheet. Signups/customers live elsewhere (not inbound).
+model InboundLead {
+  id             String   @id @default(uuid()) @db.Uuid
+  channel        String                                  // "telegram" | "call"
+  name           String
+  handle         String?                                 // @username (telegram)
+  contact        String?                                 // telegram chat id, or email
+  message        String?                                 // their latest message / booking note
+  source         String?
+  status         String   @default("new")                // new | contacted | converted | ignored
+  notes          String?
+  messageCount   Int      @default(1)  @map("message_count")
+  firstContactAt DateTime @default(now()) @map("first_contact_at")
+  lastContactAt  DateTime @default(now()) @map("last_contact_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([channel, contact])
+  @@map("inbound_leads")
+}

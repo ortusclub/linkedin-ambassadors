@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendTelegramMessageNotification } from "@/services/email";
+import { prisma } from "@/lib/prisma";
 
 interface TelegramFrom {
   id: number;
@@ -114,6 +115,30 @@ export async function POST(req: Request) {
       chatId: message.chat.id,
       text,
     });
+
+    // Log to the inbound-leads tracker — one row per person (channel+contact),
+    // updated on repeat messages. Feeds the admin Inbound tab + Google Sheet.
+    try {
+      await prisma.inboundLead.upsert({
+        where: { channel_contact: { channel: "telegram", contact: String(message.chat.id) } },
+        create: {
+          channel: "telegram",
+          name: fromName,
+          handle: message.from?.username ? `@${message.from.username}` : null,
+          contact: String(message.chat.id),
+          message: text.slice(0, 1000),
+        },
+        update: {
+          name: fromName,
+          handle: message.from?.username ? `@${message.from.username}` : null,
+          message: text.slice(0, 1000),
+          lastContactAt: new Date(),
+          messageCount: { increment: 1 },
+        },
+      });
+    } catch (e) {
+      console.error("inbound lead log failed:", e);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

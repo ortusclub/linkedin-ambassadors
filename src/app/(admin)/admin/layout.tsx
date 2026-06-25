@@ -11,7 +11,10 @@ import { cn } from "@/lib/utils";
 const sections = [
   {
     name: "Overview",
-    items: [{ href: "/admin/dashboard", label: "Dashboard" }],
+    items: [
+      { href: "/admin/dashboard", label: "Dashboard" },
+      { href: "/admin/inbound", label: "Inbound" },
+    ],
   },
   {
     name: "Renters",
