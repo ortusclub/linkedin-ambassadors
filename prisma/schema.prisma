@@ -273,13 +273,18 @@ model Transaction {
 // "Inbound" admin tab + Google Sheet. Signups/customers live elsewhere (not inbound).
 model InboundLead {
   id             String   @id @default(uuid()) @db.Uuid
-  channel        String                                  // "telegram" | "call"
-  name           String
+  channel        String                                  // platform: "telegram" | "website" | "call" | ...
+  name           String                                  // name or @username
   handle         String?                                 // @username (telegram)
-  contact        String?                                 // telegram chat id, or email
-  message        String?                                 // their latest message / booking note
+  contact        String?                                 // telegram chat id (internal dedup key)
+  companyEmail   String?  @map("company_email")           // their company / email
+  type           String?                                 // "Potential Renter" | "Potential Ambassador" | ...
+  message        String?                                 // use case / latest message
+  status         String   @default("new")
+  replied        Boolean  @default(false)
+  followUpDate   DateTime? @map("follow_up_date")
+  outcome        String?
   source         String?
-  status         String   @default("new")                // new | contacted | converted | ignored
   notes          String?
   messageCount   Int      @default(1)  @map("message_count")
   firstContactAt DateTime @default(now()) @map("first_contact_at")

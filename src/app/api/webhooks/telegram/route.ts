@@ -127,6 +127,7 @@ export async function POST(req: Request) {
           handle: message.from?.username ? `@${message.from.username}` : null,
           contact: String(message.chat.id),
           message: text.slice(0, 1000),
+          status: "New",
         },
         update: {
           name: fromName,
