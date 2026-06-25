@@ -340,9 +340,11 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Ambassador summary — profiles shared, monthly earnings, next step */}
+      {/* ===== Adaptive content reordered via flex order: renter actions + lists on top; ambassador summary + guide pushed to the bottom (Sam) ===== */}
+      <div className="flex flex-col">
+      {/* Ambassador summary — profiles shared, monthly earnings, next step (ordered to bottom) */}
       {isAmbassador && (
-        <div className="mb-8 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/70 to-white p-5">
+        <div className="order-5 mb-8 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/70 to-white p-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Accounts shared</p>
@@ -380,7 +382,7 @@ function DashboardContent() {
 
       {/* Ambassador getting-started — how the programme works */}
       {isAmbassador && (
-        <div className="mb-8 overflow-hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/80 via-white to-white p-6">
+        <div className="order-6 mb-8 overflow-hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/80 via-white to-white p-6">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#00B85C]/10 text-base">💸</span>
@@ -587,9 +589,7 @@ function DashboardContent() {
       </section>
       )}
 
-      {/* ===== Account sections — reordered via flex order: Renting (1) on top, Renting Out (3) at bottom ===== */}
-      <div className="flex flex-col">
-      {/* Accounts I'm Renting Out — always shown (empty state when none) */}
+      {/* Accounts I'm Renting Out — always shown (empty state when none); ordered to the bottom */}
         <section className="mb-12 order-3">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-1.5 h-10 rounded bg-gradient-to-b from-[#00B85C] to-[#007A3D] shrink-0" />
@@ -598,7 +598,7 @@ function DashboardContent() {
               <p className="text-sm text-gray-500 leading-snug">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
             </div>
             <Link href="/become-ambassador?submit=1" className="ml-auto shrink-0">
-              <Button variant="outline" size="sm">Add Another Account</Button>
+              <Button size="sm" className="bg-[#00B85C] text-white hover:bg-[#00A050] border-0">Add Another Account</Button>
             </Link>
           </div>
           {ambassadorAccounts.length > 0 ? (
