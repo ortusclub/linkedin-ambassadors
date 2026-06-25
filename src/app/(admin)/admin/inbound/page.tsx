@@ -37,7 +37,6 @@ const STATUS_BADGE: Record<string, string> = {
 const platformLabel = (c: string) =>
   c === "telegram" ? "Telegram" : c === "website" ? "Website" : c === "call" ? "Call booking" : c === "whatsapp" ? "WhatsApp" : c === "email" ? "Email" : c;
 const dInput = (s: string | null) => (s ? new Date(s).toISOString().slice(0, 10) : "");
-const dShow = (s: string | null) => (s ? new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "—");
 
 const blankForm = { name: "", channel: "Website", companyEmail: "", type: "", message: "", status: "New", replied: false, followUpDate: "", outcome: "", notes: "", firstContactAt: new Date().toISOString().slice(0, 10) };
 
@@ -153,7 +152,7 @@ export default function AdminInboundPage() {
             <tbody className="divide-y divide-gray-200 align-top">
               {leads.map((l) => (
                 <tr key={l.id} className="hover:bg-gray-50/60">
-                  <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{dShow(l.firstContactAt)}</td>
+                  <td className="px-3 py-2"><input type="date" defaultValue={dInput(l.firstContactAt)} onBlur={(e) => e.target.value && save(l.id, { firstContactAt: e.target.value })} className="rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-gray-600 hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none" /></td>
                   <td className="px-3 py-2">
                     <p className="font-medium text-gray-900 whitespace-nowrap">{l.handle || l.name}</p>
                     {l.handle && l.name && l.handle !== l.name && <p className="text-xs text-gray-500">{l.name}</p>}
