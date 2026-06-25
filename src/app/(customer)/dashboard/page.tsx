@@ -957,20 +957,11 @@ function DashboardContent() {
       </div>
       {/* ===== end reordered account sections ===== */}
 
-      {/* My Submissions */}
+      {/* My Submissions — only shown when there are submissions (the green section already
+          covers the empty "share an account" prompt, so no redundant empty-state card here) */}
+      {submissions.length > 0 && (
       <section className="mb-12">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">My Submissions</h2>
-        {submissions.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Submit Your LinkedIn Accounts</h3>
-              <p className="text-gray-500 text-sm mb-6">Share your accounts with us and get paid monthly.</p>
-              <Link href="/become-ambassador?submit=1">
-                <Button variant="primary">Submit an Account</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
           <Card>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm" style={{ minWidth: 900 }}>
@@ -1057,8 +1048,8 @@ function DashboardContent() {
               </table>
             </CardContent>
           </Card>
-        )}
       </section>
+      )}
 
       {/* Remove Account Modal */}
       {removeAccountId && (
