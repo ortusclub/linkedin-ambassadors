@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { isCompanyEmail } from "@/lib/company";
 
 // A real (sellable) inventory account: not a showcase/dummy, not a leftover test account.
 function isRealAccount(a: { notes: string | null; linkedinName: string }) {
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
         where: { status: "active", ...liveRental },
         include: {
           user: { select: { fullName: true, email: true, isTest: true } },
-          linkedinAccount: { select: { linkedinName: true, monthlyPrice: true, ambassadorPayment: true } },
+          linkedinAccount: { select: { linkedinName: true, monthlyPrice: true, ambassadorPayment: true, notes: true } },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -62,7 +63,15 @@ export async function GET(req: NextRequest) {
     const activeRentals = activeRentalsList.length;
     const rentedAccounts = activeRentals; // a test-held account doesn't inflate this
     const mrr = activeRentalsList.reduce((s, r) => s + Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice ?? 0), 0);
-    const payouts = activeRentalsList.reduce((s, r) => s + Number(r.linkedinAccount.ambassadorPayment ?? 0), 0);
+    // Only REAL (external) ambassadors get paid — company/Ortus-owned accounts don't.
+    // The account's owner is its profile email (in notes); internal domains = company-owned.
+    const profileEmailOf = (notes: string | null) =>
+      (notes || "").match(/Profile email:\s*(\S+@\S+\.\S+)/i)?.[1]?.replace(/[.\s]+$/, "") || null;
+    const payouts = activeRentalsList.reduce((s, r) => {
+      const email = profileEmailOf(r.linkedinAccount.notes);
+      const isExternalAmbassador = email ? !isCompanyEmail(email) : false;
+      return s + (isExternalAmbassador ? Number(r.linkedinAccount.ambassadorPayment ?? 0) : 0);
+    }, 0);
     const netProfit = mrr - payouts;
     const utilization = totalAccounts > 0 ? Math.round((rentedAccounts / totalAccounts) * 100) : 0;
 
