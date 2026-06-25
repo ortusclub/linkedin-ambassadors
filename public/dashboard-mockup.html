@@ -62,11 +62,44 @@
   .step .sd{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45;}
   .checks{display:flex;flex-wrap:wrap;gap:14px;border-top:1px solid #d8f0e2;margin-top:16px;padding-top:14px;font-size:12px;font-weight:600;color:#475569;}
   .checks span b{color:var(--green);}
+  /* who-sees-what matrix */
+  .matrix-wrap{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:34px;}
+  .mx-title{font-family:'Montserrat';font-weight:800;font-size:17px;margin:0 0 4px;}
+  .mx-intro{font-size:13px;color:var(--muted);margin:0 0 14px;}
+  table.mx{width:100%;border-collapse:collapse;font-size:13px;}
+  table.mx th{background:#F4F6F8;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:9px 10px;text-align:center;border-bottom:1px solid var(--line);}
+  table.mx th:first-child{text-align:left;}
+  table.mx td{padding:9px 10px;border-bottom:1px solid #F1F0EC;text-align:center;}
+  table.mx td:first-child{text-align:left;font-weight:500;}
+  table.mx tr:last-child td{border-bottom:none;}
+  td.y{color:#166534;font-weight:800;}
+  td.n{color:#cbd5e1;font-weight:800;}
+  .mut{color:#94a3b8;font-weight:500;font-size:11.5px;}
+  .mx-note{font-size:12.5px;color:var(--muted);margin:14px 0 0;line-height:1.5;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="banner">✅ <span><b>Final dashboard</b> (now live on <b>/dashboard</b>) for someone who does <b>both</b>. Renter stuff on top → then <b>Accounts I’m Renting</b> → then <b>Accounts I’m Renting Out</b> → and the ambassador <b>summary + “how it works”</b> grouped at the very bottom.</span></div>
+
+  <div class="matrix-wrap">
+    <h2 class="mx-title">Who sees what</h2>
+    <p class="mx-intro">Both account sections show for everyone — the side that doesn’t apply becomes a short prompt instead of disappearing.</p>
+    <table class="mx">
+      <thead><tr><th>Section</th><th>Renter</th><th>Ambassador</th><th>Both</th></tr></thead>
+      <tbody>
+        <tr><td>“My Dashboard” header</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Top buttons — Take a tour / Browse / Getting started</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+        <tr><td>Wallet (balance + top-up) &amp; “Rent” CTA</td><td class="y">✓</td><td class="n">—</td><td class="y">✓</td></tr>
+        <tr><td><b style="color:#0A66C2">🔵 Accounts I’m Renting</b></td><td class="y">✓</td><td class="y">✓ <span class="mut">empty prompt</span></td><td class="y">✓</td></tr>
+        <tr><td><b style="color:#007A3D">🟢 Accounts I’m Renting Out</b></td><td class="y">✓ <span class="mut">empty prompt</span></td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Ambassador summary card (shared · earnings · book call)</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>“Turn your LinkedIn into monthly income” guide</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>My Submissions</td><td class="mut" colspan="3" style="text-align:center">only shown if you have submissions</td></tr>
+      </tbody>
+    </table>
+    <p class="mx-note"><b>In short:</b> both blue + green sections are always visible. Wallet &amp; top buttons lean renter; the ambassador summary card + guide only appear once you’ve shared an account. The mockup below shows the “Both” column.</p>
+  </div>
 
   <h1 class="dash">My Dashboard</h1>
 
