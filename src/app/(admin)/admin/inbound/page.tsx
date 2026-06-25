@@ -118,7 +118,6 @@ export default function AdminInboundPage() {
               <label className="text-xs font-medium text-gray-600 sm:col-span-2 lg:col-span-3">Use Case / Message<textarea className={inputCls} rows={2} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} /></label>
               <label className="text-xs font-medium text-gray-600">Follow-up date<input type="date" className={inputCls} value={form.followUpDate} onChange={(e) => setForm({ ...form, followUpDate: e.target.value })} /></label>
               <label className="text-xs font-medium text-gray-600">Outcome<input className={inputCls} value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} /></label>
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-600 pt-5"><input type="checkbox" checked={form.replied} onChange={(e) => setForm({ ...form, replied: e.target.checked })} /> Replied?</label>
               <label className="text-xs font-medium text-gray-600 sm:col-span-2 lg:col-span-3">Notes<input className={inputCls} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
             </div>
             <div className="mt-4 flex gap-2">
@@ -145,7 +144,6 @@ export default function AdminInboundPage() {
                 <th className="px-3 py-2 min-w-[150px]">Type</th>
                 <th className="px-3 py-2 min-w-[220px]">Use Case / Message</th>
                 <th className="px-3 py-2 min-w-[140px]">Status</th>
-                <th className="px-3 py-2 text-center">Replied?</th>
                 <th className="px-3 py-2 whitespace-nowrap">Follow-up</th>
                 <th className="px-3 py-2 min-w-[140px]">Outcome</th>
                 <th className="px-3 py-2 min-w-[160px]">Notes</th>
@@ -168,9 +166,6 @@ export default function AdminInboundPage() {
                   <td className="px-3 py-2 text-gray-700"><p className="line-clamp-3 max-w-md">{l.message || "—"}</p></td>
                   <td className="px-3 py-2">
                     <select value={STATUSES.includes(l.status) ? l.status : "New"} onChange={(e) => save(l.id, { status: e.target.value })} className={`rounded-full px-2 py-1 text-[11px] font-semibold border-none cursor-pointer ${STATUS_BADGE[l.status] || "bg-gray-100 text-gray-600"}`}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <button onClick={() => save(l.id, { replied: !l.replied })} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${l.replied ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{l.replied ? "Yes" : "No"}</button>
                   </td>
                   <td className="px-3 py-2"><input type="date" defaultValue={dInput(l.followUpDate)} onBlur={(e) => save(l.id, { followUpDate: e.target.value || null })} className="rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-gray-600 hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none" /></td>
                   <td className="px-3 py-2"><input defaultValue={l.outcome || ""} placeholder="—" onBlur={(e) => save(l.id, { outcome: e.target.value.trim() })} className="w-32 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none" /></td>

@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   const headers = [
     "Date", "Name / Username", "Platform", "Company / Email", "Type",
-    "Use Case / Message", "Status", "Replied?", "Follow Up Date", "Outcome", "Notes",
+    "Use Case / Message", "Status", "Follow Up Date", "Outcome", "Notes",
   ];
   const rows = leads.map((l) => [
     fmtDate(l.firstContactAt),
@@ -42,7 +42,6 @@ export async function GET(req: NextRequest) {
     l.type || "",
     l.message || "",
     l.status,
-    l.replied ? "Yes" : "No",
     fmtDate(l.followUpDate),
     l.outcome || "",
     l.notes || "",
