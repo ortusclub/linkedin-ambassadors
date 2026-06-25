@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>LinkedVelocity — New dashboard (Option A, built)</title>
+<title>LinkedVelocity — New dashboard (Option A)</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--blue:#0A66C2;--blue-dark:#004182;--green:#00B85C;--green-dark:#007A3D;--ink:#0F1419;--muted:#536471;--line:#E8E6E1;}
   *{box-sizing:border-box}
   body{margin:0;background:#F9FAFB;font-family:'Karla',system-ui,sans-serif;color:var(--ink);}
   .wrap{max-width:960px;margin:0 auto;padding:36px 24px 90px;}
-  .banner{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--muted);}
+  .banner{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--muted);line-height:1.5;}
   .banner b{color:var(--ink)}
   h1.dash{font-family:'Montserrat';font-weight:800;font-size:28px;margin:0 0 24px;}
   .section{margin:0 0 30px;}
@@ -39,36 +39,25 @@
   .money{font-weight:800;color:var(--green-dark);}
   .open{font-weight:700;font-size:12px;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;}
   .ar{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#E6F9EE;color:#166534;}
+  .empty{padding:30px 20px;text-align:center;color:var(--muted);font-size:13.5px;}
+  .empty a{color:var(--green-dark);font-weight:700;text-decoration:none;}
+  .toggle{margin:20px 0 26px;display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);}
+  .toggle button{font-family:'Karla';font-weight:700;font-size:12.5px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--ink);}
+  .toggle button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="banner">✅ <span>This is the <b>built</b> layout (Option A) now live on <b>/dashboard</b> — one dashboard, two clear sections, row tables. Sample data shown for someone who does <b>both</b> sides.</span></div>
+  <div class="banner">✅ <span><b>Option A</b> — one dashboard, two clear sections, both <b>always visible</b>. Order: <b>Accounts I’m Renting</b> on top, <b>Accounts I’m Renting Out</b> at the bottom. Toggle below to see how it looks for a renter who has nothing shared yet.</span></div>
+
+  <div class="toggle">Preview as:
+    <button class="on" onclick="setView('both',event)">Someone doing both</button>
+    <button onclick="setView('renter',event)">Renter with nothing shared yet</button>
+  </div>
 
   <h1 class="dash">My Dashboard</h1>
 
-  <!-- GREEN: renting out -->
-  <div class="section green">
-    <div class="sec-head">
-      <div class="sec-bar"></div>
-      <div>
-        <h2 class="sec-title">Accounts I’m Renting Out</h2>
-        <p class="sec-sub">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
-      </div>
-      <button class="add">＋ Add Another Account</button>
-    </div>
-    <div class="card">
-      <table>
-        <thead><tr><th>Profile</th><th>Status</th><th>Monthly earnings</th><th></th></tr></thead>
-        <tbody>
-          <tr><td><div class="prof"><div class="ava">SA</div><div><div class="nm">Sam Adcock</div><div class="role">Founder · Apex Guesting</div></div></div></td><td><span class="badge b-earn">Earning</span></td><td><span class="money">$75.00 / mo</span></td><td style="text-align:right"><span class="role">Next payout Jul 9</span></td></tr>
-          <tr><td><div class="prof"><div class="ava">RJ</div><div><div class="nm">Robert Jae Junio</div><div class="role">Growth Consultant</div></div></div></td><td><span class="badge b-earn">Earning</span></td><td><span class="money">$45.00 / mo</span></td><td style="text-align:right"><span class="role">Next payout Jul 9</span></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- BLUE: renting -->
+  <!-- BLUE: renting (TOP) -->
   <div class="section blue">
     <div class="sec-head">
       <div class="sec-bar"></div>
@@ -89,7 +78,40 @@
     </div>
   </div>
 
-  <p style="text-align:center;color:#94a3b8;font-size:12.5px;margin-top:36px">Sample data. A pure renter (like nico) sees only the blue section; a pure ambassador sees only the green one; someone doing both sees both, as above.</p>
+  <!-- GREEN: renting out (BOTTOM) -->
+  <div class="section green">
+    <div class="sec-head">
+      <div class="sec-bar"></div>
+      <div>
+        <h2 class="sec-title">Accounts I’m Renting Out</h2>
+        <p class="sec-sub">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
+      </div>
+      <button class="add">＋ Add Another Account</button>
+    </div>
+    <div class="card" id="green-full">
+      <table>
+        <thead><tr><th>Profile</th><th>Status</th><th>Monthly earnings</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><div class="prof"><div class="ava">SA</div><div><div class="nm">Sam Adcock</div><div class="role">Founder · Apex Guesting</div></div></div></td><td><span class="badge b-earn">Earning</span></td><td><span class="money">$75.00 / mo</span></td><td style="text-align:right"><span class="role">Next payout Jul 9</span></td></tr>
+          <tr><td><div class="prof"><div class="ava">RJ</div><div><div class="nm">Robert Jae Junio</div><div class="role">Growth Consultant</div></div></div></td><td><span class="badge b-earn">Earning</span></td><td><span class="money">$45.00 / mo</span></td><td style="text-align:right"><span class="role">Next payout Jul 9</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card" id="green-empty" style="display:none">
+      <div class="empty">You haven’t shared any accounts yet. <a href="#">Share an account to start earning →</a></div>
+    </div>
+  </div>
+
+  <p style="text-align:center;color:#94a3b8;font-size:12.5px;margin-top:36px">Both sections always show. If you’re only on one side, the other shows a short prompt instead of disappearing — so the structure stays consistent.</p>
 </div>
+<script>
+  function setView(v,e){
+    document.querySelectorAll('.toggle button').forEach(b=>b.classList.remove('on'));
+    e.currentTarget.classList.add('on');
+    const empty = v==='renter';
+    document.getElementById('green-full').style.display = empty?'none':'block';
+    document.getElementById('green-empty').style.display = empty?'block':'none';
+  }
+</script>
 </body>
 </html>
