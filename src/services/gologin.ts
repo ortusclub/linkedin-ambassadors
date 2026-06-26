@@ -3,6 +3,14 @@ const GOLOGIN_API_BASE = "https://api.gologin.com";
 // string — without it (and with the wrong body `type`) shares become non-functional "ghosts".
 const GOLOGIN_WORKSPACE_ID = process.env.GOLOGIN_WORKSPACE_ID || "68654b73cd7edf1e3ed6d13f";
 
+// Pick the GoLogin API token for an account based on which GoLogin account hosts it.
+// "klabber" (info@klabber.co — new inventory) uses GOLOGIN_API_TOKEN_KLABBER; everything
+// else ("master", info@ortus — legacy rentals) uses the default GOLOGIN_API_TOKEN.
+export function tokenForAccount(gologinAccount?: string | null): string | undefined {
+  if (gologinAccount === "klabber") return process.env.GOLOGIN_API_TOKEN_KLABBER;
+  return undefined; // undefined -> gologinFetch falls back to GOLOGIN_API_TOKEN (master)
+}
+
 function headers(token?: string) {
   return {
     Authorization: `Bearer ${token || process.env.GOLOGIN_API_TOKEN}`,

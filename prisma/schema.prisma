@@ -96,6 +96,9 @@ model VerificationCode {
 model LinkedInAccount {
   id                    String        @id @default(uuid()) @db.Uuid
   gologinProfileId      String?       @map("gologin_profile_id")
+  // Which GoLogin account hosts this profile: "master" (info@ortus, legacy rentals)
+  // or "klabber" (info@klabber.co, all new inventory). Picks the API token to use.
+  gologinAccount        String        @default("master") @map("gologin_account")
   linkedinName          String        @map("linkedin_name")
   linkedinHeadline      String?       @map("linkedin_headline")
   linkedinUrl           String?       @map("linkedin_url")
