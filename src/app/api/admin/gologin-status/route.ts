@@ -27,3 +27,23 @@ export async function GET(req: Request) {
     master: await ws("68654b73cd7edf1e3ed6d13f", process.env.GOLOGIN_API_TOKEN),
   });
 }
+
+// One-time helper: revoke klabber GoLogin shares by shareId (CRON_SECRET protected).
+// Body: { secret, shareIds: [...] }
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  if (body.secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  const token = process.env.GOLOGIN_API_TOKEN_KLABBER;
+  const WS = "69c1f7df88b94e048876f1d8";
+  const results: { shareId: string; status: number }[] = [];
+  for (const shareId of (body.shareIds || []) as string[]) {
+    const r = await fetch(`${API}/share/${shareId}?currentWorkspace=${WS}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+    results.push({ shareId, status: r.status });
+  }
+  return NextResponse.json({ results });
+}
