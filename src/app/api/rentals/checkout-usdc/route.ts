@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
 import { sendRentalReadyEmail, sendRentalNotification } from "@/services/email";
+import { grantRentalAccess } from "@/lib/rental-access";
 
 export async function POST(req: Request) {
   try {
@@ -51,21 +52,19 @@ export async function POST(req: Request) {
 
     // Balance deducted — now create rentals in a transaction
     try {
-      const rentalIds = await prisma.$transaction(async (tx) => {
-        const ids: string[] = [];
+      const created = await prisma.$transaction(async (tx) => {
+        const arr: { rentalId: string; accountId: string }[] = [];
 
         for (const account of accounts) {
-          // Accounts with a GoLogin share link are openable immediately -> active.
-          // Anything without one waits for a manual grant (pending_access).
-          const instant = !!account.gologinShareLink;
+          // Create as pending_access; we attempt the actual grant right after commit.
           const rental = await tx.rental.create({
             data: {
               userId: user.id,
               linkedinAccountId: account.id,
               usdcPayment: true,
               autoRenew: !!autoRenew,
-              status: instant ? "active" : "pending_access",
-              accessGrantedAt: instant ? new Date() : null,
+              status: "pending_access",
+              accessGrantedAt: null,
               currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
             },
           });
@@ -85,18 +84,35 @@ export async function POST(req: Request) {
             },
           });
 
-          ids.push(rental.id);
+          arr.push({ rentalId: rental.id, accountId: account.id });
         }
 
-        return ids;
+        return arr;
       });
+
+      // AUTO-GRANT each on the spot (after commit, so grantRentalAccess sees the rentals).
+      // Shares to the renter via the right master/klabber token + flips to active. If the
+      // renter hasn't set up GoLogin yet it throws -> stays pending_access; the cron retries.
+      const readyByAccount = new Map<string, boolean>();
+      for (const { rentalId, accountId } of created) {
+        const account = accounts.find((a) => a.id === accountId);
+        if (!account?.gologinProfileId) { readyByAccount.set(accountId, false); continue; }
+        try {
+          await grantRentalAccess(rentalId);
+          readyByAccount.set(accountId, true);
+        } catch (e) {
+          console.error("auto-grant on rental start failed (cron will retry):", rentalId, e instanceof Error ? e.message : e);
+          readyByAccount.set(accountId, false);
+        }
+      }
+      const rentalIds = created.map((c) => c.rentalId);
 
       // ONE consolidated email for the whole order (not one per account — that fires a
       // burst of near-identical emails that get rate-limited / threaded into one).
       try {
         await sendRentalReadyEmail(
           user.email,
-          accounts.map((a) => ({ name: a.linkedinName, ready: !!a.gologinShareLink }))
+          accounts.map((a) => ({ name: a.linkedinName, ready: readyByAccount.get(a.id) || false }))
         );
       } catch (e) {
         console.error("Failed to send rental email:", e);

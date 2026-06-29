@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
-import { revokeRentalAccess } from "@/lib/rental-access";
+import { revokeRentalAccess, grantRentalAccess } from "@/lib/rental-access";
 import {
   sendRentalOnboardingEmail,
   sendAccessReadyEmail,
@@ -235,16 +235,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     });
     if (!account) continue;
 
-    // Share-link accounts are openable immediately -> active. Others wait for a manual grant.
-    const instant = !!account.gologinShareLink;
-    await prisma.rental.create({
+    // Create the rental, then AUTO-GRANT access on the spot (share the profile to the
+    // renter via the right master/klabber token). If the renter hasn't set up GoLogin yet
+    // the grant throws -> we leave it pending_access and the auto-grant cron retries.
+    const rental = await prisma.rental.create({
       data: {
         userId,
         linkedinAccountId,
         stripeSubscriptionId: subscriptionId,
         currentPeriodEnd: getPeriodEnd(subscription),
-        status: instant ? "active" : "pending_access",
-        accessGrantedAt: instant ? new Date() : null,
+        status: "pending_access",
+        accessGrantedAt: null,
       },
     });
 
@@ -253,9 +254,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       data: { status: "rented" },
     });
 
-    // Instant accounts get the "you're live" email; others get the "we're getting it ready" one.
+    let granted = false;
+    if (account.gologinProfileId) {
+      try {
+        await grantRentalAccess(rental.id); // shares to the renter + flips status to active
+        granted = true;
+      } catch (e) {
+        console.error("auto-grant on rental start failed (cron will retry):", rental.id, e instanceof Error ? e.message : e);
+      }
+    }
+
+    // Granted -> "you're live"; otherwise "we're getting it ready" (cron grants once they set up GoLogin).
     try {
-      if (instant) {
+      if (granted) {
         await sendAccessReadyEmail(user.email, account.linkedinName);
       } else {
         await sendRentalOnboardingEmail(user.email, account.linkedinName);
