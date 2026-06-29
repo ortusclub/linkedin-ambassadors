@@ -47,10 +47,9 @@ export default function AdminContentPage() {
   const [view, setView] = useState<"calendar" | "list">("calendar");
   const [creating, setCreating] = useState(false);
   const [cursor, setCursor] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
-  const [liveUrl, setLiveUrl] = useState<string | null>(null);
-  const [pipelineUrl, setPipelineUrl] = useState<string | null>(null);
+  const [allUrl, setAllUrl] = useState<string | null>(null);
   const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/content")
@@ -59,15 +58,15 @@ export default function AdminContentPage() {
       .finally(() => setLoading(false));
     fetch("/api/admin/content/export-url")
       .then((r) => r.json())
-      .then((d) => { setSheetConfigured(!!d.configured); setLiveUrl(d.liveUrl || null); setPipelineUrl(d.pipelineUrl || null); })
+      .then((d) => { setSheetConfigured(!!d.configured); setAllUrl(d.allUrl || null); })
       .catch(() => setSheetConfigured(false));
   }, []);
 
-  const copyFormula = (url: string | null, tag: string) => {
-    if (!url) return;
-    navigator.clipboard.writeText(`=IMPORTDATA("${url}")`);
-    setCopied(tag);
-    setTimeout(() => setCopied(null), 2000);
+  const copyFormula = () => {
+    if (!allUrl) return;
+    navigator.clipboard.writeText(`=IMPORTDATA("${allUrl}")`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const newPost = async () => {
@@ -142,22 +141,13 @@ export default function AdminContentPage() {
         ))}
       </div>
 
-      {/* Live Google Sheets links (IMPORTDATA) for the State of LV sheet */}
+      {/* Live Google Sheets link (IMPORTDATA) for the State of LV sheet — everything in one */}
       {sheetConfigured === true && (
-        <div className="bg-green-50 border border-green-100 rounded-lg px-4 py-3 space-y-2">
-          <div className="text-sm font-semibold text-green-800">Live Google Sheets links (auto-refresh in State of LV)</div>
-          <div className="flex items-center gap-2 flex-wrap text-sm">
-            <span className="w-20 text-xs font-semibold text-gray-500">Live posts</span>
-            <code className="text-[12px] bg-white border border-green-200 rounded px-2 py-1 text-gray-600 truncate max-w-[380px]">{`=IMPORTDATA("…&view=live")`}</code>
-            <button onClick={() => copyFormula(liveUrl, "live")} className="px-3 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700">{copied === "live" ? "Copied ✓" : "Copy"}</button>
-            <span className="text-xs text-gray-500">published only</span>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap text-sm">
-            <span className="w-20 text-xs font-semibold text-gray-500">Pipeline</span>
-            <code className="text-[12px] bg-white border border-green-200 rounded px-2 py-1 text-gray-600 truncate max-w-[380px]">{`=IMPORTDATA("…&view=pipeline")`}</code>
-            <button onClick={() => copyFormula(pipelineUrl, "pipeline")} className="px-3 py-1 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700">{copied === "pipeline" ? "Copied ✓" : "Copy"}</button>
-            <span className="text-xs text-gray-500">ideas + drafts + in-review + approved (for Sam to approve)</span>
-          </div>
+        <div className="flex items-center gap-3 flex-wrap text-sm bg-green-50 border border-green-100 rounded-lg px-4 py-3">
+          <span className="font-semibold text-green-800">Live Google Sheets link</span>
+          <code className="text-[12px] bg-white border border-green-200 rounded px-2 py-1 text-gray-600 truncate max-w-[420px]">{`=IMPORTDATA("${allUrl}")`}</code>
+          <button onClick={copyFormula} className="px-3 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700">{copied ? "Copied ✓" : "Copy formula"}</button>
+          <span className="text-xs text-gray-500">All posts + status + live/draft URLs. Auto-refreshes in State of LV.</span>
         </div>
       )}
       {sheetConfigured === false && (

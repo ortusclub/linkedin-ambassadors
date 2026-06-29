@@ -50,14 +50,16 @@ export async function GET(req: NextRequest) {
     return da - db;
   });
 
-  const headers = ["Title", "Status", "Date", "Category", "Target Keyword", "Live URL"];
+  const SITE = "https://linkedvelocity.com";
+  const headers = ["Title", "Status", "Date", "Category", "Target Keyword", "Live URL", "Draft / Review URL"];
   const rows = posts.map((p) => [
     p.title,
     STATUS_LABEL[p.status] || p.status,
     fmtDate(p.publishedAt ?? p.scheduledFor),
     p.category,
     p.keyword || "",
-    p.status === "published" ? `https://linkedvelocity.com/blog/${p.slug}` : "",
+    p.status === "published" ? `${SITE}/blog/${p.slug}` : "",
+    `${SITE}/admin/content/${p.id}`,
   ]);
 
   const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
