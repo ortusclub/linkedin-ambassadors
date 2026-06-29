@@ -5,6 +5,18 @@ import { NextResponse } from "next/server";
 // Use to debug share "ghosts" (klabber profiles shared against the wrong workspace).
 const API = "https://api.gologin.com";
 
+// Keys present on a plain /browser/{id} (so we can spot what ?withShares=true adds).
+const BASE_PROFILE_KEYS = [
+  "name", "id", "notes", "browserType", "canBeRunning", "os", "osSpec", "startUrl",
+  "autoLang", "bookmarks", "googleServicesEnabled", "isBookmarksSynced", "launchArguments",
+  "lockEnabled", "debugMode", "navigator", "storage", "proxyEnabled", "autoProxyServer",
+  "autoProxyUsername", "autoProxyPassword", "proxy", "dns", "plugins", "timezone",
+  "geolocation", "audioContext", "canvas", "fonts", "mediaDevices", "webRTC", "webGL",
+  "webGpu", "clientRects", "webGLMetadata", "webglParams", "extensions", "s3Path", "s3Date",
+  "devicePixelRatio", "owner", "checkCookies", "chromeExtensions", "userChromeExtensions",
+  "permissions",
+];
+
 async function gj(path: string, token?: string) {
   if (!token) return { status: 0, note: "no token in env" };
   const r = await fetch(API + path, {
@@ -137,9 +149,23 @@ export async function GET(req: Request) {
 
   const profiles: Record<string, unknown> = {};
   for (const id of ids) {
+    const ws = await gj(`/browser/${id}?withShares=true`, klabber);
+    const b = (ws.status === 200 ? ws.body : {}) as Record<string, unknown>;
+    // find array fields that look like share records (contain emails)
+    const shareFields: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(b || {})) {
+      if (Array.isArray(v) && v.length && typeof v[0] === "object" &&
+          JSON.stringify(v).includes("@")) {
+        shareFields[k] = v;
+      }
+      if (/share|guest|invite|email/i.test(k) && v != null && !Array.isArray(v)) {
+        shareFields[k] = v;
+      }
+    }
     profiles[id] = {
-      viaMaster: slimProfile(await gj(`/browser/${id}`, master)),
-      viaKlabber: slimProfile(await gj(`/browser/${id}`, klabber)),
+      name: b?.name,
+      newKeys: Object.keys(b || {}).filter((k) => !BASE_PROFILE_KEYS.includes(k)),
+      shareFields,
     };
   }
   out.profiles = profiles;
