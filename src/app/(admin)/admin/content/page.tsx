@@ -103,7 +103,18 @@ export default function AdminContentPage() {
     () => posts.filter((p) => p.status === "idea").sort((a, b) => (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1)),
     [posts]
   );
-  const pipeline = useMemo(() => posts.filter((p) => p.status !== "idea"), [posts]);
+  // pipeline order: approved/scheduled on top, then in-review, draft, and published at the bottom
+  const PIPE_RANK: Record<string, number> = { approved: 0, in_review: 1, draft: 2, published: 3 };
+  const pipeline = useMemo(
+    () => posts.filter((p) => p.status !== "idea").sort((a, b) => {
+      const r = (PIPE_RANK[a.status] ?? 9) - (PIPE_RANK[b.status] ?? 9);
+      if (r !== 0) return r;
+      const da = (a.scheduledFor || a.publishedAt || "") as string;
+      const db = (b.scheduledFor || b.publishedAt || "") as string;
+      return da.localeCompare(db);
+    }),
+    [posts]
+  );
 
   const byDate = useMemo(() => {
     const map: Record<string, Post[]> = {};
