@@ -35,9 +35,10 @@ function slimProfile(res: { status: number; body?: unknown }) {
   return {
     status: 200,
     name: p?.name,
-    workspaceId: p?.workspaceId ?? p?.workspace,
-    role: p?.role,
-    sharedTo: p?.sharedEmails ?? p?.shares ?? p?.sharedTo,
+    keys: Object.keys(p || {}),
+    workspaceId: p?.workspaceId ?? p?.workspace ?? null,
+    role: p?.role ?? null,
+    sharedTo: p?.sharedEmails ?? p?.shares ?? p?.sharedTo ?? p?.permissions ?? null,
   };
 }
 
@@ -58,6 +59,12 @@ export async function GET(req: Request) {
       master: slimWorkspaces(await gj("/workspaces", master)),
       klabber: slimWorkspaces(await gj("/workspaces", klabber)),
     },
+  };
+
+  // List shares both ways so we can see actual recipients (where do shares live?).
+  out.sharesList = {
+    klabberShare: await gj("/share", klabber),
+    klabberShareWs: await gj(`/share?currentWorkspace=69c1f7df88b94e048876f1d8`, klabber),
   };
 
   const profiles: Record<string, unknown> = {};
