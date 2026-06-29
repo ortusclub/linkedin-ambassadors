@@ -113,9 +113,24 @@ export async function GET(req: Request) {
     },
   };
 
-  // Plan + share-quota details (the real constraint).
-  out.klabberUser = await gj("/user", klabber);
-  out.workspace = await gj("/workspaces/69c1f7df88b94e048876f1d8", klabber);
+  // Plan + share-quota details (the real constraint) for BOTH accounts.
+  function planSummary(ws: { status: number; body?: unknown }) {
+    if (ws.status !== 200) return ws;
+    const b = ws.body as Record<string, unknown>;
+    return {
+      name: b.name, planName: b.planName,
+      activeSharesCount: b.activeSharesCount, planSharesMax: b.planSharesMax,
+      profilesCount: b.profilesCount, planProfilesMax: b.planProfilesMax,
+      planExpiresAt: b.planExpiresAt, isUnpaid: b.isUnpaid,
+    };
+  }
+  out.klabber = {
+    workspace: planSummary(await gj("/workspaces/69c1f7df88b94e048876f1d8", klabber)),
+  };
+  out.masterAccount = {
+    master_ws: planSummary(await gj("/workspaces/68654b73cd7edf1e3ed6d13f", master)),
+    info_ws: planSummary(await gj("/workspaces/6a3ba1899ba792b6cbdba93f", master)),
+  };
 
   // Hunt for the endpoint that LISTS profile shares so we can revoke orphans.
   if (url.searchParams.get("probe") === "1") {
