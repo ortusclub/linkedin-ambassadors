@@ -376,14 +376,17 @@ export default function CataloguePage() {
                                 View Profile
                               </Link>
                             ) : null}
-                            {a.showcase ? (
-                              <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
-                                Book a call
-                              </a>
-                            ) : isAvailable ? (
-                              <Link href={`/account/${a.id}`} className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
-                                Rent
-                              </Link>
+                            {/* Action only on AVAILABLE accounts — rented ones (incl. showcase) show no Book/Rent button */}
+                            {isAvailable ? (
+                              a.showcase ? (
+                                <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
+                                  Book a call
+                                </a>
+                              ) : (
+                                <Link href={`/account/${a.id}`} className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
+                                  Rent
+                                </Link>
+                              )
                             ) : null}
                           </div>
                         </td>
