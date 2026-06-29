@@ -42,6 +42,46 @@ function slimProfile(res: { status: number; body?: unknown }) {
   };
 }
 
+// POST: run a raw share/unshare with a CHOSEN workspace + account token, to A/B test
+// whether the workspace id is what makes klabber shares "real" vs "ghost".
+// Body: { secret, action:"share"|"unshare", profileId, email, workspace, account, shareId }
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  if (body.secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  const token = body.account === "klabber"
+    ? process.env.GOLOGIN_API_TOKEN_KLABBER
+    : process.env.GOLOGIN_API_TOKEN;
+  const ws = body.workspace || "68654b73cd7edf1e3ed6d13f";
+
+  if (body.action === "share") {
+    const r = await fetch(`${API}/share/multi?currentWorkspace=${ws}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "browser",
+        instanceIds: [body.profileId],
+        role: "guest",
+        recepients: [body.email],
+      }),
+    });
+    const t = await r.text();
+    let parsed: unknown = t; try { parsed = t ? JSON.parse(t) : null; } catch { /* raw */ }
+    return NextResponse.json({ status: r.status, workspaceUsed: ws, account: body.account, result: parsed });
+  }
+  if (body.action === "unshare") {
+    const r = await fetch(`${API}/share/${body.shareId}?currentWorkspace=${ws}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+    const t = await r.text();
+    let parsed: unknown = t; try { parsed = t ? JSON.parse(t) : null; } catch { /* raw */ }
+    return NextResponse.json({ status: r.status, workspaceUsed: ws, result: parsed });
+  }
+  return NextResponse.json({ error: "action must be share|unshare" }, { status: 400 });
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   if (url.searchParams.get("secret") !== process.env.CRON_SECRET) {
