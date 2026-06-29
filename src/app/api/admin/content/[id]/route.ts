@@ -45,6 +45,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (typeof body.title === "string") data.title = body.title;
     if (typeof body.description === "string") data.description = body.description;
     if (typeof body.category === "string") data.category = body.category;
+    if (["P1", "P2", "P3"].includes(body.priority)) data.priority = body.priority;
     if ("keyword" in body) data.keyword = body.keyword || null;
     if ("pillar" in body) data.pillar = body.pillar || null;
     if (typeof body.content === "string") data.content = body.content;

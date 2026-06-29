@@ -305,6 +305,7 @@ model BlogPost {
   title         String
   description   String    @default("")
   category      String    @default("LinkedIn Strategy")
+  priority      String    @default("P2")                   // idea priority: P1 | P2 | P3
   keyword       String?                                    // target SEO keyword
   pillar        String?                                    // content pillar
   content       String    @default("")                     // markdown body

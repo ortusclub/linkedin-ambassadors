@@ -51,8 +51,9 @@ export async function GET(req: NextRequest) {
   });
 
   const SITE = "https://linkedvelocity.com";
-  const headers = ["Title", "Status", "Date", "Category", "Target Keyword", "Live URL", "Draft / Review URL"];
+  const headers = ["Priority", "Title", "Status", "Date", "Category", "Target Keyword", "Live URL", "Draft / Review URL"];
   const rows = posts.map((p) => [
+    p.priority || "P2",
     p.title,
     STATUS_LABEL[p.status] || p.status,
     fmtDate(p.publishedAt ?? p.scheduledFor),

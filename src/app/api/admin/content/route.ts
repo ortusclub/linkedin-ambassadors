@@ -50,6 +50,7 @@ export async function POST(req: Request) {
         slug,
         description: body.description || "",
         category: body.category || "LinkedIn Strategy",
+        priority: ["P1", "P2", "P3"].includes(body.priority) ? body.priority : "P2",
         keyword: body.keyword || null,
         pillar: body.pillar || null,
         content: body.content || "",
