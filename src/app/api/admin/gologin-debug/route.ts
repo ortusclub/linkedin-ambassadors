@@ -101,10 +101,12 @@ export async function GET(req: Request) {
     },
   };
 
-  // List shares both ways so we can see actual recipients (where do shares live?).
-  out.sharesList = {
-    klabberShare: await gj("/share", klabber),
-    klabberShareWs: await gj(`/share?currentWorkspace=69c1f7df88b94e048876f1d8`, klabber),
+  // Plan + share-quota details (the real constraint).
+  out.klabberUser = await gj("/user", klabber);
+  out.klabberShareUsage = {
+    a: await gj("/share/multi?currentWorkspace=69c1f7df88b94e048876f1d8", klabber),
+    b: await gj("/users/shares", klabber),
+    c: await gj("/workspaces/69c1f7df88b94e048876f1d8", klabber),
   };
 
   const profiles: Record<string, unknown> = {};
