@@ -140,6 +140,12 @@ export default function ContentEditor() {
         </div>
       </div>
 
+      {post.status === "idea" && (
+        <div className="bg-violet-50 border border-violet-100 rounded-lg px-4 py-3 text-sm text-violet-900">
+          <span className="font-semibold">💡 Idea stage.</span> Just capture the <span className="font-semibold">title</span> and a rough note (in the Description or Body) of what this blog should cover — you don&apos;t need to write the full article. It&apos;ll be used to build the blog around, then drafted, reviewed, and approved before it&apos;s published. When you&apos;re ready to write it up, hit <span className="font-semibold">Move to drafting</span>.
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-2 gap-5">
         {/* editor */}
         <div className="space-y-4">
