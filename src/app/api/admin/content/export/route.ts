@@ -22,9 +22,10 @@ const STATUS_LABEL: Record<string, string> = {
   approved: "Approved (scheduled)",
   in_review: "In Review",
   draft: "Draft",
+  idea: "Idea",
 };
-// order: live first, then ready, then in-progress
-const STATUS_ORDER: Record<string, number> = { published: 0, approved: 1, in_review: 2, draft: 3 };
+// order: live first, then ready, then in-progress, then ideas
+const STATUS_ORDER: Record<string, number> = { published: 0, approved: 1, in_review: 2, draft: 3, idea: 4 };
 
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
@@ -33,7 +34,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const posts = await prisma.blogPost.findMany();
+  // view=live -> published only; view=pipeline -> everything not yet public; default -> all
+  const view = req.nextUrl.searchParams.get("view");
+  const where =
+    view === "live" ? { status: "published" }
+    : view === "pipeline" ? { status: { not: "published" } }
+    : {};
+
+  const posts = await prisma.blogPost.findMany({ where });
   posts.sort((a, b) => {
     const s = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
     if (s !== 0) return s;

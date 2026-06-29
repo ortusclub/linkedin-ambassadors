@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         pillar: body.pillar || null,
         content: body.content || "",
         readTime: body.readTime || null,
-        status: "draft",
+        status: body.status === "draft" ? "draft" : "idea",
         scheduledFor: body.scheduledFor ? new Date(body.scheduledFor) : null,
         authorEmail: admin.email,
       },

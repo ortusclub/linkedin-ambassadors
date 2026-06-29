@@ -22,8 +22,9 @@ interface Post {
 }
 
 const CATEGORIES = ["LinkedIn Limits", "LinkedIn Strategy", "LinkedIn Compliance", "Tools", "Sales Strategy", "Getting Started", "Market & Competitive"];
-const STATUS_LABEL: Record<string, string> = { draft: "Draft", in_review: "In Review", approved: "Approved", published: "Published" };
+const STATUS_LABEL: Record<string, string> = { idea: "Idea", draft: "Draft", in_review: "In Review", approved: "Approved", published: "Published" };
 const STATUS_BADGE: Record<string, string> = {
+  idea: "bg-violet-100 text-violet-700",
   draft: "bg-gray-100 text-gray-600",
   in_review: "bg-amber-100 text-amber-700",
   approved: "bg-blue-100 text-blue-700",
@@ -104,7 +105,11 @@ export default function ContentEditor() {
 
   // workflow actions available for the current status
   const actions: { label: string; status: string; cls: string }[] = [];
-  if (post.status === "draft") actions.push({ label: "Submit for review", status: "in_review", cls: "bg-amber-500 hover:bg-amber-600" });
+  if (post.status === "idea") actions.push({ label: "Move to drafting", status: "draft", cls: "bg-gray-700 hover:bg-gray-800" });
+  if (post.status === "draft") {
+    actions.push({ label: "Submit for review", status: "in_review", cls: "bg-amber-500 hover:bg-amber-600" });
+    actions.push({ label: "Back to idea", status: "idea", cls: "bg-gray-400 hover:bg-gray-500" });
+  }
   if (post.status === "in_review") {
     actions.push({ label: "Approve", status: "approved", cls: "bg-blue-600 hover:bg-blue-700" });
     actions.push({ label: "Send back to draft", status: "draft", cls: "bg-gray-500 hover:bg-gray-600" });

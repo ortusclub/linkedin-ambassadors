@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-const VALID_STATUS = ["draft", "in_review", "approved", "published"];
+const VALID_STATUS = ["idea", "draft", "in_review", "approved", "published"];
 
 function slugify(s: string): string {
   return s

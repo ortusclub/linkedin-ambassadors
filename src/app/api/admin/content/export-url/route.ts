@@ -11,8 +11,13 @@ export async function GET(req: NextRequest) {
     const key = process.env.RENTALS_EXPORT_KEY;
     if (!key) return NextResponse.json({ configured: false });
     const origin = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
-    const url = `${origin}/api/admin/content/export?key=${encodeURIComponent(key)}`;
-    return NextResponse.json({ configured: true, url });
+    const base = `${origin}/api/admin/content/export?key=${encodeURIComponent(key)}`;
+    return NextResponse.json({
+      configured: true,
+      liveUrl: `${base}&view=live`,
+      pipelineUrl: `${base}&view=pipeline`,
+      allUrl: base,
+    });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     if (msg === "Forbidden" || msg === "Unauthorized") {
