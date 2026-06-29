@@ -8,7 +8,9 @@ export interface BlogPost {
   content: string;
 }
 
-export const blogPosts: BlogPost[] = [
+// Original hardcoded posts — kept as the seed source for the DB (see /api/admin/content/seed).
+// The live site now reads published posts from the database (functions below).
+export const staticBlogPosts: BlogPost[] = [
   {
     slug: "linkedin-connection-limits-and-how-to-work-around-them",
     title: "LinkedIn Connection Limits in 2026: What They Are and How to Work Around Them",
@@ -2168,20 +2170,57 @@ Here's what a high-performing outreach operation looks like in 2026:
   },
 ];
 
-export function getBlogPost(slug: string): BlogPost | undefined {
-  const today = new Date().toISOString().split("T")[0];
-  const post = blogPosts.find((p) => p.slug === slug);
-  if (post && post.date <= today) return post;
-  return undefined;
+// ---- DB-backed public blog (only PUBLISHED posts ever reach the live site) ----
+import { prisma } from "@/lib/prisma";
+
+function estimateReadTime(content: string): string {
+  const words = content.trim().split(/\s+/).length;
+  return `${Math.max(1, Math.round(words / 200))} min read`;
 }
 
-export function getAllBlogPosts(): BlogPost[] {
-  const today = new Date().toISOString().split("T")[0];
-  return blogPosts
-    .filter((p) => p.date <= today)
-    .sort((a, b) => b.date.localeCompare(a.date));
+// Map a DB row into the shape the public pages/renderer expect.
+function toPublic(row: {
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  content: string;
+  readTime: string | null;
+  publishedAt: Date | null;
+  scheduledFor: Date | null;
+  createdAt: Date;
+}): BlogPost {
+  const when = row.publishedAt ?? row.scheduledFor ?? row.createdAt;
+  return {
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    category: row.category,
+    content: row.content,
+    date: when.toISOString().split("T")[0],
+    readTime: row.readTime || estimateReadTime(row.content),
+  };
 }
 
-export function getAllBlogSlugs(): string[] {
-  return blogPosts.map((p) => p.slug);
+export async function getBlogPost(slug: string): Promise<BlogPost | undefined> {
+  const row = await prisma.blogPost.findFirst({
+    where: { slug, status: "published" },
+  });
+  return row ? toPublic(row) : undefined;
+}
+
+export async function getAllBlogPosts(): Promise<BlogPost[]> {
+  const rows = await prisma.blogPost.findMany({
+    where: { status: "published" },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+  });
+  return rows.map(toPublic);
+}
+
+export async function getAllBlogSlugs(): Promise<string[]> {
+  const rows = await prisma.blogPost.findMany({
+    where: { status: "published" },
+    select: { slug: true },
+  });
+  return rows.map((r) => r.slug);
 }

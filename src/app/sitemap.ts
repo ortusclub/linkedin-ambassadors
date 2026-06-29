@@ -117,14 +117,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB not available — return static pages only
   }
 
-  // Blog posts (include all — even scheduled ones for pre-indexing)
-  const { blogPosts: allPosts } = await import("@/lib/blog-posts");
-  const blogPages: MetadataRoute.Sitemap = allPosts.map((post) => ({
-    url: `${baseUrl}/blog/${post.slug}`,
-    lastModified: new Date(post.date),
-    changeFrequency: "monthly" as const,
-    priority: 0.8,
-  }));
+  // Blog posts (published only — drafts/scheduled stay out of the sitemap)
+  let blogPages: MetadataRoute.Sitemap = [];
+  try {
+    const allPosts = await getAllBlogPosts();
+    blogPages = allPosts.map((post) => ({
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: new Date(post.date),
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    }));
+  } catch {
+    // DB not available — skip blog URLs
+  }
 
   return [...staticPages, ...blogPages, ...accountPages];
 }

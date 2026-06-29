@@ -14,6 +14,7 @@ const sections = [
     items: [
       { href: "/admin/dashboard", label: "Dashboard" },
       { href: "/admin/inbound", label: "Inbound" },
+      { href: "/admin/content", label: "Content" },
     ],
   },
   {

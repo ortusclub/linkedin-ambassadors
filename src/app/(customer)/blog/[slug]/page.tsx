@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getBlogPost, getAllBlogPosts, getAllBlogSlugs } from "@/lib/blog-posts";
+import { getBlogPost } from "@/lib/blog-posts";
 
-export async function generateStaticParams() {
-  return getAllBlogSlugs().map((slug) => ({ slug }));
-}
-
+// Fully dynamic — posts come from the DB at request time, so we don't pre-generate
+// params at build (which would require a DB connection during the build).
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
@@ -15,7 +13,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const post = await getBlogPost(slug);
   if (!post) return { title: "Post Not Found" };
 
   return {
@@ -43,7 +41,7 @@ export default async function BlogPostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const post = await getBlogPost(slug);
   if (!post) notFound();
 
   // Convert markdown-like content to HTML

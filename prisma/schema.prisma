@@ -298,3 +298,24 @@ model InboundLead {
   @@unique([channel, contact])
   @@map("inbound_leads")
 }
+
+model BlogPost {
+  id            String    @id @default(uuid()) @db.Uuid
+  slug          String    @unique
+  title         String
+  description   String    @default("")
+  category      String    @default("LinkedIn Strategy")
+  keyword       String?                                    // target SEO keyword
+  pillar        String?                                    // content pillar
+  content       String    @default("")                     // markdown body
+  readTime      String?   @map("read_time")
+  status        String    @default("draft")                // draft | in_review | approved | published
+  scheduledFor  DateTime? @map("scheduled_for")            // calendar / target publish date
+  publishedAt   DateTime? @map("published_at")
+  authorEmail   String?   @map("author_email")
+  reviewerNotes String?   @map("reviewer_notes")           // Sam's review feedback
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("blog_posts")
+}
