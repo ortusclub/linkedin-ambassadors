@@ -175,7 +175,7 @@ export async function sendAccessReadyEmail(email: string, accountName: string) {
       <p style="font-size:13px;color:#536471;line-height:1.6;margin:0 0 16px;"><strong>New to GoLogin?</strong> Get it free at <a href="https://gologin.com/download" style="color:#0A66C2;">gologin.com/download</a> and sign in with this email first.</p>
       <ol style="font-size:14px;color:#374151;line-height:1.8;margin:0 0 24px;padding-left:20px;">
         <li>Open the <strong>GoLogin</strong> app (signed in with ${email}).</li>
-        <li>Find the shared profile in your dashboard — it may take a few minutes to appear.</li>
+        <li>Look under <strong>"Shared with me"</strong> for the profile. <strong>Don't see it? Refresh GoLogin</strong> — it can take a minute or two to appear right after renting.</li>
         <li>Click <strong>Start</strong> to launch the browser with LinkedIn already logged in.</li>
       </ol>
       <a href="${appUrl}/dashboard" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;margin-bottom:20px;">Open your dashboard</a>
