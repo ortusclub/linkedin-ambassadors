@@ -103,11 +103,37 @@ export async function GET(req: Request) {
 
   // Plan + share-quota details (the real constraint).
   out.klabberUser = await gj("/user", klabber);
-  out.klabberShareUsage = {
-    a: await gj("/share/multi?currentWorkspace=69c1f7df88b94e048876f1d8", klabber),
-    b: await gj("/users/shares", klabber),
-    c: await gj("/workspaces/69c1f7df88b94e048876f1d8", klabber),
-  };
+  out.workspace = await gj("/workspaces/69c1f7df88b94e048876f1d8", klabber);
+
+  // Hunt for the endpoint that LISTS profile shares so we can revoke orphans.
+  if (url.searchParams.get("probe") === "1") {
+    const WS = "69c1f7df88b94e048876f1d8";
+    const pid = ids[0];
+    const candidates = [
+      `/share?currentWorkspace=${WS}`,
+      `/shares?currentWorkspace=${WS}`,
+      `/share/profiles?currentWorkspace=${WS}`,
+      `/share/multi?currentWorkspace=${WS}`,
+      `/browser/${pid}/share`,
+      `/browser/${pid}/shares`,
+      `/browser/${pid}/guests`,
+      `/browser/${pid}/permissions`,
+      `/workspaces/${WS}/shares`,
+      `/workspaces/${WS}/guests`,
+      `/workspaces/${WS}/members`,
+      `/users/shares`,
+      `/share-links/profiles/search`,
+      `/share/instances?currentWorkspace=${WS}`,
+      `/profileShares?currentWorkspace=${WS}`,
+    ];
+    const probe: Record<string, unknown> = {};
+    for (const path of candidates) {
+      const r = await gj(path, klabber);
+      const bodyType = Array.isArray(r.body) ? `array[${r.body.length}]` : typeof r.body;
+      probe[path] = { status: r.status, bodyType };
+    }
+    out.probe = probe;
+  }
 
   const profiles: Record<string, unknown> = {};
   for (const id of ids) {
