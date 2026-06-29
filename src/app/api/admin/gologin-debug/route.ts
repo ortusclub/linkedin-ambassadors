@@ -110,21 +110,21 @@ export async function GET(req: Request) {
     const WS = "69c1f7df88b94e048876f1d8";
     const pid = ids[0];
     const candidates = [
-      `/share?currentWorkspace=${WS}`,
-      `/shares?currentWorkspace=${WS}`,
-      `/share/profiles?currentWorkspace=${WS}`,
-      `/share/multi?currentWorkspace=${WS}`,
-      `/browser/${pid}/share`,
-      `/browser/${pid}/shares`,
-      `/browser/${pid}/guests`,
-      `/browser/${pid}/permissions`,
-      `/workspaces/${WS}/shares`,
-      `/workspaces/${WS}/guests`,
-      `/workspaces/${WS}/members`,
-      `/users/shares`,
-      `/share-links/profiles/search`,
-      `/share/instances?currentWorkspace=${WS}`,
-      `/profileShares?currentWorkspace=${WS}`,
+      `/share-emails/${pid}`,
+      `/browser/${pid}/share-emails`,
+      `/shareEmails?currentWorkspace=${WS}`,
+      `/share-emails?profileId=${pid}`,
+      `/share/list?currentWorkspace=${WS}`,
+      `/v1/share?currentWorkspace=${WS}`,
+      `/browser/${pid}?withShares=true`,
+      `/folders?currentWorkspace=${WS}`,
+      `/guests?currentWorkspace=${WS}`,
+      `/workspaces/${WS}/invites`,
+      `/invites?currentWorkspace=${WS}`,
+      `/browser/${pid}/sharings`,
+      `/sharings?currentWorkspace=${WS}`,
+      `/browser/share/${pid}`,
+      `/share/browser/${pid}`,
     ];
     const probe: Record<string, unknown> = {};
     for (const path of candidates) {
