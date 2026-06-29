@@ -3,12 +3,20 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+// Prisma migrate needs a DIRECT (non-pooled) connection. Over the Neon pooler the
+// migrate advisory lock can get stranded on a recycled pgbouncer connection, causing
+// deploys to fail with P1002 ("Timed out trying to acquire a postgres advisory lock").
+// The runtime client (src/lib/prisma.ts) still uses the pooled DATABASE_URL — this only
+// affects CLI operations (migrate deploy / generate).
+const pooled = process.env["DATABASE_URL"] || "";
+const directUrl = process.env["DIRECT_URL"] || pooled.replace("-pooler", "");
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: directUrl,
   },
 });
