@@ -203,6 +203,8 @@ enum AmbassadorStatus {
   rejected
   onboarded
   unreachable
+  contacted
+  on_hold
 }
 
 model AmbassadorApplication {

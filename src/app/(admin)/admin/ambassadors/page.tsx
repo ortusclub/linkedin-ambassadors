@@ -76,6 +76,8 @@ export default function AdminAmbassadorsPage() {
       approved: "success",
       rejected: "danger",
       unreachable: "warning",
+      contacted: "info",
+      on_hold: "default",
     };
     return map[s] || "default";
   };
@@ -147,6 +149,8 @@ export default function AdminAmbassadorsPage() {
       <div className="mb-4 flex gap-2">
         {[
           { value: "pending", label: "Received" },
+          { value: "contacted", label: "Contacted" },
+          { value: "on_hold", label: "On hold" },
           { value: "approved", label: "Accepted" },
           { value: "rejected", label: "Rejected" },
           { value: "unreachable", label: "Unreachable" },
@@ -229,10 +233,14 @@ export default function AdminAmbassadorsPage() {
                             app.status === "approved" ? "bg-green-100 text-green-800" :
                             app.status === "rejected" ? "bg-red-100 text-red-800" :
                             app.status === "unreachable" ? "bg-orange-100 text-orange-800" :
+                            app.status === "contacted" ? "bg-blue-100 text-blue-800" :
+                            app.status === "on_hold" ? "bg-slate-100 text-slate-700" :
                             "bg-gray-100 text-gray-800"
                           }`}
                         >
                           <option value="pending">Received</option>
+                          <option value="contacted">Contacted</option>
+                          <option value="on_hold">On hold</option>
                           <option value="approved">Accepted</option>
                           <option value="rejected">Rejected</option>
                           <option value="unreachable">Unreachable</option>

@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
 
 const updateSchema = z.object({
-  status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarded", "unreachable"]).optional(),
+  status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
   offeredAmount: z.number().optional(),
   adminNotes: z.string().optional(),
 });
