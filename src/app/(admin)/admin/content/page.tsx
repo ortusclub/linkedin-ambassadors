@@ -259,11 +259,25 @@ export default function AdminContentPage() {
               <tbody>
                 {pipeline.length === 0 && <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">Nothing in progress yet — promote an idea above.</td></tr>}
                 {pipeline.map((p) => (
-                  <tr key={p.id} onClick={() => router.push(`/admin/content/${p.id}`)} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer">
-                    <td className="px-4 py-3 font-medium">{p.title}</td>
-                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_BADGE[p.status]}`}>{STATUS_LABEL[p.status]}</span></td>
-                    <td className="px-4 py-3 text-gray-500">{p.category}</td>
-                    <td className="px-4 py-3 text-gray-500">{(p.scheduledFor || p.publishedAt)?.slice(0, 10) || "—"}</td>
+                  <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <button onClick={() => router.push(`/admin/content/${p.id}`)} className="font-medium text-left hover:text-blue-600 hover:underline">{p.title}</button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select value={p.status} onChange={(e) => patch(p.id, { status: e.target.value } as Partial<Post>)}
+                        className={`text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer ${STATUS_BADGE[p.status] || "bg-gray-100 text-gray-600"}`}>
+                        {["idea", "draft", "in_review", "approved", "published"].map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select className={inputCls} value={p.category} onChange={(e) => patch(p.id, { category: e.target.value })}>
+                        {CATEGORIES.includes(p.category) ? null : <option>{p.category}</option>}
+                        {CATEGORIES.map((cc) => <option key={cc} value={cc}>{cc}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <input type="date" className={inputCls} value={(p.scheduledFor || p.publishedAt)?.slice(0, 10) || ""} onChange={(e) => patch(p.id, { scheduledFor: e.target.value || null } as Partial<Post>)} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
