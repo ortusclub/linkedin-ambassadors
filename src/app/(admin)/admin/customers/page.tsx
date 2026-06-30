@@ -19,6 +19,7 @@ interface Customer {
   referralSource: string | null;
   vettedAt: string | null;
   vettingInfo: { company?: string; website?: string; role?: string; useCase?: string; tools?: string } | null;
+  vettingReview: string | null;
 }
 
 export default function AdminCustomersPage() {
@@ -26,6 +27,12 @@ export default function AdminCustomersPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [vetView, setVetView] = useState<Customer | null>(null);
+
+  const setReview = async (id: string, review: string) => {
+    setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, vettingReview: review } : c)));
+    setVetView((v) => (v && v.id === id ? { ...v, vettingReview: review } : v));
+    await fetch("/api/admin/customers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, vettingReview: review }) });
+  };
 
   useEffect(() => {
     fetch("/api/admin/customers")
@@ -126,9 +133,13 @@ export default function AdminCustomersPage() {
                     {c.vettedAt ? (
                       <button
                         onClick={() => setVetView(c)}
-                        className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200 cursor-pointer"
                         title="View vetting answers"
-                      >✓ Vetted</button>
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium cursor-pointer ${
+                          c.vettingReview === "verified" ? "bg-green-100 text-green-700 hover:bg-green-200" :
+                          c.vettingReview === "flagged" ? "bg-red-100 text-red-700 hover:bg-red-200" :
+                          "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                        }`}
+                      >{c.vettingReview === "verified" ? "✓ Verified" : c.vettingReview === "flagged" ? "⚠ Flagged" : "● Needs review"}</button>
                     ) : (
                       <span className="text-xs text-gray-400">Not vetted</span>
                     )}
@@ -193,6 +204,20 @@ export default function AdminCustomersPage() {
                 <dd className="text-green-700">✓ Agreed (responsible for own + team's use)</dd>
               </div>
             </dl>
+
+            <div className="mt-5 border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">
+                Your review {vetView.vettingReview === "verified" ? "— ✓ Verified" : vetView.vettingReview === "flagged" ? "— ⚠ Flagged" : "— pending your check"}
+              </p>
+              <p className="text-xs text-gray-500 mb-3">Check their company/LinkedIn looks legit, then mark it. (Doesn&apos;t affect their access — it&apos;s your record.)</p>
+              <div className="flex gap-2">
+                <button onClick={() => setReview(vetView.id, "verified")} className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700">✓ Verify</button>
+                <button onClick={() => setReview(vetView.id, "flagged")} className="flex-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600">⚠ Flag</button>
+                {vetView.vettingReview !== "pending" && (
+                  <button onClick={() => setReview(vetView.id, "pending")} className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">Reset</button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

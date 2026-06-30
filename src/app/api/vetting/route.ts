@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { vettedAt: new Date(), vettingInfo: info as unknown as Prisma.InputJsonValue },
+      data: { vettedAt: new Date(), vettingInfo: info as unknown as Prisma.InputJsonValue, vettingReview: "pending" },
     });
     return NextResponse.json({ ok: true });
   } catch (e) {

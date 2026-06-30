@@ -65,6 +65,7 @@ export async function GET() {
       referralSource: c.referralSource,
       vettedAt: c.vettedAt,
       vettingInfo: c.vettingInfo,
+      vettingReview: c.vettingReview,
     }));
 
     return NextResponse.json({ customers: result });
@@ -132,11 +133,17 @@ export async function PATCH(req: Request) {
   try {
     await requireAdmin();
 
-    const { email, paymentMethod, paymentDetails, id, isTest } = await req.json();
+    const { email, paymentMethod, paymentDetails, id, isTest, vettingReview } = await req.json();
 
     // Toggle a customer's test flag (by id) — keeps them out of / in live dashboard numbers.
     if (id && typeof isTest === "boolean") {
       await prisma.user.update({ where: { id }, data: { isTest } });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Admin's personal review verdict on a renter's vetting.
+    if (id && typeof vettingReview === "string" && ["pending", "verified", "flagged"].includes(vettingReview)) {
+      await prisma.user.update({ where: { id }, data: { vettingReview } });
       return NextResponse.json({ ok: true });
     }
 
