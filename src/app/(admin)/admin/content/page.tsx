@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
 
 interface Post {
   id: string;
@@ -16,35 +15,38 @@ interface Post {
   updatedAt: string;
 }
 
-const CATEGORIES = ["LinkedIn Limits", "LinkedIn Strategy", "LinkedIn Compliance", "Tools", "Sales Strategy", "Getting Started", "Market & Competitive"];
+const F_SANS = "var(--font-sans),system-ui,sans-serif";
+const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
+
+const CATEGORIES = ["LinkedIn Strategy", "Getting Started", "LinkedIn Compliance", "Tools", "LinkedIn Limits", "Sales Strategy", "Market & Competitive"];
 const PRIORITIES = ["P1", "P2", "P3"];
-const PRIORITY_BADGE: Record<string, string> = {
-  P1: "bg-red-100 text-red-700 border-red-200",
-  P2: "bg-amber-100 text-amber-700 border-amber-200",
-  P3: "bg-gray-100 text-gray-500 border-gray-200",
-};
 const PRIORITY_RANK: Record<string, number> = { P1: 0, P2: 1, P3: 2 };
 
+const LANES = [
+  { key: "idea", label: "Idea Backlog" },
+  { key: "draft", label: "Draft" },
+  { key: "in_review", label: "In Review" },
+  { key: "approved", label: "Approved" },
+  { key: "published", label: "Published" },
+];
 const STATUS_LABEL: Record<string, string> = { idea: "Idea", draft: "Draft", in_review: "In Review", approved: "Approved", published: "Published" };
-const STATUS_BADGE: Record<string, string> = {
-  idea: "bg-violet-100 text-violet-700",
-  draft: "bg-gray-100 text-gray-600",
-  in_review: "bg-amber-100 text-amber-700",
-  approved: "bg-blue-100 text-blue-700",
-  published: "bg-green-100 text-green-700",
-};
-const STATUS_DOT: Record<string, string> = {
-  draft: "bg-gray-400", in_review: "bg-amber-500", approved: "bg-blue-500", published: "bg-green-500",
-};
+// status -> css-var key (in_review is "review" in the palette)
+const ctKey = (s: string) => (s === "in_review" ? "review" : s);
+const PRI_KEY: Record<string, string> = { P1: "p1", P2: "p2", P3: "p3" };
+const priStyle = (p: string): React.CSSProperties => ({ background: `var(--pri-${PRI_KEY[p] || "p3"}-bg)`, color: `var(--pri-${PRI_KEY[p] || "p3"}-fg)` });
+const stStyle = (s: string): React.CSSProperties => ({ background: `var(--ct-${ctKey(s)}-bg)`, color: `var(--ct-${ctKey(s)}-fg)` });
 
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MON_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const fmtShort = (iso: string | null) => { if (!iso) return "—"; const p = iso.slice(0, 10).split("-"); return `${MON[+p[1] - 1]} ${+p[2]}`; };
+const fmtFull = (iso: string | null) => { if (!iso) return "—"; const p = iso.slice(0, 10).split("-"); return `${p[1]}/${p[2]}/${p[0]}`; };
 
 export default function AdminContentPage() {
   const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"calendar" | "list">("list");
+  const [view, setView] = useState<"board" | "list" | "calendar">("board");
   const [cursor, setCursor] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [allUrl, setAllUrl] = useState<string | null>(null);
   const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
@@ -54,6 +56,9 @@ export default function AdminContentPage() {
   const [newPriority, setNewPriority] = useState("P2");
   const [newCategory, setNewCategory] = useState("LinkedIn Strategy");
   const [adding, setAdding] = useState(false);
+  // drag + drop
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [hoverLane, setHoverLane] = useState<string | null>(null);
 
   const reload = () => fetch("/api/admin/content").then((r) => r.json()).then((d) => setPosts(d.posts || []));
 
@@ -70,7 +75,6 @@ export default function AdminContentPage() {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
-  // patch a field on a post (optimistic)
   const patch = async (id: string, p: Partial<Post>) => {
     setPosts((prev) => prev.map((x) => (x.id === id ? { ...x, ...p } : x)));
     await fetch(`/api/admin/content/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
@@ -88,43 +92,41 @@ export default function AdminContentPage() {
     setNewTitle(""); setAdding(false);
   };
 
-  const makePost = async (id: string) => {
-    await fetch(`/api/admin/content/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "draft" }) });
-    router.push(`/admin/content/${id}`);
-  };
-
   const removePost = async (id: string) => {
-    if (!confirm("Delete this idea?")) return;
+    if (!confirm("Delete this post?")) return;
     setPosts((prev) => prev.filter((x) => x.id !== id));
     await fetch(`/api/admin/content/${id}`, { method: "DELETE" });
   };
 
-  const ideas = useMemo(
-    () => posts.filter((p) => p.status === "idea").sort((a, b) => (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1)),
-    [posts]
-  );
-  // pipeline order: approved/scheduled on top, then in-review, draft, and published at the bottom
-  const PIPE_RANK: Record<string, number> = { approved: 0, in_review: 1, draft: 2, published: 3 };
-  const pipeline = useMemo(
-    () => posts.filter((p) => p.status !== "idea").sort((a, b) => {
-      const r = (PIPE_RANK[a.status] ?? 9) - (PIPE_RANK[b.status] ?? 9);
-      if (r !== 0) return r;
-      const da = (a.scheduledFor || a.publishedAt || "") as string;
-      const db = (b.scheduledFor || b.publishedAt || "") as string;
-      return da.localeCompare(db);
-    }),
-    [posts]
-  );
+  const open = (id: string) => router.push(`/admin/content/${id}`);
+
+  const onDrop = (lane: string) => {
+    setHoverLane(null);
+    if (!dragId) return;
+    const p = posts.find((x) => x.id === dragId);
+    setDragId(null);
+    if (p && p.status !== lane) patch(dragId, { status: lane } as Partial<Post>);
+  };
+
+  const byStatus = (s: string) => posts.filter((p) => p.status === s)
+    .sort((a, b) => s === "idea"
+      ? (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1)
+      : ((a.scheduledFor || a.publishedAt || "") as string).localeCompare((b.scheduledFor || b.publishedAt || "") as string));
+
+  const listRows = useMemo(() => {
+    const RANK: Record<string, number> = { idea: 0, draft: 1, in_review: 2, approved: 3, published: 4 };
+    return [...posts].sort((a, b) => (RANK[a.status] ?? 9) - (RANK[b.status] ?? 9) || ((a.scheduledFor || a.publishedAt || "") as string).localeCompare((b.scheduledFor || b.publishedAt || "") as string));
+  }, [posts]);
 
   const byDate = useMemo(() => {
     const map: Record<string, Post[]> = {};
-    for (const p of pipeline) {
+    for (const p of posts) {
       const when = p.scheduledFor || p.publishedAt;
-      if (!when) continue;
+      if (!when || p.status === "idea") continue;
       (map[when.slice(0, 10)] ||= []).push(p);
     }
     return map;
-  }, [pipeline]);
+  }, [posts]);
 
   const grid = useMemo(() => {
     const first = new Date(cursor.y, cursor.m, 1);
@@ -136,181 +138,165 @@ export default function AdminContentPage() {
     return cells;
   }, [cursor]);
 
-  const inputCls = "border border-gray-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-400";
+  // ── shared style atoms ──
+  const inputStyle: React.CSSProperties = { background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 8, padding: "9px 12px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none", cursor: "pointer" };
+  const tag: React.CSSProperties = { font: `600 9.5px ${F_SANS}`, padding: "3px 7px", borderRadius: 6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "var(--tag-bg)", color: "var(--tag-fg)" };
+  const viewBtn = (active: boolean): React.CSSProperties => ({ font: `600 12.5px ${F_SANS}`, padding: "7px 14px", borderRadius: 7, cursor: "pointer", border: "none", background: active ? "var(--text)" : "transparent", color: active ? "var(--page-bg)" : "var(--muted)" });
+  const colLabel: React.CSSProperties = { font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
+
+  const Card = ({ p, showPriority }: { p: Post; showPriority?: boolean }) => (
+    <div
+      draggable
+      onDragStart={() => setDragId(p.id)}
+      onDragEnd={() => { setDragId(null); setHoverLane(null); }}
+      onClick={() => open(p.id)}
+      style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 10, padding: "11px 12px", boxShadow: "var(--card-shadow)", cursor: "grab", opacity: dragId === p.id ? 0.35 : 1 }}
+    >
+      <div style={{ font: `600 13px/1.35 ${F_SANS}`, color: "var(--text)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", marginBottom: 10 }}>{p.title}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          {showPriority && <span style={{ font: `700 9.5px ${F_SANS}`, padding: "2px 6px", borderRadius: 5, flex: "none", ...priStyle(p.priority) }}>{p.priority}</span>}
+          <span style={tag}>{p.category}</span>
+        </div>
+        <span style={{ font: `500 11px ${F_SANS}`, color: "var(--date-color)", whiteSpace: "nowrap", flex: "none" }}>{fmtShort(p.scheduledFor || p.publishedAt)}</span>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Content</h1>
-        <p className="text-sm text-gray-500">Jot blog ideas below. Pick one, hit “Make blog post”, and it moves into writing → review → publish.</p>
-      </div>
-
-      {sheetConfigured === true && (
-        <div className="flex items-center gap-3 flex-wrap text-sm bg-green-50 border border-green-100 rounded-lg px-4 py-3">
-          <span className="font-semibold text-green-800">Live Google Sheets link</span>
-          <button onClick={copyFormula} className="px-3 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700">{copied ? "Copied ✓" : "Copy formula"}</button>
-          <span className="text-xs text-gray-500">Auto-refreshes in State of LV.</span>
+    <div>
+      {/* title + view switch */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 680 }}>
+          <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Content</h1>
+          <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Jot blog ideas, pick one, and watch it move through writing → review → publish.</p>
         </div>
-      )}
-      {sheetConfigured === false && (
-        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-4 py-2">
-          Live sheet link not active yet — set <code>RENTALS_EXPORT_KEY</code> in Vercel to enable the auto-updating export.
-        </div>
-      )}
-
-      {/* ───────────── IDEAS (simple list) ───────────── */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-700 mb-2">💡 Idea backlog</h2>
-        <Card><CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wide text-gray-400 border-b border-gray-100">
-                <th className="px-3 py-2 w-20">Priority</th>
-                <th className="px-3 py-2">Title</th>
-                <th className="px-3 py-2 w-48">Category</th>
-                <th className="px-3 py-2 w-36">Target date</th>
-                <th className="px-3 py-2 w-44"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* quick add row */}
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <td className="px-3 py-2">
-                  <select className={inputCls} value={newPriority} onChange={(e) => setNewPriority(e.target.value)}>
-                    {PRIORITIES.map((p) => <option key={p}>{p}</option>)}
-                  </select>
-                </td>
-                <td className="px-3 py-2">
-                  <input className={`${inputCls} w-full`} placeholder="New idea — type a title and press Enter…" value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addIdea(); }} />
-                </td>
-                <td className="px-3 py-2">
-                  <select className={inputCls} value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
-                    {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </td>
-                <td className="px-3 py-2 text-gray-300">—</td>
-                <td className="px-3 py-2">
-                  <button onClick={addIdea} disabled={!newTitle.trim() || adding} className="px-3 py-1 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-black disabled:opacity-40">+ Add idea</button>
-                </td>
-              </tr>
-
-              {ideas.map((p) => (
-                <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-3 py-2">
-                    <select value={p.priority} onChange={(e) => patch(p.id, { priority: e.target.value })}
-                      className={`text-xs font-semibold rounded-md border px-1.5 py-1 ${PRIORITY_BADGE[p.priority] || PRIORITY_BADGE.P2}`}>
-                      {PRIORITIES.map((x) => <option key={x}>{x}</option>)}
-                    </select>
-                  </td>
-                  <td className="px-3 py-2">
-                    <input className="w-full bg-transparent focus:outline-none focus:bg-white focus:border focus:border-gray-200 rounded px-1 py-0.5"
-                      defaultValue={p.title} onBlur={(e) => { if (e.target.value !== p.title) patch(p.id, { title: e.target.value }); }} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <select className={inputCls} value={p.category} onChange={(e) => patch(p.id, { category: e.target.value })}>
-                      {CATEGORIES.includes(p.category) ? null : <option>{p.category}</option>}
-                      {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                    </select>
-                  </td>
-                  <td className="px-3 py-2">
-                    <input type="date" className={inputCls} value={p.scheduledFor ? p.scheduledFor.slice(0, 10) : ""}
-                      onChange={(e) => patch(p.id, { scheduledFor: e.target.value || null } as Partial<Post>)} />
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <button onClick={() => makePost(p.id)} className="px-3 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700">Make blog post →</button>
-                    <button onClick={() => removePost(p.id)} className="ml-2 text-xs text-gray-400 hover:text-red-600">✕</button>
-                  </td>
-                </tr>
-              ))}
-              {!loading && ideas.length === 0 && (
-                <tr><td colSpan={5} className="px-3 py-5 text-center text-gray-400 text-sm">No ideas yet — add one above.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </CardContent></Card>
-      </div>
-
-      {/* ───────────── PIPELINE (writing → publish) ───────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-gray-700">📝 In progress &amp; published</h2>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3 text-[11px] text-gray-400">
-              {["draft", "in_review", "approved", "published"].map((s) => (
-                <span key={s} className="flex items-center gap-1"><span className={`inline-block w-2 h-2 rounded-full ${STATUS_DOT[s]}`} />{STATUS_LABEL[s]}</span>
-              ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {sheetConfigured === true && (
+            <div style={{ display: "flex", alignItems: "center", gap: 9, background: "var(--sheets-bg)", border: "1px solid var(--sheets-border)", padding: "6px 8px 6px 12px", borderRadius: 10 }}>
+              <span style={{ font: `600 12px ${F_SANS}`, color: "var(--sheets-fg)" }}>Live Google Sheets</span>
+              <button onClick={copyFormula} style={{ font: `600 11.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "5px 11px", borderRadius: 7, cursor: "pointer" }}>{copied ? "Copied ✓" : "Copy formula"}</button>
             </div>
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-              <button onClick={() => setView("list")} className={`px-3 py-1 text-xs ${view === "list" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}>List</button>
-              <button onClick={() => setView("calendar")} className={`px-3 py-1 text-xs ${view === "calendar" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}>Calendar</button>
-            </div>
+          )}
+          <div style={{ display: "flex", background: "var(--seg-bg)", border: "1px solid var(--seg-border)", borderRadius: 10, padding: 3 }}>
+            {(["board", "list", "calendar"] as const).map((v) => (
+              <button key={v} onClick={() => setView(v)} style={viewBtn(view === v)}>{v[0].toUpperCase() + v.slice(1)}</button>
+            ))}
           </div>
         </div>
-
-        {view === "list" ? (
-          <Card><CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wide text-gray-400 border-b border-gray-100">
-                  <th className="px-4 py-3">Title</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pipeline.length === 0 && <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">Nothing in progress yet — promote an idea above.</td></tr>}
-                {pipeline.map((p) => (
-                  <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <button onClick={() => router.push(`/admin/content/${p.id}`)} className="font-medium text-left hover:text-blue-600 hover:underline">{p.title}</button>
-                    </td>
-                    <td className="px-4 py-3">
-                      <select value={p.status} onChange={(e) => patch(p.id, { status: e.target.value } as Partial<Post>)}
-                        className={`text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer ${STATUS_BADGE[p.status] || "bg-gray-100 text-gray-600"}`}>
-                        {["idea", "draft", "in_review", "approved", "published"].map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                      <select className={inputCls} value={p.category} onChange={(e) => patch(p.id, { category: e.target.value })}>
-                        {CATEGORIES.includes(p.category) ? null : <option>{p.category}</option>}
-                        {CATEGORIES.map((cc) => <option key={cc} value={cc}>{cc}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                      <input type="date" className={inputCls} value={(p.scheduledFor || p.publishedAt)?.slice(0, 10) || ""} onChange={(e) => patch(p.id, { scheduledFor: e.target.value || null } as Partial<Post>)} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent></Card>
-        ) : (
-          <Card><CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <button onClick={() => setCursor((c) => { const d = new Date(c.y, c.m - 1, 1); return { y: d.getFullYear(), m: d.getMonth() }; })} className="px-2 text-gray-500 hover:text-gray-900">←</button>
-              <h3 className="font-semibold text-sm">{MONTHS[cursor.m]} {cursor.y}</h3>
-              <button onClick={() => setCursor((c) => { const d = new Date(c.y, c.m + 1, 1); return { y: d.getFullYear(), m: d.getMonth() }; })} className="px-2 text-gray-500 hover:text-gray-900">→</button>
-            </div>
-            <div className="grid grid-cols-7 gap-px bg-gray-100 border border-gray-100 rounded-lg overflow-hidden">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d} className="bg-gray-50 text-[11px] font-semibold text-gray-400 text-center py-1.5">{d}</div>)}
-              {grid.map((date, i) => {
-                const items = date ? byDate[ymd(date)] || [] : [];
-                return (
-                  <div key={date ? ymd(date) : `e${i}`} className="bg-white min-h-[84px] p-1.5">
-                    {date && <div className="text-[11px] text-gray-400 mb-1">{date.getDate()}</div>}
-                    <div className="space-y-1">
-                      {items.map((p) => (
-                        <button key={p.id} onClick={() => router.push(`/admin/content/${p.id}`)} className="w-full text-left text-[11px] leading-tight px-1.5 py-1 rounded bg-gray-50 hover:bg-gray-100 flex items-start gap-1">
-                          <span className={`inline-block w-2 h-2 rounded-full mt-0.5 shrink-0 ${STATUS_DOT[p.status]}`} /><span className="truncate">{p.title}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent></Card>
-        )}
       </div>
+
+      {sheetConfigured === false && (
+        <div style={{ font: `500 12px ${F_SANS}`, color: "var(--warn-badge-text)", background: "var(--warn-badge-bg)", borderRadius: 9, padding: "8px 13px", marginBottom: 16 }}>
+          Live Sheets link not active yet — set <code>RENTALS_EXPORT_KEY</code> in Vercel to enable the auto-updating export.
+        </div>
+      )}
+
+      {/* quick add idea */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--panel)", border: "1px solid var(--panel-border)", borderRadius: 14, padding: "12px 14px", marginBottom: 20, boxShadow: "var(--panel-shadow)", flexWrap: "wrap" }}>
+        <span style={{ font: `600 11px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--label)", flex: "none" }}>New idea</span>
+        <select value={newPriority} onChange={(e) => setNewPriority(e.target.value)} style={{ ...inputStyle, flex: "none", fontWeight: 600 }}>
+          {PRIORITIES.map((p) => <option key={p}>{p}</option>)}
+        </select>
+        <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addIdea(); }} placeholder="Type a title and hit Add…"
+          style={{ ...inputStyle, flex: 1, minWidth: 180, cursor: "text" }} />
+        <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} style={{ ...inputStyle, flex: "none" }}>
+          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+        </select>
+        <button onClick={addIdea} disabled={!newTitle.trim() || adding} style={{ flex: "none", font: `600 13px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", border: "none", padding: "9px 18px", borderRadius: 9, cursor: "pointer", opacity: !newTitle.trim() || adding ? 0.45 : 1 }}>+ Add idea</button>
+      </div>
+
+      {/* ===== BOARD ===== */}
+      {view === "board" && (
+        <div data-content-board style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, alignItems: "start" }}>
+          {LANES.map((lane) => {
+            const items = byStatus(lane.key);
+            return (
+              <div key={lane.key} style={{ background: "var(--lane)", borderRadius: 14, display: "flex", flexDirection: "column", maxHeight: 660 }}>
+                <div style={{ padding: "14px 14px 11px", display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: `var(--ct-${ctKey(lane.key)}-fg)` }} />
+                  <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--text)" }}>{lane.label}</span>
+                  <span style={{ marginLeft: "auto", font: `600 11px ${F_SANS}`, color: "var(--muted)", background: "var(--lane-badge)", padding: "2px 8px", borderRadius: 999 }}>{items.length}</span>
+                </div>
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setHoverLane(lane.key); }}
+                  onDragLeave={(e) => { if (e.currentTarget === e.target) setHoverLane(null); }}
+                  onDrop={() => onDrop(lane.key)}
+                  style={{ padding: "0 10px 12px", display: "flex", flexDirection: "column", gap: 9, overflowY: "auto", minHeight: 60, borderRadius: 12, boxShadow: hoverLane === lane.key ? "inset 0 0 0 2px var(--accent)" : "none" }}
+                >
+                  {items.map((p) => <Card key={p.id} p={p} showPriority={lane.key === "idea"} />)}
+                  {!loading && items.length === 0 && <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)", padding: "10px 4px", textAlign: "center" }}>—</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ===== LIST ===== */}
+      {view === "list" && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--panel-border)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--panel-shadow)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 150px 190px 120px 40px", gap: 16, padding: "14px 22px", borderBottom: "1px solid var(--divider)" }}>
+            {["Title", "Status", "Category", "Date", ""].map((h, i) => <span key={i} style={colLabel}>{h}</span>)}
+          </div>
+          {listRows.length === 0 && <div style={{ padding: "26px", textAlign: "center", font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>No posts yet — add an idea above.</div>}
+          {listRows.map((p) => (
+            <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1fr 150px 190px 120px 40px", gap: 16, alignItems: "center", padding: "11px 22px", borderBottom: "1px solid var(--divider)" }}>
+              <button onClick={() => open(p.id)} style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)", background: "none", border: "none", textAlign: "left", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: 0 }}>{p.title}</button>
+              <select value={p.status} onChange={(e) => patch(p.id, { status: e.target.value } as Partial<Post>)}
+                style={{ justifySelf: "start", font: `600 11px ${F_SANS}`, padding: "4px 11px", borderRadius: 999, border: "none", cursor: "pointer", ...stStyle(p.status) }}>
+                {LANES.map((l) => <option key={l.key} value={l.key}>{STATUS_LABEL[l.key]}</option>)}
+              </select>
+              <select value={CATEGORIES.includes(p.category) ? p.category : "__"} onChange={(e) => patch(p.id, { category: e.target.value })} style={{ ...inputStyle, justifySelf: "start", padding: "5px 9px", font: `500 12.5px ${F_SANS}` }}>
+                {!CATEGORIES.includes(p.category) && <option value="__">{p.category}</option>}
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <input type="date" value={(p.scheduledFor || p.publishedAt)?.slice(0, 10) || ""} onChange={(e) => patch(p.id, { scheduledFor: e.target.value || null } as Partial<Post>)}
+                style={{ ...inputStyle, padding: "5px 8px", font: `500 12.5px ${F_SANS}`, cursor: "text" }} />
+              <button onClick={() => removePost(p.id)} title="Delete" style={{ font: `600 13px ${F_SANS}`, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", justifySelf: "center" }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ===== CALENDAR ===== */}
+      {view === "calendar" && (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--panel-border)", borderRadius: 16, padding: "20px 22px", boxShadow: "var(--panel-shadow)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              <span style={{ font: `600 18px ${F_GRO}`, color: "var(--text)" }}>{MON_FULL[cursor.m]} {cursor.y}</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                {(["prev", "next"] as const).map((dir) => (
+                  <button key={dir} onClick={() => setCursor((c) => { const d = new Date(c.y, c.m + (dir === "prev" ? -1 : 1), 1); return { y: d.getFullYear(), m: d.getMonth() }; })}
+                    style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid var(--btn-secondary-border)", background: "var(--btn-secondary-bg)", color: "var(--text)", cursor: "pointer", font: `600 15px ${F_SANS}` }}>{dir === "prev" ? "‹" : "›"}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+              {[["review", "In Review"], ["approved", "Approved"], ["published", "Published"]].map(([k, lbl]) => (
+                <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ width: 8, height: 8, borderRadius: 999, background: `var(--ct-${k}-fg)` }} />{lbl}</span>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((w) => <div key={w} style={{ font: `600 10px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--label)", padding: "2px 6px 6px" }}>{w}</div>)}
+            {grid.map((date, i) => {
+              const items = date ? byDate[ymd(date)] || [] : [];
+              return (
+                <div key={date ? ymd(date) : `e${i}`} style={{ minHeight: 96, border: "1px solid", borderColor: date ? "var(--card-border)" : "transparent", borderRadius: 9, padding: 6, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden", background: date ? "var(--card)" : "transparent" }}>
+                  {date && <div style={{ font: `600 11px ${F_GRO}`, color: "var(--muted)", marginBottom: 1 }}>{date.getDate()}</div>}
+                  {items.slice(0, 3).map((p) => (
+                    <button key={p.id} onClick={() => open(p.id)} style={{ font: `600 9.5px ${F_SANS}`, padding: "3px 6px", borderRadius: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", border: "none", cursor: "pointer", textAlign: "left", ...stStyle(p.status) }}>{p.title}</button>
+                  ))}
+                  {items.length > 3 && <div style={{ font: `500 9px ${F_SANS}`, color: "var(--muted)" }}>+{items.length - 3} more</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <style>{`@media (max-width:1024px){ [data-content-board]{grid-template-columns:repeat(2,1fr) !important} }`}</style>
     </div>
   );
 }
