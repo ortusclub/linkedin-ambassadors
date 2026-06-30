@@ -66,17 +66,17 @@ export default function AdminDashboardPage() {
   if (stats.offlineAccounts > 0) attention.push({ label: `${stats.offlineAccounts} account${stats.offlineAccounts > 1 ? "s" : ""} offline`, tone: "warn" });
 
   const Tile = ({ label, value, sub, color }: { label: string; value: React.ReactNode; sub?: React.ReactNode; color?: string }) => (
-    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">{label}</p>
-      <p className={`mt-0.5 text-lg font-bold leading-tight ${color || "text-gray-900"}`}>{value}</p>
-      {sub && <p className="text-[11px] text-gray-500 leading-tight">{sub}</p>}
+    <div className="rounded-xl border border-gray-200 bg-white p-4 transition-shadow hover:shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className={`mt-1.5 text-2xl font-bold leading-none ${color || "text-gray-900"}`}>{value}</p>
+      {sub && <p className="mt-2 text-[11px] leading-snug text-gray-500">{sub}</p>}
     </div>
   );
 
-  const Band = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="mt-4">
-      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">{title}</p>
-      <div className="grid gap-2.5 grid-cols-2 md:grid-cols-4">{children}</div>
+  const Band = ({ title, grid, children }: { title: string; grid: string; children: React.ReactNode }) => (
+    <div className="mt-6">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{title}</p>
+      <div className={`grid gap-3 ${grid}`}>{children}</div>
     </div>
   );
 
@@ -85,7 +85,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <div className="mb-2 flex items-start justify-between gap-4">
+      <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
           <p className="mt-1 max-w-2xl text-sm text-gray-500">How the business is doing — money, demand, and supply at a glance.</p>
@@ -96,14 +96,30 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <Band title="💰 Money — is the business making money?">
+      {/* Needs attention — top of page, scannable chips */}
+      <div className={`rounded-xl border p-4 ${attention.length ? "border-amber-200 bg-amber-50/70" : "border-gray-200 bg-white"}`}>
+        <p className="mb-2.5 text-sm font-semibold text-gray-900">⚠️ Needs attention</p>
+        {attention.length === 0 ? (
+          <p className="text-sm text-gray-400">All clear — nothing needs you right now. 🎉</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {attention.map((a, i) => (
+              <span key={i} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${a.tone === "warn" ? "bg-amber-100 text-amber-900" : "bg-blue-100 text-blue-800"}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${a.tone === "warn" ? "bg-amber-500" : "bg-blue-500"}`} />{a.label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Band title="💰 Money" grid="grid-cols-2 lg:grid-cols-4">
         <Tile label="Net Profit / mo" value={formatCurrency(stats.netProfit)} sub={`${margin}% margin`} color="text-green-600" />
         <Tile label="Monthly Revenue" value={formatCurrency(stats.mrr)} sub="recurring, money in" color="text-gray-900" />
         <Tile label="Ambassador Payouts" value={formatCurrency(stats.payouts)} sub="money out" color="text-gray-900" />
         <Tile label="Active Rentals" value={stats.activeRentals} sub="live now" color="text-blue-600" />
       </Band>
 
-      <Band title="🧑‍💻 Demand — renters">
+      <Band title="🧑‍💻 Demand — renters" grid="grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <Tile label="Customers" value={stats.totalCustomers} sub={`renting ${stats.activeRentals} accounts`} />
         <Tile label="New (30d)" value={stats.newCustomers30d} sub="new this month" />
         <Tile label="Renewals ≤30d" value={stats.renewalsDue30d} sub="coming up" />
@@ -111,42 +127,24 @@ export default function AdminDashboardPage() {
         <Tile
           label="Vetting drop-off"
           value={`${stats.vettingDropped}/${stats.vettingStarted}`}
-          sub={stats.vettingStarted > 0 ? `${Math.round((stats.vettingDropped / stats.vettingStarted) * 100)}% opened form, didn't finish` : "opened form, didn't finish"}
+          sub={stats.vettingStarted > 0 ? `${Math.round((stats.vettingDropped / stats.vettingStarted) * 100)}% opened, didn't finish` : "opened form, didn't finish"}
           color={stats.vettingDropped > 0 ? "text-amber-600" : "text-gray-900"}
         />
       </Band>
 
-      <Band title="🗂 Supply — accounts & ambassadors">
+      <Band title="🗂 Supply — accounts & ambassadors" grid="grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <Tile label="Total Accounts" value={stats.totalAccounts} sub={`${stats.availableAccounts} avail · ${stats.rentedAccounts} rented · ${stats.offlineAccounts} offline`} />
         <Tile label="Restricted" value={stats.restrictedAccounts} sub="recovering · access & billing paused" color={stats.restrictedAccounts > 0 ? "text-orange-600" : "text-gray-900"} />
         <Tile
           label="Utilization"
           value={`${stats.utilization}%`}
-          sub={<span className="inline-block h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-gray-200 align-middle"><span className="block h-full rounded-full bg-blue-500" style={{ width: `${stats.utilization}%` }} /></span>}
+          sub={<span className="mt-1 inline-block h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-gray-200 align-middle"><span className="block h-full rounded-full bg-blue-500" style={{ width: `${stats.utilization}%` }} /></span>}
         />
         <Tile label="Idle (available)" value={stats.availableAccounts} sub="not earning" color={stats.availableAccounts > 0 ? "text-amber-600" : "text-gray-900"} />
         <Tile label="Apps to Review" value={stats.appsToReview} sub="ambassador applications" />
       </Band>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-sm font-semibold text-gray-900">⚠️ Needs attention</p>
-            <div className="mt-3 space-y-2">
-              {attention.length === 0 ? (
-                <p className="text-sm text-gray-400">All clear — nothing needs you right now. 🎉</p>
-              ) : (
-                attention.map((a, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm">
-                    <span className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${a.tone === "warn" ? "bg-amber-500" : "bg-blue-400"}`} />
-                    <span className="text-gray-600">{a.label}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="mt-8">
         <Card>
           <CardContent className="py-4">
             <p className="text-sm font-semibold text-gray-900">Recent activity</p>
