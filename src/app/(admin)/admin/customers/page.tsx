@@ -25,6 +25,7 @@ export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [vetView, setVetView] = useState<Customer | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/customers")
@@ -123,10 +124,11 @@ export default function AdminCustomersPage() {
                   <td className="px-4 py-3 text-sm text-gray-600">{c.referralSource || "—"}</td>
                   <td className="px-4 py-3 text-sm">
                     {c.vettedAt ? (
-                      <span
-                        className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 cursor-help"
-                        title={`Vetted ${new Date(c.vettedAt).toLocaleDateString()}\nCompany: ${c.vettingInfo?.company || "—"}\nWebsite: ${c.vettingInfo?.website || "—"}\nRole: ${c.vettingInfo?.role || "—"}\nUse: ${c.vettingInfo?.useCase || "—"}\nTools: ${c.vettingInfo?.tools || "—"}`}
-                      >✓ Vetted</span>
+                      <button
+                        onClick={() => setVetView(c)}
+                        className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200 cursor-pointer"
+                        title="View vetting answers"
+                      >✓ Vetted</button>
                     ) : (
                       <span className="text-xs text-gray-400">Not vetted</span>
                     )}
@@ -156,6 +158,42 @@ export default function AdminCustomersPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {vetView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setVetView(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Vetting — {vetView.fullName}</h2>
+                <p className="text-xs text-gray-500">{vetView.email}{vetView.vettedAt ? ` · vetted ${formatDate(vetView.vettedAt)}` : ""}</p>
+              </div>
+              <button onClick={() => setVetView(null)} className="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+            </div>
+            <dl className="space-y-3 text-sm">
+              {[
+                ["Company", vetView.vettingInfo?.company],
+                ["Website / LinkedIn", vetView.vettingInfo?.website],
+                ["Role", vetView.vettingInfo?.role],
+                ["Use case", vetView.vettingInfo?.useCase],
+                ["Tools", vetView.vettingInfo?.tools || "—"],
+              ].map(([label, val]) => (
+                <div key={label as string}>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">{label}</dt>
+                  <dd className="text-gray-800">
+                    {label === "Website / LinkedIn" && val ? (
+                      <a href={String(val).startsWith("http") ? String(val) : `https://${val}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{val}</a>
+                    ) : (val || "—")}
+                  </dd>
+                </div>
+              ))}
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">Use policy</dt>
+                <dd className="text-green-700">✓ Agreed (responsible for own + team's use)</dd>
+              </div>
+            </dl>
+          </div>
         </div>
       )}
 
