@@ -302,9 +302,12 @@ export default function AdminRentalsPage() {
                         <p className="font-mono text-[10px] text-gray-400" title="GoLogin profile ID">{r.linkedinAccount.gologinProfileId}</p>
                       )}
                       {r.linkedinAccount.restrictedAt && (
-                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700 whitespace-nowrap" title={`Restricted since ${fmt(r.linkedinAccount.restrictedAt)} — renter sees 'recovering', access + billing paused`}>
-                          <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />Restricted — recovering · billing paused
-                        </span>
+                        <div className="mt-1">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700 whitespace-nowrap" title="Renter sees 'recovering', access + billing paused">
+                            <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />Restricted — recovering · billing paused
+                          </span>
+                          <p className="text-[10px] text-orange-600 mt-0.5">since {fmt(r.linkedinAccount.restrictedAt)}</p>
+                        </div>
                       )}
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
