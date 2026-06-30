@@ -29,8 +29,8 @@ export async function POST(req: Request) {
     if (!b.agreed) {
       return NextResponse.json({ error: "Please agree to the use policy to continue." }, { status: 400 });
     }
-    if (!String(b.company || "").trim() || !String(b.role || "").trim() || !String(b.useCase || "").trim()) {
-      return NextResponse.json({ error: "Please fill in your company, role, and what you'll use the account for." }, { status: 400 });
+    if (!String(b.company || "").trim() || !String(b.website || "").trim() || !String(b.role || "").trim() || !String(b.useCase || "").trim()) {
+      return NextResponse.json({ error: "Please fill in your company, website/LinkedIn, role, and what you'll use the account for." }, { status: 400 });
     }
 
     const info = {

@@ -104,8 +104,8 @@ function CheckoutContent() {
   };
   const submitVetting = async () => {
     setVetError("");
-    if (!vetForm.company.trim() || !vetForm.role.trim() || !vetForm.useCase.trim()) {
-      setVetError("Please fill in your company, role, and what you'll use the account for.");
+    if (!vetForm.company.trim() || !vetForm.website.trim() || !vetForm.role.trim() || !vetForm.useCase.trim()) {
+      setVetError("Please fill in your company, website/LinkedIn, role, and what you'll use the account for.");
       return;
     }
     if (!vetForm.agreed) { setVetError("Please agree to the use policy to continue."); return; }
@@ -399,7 +399,7 @@ function CheckoutContent() {
             <p style={{fontSize:13,color:'#536471',marginBottom:18,lineHeight:1.5}}>One-time only — helps us look after your accounts. Takes ~30 seconds.</p>
             {([
               {k:'company',label:'Company name',ph:'Acme Inc.'},
-              {k:'website',label:'Website or LinkedIn page (optional)',ph:'acme.com'},
+              {k:'website',label:'Company website or LinkedIn profile',ph:'acme.com or linkedin.com/in/you'},
               {k:'role',label:'Your role',ph:'Head of Sales'},
               {k:'useCase',label:"What will you use the account for?",ph:'B2B outreach / lead gen'},
               {k:'tools',label:'Any tools you’ll connect? (optional)',ph:'e.g. none, Sales Navigator'},
