@@ -22,7 +22,7 @@ interface Rental {
   paymentMethodResolved: "USDC" | "Stripe";
   gologinShareIds: { email: string; shareId: string }[];
   user: { id: string; fullName: string; email: string; contactNumber: string | null; company: string | null; industry: string | null; createdAt: string };
-  linkedinAccount: { id: string; linkedinName: string; linkedinUrl: string | null; connectionCount: number; monthlyPrice: string | number | null; gologinProfileId: string | null; notes: string | null };
+  linkedinAccount: { id: string; linkedinName: string; linkedinUrl: string | null; connectionCount: number; monthlyPrice: string | number | null; gologinProfileId: string | null; notes: string | null; restrictedAt: string | null };
 }
 
 interface Account {
@@ -300,6 +300,11 @@ export default function AdminRentalsPage() {
                       <p className="text-gray-800 whitespace-nowrap">{(r.linkedinAccount.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || r.linkedinAccount.linkedinName}</p>
                       {r.linkedinAccount.gologinProfileId && (
                         <p className="font-mono text-[10px] text-gray-400" title="GoLogin profile ID">{r.linkedinAccount.gologinProfileId}</p>
+                      )}
+                      {r.linkedinAccount.restrictedAt && (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700 whitespace-nowrap" title={`Restricted since ${fmt(r.linkedinAccount.restrictedAt)} — renter sees 'recovering', access + billing paused`}>
+                          <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />Restricted — recovering · billing paused
+                        </span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">

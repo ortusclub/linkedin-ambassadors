@@ -29,6 +29,7 @@ export async function GET() {
             monthlyPrice: true,
             gologinProfileId: true,
             notes: true,
+            restrictedAt: true,
           },
         },
       },
