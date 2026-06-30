@@ -15,16 +15,8 @@ const STEPS = [
   { n: "2", title: "Select an account & pay", body: "Choose the account that fits your target audience and pay securely (card or wallet). The account is reserved for you and you'll get a confirmation email straight away." },
   { n: "3", title: "Set up GoLogin (or sign in if you have it)", body: "GoLogin is the tool that gives you secure access to the rented account. Install it and sign in with the same email you used here (steps below). Already have GoLogin? Just make sure you're signed in with this email." },
   { n: "4", title: "Open it instantly", body: "Your account is ready right away — from your dashboard, click 'Open in GoLogin' and the profile opens with LinkedIn already logged in. No waiting." },
-  { n: "5", title: "Run your outreach campaign", body: "You're live! Open the profile in GoLogin (LinkedIn already logged in) and start sending connection requests and messages. Stay within the daily limits below to keep the account healthy." },
+  { n: "5", title: "Run your outreach campaign", body: "You're live! Open the profile in GoLogin (LinkedIn already logged in) and start sending connection requests and messages. Your Account Guide covers the daily limits to keep the account healthy." },
   { n: "6", title: "Renew or cancel", body: "Accounts renew monthly. You'll get a reminder before your next billing date — cancel any time before renewal if you no longer need the account." },
-];
-
-const LIMITS = [
-  { activity: "Connection requests", limit: "20–30 per day maximum" },
-  { activity: "Messages to connections", limit: "50–80 per day" },
-  { activity: "Profile views", limit: "Keep natural — don't bulk view hundreds at once" },
-  { activity: "InMail messages", limit: "Use sparingly — only to 2nd/3rd degree connections" },
-  { activity: "Endorsements / reactions", limit: "Keep minimal — focus on outreach only" },
 ];
 
 const GET = [
@@ -32,24 +24,6 @@ const GET = [
   "Secure access through GoLogin's anti-detect browser — same proxy, cookies and fingerprint every time",
   "Simultaneous access (you and the owner never clash)",
   "Pause, resume and cancellation handled by us if anything comes up",
-];
-
-const DOS = [
-  "Stay within the daily limits above.",
-  "Keep messaging natural and personalised — avoid copy-paste spam.",
-  "Target a relevant, specific audience for better results.",
-  "Contact us immediately if you notice anything unusual on the account.",
-  "Use GoLogin every time — no exceptions.",
-  "Let us know your campaign goals so we can match you with the right account.",
-];
-
-const DONTS = [
-  "Log into the account directly on LinkedIn.com or the LinkedIn app.",
-  "Change any profile details — name, photo, headline, or about section.",
-  "Connect with or message people the account owner knows personally.",
-  "Use automation tools on top of the rented account.",
-  "Share account access with anyone outside your immediate team.",
-  "Send misleading, spammy, or inappropriate messages.",
 ];
 
 const GOLOGIN_STEPS = [
@@ -135,21 +109,15 @@ export default function GuidePage() {
         </div>
       </section>
 
-      {/* Daily limits */}
+      {/* Using your account — pointer to the Account Guide */}
       <section style={{ padding: "48px 0 0" }}>
         <div className="g-wrap">
-          <h2 className="g-h" style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Daily limits — keep the account safe</h2>
-          <p style={{ fontSize: 15, color: "#536471", lineHeight: 1.6, margin: "0 0 20px", maxWidth: 620 }}>LinkedIn monitors account activity closely. Stay within these limits to avoid restrictions.</p>
-          <div className="g-card">
-            <div className="g-limit-row g-h" style={{ fontWeight: 700, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.05em", color: "#8899A6" }}>
-              <div>Activity</div><div>Recommended daily limit</div>
+          <div className="g-card" style={{ background: "#F3F8FE", borderColor: "#D6E3F2", display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap", justifyContent: "space-between" }}>
+            <div>
+              <h2 className="g-h" style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: "#0A66C2" }}>Using your account day-to-day</h2>
+              <p style={{ fontSize: 15, color: "#374151", lineHeight: 1.6, margin: 0, maxWidth: 520 }}>Once you&apos;re renting, your <strong>Account Guide</strong> has everything you need: daily limits, do&apos;s &amp; don&apos;ts, and exactly what happens if an account ever gets restricted.</p>
             </div>
-            {LIMITS.map((l) => (
-              <div key={l.activity} className="g-limit-row">
-                <div style={{ fontWeight: 600 }}>{l.activity}</div>
-                <div style={{ color: "#536471" }}>{l.limit}</div>
-              </div>
-            ))}
+            <Link href="/account-guide" style={{ background: "#0A66C2", color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 14, padding: "12px 22px", borderRadius: 10, whiteSpace: "nowrap" }}>Open the Account Guide →</Link>
           </div>
         </div>
       </section>
@@ -167,54 +135,6 @@ export default function GuidePage() {
                 </li>
               ))}
             </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* Do's & Don'ts */}
-      <section style={{ padding: "48px 0 0" }}>
-        <div className="g-wrap">
-          <h2 className="g-h" style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Do&apos;s and don&apos;ts</h2>
-          <p style={{ fontSize: 15, color: "#536471", lineHeight: 1.6, margin: "0 0 24px", maxWidth: 620 }}>These accounts belong to real people who trust us with them. Following these keeps the account healthy — and keeps your access uninterrupted.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }} className="g-grid">
-            <div className="g-card">
-              <h3 className="g-h" style={{ fontSize: 17, fontWeight: 700, marginBottom: 12, color: "#00B85C" }}>✅ Do</h3>
-              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 10 }}>
-                {DOS.map((d) => (
-                  <li key={d} style={{ display: "flex", gap: 10, fontSize: 14, color: "#374151", lineHeight: 1.5 }}>
-                    <span style={{ color: "#00B85C", fontWeight: 800 }}>✓</span>{d}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="g-card">
-              <h3 className="g-h" style={{ fontSize: 17, fontWeight: 700, marginBottom: 12, color: "#DC2626" }}>❌ Don&apos;t</h3>
-              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 10 }}>
-                {DONTS.map((d) => (
-                  <li key={d} style={{ display: "flex", gap: 10, fontSize: 14, color: "#374151", lineHeight: 1.5 }}>
-                    <span style={{ color: "#DC2626", fontWeight: 800 }}>✕</span>{d}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* If something goes wrong */}
-      <section style={{ padding: "48px 0 0" }}>
-        <div className="g-wrap">
-          <div className="g-card" style={{ background: "#FEF2F2", borderColor: "#FECACA" }}>
-            <h2 className="g-h" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, color: "#B91C1C" }}>If something goes wrong</h2>
-            <p style={{ fontSize: 15, color: "#374151", lineHeight: 1.7, margin: "0 0 12px" }}>
-              If the account gets flagged or restricted, or you notice unusual activity — <strong>contact us on Telegram immediately</strong> (<a href="https://t.me/linkedvelocity_support_bot" target="_blank" rel="noopener noreferrer" style={{ color: "#B91C1C", fontWeight: 700 }}>@linkedvelocity_support_bot</a>). Don&apos;t try to fix it yourself.
-            </p>
-            <p style={{ fontSize: 15, color: "#374151", lineHeight: 1.7, margin: "0 0 12px" }}>
-              We stay in direct contact with all account owners so we can resolve issues quickly. In most cases we can recover a flagged account or provide a replacement.
-            </p>
-            <p style={{ fontSize: 15, color: "#374151", lineHeight: 1.7, margin: 0 }}>
-              <strong>Never appeal a LinkedIn restriction yourself</strong> on a rented account. Always contact us first so we can coordinate with the owner directly.
-            </p>
           </div>
         </div>
       </section>

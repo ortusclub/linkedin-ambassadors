@@ -748,7 +748,7 @@ function DashboardContent() {
           <div className="w-1.5 h-10 rounded bg-gradient-to-b from-[#0A66C2] to-[#004182] shrink-0" />
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-[#004182] leading-tight">Accounts I&apos;m Renting</h2>
-            <p className="text-sm text-gray-500 leading-snug">Accounts you&apos;re renting from other members — open them in GoLogin.</p>
+            <p className="text-sm text-gray-500 leading-snug">Accounts you&apos;re renting from other members — open them in GoLogin. <Link href="/account-guide" className="font-semibold text-[#0A66C2] hover:underline">Account guide →</Link></p>
           </div>
         </div>
         {activeRentals.length > 0 && (
