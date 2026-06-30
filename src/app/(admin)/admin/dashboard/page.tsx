@@ -17,12 +17,13 @@ interface Stats {
   availableAccounts: number;
   rentedAccounts: number;
   offlineAccounts: number;
+  restrictedAccounts: number;
   utilization: number;
   appsToReview: number;
 }
 
 interface Activity {
-  type: "rental" | "signup" | "submission";
+  type: "rental" | "signup" | "submission" | "restricted";
   label: string;
   date: string;
   isTest: boolean;
@@ -55,6 +56,7 @@ export default function AdminDashboardPage() {
 
   // Action items derived from the stats — only show rows that actually need attention.
   const attention: { label: string; tone: "warn" | "info" }[] = [];
+  if (stats.restrictedAccounts > 0) attention.push({ label: `${stats.restrictedAccounts} account${stats.restrictedAccounts > 1 ? "s" : ""} restricted — recovering (access & billing paused)`, tone: "warn" });
   if (stats.renewalsDue30d > 0) attention.push({ label: `${stats.renewalsDue30d} renewal${stats.renewalsDue30d > 1 ? "s" : ""} due in the next 30 days`, tone: "info" });
   if (stats.atRisk > 0) attention.push({ label: `${stats.atRisk} rental${stats.atRisk > 1 ? "s" : ""} at-risk (auto-renew off or payment failed)`, tone: "warn" });
   if (stats.availableAccounts > 0) attention.push({ label: `${stats.availableAccounts} account${stats.availableAccounts > 1 ? "s" : ""} idle (available, not earning)`, tone: "info" });
@@ -77,7 +79,7 @@ export default function AdminDashboardPage() {
   );
 
   const activityIcon = (t: Activity["type"]) =>
-    t === "rental" ? "🔵" : t === "signup" ? "🟢" : "🟣";
+    t === "restricted" ? "🟠" : t === "rental" ? "🔵" : t === "signup" ? "🟢" : "🟣";
 
   return (
     <div>
@@ -108,6 +110,7 @@ export default function AdminDashboardPage() {
 
       <Band title="🗂 Supply — accounts & ambassadors">
         <Tile label="Total Accounts" value={stats.totalAccounts} sub={`${stats.availableAccounts} avail · ${stats.rentedAccounts} rented · ${stats.offlineAccounts} offline`} />
+        <Tile label="Restricted" value={stats.restrictedAccounts} sub="recovering · access & billing paused" color={stats.restrictedAccounts > 0 ? "text-orange-600" : "text-gray-900"} />
         <Tile
           label="Utilization"
           value={`${stats.utilization}%`}

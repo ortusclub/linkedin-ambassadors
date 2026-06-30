@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       // Real inventory — exclude removed/retired; showcase + test filtered in JS.
       prisma.linkedInAccount.findMany({
         where: { status: { notIn: ["removed", "retired"] } },
-        select: { status: true, notes: true, linkedinName: true },
+        select: { status: true, notes: true, linkedinName: true, restrictedAt: true },
       }),
       // Customers who have actually rented (a signup with zero rentals isn't a customer yet).
       prisma.user.count({ where: { role: "customer", status: "active", ...liveUser, rentals: { some: {} } } }),
@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
     const totalAccounts = realAccounts.length;
     const availableAccounts = realAccounts.filter((a) => a.status === "available").length;
     const offlineAccounts = realAccounts.filter((a) => a.status === "unavailable" || a.status === "maintenance").length;
+    const restrictedAccounts = realAccounts.filter((a) => a.restrictedAt).length;
 
     const activeRentals = activeRentalsList.length;
     const rentedAccounts = activeRentals; // a test-held account doesn't inflate this
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
 
     // Merge into one activity feed, newest first.
     const recentActivity = [
+      ...realAccounts.filter((a) => a.restrictedAt).map((a) => ({ type: "restricted" as const, label: `Restricted — ${a.linkedinName}`, date: a.restrictedAt as Date, isTest: false })),
       ...activeRentalsList.map((r) => ({ type: "rental" as const, label: `${r.user.fullName} → ${r.linkedinAccount.linkedinName}`, date: r.createdAt, isTest: r.user.isTest })),
       ...recentSignups.map((u) => ({ type: "signup" as const, label: `New signup — ${u.fullName}`, date: u.createdAt, isTest: false })),
       ...recentSubmissions.map((s) => ({ type: "submission" as const, label: `Ambassador application — ${s.fullName}`, date: s.createdAt, isTest: false })),
@@ -91,7 +93,7 @@ export async function GET(req: NextRequest) {
         // demand
         totalCustomers, newCustomers30d, renewalsDue30d, atRisk,
         // supply
-        totalAccounts, availableAccounts, rentedAccounts, offlineAccounts, utilization, appsToReview,
+        totalAccounts, availableAccounts, rentedAccounts, offlineAccounts, restrictedAccounts, utilization, appsToReview,
       },
       recentActivity,
     });
