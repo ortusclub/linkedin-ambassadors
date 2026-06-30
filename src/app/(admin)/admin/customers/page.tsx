@@ -17,6 +17,7 @@ interface Customer {
   paymentMethod: string;
   isTest: boolean;
   referralSource: string | null;
+  vettingStartedAt: string | null;
   vettedAt: string | null;
   vettingInfo: { company?: string; website?: string; role?: string; useCase?: string; tools?: string } | null;
   vettingReview: string | null;
@@ -140,6 +141,8 @@ export default function AdminCustomersPage() {
                           "bg-amber-100 text-amber-700 hover:bg-amber-200"
                         }`}
                       >{c.vettingReview === "verified" ? "✓ Verified" : c.vettingReview === "flagged" ? "⚠ Flagged" : "● Needs review"}</button>
+                    ) : c.vettingStartedAt ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-600" title={`Opened the vetting form ${new Date(c.vettingStartedAt).toLocaleDateString()} but didn't finish`}>⏳ Started, didn&apos;t finish</span>
                     ) : (
                       <span className="text-xs text-gray-400">Not vetted</span>
                     )}

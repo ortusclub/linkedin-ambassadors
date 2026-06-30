@@ -63,6 +63,7 @@ export async function GET() {
       paymentMethod: fundingByUser.get(c.id) || "—",
       isTest: c.isTest,
       referralSource: c.referralSource,
+      vettingStartedAt: c.vettingStartedAt,
       vettedAt: c.vettedAt,
       vettingInfo: c.vettingInfo,
       vettingReview: c.vettingReview,
