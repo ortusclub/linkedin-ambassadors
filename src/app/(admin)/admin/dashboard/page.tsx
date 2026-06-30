@@ -96,22 +96,6 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Needs attention — top of page, scannable chips */}
-      <div className={`rounded-xl border p-4 ${attention.length ? "border-amber-200 bg-amber-50/70" : "border-gray-200 bg-white"}`}>
-        <p className="mb-2.5 text-sm font-semibold text-gray-900">⚠️ Needs attention</p>
-        {attention.length === 0 ? (
-          <p className="text-sm text-gray-400">All clear — nothing needs you right now. 🎉</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {attention.map((a, i) => (
-              <span key={i} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${a.tone === "warn" ? "bg-amber-100 text-amber-900" : "bg-blue-100 text-blue-800"}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${a.tone === "warn" ? "bg-amber-500" : "bg-blue-500"}`} />{a.label}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
       <Band title="💰 Money" grid="grid-cols-2 lg:grid-cols-4">
         <Tile label="Net Profit / mo" value={formatCurrency(stats.netProfit)} sub={`${margin}% margin`} color="text-green-600" />
         <Tile label="Monthly Revenue" value={formatCurrency(stats.mrr)} sub="recurring, money in" color="text-gray-900" />
@@ -144,7 +128,25 @@ export default function AdminDashboardPage() {
         <Tile label="Apps to Review" value={stats.appsToReview} sub="ambassador applications" />
       </Band>
 
-      <div className="mt-8">
+      <div className="mt-8 grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-sm font-semibold text-gray-900">⚠️ Needs attention</p>
+            <div className="mt-3 space-y-2">
+              {attention.length === 0 ? (
+                <p className="text-sm text-gray-400">All clear — nothing needs you right now. 🎉</p>
+              ) : (
+                attention.map((a, i) => (
+                  <div key={i} className="flex items-start gap-2 text-sm">
+                    <span className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${a.tone === "warn" ? "bg-amber-500" : "bg-blue-400"}`} />
+                    <span className="text-gray-600">{a.label}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent className="py-4">
             <p className="text-sm font-semibold text-gray-900">Recent activity</p>
