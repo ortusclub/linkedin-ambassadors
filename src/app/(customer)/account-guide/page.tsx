@@ -119,8 +119,8 @@ export default function AccountGuidePage() {
           <h2 className="g-h" style={{ fontSize: 26, fontWeight: 700, marginBottom: 8 }}>Do&apos;s and don&apos;ts</h2>
           <p style={{ fontSize: 15, color: "#536471", lineHeight: 1.6, margin: "0 0 24px", maxWidth: 620 }}>Want the profile tailored to your outreach — a different headline, experience, or location? Just message us and we&apos;ll handle it (we can change anything except the name and photo).</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }} className="g-grid">
-            <div className="g-card">
-              <h3 className="g-h" style={{ fontSize: 17, fontWeight: 700, marginBottom: 12, color: "#00B85C" }}>✅ Do</h3>
+            <div className="g-card" style={{ background: "#EFFBF3", borderColor: "#BBE9CC" }}>
+              <h3 className="g-h" style={{ fontSize: 17, fontWeight: 700, marginBottom: 12, color: "#0a8f43" }}>✅ Do</h3>
               <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 10 }}>
                 {DOS.map((d) => (
                   <li key={d} style={{ display: "flex", gap: 10, fontSize: 14, color: "#374151", lineHeight: 1.5 }}>
@@ -129,7 +129,7 @@ export default function AccountGuidePage() {
                 ))}
               </ul>
             </div>
-            <div className="g-card">
+            <div className="g-card" style={{ background: "#FEF2F2", borderColor: "#FBD0D0" }}>
               <h3 className="g-h" style={{ fontSize: 17, fontWeight: 700, marginBottom: 12, color: "#DC2626" }}>❌ Don&apos;t</h3>
               <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 10 }}>
                 {DONTS.map((d) => (
