@@ -17,6 +17,7 @@ export async function GET() {
             profilePhotoUrl: true,
             connectionCount: true,
             gologinShareLink: true,
+            restrictedAt: true,
           },
         },
       },

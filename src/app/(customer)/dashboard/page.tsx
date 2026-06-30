@@ -26,6 +26,7 @@ interface Rental {
     connectionCount: number;
     gologinProfileId: string | null;
     gologinShareLink: string | null;
+    restrictedAt: string | null;
   };
 }
 
@@ -803,7 +804,12 @@ function DashboardContent() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {rental.paused ? (
+                    {rental.linkedinAccount.restrictedAt ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
+                        Restricted — recovering it
+                      </span>
+                    ) : rental.paused ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                         Paused
@@ -848,7 +854,11 @@ function DashboardContent() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center gap-2 justify-end">
-                      {rental.paused ? (
+                      {rental.linkedinAccount.restrictedAt ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600 whitespace-nowrap" title="LinkedIn restricted this account — we're recovering it. No action needed.">
+                          Recovering…
+                        </span>
+                      ) : rental.paused ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-400 whitespace-nowrap">
                           Access paused
                         </span>

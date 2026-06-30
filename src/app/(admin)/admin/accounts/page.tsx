@@ -31,6 +31,7 @@ interface Account {
   gologinShareLink: string | null;
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
+  restrictedAt: string | null;
   verificationProof: string | null;
   linkedinVerified: boolean;
   removedAt: string | null;
@@ -664,6 +665,30 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     </div>
                     {a.healthCheckedAt && (
                       <div className="text-[10px] text-gray-400 mt-0.5">{new Date(a.healthCheckedAt).toLocaleDateString()}</div>
+                    )}
+                    {a.restrictedAt ? (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-700" title="Renter sees 'Restricted — recovering it' and access is paused">
+                          <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />Recovering
+                        </span>
+                        <button
+                          onClick={async () => {
+                            if (!confirm("Mark this account as recovered? The renter's downtime will be credited and access restored.")) return;
+                            const res = await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted: false }) });
+                            if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, restrictedAt: null } : acc)); if (d.creditedDays) alert(`Recovered. Credited ~${d.creditedDays} day(s) of downtime to the renter.`); }
+                          }}
+                          className="rounded bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-700 hover:bg-green-200"
+                        >Mark recovered</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          if (!confirm("Mark this account as restricted? The renter will see 'Restricted — recovering it' and access is paused.")) return;
+                          const res = await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted: true }) });
+                          if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, restrictedAt: d.restrictedAt } : acc)); }
+                        }}
+                        className="mt-1 block text-[11px] text-gray-400 hover:text-orange-600"
+                      >Mark restricted</button>
                     )}
                   </td>
                   <td className="px-3 py-2">
