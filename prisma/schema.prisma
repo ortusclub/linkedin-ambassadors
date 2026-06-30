@@ -328,3 +328,26 @@ model BlogPost {
 
   @@map("blog_posts")
 }
+
+// One row per calendar day: a snapshot of the headline run-rate metrics, so the
+// dashboard can show past months + month-over-month trends. Written by the
+// /api/cron/snapshot-metrics daily cron. Only starts from the day it's turned on
+// (no historical backfill is possible — we never recorded it before).
+model MetricsSnapshot {
+  id                 String   @id @default(uuid()) @db.Uuid
+  date               DateTime @unique @db.Date
+  mrr                Float    @default(0)
+  netProfit          Float    @default(0) @map("net_profit")
+  payouts            Float    @default(0)
+  activeRentals      Int      @default(0) @map("active_rentals")
+  totalCustomers     Int      @default(0) @map("total_customers")
+  totalAccounts      Int      @default(0) @map("total_accounts")
+  availableAccounts  Int      @default(0) @map("available_accounts")
+  rentedAccounts     Int      @default(0) @map("rented_accounts")
+  offlineAccounts    Int      @default(0) @map("offline_accounts")
+  restrictedAccounts Int      @default(0) @map("restricted_accounts")
+  utilization        Int      @default(0)
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@map("metrics_snapshots")
+}

@@ -14,6 +14,10 @@
     {
       "path": "/api/cron/auto-grant",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-metrics",
+      "schedule": "55 23 * * *"
     }
   ]
 }

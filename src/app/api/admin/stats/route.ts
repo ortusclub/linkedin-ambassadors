@@ -28,8 +28,9 @@ export async function GET(req: NextRequest) {
       : new Date(now.getFullYear(), now.getMonth(), 1);
     const mStart = new Date(ref.getFullYear(), ref.getMonth(), 1);
     const mEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 1);
-    const pStart = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
     const monthKey = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const isCurrentMonth = monthKey === currentMonthKey;
 
     const [
       inventoryAccounts,
@@ -43,12 +44,6 @@ export async function GET(req: NextRequest) {
       recentSubmissions,
       vettingStarted,
       vettingDropped,
-      revAgg,
-      revPrevAgg,
-      newCustMonth,
-      newCustPrev,
-      newRentMonth,
-      newRentPrev,
     ] = await Promise.all([
       // Real inventory — exclude removed/retired; showcase + test filtered in JS.
       prisma.linkedInAccount.findMany({
@@ -74,13 +69,6 @@ export async function GET(req: NextRequest) {
       // Vetting funnel: how many opened the form, and how many opened but didn't finish.
       prisma.user.count({ where: { vettingStartedAt: { not: null } } }),
       prisma.user.count({ where: { vettingStartedAt: { not: null }, vettedAt: null } }),
-      // Per-month figures (real, from dated records) — for the period filter + trend %.
-      prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: "rental_payment", createdAt: { gte: mStart, lt: mEnd } } }),
-      prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: "rental_payment", createdAt: { gte: pStart, lt: mStart } } }),
-      prisma.user.count({ where: { role: "customer", ...liveUser, createdAt: { gte: mStart, lt: mEnd } } }),
-      prisma.user.count({ where: { role: "customer", ...liveUser, createdAt: { gte: pStart, lt: mStart } } }),
-      prisma.rental.count({ where: { ...liveRental, createdAt: { gte: mStart, lt: mEnd } } }),
-      prisma.rental.count({ where: { ...liveRental, createdAt: { gte: pStart, lt: mStart } } }),
     ]);
 
     const realAccounts = inventoryAccounts.filter(isRealAccount);
@@ -104,14 +92,48 @@ export async function GET(req: NextRequest) {
     const netProfit = mrr - payouts;
     const utilization = totalAccounts > 0 ? Math.round((rentedAccounts / totalAccounts) * 100) : 0;
 
-    // Per-month revenue collected (rental_payment debits are negative -> abs) + trends.
-    // trend = % change vs previous month; null when there was no prior baseline (i.e. "new").
-    const revenue = Math.abs(Number(revAgg._sum.amount ?? 0));
-    const revenuePrev = Math.abs(Number(revPrevAgg._sum.amount ?? 0));
-    const pct = (cur: number, prev: number): number | null => prev > 0 ? Math.round(((cur - prev) / prev) * 100) : (cur > 0 ? null : 0);
-    const revenueTrend = pct(revenue, revenuePrev);
-    const newThisMonthTrend = pct(newCustMonth, newCustPrev);
-    const newRentalsTrend = pct(newRentMonth, newRentPrev);
+    // ── Month filter + month-over-month trends, powered by the daily snapshot table ──
+    // baseline = the latest snapshot strictly before the selected month (i.e. last month's
+    // end-of-day state); list of months we actually have snapshots for (drives the dropdown).
+    const [baseSnap, snapMonthRows] = await Promise.all([
+      prisma.metricsSnapshot.findFirst({ where: { date: { lt: mStart } }, orderBy: { date: "desc" } }),
+      prisma.metricsSnapshot.findMany({ select: { date: true }, orderBy: { date: "desc" } }),
+    ]);
+
+    // Live (current) core numbers — what we show for the current month.
+    let disp = { netProfit, mrr, payouts, activeRentals, totalCustomers, totalAccounts, availableAccounts, rentedAccounts, offlineAccounts, restrictedAccounts, utilization };
+    let hasMonthData = true;
+    if (!isCurrentMonth) {
+      // A past month: show that month's last snapshot instead of the live numbers.
+      const monthSnap = await prisma.metricsSnapshot.findFirst({ where: { date: { gte: mStart, lt: mEnd } }, orderBy: { date: "desc" } });
+      if (monthSnap) {
+        disp = {
+          netProfit: monthSnap.netProfit, mrr: monthSnap.mrr, payouts: monthSnap.payouts, activeRentals: monthSnap.activeRentals,
+          totalCustomers: monthSnap.totalCustomers, totalAccounts: monthSnap.totalAccounts, availableAccounts: monthSnap.availableAccounts,
+          rentedAccounts: monthSnap.rentedAccounts, offlineAccounts: monthSnap.offlineAccounts, restrictedAccounts: monthSnap.restrictedAccounts, utilization: monthSnap.utilization,
+        };
+      } else {
+        hasMonthData = false;
+      }
+    }
+
+    // trend = % change vs the baseline snapshot. undefined => no prior snapshot yet (no chip);
+    // null => baseline was 0 but there's a value now ("new").
+    const trend = (cur: number, key: "mrr" | "netProfit" | "activeRentals" | "totalCustomers" | "utilization"): number | null | undefined => {
+      if (!baseSnap) return undefined;
+      const prev = Number((baseSnap as Record<string, unknown>)[key] ?? 0);
+      return prev > 0 ? Math.round(((cur - prev) / prev) * 100) : (cur > 0 ? null : 0);
+    };
+    const mrrTrend = trend(disp.mrr, "mrr");
+    const netProfitTrend = trend(disp.netProfit, "netProfit");
+    const activeRentalsTrend = trend(disp.activeRentals, "activeRentals");
+    const customersTrend = trend(disp.totalCustomers, "totalCustomers");
+    const utilizationTrend = trend(disp.utilization, "utilization");
+
+    const ymOf = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    const monthSet = new Set<string>(snapMonthRows.map((r) => ymOf(r.date)));
+    monthSet.add(currentMonthKey); // always offer the current (live) month
+    const availableMonths = [...monthSet].sort().reverse();
 
     // Merge into one activity feed, newest first.
     const recentActivity = [
@@ -125,18 +147,17 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       stats: {
-        // money
-        netProfit, mrr, payouts, activeRentals,
+        // money (live for the current month, snapshot for a past month)
+        netProfit: disp.netProfit, mrr: disp.mrr, payouts: disp.payouts, activeRentals: disp.activeRentals,
         // demand
-        totalCustomers, newCustomers30d, renewalsDue30d, atRisk,
+        totalCustomers: disp.totalCustomers, newCustomers30d, renewalsDue30d, atRisk,
         // supply
-        totalAccounts, availableAccounts, rentedAccounts, offlineAccounts, restrictedAccounts, utilization, appsToReview,
+        totalAccounts: disp.totalAccounts, availableAccounts: disp.availableAccounts, rentedAccounts: disp.rentedAccounts, offlineAccounts: disp.offlineAccounts, restrictedAccounts: disp.restrictedAccounts, utilization: disp.utilization, appsToReview,
         // vetting funnel
         vettingStarted, vettingDropped,
-        // selected-month figures + trends (real, from dated records)
-        month: monthKey, revenue, revenueTrend,
-        newThisMonth: newCustMonth, newThisMonthTrend,
-        newRentals: newRentMonth, newRentalsTrend,
+        // month filter + month-over-month trends (from the daily snapshot table)
+        month: monthKey, isCurrentMonth, hasMonthData, availableMonths,
+        mrrTrend, netProfitTrend, activeRentalsTrend, customersTrend, utilizationTrend,
       },
       recentActivity,
     });
