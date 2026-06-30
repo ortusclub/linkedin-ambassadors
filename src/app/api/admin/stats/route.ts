@@ -31,6 +31,8 @@ export async function GET(req: NextRequest) {
       appsToReview,
       recentSignups,
       recentSubmissions,
+      vettingStarted,
+      vettingDropped,
     ] = await Promise.all([
       // Real inventory — exclude removed/retired; showcase + test filtered in JS.
       prisma.linkedInAccount.findMany({
@@ -53,6 +55,9 @@ export async function GET(req: NextRequest) {
       prisma.ambassadorApplication.count({ where: { status: { in: ["reviewing", "pending"] } } }),
       prisma.user.findMany({ where: { role: "customer", ...liveUser }, select: { fullName: true, email: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 5 }),
       prisma.ambassadorApplication.findMany({ select: { fullName: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 5 }),
+      // Vetting funnel: how many opened the form, and how many opened but didn't finish.
+      prisma.user.count({ where: { vettingStartedAt: { not: null } } }),
+      prisma.user.count({ where: { vettingStartedAt: { not: null }, vettedAt: null } }),
     ]);
 
     const realAccounts = inventoryAccounts.filter(isRealAccount);
@@ -94,6 +99,8 @@ export async function GET(req: NextRequest) {
         totalCustomers, newCustomers30d, renewalsDue30d, atRisk,
         // supply
         totalAccounts, availableAccounts, rentedAccounts, offlineAccounts, restrictedAccounts, utilization, appsToReview,
+        // vetting funnel
+        vettingStarted, vettingDropped,
       },
       recentActivity,
     });

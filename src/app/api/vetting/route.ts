@@ -26,6 +26,15 @@ export async function POST(req: Request) {
     const user = await requireAuth();
     const b = await req.json().catch(() => ({}));
 
+    // Renter opened the vetting form — stamp once (for drop-off tracking). No-op if already started/vetted.
+    if (b.action === "start") {
+      const u = await prisma.user.findUnique({ where: { id: user.id }, select: { vettingStartedAt: true } });
+      if (!u?.vettingStartedAt) {
+        await prisma.user.update({ where: { id: user.id }, data: { vettingStartedAt: new Date() } });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     if (!b.agreed) {
       return NextResponse.json({ error: "Please agree to the use policy to continue." }, { status: 400 });
     }

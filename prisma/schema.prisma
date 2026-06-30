@@ -53,6 +53,7 @@ model User {
   dismissAppModalUntil DateTime? @map("dismiss_app_modal_until")
   paymentDetails    String?    @map("payment_details")
   referralSource    String?    @map("referral_source")
+  vettingStartedAt  DateTime?  @map("vetting_started_at") // opened the vetting form at checkout (for drop-off tracking)
   vettedAt          DateTime?  @map("vetted_at")      // renter vetting completed + agreed to use policy
   vettingInfo       Json?      @map("vetting_info")   // { company, website, role, useCase, tools }
   vettingReview     String?    @map("vetting_review") // admin's personal check: pending | verified | flagged

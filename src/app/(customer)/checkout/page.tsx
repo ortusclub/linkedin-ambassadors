@@ -99,8 +99,10 @@ function CheckoutContent() {
 
   // First-time renters fill a short vetting form + agree to the use policy before paying.
   const startPayment = () => {
-    if (vetted) handleCheckout();
-    else setShowVetting(true);
+    if (vetted) { handleCheckout(); return; }
+    setShowVetting(true);
+    // log that they reached the vetting form (drop-off tracking) — fire & forget
+    fetch("/api/vetting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "start" }) }).catch(() => {});
   };
   const submitVetting = async () => {
     setVetError("");

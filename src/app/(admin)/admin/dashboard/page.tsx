@@ -12,6 +12,8 @@ interface Stats {
   totalCustomers: number;
   newCustomers30d: number;
   renewalsDue30d: number;
+  vettingStarted: number;
+  vettingDropped: number;
   atRisk: number;
   totalAccounts: number;
   availableAccounts: number;
@@ -106,6 +108,12 @@ export default function AdminDashboardPage() {
         <Tile label="New (30d)" value={stats.newCustomers30d} sub="new this month" />
         <Tile label="Renewals ≤30d" value={stats.renewalsDue30d} sub="coming up" />
         <Tile label="At-risk" value={stats.atRisk} sub="may churn" color={stats.atRisk > 0 ? "text-amber-600" : "text-gray-900"} />
+        <Tile
+          label="Vetting drop-off"
+          value={`${stats.vettingDropped}/${stats.vettingStarted}`}
+          sub={stats.vettingStarted > 0 ? `${Math.round((stats.vettingDropped / stats.vettingStarted) * 100)}% opened form, didn't finish` : "opened form, didn't finish"}
+          color={stats.vettingDropped > 0 ? "text-amber-600" : "text-gray-900"}
+        />
       </Band>
 
       <Band title="🗂 Supply — accounts & ambassadors">
