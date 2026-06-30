@@ -167,8 +167,9 @@ export default function AccountGuidePage() {
           </div>
           <p style={{ fontSize: 13, color: "#8899A6", lineHeight: 1.6, margin: "10px 0 0" }}>Only repeated heavy use counts toward this — a one-off, or a restriction that wasn&apos;t your fault, never does.</p>
 
-          <div className="g-card" style={{ background: "#FFF7ED", borderColor: "#FED7AA", marginTop: 16 }}>
-            <p style={{ fontSize: 14.5, color: "#9A3412", lineHeight: 1.65, margin: 0 }}>
+          <div className="g-card" style={{ background: "#FFF7ED", borderColor: "#F59E0B", borderWidth: 2, marginTop: 16 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "#B45309", background: "#FEF3C7", border: "1px solid #FCD34D", borderRadius: 999, padding: "4px 12px", marginBottom: 12 }}>⚠️ Please take note</div>
+            <p style={{ fontSize: 15.5, color: "#9A3412", lineHeight: 1.65, margin: 0 }}>
               <strong>Above all — these are real people.</strong> Every account belongs to a real, consenting professional who&apos;s trusted us with their profile. Please only ever use it for genuine, legitimate business — never anything illegal, fraudulent, or deceptive. If we spot something serious, we&apos;ll pause access and ask what happened, and a genuine breach ends the rental (no refund).
             </p>
           </div>
