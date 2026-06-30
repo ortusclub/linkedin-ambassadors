@@ -10,6 +10,9 @@ interface Stats {
   vettingStarted: number; vettingDropped: number; atRisk: number;
   totalAccounts: number; availableAccounts: number; rentedAccounts: number;
   offlineAccounts: number; restrictedAccounts: number; utilization: number; appsToReview: number;
+  month: string; revenue: number; revenueTrend: number | null;
+  newThisMonth: number; newThisMonthTrend: number | null;
+  newRentals: number; newRentalsTrend: number | null;
 }
 interface Activity { type: "rental" | "signup" | "submission" | "restricted"; label: string; date: string; isTest: boolean; }
 
@@ -22,16 +25,24 @@ export default function AdminDashboardPage() {
   const [activity, setActivity] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [includeTest, setIncludeTest] = useState(false);
+  const [month, setMonth] = useState<string>("");
+
+  // last 6 months for the period dropdown
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return { key, label: i === 0 ? "This month" : d.toLocaleString("en-US", { month: "long", year: "numeric" }) };
+  });
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    fetch(`/api/admin/stats?includeTest=${includeTest ? "1" : "0"}`)
+    fetch(`/api/admin/stats?includeTest=${includeTest ? "1" : "0"}${month ? `&month=${month}` : ""}`)
       .then((r) => r.json())
       .then((data) => { if (!active) return; setStats(data.stats); setActivity(data.recentActivity || []); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [includeTest]);
+  }, [includeTest, month]);
 
   if (loading || !stats) {
     return (
@@ -41,7 +52,8 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const margin = stats.mrr > 0 ? Math.round((stats.netProfit / stats.mrr) * 100) : 0;
+  const netProfitMonth = stats.revenue - stats.payouts;
+  const margin = stats.revenue > 0 ? Math.round((netProfitMonth / stats.revenue) * 100) : 0;
   const circ = 2 * Math.PI * 25;
   const utilDash = (Math.min(100, Math.max(0, stats.utilization)) / 100) * circ;
   const rentedPct = stats.totalAccounts > 0 ? (stats.rentedAccounts / stats.totalAccounts) * 100 : 0;
@@ -66,7 +78,7 @@ export default function AdminDashboardPage() {
   const cardSub: React.CSSProperties = { font: `500 11.5px ${F_SANS}`, color: "var(--muted)" };
   const num = (size: number, color = "var(--text)"): React.CSSProperties => ({ font: `600 ${size}px/1 ${F_GRO}`, color, fontVariantNumeric: "tabular-nums", letterSpacing: "-.02em" });
 
-  const StatCard = ({ label, value, sub, valueColor, warn, href, extra }: { label: string; value: React.ReactNode; sub?: React.ReactNode; valueColor?: string; warn?: boolean; href?: string; extra?: React.ReactNode }) => (
+  const StatCard = ({ label, value, sub, valueColor, warn, href, extra, trend }: { label: string; value: React.ReactNode; sub?: React.ReactNode; valueColor?: string; warn?: boolean; href?: string; extra?: React.ReactNode; trend?: React.ReactNode }) => (
     <div
       onClick={href ? () => router.push(href) : undefined}
       style={{
@@ -76,7 +88,10 @@ export default function AdminDashboardPage() {
       }}
     >
       <span style={warn ? { ...cardLabel, color: "var(--warn-label)" } : cardLabel}>{label}</span>
-      <span style={num(26, valueColor || (warn ? "var(--warn-num)" : "var(--text)"))}>{value}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={num(26, valueColor || (warn ? "var(--warn-num)" : "var(--text)"))}>{value}</span>
+        {trend}
+      </div>
       <span style={warn ? { ...cardSub, color: "var(--warn-label)" } : cardSub}>{sub}</span>
       {extra}
     </div>
@@ -93,6 +108,17 @@ export default function AdminDashboardPage() {
   const upPts = "0,30 13,26 26,27 39,20 52,15 65,12 78,8 91,6 100,4";
   const seg = (active: boolean): React.CSSProperties => ({ font: `600 12.5px ${F_SANS}`, padding: "6px 14px", borderRadius: 7, cursor: "pointer", border: "none", color: active ? "var(--seg-active-text)" : "var(--seg-inactive-text)", background: active ? "var(--seg-active-bg)" : "transparent" });
 
+  const Trend = ({ v }: { v: number | null }) => {
+    if (v === 0) return null;
+    const isNew = v === null;
+    const up = isNew || (v as number) > 0;
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 3, font: `600 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: up ? "var(--green-chip-bg)" : "var(--warn-badge-bg)", color: up ? "var(--green-chip-text)" : "var(--warn-badge-text)", whiteSpace: "nowrap" }}>
+        {up ? "▲" : "▼"} {isNew ? "new" : `${Math.abs(v as number)}%`}
+      </span>
+    );
+  };
+
   return (
     <div>
       {/* header */}
@@ -101,9 +127,15 @@ export default function AdminDashboardPage() {
           <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 7px", letterSpacing: "-.02em" }}>Dashboard</h1>
           <p style={{ font: `500 13.5px ${F_SANS}`, color: "var(--muted)", margin: 0 }}>How the business is doing — money, demand and supply at a glance.</p>
         </div>
-        <div style={{ display: "flex", background: "var(--seg-bg)", border: "1px solid var(--seg-border)", borderRadius: 10, padding: 3 }}>
-          <button onClick={() => setIncludeTest(false)} style={seg(!includeTest)}>Live</button>
-          <button onClick={() => setIncludeTest(true)} style={seg(includeTest)}>All (incl. test)</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", background: "var(--seg-bg)", border: "1px solid var(--seg-border)", borderRadius: 10, padding: 3 }}>
+            <button onClick={() => setIncludeTest(false)} style={seg(!includeTest)}>Live</button>
+            <button onClick={() => setIncludeTest(true)} style={seg(includeTest)}>All (incl. test)</button>
+          </div>
+          <select value={month || months[0].key} onChange={(e) => setMonth(e.target.value)}
+            style={{ font: `600 12.5px ${F_SANS}`, color: "var(--muted)", background: "var(--seg-bg)", border: "1px solid var(--seg-border)", padding: "7px 12px", borderRadius: 9, cursor: "pointer" }}>
+            {months.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+          </select>
         </div>
       </div>
 
@@ -112,12 +144,15 @@ export default function AdminDashboardPage() {
         <div style={sectionLabel}>Money</div>
         <div style={{ display: "grid", gridTemplateColumns: "1.35fr 1fr 1fr 1fr", gap: 14 }}>
           <div onClick={() => router.push("/admin/rentals")} style={{ background: "var(--money-bg)", border: "1px solid var(--money-border)", borderRadius: 16, padding: "17px 19px 14px", boxShadow: "var(--money-shadow)", cursor: "pointer" }}>
-            <span style={{ font: `700 11px ${F_SANS}`, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--money-label)" }}>Net profit / mo</span>
-            <div style={{ ...num(38, "var(--money-num)"), marginTop: 9 }}>{formatCurrency(stats.netProfit)}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ font: `700 11px ${F_SANS}`, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--money-label)" }}>Net profit / mo</span>
+              <Trend v={stats.revenueTrend} />
+            </div>
+            <div style={{ ...num(38, "var(--money-num)"), marginTop: 9 }}>{formatCurrency(netProfitMonth)}</div>
             <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--money-label)", marginTop: 5 }}>{margin}% margin</div>
             <Spark path={upPath} points={upPts} stroke="var(--money-spark-stroke)" fill="var(--money-spark-fill)" h={42} />
           </div>
-          <MoneyCard label="Monthly rev." value={formatCurrency(stats.mrr)} sub="recurring · money in" stroke="var(--accent)" fill="var(--blue-spark-fill)" num={num} cardSub={cardSub} Spark={Spark} path={upPath} pts={upPts} />
+          <MoneyCard label="Monthly rev." value={formatCurrency(stats.revenue)} sub="collected this month" stroke="var(--accent)" fill="var(--blue-spark-fill)" num={num} cardSub={cardSub} Spark={Spark} path={upPath} pts={upPts} trendEl={<Trend v={stats.revenueTrend} />} />
           <MoneyCard label="Amb. payouts" value={formatCurrency(stats.payouts)} sub="money out" stroke="var(--gray-spark-stroke)" fill="var(--gray-spark-fill)" num={num} cardSub={cardSub} Spark={Spark} path="M0,25 L13,25 L26,24 L39,25 L52,25 L65,24 L78,25 L91,25 L100,25 L100,34 L0,34 Z" pts="0,25 13,25 26,24 39,25 52,25 65,24 78,25 91,25 100,25" />
           <div onClick={() => router.push("/admin/rentals")} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "17px 18px 14px", boxShadow: "var(--card-shadow)", cursor: "pointer" }}>
             <span style={{ font: `700 11px ${F_SANS}`, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--muted)" }}>Active rentals</span>
@@ -137,7 +172,7 @@ export default function AdminDashboardPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 }}>
               <StatCard label="Customers" value={stats.totalCustomers} sub={`renting ${stats.rentedAccounts} accounts`} href="/admin/customers"
                 extra={<svg viewBox="0 0 100 22" preserveAspectRatio="none" style={{ width: "100%", height: 18, display: "block", marginTop: "auto" }}><polyline points="0,18 20,16 40,17 60,12 80,9 100,6" fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></svg>} />
-              <StatCard label="New (30d)" value={stats.newCustomers30d} sub="new this month" href="/admin/customers" />
+              <StatCard label="New customers" value={stats.newThisMonth} sub="signed up this month" href="/admin/customers" trend={<Trend v={stats.newThisMonthTrend} />} />
               <StatCard label="Renewals ≤30d" value={stats.renewalsDue30d} sub="coming up" href="/admin/rentals"
                 extra={<div style={{ height: 5, borderRadius: 999, background: "var(--track)", marginTop: "auto", overflow: "hidden" }}><div style={{ width: `${renewPct}%`, height: "100%", background: "var(--accent)", borderRadius: 999 }} /></div>} />
               <StatCard label="At-risk" value={stats.atRisk} sub="may churn" warn href="/admin/rentals" valueColor={stats.atRisk > 0 ? "var(--warn-num)" : "var(--faint-num)"} />
@@ -208,14 +243,18 @@ export default function AdminDashboardPage() {
   );
 }
 
-function MoneyCard({ label, value, sub, stroke, fill, path, pts, num, cardSub, Spark }: {
+function MoneyCard({ label, value, sub, stroke, fill, path, pts, num, cardSub, Spark, trendEl }: {
   label: string; value: React.ReactNode; sub: string; stroke: string; fill: string; path: string; pts: string;
   num: (s: number, c?: string) => React.CSSProperties; cardSub: React.CSSProperties;
   Spark: (p: { path?: string; points: string; stroke: string; fill?: string; h?: number }) => React.ReactNode;
+  trendEl?: React.ReactNode;
 }) {
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "17px 18px 14px", boxShadow: "var(--card-shadow)" }}>
-      <span style={{ font: `700 11px ${F_SANS}`, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--muted)" }}>{label}</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ font: `700 11px ${F_SANS}`, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--muted)" }}>{label}</span>
+        {trendEl}
+      </div>
       <div style={{ ...num(30), marginTop: 9 }}>{value}</div>
       <div style={{ ...cardSub, marginTop: 5 }}>{sub}</div>
       {Spark({ path, points: pts, stroke, fill })}

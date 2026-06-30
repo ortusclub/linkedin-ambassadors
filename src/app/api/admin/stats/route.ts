@@ -21,6 +21,16 @@ export async function GET(req: NextRequest) {
     const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+    // Selected month (for the period filter) + previous month (for trend %).
+    const monthParam = req.nextUrl.searchParams.get("month");
+    const ref = monthParam && /^\d{4}-\d{2}$/.test(monthParam)
+      ? new Date(Number(monthParam.slice(0, 4)), Number(monthParam.slice(5, 7)) - 1, 1)
+      : new Date(now.getFullYear(), now.getMonth(), 1);
+    const mStart = new Date(ref.getFullYear(), ref.getMonth(), 1);
+    const mEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 1);
+    const pStart = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
+    const monthKey = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
+
     const [
       inventoryAccounts,
       totalCustomers,
@@ -33,6 +43,12 @@ export async function GET(req: NextRequest) {
       recentSubmissions,
       vettingStarted,
       vettingDropped,
+      revAgg,
+      revPrevAgg,
+      newCustMonth,
+      newCustPrev,
+      newRentMonth,
+      newRentPrev,
     ] = await Promise.all([
       // Real inventory — exclude removed/retired; showcase + test filtered in JS.
       prisma.linkedInAccount.findMany({
@@ -58,6 +74,13 @@ export async function GET(req: NextRequest) {
       // Vetting funnel: how many opened the form, and how many opened but didn't finish.
       prisma.user.count({ where: { vettingStartedAt: { not: null } } }),
       prisma.user.count({ where: { vettingStartedAt: { not: null }, vettedAt: null } }),
+      // Per-month figures (real, from dated records) — for the period filter + trend %.
+      prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: "rental_payment", createdAt: { gte: mStart, lt: mEnd } } }),
+      prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: "rental_payment", createdAt: { gte: pStart, lt: mStart } } }),
+      prisma.user.count({ where: { role: "customer", ...liveUser, createdAt: { gte: mStart, lt: mEnd } } }),
+      prisma.user.count({ where: { role: "customer", ...liveUser, createdAt: { gte: pStart, lt: mStart } } }),
+      prisma.rental.count({ where: { ...liveRental, createdAt: { gte: mStart, lt: mEnd } } }),
+      prisma.rental.count({ where: { ...liveRental, createdAt: { gte: pStart, lt: mStart } } }),
     ]);
 
     const realAccounts = inventoryAccounts.filter(isRealAccount);
@@ -81,6 +104,15 @@ export async function GET(req: NextRequest) {
     const netProfit = mrr - payouts;
     const utilization = totalAccounts > 0 ? Math.round((rentedAccounts / totalAccounts) * 100) : 0;
 
+    // Per-month revenue collected (rental_payment debits are negative -> abs) + trends.
+    // trend = % change vs previous month; null when there was no prior baseline (i.e. "new").
+    const revenue = Math.abs(Number(revAgg._sum.amount ?? 0));
+    const revenuePrev = Math.abs(Number(revPrevAgg._sum.amount ?? 0));
+    const pct = (cur: number, prev: number): number | null => prev > 0 ? Math.round(((cur - prev) / prev) * 100) : (cur > 0 ? null : 0);
+    const revenueTrend = pct(revenue, revenuePrev);
+    const newThisMonthTrend = pct(newCustMonth, newCustPrev);
+    const newRentalsTrend = pct(newRentMonth, newRentPrev);
+
     // Merge into one activity feed, newest first.
     const recentActivity = [
       ...realAccounts.filter((a) => a.restrictedAt).map((a) => ({ type: "restricted" as const, label: `Restricted — ${a.linkedinName}`, date: a.restrictedAt as Date, isTest: false })),
@@ -101,6 +133,10 @@ export async function GET(req: NextRequest) {
         totalAccounts, availableAccounts, rentedAccounts, offlineAccounts, restrictedAccounts, utilization, appsToReview,
         // vetting funnel
         vettingStarted, vettingDropped,
+        // selected-month figures + trends (real, from dated records)
+        month: monthKey, revenue, revenueTrend,
+        newThisMonth: newCustMonth, newThisMonthTrend,
+        newRentals: newRentMonth, newRentalsTrend,
       },
       recentActivity,
     });
