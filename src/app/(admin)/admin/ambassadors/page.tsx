@@ -75,6 +75,7 @@ export default function AdminAmbassadorsPage() {
       reviewing: "info",
       approved: "success",
       rejected: "danger",
+      unreachable: "warning",
     };
     return map[s] || "default";
   };
@@ -148,6 +149,7 @@ export default function AdminAmbassadorsPage() {
           { value: "pending", label: "Received" },
           { value: "approved", label: "Accepted" },
           { value: "rejected", label: "Rejected" },
+          { value: "unreachable", label: "Unreachable" },
           { value: "", label: "All" },
         ].map((s) => (
           <button
@@ -226,12 +228,14 @@ export default function AdminAmbassadorsPage() {
                             (app.status === "pending" || app.status === "reviewing") ? "bg-yellow-100 text-yellow-800" :
                             app.status === "approved" ? "bg-green-100 text-green-800" :
                             app.status === "rejected" ? "bg-red-100 text-red-800" :
+                            app.status === "unreachable" ? "bg-orange-100 text-orange-800" :
                             "bg-gray-100 text-gray-800"
                           }`}
                         >
                           <option value="pending">Received</option>
                           <option value="approved">Accepted</option>
                           <option value="rejected">Rejected</option>
+                          <option value="unreachable">Unreachable</option>
                         </select>
                       </td>
                       <td className="px-3 py-2 text-sm text-gray-500">{formatDate(app.createdAt)}</td>
