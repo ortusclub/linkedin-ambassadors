@@ -140,6 +140,12 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {!stats.isCurrentMonth && (
+        <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 10, padding: "9px 13px", marginBottom: 18 }}>
+          Showing <strong style={{ color: "var(--text2)" }}>{labelMonth(stats.month)}</strong> — month-end snapshot. The right-hand panels (Needs attention, Recent activity) always show live status.
+        </div>
+      )}
+
       {/* MONEY */}
       <div style={{ marginBottom: 20 }}>
         <div style={sectionLabel}>Money</div>
