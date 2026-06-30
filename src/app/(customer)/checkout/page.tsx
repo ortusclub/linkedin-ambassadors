@@ -34,6 +34,11 @@ function CheckoutContent() {
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [autoRenew, setAutoRenew] = useState(true);
+  const [vetted, setVetted] = useState<boolean | null>(null);
+  const [showVetting, setShowVetting] = useState(false);
+  const [vetForm, setVetForm] = useState({ company: "", website: "", role: "", useCase: "", tools: "", agreed: false });
+  const [vetSaving, setVetSaving] = useState(false);
+  const [vetError, setVetError] = useState("");
 
   const accountIds = searchParams.get("accounts")?.split(",").filter(Boolean) || [];
 
@@ -52,10 +57,12 @@ function CheckoutContent() {
       ),
       fetch("/api/wallet/balance").then((r) => r.json()).catch(() => ({ balance: "0" })),
       fetch("/api/wallet/deposit-address").then((r) => r.json()).catch(() => ({ address: null })),
-    ]).then(([accountResults, balanceData, addressData]) => {
+      fetch("/api/vetting").then((r) => r.json()).catch(() => ({ vetted: false })),
+    ]).then(([accountResults, balanceData, addressData, vettingData]) => {
       setAccounts(accountResults.filter(Boolean));
       setUsdcBalance(parseFloat(balanceData.balance || "0"));
       setDepositAddress(addressData.address || null);
+      setVetted(!!vettingData.vetted);
       setLoading(false);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -88,6 +95,30 @@ function CheckoutContent() {
     } finally {
       setCheckingOut(false);
     }
+  };
+
+  // First-time renters fill a short vetting form + agree to the use policy before paying.
+  const startPayment = () => {
+    if (vetted) handleCheckout();
+    else setShowVetting(true);
+  };
+  const submitVetting = async () => {
+    setVetError("");
+    if (!vetForm.company.trim() || !vetForm.role.trim() || !vetForm.useCase.trim()) {
+      setVetError("Please fill in your company, role, and what you'll use the account for.");
+      return;
+    }
+    if (!vetForm.agreed) { setVetError("Please agree to the use policy to continue."); return; }
+    setVetSaving(true);
+    try {
+      const res = await fetch("/api/vetting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(vetForm) });
+      const d = await res.json();
+      if (!res.ok) { setVetError(d.error || "Something went wrong"); return; }
+      setVetted(true);
+      setShowVetting(false);
+      handleCheckout();
+    } catch { setVetError("Something went wrong. Please try again."); }
+    finally { setVetSaving(false); }
   };
 
   const copyAddress = () => {
@@ -234,7 +265,7 @@ function CheckoutContent() {
                   <p style={{fontSize:12,color:'#8899A6',marginBottom:12}}>Paid from your balance. Cancel anytime.</p>
                   {hasSufficientBalance ? (
                     <button
-                      onClick={handleCheckout}
+                      onClick={startPayment}
                       disabled={checkingOut}
                       style={{width:'100%',padding:'14px',borderRadius:10,background:'#0A66C2',color:'#fff',fontSize:15,fontWeight:700,border:'none',cursor:'pointer',fontFamily:'inherit',transition:'all .15s',opacity:checkingOut?0.6:1}}
                     >
@@ -360,6 +391,41 @@ function CheckoutContent() {
         </div>
 
       </div>
+
+      {showVetting && (
+        <div style={{position:'fixed',inset:0,background:'rgba(15,20,25,0.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:20,zIndex:50}}>
+          <div style={{background:'#fff',borderRadius:16,maxWidth:460,width:'100%',padding:'26px 26px 22px',maxHeight:'90vh',overflowY:'auto',fontFamily:"'Karla',system-ui,sans-serif"}}>
+            <h2 style={{fontSize:20,fontWeight:700,color:'#0F1419',marginBottom:4,fontFamily:"'Montserrat','Karla',system-ui,sans-serif"}}>Quick details before you rent</h2>
+            <p style={{fontSize:13,color:'#536471',marginBottom:18,lineHeight:1.5}}>One-time only — helps us look after your accounts. Takes ~30 seconds.</p>
+            {([
+              {k:'company',label:'Company name',ph:'Acme Inc.'},
+              {k:'website',label:'Website or LinkedIn page (optional)',ph:'acme.com'},
+              {k:'role',label:'Your role',ph:'Head of Sales'},
+              {k:'useCase',label:"What will you use the account for?",ph:'B2B outreach / lead gen'},
+              {k:'tools',label:'Any tools you’ll connect? (optional)',ph:'e.g. none, Sales Navigator'},
+            ] as const).map((f) => (
+              <div key={f.k} style={{marginBottom:12}}>
+                <label style={{display:'block',fontSize:12,fontWeight:600,color:'#374151',marginBottom:4}}>{f.label}</label>
+                <input
+                  value={(vetForm as Record<string,string|boolean>)[f.k] as string}
+                  onChange={(e) => setVetForm((v) => ({ ...v, [f.k]: e.target.value }))}
+                  placeholder={f.ph}
+                  style={{width:'100%',padding:'9px 11px',borderRadius:8,border:'1px solid #E8E6E1',fontSize:14,fontFamily:'inherit',outline:'none'}}
+                />
+              </div>
+            ))}
+            <label style={{display:'flex',gap:9,alignItems:'flex-start',marginTop:6,marginBottom:14,cursor:'pointer'}}>
+              <input type="checkbox" checked={vetForm.agreed} onChange={(e) => setVetForm((v) => ({ ...v, agreed: e.target.checked }))} style={{marginTop:2}} />
+              <span style={{fontSize:12.5,color:'#374151',lineHeight:1.5}}>I’ve read and agree to the <a href="/account-guide" target="_blank" style={{color:'#0A66C2',fontWeight:600}}>use policy</a>, and I’m responsible for all use of these accounts — including my team.</span>
+            </label>
+            {vetError && <div style={{background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:8,padding:9,marginBottom:12,fontSize:12,color:'#991B1B'}}>{vetError}</div>}
+            <button onClick={submitVetting} disabled={vetSaving} style={{width:'100%',padding:'13px',borderRadius:10,background:'#0A66C2',color:'#fff',fontSize:15,fontWeight:700,border:'none',cursor:'pointer',fontFamily:'inherit',opacity:vetSaving?0.6:1}}>
+              {vetSaving ? "Saving..." : "Continue to payment →"}
+            </button>
+            <button onClick={() => setShowVetting(false)} style={{width:'100%',padding:'9px',borderRadius:10,background:'transparent',color:'#536471',fontSize:13,fontWeight:500,border:'none',cursor:'pointer',fontFamily:'inherit',marginTop:6}}>Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

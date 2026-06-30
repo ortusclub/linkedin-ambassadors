@@ -63,6 +63,8 @@ export async function GET() {
       paymentMethod: fundingByUser.get(c.id) || "—",
       isTest: c.isTest,
       referralSource: c.referralSource,
+      vettedAt: c.vettedAt,
+      vettingInfo: c.vettingInfo,
     }));
 
     return NextResponse.json({ customers: result });

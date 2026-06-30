@@ -17,6 +17,8 @@ interface Customer {
   paymentMethod: string;
   isTest: boolean;
   referralSource: string | null;
+  vettedAt: string | null;
+  vettingInfo: { company?: string; website?: string; role?: string; useCase?: string; tools?: string } | null;
 }
 
 export default function AdminCustomersPage() {
@@ -85,6 +87,7 @@ export default function AdminCustomersPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Payment Method</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Heard From</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Vetting</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Active Rentals</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Total Rentals</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">Joined</th>
@@ -118,6 +121,16 @@ export default function AdminCustomersPage() {
                     <span className="text-sm text-gray-700">{c.paymentMethod}</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{c.referralSource || "—"}</td>
+                  <td className="px-4 py-3 text-sm">
+                    {c.vettedAt ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 cursor-help"
+                        title={`Vetted ${new Date(c.vettedAt).toLocaleDateString()}\nCompany: ${c.vettingInfo?.company || "—"}\nWebsite: ${c.vettingInfo?.website || "—"}\nRole: ${c.vettingInfo?.role || "—"}\nUse: ${c.vettingInfo?.useCase || "—"}\nTools: ${c.vettingInfo?.tools || "—"}`}
+                      >✓ Vetted</span>
+                    ) : (
+                      <span className="text-xs text-gray-400">Not vetted</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{c.activeRentals}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{c.totalRentals}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{formatDate(c.createdAt)}</td>

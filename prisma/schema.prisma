@@ -53,6 +53,8 @@ model User {
   dismissAppModalUntil DateTime? @map("dismiss_app_modal_until")
   paymentDetails    String?    @map("payment_details")
   referralSource    String?    @map("referral_source")
+  vettedAt          DateTime?  @map("vetted_at")      // renter vetting completed + agreed to use policy
+  vettingInfo       Json?      @map("vetting_info")   // { company, website, role, useCase, tools }
   stripePaymentMethodId String? @map("stripe_payment_method_id")
   cardBrand         String?    @map("card_brand")
   cardLast4         String?    @map("card_last4")
