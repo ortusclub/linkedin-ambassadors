@@ -805,10 +805,13 @@ function DashboardContent() {
                   </td>
                   <td className="px-4 py-3">
                     {rental.linkedinAccount.restrictedAt ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
-                        Restricted — recovering it
-                      </span>
+                      <div>
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
+                          Restricted — recovering it
+                        </span>
+                        <div className="text-[10px] text-gray-400 mt-0.5">Billing paused — not charged while it&apos;s down</div>
+                      </div>
                     ) : rental.paused ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />

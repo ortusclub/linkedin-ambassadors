@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   try {
     // 0) Auto-renew ON — reassuring heads-up ~3 days before renewal (Stripe + USDC).
     const upcomingAuto = await prisma.rental.findMany({
-      where: { autoRenew: true, status: "active", currentPeriodEnd: { gt: now, lte: new Date(now.getTime() + 3 * DAY) } },
+      where: { autoRenew: true, status: "active", currentPeriodEnd: { gt: now, lte: new Date(now.getTime() + 3 * DAY) }, linkedinAccount: { restrictedAt: null } },
       include: { user: true },
     });
     for (const r of upcomingAuto) {
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     // 1) USDC auto-renew — charge from wallet balance at (or just before) period end.
     const dueUsdc = await prisma.rental.findMany({
-      where: { usdcPayment: true, status: "active", autoRenew: true, currentPeriodEnd: { lte: new Date(now.getTime() + DAY) } },
+      where: { usdcPayment: true, status: "active", autoRenew: true, currentPeriodEnd: { lte: new Date(now.getTime() + DAY) }, linkedinAccount: { restrictedAt: null } },
       include: { user: true, linkedinAccount: true },
     });
     for (const r of dueUsdc) {
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     // 2) Manual-renewal cadence — auto-renew OFF rentals (active or recently expired).
     const manual = await prisma.rental.findMany({
-      where: { autoRenew: false, status: { in: ["active", "expired"] } },
+      where: { autoRenew: false, status: { in: ["active", "expired"] }, linkedinAccount: { restrictedAt: null } },
       include: { user: true, linkedinAccount: true },
     });
     for (const r of manual) {
