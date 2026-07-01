@@ -199,8 +199,12 @@ export default function ContentEditor() {
               <label className="text-xs font-semibold text-gray-500">in&nbsp; LinkedIn post <span className="font-normal text-gray-400">— repurposed caption</span></label>
               <span className="text-[11px] text-gray-400">{post.linkedinPostedAt ? `Shared ${new Date(post.linkedinPostedAt).toLocaleDateString()}` : post.linkedinPost ? "Not shared yet" : "None yet"}</span>
             </div>
+            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1.5">⚠️ Keep LinkedIn captions free of <strong>rental / ToS-circumvention</strong> wording (renting accounts, aged accounts, bypassing limits/bans). Posting that <em>on LinkedIn</em> can flag your page — share the strategy/insight, keep the rental pitch on the site.</p>
             <textarea className={field} rows={8} value={post.linkedinPost || ""} onChange={(e) => set({ linkedinPost: e.target.value })}
-              placeholder={"Repurposed LinkedIn version — hook, one insight, soft CTA + link, 3–4 hashtags.\n\nNot every post needs one; add it for the share-worthy ones."} />
+              placeholder={"Safe LinkedIn version — a genuine outreach/sales insight, soft CTA + blog link, 3–4 hashtags.\n\nSkip the share-unsafe topics (rental, ToS, limits)."} />
+            {/\b(rent|rental|renting|aged account|buy(?:ing)?\s.{0,14}account|bans?|banned|bypass|circumvent|get around|scrap|multiple linkedin account)\b/i.test(post.linkedinPost || "") && (
+              <p className="text-[11px] text-red-600 font-medium">⚠️ This caption mentions rental / ToS-circumvention terms — reconsider before posting on LinkedIn.</p>
+            )}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] text-gray-400">{(post.linkedinPost || "").length} chars</span>
               <button onClick={() => navigator.clipboard?.writeText(post.linkedinPost || "")} disabled={!post.linkedinPost} className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40">Copy</button>
