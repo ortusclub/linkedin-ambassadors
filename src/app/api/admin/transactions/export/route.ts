@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  const headers = ["Date", "User", "Email", "Type", "Method", "Amount (USDC)", "Description", "Tx Hash"];
+  const headers = ["Date", "User", "Email", "Type", "Method", "Amount (USD)", "Description", "Tx Hash"];
   const rows = txs.map((t) => [
     fmtDateTime(t.createdAt),
     t.user.fullName,

@@ -20,7 +20,7 @@ const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 const typeGroup = (t: string) => (t === "deposit" ? "deposit" : t === "rental_payment" ? "rental_payment" : "adjustment");
 const typeLabel = (t: string) => t.replace(/_/g, " ");
 const amountColor = (n: number) => (n > 0 ? "var(--st-active-fg)" : n < 0 ? "var(--danger)" : "var(--muted)");
-const money = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(2)} USDC`;
+const money = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}$${Math.abs(n).toFixed(2)}`;
 
 const typeBadge = (t: string): React.CSSProperties => {
   const g = typeGroup(t);
@@ -146,9 +146,9 @@ export default function AdminTransactionsPage() {
 
       {/* summary strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
-        <SummaryCard label="Revenue collected" value={`+${nums.revenue.toFixed(2)} USDC`} color="var(--st-active-fg)" sub="everything collected — top-ups + direct" />
-        <SummaryCard label="Deposits / top-ups" value={`+${nums.deposits.toFixed(2)} USDC`} color="var(--accent)" sub="non-refundable wallet credit loaded" />
-        <SummaryCard label="Unspent credit" value={`${nums.walletHeld.toFixed(2)} USDC`} color="var(--text)" sub="loaded, not yet used on a rental" />
+        <SummaryCard label="Revenue collected" value={`+$${nums.revenue.toFixed(2)}`} color="var(--st-active-fg)" sub="everything collected — top-ups + direct" />
+        <SummaryCard label="Deposits / top-ups" value={`+$${nums.deposits.toFixed(2)}`} color="var(--accent)" sub="non-refundable wallet credit loaded" />
+        <SummaryCard label="Unspent credit" value={`${nums.walletHeld < 0 ? "−$" : "$"}${Math.abs(nums.walletHeld).toFixed(2)}`} color="var(--text)" sub="loaded, not yet used on a rental" />
         <SummaryCard label="Transactions" value={String(nums.count)} color="var(--text)" sub="in this view" />
       </div>
 
@@ -188,7 +188,7 @@ export default function AdminTransactionsPage() {
                   <span style={{ font: `700 11px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--label)", whiteSpace: "nowrap" }}>{g.date}</span>
                 </span>
                 <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.breakdown}</span>
-                <span style={{ font: `600 12.5px ${F_GRO}`, textAlign: "right", fontVariantNumeric: "tabular-nums", color: g.dayRev > 0 ? "var(--st-active-fg)" : "var(--muted2)" }}>{g.dayRev > 0 ? `+${g.dayRev.toFixed(2)} USDC` : "—"}</span>
+                <span style={{ font: `600 12.5px ${F_GRO}`, textAlign: "right", fontVariantNumeric: "tabular-nums", color: g.dayRev > 0 ? "var(--st-active-fg)" : "var(--muted2)" }}>{g.dayRev > 0 ? `+$${g.dayRev.toFixed(2)}` : "—"}</span>
                 <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--label)", textAlign: "right" }}>{g.count} txns</span>
               </div>
 
