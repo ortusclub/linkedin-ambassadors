@@ -320,7 +320,7 @@ export default function AdminRentalsPage() {
                           <button onClick={() => handleAccess(r.id, "grant")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", border: "none", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Grant"}</button>
                         )}
                         {(r.status === "active" || r.status === "payment_failed" || r.status === "pending_access") && (
-                          <button onClick={() => handleAccess(r.id, "end")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--danger)", background: "transparent", border: "1px solid var(--danger-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>End</button>
+                          <button onClick={() => handleAccess(r.id, "end")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--danger)", background: "var(--st-cancel-bg)", border: "1px solid var(--danger-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>End</button>
                         )}
                       </div>
                       <button onClick={() => handleDeleteRental(r.id)} disabled={busy === r.id} style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", cursor: "pointer", padding: 2, alignSelf: "center" }}>🗑 Delete</button>
