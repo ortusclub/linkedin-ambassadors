@@ -51,6 +51,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (typeof body.content === "string") data.content = body.content;
     if ("readTime" in body) data.readTime = body.readTime || null;
     if ("reviewerNotes" in body) data.reviewerNotes = body.reviewerNotes || null;
+    if ("linkedinPost" in body) data.linkedinPost = body.linkedinPost || null;
+    if ("linkedinPostedAt" in body) data.linkedinPostedAt = body.linkedinPostedAt ? new Date(body.linkedinPostedAt) : null;
     if ("scheduledFor" in body) data.scheduledFor = body.scheduledFor ? new Date(body.scheduledFor) : null;
 
     // slug change (keep unique)

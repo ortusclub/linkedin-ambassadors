@@ -13,6 +13,8 @@ interface Post {
   scheduledFor: string | null;
   publishedAt: string | null;
   updatedAt: string;
+  linkedinPost?: string | null;
+  linkedinPostedAt?: string | null;
 }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
@@ -157,6 +159,7 @@ export default function AdminContentPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
           {showPriority && <span style={{ font: `700 9.5px ${F_SANS}`, padding: "2px 6px", borderRadius: 5, flex: "none", ...priStyle(p.priority) }}>{p.priority}</span>}
           <span style={tag}>{p.category}</span>
+          {p.linkedinPost && <span title={p.linkedinPostedAt ? "LinkedIn post — shared" : "LinkedIn post — ready"} style={{ font: `700 8.5px ${F_SANS}`, padding: "2px 5px", borderRadius: 4, flex: "none", ...(p.linkedinPostedAt ? { background: "var(--st-active-bg)", color: "var(--st-active-fg)" } : { background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }) }}>in</span>}
         </div>
         <span style={{ font: `500 11px ${F_SANS}`, color: "var(--date-color)", whiteSpace: "nowrap", flex: "none" }}>{fmtShort(p.scheduledFor || p.publishedAt)}</span>
       </div>

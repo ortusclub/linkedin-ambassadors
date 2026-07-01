@@ -19,6 +19,8 @@ interface Post {
   publishedAt: string | null;
   reviewerNotes: string | null;
   authorEmail: string | null;
+  linkedinPost: string | null;
+  linkedinPostedAt: string | null;
 }
 
 const CATEGORIES = ["LinkedIn Limits", "LinkedIn Strategy", "LinkedIn Compliance", "Tools", "Sales Strategy", "Getting Started", "Market & Competitive"];
@@ -83,7 +85,8 @@ export default function ContentEditor() {
     const payload = {
       title: post.title, slug: post.slug, description: post.description, category: post.category,
       keyword: post.keyword, pillar: post.pillar, content: post.content, readTime: post.readTime,
-      reviewerNotes: post.reviewerNotes, scheduledFor: post.scheduledFor, ...extra,
+      reviewerNotes: post.reviewerNotes, scheduledFor: post.scheduledFor,
+      linkedinPost: post.linkedinPost, linkedinPostedAt: post.linkedinPostedAt, ...extra,
     };
     const res = await fetch(`/api/admin/content/${id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -189,6 +192,21 @@ export default function ContentEditor() {
               onChange={(e) => set({ content: e.target.value })}
               placeholder={"## Heading\n\nParagraph text with **bold** and [a link](https://...).\n\n- bullet\n- bullet"} />
             <p className="text-[11px] text-gray-400 mt-1">Supports ## / ### headings, **bold**, *italic*, - lists, 1. lists, [links](url), tables, --- rules.</p>
+          </CardContent></Card>
+
+          <Card><CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-500">in&nbsp; LinkedIn post <span className="font-normal text-gray-400">— repurposed caption</span></label>
+              <span className="text-[11px] text-gray-400">{post.linkedinPostedAt ? `Shared ${new Date(post.linkedinPostedAt).toLocaleDateString()}` : post.linkedinPost ? "Not shared yet" : "None yet"}</span>
+            </div>
+            <textarea className={field} rows={8} value={post.linkedinPost || ""} onChange={(e) => set({ linkedinPost: e.target.value })}
+              placeholder={"Repurposed LinkedIn version — hook, one insight, soft CTA + link, 3–4 hashtags.\n\nNot every post needs one; add it for the share-worthy ones."} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] text-gray-400">{(post.linkedinPost || "").length} chars</span>
+              <button onClick={() => navigator.clipboard?.writeText(post.linkedinPost || "")} disabled={!post.linkedinPost} className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40">Copy</button>
+              <button onClick={() => persist({ linkedinPostedAt: post.linkedinPostedAt ? null : new Date().toISOString() })} disabled={saving || !post.linkedinPost}
+                className={`text-xs px-2.5 py-1 rounded-lg text-white disabled:opacity-40 ${post.linkedinPostedAt ? "bg-gray-400 hover:bg-gray-500" : "bg-[#0A66C2] hover:bg-[#095196]"}`}>{post.linkedinPostedAt ? "Mark not shared" : "Mark as shared"}</button>
+            </div>
           </CardContent></Card>
 
           <Card><CardContent className="p-4">

@@ -323,6 +323,8 @@ model BlogPost {
   publishedAt   DateTime? @map("published_at")
   authorEmail   String?   @map("author_email")
   reviewerNotes String?   @map("reviewer_notes")           // Sam's review feedback
+  linkedinPost     String?   @map("linkedin_post")         // repurposed LinkedIn caption (optional)
+  linkedinPostedAt DateTime? @map("linkedin_posted_at")    // when it was shared to LinkedIn
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
