@@ -1,10 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { formatNumber } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
 
@@ -12,6 +9,7 @@ interface Account {
   id: string;
   linkedinName: string;
   linkedinHeadline: string | null;
+  linkedinUrl: string | null;
   connectionCount: number;
   industry: string | null;
   location: string | null;
@@ -35,798 +33,359 @@ interface Account {
   verificationProof: string | null;
   linkedinVerified: boolean;
   removedAt: string | null;
-  removedBy: string | null;
-  rentals: Array<{
-    lockedPrice: string | number | null;
-    currentPeriodEnd: string | null;
-    autoRenew: boolean;
-    user: { fullName: string; email: string };
-  }>;
+  rentals: Array<{ lockedPrice: string | number | null; currentPeriodEnd: string | null; autoRenew: boolean; user: { fullName: string; email: string } }>;
 }
+
+const F_SANS = "var(--font-sans),system-ui,sans-serif";
+const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmt = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`; };
+const fmtS = (d: string | null) => { if (!d) return ""; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
+
+const displayStatus = (s: string) => (s === "available" ? "Available" : s === "rented" ? "Rented" : s === "removed" ? "Removed" : "Offline");
+const GROUPS: { key: string; hint: string; dot: string }[] = [
+  { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
+  { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
+  { key: "Offline", hint: "temporarily not rentable", dot: "var(--neutral-chip-text)" },
+  { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
+];
+const statusChip = (disp: string): React.CSSProperties => {
+  const m: Record<string, [string, string]> = { Available: ["var(--st-active-bg)", "var(--st-active-fg)"], Rented: ["var(--blue-chip-bg)", "var(--blue-chip-text)"], Offline: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"], Removed: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"] };
+  const [bg, fg] = m[disp] || m.Offline;
+  return { background: bg, color: fg };
+};
+// combine admin restriction (restrictedAt) + auto health check into one pill
+function healthOf(a: Account): { label: string; bg: string; fg: string; note: string } {
+  if (a.restrictedAt) return { label: "Recovering", bg: "var(--st-unreach-bg)", fg: "var(--st-unreach-fg)", note: `restricted ${fmtS(a.restrictedAt)}` };
+  const h = a.linkedinAccountHealth;
+  if (h === "checking") return { label: "Checking…", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)", note: "" };
+  if (h === "active") return { label: "Active", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)", note: a.healthCheckedAt ? `checked ${fmtS(a.healthCheckedAt)}` : "" };
+  if (h === "restricted" || h === "not_found") return { label: h === "not_found" ? "Not found" : "Restricted", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)", note: a.healthCheckedAt ? `checked ${fmtS(a.healthCheckedAt)}` : "" };
+  if (h === "unknown" || h === "rate_limited" || h === "error") return { label: "Unknown", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)", note: "" };
+  return { label: "Unchecked", bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)", note: "not yet checked" };
+}
+const profileEmailOf = (a: Account) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || null;
+const ownerOf = (a: Account) => { const notes = a.notes || ""; if (notes.includes("[SHOWCASE]")) return "Dummy"; if ([profileEmailOf(a), a.ownerEmail].some((e) => isCompanyEmail(e))) return "Ortus"; return a.ownerEmail || "—"; };
+
+const GRID = "minmax(0,1fr) 150px 100px 172px 168px";
 
 export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [savingProof, setSavingProof] = useState<string | null>(null);
-
-  const [opening, setOpening] = useState<string | null>(null);
-  const [openProfiles, setOpenProfiles] = useState<Set<string>>(new Set());
-  const [closing, setClosing] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [sheets, setSheets] = useState<{ open: boolean; url?: string; configured?: boolean }>({ open: false });
-
-  const openSheets = async () => {
-    setSheets({ open: true });
-    try {
-      const res = await fetch("/api/admin/accounts/export-url");
-      const data = await res.json();
-      setSheets({ open: true, url: data.url, configured: data.configured });
-    } catch {
-      setSheets({ open: true, configured: false });
-    }
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selected.size === accounts.length && accounts.length > 0) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(accounts.map((a) => a.id)));
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selected.size === 0) return;
-    if (!confirm(`Are you sure you want to remove ${selected.size} account${selected.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
-    setBulkDeleting(true);
-    const results = await Promise.all(
-      Array.from(selected).map((id) =>
-        fetch(`/api/admin/accounts/${id}`, { method: "DELETE" }).then((r) => r.ok ? id : null)
-      )
-    );
-    const deleted = new Set(results.filter(Boolean));
-    setAccounts((prev) => prev.filter((a) => !deleted.has(a.id)));
-    setSelected(new Set());
-    setBulkDeleting(false);
-  };
-
-  useEffect(() => {
-    const params = filter && filter !== "offline" ? `?status=${filter}` : "";
-    fetch(`/api/admin/accounts${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        let accts = data.accounts || [];
-        if (filter === "offline") {
-          accts = accts.filter((a: Account) => a.status !== "available" && a.status !== "rented");
-        }
-        setAccounts(accts);
-      })
-      .finally(() => setLoading(false));
-
-    // Fetch active browser sessions once on load
-    fetch("/api/admin/browser/active")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.active) setOpenProfiles(new Set(data.active));
-      })
-      .catch(() => {});
-  }, [filter]);
-
-  const handleOpen = async (accountId: string, accountName: string) => {
-    setOpening(accountId);
-    try {
-      const res = await fetch("/api/admin/browser/open", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId, accountName }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || "Failed to open browser");
-      } else {
-        setOpenProfiles((prev) => new Set(prev).add(accountId));
-      }
-    } catch {
-      alert("Failed to open browser");
-    } finally {
-      setOpening(null);
-    }
-  };
-
-  const handleClose = async (profileId: string) => {
-    setClosing(profileId);
-    try {
-      const res = await fetch("/api/admin/browser/close", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setOpenProfiles((prev) => {
-          const next = new Set(prev);
-          next.delete(profileId);
-          return next;
-        });
-      } else {
-        alert(data.error || "Failed to close browser");
-      }
-    } catch {
-      alert("Failed to close browser");
-    } finally {
-      setClosing(null);
-    }
-  };
-
-  const handleDelete = async (accountId: string) => {
-    if (!confirm("Are you sure you want to remove this account? This cannot be undone.")) return;
-    const res = await fetch(`/api/admin/accounts/${accountId}`, { method: "DELETE" });
-    if (res.ok) {
-      setAccounts((prev) => prev.filter((a) => a.id !== accountId));
-    } else {
-      alert("Failed to remove account");
-    }
-  };
-
-  const handleApprove = async (accountId: string) => {
-    const res = await fetch(`/api/admin/accounts/${accountId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "available" }),
-    });
-    if (res.ok) {
-      setAccounts((prev) =>
-        prev.map((a) => a.id === accountId ? { ...a, status: "available" } : a)
-      );
-    }
-  };
-
+  const [busy, setBusy] = useState<string | null>(null);
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+  const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
+  const [copied, setCopied] = useState(false);
+  // import
   const [showImport, setShowImport] = useState(false);
   const [csvText, setCsvText] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
 
+  const load = () => fetch("/api/admin/accounts").then((r) => r.json()).then((d) => setAccounts(d.accounts || []));
+  useEffect(() => {
+    load().finally(() => setLoading(false));
+    fetch("/api/admin/accounts/export-url").then((r) => r.json()).then((d) => { setSheetConfigured(!!d.configured); setSheetUrl(d.url || null); }).catch(() => setSheetConfigured(false));
+  }, []);
+
+  const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
+
+  const patch = async (id: string, body: Record<string, unknown>) => fetch(`/api/admin/accounts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+  const toggleForRent = async (a: Account) => {
+    if (a.status === "rented") return;
+    const next = a.status === "available" ? "unavailable" : "available";
+    setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: next, listed: next === "available" } : x)));
+    await patch(a.id, { status: next, listed: next === "available" });
+  };
+  const toggleVerified = async (a: Account) => {
+    setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, linkedinVerified: !a.linkedinVerified } : x)));
+    const res = await patch(a.id, { linkedinVerified: !a.linkedinVerified });
+    if (!res.ok) setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, linkedinVerified: a.linkedinVerified } : x)));
+  };
+  const saveProof = async (a: Account, value: string) => {
+    if (value === (a.verificationProof || "")) return;
+    setSavingProof(a.id);
+    try { await patch(a.id, { verificationProof: value || null }); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, verificationProof: value || null } : x))); }
+    finally { setSavingProof(null); }
+  };
+  const checkHealth = async (id: string) => {
+    setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, linkedinAccountHealth: "checking" } : a)));
+    const res = await fetch(`/api/admin/accounts/${id}/check-health`, { method: "POST" });
+    if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, linkedinAccountHealth: d.health, healthCheckedAt: d.checkedAt } : a))); }
+    else setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, linkedinAccountHealth: "error" } : a)));
+  };
+  const setRestricted = async (a: Account, restricted: boolean) => {
+    if (restricted && !confirm("Mark this account as restricted? The renter will see 'Restricted — recovering it' and access is paused.")) return;
+    if (!restricted && !confirm("Mark this account as recovered? The renter's downtime will be credited and access restored.")) return;
+    setBusy(a.id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted }) });
+      if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, restrictedAt: restricted ? (d.restrictedAt || new Date().toISOString()) : null } : x))); if (!restricted && d.creditedDays) alert(`Recovered. Credited ~${d.creditedDays} day(s) of downtime to the renter.`); }
+    } finally { setBusy(null); }
+  };
+  const handleDelete = async (a: Account) => {
+    if (!confirm(`Remove ${a.linkedinName} from inventory? This can't be undone.`)) return;
+    setBusy(a.id);
+    try { const res = await fetch(`/api/admin/accounts/${a.id}`, { method: "DELETE" }); if (res.ok) setAccounts((prev) => prev.filter((x) => x.id !== a.id)); else alert("Failed to remove account"); }
+    finally { setBusy(null); }
+  };
+
+  // ── CSV import (unchanged logic) ──
   const csvTemplate = `Account Email,LinkedIn Name,LinkedIn URL,Connections,Industry,Location,Sales Navigator,Account Opened,Rental Price,Ambassador Payment,Status,Profile Photo URL,GoLogin Share Link
 mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Technology,London,no,2020-01-15,50,25,available,https://example.com/photo.jpg,https://app.gologin.com/share/abc123`;
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setCsvText((ev.target?.result as string) || "");
-    };
-    reader.readAsText(file);
-  };
-
-  const parseCsvLine = (line: string): string[] => {
-    const result: string[] = [];
-    let current = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { inQuotes = !inQuotes; }
-      else if (ch === "," && !inQuotes) { result.push(current.trim()); current = ""; }
-      else { current += ch; }
-    }
-    result.push(current.trim());
-    return result;
-  };
-
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => setCsvText((ev.target?.result as string) || ""); reader.readAsText(file); };
+  const parseCsvLine = (line: string): string[] => { const r: string[] = []; let cur = "", q = false; for (const ch of line) { if (ch === '"') q = !q; else if (ch === "," && !q) { r.push(cur.trim()); cur = ""; } else cur += ch; } r.push(cur.trim()); return r; };
   const handleCsvImport = async () => {
     if (!csvText.trim()) return;
-    setImporting(true);
-    setImportResult(null);
-
+    setImporting(true); setImportResult(null);
     const lines = csvText.trim().split("\n");
     const firstLine = lines[0].toLowerCase().trim();
     const isHeaderRow = firstLine.includes("account email") || firstLine.includes("linkedin name") || firstLine.includes("email");
-    const headerCols = isHeaderRow ? parseCsvLine(lines[0]).map(c => c.trim().toLowerCase()) : [];
+    const headerCols = isHeaderRow ? parseCsvLine(lines[0]).map((c) => c.trim().toLowerCase()) : [];
     const dataLines = isHeaderRow ? lines.slice(1) : lines;
-
-    // Column index mapping — supports any column order
-    const colIndex = (name: string) => {
-      const i = headerCols.findIndex(h => h.includes(name));
-      return i >= 0 ? i : -1;
-    };
-
-    const defaultOrder = ["account email", "linkedin name", "linkedin url", "connections", "industry", "location", "sales nav", "account opened", "rental price", "ambassador payment", "status", "profile photo"];
-    const getCol = (cols: string[], name: string, fallbackIdx: number) => {
-      const idx = isHeaderRow ? colIndex(name) : fallbackIdx;
-      return idx >= 0 && idx < cols.length ? cols[idx]?.trim() : "";
-    };
-
-    let success = 0;
-    let failed = 0;
-
+    const colIndex = (name: string) => headerCols.findIndex((h) => h.includes(name));
+    const getCol = (cols: string[], name: string, fb: number) => { const idx = isHeaderRow ? colIndex(name) : fb; return idx >= 0 && idx < cols.length ? cols[idx]?.trim() : ""; };
+    let success = 0, failed = 0;
     for (const line of dataLines) {
       if (!line.trim()) continue;
       const cols = parseCsvLine(line);
       const accountEmail = getCol(cols, "account email", 0) || getCol(cols, "email", 0);
-      const linkedinName = getCol(cols, "linkedin name", 1) || getCol(cols, "name", 1);
-      const linkedinUrl = getCol(cols, "linkedin url", 2) || getCol(cols, "url", 2);
-      const connections = getCol(cols, "connections", 3);
-      const industry = getCol(cols, "industry", 4);
-      const location = getCol(cols, "location", 5);
-      const salesNav = getCol(cols, "sales nav", 6);
       const accountOpened = getCol(cols, "account opened", 7) || getCol(cols, "opened", 7);
-      const rentalPrice = getCol(cols, "rental price", 8) || getCol(cols, "rental", 8);
-      const ambassadorPayment = getCol(cols, "ambassador payment", 9) || getCol(cols, "ambassador", 9) || getCol(cols, "payout", 9);
+      let ageM: number | undefined;
+      if (accountOpened) { const o = new Date(accountOpened); if (!isNaN(o.getTime())) { const n = new Date(); ageM = (n.getFullYear() - o.getFullYear()) * 12 + (n.getMonth() - o.getMonth()); } }
       const status = getCol(cols, "status", 10);
-      const photoUrl = getCol(cols, "photo", 11) || getCol(cols, "image", 11);
-      const gologinShareLink = getCol(cols, "gologin", 12) || getCol(cols, "share link", 12);
-
-      let accountAgeMonths: number | undefined;
-      if (accountOpened) {
-        const opened = new Date(accountOpened);
-        if (!isNaN(opened.getTime())) {
-          const now = new Date();
-          accountAgeMonths = (now.getFullYear() - opened.getFullYear()) * 12 + (now.getMonth() - opened.getMonth());
-        }
-      }
-
       try {
-        const res = await fetch("/api/admin/accounts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            linkedinName: linkedinName || accountEmail?.split("@")[0] || "Unknown",
-            linkedinUrl: linkedinUrl || undefined,
-            connectionCount: parseInt(connections) || 0,
-            industry: industry || undefined,
-            location: location || undefined,
-            hasSalesNav: salesNav?.toLowerCase() === "yes" || salesNav?.toLowerCase() === "true",
-            accountAgeMonths: accountAgeMonths || undefined,
-            monthlyPrice: parseFloat(rentalPrice) || 0,
-            ambassadorPayment: parseFloat(ambassadorPayment) || 0,
-            profilePhotoUrl: photoUrl || undefined,
-            gologinShareLink: gologinShareLink || undefined,
-            notes: `Ambassador account. Owner: admin. Profile email: ${accountEmail || ""}.`,
-            status: (["under_review","available","unavailable","rented","maintenance","retired"].includes(status?.trim().toLowerCase()) ? status.trim().toLowerCase() : "under_review"),
-          }),
-        });
-        if (res.ok) success++;
-        else { const err = await res.json().catch(() => ({})); console.error("Import row failed:", err); failed++; }
-      } catch (e) {
-        console.error("Import row error:", e); failed++;
-      }
+        const res = await fetch("/api/admin/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          linkedinName: getCol(cols, "linkedin name", 1) || getCol(cols, "name", 1) || accountEmail?.split("@")[0] || "Unknown",
+          linkedinUrl: getCol(cols, "linkedin url", 2) || getCol(cols, "url", 2) || undefined,
+          connectionCount: parseInt(getCol(cols, "connections", 3)) || 0,
+          industry: getCol(cols, "industry", 4) || undefined,
+          location: getCol(cols, "location", 5) || undefined,
+          hasSalesNav: ["yes", "true"].includes((getCol(cols, "sales nav", 6) || "").toLowerCase()),
+          accountAgeMonths: ageM || undefined,
+          monthlyPrice: parseFloat(getCol(cols, "rental price", 8) || getCol(cols, "rental", 8)) || 0,
+          ambassadorPayment: parseFloat(getCol(cols, "ambassador payment", 9) || getCol(cols, "ambassador", 9) || getCol(cols, "payout", 9)) || 0,
+          profilePhotoUrl: getCol(cols, "photo", 11) || getCol(cols, "image", 11) || undefined,
+          gologinShareLink: getCol(cols, "gologin", 12) || getCol(cols, "share link", 12) || undefined,
+          notes: `Ambassador account. Owner: admin. Profile email: ${accountEmail || ""}.`,
+          status: ["under_review", "available", "unavailable", "rented", "maintenance", "retired"].includes(status?.trim().toLowerCase()) ? status.trim().toLowerCase() : "under_review",
+        }) });
+        if (res.ok) success++; else failed++;
+      } catch { failed++; }
     }
-
-    setImportResult({ success, failed });
-    setImporting(false);
-
-    // Refresh the list
-    const params = filter && filter !== "offline" ? `?status=${filter}` : "";
-    fetch(`/api/admin/accounts${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        let accts = data.accounts || [];
-        if (filter === "offline") {
-          accts = accts.filter((a: Account) => a.status !== "available" && a.status !== "rented");
-        }
-        setAccounts(accts);
-      });
+    setImportResult({ success, failed }); setImporting(false); load();
   };
 
-  const statusVariant = (s: string) => {
-    const map: Record<string, "success" | "info" | "warning" | "danger" | "default"> = {
-      available: "success",
-      rented: "info",
-      unavailable: "default",
-      under_review: "default",
-      maintenance: "default",
-      retired: "default",
-      removed: "danger",
-    };
-    return map[s] || "default";
-  };
+  const counts = useMemo(() => ({
+    all: accounts.length,
+    Available: accounts.filter((a) => displayStatus(a.status) === "Available").length,
+    Rented: accounts.filter((a) => displayStatus(a.status) === "Rented").length,
+    Offline: accounts.filter((a) => displayStatus(a.status) === "Offline").length,
+    Removed: accounts.filter((a) => displayStatus(a.status) === "Removed").length,
+    recovering: accounts.filter((a) => a.restrictedAt).length,
+  }), [accounts]);
 
-  const getDisplayStatus = (s: string) => {
-    if (s === "available") return "Available";
-    if (s === "rented") return "Rented";
-    if (s === "removed") return "Removed";
-    return "Offline";
-  };
-
-  // Group rows by status so available, rented, and offline accounts sit together.
-  const statusRank = (s: string) => {
-    const order: Record<string, number> = {
-      available: 0, rented: 1, unavailable: 2, maintenance: 2, retired: 2, under_review: 3, removed: 4,
-    };
-    return order[s] ?? 5;
-  };
-
-  const toggleForRent = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === "available" ? "unavailable" : "available";
-    const newListed = newStatus === "available";
-    const res = await fetch(`/api/admin/accounts/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus, listed: newListed }),
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return accounts.filter((a) => {
+      if (filter !== "all" && displayStatus(a.status) !== filter) return false;
+      if (!q) return true;
+      return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.ownerEmail || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
     });
-    if (res.ok) {
-      setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, status: newStatus, listed: newListed } : a));
-    }
-  };
+  }, [accounts, filter, search]);
 
-  // Save the internal verification proof (email-screenshot links / notes) for an account.
-  const saveProof = async (id: string, current: string | null, value: string) => {
-    if (value === (current || "")) return;
-    setSavingProof(id);
-    try {
-      const res = await fetch(`/api/admin/accounts/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verificationProof: value || null }),
-      });
-      if (res.ok) {
-        setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, verificationProof: value || null } : a));
-      } else {
-        alert("Failed to save verification proof");
-      }
-    } finally {
-      setSavingProof(null);
-    }
-  };
+  const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allExpanded = filtered.length > 0 && filtered.every((a) => expanded.has(a.id));
+  const expandAll = () => setExpanded(allExpanded ? new Set() : new Set(filtered.map((a) => a.id)));
 
-  const toggleVerified = async (id: string, current: boolean) => {
-    setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, linkedinVerified: !current } : a));
-    const res = await fetch(`/api/admin/accounts/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ linkedinVerified: !current }),
-    });
-    if (!res.ok) {
-      setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, linkedinVerified: current } : a));
-      alert("Failed to update verified status");
-    }
-  };
+  const labelCss: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
+  const chip = (active: boolean): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 13px", borderRadius: 999, cursor: "pointer", font: `600 12.5px ${F_SANS}`, color: "var(--text)", border: "1px solid", borderColor: active ? "var(--chip-active-border)" : "var(--card-border)", background: active ? "var(--chip-active-bg)" : "transparent" });
+  const secBtn: React.CSSProperties = { font: `600 12.5px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "7px 13px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" };
+  const outBtn = (color: string): React.CSSProperties => ({ font: `600 12px ${F_SANS}`, color, background: "transparent", border: `1px solid ${color}`, padding: "7px 13px", borderRadius: 8, cursor: "pointer" });
+  const modalInput: React.CSSProperties = { width: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 12px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" };
+  const DField = ({ label, children, span }: { label: string; children: React.ReactNode; span?: number }) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0, gridColumn: span ? `span ${span}` : undefined }}>
+      <span style={labelCss}>{label}</span>
+      <span style={{ font: `500 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{children}</span>
+    </div>
+  );
+
+  if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
+
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.all, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Offline", "Offline", counts.Offline, "var(--neutral-chip-text)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"]];
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Inventory</h2>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">Every LinkedIn account we own — status, who&apos;s renting it now, and internal verification proof. Add, edit, search and manage the rentable inventory.</p>
+      {/* title + actions */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 640 }}>
+          <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Inventory</h1>
+          <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Every LinkedIn account we own — status, who&apos;s renting it, price, and the technical + verification detail behind each one.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setShowImport(true)}>Import CSV</Button>
-          <Button variant="outline" onClick={openSheets}>Google Sheets</Button>
-          <Link href="/admin/accounts/new">
-            <Button>Add Account</Button>
-          </Link>
+        <div style={{ display: "flex", gap: 10, flex: "none", alignItems: "center", flexWrap: "wrap" }}>
+          <Link href="/admin/accounts/new" style={{ font: `600 13px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", padding: "9px 16px", borderRadius: 10, textDecoration: "none" }}>+ Add Account</Link>
+          <button onClick={() => setShowImport(true)} style={{ font: `600 13px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 15px", borderRadius: 10, cursor: "pointer" }}>Import CSV</button>
+          {sheetConfigured && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--sheets-bg)", border: "1px solid var(--sheets-border)", padding: "6px 8px 6px 14px", borderRadius: 12 }}>
+              <span style={{ font: `600 13px ${F_SANS}`, color: "var(--sheets-fg)" }}>Live Google Sheets</span>
+              <button onClick={copyFormula} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "8px 14px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap" }}>{copied ? "Copied ✓" : "Copy formula"}</button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mb-4 flex gap-2">
-        {[
-          { value: "available", label: "Available" },
-          { value: "rented", label: "Rented" },
-          { value: "offline", label: "Offline" },
-          { value: "removed", label: "Removed" },
-          { value: "", label: "All" },
-        ].map((s) => (
-          <button
-            key={s.value}
-            onClick={() => { setFilter(s.value); setLoading(true); }}
-            className={`rounded-full px-3 py-1 text-sm ${
-              filter === s.value
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            {s.label}
-          </button>
+      {/* summary */}
+      <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{counts.all}</span>
+          <span style={{ font: `600 12px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--label)" }}>accounts</span>
+        </div>
+        <span style={{ width: 1, height: 20, background: "var(--divider)" }} />
+        {[["var(--st-active-fg)", `${counts.Available} available`], ["var(--blue-chip-text)", `${counts.Rented} rented`], ["var(--st-unreach-fg)", `${counts.recovering} recovering`]].map(([dot, txt]) => (
+          <span key={txt} style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />{txt}</span>
         ))}
       </div>
 
-      {/* Legend — what each status means */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-gray-100 bg-gray-50 px-4 py-2.5 text-xs text-gray-600">
-        <span className="font-medium text-gray-400 uppercase tracking-wider">Status key</span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-green-500" />
-          <strong className="font-semibold text-gray-900">Available</strong> — live &amp; rentable, no one&apos;s on it
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-blue-500" />
-          <strong className="font-semibold text-gray-900">Rented</strong> — currently rented by a customer
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-gray-400" />
-          <strong className="font-semibold text-gray-900">Offline</strong> — temporarily not rentable (paused, under review, or maintenance)
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-red-500" />
-          <strong className="font-semibold text-gray-900">Removed</strong> — taken out of inventory (paper trail only)
-        </span>
+      {/* chips + search */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {CHIPS.map(([key, lbl, n, dot]) => (
+            <button key={key} onClick={() => setFilter(key)} style={chip(filter === key)}>
+              {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
+              {lbl}<span style={{ color: "var(--muted)" }}>{n}</span>
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, role, location, industry…" style={{ width: 280, maxWidth: "50vw", ...modalInput }} />
+          <button onClick={expandAll} style={{ ...secBtn, padding: "9px 14px", borderRadius: 9 }}>{allExpanded ? "Collapse all" : "Expand all"}</button>
+        </div>
       </div>
 
-      <div className="mb-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, email, location, industry..."
-          className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+      {/* groups */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: 44, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No accounts match.</div>
+        ) : GROUPS.map((g) => {
+          const rows = filtered.filter((a) => displayStatus(a.status) === g.key);
+          if (rows.length === 0) return null;
+          return (
+            <div key={g.key}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+                <span style={{ width: 9, height: 9, borderRadius: 999, background: g.dot }} />
+                <span style={{ font: `700 12px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--text)" }}>{g.key}</span>
+                <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{rows.length}</span>
+                <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>{g.hint}</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {rows.map((a) => {
+                  const open = expanded.has(a.id);
+                  const h = healthOf(a);
+                  const rented = a.status === "rented" && a.rentals?.[0];
+                  const locked = rented && a.rentals[0].lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0;
+                  const priceVal = locked ? Number(a.rentals[0].lockedPrice) : Number(a.monthlyPrice);
+                  const forRentOn = a.status === "available" || a.status === "rented";
+                  return (
+                    <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
+                      {/* primary row */}
+                      <div onClick={() => toggle(a.id)} style={{ display: "grid", gridTemplateColumns: GRID, gap: 16, alignItems: "center", padding: "15px 18px", cursor: "pointer", userSelect: "none" }}>
+                        <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", width: 12, textAlign: "center", flex: "none", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
+                              <span style={{ font: `600 14px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinName}</span>
+                              <button onClick={(e) => { e.stopPropagation(); toggleVerified(a); }} title="LinkedIn verified — click to toggle"
+                                style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap", border: "none", cursor: "pointer", ...(a.linkedinVerified ? { background: "var(--verified-bg, var(--blue-chip-bg))", color: "var(--verified-fg, var(--blue-chip-text))" } : { background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }) }}>{a.linkedinVerified ? "✓ Verified" : "Verify"}</button>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline || "—"}</span>
+                              {a.location && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }}>{a.location}</span></>}
+                              {a.connectionCount > 0 && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }}>{formatNumber(a.connectionCount)}</span></>}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
+                          <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", background: h.bg, color: h.fg }}>{h.label}</span>
+                          {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ font: `600 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{priceVal > 0 ? `$${priceVal.toFixed(0)}` : "TBC"}</span>
+                          <span style={{ font: `500 10px ${F_SANS}`, color: locked ? "var(--warn-badge-text)" : "var(--label)" }}>{locked ? "🔒 locked rate" : "/mo"}</span>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+                          <span style={{ font: `500 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rented ? a.rentals[0].user.fullName : "No renter"}</span>
+                          <span style={{ font: `500 11px ${F_SANS}`, color: rented && a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{rented ? `${fmtS(a.rentals[0].currentPeriodEnd)} · ${a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}` : "available"}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }} onClick={(e) => e.stopPropagation()}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                            <button onClick={() => toggleForRent(a)} disabled={a.status === "rented"} style={{ position: "relative", width: 38, height: 22, borderRadius: 999, border: "none", cursor: a.status === "rented" ? "not-allowed" : "pointer", padding: 0, background: forRentOn ? "var(--sheets-btn-bg)" : "var(--toggle-off)", opacity: a.status === "rented" ? 0.6 : 1 }}>
+                              <span style={{ position: "absolute", top: 3, left: forRentOn ? 19 : 3, width: 16, height: 16, borderRadius: 999, background: "#fff", transition: "left .15s", display: "block" }} />
+                            </button>
+                            <span style={{ font: `500 9.5px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--muted2)" }}>For rent</span>
+                          </div>
+                          <Link href={`/admin/accounts/${a.id}`} style={secBtn}>Edit</Link>
+                        </div>
+                      </div>
+
+                      {/* detail */}
+                      {open && (
+                        <div style={{ padding: "4px 18px 18px 42px", borderTop: "1px solid var(--divider)" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 1fr", gap: "16px 22px", paddingTop: 16 }}>
+                            <DField label="Account email">{profileEmailOf(a) || "—"}</DField>
+                            <DField label="LinkedIn profile">{a.linkedinUrl ? <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open profile</a> : "—"}</DField>
+                            <DField label="GoLogin share">
+                              {a.gologinShareLink ? <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open link</a> : <span style={{ color: "var(--muted2)" }}>—</span>}
+                              {a.gologinProfileId && <span style={{ display: "block", font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis" }}>ID {a.gologinProfileId}</span>}
+                            </DField>
+                            <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}` : "None"}</DField>
+                            <DField label="Owner">{ownerOf(a)}</DField>
+                            <DField label="Age · Sales Nav · Listed">{`${a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"} · SN ${a.hasSalesNav ? "Yes" : "No"} · Listed ${a.listed ? "Yes" : "No"}`}</DField>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2", minWidth: 0 }}>
+                              <span style={labelCss}>Verification proof (private){savingProof === a.id ? " · saving…" : ""}</span>
+                              <textarea defaultValue={a.verificationProof || ""} placeholder="Proof links / notes…" onBlur={(e) => saveProof(a, e.target.value.trim())} style={{ width: "100%", minHeight: 52, resize: "vertical", ...modalInput, font: `500 12.5px ${F_SANS}` }} />
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, gridColumn: "span 2" }}>
+                              <span style={labelCss}>Health actions</span>
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                {a.restrictedAt
+                                  ? <button onClick={() => setRestricted(a, false)} disabled={busy === a.id} style={outBtn("var(--st-active-fg)")}>Mark recovered</button>
+                                  : <button onClick={() => setRestricted(a, true)} disabled={busy === a.id} style={outBtn("var(--danger)")}>Mark restricted</button>}
+                                <button onClick={() => checkHealth(a.id)} style={secBtn}>↻ Re-check</button>
+                                <button onClick={() => handleDelete(a)} disabled={busy === a.id} style={{ ...outBtn("var(--danger)"), marginLeft: "auto" }}>🗑 Delete</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {loading ? (
-        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-200" />)}</div>
-      ) : accounts.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500">No accounts found</CardContent></Card>
-      ) : (
-        <div>
-        {selected.size > 0 && (
-          <div className="mb-3 flex items-center justify-between rounded-lg bg-red-50 border border-red-200 px-3 py-2">
-            <span className="text-sm font-medium text-red-800">{selected.size} account{selected.size > 1 ? "s" : ""} selected</span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setSelected(new Set())} className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100">
-                Clear
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                disabled={bulkDeleting}
-                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                {bulkDeleting ? "Removing..." : `Remove ${selected.size} Account${selected.size > 1 ? "s" : ""}`}
-              </button>
-            </div>
-          </div>
-        )}
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-2 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selected.size > 0 && selected.size === accounts.length}
-                    onChange={toggleSelectAll}
-                    className="rounded border-gray-300 cursor-pointer"
-                  />
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Account</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 min-w-[180px]">Verification</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Renter</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Rented Until</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Rental</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Payout</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Owner</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Location</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Age</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">SN</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Listed</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">GoLogin Share</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Proxy</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Health</th>
-                <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">For Rent</th>
-                <th className="px-3 py-2"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {accounts.filter((a) => {
-                if (!search) return true;
-                const q = search.toLowerCase();
-                return (
-                  a.linkedinName.toLowerCase().includes(q) ||
-                  (a.ownerEmail || "").toLowerCase().includes(q) ||
-                  (a.location || "").toLowerCase().includes(q) ||
-                  (a.industry || "").toLowerCase().includes(q) ||
-                  (a.notes || "").toLowerCase().includes(q) ||
-                  (a.proxyHost || "").includes(q)
-                );
-              }).sort((a, b) => statusRank(a.status) - statusRank(b.status)).map((a) => (
-                <tr key={a.id} className={`hover:bg-gray-50 ${selected.has(a.id) ? "bg-red-50/50" : ""}`}>
-                  <td className="px-3 py-2 w-10">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(a.id)}
-                      onChange={() => toggleSelect(a.id)}
-                      className="rounded border-gray-300 cursor-pointer"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <p className="text-sm font-medium text-gray-900">{(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName}</p>
-                    {a.linkedinHeadline && <p className="mt-0.5 text-xs text-gray-500 max-w-[220px] truncate" title={a.linkedinHeadline}>{a.linkedinHeadline}</p>}
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge variant={statusVariant(a.status)}>{getDisplayStatus(a.status)}</Badge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <button
-                      onClick={() => toggleVerified(a.id, a.linkedinVerified)}
-                      className={`mb-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors ${a.linkedinVerified ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-                      title="LinkedIn verified checkmark — click to toggle"
-                    >
-                      {a.linkedinVerified ? "✓ Verified" : "Not verified"}
-                    </button>
-                    <textarea
-                      defaultValue={a.verificationProof || ""}
-                      placeholder="Proof links / notes (private)…"
-                      rows={2}
-                      onBlur={(e) => saveProof(a.id, a.verificationProof, e.target.value.trim())}
-                      className="block w-44 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
-                    />
-                    {savingProof === a.id && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
-                  </td>
-                  <td className="px-3 py-2 text-xs">
-                    {a.rentals && a.rentals.length > 0 ? (
-                      <div>
-                        <p className="font-medium text-gray-900">{a.rentals[0].user.fullName}</p>
-                        <p className="text-gray-400">{a.rentals[0].user.email}</p>
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs">
-                    {a.rentals && a.rentals.length > 0 ? (
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {a.rentals[0].currentPeriodEnd
-                            ? new Date(a.rentals[0].currentPeriodEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                            : "—"}
-                        </p>
-                        <span className={`inline-flex items-center gap-1 ${a.rentals[0].autoRenew ? "text-green-600" : "text-gray-400"}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${a.rentals[0].autoRenew ? "bg-green-500" : "bg-gray-300"}`} />
-                          {a.rentals[0].autoRenew ? "Auto-renews" : "No auto-renew"}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs font-medium text-gray-900">
-                    {a.rentals?.[0]?.lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0 ? (
-                      <>${Number(a.rentals[0].lockedPrice).toFixed(0)} <span className="text-gray-400 font-normal text-[10px]">locked</span></>
-                    ) : Number(a.monthlyPrice) > 0 ? `$${Number(a.monthlyPrice).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
-                  </td>
-                  <td className="px-3 py-2 text-xs font-medium text-gray-900">
-                    {Number(a.ambassadorPayment) > 0 ? `$${Number(a.ambassadorPayment).toFixed(0)}` : <span className="text-gray-400 font-normal">TBC</span>}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-600">
-                    {(a.notes || "").includes("[SHOWCASE]")
-                      ? <span className="font-medium text-amber-600">Dummy</span>
-                      : [(a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1], a.ownerEmail].some((e) => isCompanyEmail(e))
-                      ? <span className="font-medium text-gray-900">Ortus</span>
-                      : (a.ownerEmail || "—")}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-600">{a.location || "—"}</td>
-                  <td className="px-3 py-2 text-sm text-gray-600">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</td>
-                  <td className="px-3 py-2 text-xs text-gray-600">{a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"}</td>
-                  <td className="px-3 py-2 text-xs">{a.hasSalesNav ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
-                  <td className="px-3 py-2 text-xs">{a.listed ? <span className="text-green-600 font-medium">Yes</span> : <span className="text-gray-400">No</span>}</td>
-                  <td className="px-3 py-2 text-xs text-gray-600">
-                    {a.gologinShareLink ? (
-                      <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 font-medium">Link</a>
-                    ) : <span className="text-gray-400">—</span>}
-                    {a.gologinProfileId && (
-                      <p className="mt-0.5 font-mono text-[10px] text-gray-400 max-w-[120px] truncate" title={a.gologinProfileId}>ID: {a.gologinProfileId}</p>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-600">
-                    {a.proxyHost ? <span className="font-mono">{a.proxyHost}:{a.proxyPort}</span> : <span className="text-gray-400">None</span>}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1.5">
-                      {a.linkedinAccountHealth === "active" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-green-500" />Active
-                        </span>
-                      ) : a.linkedinAccountHealth === "restricted" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />Restricted
-                        </span>
-                      ) : a.linkedinAccountHealth === "not_found" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />Not Found
-                        </span>
-                      ) : a.linkedinAccountHealth === "checking" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />Checking...
-                        </span>
-                      ) : a.linkedinAccountHealth === "unknown" || a.linkedinAccountHealth === "rate_limited" || a.linkedinAccountHealth === "error" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-0.5 text-xs font-semibold text-yellow-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />Unknown
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-                          <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />Unchecked
-                        </span>
-                      )}
-                      <button
-                        onClick={async () => {
-                          setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, linkedinAccountHealth: "checking" } : acc));
-                          const res = await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST" });
-                          if (res.ok) {
-                            const data = await res.json();
-                            setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, linkedinAccountHealth: data.health, healthCheckedAt: data.checkedAt } : acc));
-                          } else {
-                            setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, linkedinAccountHealth: "error" } : acc));
-                          }
-                        }}
-                        className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors"
-                        title="Check health"
-                      >{a.linkedinAccountHealth === "checking" ? "..." : "↻"}</button>
-                    </div>
-                    {a.healthCheckedAt && (
-                      <div className="text-[10px] text-gray-400 mt-0.5">{new Date(a.healthCheckedAt).toLocaleDateString()}</div>
-                    )}
-                    {a.restrictedAt ? (
-                      <div className="mt-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-700" title="Renter sees 'Restricted — recovering it' and access is paused">
-                            <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />Recovering
-                          </span>
-                          <button
-                            onClick={async () => {
-                              if (!confirm("Mark this account as recovered? The renter's downtime will be credited and access restored.")) return;
-                              const res = await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted: false }) });
-                              if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, restrictedAt: null } : acc)); if (d.creditedDays) alert(`Recovered. Credited ~${d.creditedDays} day(s) of downtime to the renter.`); }
-                            }}
-                            className="rounded bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-700 hover:bg-green-200"
-                          >Mark recovered</button>
-                        </div>
-                        <div className="text-[10px] text-orange-600 mt-0.5">restricted {new Date(a.restrictedAt).toLocaleDateString()}</div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={async () => {
-                          if (!confirm("Mark this account as restricted? The renter will see 'Restricted — recovering it' and access is paused.")) return;
-                          const res = await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted: true }) });
-                          if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((acc) => acc.id === a.id ? { ...acc, restrictedAt: d.restrictedAt } : acc)); }
-                        }}
-                        className="mt-1 block text-[11px] text-gray-400 hover:text-orange-600"
-                      >Mark restricted</button>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex justify-end">
-                      {a.status === "rented" ? (
-                        <div className="relative w-10 h-[22px] rounded-full bg-green-500 opacity-50 cursor-not-allowed">
-                          <div className="absolute top-[2px] left-[20px] w-[18px] h-[18px] rounded-full bg-white shadow-sm" />
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => toggleForRent(a.id, a.status)}
-                          className={`relative w-10 h-[22px] rounded-full transition-colors cursor-pointer ${a.status === "available" ? "bg-green-500" : "bg-gray-300"}`}
-                        >
-                          <span className={`absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-all ${a.status === "available" ? "left-[20px]" : "left-[2px]"}`} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <Link href={`/admin/accounts/${a.id}`} className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200">Edit</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </div>
-      )}
-
-      {/* Google Sheets connect modal */}
-      {sheets.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSheets({ open: false })}>
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Connect Inventory to Google Sheets</h3>
-            {sheets.configured === false ? (
-              <div className="text-sm text-gray-600 space-y-2">
-                <p>Live sync isn&apos;t set up yet. Add an env var <code className="rounded bg-gray-100 px-1">RENTALS_EXPORT_KEY</code> (any long random string) in Vercel, redeploy, then come back here to get your sheet link.</p>
-                <p>This is the same key used by the Rentals export.</p>
-              </div>
-            ) : sheets.url ? (
-              <div className="text-sm text-gray-600 space-y-3">
-                <p>In a Google Sheet, paste this into cell <strong>A1</strong> — it auto-pulls the live inventory (refreshes about hourly):</p>
-                <div className="rounded-lg bg-gray-900 p-3">
-                  <code className="block break-all text-xs text-green-300">=IMPORTDATA(&quot;{sheets.url}&quot;)</code>
-                </div>
-                <button
-                  onClick={() => navigator.clipboard?.writeText(`=IMPORTDATA("${sheets.url}")`)}
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-                >Copy formula</button>
-                <p className="text-xs text-amber-600">⚠️ Anyone with this link can see the inventory data — keep the sheet (and link) private.</p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">Loading…</p>
-            )}
-            <div className="mt-5 flex justify-end">
-              <Button variant="outline" onClick={() => setSheets({ open: false })}>Close</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CSV Import Modal */}
+      {/* Import CSV modal */}
       {showImport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowImport(false)}>
-          <div className="mx-4 w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Import Accounts from CSV</h3>
-              <button onClick={() => setShowImport(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        <div onClick={() => setShowImport(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "flex-start", justifyContent: "center", background: "rgba(0,0,0,.5)", padding: "6vh 16px" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: 24, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 20px 60px -20px rgba(0,0,0,.6)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h2 style={{ font: `600 18px ${F_GRO}`, color: "var(--text)", margin: 0 }}>Import accounts from CSV</h2>
+              <button onClick={() => setShowImport(false)} style={{ font: "400 22px/1 sans-serif", color: "var(--muted)", background: "none", border: "none", cursor: "pointer" }}>×</button>
             </div>
-
-            <div className="mb-4">
-              <p className="text-sm text-gray-500 mb-3">Upload a CSV file or paste data below. Each row creates an account with "Under Review" status.</p>
-
-              {/* File upload */}
-              <div
-                onClick={() => document.getElementById("csv-file-input")?.click()}
-                className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-4 mb-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
-              >
-                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-                <span className="text-sm text-gray-600 font-medium">{csvText ? "File loaded — click to replace" : "Click to upload CSV file"}</span>
-              </div>
-              <input id="csv-file-input" type="file" accept=".csv,.txt" onChange={handleFileUpload} style={{ display: "none" }} />
-
-              <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 mb-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Template</p>
-                <pre className="text-xs text-gray-600 whitespace-pre-wrap break-all">{csvTemplate}</pre>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(csvTemplate); }}
-                  className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Copy template
-                </button>
-                <button
-                  onClick={() => {
-                    const blob = new Blob([csvTemplate], { type: "text/csv" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "linkedvelocity-import-template.csv";
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                  className="mt-2 ml-3 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Download template
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mb-1">
-                <strong>Columns:</strong> Account Email, LinkedIn Name, LinkedIn URL, Connections, Industry, Location, Sales Navigator (yes/no), Account Opened (YYYY-MM-DD), Rental Price, Ambassador Payment, Status (available/under_review/unavailable), Profile Photo URL, GoLogin Share Link
-              </p>
-              <p className="text-xs text-gray-400">
-                <strong>Profile photos:</strong> Use direct image URLs (Imgur, Cloudflare, etc).
-              </p>
-            </div>
-
-            <textarea
-              value={csvText}
-              onChange={(e) => setCsvText(e.target.value)}
-              rows={8}
-              placeholder="CSV data will appear here when you upload a file, or paste directly..."
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono text-gray-700 mb-4"
-            />
-
-            {importResult && (
-              <div className={`mb-4 rounded-lg p-3 text-sm ${importResult.failed === 0 ? "bg-green-50 text-green-700 border border-green-200" : "bg-yellow-50 text-yellow-700 border border-yellow-200"}`}>
-                Imported {importResult.success} account{importResult.success !== 1 ? "s" : ""} successfully.
-                {importResult.failed > 0 && ` ${importResult.failed} failed.`}
-              </div>
-            )}
-
-            <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setShowImport(false)}>Cancel</Button>
-              <Button onClick={handleCsvImport} disabled={importing || !csvText.trim()}>
-                {importing ? "Importing..." : "Import Accounts"}
-              </Button>
+            <p style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)", margin: "0 0 12px" }}>Upload a CSV or paste rows below. Each row creates an account with &ldquo;Under review&rdquo; status.</p>
+            <input type="file" accept=".csv" onChange={handleFileUpload} style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)", marginBottom: 12 }} />
+            <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} placeholder={csvTemplate} rows={7} style={{ width: "100%", resize: "vertical", ...modalInput, font: `500 12px ${F_GRO}` }} />
+            {importResult && <p style={{ font: `600 13px ${F_SANS}`, color: importResult.failed ? "var(--warn-badge-text)" : "var(--st-active-fg)", margin: "12px 0 0" }}>Imported {importResult.success} · {importResult.failed} failed</p>}
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => { setCsvText(csvTemplate); }} style={secBtn}>Load template</button>
+              <button onClick={handleCsvImport} disabled={importing || !csvText.trim()} style={{ font: `600 13px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", border: "none", padding: "9px 16px", borderRadius: 10, cursor: "pointer", opacity: importing || !csvText.trim() ? 0.5 : 1 }}>{importing ? "Importing…" : "Import"}</button>
             </div>
           </div>
         </div>
