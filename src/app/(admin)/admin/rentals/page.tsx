@@ -91,6 +91,17 @@ export default function AdminRentalsPage() {
       else setRentals((prev) => prev.filter((r) => r.id !== id));
     } finally { setBusy(null); }
   };
+  // Recover a restricted account: clears the restriction (credits downtime + resumes billing/service).
+  const handleUnrestrict = async (r: Rental) => {
+    if (!window.confirm("Mark this account recovered? This clears the restriction, credits the downtime back to the renter's billing period, and resumes normal service.")) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${r.linkedinAccount.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted: false }) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert("Failed: " + (d.error || res.status)); }
+      await refresh();
+    } catch (e) { alert("Request failed: " + (e instanceof Error ? e.message : "")); }
+    finally { setBusy(null); }
+  };
   const handleSendRenewalLink = async (id: string) => {
     if (!window.confirm("Email this renter a payment link to renew their next month?")) return;
     setBusy(id);
@@ -133,18 +144,6 @@ export default function AdminRentalsPage() {
   };
   const accountLabel = (a: Account) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName;
 
-  const downloadCsv = () => {
-    const headers = ["LinkedIn Account", "LinkedIn URL", "Number of Connections", "Renter Name", "Renter Email", "Renter TG/WA", "Amount", "Payment Status", "Payment Type", "Rental Start Period", "Rental Stop Period", "Auto Renew", "LV PoC"];
-    const cell = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-    const d = (s: string | null) => (s ? new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
-    const rows = rentals.map((r) => {
-      const amt = r.lockedPrice != null && Number(r.lockedPrice) > 0 ? Number(r.lockedPrice) : Number(r.linkedinAccount.monthlyPrice || 0);
-      return [r.linkedinAccount.linkedinName, r.linkedinAccount.linkedinUrl || "", r.linkedinAccount.connectionCount > 0 ? String(r.linkedinAccount.connectionCount) : "", r.user.fullName, r.user.email, r.user.contactNumber || "", amt > 0 ? `$${amt.toFixed(0)}` : "", paymentStatus(r), r.paymentMethodResolved === "USDC" ? "Crypto" : "Card", d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", r.lvPoc || ""];
-    });
-    const csv = [headers, ...rows].map((row) => row.map(cell).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `linkedvelocity-rentals-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
-  };
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
   // group by renter (user)
@@ -193,7 +192,6 @@ export default function AdminRentalsPage() {
         </div>
         <div style={{ display: "flex", gap: 10, flex: "none", alignItems: "center", flexWrap: "wrap" }}>
           <button onClick={openAddModal} style={{ font: `600 13px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", padding: "9px 16px", borderRadius: 10, border: "none", cursor: "pointer" }}>+ Add Rental</button>
-          <button onClick={downloadCsv} style={{ font: `600 13px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 15px", borderRadius: 10, cursor: "pointer" }}>Download CSV</button>
           {sheetConfigured && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--sheets-bg)", border: "1px solid var(--sheets-border)", padding: "6px 8px 6px 14px", borderRadius: 12 }}>
               <span style={{ font: `600 13px ${F_SANS}`, color: "var(--sheets-fg)" }}>Live Google Sheets</span>
@@ -312,7 +310,9 @@ export default function AdminRentalsPage() {
                         <button onClick={() => handleSendRenewalLink(r.id)} disabled={busy === r.id} style={{ font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", border: "none", padding: "7px 10px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>Send renewal</button>
                       )}
                       <div style={{ display: "flex", gap: 6 }}>
-                        {acc === "Paused" ? (
+                        {restricted ? (
+                          <button onClick={() => handleUnrestrict(r)} disabled={busy === r.id} title="Mark recovered — clears the restriction, credits downtime, resumes service" style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Resume"}</button>
+                        ) : acc === "Paused" ? (
                           <button onClick={() => handleAccess(r.id, "grant")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Resume"}</button>
                         ) : acc === "Granted" ? (
                           <button onClick={() => handleAccess(r.id, "revoke", isManualGrant(r))} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Pause"}</button>
