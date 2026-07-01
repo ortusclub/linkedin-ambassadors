@@ -53,6 +53,7 @@ export const ADMIN_THEMES: Record<AdminTheme, Record<string, string>> = {
     "--st-active-bg": "rgba(52,211,153,.16)", "--st-active-fg": "#34d399",
     "--vet-bg": "rgba(138,151,173,.14)", "--vet-fg": "#9aa6ba", "--wa-fg": "#34d399", "--tg-fg": "#7eb0ff",
     "--pay-card-bg": "rgba(79,140,255,.14)", "--pay-card-fg": "#7eb0ff", "--pay-crypto-bg": "rgba(167,139,250,.16)", "--pay-crypto-fg": "#c4b5fd", "--pay-none-bg": "rgba(138,151,173,.12)", "--pay-none-fg": "#7c8597",
+    "--band": "rgba(255,255,255,.02)", "--avatar-bg": "rgba(79,140,255,.14)", "--avatar-fg": "#7eb0ff", "--danger-border": "rgba(248,113,113,.3)", "--link-bg": "rgba(79,140,255,.1)",
   },
   light: {
     "--page-bg": "#eef0f3", "--frame-bg": "#f5f6f8", "--frame-border": "#e3e6ea",
@@ -102,6 +103,7 @@ export const ADMIN_THEMES: Record<AdminTheme, Record<string, string>> = {
     "--st-active-bg": "#dcf5e4", "--st-active-fg": "#15803d",
     "--vet-bg": "#eef1f5", "--vet-fg": "#64748b", "--wa-fg": "#15803d", "--tg-fg": "#1d4ed8",
     "--pay-card-bg": "#e6effe", "--pay-card-fg": "#1d4ed8", "--pay-crypto-bg": "#ede9fe", "--pay-crypto-fg": "#6d28d9", "--pay-none-bg": "#eef1f5", "--pay-none-fg": "#94a0b3",
+    "--band": "#f8f9fb", "--avatar-bg": "#e6effe", "--avatar-fg": "#1d4ed8", "--danger-border": "#f3c6c6", "--link-bg": "#eef3fe",
   },
 };
 

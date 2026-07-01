@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
 import { paymentStatus, accessStatus, isManualGrant } from "@/lib/rental-tracker";
 
 interface Rental {
@@ -25,34 +23,28 @@ interface Rental {
   linkedinAccount: { id: string; linkedinName: string; linkedinUrl: string | null; connectionCount: number; monthlyPrice: string | number | null; gologinProfileId: string | null; notes: string | null; restrictedAt: string | null };
 }
 
-interface Account {
-  id: string;
-  linkedinName: string;
-  status: string;
-  notes: string | null;
-}
+interface Account { id: string; linkedinName: string; status: string; notes: string | null; }
 
-function fmt(d: string | null) {
-  if (!d) return "—";
-  try {
-    return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-  } catch {
-    return "—";
-  }
-}
+const F_SANS = "var(--font-sans),system-ui,sans-serif";
+const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
+const DAY = 86400000;
 
-const PAY_BADGE: Record<string, string> = {
-  Paid: "bg-green-100 text-green-700",
-  Pending: "bg-blue-100 text-blue-700",
-  Overdue: "bg-red-100 text-red-700",
-  Expired: "bg-gray-100 text-gray-500",
-  Cancelled: "bg-gray-100 text-gray-500",
+const fmt = (d: string | null) => { if (!d) return "—"; try { return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }); } catch { return "—"; } };
+const fmtY = (d: string | null) => { if (!d) return "—"; try { return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }); } catch { return "—"; } };
+const daysUntil = (d: string | null) => (d ? Math.ceil((new Date(d).getTime() - Date.now()) / DAY) : null);
+const profileEmail = (a: Rental["linkedinAccount"]) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName;
+const initialsOf = (s: string) => (s || "?").replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase() || "?";
+const attnOf = (r: Rental) => !!r.linkedinAccount.restrictedAt || ["Overdue", "Expired"].includes(paymentStatus(r)) || accessStatus(r) === "Revoked";
+
+const payStyle = (p: string): React.CSSProperties => {
+  const m: Record<string, [string, string]> = { Paid: ["var(--st-active-bg)", "var(--st-active-fg)"], Pending: ["var(--blue-chip-bg)", "var(--blue-chip-text)"], Overdue: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"], Expired: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"], Cancelled: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"] };
+  const [bg, fg] = m[p] || m.Cancelled;
+  return { background: bg, color: fg };
 };
-const ACCESS_BADGE: Record<string, string> = {
-  Granted: "bg-green-100 text-green-700",
-  Paused: "bg-amber-100 text-amber-700",
-  Revoked: "bg-red-100 text-red-700",
-  "Not granted": "bg-gray-100 text-gray-500",
+const accStyle = (a: string): React.CSSProperties => {
+  const m: Record<string, [string, string]> = { Granted: ["var(--blue-chip-bg)", "var(--blue-chip-text)"], Paused: ["var(--warn-badge-bg)", "var(--warn-badge-text)"], Revoked: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"], "Not granted": ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"] };
+  const [bg, fg] = m[a] || m["Not granted"];
+  return { background: bg, color: fg };
 };
 
 export default function AdminRentalsPage() {
@@ -63,379 +55,299 @@ export default function AdminRentalsPage() {
   const [addForm, setAddForm] = useState({ userEmail: "", linkedinAccountId: "", startDate: new Date().toISOString().split("T")[0], autoRenew: true });
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
-  const [accessBusy, setAccessBusy] = useState<string | null>(null);
-  const [savingField, setSavingField] = useState<string | null>(null);
-  const [sheets, setSheets] = useState<{ open: boolean; url?: string; configured?: boolean }>({ open: false });
+  const [busy, setBusy] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [attnOnly, setAttnOnly] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [pocEdit, setPocEdit] = useState<string | null>(null);
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+  const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const refreshRentals = () =>
-    fetch("/api/admin/rentals").then((r) => r.json()).then((d) => setRentals(d.rentals || []));
+  const refresh = () => fetch("/api/admin/rentals").then((r) => r.json()).then((d) => setRentals(d.rentals || []));
+  useEffect(() => {
+    refresh().finally(() => setLoading(false));
+    fetch("/api/admin/rentals/export-url").then((r) => r.json()).then((d) => { setSheetConfigured(!!d.configured); setSheetUrl(d.url || null); }).catch(() => setSheetConfigured(false));
+  }, []);
 
   const handleAccess = async (rentalId: string, action: "grant" | "revoke" | "end", manualGrant = false) => {
     if (action === "end" && !window.confirm("End this rental permanently? This cuts the renter's GoLogin access and marks the rental cancelled (no resume).")) return;
-    // Access was shared manually (no system-tracked share), so we can mark it
-    // paused but can't auto-cut it — the admin must also remove it in GoLogin.
-    if (action === "revoke" && manualGrant && !window.confirm("This access was granted manually, so there's no stored share for us to revoke automatically. We'll mark it Paused here — but you must ALSO remove the share in GoLogin yourself. Continue?")) return;
-    setAccessBusy(rentalId);
+    if (action === "revoke" && manualGrant && !window.confirm("This access was granted manually, so there's no stored share to revoke automatically. We'll mark it Paused here — but you must ALSO remove the share in GoLogin yourself. Continue?")) return;
+    setBusy(rentalId);
     try {
-      const res = await fetch(`/api/admin/rentals/${rentalId}/access`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
+      const res = await fetch(`/api/admin/rentals/${rentalId}/access`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
       const data = await res.json();
       if (!res.ok || data.ok === false) alert(`Failed: ${data.error || "unknown error"}`);
-      await refreshRentals();
-    } catch (e) {
-      alert("Request failed: " + (e instanceof Error ? e.message : ""));
-    } finally {
-      setAccessBusy(null);
-    }
+      await refresh();
+    } catch (e) { alert("Request failed: " + (e instanceof Error ? e.message : "")); }
+    finally { setBusy(null); }
   };
-
-  // Permanently delete a rental record (for test/junk rentals).
   const handleDeleteRental = async (id: string) => {
-    if (!window.confirm("Permanently delete this rental record? This removes it from the tracker and frees the account. (For test/junk rentals — use 'End' for a real cancellation.)")) return;
-    setAccessBusy(id);
+    if (!window.confirm("Permanently delete this rental record? Removes it from the tracker and frees the account. (For test/junk — use 'End' for a real cancellation.)")) return;
+    setBusy(id);
     try {
       const res = await fetch(`/api/admin/rentals/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        alert("Failed: " + (d.error || res.status));
-      } else {
-        setRentals((prev) => prev.filter((r) => r.id !== id));
-      }
-    } finally {
-      setAccessBusy(null);
-    }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert("Failed: " + (d.error || res.status)); }
+      else setRentals((prev) => prev.filter((r) => r.id !== id));
+    } finally { setBusy(null); }
   };
-
-  // Email the renter a Stripe payment link to renew their next month.
   const handleSendRenewalLink = async (id: string) => {
     if (!window.confirm("Email this renter a payment link to renew their next month?")) return;
-    setAccessBusy(id);
+    setBusy(id);
     try {
       const res = await fetch(`/api/admin/rentals/${id}/renewal-link`, { method: "POST" });
       const data = await res.json();
-      if (res.ok && data.ok) {
-        alert(`Renewal link emailed to ${data.sentTo}.`);
-      } else {
-        alert("Failed: " + (data.error || res.status));
-      }
-    } catch (e) {
-      alert("Request failed: " + (e instanceof Error ? e.message : ""));
-    } finally {
-      setAccessBusy(null);
-    }
+      alert(res.ok && data.ok ? `Renewal link emailed to ${data.sentTo}.` : "Failed: " + (data.error || res.status));
+    } catch (e) { alert("Request failed: " + (e instanceof Error ? e.message : "")); }
+    finally { setBusy(null); }
   };
 
-  // Inline-edit tracker fields. company/industry live on the user; notes on the rental.
-  const USER_FIELDS = new Set(["company", "industry"]);
-  const saveField = async (r: Rental, field: "company" | "industry" | "notes" | "lvPoc", value: string) => {
-    const current =
-      field === "company" ? (r.user.company || "") :
-      field === "industry" ? (r.user.industry || "") :
-      field === "lvPoc" ? (r.lvPoc || "") : (r.notes || "");
-    if (value === current) return;
-    setSavingField(`${r.id}:${field}`);
-    try {
-      await fetch("/api/admin/rentals", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: r.id, [field]: value || null }),
-      });
-      setRentals((prev) => prev.map((x) => {
-        if (x.id !== r.id) return x;
-        if (USER_FIELDS.has(field)) return { ...x, user: { ...x.user, [field]: value || null } };
-        return { ...x, [field]: value || null };
-      }));
-    } catch {
-      alert("Failed to save");
-    } finally {
-      setSavingField(null);
-    }
+  // notes (per rental)
+  const saveNotes = async (r: Rental, value: string) => {
+    if (value === (r.notes || "")) return;
+    setRentals((prev) => prev.map((x) => (x.id === r.id ? { ...x, notes: value || null } : x)));
+    await fetch("/api/admin/rentals", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, notes: value || null }) });
+  };
+  // company (per user -> applies to all that renter's rentals)
+  const saveCompany = async (userId: string, anyRentalId: string, value: string) => {
+    setRentals((prev) => prev.map((x) => (x.user.id === userId ? { ...x, user: { ...x.user, company: value || null } } : x)));
+    await fetch("/api/admin/rentals", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: anyRentalId, company: value || null }) });
+  };
+  // POC (stored per rental -> write to every rental in the renter group)
+  const savePoc = async (groupRentals: Rental[], value: string) => {
+    const ids = new Set(groupRentals.map((r) => r.id));
+    setRentals((prev) => prev.map((x) => (ids.has(x.id) ? { ...x, lvPoc: value || null } : x)));
+    await Promise.all(groupRentals.map((r) => fetch("/api/admin/rentals", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, lvPoc: value || null }) })));
   };
 
-  useEffect(() => {
-    fetch("/api/admin/rentals").then((r) => r.json()).then((data) => setRentals(data.rentals || [])).finally(() => setLoading(false));
-  }, []);
-
-  const openAddModal = () => {
-    setShowAdd(true);
-    setAddError("");
-    fetch("/api/admin/accounts?status=available").then((r) => r.json()).then((data) => setAccounts(data.accounts || [])).catch(() => {});
-  };
-
+  const openAddModal = () => { setShowAdd(true); setAddError(""); fetch("/api/admin/accounts?status=available").then((r) => r.json()).then((d) => setAccounts(d.accounts || [])).catch(() => {}); };
   const handleAdd = async () => {
-    if (!addForm.userEmail || !addForm.linkedinAccountId) {
-      setAddError("Please fill in customer email and select an account.");
-      return;
-    }
-    setAdding(true);
-    setAddError("");
-    const res = await fetch("/api/admin/rentals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(addForm),
-    });
+    if (!addForm.userEmail || !addForm.linkedinAccountId) { setAddError("Please fill in customer email and select an account."); return; }
+    setAdding(true); setAddError("");
+    const res = await fetch("/api/admin/rentals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(addForm) });
     const data = await res.json();
-    if (!res.ok) {
-      setAddError(data.error || "Failed to create rental");
-      setAdding(false);
-      return;
-    }
-    setShowAdd(false);
-    setAdding(false);
+    if (!res.ok) { setAddError(data.error || "Failed to create rental"); setAdding(false); return; }
+    setShowAdd(false); setAdding(false);
     setAddForm({ userEmail: "", linkedinAccountId: "", startDate: new Date().toISOString().split("T")[0], autoRenew: true });
-    refreshRentals();
+    refresh();
   };
-
-  const getAccountLabel = (a: Account) => {
-    const email = (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1];
-    return email || a.linkedinName;
-  };
+  const accountLabel = (a: Account) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName;
 
   const downloadCsv = () => {
     const headers = ["LinkedIn Account", "LinkedIn URL", "Number of Connections", "Renter Name", "Renter Email", "Renter TG/WA", "Amount", "Payment Status", "Payment Type", "Rental Start Period", "Rental Stop Period", "Auto Renew", "LV PoC"];
-    const cell = (v: unknown) => {
-      const s = v === null || v === undefined ? "" : String(v);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
+    const cell = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
     const d = (s: string | null) => (s ? new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
     const rows = rentals.map((r) => {
-      const amt = r.lockedPrice != null && Number(r.lockedPrice) > 0
-        ? Number(r.lockedPrice)
-        : Number(r.linkedinAccount.monthlyPrice || 0);
-      return [
-        r.linkedinAccount.linkedinName, r.linkedinAccount.linkedinUrl || "",
-        r.linkedinAccount.connectionCount > 0 ? String(r.linkedinAccount.connectionCount) : "",
-        r.user.fullName, r.user.email, r.user.contactNumber || "",
-        amt > 0 ? `$${amt.toFixed(0)}` : "", paymentStatus(r), r.paymentMethodResolved === "USDC" ? "Crypto" : "Card",
-        d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", r.lvPoc || "",
-      ];
+      const amt = r.lockedPrice != null && Number(r.lockedPrice) > 0 ? Number(r.lockedPrice) : Number(r.linkedinAccount.monthlyPrice || 0);
+      return [r.linkedinAccount.linkedinName, r.linkedinAccount.linkedinUrl || "", r.linkedinAccount.connectionCount > 0 ? String(r.linkedinAccount.connectionCount) : "", r.user.fullName, r.user.email, r.user.contactNumber || "", amt > 0 ? `$${amt.toFixed(0)}` : "", paymentStatus(r), r.paymentMethodResolved === "USDC" ? "Crypto" : "Card", d(r.startDate), d(r.currentPeriodEnd), r.autoRenew ? "Yes" : "No", r.lvPoc || ""];
     });
     const csv = [headers, ...rows].map((row) => row.map(cell).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `linkedvelocity-rentals-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `linkedvelocity-rentals-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
   };
+  const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
-  const openSheets = async () => {
-    setSheets({ open: true });
-    try {
-      const res = await fetch("/api/admin/rentals/export-url");
-      const data = await res.json();
-      setSheets({ open: true, url: data.url, configured: data.configured });
-    } catch {
-      setSheets({ open: true, configured: false });
+  // group by renter (user)
+  const groups = useMemo(() => {
+    const map = new Map<string, { key: string; user: Rental["user"]; poc: string | null; rentals: Rental[] }>();
+    for (const r of rentals) {
+      let g = map.get(r.user.id);
+      if (!g) { g = { key: r.user.id, user: r.user, poc: r.lvPoc, rentals: [] }; map.set(r.user.id, g); }
+      g.rentals.push(r);
+      if (!g.poc && r.lvPoc) g.poc = r.lvPoc;
     }
-  };
+    return [...map.values()];
+  }, [rentals]);
 
-  if (loading) return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-200" />)}</div>;
+  const summary = useMemo(() => ({
+    live: rentals.length,
+    renters: groups.length,
+    attn: rentals.filter(attnOf).length,
+    healthy: rentals.filter((r) => !attnOf(r)).length,
+  }), [rentals, groups]);
+
+  const matches = (r: Rental) => {
+    const q = query.trim().toLowerCase();
+    if (attnOnly && !attnOf(r)) return false;
+    if (!q) return true;
+    return `${profileEmail(r.linkedinAccount)} ${r.linkedinAccount.gologinProfileId || ""} ${r.notes || ""} ${r.user.fullName} ${r.user.company || ""}`.toLowerCase().includes(q);
+  };
+  const toggleGroup = (key: string) => setCollapsed((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const allCollapsed = groups.length > 0 && collapsed.size >= groups.length;
+  const collapseAll = () => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((g) => g.key)));
+
+  const F = { GRID: "minmax(0,1.35fr) 168px 150px minmax(0,1.25fr) 150px" };
+  const labelCss: React.CSSProperties = { font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
+  const toolBtn = (active: boolean): React.CSSProperties => ({ font: `600 12.5px ${F_SANS}`, whiteSpace: "nowrap", padding: "9px 14px", borderRadius: 9, cursor: "pointer", border: "1px solid", ...(active ? { background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)", borderColor: "transparent" } : { background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-fg)", borderColor: "var(--btn-secondary-border)" }) });
+  const chip: React.CSSProperties = { font: `600 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" };
+
+  if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 72, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Rentals &amp; Contracts</h2>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">Live tracker of every rental, matching the internal Renters sheet. Editable Company, Industry &amp; Notes save automatically. Download CSV / Google Sheets exports use the same column order.</p>
+      {/* title + actions */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 680 }}>
+          <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Rentals &amp; Contracts</h1>
+          <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Every live rental, grouped by renter. Renewal, billing and access at a glance — Company, POC &amp; notes save automatically and feed the Google Sheet export.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={downloadCsv}>Download CSV</Button>
-          <Button variant="outline" onClick={openSheets}>Google Sheets</Button>
-          <Button onClick={openAddModal}>Add Rental</Button>
+        <div style={{ display: "flex", gap: 10, flex: "none", alignItems: "center", flexWrap: "wrap" }}>
+          <button onClick={openAddModal} style={{ font: `600 13px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", padding: "9px 16px", borderRadius: 10, border: "none", cursor: "pointer" }}>+ Add Rental</button>
+          <button onClick={downloadCsv} style={{ font: `600 13px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 15px", borderRadius: 10, cursor: "pointer" }}>Download CSV</button>
+          {sheetConfigured && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--sheets-bg)", border: "1px solid var(--sheets-border)", padding: "6px 8px 6px 14px", borderRadius: 12 }}>
+              <span style={{ font: `600 13px ${F_SANS}`, color: "var(--sheets-fg)" }}>Live Google Sheets</span>
+              <button onClick={copyFormula} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "8px 14px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap" }}>{copied ? "Copied ✓" : "Copy formula"}</button>
+            </div>
+          )}
         </div>
       </div>
 
-      {rentals.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500">No rentals yet</CardContent></Card>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                <th className="px-3 py-2">Renter / Company</th>
-                <th className="px-3 py-2">Industry</th>
-                <th className="px-3 py-2">Account</th>
-                <th className="px-3 py-2">Billing</th>
-                <th className="px-3 py-2 text-center">Auto-Renew</th>
-                <th className="px-3 py-2">Payment</th>
-                <th className="px-3 py-2">LV PoC</th>
-                <th className="px-3 py-2 min-w-[180px]">Notes</th>
-                <th className="px-3 py-2">Access</th>
-                <th className="px-3 py-2">Live</th>
-                <th className="px-3 py-2">Manage</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 align-top">
-              {rentals.map((r) => {
-                const pay = paymentStatus(r);
-                const acc = accessStatus(r);
+      {sheetConfigured === false && (
+        <div style={{ font: `500 12px ${F_SANS}`, color: "var(--warn-badge-text)", background: "var(--warn-badge-bg)", borderRadius: 9, padding: "8px 13px", marginBottom: 16 }}>
+          Live Sheets export needs <code>RENTALS_EXPORT_KEY</code> set in Vercel. (Download CSV still works.)
+        </div>
+      )}
+
+      {/* summary + toolbar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{summary.live}</span>
+            <span style={{ font: `600 12px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--label)" }}>live rentals</span>
+          </div>
+          <span style={{ width: 1, height: 20, background: "var(--divider)" }} />
+          {[["var(--avatar-fg)", `${summary.renters} renters`], ["var(--st-active-fg)", `${summary.healthy} healthy`], ["var(--warn-badge-text)", `${summary.attn} needs attention`]].map(([dot, txt]) => (
+            <span key={txt} style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />{txt}</span>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search account or notes…" style={{ width: 260, maxWidth: "50vw", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 12px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
+          <button onClick={collapseAll} style={toolBtn(false)}>{allCollapsed ? "Expand all" : "Collapse all"}</button>
+          <button onClick={() => setAttnOnly((v) => !v)} style={toolBtn(attnOnly)}>Needs attention</button>
+        </div>
+      </div>
+
+      {/* groups */}
+      <div style={{ background: "var(--panel)", border: "1px solid var(--panel-border)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--panel-shadow)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: F.GRID, gap: 18, padding: "11px 22px", borderBottom: "1px solid var(--divider)" }}>
+          <span style={labelCss}>Account</span><span style={labelCss}>Billing</span><span style={labelCss}>Status</span><span style={labelCss}>Notes</span><span style={{ ...labelCss, textAlign: "right" }}>Manage</span>
+        </div>
+
+        {rentals.length === 0 ? (
+          <div style={{ padding: 40, textAlign: "center", font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>No rentals yet.</div>
+        ) : groups.map((g) => {
+          const visible = g.rentals.filter(matches);
+          if (visible.length === 0) return null;
+          const isCollapsed = collapsed.has(g.key);
+          const gAttn = g.rentals.filter(attnOf).length;
+          const title = g.user.company || g.user.fullName;
+          const contact = g.user.contactNumber;
+          const isTG = (contact || "").startsWith("telegram:");
+          return (
+            <div key={g.key}>
+              {/* band */}
+              <div onClick={() => toggleGroup(g.key)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "14px 22px", background: "var(--band)", borderTop: "1px solid var(--divider)", cursor: "pointer", userSelect: "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                  <span style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", flex: "none", width: 14, textAlign: "center", transform: isCollapsed ? "none" : "rotate(90deg)", transition: "transform .18s" }}>▸</span>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `600 13px ${F_GRO}`, background: "var(--avatar-bg)", color: "var(--avatar-fg)" }}>{initialsOf(title)}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <input onClick={(e) => e.stopPropagation()} defaultValue={g.user.company || ""} placeholder="Company…"
+                      onBlur={(e) => saveCompany(g.user.id, g.rentals[0].id, e.target.value.trim())}
+                      style={{ font: `600 15.5px ${F_SANS}`, color: "var(--text)", background: "transparent", border: "1px solid transparent", borderRadius: 6, padding: "1px 5px", margin: "0 0 3px -5px", outline: "none", maxWidth: 260 }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: 9, font: `500 12px ${F_SANS}`, color: "var(--muted)", flexWrap: "wrap" }}>
+                      <span>{g.user.fullName}</span><span style={{ color: "var(--muted2)" }}>·</span><span>{g.user.email}</span>
+                      {contact && <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".03em", padding: "2px 6px", borderRadius: 5, background: "var(--tag-bg)", color: isTG ? "var(--tg-fg)" : "var(--wa-fg)" }}>{isTG ? "TG" : "WA"} {contact.replace(/^(whatsapp|telegram):/, "")}</span>}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, flex: "none" }}>
+                  {pocEdit === g.key ? (
+                    <input autoFocus onClick={(e) => e.stopPropagation()} defaultValue={g.poc || ""} placeholder="Type a name…"
+                      onBlur={(e) => { savePoc(g.rentals, e.target.value.trim()); setPocEdit(null); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setPocEdit(null); }}
+                      style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, border: "1px solid var(--accent)", background: "var(--input-bg)", color: "var(--input-fg)", outline: "none", width: 150 }} />
+                  ) : (
+                    <button onClick={(e) => { e.stopPropagation(); setPocEdit(g.key); }} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, cursor: "pointer", ...(g.poc ? { background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)", border: "none" } : { background: "transparent", color: "var(--muted)", border: "1px dashed var(--btn-secondary-border)" }) }}>{g.poc ? `◔ LV POC · ${g.poc}` : "+ Assign LV POC"}</button>
+                  )}
+                  <span style={{ font: `600 12px ${F_SANS}`, color: "var(--text2)", background: "var(--tag-bg)", padding: "5px 11px", borderRadius: 999 }}>{g.rentals.length} {g.rentals.length === 1 ? "account" : "accounts"}</span>
+                  {gAttn > 0 && <span style={{ font: `600 12px ${F_SANS}`, color: "var(--warn-badge-text)", background: "var(--warn-badge-bg)", padding: "5px 11px", borderRadius: 999 }}>{gAttn} needs attention</span>}
+                </div>
+              </div>
+
+              {/* rentals */}
+              {!isCollapsed && visible.map((r) => {
+                const pay = paymentStatus(r); const acc = accessStatus(r);
+                const restricted = !!r.linkedinAccount.restrictedAt;
+                const days = daysUntil(r.currentPeriodEnd);
+                const renewLabel = restricted ? "Billing paused" : days == null ? "—" : days >= 0 ? `${r.autoRenew ? "Renews" : "Ends"} in ${days}d` : `Overdue ${-days}d`;
                 return (
-                  <tr key={r.id} className="hover:bg-gray-50/60">
-                    <td className="px-3 py-2">
-                      <input
-                        defaultValue={r.user.company || ""}
-                        placeholder="Company…"
-                        onBlur={(e) => saveField(r, "company", e.target.value.trim())}
-                        className="w-32 rounded border border-transparent bg-transparent px-1.5 py-0.5 text-sm font-medium text-gray-900 hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none"
-                      />
-                      {savingField === `${r.id}:company` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
-                      <p className="text-xs text-gray-600 whitespace-nowrap mt-0.5">{r.user.fullName}</p>
-                      <p className="text-xs text-gray-500">{r.user.email}</p>
-                      {r.user.contactNumber && <p className="text-xs text-gray-400">{r.user.contactNumber}</p>}
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        defaultValue={r.user.industry || ""}
-                        placeholder="—"
-                        onBlur={(e) => saveField(r, "industry", e.target.value.trim())}
-                        className="w-28 rounded border border-transparent bg-transparent px-1.5 py-1 text-sm hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none"
-                      />
-                      {savingField === `${r.id}:industry` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
-                    </td>
-                    <td className="px-3 py-2">
-                      <p className="text-gray-800 whitespace-nowrap">{(r.linkedinAccount.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || r.linkedinAccount.linkedinName}</p>
-                      {r.linkedinAccount.gologinProfileId && (
-                        <p className="font-mono text-[10px] text-gray-400" title="GoLogin profile ID">{r.linkedinAccount.gologinProfileId}</p>
+                  <div key={r.id} style={{ display: "grid", gridTemplateColumns: F.GRID, gap: 18, alignItems: "start", padding: "16px 22px", borderTop: "1px solid var(--divider)", borderLeft: "3px solid", borderLeftColor: attnOf(r) ? "var(--warn-badge-text)" : "transparent" }}>
+                    {/* account */}
+                    <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 5 }}>
+                      <span style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profileEmail(r.linkedinAccount)}</span>
+                      {r.linkedinAccount.gologinProfileId && <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title="GoLogin profile ID">{r.linkedinAccount.gologinProfileId}</span>}
+                      {restricted && <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 2, font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text)", background: "var(--warn-badge-bg)", padding: "4px 9px", borderRadius: 7 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--warn-badge-text)", flex: "none" }} />Restricted — recovering · billing paused since {fmt(r.linkedinAccount.restrictedAt)}</div>}
+                    </div>
+                    {/* billing */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <span style={{ font: `600 13px ${F_SANS}`, color: restricted ? "var(--warn-badge-text)" : "var(--accent)" }}>{renewLabel}</span>
+                      <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>{fmt(r.startDate)} → {fmt(r.currentPeriodEnd)}</span>
+                      <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{r.autoRenew ? "✓ Auto-renew on" : "○ Auto-renew off"}</span>
+                    </div>
+                    {/* status */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                      <span style={{ ...chip, ...payStyle(pay) }}>{pay} · {r.paymentMethodResolved === "USDC" ? "Crypto" : "Card"}</span>
+                      <span style={{ ...chip, ...accStyle(acc) }}>{acc === "Granted" ? "Access granted" : acc}</span>
+                      <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--label)" }}>Live {fmt(r.accessGrantedAt)}</span>
+                    </div>
+                    {/* notes */}
+                    <div style={{ minWidth: 0 }}>
+                      <textarea defaultValue={r.notes || ""} placeholder="Issues, internal notes…" rows={2} onBlur={(e) => saveNotes(r, e.target.value.trim())}
+                        style={{ width: "100%", resize: "vertical", font: `500 12.5px/1.5 ${F_SANS}`, color: "var(--text2)", background: "var(--quote-bg)", border: "1px solid var(--card-border)", borderRadius: 9, padding: "9px 11px", outline: "none", minHeight: 40 }} />
+                    </div>
+                    {/* manage */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      {(r.status === "active" || r.status === "payment_failed" || r.status === "expired") && (
+                        <button onClick={() => handleSendRenewalLink(r.id)} disabled={busy === r.id} style={{ font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", border: "none", padding: "7px 10px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>Send renewal</button>
                       )}
-                      {r.linkedinAccount.restrictedAt && (
-                        <div className="mt-1">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700 whitespace-nowrap" title="Renter sees 'recovering', access + billing paused">
-                            <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />Restricted — recovering · billing paused
-                          </span>
-                          <p className="text-[10px] text-orange-600 mt-0.5">since {fmt(r.linkedinAccount.restrictedAt)}</p>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
-                      <p>Start: {fmt(r.startDate)}</p>
-                      <p>Next: {fmt(r.currentPeriodEnd)}</p>
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${r.autoRenew ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{r.autoRenew ? "Yes" : "No"}</span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${PAY_BADGE[pay]}`}>{pay}</span>
-                      <p className="mt-1 text-xs text-gray-500">{r.paymentMethodResolved === "USDC" ? "Crypto" : "Card"}</p>
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        defaultValue={r.lvPoc || ""}
-                        placeholder="—"
-                        onBlur={(e) => saveField(r, "lvPoc", e.target.value.trim())}
-                        className="w-24 rounded border border-transparent bg-transparent px-1.5 py-1 text-sm hover:border-gray-200 focus:border-blue-400 focus:bg-white focus:outline-none"
-                      />
-                      {savingField === `${r.id}:lvPoc` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
-                    </td>
-                    <td className="px-3 py-2">
-                      <textarea
-                        defaultValue={r.notes || ""}
-                        placeholder="Issues, internal notes…"
-                        rows={2}
-                        onBlur={(e) => saveField(r, "notes", e.target.value.trim())}
-                        className="w-44 resize-y rounded border border-gray-200 bg-white px-2 py-1 text-xs focus:border-blue-400 focus:outline-none"
-                      />
-                      {savingField === `${r.id}:notes` && <span className="ml-1 text-[10px] text-gray-400">saving…</span>}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${ACCESS_BADGE[acc]}`}>{acc}</span>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{fmt(r.accessGrantedAt)}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-col gap-1.5">
+                      <div style={{ display: "flex", gap: 6 }}>
                         {acc === "Paused" ? (
-                          <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Resume"}</button>
+                          <button onClick={() => handleAccess(r.id, "grant")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Resume"}</button>
                         ) : acc === "Granted" ? (
-                          <button onClick={() => handleAccess(r.id, "revoke", isManualGrant(r))} disabled={accessBusy === r.id} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Pause"}</button>
+                          <button onClick={() => handleAccess(r.id, "revoke", isManualGrant(r))} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Pause"}</button>
                         ) : (
-                          <button onClick={() => handleAccess(r.id, "grant")} disabled={accessBusy === r.id} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">{accessBusy === r.id ? "…" : "Grant"}</button>
-                        )}
-                        {(r.status === "active" || r.status === "payment_failed" || r.status === "expired") && (
-                          <button onClick={() => handleSendRenewalLink(r.id)} disabled={accessBusy === r.id} className="rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50 whitespace-nowrap">Send renewal link</button>
+                          <button onClick={() => handleAccess(r.id, "grant")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", border: "none", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Grant"}</button>
                         )}
                         {(r.status === "active" || r.status === "payment_failed" || r.status === "pending_access") && (
-                          <button onClick={() => handleAccess(r.id, "end")} disabled={accessBusy === r.id} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 whitespace-nowrap">End</button>
+                          <button onClick={() => handleAccess(r.id, "end")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--danger)", background: "transparent", border: "1px solid var(--danger-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>End</button>
                         )}
-                        <button onClick={() => handleDeleteRental(r.id)} disabled={accessBusy === r.id} className="inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 whitespace-nowrap" title="Permanently delete this rental record">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          Delete
-                        </button>
                       </div>
-                    </td>
-                  </tr>
+                      <button onClick={() => handleDeleteRental(r.id)} disabled={busy === r.id} style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", cursor: "pointer", padding: 2, alignSelf: "center" }}>🗑 Delete</button>
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Google Sheets connect modal */}
-      {sheets.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSheets({ open: false })}>
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Connect to Google Sheets</h3>
-            {sheets.configured === false ? (
-              <div className="text-sm text-gray-600 space-y-2">
-                <p>Live sync isn&apos;t set up yet. Add an env var <code className="rounded bg-gray-100 px-1">RENTALS_EXPORT_KEY</code> (any long random string) in Vercel, redeploy, then come back here to get your sheet link.</p>
-                <p>In the meantime, use <strong>Download CSV</strong> and import the file into Sheets.</p>
-              </div>
-            ) : sheets.url ? (
-              <div className="text-sm text-gray-600 space-y-3">
-                <p>In a Google Sheet, paste this into cell <strong>A1</strong> — it auto-pulls the live tracker (refreshes about hourly):</p>
-                <div className="rounded-lg bg-gray-900 p-3">
-                  <code className="block break-all text-xs text-green-300">=IMPORTDATA(&quot;{sheets.url}&quot;)</code>
-                </div>
-                <button
-                  onClick={() => navigator.clipboard?.writeText(`=IMPORTDATA("${sheets.url}")`)}
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-                >Copy formula</button>
-                <p className="text-xs text-amber-600">⚠️ Anyone with this link can see the tracker data — keep the sheet (and link) private.</p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">Loading…</p>
-            )}
-            <div className="mt-5 flex justify-end">
-              <Button variant="outline" onClick={() => setSheets({ open: false })}>Close</Button>
             </div>
-          </div>
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {/* Add Rental Modal */}
+      {/* Add Rental modal */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAdd(false)}>
-          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Rental</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customer Email</label>
-                <input type="email" value={addForm.userEmail} onChange={(e) => setAddForm(f => ({ ...f, userEmail: e.target.value }))} placeholder="customer@email.com" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Account</label>
-                <select value={addForm.linkedinAccountId} onChange={(e) => setAddForm(f => ({ ...f, linkedinAccountId: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                  <option value="">Select an available account...</option>
-                  {accounts.map((a) => (<option key={a.id} value={a.id}>{getAccountLabel(a)}</option>))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                <input type="date" value={addForm.startDate} onChange={(e) => setAddForm(f => ({ ...f, startDate: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-                <p className="mt-1 text-xs text-gray-400">Billing period is 1 month — next billing date is set automatically to one month after the start date.</p>
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={addForm.autoRenew} onChange={(e) => setAddForm(f => ({ ...f, autoRenew: e.target.checked }))} className="rounded border-gray-300" />
-                Auto-renew
-              </label>
-              {addError && <p className="text-sm text-red-600">{addError}</p>}
+        <div onClick={() => setShowAdd(false)} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.5)", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: 24, boxShadow: "0 20px 60px -20px rgba(0,0,0,.6)" }}>
+            <h2 style={{ font: `600 18px ${F_GRO}`, color: "var(--text)", margin: "0 0 16px" }}>Add Rental</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <label style={labelCss}>Customer Email<input type="email" value={addForm.userEmail} onChange={(e) => setAddForm((f) => ({ ...f, userEmail: e.target.value }))} placeholder="customer@email.com" style={{ ...modalInput, marginTop: 5 }} /></label>
+              <label style={labelCss}>Account<select value={addForm.linkedinAccountId} onChange={(e) => setAddForm((f) => ({ ...f, linkedinAccountId: e.target.value }))} style={{ ...modalInput, marginTop: 5 }}><option value="">Select an available account…</option>{accounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}</select></label>
+              <label style={labelCss}>Start Date<input type="date" value={addForm.startDate} onChange={(e) => setAddForm((f) => ({ ...f, startDate: e.target.value }))} style={{ ...modalInput, marginTop: 5 }} /><span style={{ display: "block", font: `500 11px ${F_SANS}`, color: "var(--muted)", marginTop: 4, textTransform: "none", letterSpacing: 0 }}>Billing period is 1 month — next date is set automatically one month out.</span></label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, font: `500 13px ${F_SANS}`, color: "var(--text)" }}><input type="checkbox" checked={addForm.autoRenew} onChange={(e) => setAddForm((f) => ({ ...f, autoRenew: e.target.checked }))} />Auto-renew</label>
+              {addError && <p style={{ font: `500 13px ${F_SANS}`, color: "var(--danger)", margin: 0 }}>{addError}</p>}
             </div>
-            <div className="mt-6 flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-              <Button onClick={handleAdd} disabled={adding}>{adding ? "Creating..." : "Create Rental"}</Button>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
+              <button onClick={() => setShowAdd(false)} style={{ font: `600 13px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 15px", borderRadius: 10, cursor: "pointer" }}>Cancel</button>
+              <button onClick={handleAdd} disabled={adding} style={{ font: `600 13px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", border: "none", padding: "9px 16px", borderRadius: 10, cursor: "pointer", opacity: adding ? 0.6 : 1 }}>{adding ? "Creating…" : "Create Rental"}</button>
             </div>
           </div>
         </div>
@@ -443,3 +355,5 @@ export default function AdminRentalsPage() {
     </div>
   );
 }
+
+const modalInput: React.CSSProperties = { width: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 12px", font: `500 13px var(--font-sans),system-ui,sans-serif`, color: "var(--input-fg)", outline: "none" };
