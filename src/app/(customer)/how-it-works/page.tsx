@@ -24,8 +24,8 @@ const renterSteps = [
     text: "Tick one or more accounts and proceed to checkout. You can rent a single account or bulk-rent across a multi-account campaign in one flow.",
   },
   {
-    name: "Top up your USDC balance",
-    text: "LinkedVelocity bills in USDC. Deposit on Base network from any wallet — your balance updates within seconds. (You can also pay directly with Stripe when prompted.)",
+    name: "Top up your balance",
+    text: "Add funds to your wallet balance — pay by card via Stripe, or deposit USDC on Base network from any wallet. Your balance updates within seconds.",
   },
   {
     name: "Pay and confirm rental",

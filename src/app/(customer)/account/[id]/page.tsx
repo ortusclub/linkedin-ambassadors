@@ -439,7 +439,7 @@ export default function AccountDetailPage() {
               Top up to rent this account
             </h2>
             <p style={{fontSize:14,color:'#536471',lineHeight:1.55,marginBottom:20}}>
-              You need to deposit money to rent this account. Top up your USDC balance and you&apos;ll be back here in seconds.
+              You need to deposit money to rent this account. Top up your balance and you&apos;ll be back here in seconds.
             </p>
             <div style={{background:'#F8F8F5',borderRadius:12,padding:'14px 16px',marginBottom:24,display:'flex',flexDirection:'column',gap:8}}>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
