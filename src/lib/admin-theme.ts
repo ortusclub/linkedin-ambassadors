@@ -38,6 +38,17 @@ export const ADMIN_THEMES: Record<AdminTheme, Record<string, string>> = {
     "--pri-p2-bg": "rgba(251,191,36,.16)", "--pri-p2-fg": "#fbbf24",
     "--pri-p3-bg": "rgba(138,151,173,.14)", "--pri-p3-fg": "#9aa6ba",
     "--btn-secondary-bg": "#111726", "--btn-secondary-fg": "#c5cedd", "--btn-secondary-border": "#1e2636", "--btn-primary-bg": "#3b76ff",
+    // inbound (leads inbox) palette
+    "--muted2": "#5b6678", "--delete-color": "#f87171", "--quote-bg": "rgba(255,255,255,.03)",
+    "--row-selected-bg": "rgba(79,140,255,.10)", "--row-hover": "rgba(255,255,255,.03)",
+    "--chip-active-bg": "rgba(79,140,255,.14)", "--chip-active-border": "rgba(79,140,255,.4)",
+    "--st-replied-bg": "rgba(129,140,248,.18)", "--st-replied-fg": "#a5b4fc",
+    "--st-conv-bg": "rgba(251,191,36,.16)", "--st-conv-fg": "#fbbf24",
+    "--st-none-bg": "rgba(138,151,173,.14)", "--st-none-fg": "#9aa6ba",
+    "--st-cancel-bg": "rgba(248,113,113,.16)", "--st-cancel-fg": "#f87171",
+    "--st-new-bg": "rgba(52,211,153,.16)", "--st-new-fg": "#34d399",
+    "--pf-tg-bg": "rgba(79,140,255,.14)", "--pf-tg-fg": "#7eb0ff",
+    "--pf-web-bg": "rgba(138,151,173,.12)", "--pf-web-fg": "#aab6c8",
   },
   light: {
     "--page-bg": "#eef0f3", "--frame-bg": "#f5f6f8", "--frame-border": "#e3e6ea",
@@ -72,6 +83,17 @@ export const ADMIN_THEMES: Record<AdminTheme, Record<string, string>> = {
     "--pri-p2-bg": "#fdebc4", "--pri-p2-fg": "#b45309",
     "--pri-p3-bg": "#eef1f5", "--pri-p3-fg": "#64748b",
     "--btn-secondary-bg": "#ffffff", "--btn-secondary-fg": "#475569", "--btn-secondary-border": "#e3e6ea", "--btn-primary-bg": "#2563eb",
+    // inbound (leads inbox) palette
+    "--muted2": "#aab2c0", "--delete-color": "#dc2626", "--quote-bg": "#f7f8fa",
+    "--row-selected-bg": "#eef3fe", "--row-hover": "#f7f8fa",
+    "--chip-active-bg": "#e6effe", "--chip-active-border": "#bcd2fb",
+    "--st-replied-bg": "#e7e9ff", "--st-replied-fg": "#4f46e5",
+    "--st-conv-bg": "#fdebc4", "--st-conv-fg": "#b45309",
+    "--st-none-bg": "#eef1f5", "--st-none-fg": "#64748b",
+    "--st-cancel-bg": "#fde2e2", "--st-cancel-fg": "#dc2626",
+    "--st-new-bg": "#dcf5e4", "--st-new-fg": "#15803d",
+    "--pf-tg-bg": "#e6effe", "--pf-tg-fg": "#1d4ed8",
+    "--pf-web-bg": "#eef1f5", "--pf-web-fg": "#64748b",
   },
 };
 
