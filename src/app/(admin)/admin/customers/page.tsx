@@ -52,6 +52,7 @@ export default function AdminCustomersPage() {
   const [vetView, setVetView] = useState<Customer | null>(null);
   const [query, setQuery] = useState("");
   const [hideTest, setHideTest] = useState(false);
+  const [showSignups, setShowSignups] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/customers")
@@ -84,8 +85,8 @@ export default function AdminCustomersPage() {
   };
 
   const counts = useMemo(() => ({
-    total: customers.length,
-    active: customers.filter((c) => c.status === "active").length,
+    renters: customers.filter((c) => c.totalRentals > 0).length,
+    signups: customers.filter((c) => c.totalRentals === 0 && !c.isTest).length,
     test: customers.filter((c) => c.isTest).length,
     liveRentals: customers.reduce((s, c) => s + c.activeRentals, 0),
   }), [customers]);
@@ -94,10 +95,12 @@ export default function AdminCustomersPage() {
     const q = query.trim().toLowerCase();
     return customers.filter((c) => {
       if (hideTest && c.isTest) return false;
+      // default view = people who've actually rented; never-rented signups hidden until "Show signups"
+      if (!showSignups && c.totalRentals === 0) return false;
       if (!q) return true;
       return `${c.fullName} ${c.email} ${c.contactNumber || ""} ${c.referralSource || ""} ${c.paymentMethod}`.toLowerCase().includes(q);
     });
-  }, [customers, query, hideTest]);
+  }, [customers, query, hideTest, showSignups]);
 
   const labelCss: React.CSSProperties = { font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
   const isTG = (c: string | null) => (c || "").startsWith("telegram:");
@@ -116,17 +119,21 @@ export default function AdminCustomersPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{counts.total}</span>
+            <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{counts.renters}</span>
             <span style={{ font: `600 12px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--label)" }}>renters</span>
           </div>
           <span style={{ width: 1, height: 20, background: "var(--divider)" }} />
-          {[["var(--st-active-fg)", `${counts.active} active`], ["var(--test-fg)", `${counts.test} test`], ["var(--muted2)", `${counts.liveRentals} live rentals`]].map(([dot, txt]) => (
+          {[["var(--muted2)", `${counts.signups} signups`], ["var(--test-fg)", `${counts.test} test`], ["var(--st-active-fg)", `${counts.liveRentals} live rentals`]].map(([dot, txt]) => (
             <span key={txt} style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />{txt}</span>
           ))}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email or contact…"
             style={{ width: 300, maxWidth: "50vw", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 12px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
+          <button onClick={() => setShowSignups((v) => !v)} title="Signups who registered but never rented"
+            style={{ font: `600 12.5px ${F_SANS}`, whiteSpace: "nowrap", padding: "9px 14px", borderRadius: 9, cursor: "pointer", border: "1px solid", ...(showSignups
+              ? { background: "var(--subtab-active-bg)", color: "var(--subtab-active-fg)", borderColor: "transparent" }
+              : { background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-fg)", borderColor: "var(--btn-secondary-border)" }) }}>{showSignups ? "Hide signups" : `Show signups${counts.signups ? ` (${counts.signups})` : ""}`}</button>
           <button onClick={() => setHideTest((v) => !v)}
             style={{ font: `600 12.5px ${F_SANS}`, whiteSpace: "nowrap", padding: "9px 14px", borderRadius: 9, cursor: "pointer", border: "1px solid", ...(hideTest
               ? { background: "var(--subtab-active-bg)", color: "var(--subtab-active-fg)", borderColor: "transparent" }
@@ -140,7 +147,7 @@ export default function AdminCustomersPage() {
           <span style={labelCss}>Renter</span><span style={labelCss}>Status &amp; payment</span><span style={labelCss}>Rentals</span><span style={labelCss}>Joined</span><span />
         </div>
         {filtered.length === 0 ? (
-          <div style={{ padding: "30px", textAlign: "center", font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{customers.length === 0 ? "No renter accounts yet." : "No renters match."}</div>
+          <div style={{ padding: "30px", textAlign: "center", font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{customers.length === 0 ? "No renter accounts yet." : (!showSignups && counts.signups > 0) ? `No active renters in view — ${counts.signups} signup${counts.signups > 1 ? "s" : ""} haven't rented yet. Click “Show signups” to see them.` : "No renters match."}</div>
         ) : filtered.map((c) => {
           const vp = vettingPill(c);
           const pp = paymentPill(c.paymentMethod);
