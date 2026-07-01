@@ -1,10 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
 import { isLikelyTestEmail } from "@/lib/test-mode";
 
 interface Application {
@@ -25,280 +21,198 @@ interface Application {
   createdAt: string;
 }
 
-export default function AdminAmbassadorsPage() {
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("pending");
-  const [editing, setEditing] = useState<string | null>(null);
-  const [offerAmount, setOfferAmount] = useState("");
-  const [adminNotes, setAdminNotes] = useState("");
-  const [sheets, setSheets] = useState<{ open: boolean; url?: string; configured?: boolean }>({ open: false });
+const F_SANS = "var(--font-sans),system-ui,sans-serif";
+const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
-  const openSheets = async () => {
-    setSheets({ open: true });
-    try {
-      const res = await fetch("/api/admin/ambassadors/export-url");
-      const data = await res.json();
-      setSheets({ open: true, url: data.url, configured: data.configured });
-    } catch {
-      setSheets({ open: true, configured: false });
-    }
-  };
+// DB status -> display bucket (contacted/pending/reviewing all fold into "In progress")
+const bucketOf = (s: string): string => {
+  if (["pending", "reviewing", "contacted"].includes(s)) return "in_progress";
+  if (s === "unreachable") return "no_response";
+  if (s === "on_hold") return "on_hold";
+  if (s === "approved" || s === "onboarded") return "accepted";
+  if (s === "rejected") return "rejected";
+  return "in_progress";
+};
+const BUCKET: Record<string, { label: string; bg: string; fg: string }> = {
+  in_progress: { label: "In progress", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" },
+  no_response: { label: "No response", bg: "var(--st-unreach-bg)", fg: "var(--st-unreach-fg)" },
+  on_hold: { label: "On hold", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" },
+  accepted: { label: "Accepted", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" },
+  rejected: { label: "Rejected", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)" },
+};
+// filter chips (order + dot colour)
+const CHIPS: [string, string, string | null][] = [
+  ["all", "All", null], ["in_progress", "In progress", "var(--blue-chip-text)"], ["no_response", "No response", "var(--st-unreach-fg)"],
+  ["on_hold", "On hold", "var(--warn-badge-text)"], ["accepted", "Accepted", "var(--st-active-fg)"], ["rejected", "Rejected", "var(--st-cancel-fg)"],
+];
+// action buttons -> DB status to set
+const ACTIONS: { db: string; label: string; kind: "accept" | "reject" | "secondary" }[] = [
+  { db: "approved", label: "✓ Accept", kind: "accept" },
+  { db: "rejected", label: "Reject", kind: "reject" },
+  { db: "reviewing", label: "In progress", kind: "secondary" },
+  { db: "on_hold", label: "On hold", kind: "secondary" },
+  { db: "unreachable", label: "No response", kind: "secondary" },
+];
+
+const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
+const liHref = (url: string) => (url.startsWith("http") ? url : `https://${url}`);
+const liShort = (url: string) => { const h = url.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, "").replace(/[/?].*$/, ""); return h ? `in/${h.length > 18 ? h.slice(0, 18) + "…" : h}` : "profile"; };
+
+export default function AdminAmbassadorsPage() {
+  const [apps, setApps] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string | null>(null);
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+  const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/ambassadors")
-      .then((r) => r.json())
-      .then((data) => setApplications(data.applications || []))
-      .finally(() => setLoading(false));
+    fetch("/api/admin/ambassadors").then((r) => r.json()).then((d) => setApps(d.applications || [])).finally(() => setLoading(false));
+    fetch("/api/admin/ambassadors/export-url").then((r) => r.json()).then((d) => { setSheetConfigured(!!d.configured); setSheetUrl(d.url || null); }).catch(() => setSheetConfigured(false));
   }, []);
 
-  const updateStatus = async (id: string, status: string, extra?: Record<string, unknown>) => {
-    const res = await fetch(`/api/admin/ambassadors/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, ...extra }),
+  const setStatus = async (id: string, db: string) => {
+    setBusy(id);
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status: db } : a)));
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: db }) });
+      if (res.ok) { const d = await res.json(); if (d.application) setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...d.application } : a))); }
+    } finally { setBusy(null); }
+  };
+  const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: apps.length };
+    for (const a of apps) { const b = bucketOf(a.status); c[b] = (c[b] || 0) + 1; }
+    return c;
+  }, [apps]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    // group a person's submissions together, newest owner first
+    const rows = apps.filter((a) => {
+      if (filter !== "all" && bucketOf(a.status) !== filter) return false;
+      if (!q) return true;
+      return `${a.fullName} ${a.email} ${a.contactNumber || ""} ${a.linkedinUrl}`.toLowerCase().includes(q);
     });
-    if (res.ok) {
-      const data = await res.json();
-      setApplications((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, ...data.application } : a))
-      );
-      setEditing(null);
-      // Automatically switch to the new status tab
-      setFilter(status === "reviewing" ? "pending" : status);
-    }
-  };
+    const lastSeen = new Map<string, number>();
+    rows.forEach((a) => { const t = new Date(a.createdAt).getTime(); lastSeen.set(a.email, Math.max(lastSeen.get(a.email) ?? 0, t)); });
+    return [...rows].sort((a, b) => (a.email !== b.email ? lastSeen.get(b.email)! - lastSeen.get(a.email)! : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  }, [apps, filter, query]);
 
-  const statusVariant = (s: string) => {
-    const map: Record<string, "default" | "info" | "success" | "warning" | "danger"> = {
-      pending: "warning",
-      reviewing: "info",
-      approved: "success",
-      rejected: "danger",
-      unreachable: "warning",
-      contacted: "info",
-      on_hold: "default",
-    };
-    return map[s] || "default";
-  };
+  const toggle = (id: string) => setCollapsed((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allCollapsed = filtered.length > 0 && filtered.every((a) => collapsed.has(a.id));
+  const collapseAll = () => setCollapsed(allCollapsed ? new Set() : new Set(filtered.map((a) => a.id)));
 
-  const filteredRaw = filter
-    ? filter === "pending"
-      ? applications.filter((a) => a.status === "pending" || a.status === "reviewing")
-      : applications.filter((a) => a.status === filter)
-    : applications;
+  const labelCss: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
+  const chipStyle = (active: boolean): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 13px", borderRadius: 999, cursor: "pointer", font: `600 12.5px ${F_SANS}`, color: "var(--text)", border: "1px solid", borderColor: active ? "var(--chip-active-border)" : "var(--card-border)", background: active ? "var(--chip-active-bg)" : "transparent" });
+  const secBtn: React.CSSProperties = { font: `600 12.5px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "8px 14px", borderRadius: 9, cursor: "pointer" };
+  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+      <span style={labelCss}>{label}</span>
+      <span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis" }}>{children}</span>
+    </div>
+  );
 
-  // Group a person's submissions together (same Owner Email = same POC), most-recent
-  // owner first so new submitters surface at the top.
-  const lastSeen = new Map<string, number>();
-  filteredRaw.forEach((a) => {
-    const t = new Date(a.createdAt).getTime();
-    lastSeen.set(a.email, Math.max(lastSeen.get(a.email) ?? 0, t));
-  });
-  const filtered = [...filteredRaw].sort((a, b) => {
-    if (a.email !== b.email) return (lastSeen.get(b.email)! - lastSeen.get(a.email)!);
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
-
-  if (loading) return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-200" />)}</div>;
+  if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{[1, 2].map((i) => <div key={i} style={{ height: 90, borderRadius: 16, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Submissions</h2>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">New ambassador applications. Review each one and set it to Accepted or Rejected — accepting automatically creates the profile in your inventory.</p>
+      {/* title + sheets */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 640 }}>
+          <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Submissions</h1>
+          <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>New ambassador applications. Review each one and set it to Accepted or Rejected — accepting automatically creates the profile in your inventory.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={openSheets}>Google Sheets</Button>
-          <p className="text-sm text-gray-500 whitespace-nowrap">{applications.length} total</p>
-        </div>
+        {sheetConfigured && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--sheets-bg)", border: "1px solid var(--sheets-border)", padding: "6px 8px 6px 14px", borderRadius: 12, flex: "none" }}>
+            <span style={{ font: `600 13px ${F_SANS}`, color: "var(--sheets-fg)" }}>Live Google Sheets</span>
+            <button onClick={copyFormula} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "8px 14px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap" }}>{copied ? "Copied ✓" : "Copy formula"}</button>
+          </div>
+        )}
       </div>
 
-      {sheets.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSheets({ open: false })}>
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Connect Submissions to Google Sheets</h3>
-            {sheets.configured === false ? (
-              <div className="text-sm text-gray-600 space-y-2">
-                <p>Live sync isn&apos;t set up yet. Add an env var <code className="rounded bg-gray-100 px-1">RENTALS_EXPORT_KEY</code> (any long random string) in Vercel, redeploy, then come back here to get your sheet link.</p>
-                <p>This is the same key used by the Rentals and Inventory exports.</p>
-              </div>
-            ) : sheets.url ? (
-              <div className="text-sm text-gray-600 space-y-3">
-                <p>In a Google Sheet, paste this into cell <strong>A1</strong> — it auto-pulls the live submissions (refreshes about hourly):</p>
-                <div className="rounded-lg bg-gray-900 p-3">
-                  <code className="block break-all text-xs text-green-300">=IMPORTDATA(&quot;{sheets.url}&quot;)</code>
-                </div>
-                <button
-                  onClick={() => navigator.clipboard?.writeText(`=IMPORTDATA("${sheets.url}")`)}
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-                >Copy formula</button>
-                <p className="text-xs text-amber-600">⚠️ Anyone with this link can see the submissions data — keep the sheet (and link) private.</p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">Loading…</p>
-            )}
-            <div className="mt-5 flex justify-end">
-              <Button variant="outline" onClick={() => setSheets({ open: false })}>Close</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="mb-4 flex gap-2">
-        {[
-          { value: "pending", label: "Received" },
-          { value: "contacted", label: "Contacted" },
-          { value: "on_hold", label: "On hold" },
-          { value: "approved", label: "Accepted" },
-          { value: "rejected", label: "Rejected" },
-          { value: "unreachable", label: "Unreachable" },
-          { value: "", label: "All" },
-        ].map((s) => (
-          <button
-            key={s.value}
-            onClick={() => setFilter(s.value)}
-            className={`rounded-full px-3 py-1 text-sm ${
-              filter === s.value
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            {s.label} <span className="opacity-70 text-xs ml-0.5">{s.value === "pending" ? applications.filter((a) => a.status === "pending" || a.status === "reviewing").length : s.value ? applications.filter((a) => a.status === s.value).length : applications.length}</span>
+      {/* filter chips */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+        {CHIPS.map(([key, lbl, dot]) => (
+          <button key={key} onClick={() => setFilter(key)} style={chipStyle(filter === key)}>
+            {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
+            {lbl}<span style={{ color: "var(--muted)" }}>{counts[key] || 0}</span>
           </button>
         ))}
       </div>
 
-      {filtered.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500">No valuations found</CardContent></Card>
-      ) : (
-        <>
-          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  <th colSpan={2} className="px-3 pt-2 pb-1 text-left">👤 Owner (POC)</th>
-                  <th colSpan={5} className="px-3 pt-2 pb-1 text-left border-l border-gray-200">🔗 LinkedIn Account</th>
-                  <th colSpan={3} className="px-3 pt-2 pb-1 text-left border-l border-gray-200">📋 Review</th>
-                </tr>
-                <tr>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Owner Email</th>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Contact</th>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500 border-l border-gray-200">Account Name</th>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">LinkedIn URL</th>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Login Email</th>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Connections</th>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Location</th>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500 border-l border-gray-200">Status</th>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Applied</th>
-                  <th className="px-3 pb-2 pt-1 text-left text-xs font-medium uppercase text-gray-500">Heard From</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filtered.map((app) => {
-                  const offer = app.offeredAmount
-                    ? formatCurrency(typeof app.offeredAmount === "string" ? parseFloat(app.offeredAmount) : app.offeredAmount)
-                    : null;
-                  return (
-                    <tr key={app.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-sm font-medium text-gray-900">
-                        <span className="inline-flex items-center gap-1.5">
-                          {app.email}
-                          {isLikelyTestEmail(app.email) && <span className="rounded bg-purple-100 px-1 py-0.5 text-[9px] font-semibold text-purple-700">TEST</span>}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-600">{app.contactNumber || "—"}</td>
-                      <td className="px-3 py-2 border-l border-gray-100">
-                        <a href={app.linkedinUrl.startsWith("http") ? app.linkedinUrl : `https://${app.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-900 hover:text-blue-600">
-                          {app.fullName}
-                        </a>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-600">
-                        <a href={app.linkedinUrl.startsWith("http") ? app.linkedinUrl : `https://${app.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="block max-w-[150px] truncate text-blue-600 hover:text-blue-800">
-                          {app.linkedinUrl.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, "").replace(/[/?].*$/, "") || "—"}
-                        </a>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-600">{app.linkedinEmail && app.linkedinEmail !== app.email ? app.linkedinEmail : <span className="text-gray-400">Same as owner</span>}</td>
-                      <td className="px-3 py-2 text-sm text-gray-600">
-                        {app.connectionCount ? app.connectionCount.toLocaleString() : "—"}
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-600">{app.location || app.industry || "—"}</td>
-                      <td className="px-3 py-2 border-l border-gray-100">
-                        <select
-                          value={app.status}
-                          onChange={(e) => updateStatus(app.id, e.target.value)}
-                          className={`rounded-full px-3 py-1 text-xs font-semibold border-0 cursor-pointer appearance-none text-center ${
-                            (app.status === "pending" || app.status === "reviewing") ? "bg-yellow-100 text-yellow-800" :
-                            app.status === "approved" ? "bg-green-100 text-green-800" :
-                            app.status === "rejected" ? "bg-red-100 text-red-800" :
-                            app.status === "unreachable" ? "bg-orange-100 text-orange-800" :
-                            app.status === "contacted" ? "bg-blue-100 text-blue-800" :
-                            app.status === "on_hold" ? "bg-slate-100 text-slate-700" :
-                            "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          <option value="pending">Received</option>
-                          <option value="contacted">Contacted</option>
-                          <option value="on_hold">On hold</option>
-                          <option value="approved">Accepted</option>
-                          <option value="rejected">Rejected</option>
-                          <option value="unreachable">Unreachable</option>
-                        </select>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-500">{formatDate(app.createdAt)}</td>
-                      <td className="px-3 py-2 text-sm text-gray-600">{app.referralSource || "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      {/* search + collapse */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, owner email, contact or LinkedIn…" style={{ flex: 1, minWidth: 220, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "10px 13px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
+        <button onClick={collapseAll} style={{ ...secBtn, whiteSpace: "nowrap", padding: "10px 15px" }}>{allCollapsed ? "Expand all" : "Collapse all"}</button>
+      </div>
 
-          {/* Offer modal */}
-          {editing && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditing(null)}>
-              <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Make Offer</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Offer ($)</label>
-                    <input
-                      type="number"
-                      value={offerAmount}
-                      onChange={(e) => setOfferAmount(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="e.g. 25"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Admin Notes</label>
-                    <input
-                      value={adminNotes}
-                      onChange={(e) => setAdminNotes(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="Internal notes..."
-                    />
+      {/* cards */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: 48, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No applications in this status.</div>
+        ) : filtered.map((a) => {
+          const b = BUCKET[bucketOf(a.status)];
+          const open = !collapsed.has(a.id);
+          return (
+            <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
+              {/* header */}
+              <div onClick={() => toggle(a.id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "18px 22px", borderBottom: open ? "1px solid var(--divider)" : "none", cursor: "pointer", userSelect: "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `600 16px ${F_GRO}`, background: "var(--avatar-bg)", color: "var(--avatar-fg)" }}>{initialsOf(a.fullName)}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+                      <span style={{ font: `600 17px ${F_GRO}`, color: "var(--text)", letterSpacing: "-.01em" }}>{a.fullName}</span>
+                      <a href={liHref(a.linkedinUrl)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", padding: "4px 10px", borderRadius: 7 }}>↗ {liShort(a.linkedinUrl)}</a>
+                      {isLikelyTestEmail(a.email) && <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", padding: "2px 6px", borderRadius: 5, background: "var(--test-bg)", color: "var(--test-fg)" }}>TEST</span>}
+                    </div>
+                    <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{a.email}</span>
                   </div>
                 </div>
-                <div className="mt-6 flex gap-3 justify-end">
-                  <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
-                  <Button
-                    onClick={() =>
-                      updateStatus(editing, "approved", {
-                        offeredAmount: parseFloat(offerAmount),
-                        adminNotes,
-                      })
-                    }
-                  >
-                    Approve with Offer
-                  </Button>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 7 }}>
+                    <span style={{ font: `600 12px ${F_SANS}`, padding: "5px 13px", borderRadius: 999, whiteSpace: "nowrap", background: b.bg, color: b.fg }}>{b.label}</span>
+                    <span style={{ font: `500 12px ${F_SANS}`, color: "var(--date-color)" }}>Applied {fmtDate(a.createdAt)}</span>
+                  </div>
+                  <span style={{ font: `600 13px ${F_SANS}`, color: "var(--muted)", width: 14, textAlign: "center", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>
                 </div>
               </div>
+
+              {open && (
+                <div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "18px 24px", padding: "20px 22px" }}>
+                    <Field label="Contact">{a.contactNumber || "—"}</Field>
+                    <Field label="Login email"><span style={{ color: a.linkedinEmail && a.linkedinEmail !== a.email ? "var(--text2)" : "var(--muted)" }}>{a.linkedinEmail && a.linkedinEmail !== a.email ? a.linkedinEmail : "Same as owner"}</span></Field>
+                    <Field label="Connections">{a.connectionCount ? a.connectionCount.toLocaleString() : "—"}</Field>
+                    <Field label="Location">{a.location || a.industry || "—"}</Field>
+                    <Field label="LinkedIn URL"><a href={liHref(a.linkedinUrl)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>{liShort(a.linkedinUrl)}</a></Field>
+                    <Field label="Heard from">{a.referralSource || "—"}</Field>
+                  </div>
+                  {/* actions */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "14px 22px", borderTop: "1px solid var(--divider)", background: "var(--band)", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {ACTIONS.map((act) => (
+                        <button key={act.db} onClick={() => setStatus(a.id, act.db)} disabled={busy === a.id}
+                          style={act.kind === "accept"
+                            ? { font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "8px 16px", borderRadius: 9, cursor: "pointer" }
+                            : act.kind === "reject"
+                              ? { font: `600 12.5px ${F_SANS}`, color: "var(--danger)", background: "transparent", border: "1px solid var(--danger-border)", padding: "8px 14px", borderRadius: 9, cursor: "pointer" }
+                              : secBtn}>{act.label}</button>
+                      ))}
+                    </div>
+                    <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>Accepting creates the inventory profile</span>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
