@@ -355,7 +355,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                                 {a.restrictedAt
                                   ? <button onClick={() => setRestricted(a, false)} disabled={busy === a.id} style={outBtn("var(--st-active-fg)")}>Mark recovered</button>
                                   : <button onClick={() => setRestricted(a, true)} disabled={busy === a.id} style={outBtn("var(--danger)")}>Mark restricted</button>}
-                                <button onClick={() => checkHealth(a.id)} style={secBtn}>↻ Re-check</button>
+                                <button onClick={() => checkHealth(a.id)} title="Best-effort public check. LinkedIn blocks logged-out checks, so this is usually 'Unknown' — the reliable signal is the renter, then Mark restricted." style={secBtn}>↻ Re-check</button>
                                 <button onClick={() => handleDelete(a)} disabled={busy === a.id} style={{ ...outBtn("var(--danger)"), marginLeft: "auto" }}>🗑 Delete</button>
                               </div>
                             </div>

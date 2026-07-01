@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { getNextProxy } from "@/lib/proxy-pool";
 
 export async function POST(
   req: Request,
@@ -20,7 +19,9 @@ export async function POST(
     }
 
     if (!account.linkedinUrl) {
-      return NextResponse.json({ error: "No LinkedIn URL set" }, { status: 400 });
+      // No URL to check — be honest: we can't tell, so record Unknown (never a fake Active).
+      const u = await prisma.linkedInAccount.update({ where: { id }, data: { linkedinAccountHealth: "unknown", healthCheckedAt: new Date() } });
+      return NextResponse.json({ health: u.linkedinAccountHealth, checkedAt: u.healthCheckedAt, reason: "No LinkedIn URL set" });
     }
 
     let url = account.linkedinUrl;
@@ -29,13 +30,9 @@ export async function POST(
     let health = "unknown";
 
     try {
-      // Use a proxy from the pool so LinkedIn doesn't block the request
-      const proxy = getNextProxy();
-      const proxyUrl = `http://${proxy.username}:${proxy.password}@${proxy.host}:${proxy.port}`;
-
-      // Use the proxy via a CONNECT-style fetch with ProxyAgent
-      // Vercel doesn't support native proxy, so we'll use direct fetch with proxy headers
-      // Fallback: try direct fetch with realistic browser headers
+      // NB: from Vercel's server IP, LinkedIn almost always serves a login wall rather than
+      // the real profile — so this can only catch blatant "profile unavailable/restricted"
+      // pages. Anything we can't confirm is reported as Unknown (not guessed as Active).
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -64,28 +61,22 @@ export async function POST(
       const html = await response.text();
       const htmlLower = html.toLowerCase();
 
-      // Check for restricted/unavailable signals first
-      if (
-        htmlLower.includes("this profile is not available") ||
-        htmlLower.includes("profile-unavailable") ||
-        htmlLower.includes("has been restricted") ||
-        htmlLower.includes("temporarily restricted") ||
-        htmlLower.includes("account has been restricted") ||
-        htmlLower.includes("this page is not available") ||
-        htmlLower.includes("couldn't find this page") ||
-        htmlLower.includes("page not found")
-      ) {
+      const restrictedSignals = ["this profile is not available", "profile-unavailable", "has been restricted", "temporarily restricted", "account has been restricted", "this page is not available", "couldn't find this page", "page not found"];
+      // login wall / rate limit — means we did NOT see the real profile, so we can't tell
+      const authWall = response.status === 999 || htmlLower.includes("authwall") || htmlLower.includes("join linkedin") || htmlLower.includes("join now to see") || htmlLower.includes("sign in to see") || htmlLower.includes("please sign in");
+      // strong markers that we actually got the real public profile page
+      const looksLikeProfile = htmlLower.includes('"@type":"person"') || htmlLower.includes("profile-topcard") || htmlLower.includes("pv-top-card");
+
+      if (restrictedSignals.some((s) => htmlLower.includes(s))) {
         health = "restricted";
       } else if (response.status === 404) {
         health = "not_found";
-      } else if (
-        htmlLower.includes("linkedin") &&
-        (response.ok || response.status === 999 || response.status === 302)
-      ) {
-        // LinkedIn returned a page mentioning LinkedIn — profile exists
-        // Status 999 = rate limited but profile exists
-        // Auth wall also means profile exists and is active
+      } else if (looksLikeProfile && !authWall) {
+        // we can actually see the real profile content and it's not restricted
         health = "active";
+      } else {
+        // login wall / rate-limited / couldn't confirm — be honest rather than guess "active"
+        health = "unknown";
       }
     } catch {
       health = "error";
