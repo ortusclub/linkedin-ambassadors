@@ -179,6 +179,8 @@ export default function AdminRentalsPage() {
   const labelCss: React.CSSProperties = { font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
   const toolBtn = (active: boolean): React.CSSProperties => ({ font: `600 12.5px ${F_SANS}`, whiteSpace: "nowrap", padding: "9px 14px", borderRadius: 9, cursor: "pointer", border: "1px solid", ...(active ? { background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)", borderColor: "transparent" } : { background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-fg)", borderColor: "var(--btn-secondary-border)" }) });
   const chip: React.CSSProperties = { font: `600 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" };
+  // white-background outline button: coloured border + matching coloured text
+  const outBtn = (color: string): React.CSSProperties => ({ flex: 1, font: `600 12px ${F_SANS}`, color, background: "transparent", border: `1px solid ${color}`, padding: "6px 8px", borderRadius: 8, cursor: "pointer" });
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 72, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
@@ -311,16 +313,16 @@ export default function AdminRentalsPage() {
                       )}
                       <div style={{ display: "flex", gap: 6 }}>
                         {restricted ? (
-                          <button onClick={() => handleUnrestrict(r)} disabled={busy === r.id} title="Mark recovered — clears the restriction, credits downtime, resumes service" style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Resume"}</button>
+                          <button onClick={() => handleUnrestrict(r)} disabled={busy === r.id} title="Mark recovered — clears the restriction, credits downtime, resumes service" style={outBtn("var(--st-active-fg)")}>{busy === r.id ? "…" : "Resume"}</button>
                         ) : acc === "Paused" ? (
-                          <button onClick={() => handleAccess(r.id, "grant")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Resume"}</button>
+                          <button onClick={() => handleAccess(r.id, "grant")} disabled={busy === r.id} style={outBtn("var(--st-active-fg)")}>{busy === r.id ? "…" : "Resume"}</button>
                         ) : acc === "Granted" ? (
-                          <button onClick={() => handleAccess(r.id, "revoke", isManualGrant(r))} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Pause"}</button>
+                          <button onClick={() => handleAccess(r.id, "revoke", isManualGrant(r))} disabled={busy === r.id} style={outBtn("var(--orange)")}>{busy === r.id ? "…" : "Pause"}</button>
                         ) : (
                           <button onClick={() => handleAccess(r.id, "grant")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", border: "none", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>{busy === r.id ? "…" : "Grant"}</button>
                         )}
                         {(r.status === "active" || r.status === "payment_failed" || r.status === "pending_access") && (
-                          <button onClick={() => handleAccess(r.id, "end")} disabled={busy === r.id} style={{ flex: 1, font: `600 12px ${F_SANS}`, color: "var(--danger)", background: "var(--st-cancel-bg)", border: "1px solid var(--danger-border)", padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}>End</button>
+                          <button onClick={() => handleAccess(r.id, "end")} disabled={busy === r.id} style={outBtn("var(--danger)")}>End</button>
                         )}
                       </div>
                       <button onClick={() => handleDeleteRental(r.id)} disabled={busy === r.id} style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", cursor: "pointer", padding: 2, alignSelf: "center" }}>🗑 Delete</button>
