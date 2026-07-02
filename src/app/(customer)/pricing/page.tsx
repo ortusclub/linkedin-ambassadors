@@ -57,9 +57,11 @@ export default function PricingPage() {
       <style>{`
         .pp2-tiers{max-width:1160px;margin:0 auto;padding:44px 40px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;align-items:stretch;}
         .pp2-factors{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
-        .pp2-card{transition:transform .18s ease, box-shadow .18s ease;}
-        .pp2-card:hover{transform:translateY(-6px)!important;box-shadow:0 22px 48px rgba(16,24,40,0.14)!important;}
-        .pp2-featured:hover{transform:translateY(-16px)!important;box-shadow:0 30px 64px rgba(10,102,194,0.24)!important;}
+        .pp2-card{transition:transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s ease;}
+        .pp2-card:hover{transform:translateY(-7px)!important;box-shadow:0 22px 48px rgba(16,24,40,0.13), 0 4px 12px rgba(16,24,40,0.07)!important;}
+        .pp2-featured:hover{transform:translateY(-16px)!important;box-shadow:0 34px 70px rgba(10,102,194,0.26), 0 6px 18px rgba(10,102,194,0.14)!important;}
+        .pp2-factor{transition:transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s ease;}
+        .pp2-factor:hover{transform:translateY(-6px);box-shadow:0 18px 38px rgba(16,24,40,0.12), 0 4px 10px rgba(16,24,40,0.06);}
         @media(max-width:900px){
           .pp2-tiers{grid-template-columns:1fr;padding:36px 18px 0;}
           .pp2-factors{grid-template-columns:repeat(2,1fr);}
@@ -71,7 +73,7 @@ export default function PricingPage() {
       {/* header */}
       <div style={{ textAlign: "center", padding: "60px 24px 8px" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#FFFFFF", border: "1px solid #E6E8EC", borderRadius: 999, padding: "6px 14px", fontSize: 12.5, fontWeight: 600, color: "#3F4856", marginBottom: 22, boxShadow: "0 1px 2px rgba(16,24,40,0.04)" }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00B85C" }} />Pricing
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%, #4BE08C 0%, #00B85C 65%)", boxShadow: "0 0 5px 1px rgba(0,184,92,0.40), 0 0 12px 4px rgba(0,184,92,0.22), 0 0 20px 7px rgba(0,184,92,0.12)" }} />Pricing
         </div>
         <h1 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(34px,4.6vw,54px)", lineHeight: 1.04, letterSpacing: "-0.03em", margin: "0 0 20px" }}>Pay per account —<br />priced by quality</h1>
         <p style={{ fontSize: 19, lineHeight: 1.55, color: "#5A6473", margin: "0 auto", maxWidth: 560 }}>Every profile is priced on its own merits, so costs range. Here&apos;s what you&apos;re paying for, and how to pick the right fit.</p>
@@ -143,8 +145,8 @@ export default function PricingPage() {
           <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 26px", maxWidth: 720 }}>Every account is scored on the same factors — the higher it scores, the more reach and trust it carries (and the more it costs).</p>
           <div className="pp2-factors">
             {FACTORS.map((f) => (
-              <div key={f.title} style={{ background: "#FBFCFD", border: "1px solid #EDEFF2", borderRadius: 14, padding: "22px 16px", textAlign: "center" }}>
-                <div style={{ width: 44, height: 44, margin: "0 auto 14px", borderRadius: 11, background: "#EAF2FC", display: "flex", alignItems: "center", justifyContent: "center" }}>{f.icon}</div>
+              <div key={f.title} className="pp2-factor" style={{ background: "#FFFFFF", border: "1px solid #EAECEF", borderRadius: 16, padding: "26px 18px 24px", textAlign: "center", boxShadow: "0 6px 18px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.04)" }}>
+                <div style={{ width: 50, height: 50, margin: "0 auto 15px", borderRadius: 14, background: "linear-gradient(150deg,#EAF2FC 0%,#D6E7FB 100%)", boxShadow: "0 6px 14px rgba(10,102,194,0.16), inset 0 1px 0 rgba(255,255,255,0.7)", display: "flex", alignItems: "center", justifyContent: "center" }}>{f.icon}</div>
                 <div style={{ fontFamily: POP, fontWeight: 600, fontSize: 15, color: "#0B1220", marginBottom: 6 }}>{f.title}</div>
                 <div style={{ fontSize: 13, lineHeight: 1.5, color: "#8A93A2" }}>{f.desc}</div>
               </div>
