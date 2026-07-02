@@ -1,801 +1,337 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { maskPublicAccount } from "@/lib/mask";
 import { formatNumber, formatCurrency } from "@/lib/utils";
-import { Montserrat, Karla } from "next/font/google";
+import { blogFontVars } from "@/lib/blog-fonts";
 import { TestAccountGate } from "@/components/test-account-gate";
 
-// Brand fonts: Montserrat (headings) + Karla (body). Variable names kept for minimal churn.
-const dmSans = Karla({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-dm-sans" });
-const instrumentSans = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-instrument-sans" });
+const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
+const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
 
-const AVATAR_COLORS = [
-  "linear-gradient(135deg,#0A66C2,#004182)",
-  "linear-gradient(135deg,#00B85C,#007A3D)",
-  "linear-gradient(135deg,#7C3AED,#5B21B6)",
-  "linear-gradient(135deg,#DC2626,#991B1B)",
-  "linear-gradient(135deg,#D97706,#92400E)",
-  "linear-gradient(135deg,#0891B2,#155E75)",
+const AVATAR_COLORS = ["#0A66C2", "#0E7C74", "#5747C9", "#B23150", "#946011", "#067A45", "#0D1B2A", "#C2410C"];
+const INDUSTRY_COLORS: Record<string, string> = { Sales: "#5747C9", Marketing: "#B23150", Technology: "#0A66C2", Operations: "#0E7C74", Finance: "#946011" };
+const getAvatarColor = (n: string) => AVATAR_COLORS[(n.charCodeAt(0) + n.length) % AVATAR_COLORS.length];
+const getInitials = (n: string) => n.replace(/\s*\(.*\)\s*$/, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+const shortName = (n: string) => { const p = n.replace(/\s*\(.*\)\s*$/, "").trim().split(/\s+/).filter(Boolean); return p.length < 2 ? (p[0] || "") : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`; };
+
+const SAMPLE = [
+  { id: "1", linkedinName: "Alex Chen", linkedinHeadline: "VP of Engineering", connectionCount: 8500, industry: "Technology", location: "San Francisco, CA", monthlyPrice: 350, status: "available", profilePhotoUrl: null, hasSalesNav: false, showcase: false },
+  { id: "2", linkedinName: "Maria Santos", linkedinHeadline: "Head of Sales", connectionCount: 6200, industry: "Sales", location: "New York, NY", monthlyPrice: 275, status: "available", profilePhotoUrl: null, hasSalesNav: true, showcase: false },
+  { id: "3", linkedinName: "James Wright", linkedinHeadline: "Marketing Director", connectionCount: 5100, industry: "Marketing", location: "Chicago, IL", monthlyPrice: 220, status: "available", profilePhotoUrl: null, hasSalesNav: false, showcase: false },
 ];
 
-function getAvatarColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
+type PreviewAccount = {
+  id: string; linkedinName: string; linkedinHeadline: string | null; connectionCount: number;
+  industry: string | null; location: string | null; monthlyPrice: number; status: string; hasSalesNav: boolean; showcase?: boolean;
+};
 
-function getInitials(name: string) {
-  return name.replace(/\s*\(.*\)\s*$/, "").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-}
+const STEPS = [
+  { n: "1", tag: "Browse", title: "Browse & select", body: "Filter accounts by industry, location and connection count. Every account is a real, established profile — verified, with genuine history." },
+  { n: "2", tag: "Rent", title: "Rent monthly", body: "Pay a flat monthly fee per account. No contracts, no setup fees. Scale up or down anytime — add a few this month, more the next." },
+  { n: "3", tag: "Launch", title: "Launch campaigns", body: "Open the account in a secure browser and run your outreach tool. Each account has its own limits — multiply your reach, not your risk." },
+];
 
-const SAMPLE_ACCOUNTS = [
-  { id: "1", linkedinName: "Alex Chen", linkedinHeadline: "VP of Engineering", connectionCount: 8500, industry: "Technology", location: "San Francisco, CA", accountAgeMonths: 96, monthlyPrice: 350, status: "available" as const, profilePhotoUrl: null, hasSalesNav: false },
-  { id: "2", linkedinName: "Maria Santos", linkedinHeadline: "Head of Sales", connectionCount: 6200, industry: "SaaS", location: "New York, NY", accountAgeMonths: 72, monthlyPrice: 275, status: "available" as const, profilePhotoUrl: null, hasSalesNav: false },
-  { id: "3", linkedinName: "James Wright", linkedinHeadline: "Marketing Director", connectionCount: 5100, industry: "Marketing", location: "Chicago, IL", accountAgeMonths: 60, monthlyPrice: 220, status: "available" as const, profilePhotoUrl: null, hasSalesNav: false },
-  { id: "4", linkedinName: "Priya Patel", linkedinHeadline: "Senior Recruiter", connectionCount: 4800, industry: "Recruiting", location: "Austin, TX", accountAgeMonths: 48, monthlyPrice: 200, status: "available" as const, profilePhotoUrl: null, hasSalesNav: true },
-  { id: "5", linkedinName: "Tom Nielsen", linkedinHeadline: "Founder & CEO", connectionCount: 3900, industry: "FinTech", location: "Miami, FL", accountAgeMonths: 84, monthlyPrice: 180, status: "available" as const, profilePhotoUrl: null, hasSalesNav: false },
+const TIERS = [
+  { eyebrow: "ENTRY", bg: "#EAF2FC", fg: "#0A66C2", name: "New / Basic", person: "Jordan T.", role: "Sales Associate", initials: "JT", avatarBg: "#4B9BEA", conn: "<500", ver: "No", verOn: false, nav: "—", navOn: false, desc: "Newer profiles for testing and higher-volume outreach.", price: "$75" },
+  { eyebrow: "SWEET SPOT", bg: "#0A66C2", fg: "#FFFFFF", name: "Established", person: "Anna K.", role: "Marketing Manager", initials: "AK", avatarBg: "#0A66C2", conn: "500+", ver: "Yes", verOn: true, nav: "✓", navOn: true, desc: "Verified profiles with Sales Navigator — the reliable middle ground.", price: "$125", featured: true, ribbon: "Most popular" },
+  { eyebrow: "TOP TIER", bg: "#0D1B2A", fg: "#FFFFFF", name: "Premium", person: "Marcus L.", role: "VP of Sales", initials: "ML", avatarBg: "#0D1B2A", conn: "5k+", ver: "Yes", verOn: true, nav: "✓", navOn: true, desc: "Senior, large networks with Sales Navigator. Maximum reach.", price: "$150+" },
+];
+
+const GO_FEATURES = [
+  { icon: "🌐", title: "Dedicated proxy", body: "Each account runs from a consistent IP location, every session." },
+  { icon: "🧬", title: "Isolated fingerprint", body: "A unique browser fingerprint per profile — no overlap." },
+  { icon: "🍪", title: "Separate cookies", body: "Sessions never cross-contaminate between accounts." },
+  { icon: "👤", title: "One consistent user", body: "LinkedIn sees a single, stable login — no matter who's on it." },
+];
+
+const WHY = [
+  { title: "No warm-up", body: "Established accounts are ready from day one — no aging period." },
+  { title: "Anti-detect protected", body: "GoLogin gives each account its own fingerprint, proxy and cookies." },
+  { title: "Cancel anytime", body: "Flat monthly fee per account. No contracts — scale up or down." },
+  { title: "Real, consenting people", body: "Every profile is a real professional who has opted in." },
 ];
 
 export default async function HomePage() {
-  let accounts;
+  let raw: PreviewAccount[];
   try {
-    accounts = await prisma.linkedInAccount.findMany({
+    raw = (await prisma.linkedInAccount.findMany({
       where: { status: { in: ["available", "rented"] }, listed: true },
       orderBy: { connectionCount: "desc" },
       take: 30,
-    });
+    })) as unknown as PreviewAccount[];
   } catch {
-    accounts = SAMPLE_ACCOUNTS;
+    raw = SAMPLE as unknown as PreviewAccount[];
   }
-  // Never expose real identities publicly — mask name, drop photo/url.
-  accounts = accounts.map((a) => maskPublicAccount(a));
-  // Balance real + showcase so the homepage isn't all showcase accounts.
-  const realA = accounts.filter((a) => !(a as { showcase?: boolean }).showcase);
-  const showA = accounts.filter((a) => (a as { showcase?: boolean }).showcase);
-  const mixed: typeof realA = [];
-  for (let i = 0; i < Math.max(realA.length, showA.length); i++) {
-    if (realA[i]) mixed.push(realA[i]);
-    if (showA[i]) mixed.push(showA[i]);
-  }
+  let accounts = raw.map((a) => maskPublicAccount(a)) as PreviewAccount[];
+  // Balance real + showcase so the preview isn't all showcase accounts.
+  const realA = accounts.filter((a) => !a.showcase);
+  const showA = accounts.filter((a) => a.showcase);
+  const mixed: PreviewAccount[] = [];
+  for (let i = 0; i < Math.max(realA.length, showA.length); i++) { if (realA[i]) mixed.push(realA[i]); if (showA[i]) mixed.push(showA[i]); }
   accounts = mixed;
+  const availCount = accounts.filter((a) => a.status === "available" && !a.showcase).length;
+  const preview = accounts.slice(0, 6);
+
   return (
-    <>
+    <div className={blogFontVars} style={{ fontFamily: INT, color: "#0B1220", background: "#0D1B2A" }}>
       <style>{`
-        *{margin:0;padding:0;box-sizing:border-box}
-        :root{
-          --bg:#FAFAF8;--surface:#FFFFFF;--surface-alt:#F3F2EE;--text:#0F1419;--text-mid:#536471;--text-light:#8899A6;--border:#E8E6E1;
-          --blue:#0A66C2;--blue-dark:#004182;--blue-light:#E8F1FA;--green:#00B85C;--green-dark:#007A3D;--green-light:#E6F9EE;
-          --accent:#1D1B16;--radius:10px;--radius-lg:16px;--radius-xl:24px;
-        }
-        html{scroll-behavior:smooth}
-        body{font-family:var(--font-dm-sans),'Karla',system-ui,sans-serif;color:var(--text);background:var(--bg) !important;-webkit-font-smoothing:antialiased;overflow-x:hidden;max-width:100vw}
-        .kl-page{overflow-x:hidden}
-        .kl-page h1,.kl-page h2,.kl-page h3,.kl-page h4,.kl-page h5{font-family:var(--font-instrument-sans),'Montserrat',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
-        .nav-cta{padding:8px 20px;background:var(--accent);color:#fff !important;border-radius:var(--radius);font-size:13px;font-weight:600;text-decoration:none;transition:transform .15s,box-shadow .15s}
-        .nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,20,25,0.15)}
-        .hero-single{min-height:calc(78vh - 64px);display:flex;align-items:center;position:relative;overflow:hidden;padding:96px 40px;background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%);color:#fff}
-        .hero-single::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 22% 72%,rgba(255,255,255,0.07) 0%,transparent 60%);pointer-events:none}
-        .hero-single-inner{max-width:1200px;margin:0 auto;width:100%;position:relative}
-        .hero-title-lg{font-size:clamp(36px,5vw,58px);line-height:1.08;font-weight:700;letter-spacing:-0.03em;max-width:740px;margin-bottom:20px}
-        .hero-desc-lg{font-size:18px;line-height:1.6;opacity:0.82;max-width:560px;margin-bottom:32px}
-        .hero-pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:#fff;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:6px 14px;margin-bottom:18px}
-        .hero-pill-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,0.25)}
-        .hero-title-lg .hl{color:#34d399;white-space:nowrap}
-        .hero-sidedoor{display:inline-flex;align-items:center;gap:6px;margin-top:28px;font-size:14px;color:rgba(255,255,255,0.72);text-decoration:none;transition:color .15s}
-        .hero-sidedoor:hover{color:#fff}
-        .hero-sidedoor strong{color:#fff;font-weight:600;margin-left:5px}
-        .hero-single::after{content:'';position:absolute;bottom:-140px;right:-60px;width:460px;height:460px;background:radial-gradient(closest-side,rgba(0,184,92,0.12),transparent 70%);pointer-events:none}
-        /* Option B — bold & minimal centered hero */
-        .hero-b{background:radial-gradient(circle at 50% 16%,#103a6b 0%,#0B1A2E 62%)}
-        .hero-b::before{display:none}
-        .hero-b::after{content:'';position:absolute;left:50%;bottom:-180px;right:auto;transform:translateX(-50%);width:680px;height:400px;background:radial-gradient(closest-side,rgba(0,184,92,0.16),transparent 70%);pointer-events:none}
-        .hero-center{max-width:880px;margin:0 auto;width:100%;position:relative;text-align:center;display:flex;flex-direction:column;align-items:center}
-        .hero-center .hero-title-lg{max-width:780px;margin-left:auto;margin-right:auto;font-size:clamp(38px,5.4vw,62px)}
-        .hero-center .hero-desc-lg{max-width:580px;margin-left:auto;margin-right:auto}
-        .hero-center .hero-btns{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
-        .hero-proofstrip{display:flex;gap:44px;justify-content:center;margin-top:44px;padding-top:28px;border-top:1px solid rgba(255,255,255,0.12);flex-wrap:wrap}
-        .hero-proofstrip .ps{display:flex;flex-direction:column;align-items:center}
-        .hero-proofstrip .ps .n{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-weight:800;font-size:24px;letter-spacing:-0.02em}
-        .hero-proofstrip .ps .l{font-size:12.5px;color:rgba(255,255,255,0.6);margin-top:2px}
-        .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center}
-        .hero-cards{position:relative;min-height:360px}
-        .gcard{position:absolute;width:300px;background:rgba(255,255,255,0.1);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px 18px;box-shadow:0 26px 50px -20px rgba(0,0,0,0.6)}
-        .gcard .grow{display:flex;align-items:center;gap:11px}
-        .gcard .gav{width:42px;height:42px;border-radius:50%;flex:0 0 42px;position:relative;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;overflow:hidden}
-        .gcard .gav .on{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:#34d399;border:2px solid #0a3161}
-        .gcard .gnm{font-weight:700;font-size:14px;display:flex;align-items:center;gap:5px}
-        .gcard .gvf{color:#7FD3FF}
-        .gcard .grl{font-size:12px;color:rgba(255,255,255,0.65);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .gcard .gft{display:flex;align-items:center;justify-content:space-between;margin-top:13px;padding-top:11px;border-top:1px solid rgba(255,255,255,0.14)}
-        .gcard .gpr{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-weight:700;font-size:18px}
-        .gcard .gpr small{font-size:11px;color:rgba(255,255,255,0.6);font-weight:400}
-        .gcard .gtg{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:100px;background:rgba(127,211,255,0.18);color:#bfe6ff}
-        .gc1{top:0;left:20px;transform:rotate(-3deg);z-index:3}
-        .gc2{top:118px;left:120px;transform:rotate(2deg);z-index:2}
-        .gc3{top:236px;left:30px;transform:rotate(-1deg);z-index:1;opacity:.95}
-        .hero{min-height:calc(100vh - 64px);display:grid;grid-template-columns:1fr 1fr;position:relative}
-        .hero-side{padding:80px 60px 60px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden}
-        .hero-rent{background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%);color:#fff}
-        .hero-earn{background:linear-gradient(160deg,#0A2618 0%,#0A4D30 40%,#00B85C 100%);color:#fff}
-        .hero-side::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 70%,rgba(255,255,255,0.06) 0%,transparent 60%);pointer-events:none}
-        .hero-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;opacity:0.6;margin-bottom:24px}
-        .hero-title{font-size:clamp(32px,4vw,48px);line-height:1.1;margin-bottom:16px;font-weight:700;letter-spacing:-0.03em;max-width:460px}
-        .hero-desc{font-size:16px;line-height:1.6;opacity:0.8;max-width:400px;margin-bottom:32px}
-        .hero-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:var(--radius);font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
-        .hero-btn-white{background:rgba(255,255,255,0.15);color:#fff;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2)}
-        .hero-btn-white:hover{background:rgba(255,255,255,0.25);transform:translateY(-1px)}
-        .hero-btn-solid{background:#fff;color:var(--accent)}
-        .hero-btn-solid:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,0.15)}
-        .hero-video-btn{display:inline-flex;align-items:center;gap:10px;background:none;border:none;cursor:pointer;padding:0;transition:opacity .2s;text-decoration:none}
-        .hero-video-btn:hover{opacity:0.8}
-        .hero-video-play{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);border:1.5px solid rgba(255,255,255,0.35);display:flex;align-items:center;justify-content:center;transition:all .2s}
-        .hero-video-btn:hover .hero-video-play{background:rgba(255,255,255,0.3);transform:scale(1.08)}
-        .hero-video-text{font-size:14px;font-weight:500;color:rgba(255,255,255,0.8);font-family:'Karla',system-ui,sans-serif}
-        .hero-stats{display:flex;gap:32px;margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.15)}
-        .hero-stat-num{font-size:28px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;letter-spacing:-0.03em}
-        .hero-stat-label{font-size:12px;opacity:0.6;margin-top:2px}
-        .hero-divider{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10;width:56px;height:56px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--text-mid);box-shadow:0 4px 24px rgba(0,0,0,0.1)}
-        .proof-bar{background:linear-gradient(180deg,#F3F2EE 0%,#FAFAF8 100%);border-bottom:1px solid var(--border);padding:28px 0}
-        .proof-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 32px;text-align:center;min-width:190px;box-shadow:0 1px 3px rgba(16,24,40,0.04)}
-        .proof-inner{max-width:1200px;margin:0 auto;padding:0 40px;display:flex;align-items:center;justify-content:space-between;gap:40px}
-        .proof-logos{display:flex;align-items:center;gap:24px}
-        .proof-logo{font-size:13px;font-weight:600;color:var(--text-light);letter-spacing:-0.01em;opacity:0.5}
-        .proof-stats{display:flex;gap:40px}
-        .proof-stat{text-align:center}
-        .proof-stat-num{font-size:26px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;color:var(--blue);letter-spacing:-0.02em}
-        .proof-stat-label{font-size:11px;color:var(--text-light);margin-top:2px}
-        .kl-section{padding:100px 40px;max-width:1200px;margin:0 auto}
-        .section-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
-        .section-title{font-size:clamp(28px,3.5vw,42px);line-height:1.15;letter-spacing:-0.03em;margin-bottom:16px;max-width:600px}
-        .section-desc{font-size:16px;color:var(--text-mid);line-height:1.6;max-width:520px;margin-bottom:48px}
-        .how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-        .how-card{padding:36px 32px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);position:relative;transition:all .2s}
-        .how-card:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:0 16px 36px rgba(0,184,92,0.12)}
-        .how-num{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#00B85C,#007A3D);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-bottom:20px;box-shadow:0 10px 20px -8px rgba(0,184,92,0.6)}
-        .how-card h4{font-size:18px;margin-bottom:8px}
-        .how-card p{font-size:14px;color:var(--text-mid);line-height:1.6}
-        .marketplace-bg{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-        .marketplace-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px}
-        .filter-row{display:flex;gap:8px;flex-wrap:wrap}
-        .filter-chip{padding:8px 16px;border-radius:100px;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--text-mid);cursor:pointer;transition:all .15s}
-        .filter-chip:hover,.filter-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-        .account-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-        .account-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;transition:all .2s;cursor:pointer;position:relative}
-        .account-card:hover{border-color:var(--blue);box-shadow:0 8px 24px rgba(10,102,194,0.08);transform:translateY(-2px)}
-        .account-header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
-        .account-avatar{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff}
-        .account-name{font-weight:600;font-size:15px;margin-bottom:2px}
-        .account-role{font-size:13px;color:var(--text-mid)}
-        .account-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-        .account-meta-item{background:var(--surface-alt);padding:8px 12px;border-radius:8px}
-        .account-meta-item .val{font-size:15px;font-weight:600;font-family:var(--font-instrument-sans),'Montserrat',sans-serif}
-        .account-meta-item .lbl{font-size:11px;color:var(--text-light);margin-top:1px}
-        .account-tags{display:flex;gap:6px;flex-wrap:wrap}
-        .account-tag{font-size:11px;padding:4px 10px;border-radius:100px;background:var(--blue-light);color:var(--blue);font-weight:500}
-        .account-tag.green{background:var(--green-light);color:var(--green-dark)}
-        .account-badge{position:absolute;top:12px;right:12px;font-size:10px;font-weight:600;padding:4px 10px;border-radius:100px;background:var(--green-light);color:var(--green-dark)}
-        .account-price{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:baseline;justify-content:space-between}
-        .account-price .price{font-size:22px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;letter-spacing:-0.02em}
-        .account-price .period{font-size:13px;color:var(--text-light)}
-        .account-price .rent-btn{padding:8px 18px;border-radius:var(--radius);background:var(--blue);color:#fff;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s}
-        .account-price .rent-btn:hover{background:var(--blue-dark);transform:translateY(-1px)}
-        .browse-all{display:flex;justify-content:center;margin-top:40px}
-        .browse-all a{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;border-radius:var(--radius);border:1px solid var(--border);font-size:14px;font-weight:600;color:var(--text);text-decoration:none;transition:all .15s}
-        .browse-all a:hover{border-color:var(--accent);background:var(--surface);transform:translateY(-1px)}
-        .browser-section{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-        .browser-features{display:flex;flex-direction:column;gap:20px;margin-top:8px}
-        .browser-feature{display:flex;gap:16px;align-items:flex-start}
-        .browser-feature-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-        .browser-feature h4{font-size:15px;margin-bottom:4px;font-weight:600}
-        .browser-feature p{font-size:13px;color:var(--text-mid);line-height:1.6}
-        .browser-visual{display:flex;justify-content:center}
-        .browser-mockup{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.08);width:100%;max-width:440px}
-        .browser-chrome{background:var(--surface-alt);padding:10px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
-        .browser-dots{display:flex;gap:6px}
-        .browser-dots span{width:10px;height:10px;border-radius:50%;background:var(--border)}
-        .browser-dots span:first-child{background:#FF5F57}
-        .browser-dots span:nth-child(2){background:#FFBD2E}
-        .browser-dots span:last-child{background:#27C93F}
-        .browser-url{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text-mid);display:flex;align-items:center;gap:6px}
-        .browser-body{padding:20px}
-        .browser-status{margin-bottom:16px;display:flex;flex-direction:column;gap:8px}
-        .status-row{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--text)}
-        .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-        .green-dot{background:#00B85C;box-shadow:0 0 6px rgba(0,184,92,0.4)}
-        .blue-dot{background:#0A66C2;box-shadow:0 0 6px rgba(10,102,194,0.4)}
-        .status-location{font-size:11px;color:var(--text-light);font-weight:400;margin-left:auto}
-        .browser-linkedin-mock{background:var(--surface-alt);border-radius:var(--radius);padding:16px;margin-bottom:12px}
-        .li-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-        .li-avatar{width:40px;height:40px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
-        .li-name{font-weight:600;font-size:14px}
-        .li-role{font-size:12px;color:var(--text-mid)}
-        .li-stats-row{display:flex;gap:16px}
-        .li-stat{display:flex;flex-direction:column;align-items:center;flex:1;padding:8px;background:var(--surface);border-radius:8px}
-        .li-stat-num{font-size:16px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif}
-        .li-stat-lbl{font-size:10px;color:var(--text-light)}
-        .browser-shield{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--green);font-weight:500;padding:10px 14px;background:var(--green-light);border-radius:8px}
-        .ambassador-section{background:linear-gradient(160deg,#0A2618 0%,#0A4D30 40%,#00B85C 100%);color:#fff;border-radius:var(--radius-xl);margin:0 40px;padding:80px 60px;position:relative;overflow:hidden}
-        .ambassador-section::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 20%,rgba(255,255,255,0.08) 0%,transparent 50%);pointer-events:none}
-        .ambassador-section .section-label{color:rgba(255,255,255,0.5)}
-        .ambassador-section .section-title{color:#fff;max-width:500px}
-        .ambassador-section .section-desc{color:rgba(255,255,255,0.7);max-width:440px}
-        .earn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px}
-        .earn-card{padding:28px 24px;border-radius:var(--radius-lg);background:rgba(255,255,255,0.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1)}
-        .earn-card h4{font-size:16px;margin-bottom:6px;font-weight:600}
-        .earn-card p{font-size:13px;opacity:0.7;line-height:1.5}
-        .earn-card .earn-amount{font-size:32px;font-weight:700;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;letter-spacing:-0.03em;margin-bottom:4px}
-        .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
-        .comparison-table{border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface)}
-        .comparison-table .row{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border);font-size:14px}
-        .comparison-table .row:last-child{border-bottom:none}
-        .comparison-table .row.header{font-weight:600;font-size:13px;background:var(--surface-alt)}
-        .comparison-table .cell{padding:14px 20px}
-        .comparison-table .cell.feature{color:var(--text-mid);font-weight:500}
-        .comparison-table .cell.solo{color:var(--text-light)}
-        .comparison-table .cell.linkedvelocity{color:var(--blue);font-weight:600}
-        .testimonials-bg{background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 45%,#0A66C2 115%);position:relative;overflow:hidden}
-        .testimonials-bg::before{content:'';position:absolute;top:-80px;left:10%;width:420px;height:340px;background:radial-gradient(closest-side,rgba(0,184,92,0.16),transparent 70%);pointer-events:none}
-        .testimonials-bg .section-label{color:rgba(255,255,255,0.55)}
-        .testimonials-bg .section-title{color:#fff}
-        .testimonial-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-        .testimonial-card{padding:28px;border-radius:var(--radius-lg);background:rgba(255,255,255,0.08);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.14);box-shadow:0 22px 44px -26px rgba(0,0,0,0.5);position:relative}
-        .testimonial-quote{font-size:15px;line-height:1.6;color:#fff;margin-bottom:20px;font-style:italic}
-        .testimonial-author{display:flex;align-items:center;gap:12px}
-        .testimonial-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;color:#fff}
-        .testimonial-name{font-weight:600;font-size:13px;color:#fff}
-        .testimonial-role{font-size:12px;color:rgba(255,255,255,0.6)}
-        .final-cta{text-align:center;padding:120px 40px;max-width:700px;margin:0 auto;position:relative}
-        .final-cta::before{content:'';position:absolute;top:40px;left:50%;transform:translateX(-50%);width:560px;height:300px;background:radial-gradient(closest-side,rgba(0,184,92,0.10),transparent 70%);pointer-events:none;z-index:0}
-        .final-cta > *{position:relative;z-index:1}
-        .final-cta h2{font-size:clamp(32px,4vw,48px);letter-spacing:-0.03em;margin-bottom:16px}
-        .final-cta p{font-size:16px;color:var(--text-mid);margin-bottom:36px;line-height:1.6}
-        .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-        .btn-blue{padding:16px 32px;border-radius:var(--radius);background:var(--blue);color:#fff;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
-        .btn-blue:hover{background:var(--blue-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(10,102,194,0.2)}
-        .btn-green-solid{padding:16px 32px;border-radius:var(--radius);background:var(--green);color:#fff;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;border:none;cursor:pointer}
-        .btn-green-solid:hover{background:var(--green-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,184,92,0.2)}
-        .amb-band{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;background:linear-gradient(160deg,#0A2618 0%,#0A4D30 45%,#00B85C 120%);border-radius:var(--radius-xl);padding:36px 44px;color:#fff}
-        .amb-band-label{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:8px}
-        .amb-band-title{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.02em}
-        .amb-band-desc{font-size:14px;color:rgba(255,255,255,0.78);margin-top:6px}
-        .amb-band-btn{flex-shrink:0;background:#fff;color:#007A3D;font-weight:700;padding:13px 24px;border-radius:var(--radius);text-decoration:none;transition:transform .15s}
-        .amb-band-btn:hover{transform:translateY(-1px)}
-        .tryit-card{position:relative;overflow:hidden;text-align:center;padding:72px 32px;border-radius:var(--radius-xl);background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 45%,#0A66C2 120%);color:#fff}
-        .tryit-card::before{content:'';position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:520px;height:300px;background:radial-gradient(closest-side,rgba(0,184,92,0.2),transparent 70%);pointer-events:none}
-        .tryit-card > *{position:relative;z-index:1}
-        .tryit-pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:#fff;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:6px 14px;margin-bottom:18px}
-        .tryit-dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,0.25)}
-        .tryit-title{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-0.03em;max-width:600px;margin:0 auto 14px;color:#fff}
-        .tryit-desc{font-size:16px;color:rgba(255,255,255,0.82);max-width:520px;margin:0 auto;line-height:1.6}
-        .pricing-bg{background:#F3F2EE;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-        .price-snap{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start}
-        .price-snap .pt{position:relative;padding:30px 26px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);transition:all .2s}
-        .price-snap .pt::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;border-radius:var(--radius-lg) var(--radius-lg) 0 0;background:#9cc1ec}
-        .price-snap .pt.t-est::before{background:var(--blue)}
-        .price-snap .pt.t-prem::before{background:#0B2A52}
-        .price-snap .pt:hover{transform:translateY(-4px);box-shadow:0 22px 44px -24px rgba(10,102,194,0.3);border-color:var(--blue)}
-        .price-snap .pt.feat{border:2px solid var(--blue);box-shadow:0 30px 60px -26px rgba(10,102,194,0.5);transform:translateY(-14px)}
-        .price-snap .pt.feat:hover{transform:translateY(-18px)}
-        .price-snap .pt-badge{position:absolute;top:-11px;left:24px;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:linear-gradient(135deg,#00B85C,#007A3D);padding:4px 11px;border-radius:999px}
-        .price-snap .pt-cat{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--blue);background:var(--blue-light);border-radius:999px;padding:4px 11px;display:inline-block}
-        .price-snap .pt.t-est .pt-cat{color:#fff;background:var(--blue)}
-        .price-snap .pt.t-prem .pt-cat{color:#fff;background:#0B2A52}
-        .price-snap .pt-name{font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:19px;font-weight:700;margin-top:13px}
-        .price-snap .pt-strength{display:inline-flex;gap:4px;margin-left:9px;vertical-align:middle}
-        .price-snap .pt-strength i{width:7px;height:7px;border-radius:50%;background:#D5DBE3;display:inline-block}
-        .price-snap .pt-strength i.on{background:var(--blue)}
-        .price-snap .pt.t-prem .pt-strength i.on{background:#0B2A52}
-        .price-snap .pt-eg{display:flex;align-items:center;gap:11px;margin:14px 0 10px;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:#FAFBFC}
-        .price-snap .pt-eg-av{width:42px;height:42px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;position:relative;flex:0 0 42px}
-        .price-snap .pt-eg-dot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid #FAFBFC}
-        .price-snap .pt-eg-name{font-weight:700;font-size:14px}
-        .price-snap .pt-eg-tag{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-light);background:#EEF0F4;border-radius:6px;padding:2px 6px;margin-left:6px}
-        .price-snap .pt-eg-role{font-size:12px;color:var(--text-mid)}
-        .price-snap .pt-egstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
-        .price-snap .pt-egstats > div{background:#F4F7FB;border-radius:9px;padding:8px 6px;text-align:center}
-        .price-snap .pt-egstats b{display:block;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:15px;color:var(--blue)}
-        .price-snap .pt-egstats span{font-size:10px;color:var(--text-light)}
-        .price-snap .pt p{font-size:13.5px;color:var(--text-mid);line-height:1.55;margin:10px 0 0}
-        .price-snap .pt-band{font-size:16px;font-weight:800;color:var(--blue);margin:14px 0 0}
-        .price-snap .pt-band small{color:var(--text-light);font-weight:600}
-        .kl-footer{background:#0B1A2E;color:rgba(255,255,255,0.7);font-size:13px;text-align:left}
-        .foot-inner{max-width:1200px;margin:0 auto;padding:56px 40px 36px;display:grid;grid-template-columns:1.3fr 2fr;gap:48px}
-        .foot-logo{display:flex;align-items:center;gap:9px;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-weight:700;font-size:20px;color:#fff;letter-spacing:-0.02em}
-        .foot-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--blue),#0a4f96);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
-        .foot-tag{margin:14px 0 16px;max-width:300px;line-height:1.6;color:rgba(255,255,255,0.6)}
-        .foot-chat{display:inline-flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font-weight:600;border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:9px 14px;font-size:13px;transition:background .15s}
-        .foot-chat:hover{background:rgba(255,255,255,0.08)}
-        .foot-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:32px}
-        .foot-col b{display:block;color:#fff;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;font-weight:700}
-        .foot-col a{display:block;color:rgba(255,255,255,0.62);text-decoration:none;margin:9px 0;font-size:14px;transition:color .15s}
-        .foot-col a:hover{color:#fff}
-        .foot-bottom{border-top:1px solid rgba(255,255,255,0.1);max-width:1200px;margin:0 auto;padding:20px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;color:rgba(255,255,255,0.5);font-size:12.5px}
-        .foot-legal{display:flex;gap:20px}
-        .foot-legal a{color:rgba(255,255,255,0.5);text-decoration:none}
-        .foot-legal a:hover{color:#fff}
-        @media(max-width:760px){.foot-inner{grid-template-columns:1fr;gap:32px;padding:40px 20px 28px}.foot-cols{grid-template-columns:1fr 1fr}.foot-bottom{padding:18px 20px}}
-        .tg-float{position:fixed;bottom:24px;right:24px;z-index:50;width:56px;height:56px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform 0.2s,box-shadow 0.2s;text-decoration:none}
-        .tg-float:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(0,0,0,0.25)}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
-        .fade-up{animation:fadeUp .6s ease-out both}
-        .d1{animation-delay:.1s}.d2{animation-delay:.2s}.d3{animation-delay:.3s}.d4{animation-delay:.4s}
-        .mobile-2col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-        .mobile-2col-wide{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-        .mobile-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-        .mobile-section-pad{padding:80px 40px}
-        @media(max-width:900px){
-          .hero{grid-template-columns:1fr;min-height:auto}
-          .hero-side{padding:48px 24px 40px}
-          .hero-title{font-size:28px}
-          .hero-desc{font-size:14px}
-          .hero-stats{gap:20px;flex-wrap:wrap}
-          .hero-stat-num{font-size:22px}
-          .hero-divider{position:relative;top:auto;left:auto;transform:none;margin:-28px auto}
-          .how-grid,.earn-grid,.testimonial-grid,.price-snap{grid-template-columns:1fr}
-          .trust-grid{grid-template-columns:1fr}
-          .browser-section .kl-section > div{grid-template-columns:1fr}
-          .account-grid{grid-template-columns:1fr}
-          .nav-links{display:none}
-          .proof-inner{flex-direction:column;text-align:center}
-          .ambassador-section{margin:0 16px;padding:40px 20px}
-          .kl-section{padding:48px 16px}
-          .mobile-2col,.mobile-2col-wide{grid-template-columns:1fr;gap:20px}
-          .mobile-section-pad{padding:48px 16px !important}
-          .cat-inner{padding:24px 16px 60px}
-          .hero-btn{padding:12px 20px;font-size:13px}
-          .hero-single{padding:48px 20px;min-height:auto}
-          .hero-title-lg{font-size:30px}
-          .hero-desc-lg{font-size:15px}
-          .hero-grid{grid-template-columns:1fr;gap:28px}
-          .hero-cards{min-height:0;display:flex;flex-direction:column;gap:14px;margin-top:8px}
-          .gcard{position:static;width:100%}
-          .gc1,.gc2,.gc3{transform:none}
-          .hero-video-text{display:none}
-        }
+        @keyframes lvA{0%,100%{transform:translate(0,0) scale(1);opacity:.9}50%{transform:translate(6%,4%) scale(1.12);opacity:1}}
+        @keyframes lvB{0%,100%{transform:translate(0,0) scale(1);opacity:.8}50%{transform:translate(-5%,3%) scale(1.15);opacity:.95}}
+        .lvh-lift{transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;}
+        .lvh-lift:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(16,24,40,0.12)!important;}
+        .lvh-cta{transition:transform .18s ease, box-shadow .18s ease;}
+        .lvh-cta:hover{transform:translateY(-2px);}
+        .lvh-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+        .lvh-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+        .lvh-2{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;}
+        .lvh-ba{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:stretch;max-width:940px;margin:0 auto 40px;}
+        @media(max-width:960px){.lvh-3{grid-template-columns:1fr}.lvh-4{grid-template-columns:1fr 1fr}.lvh-2{grid-template-columns:1fr;gap:40px}.lvh-ba{grid-template-columns:1fr;}.lvh-ba .lvh-arrow{transform:rotate(90deg)}}
+        @media(max-width:560px){.lvh-4{grid-template-columns:1fr}}
       `}</style>
 
-      <div className={`kl-page ${dmSans.variable} ${instrumentSans.variable}`}>
-        {/* HERO — Option B: bold & minimal. Centered headline + CTAs + proof strip. No account cards. */}
-        <section className="hero-single hero-b">
-          <div className="hero-single-inner hero-center">
-            <div className="hero-pill fade-up"><span className="hero-pill-dot" /> For growth &amp; outreach teams</div>
-            <h1 className="hero-title-lg fade-up d1">Scale LinkedIn outreach<br /><span className="hl">without the limits</span></h1>
-            <p className="hero-desc-lg fade-up d2">Rent verified, pre-warmed LinkedIn accounts with real connections and established histories — run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
-            <div className="hero-btns fade-up d3">
-              <Link href="/catalogue" className="hero-btn hero-btn-solid">Browse Available Accounts →</Link>
-              <a href="#how" className="hero-btn hero-btn-white">See how it works</a>
-            </div>
-            <div className="hero-proofstrip fade-up d4">
-              <div className="ps"><div className="n">200+</div><div className="l">accounts available</div></div>
-              <div className="ps"><div className="n">Real &amp; aged</div><div className="l">verified profiles</div></div>
-              <div className="ps"><div className="n">Cancel anytime</div><div className="l">no lock-in</div></div>
-            </div>
-            <Link href="/become-ambassador" className="hero-sidedoor fade-up d4">Own a LinkedIn account? <strong>Earn $10–$500/mo sharing it →</strong></Link>
+      {/* ================= HERO ================= */}
+      <section style={{ position: "relative", overflow: "hidden", background: "radial-gradient(80% 60% at 50% -10%, rgba(10,102,194,0.30) 0%, rgba(10,24,38,0) 62%), radial-gradient(70% 60% at 12% 108%, rgba(0,184,92,0.20) 0%, rgba(10,24,38,0) 55%), linear-gradient(180deg,#0F2439 0%,#0A1826 100%)", padding: "74px 24px 88px", textAlign: "center", color: "#EAF0FA" }}>
+        <div style={{ position: "absolute", width: 620, height: 620, left: -160, top: -220, borderRadius: "50%", background: "radial-gradient(circle, rgba(10,102,194,0.28), rgba(10,102,194,0) 65%)", filter: "blur(20px)", pointerEvents: "none", animation: "lvA 16s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", width: 560, height: 560, right: -140, bottom: -200, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,184,92,0.22), rgba(0,184,92,0) 65%)", filter: "blur(20px)", pointerEvents: "none", animation: "lvB 19s ease-in-out infinite" }} />
+        <div style={{ position: "relative", maxWidth: 820, margin: "0 auto" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 9, fontSize: 13, fontWeight: 600, color: "#DCE7F5", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", padding: "8px 16px", borderRadius: 999, marginBottom: 26 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00B85C", boxShadow: "0 0 5px 1px rgba(0,184,92,0.5), 0 0 12px 4px rgba(0,184,92,0.25)" }} />For growth &amp; outreach teams
           </div>
-        </section>
+          <h1 style={{ font: `800 clamp(38px,7vw,68px) ${POP}`, lineHeight: 1.02, letterSpacing: "-0.03em", margin: "0 0 22px", color: "#fff" }}>Scale LinkedIn outreach<br /><span style={{ color: "#26C879" }}>without the limits</span></h1>
+          <p style={{ fontSize: 19, lineHeight: 1.55, color: "#AFC0D6", margin: "0 auto 32px", maxWidth: 620 }}>Rent verified, pre-warmed LinkedIn accounts with real connections and established histories — run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
+          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 18 }}>
+            <Link href="/catalogue" className="lvh-cta" style={{ fontSize: 16, fontWeight: 600, color: "#fff", background: "#0A66C2", padding: "15px 28px", borderRadius: 12, textDecoration: "none", boxShadow: "0 14px 30px -12px rgba(10,102,194,0.75)" }}>Browse Available Accounts →</Link>
+            <Link href="/how-it-works" className="lvh-cta" style={{ fontSize: 16, fontWeight: 600, color: "#EAF0FA", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", padding: "15px 26px", borderRadius: 12, textDecoration: "none" }}>See how it works</Link>
+          </div>
+          <div style={{ fontSize: 13, color: "#8CA0BC", marginBottom: 44 }}>Real, aged &amp; verified · GoLogin-protected · Cancel anytime</div>
 
-        {/* SOCIAL PROOF BAR */}
-        {/* TODO before full launch: replace these placeholder numbers (237 / 847 / 0) with real figures */}
-        <div className="proof-bar">
-          <div className="proof-inner" style={{justifyContent:'center',gap:20}}>
-            <div className="proof-card">
-              <div className="proof-stat-num" id="counter-teams" suppressHydrationWarning>237</div>
-              <div className="proof-stat-label">Teams using LinkedVelocity</div>
+          {/* honest trust tiles (no invented counts) */}
+          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", maxWidth: 760, margin: "0 auto" }}>
+            {[
+              ["#4B9BEA", "Verified", "real, consenting professionals"],
+              ["#4B9BEA", "Protected", "GoLogin anti-detect sessions"],
+              ["#26C879", "Flexible", "cancel anytime, no contracts"],
+            ].map(([c, t, s]) => (
+              <div key={t} style={{ flex: "1 1 200px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.11)", borderTop: `3px solid ${c}`, borderRadius: 14, padding: "22px 16px" }}>
+                <div style={{ font: `700 22px ${POP}`, color: c === "#26C879" ? "#26C879" : "#fff" }}>{t}</div>
+                <div style={{ fontSize: 12.5, color: "#93A6C0", marginTop: 6 }}>{s}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 34, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,0.08)", fontSize: 15, color: "#AFC0D6" }}>Own a LinkedIn account? <Link href="/become-ambassador" style={{ color: "#26C879", fontWeight: 600, textDecoration: "none" }}>Earn $10–$500/mo sharing it →</Link></div>
+        </div>
+      </section>
+
+      {/* ================= HOW IT WORKS ================= */}
+      <section style={{ background: "#F6F5F1", padding: "88px 24px 96px" }}>
+        <div style={{ maxWidth: 1080, margin: "0 auto", textAlign: "center" }}>
+          <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 16 }}>How it works</div>
+          <h2 style={{ font: `700 clamp(30px,4vw,42px) ${POP}`, lineHeight: 1.08, letterSpacing: "-0.03em", margin: "0 auto 14px", maxWidth: 600 }}>Three steps to unlimited LinkedIn outreach</h2>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 auto 64px", maxWidth: 520 }}>No warm-up period. No building profiles from scratch. No ceiling on your growth.</p>
+          <div className="lvh-3">
+            {STEPS.map((s) => (
+              <div key={s.n} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(150deg,#12C169,#059748)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 24px ${POP}`, boxShadow: "0 10px 24px rgba(5,151,72,0.32)", border: "5px solid #F6F5F1", marginBottom: 24 }}>{s.n}</div>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `500 11px ${MONO}`, letterSpacing: "0.1em", textTransform: "uppercase", color: "#059748", background: "#E4F6EC", padding: "4px 11px", borderRadius: 999, marginBottom: 16 }}>{s.tag}</div>
+                <div style={{ font: `600 20px ${POP}`, color: "#0B1220", marginBottom: 10 }}>{s.title}</div>
+                <p style={{ fontSize: 15, lineHeight: 1.65, color: "#5A6473", margin: 0, maxWidth: 300 }}>{s.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ================= PRICING PREVIEW ================= */}
+      <section style={{ background: "#EEEFF1", padding: "88px 24px" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 16 }}>Pricing</div>
+          <h2 style={{ font: `700 clamp(30px,4vw,42px) ${POP}`, lineHeight: 1.08, letterSpacing: "-0.03em", margin: "0 0 14px", maxWidth: 560 }}>Pay per account — priced by quality</h2>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 44px" }}>Every profile is priced on its own merits. Compare the tiers, then see full details.</p>
+          <div className="lvh-3" style={{ alignItems: "start" }}>
+            {TIERS.map((t) => (
+              <div key={t.name} className="lvh-lift" style={{ position: "relative", background: "linear-gradient(180deg,#FFFFFF,#FCFDFE)", borderRadius: 20, padding: "28px 26px", border: "1px solid " + (t.featured ? "#0A66C2" : "#E9ECF0"), borderTop: `3px solid ${t.avatarBg}`, boxShadow: t.featured ? "0 22px 52px rgba(10,102,194,0.18)" : "0 10px 30px rgba(16,24,40,0.07)", transform: t.featured ? "translateY(-10px)" : "none" }}>
+                {t.ribbon && <div style={{ position: "absolute", top: -13, left: "50%", transform: "translateX(-50%)", background: "#00B85C", color: "#fff", font: `500 10.5px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", padding: "5px 14px", borderRadius: 999, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,184,92,0.3)" }}>{t.ribbon}</div>}
+                <span style={{ font: `500 10.5px ${MONO}`, letterSpacing: "0.1em", color: t.fg, background: t.bg, padding: "5px 11px", borderRadius: 7 }}>{t.eyebrow}</span>
+                <div style={{ font: `700 23px ${POP}`, letterSpacing: "-0.01em", margin: "16px 0" }}>{t.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 11, background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 12, padding: "11px 13px", marginBottom: 16 }}>
+                  <span style={{ flexShrink: 0, width: 36, height: 36, borderRadius: "50%", background: t.avatarBg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `600 13px ${POP}` }}>{t.initials}</span>
+                  <div><div style={{ fontWeight: 600, fontSize: 14, color: "#0B1220" }}>{t.person}</div><div style={{ fontSize: 12.5, color: "#8A93A2", marginTop: 1 }}>{t.role}</div></div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
+                  {[[t.conn, "connections", "#0A66C2"], [t.ver, "verified", t.verOn ? "#00A150" : "#C2C9D2"], [t.nav, "Sales Nav", t.navOn ? "#00A150" : "#C2C9D2"]].map(([v, l, c], i) => (
+                    <div key={i} style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 4px", textAlign: "center" }}>
+                      <div style={{ font: `700 15px ${POP}`, color: c as string }}>{v}</div><div style={{ fontSize: 10.5, color: "#96A0AD", marginTop: 2 }}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 14, lineHeight: 1.55, color: "#5A6473", margin: "0 0 18px", minHeight: 42 }}>{t.desc}</p>
+                <div style={{ height: 1, background: "#EDEFF2", marginBottom: 14 }} />
+                <div><span style={{ font: `700 22px ${POP}`, color: "#0A66C2" }}>{t.price}</span><span style={{ fontSize: 13, color: "#96A0AD" }}>/mo</span></div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 36 }}>
+            <Link href="/pricing" className="lvh-cta" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #DFE3E9", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 4px 14px rgba(16,24,40,0.06)" }}>See full pricing details →</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= GOLOGIN ================= */}
+      <section style={{ position: "relative", background: "#FFFFFF", borderTop: "1px solid #ECEEF1", padding: "88px 24px", overflow: "hidden" }}>
+        <div style={{ position: "relative", maxWidth: 1160, margin: "0 auto" }} className="lvh-2">
+          <div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#F6F8FB", border: "1px solid #E4E9F0", borderRadius: 999, padding: "5px 6px 5px 14px", marginBottom: 22 }}>
+              <span style={{ font: `500 11px ${MONO}`, letterSpacing: "0.12em", textTransform: "uppercase", color: "#5A6473" }}>Powered by</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#0D1B2A", color: "#fff", borderRadius: 999, padding: "5px 13px", font: `600 13px ${POP}` }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#E0710E" }} />GoLogin</span>
             </div>
-            <div className="proof-card">
-              <div className="proof-stat-num" id="counter-accounts" suppressHydrationWarning>847</div>
-              <div className="proof-stat-label">Verified accounts provided</div>
+            <h2 style={{ font: `700 clamp(28px,3.6vw,38px) ${POP}`, lineHeight: 1.12, letterSpacing: "-0.025em", margin: "0 0 20px" }}>Account sharing that&apos;s invisible to LinkedIn</h2>
+            <p style={{ fontSize: 16.5, lineHeight: 1.7, color: "#5A6473", margin: "0 0 32px" }}>We&apos;ve partnered with <strong>GoLogin</strong>, a leading anti-detect browser. Each shared account runs through a dedicated profile with its own proxy, cookies and fingerprint — so LinkedIn sees one consistent user, no matter who&apos;s logged in.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              {GO_FEATURES.map((g) => (
+                <div key={g.title} className="lvh-lift" style={{ background: "#fff", border: "1px solid #E9ECF0", borderRadius: 14, padding: 18, boxShadow: "0 4px 14px rgba(16,24,40,0.05)" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, borderRadius: 10, background: "#EAF2FC", fontSize: 18 }}>{g.icon}</span>
+                  <div style={{ font: `600 15px ${POP}`, color: "#0B1220", margin: "14px 0 6px" }}>{g.title}</div>
+                  <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>{g.body}</p>
+                </div>
+              ))}
             </div>
-            <div className="proof-card">
-              <div className="proof-stat-num" style={{color:'#00B85C'}}>0</div>
-              <div className="proof-stat-label">Accounts restricted</div>
+          </div>
+          <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 18, padding: 16, boxShadow: "0 24px 60px rgba(16,24,40,0.12)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F7FA", border: "1px solid #EDEFF2", borderRadius: 10, padding: "9px 12px", marginBottom: 16 }}>
+              <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#FF5F57" }} /><span style={{ width: 11, height: 11, borderRadius: "50%", background: "#FEBC2E" }} /><span style={{ width: 11, height: 11, borderRadius: "50%", background: "#28C840" }} />
+              <span style={{ flex: 1, textAlign: "center", fontSize: 13, color: "#6B7484" }}>🔒 linkedin.com/in/your-rented-account</span>
+            </div>
+            {[["#00B85C", "Ambassador connected", "via proxy: San Francisco, CA"], ["#0A66C2", "Renter connected", "via proxy: San Francisco, CA"]].map(([d, a, b]) => (
+              <div key={a} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, marginBottom: 12 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#0B1220", fontWeight: 500 }}><span style={{ width: 9, height: 9, borderRadius: "50%", background: d }} />{a}</span><span style={{ color: "#96A0AD" }}>{b}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#E4F6EC", borderRadius: 10, padding: "11px 14px", marginTop: 4, fontSize: 13.5, color: "#067A45", fontWeight: 600 }}>🛡 Session protected · Same origin · No flags</div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= MARKETPLACE PREVIEW ================= */}
+      <section style={{ background: "#FBFCFD", padding: "88px 24px", borderTop: "1px solid #EEF0F3" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 16 }}>Marketplace</div>
+          <h2 style={{ font: `700 clamp(30px,4vw,42px) ${POP}`, lineHeight: 1.08, letterSpacing: "-0.03em", margin: "0 0 14px" }}>Browse available accounts</h2>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 44px" }}>{availCount > 0 ? `${availCount} account${availCount > 1 ? "s" : ""} available right now` : "Verified accounts, added regularly."}</p>
+          <div className="lvh-3">
+            {preview.map((a) => {
+              const rented = a.status !== "available";
+              const ic = a.industry ? (INDUSTRY_COLORS[a.industry] || "#0A66C2") : "#0A66C2";
+              return (
+                <div key={a.id} className="lvh-lift" style={{ background: "#FFFFFF", border: "1px solid #DFE3E9", borderRadius: 16, padding: 20, boxShadow: "0 8px 24px rgba(16,24,40,0.07)", opacity: rented ? 0.72 : 1 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 13, marginBottom: 16 }}>
+                    <div style={{ position: "relative", flexShrink: 0 }}>
+                      <span style={{ width: 46, height: 46, borderRadius: "50%", background: getAvatarColor(a.linkedinName), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `600 15px ${POP}` }}>{getInitials(a.linkedinName)}</span>
+                      <span style={{ position: "absolute", bottom: 1, right: 1, width: 12, height: 12, borderRadius: "50%", border: "2px solid #fff", background: rented ? "#E0A43B" : "#00B85C" }} />
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ font: `600 15.5px ${POP}`, color: "#0B1220", lineHeight: 1.2 }}>{shortName(a.linkedinName)}</div>
+                      {a.linkedinHeadline && <div style={{ fontSize: 12.5, color: "#8A93A2", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline}</div>}
+                    </div>
+                    <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "4px 11px", color: rented ? "#946011" : "#067A45", background: rented ? "#FBF0DA" : "#E4F6EC" }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: rented ? "#E0A43B" : "#00B85C" }} />{rented ? "Rented" : "Available"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                    {a.industry && <span style={{ font: `500 11px ${MONO}`, letterSpacing: "0.04em", color: ic, background: ic + "14", borderRadius: 6, padding: "4px 9px" }}>{a.industry}</span>}
+                    {a.location && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#5A6473" }}><span style={{ color: "#B0B7C2" }}>◍</span>{a.location}</span>}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 18 }}>
+                    <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}><div style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</div><div style={{ fontSize: 11, color: "#96A0AD", marginTop: 2 }}>connections</div></div>
+                    <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}><div style={{ font: `700 15px ${POP}`, color: a.hasSalesNav ? "#00A150" : "#C2C9D2" }}>{a.hasSalesNav ? "✓ Yes" : "— No"}</div><div style={{ fontSize: 11, color: "#96A0AD", marginTop: 2 }}>Sales Nav</div></div>
+                  </div>
+                  <div style={{ height: 1, background: "#EDEFF2", marginBottom: 14 }} />
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <div><span style={{ font: `700 18px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 12.5, color: "#96A0AD" }}>/mo</span></div>
+                    <Link href="/catalogue" style={{ fontSize: 13, fontWeight: 600, color: "#0A66C2", background: "#EAF2FC", borderRadius: 9, padding: "9px 15px", textDecoration: "none" }}>View</Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 36, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
+            <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #DFE3E9", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 4px 14px rgba(16,24,40,0.06)" }}>View all accounts →</Link>
+            <TestAccountGate />
+          </div>
+        </div>
+      </section>
+
+      {/* ================= WHY RENT ================= */}
+      <section style={{ background: "radial-gradient(120% 120% at 80% 0%, #17457F 0%, #0F2C4E 45%, #0A1626 100%)", padding: "88px 24px 96px", textAlign: "center" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#7FA8E0", marginBottom: 18 }}>Why rent accounts</div>
+          <h2 style={{ font: `700 clamp(30px,4vw,44px) ${POP}`, letterSpacing: "-0.03em", margin: "0 0 20px", color: "#fff" }}>LinkedIn is powerful — but limited</h2>
+          <p style={{ fontSize: 17, lineHeight: 1.7, color: "#AFC4DB", margin: "0 auto 48px", maxWidth: 600 }}>A single account caps how far you can reach. LinkedVelocity removes the ceiling by giving you multiple verified accounts running in parallel.</p>
+          <div className="lvh-ba">
+            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 18, padding: "28px 30px", textAlign: "left" }}>
+              <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8CA0BC", marginBottom: 22 }}>With one profile</div>
+              {[["~100", "connection requests / week"], ["~50", "messages & InMails"], ["1", "campaign at a time"]].map(([v, l]) => (
+                <div key={l} style={{ marginBottom: 18 }}><div style={{ font: `700 30px ${POP}`, color: "#7386A0", lineHeight: 1 }}>{v}</div><div style={{ fontSize: 13, color: "#8CA0BC", marginTop: 5 }}>{l}</div></div>
+              ))}
+            </div>
+            <div className="lvh-arrow" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "#26C879", fontSize: 30 }}>→</div>
+            <div style={{ position: "relative", background: "linear-gradient(160deg, rgba(0,184,92,0.16), rgba(0,184,92,0.04))", border: "1px solid rgba(38,200,121,0.38)", borderRadius: 18, padding: "28px 30px", textAlign: "left", boxShadow: "0 0 44px rgba(0,184,92,0.12)" }}>
+              <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.12em", textTransform: "uppercase", color: "#7FE3AB", marginBottom: 22 }}>Across multiple accounts</div>
+              {[["1,000+", "connection requests / week"], ["500+", "messages & InMails"], ["Unlimited", "parallel campaigns"]].map(([v, l]) => (
+                <div key={l} style={{ marginBottom: 18 }}><div style={{ font: `800 30px ${POP}`, color: v === "Unlimited" ? "#3EDC8C" : "#fff", lineHeight: 1 }}>{v}</div><div style={{ fontSize: 13, color: "#B7D6C6", marginTop: 5 }}>{l}</div></div>
+              ))}
+            </div>
+          </div>
+          <div className="lvh-4" style={{ maxWidth: 1000, margin: "0 auto" }}>
+            {WHY.map((w) => (
+              <div key={w.title} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, padding: "22px 20px", textAlign: "left" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 9, background: "linear-gradient(150deg,#12C169,#059748)", color: "#fff", fontSize: 14, fontWeight: 700, boxShadow: "0 6px 14px rgba(5,151,72,0.35)", marginBottom: 16 }}>✓</span>
+                <div style={{ font: `600 15.5px ${POP}`, color: "#fff", marginBottom: 6 }}>{w.title}</div>
+                <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "#9FB6D0", margin: 0 }}>{w.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ================= EARN BAND ================= */}
+      <section id="earn" style={{ background: "#F6F5F1", padding: "64px 24px" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div className="lvh-2" style={{ overflow: "hidden", background: "linear-gradient(100deg,#065C33 0%,#0A8F4E 55%,#0BA557 100%)", borderRadius: 22, padding: "44px 48px", boxShadow: "0 20px 46px rgba(6,92,51,0.28)" }}>
+            <div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `500 11px ${MONO}`, letterSpacing: "0.14em", textTransform: "uppercase", color: "#D3F5E0", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 999, padding: "6px 13px", marginBottom: 18 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />For professionals</div>
+              <div style={{ font: `700 clamp(24px,3vw,30px) ${POP}`, color: "#fff", marginBottom: 12, letterSpacing: "-0.015em", lineHeight: 1.12 }}>Own a LinkedIn account?<br />Earn $10–$500 every month.</div>
+              <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#DBF3E4", margin: "0 0 26px", maxWidth: 440 }}>List your profile and earn monthly when it&apos;s rented. You stay in control, approve renters, and can pause or leave anytime — your password is never shared.</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                <Link href="/become-ambassador" className="lvh-cta" style={{ background: "#fff", color: "#0A7A45", fontSize: 15, fontWeight: 700, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>Get my free valuation →</Link>
+                <span style={{ fontSize: 13.5, color: "#CFEFDC" }}>Free to join · No commitment</span>
+              </div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 18, padding: "26px 28px" }}>
+              <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.12em", textTransform: "uppercase", color: "#D3F5E0", marginBottom: 18 }}>Example</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
+                <div><div style={{ font: `700 19px ${POP}`, color: "#fff" }}>3 accounts</div><div style={{ fontSize: 12.5, color: "#CFEFDC", marginTop: 2 }}>shared, hands-off</div></div>
+                <span style={{ fontSize: 22, color: "#B7EBCC" }}>=</span>
+                <div style={{ textAlign: "right" }}><div style={{ font: `800 38px ${POP}`, color: "#fff", lineHeight: 1 }}>up to $1,500<span style={{ fontSize: 15, color: "#CFEFDC", fontWeight: 600 }}>/mo</span></div><div style={{ fontSize: 12.5, color: "#CFEFDC", marginTop: 2 }}>depending on account quality</div></div>
+              </div>
+              <div style={{ height: 1, background: "rgba(255,255,255,0.18)", margin: "20px 0" }} />
+              {["You approve every renter", "Pause or leave anytime", "Password never shared"].map((t) => (
+                <div key={t} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: "#EAFBF0", marginBottom: 11 }}><span style={{ fontWeight: 700 }}>✓</span>{t}</div>
+              ))}
             </div>
           </div>
         </div>
-        <script dangerouslySetInnerHTML={{__html: `
-          (function(){
-            function animateCounter(id, target, duration) {
-              var el = document.getElementById(id);
-              if (!el) return;
-              var start = 0, startTime = null;
-              function step(ts) {
-                if (!startTime) startTime = ts;
-                var progress = Math.min((ts - startTime) / duration, 1);
-                var ease = 1 - Math.pow(1 - progress, 3);
-                var current = Math.floor(ease * target);
-                el.textContent = current.toLocaleString();
-                if (progress < 1) requestAnimationFrame(step);
-              }
-              requestAnimationFrame(step);
-              // Slowly increment after initial animation
-              setTimeout(function() {
-                setInterval(function() {
-                  target += 1;
-                  el.textContent = target.toLocaleString();
-                }, Math.random() * 8000 + 12000);
-              }, duration + 1000);
-            }
-            animateCounter('counter-teams', 237, 2000);
-            animateCounter('counter-accounts', 847, 2500);
-          })();
-        `}} />
+      </section>
 
-        {/* HOW IT WORKS */}
-        <section className="kl-section" id="how">
-          <div className="section-label">How it works</div>
-          <div className="section-title">Three steps to unlimited LinkedIn outreach</div>
-          <div className="section-desc">No warm-up period. No account flagging. No limits on your growth.</div>
-          <div className="how-grid">
-            <div className="how-card">
-              <div className="how-num">1</div>
-              <h4>Browse &amp; select</h4>
-              <p>Filter accounts by industry, geography, connection count, and SSI score. Every account is verified with real history and an established network.</p>
-            </div>
-            <div className="how-card">
-              <div className="how-num">2</div>
-              <h4>Rent monthly</h4>
-              <p>Pay a flat monthly fee per account. No contracts, no setup fees. Scale up or down anytime — add 3 accounts this month, 10 next month.</p>
-            </div>
-            <div className="how-card">
-              <div className="how-num">3</div>
-              <h4>Launch campaigns</h4>
-              <p>Connect your outreach tool. Each account gets its own connection and messaging limits — multiply your reach without multiplying your risk.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* PRICING SNAPSHOT — full tier cards; deeper explainer at /pricing */}
-        {/* TODO before full launch: replace illustrative price bands with real ranges */}
-        <section className="pricing-bg" id="pricing">
-          <div className="kl-section">
-            <div className="section-label">Pricing</div>
-            <div className="section-title">Pay per account — priced by quality</div>
-            <div className="section-desc">Every profile is priced on its own merits. Compare the tiers, then see full details.</div>
-            <div className="price-snap">
-              <div className="pt t-basic">
-                <span className="pt-cat">Entry</span>
-                <div className="pt-name">New / Basic <span className="pt-strength"><i className="on" /><i /><i /></span></div>
-                <div className="pt-eg">
-                  <div className="pt-eg-av" style={{background:'linear-gradient(135deg,#9cc1ec,#5b91d1)'}}>JT<span className="pt-eg-dot" /></div>
-                  <div><div><span className="pt-eg-name">Jordan T.</span><span className="pt-eg-tag">Example</span></div><div className="pt-eg-role">Sales Associate</div></div>
-                </div>
-                <div className="pt-egstats">
-                  <div><b>~900</b><span>connections</span></div>
-                  <div><b>1 yr</b><span>account age</span></div>
-                  <div><b style={{color:'#C4CAD3'}}>—</b><span>Sales Nav</span></div>
-                </div>
-                <p>Newer profiles, fewer connections. Great for testing.</p>
-                <div className="pt-band">Lower price <small>· from ~$40/mo</small></div>
-              </div>
-              <div className="pt feat t-est">
-                <span className="pt-badge">Most popular</span>
-                <span className="pt-cat">Sweet spot</span>
-                <div className="pt-name">Established <span className="pt-strength"><i className="on" /><i className="on" /><i /></span></div>
-                <div className="pt-eg">
-                  <div className="pt-eg-av" style={{background:'linear-gradient(135deg,#4f90d9,#0A66C2)'}}>AK<span className="pt-eg-dot" /></div>
-                  <div><div><span className="pt-eg-name">Anna K.</span><span className="pt-eg-tag">Example</span></div><div className="pt-eg-role">Marketing Manager</div></div>
-                </div>
-                <div className="pt-egstats">
-                  <div><b>4,200</b><span>connections</span></div>
-                  <div><b>4 yrs</b><span>account age</span></div>
-                  <div><b style={{color:'#00B85C'}}>✓</b><span>Sales Nav</span></div>
-                </div>
-                <p>Solid connections, aged &amp; trusted. The sweet spot.</p>
-                <div className="pt-band">Mid price <small>· ~$90–$130/mo</small></div>
-              </div>
-              <div className="pt t-prem">
-                <span className="pt-cat">Top tier</span>
-                <div className="pt-name">Premium <span className="pt-strength"><i className="on" /><i className="on" /><i className="on" /></span></div>
-                <div className="pt-eg">
-                  <div className="pt-eg-av" style={{background:'linear-gradient(135deg,#0A66C2,#0B2A52)'}}>ML<span className="pt-eg-dot" /></div>
-                  <div><div><span className="pt-eg-name">Marcus L.</span><span className="pt-eg-tag">Example</span></div><div className="pt-eg-role">VP of Sales</div></div>
-                </div>
-                <div className="pt-egstats">
-                  <div><b>12,000</b><span>connections</span></div>
-                  <div><b>9 yrs</b><span>account age</span></div>
-                  <div><b style={{color:'#00B85C'}}>✓</b><span>Sales Nav</span></div>
-                </div>
-                <p>Large senior network + Sales Navigator. Maximum reach.</p>
-                <div className="pt-band">Top price <small>· $150+/mo</small></div>
-              </div>
-            </div>
-            <div className="browse-all"><Link href="/pricing">See full pricing details →</Link></div>
-          </div>
-        </section>
-
-        {/* LINKEDVELOCITY BROWSER */}
-        <section className="browser-section">
-          <div className="kl-section">
-            <div className="mobile-2col-wide">
-              <div>
-                <div className="section-label" style={{display:'flex',alignItems:'center',gap:8}}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#FF6B00" strokeWidth="2"/><path d="M8 12.5L11 15.5L16.5 9" stroke="#FF6B00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Powered by GoLogin
-                </div>
-                <div className="section-title">Seamless account sharing powered by GoLogin — invisible to LinkedIn</div>
-                <div className="section-desc">We&apos;ve partnered with <strong>GoLogin</strong>, the industry-leading anti-detect browser, to make account sharing completely seamless. Each shared account runs through a dedicated browser profile with its own proxy, cookies, and fingerprint — so LinkedIn sees one consistent user, no matter who&apos;s logged in.</div>
-                <div className="browser-features">
-                  <div className="browser-feature">
-                    <div className="browser-feature-icon" style={{background:'var(--blue-light)',color:'var(--blue)'}}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    </div>
-                    <div>
-                      <h4>Shared proxy session</h4>
-                      <p>Both the account owner and renter connect through the same proxy location via GoLogin. LinkedIn sees one consistent login origin — no flags, no suspicion.</p>
-                    </div>
-                  </div>
-                  <div className="browser-feature">
-                    <div className="browser-feature-icon" style={{background:'var(--green-light)',color:'var(--green)'}}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                    </div>
-                    <div>
-                      <h4>Unified cookie environment</h4>
-                      <p>GoLogin keeps both parties sharing the same browser cookies and session data. No conflicting logins, no &quot;new device&quot; alerts. It looks like one person, one device.</p>
-                    </div>
-                  </div>
-                  <div className="browser-feature">
-                    <div className="browser-feature-icon" style={{background:'var(--blue-light)',color:'var(--blue)'}}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    </div>
-                    <div>
-                      <h4>Simultaneous access</h4>
-                      <p>Both the account owner and renter can be logged in at the same time. No kicking each other out, no session conflicts — it just works throughout the rental period.</p>
-                    </div>
-                  </div>
-                  <div className="browser-feature">
-                    <div className="browser-feature-icon" style={{background:'var(--green-light)',color:'var(--green)'}}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
-                    <div>
-                      <h4>Zero detection in 12 months</h4>
-                      <p>Across thousands of active rentals, not a single account has been flagged by LinkedIn. GoLogin&apos;s anti-detect technology makes shared access indistinguishable from normal use.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="browser-visual">
-                <div className="browser-mockup">
-                  <div className="browser-chrome">
-                    <div className="browser-dots"><span></span><span></span><span></span></div>
-                    <div className="browser-url">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.4}}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                      <span>linkedin.com/in/enterprise-leader</span>
-                    </div>
-                  </div>
-                  <div className="browser-body">
-                    <div className="browser-status">
-                      <div className="status-row">
-                        <div className="status-dot green-dot"></div>
-                        <span>Ambassador connected</span>
-                        <span className="status-location">via proxy: San Francisco, CA</span>
-                      </div>
-                      <div className="status-row">
-                        <div className="status-dot blue-dot"></div>
-                        <span>Renter connected</span>
-                        <span className="status-location">via proxy: San Francisco, CA</span>
-                      </div>
-                    </div>
-                    <div className="browser-linkedin-mock">
-                      <div className="li-header">
-                        <div className="li-avatar">JK</div>
-                        <div>
-                          <div className="li-name">James K.</div>
-                          <div className="li-role">VP Sales · Enterprise SaaS</div>
-                        </div>
-                      </div>
-                      <div className="li-stats-row">
-                        <div className="li-stat"><span className="li-stat-num">4,200</span><span className="li-stat-lbl">Connections</span></div>
-                        <div className="li-stat"><span className="li-stat-num">82</span><span className="li-stat-lbl">SSI</span></div>
-                        <div className="li-stat"><span className="li-stat-num">142</span><span className="li-stat-lbl">Pending</span></div>
-                      </div>
-                    </div>
-                    <div className="browser-shield">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00B85C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-                      <span>Session protected · Same origin · No flags</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* TRY IT YOURSELF — hidden: the demo account (tau) is now rented. Restore (false -> true) once a new demo account is confirmed. */}
-        {false && (
-        <section>
-          <div className="kl-section">
-            <div className="tryit-card">
-              <div className="tryit-pill"><span className="tryit-dot" /> Interactive demo</div>
-              <h2 className="tryit-title">Don&apos;t take our word for it — open a real account</h2>
-              <p className="tryit-desc">Click below and a live LinkedIn account opens right in your browser — no password, no verification, no setup. Exactly what every renter gets on LinkedVelocity.</p>
-              <TestAccountGate />
-            </div>
-          </div>
-        </section>
-        )}
-
-        {/* MARKETPLACE PREVIEW */}
-        <section className="marketplace-bg" id="marketplace">
-          <div className="kl-section" style={{paddingBottom:80}}>
-            <div className="marketplace-header">
-              <div>
-                <div className="section-label">Marketplace</div>
-                <div className="section-title" style={{marginBottom:8}}>Browse available accounts</div>
-                <p style={{fontSize:14,color:'var(--text-mid)'}}>200+ verified accounts in the marketplace</p>
-              </div>
-            </div>
-            {accounts.length === 0 ? (
-              <div style={{textAlign:'center',padding:'60px 20px',color:'var(--text-mid)'}}>
-                <p style={{fontSize:16,fontWeight:500}}>No accounts available yet</p>
-                <p style={{fontSize:14,marginTop:8}}>Check back soon — new profiles are added regularly.</p>
-              </div>
-            ) : (
-              <div className="account-grid">
-                {accounts.slice(0, 6).map((a) => {
-                  const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
-                  const initials = getInitials(a.linkedinName);
-                  const ageYears = a.accountAgeMonths ? Math.floor(a.accountAgeMonths / 12) : null;
-                  const price = Number(a.monthlyPrice);
-                  const showcase = (a as { showcase?: boolean }).showcase;
-                  const statusLabel = a.status.charAt(0).toUpperCase() + a.status.slice(1);
-                  const badgeStyle = a.status === "rented"
-                    ? { background: "#FEF3C7", color: "#92400E" }
-                    : a.status === "available"
-                    ? undefined
-                    : { background: "#F3F2EE", color: "#536471" };
-                  return (
-                    <Link href={`/account/${a.id}`} key={a.id} className="account-card" style={{display:'block',textDecoration:'none',color:'inherit'}}>
-                      <div className="account-badge" style={badgeStyle}>{statusLabel}</div>
-                      <div className="account-header">
-                        <div className="account-avatar" style={{background:getAvatarColor(a.linkedinName)}}>
-                          {a.profilePhotoUrl ? (
-                            <Image src={a.profilePhotoUrl} alt={displayName} width={48} height={48} style={{objectFit:'cover',borderRadius:12}} loading="lazy" />
-                          ) : initials}
-                        </div>
-                        <div>
-                          <div className="account-name">{displayName}</div>
-                          <div className="account-role">{a.linkedinHeadline || a.industry || 'LinkedIn account'}</div>
-                        </div>
-                      </div>
-                      <div className="account-meta">
-                        <div className="account-meta-item"><div className="val">{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</div><div className="lbl">Connections</div></div>
-                        <div className="account-meta-item"><div className="val">{ageYears && ageYears > 0 ? `${ageYears}+ yrs` : '—'}</div><div className="lbl">Account age</div></div>
-                      </div>
-                      <div className="account-tags">
-                        {a.industry && <span className="account-tag">{a.industry}</span>}
-                        {a.hasSalesNav && <span className="account-tag green">Sales Nav</span>}
-                        {a.location && <span className="account-tag">{a.location}</span>}
-                      </div>
-                      <div className="account-price">
-                        <div><span className="price">{formatCurrency(price)}</span><span className="period">/mo</span></div>
-                        <span className="rent-btn">{showcase ? 'Request access' : 'View profile'}</span>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-            <div className="browse-all"><Link href="/catalogue">View all accounts →</Link></div>
-          </div>
-        </section>
-
-        {/* WHY RENT ACCOUNTS */}
-        <section className="mobile-section-pad" style={{background:'linear-gradient(160deg,#0B1A2E 0%,#0A3161 40%,#0A66C2 100%)',padding:'80px 40px',position:'relative',overflow:'hidden'}}>
-          <div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 70% 30%,rgba(255,255,255,0.05) 0%,transparent 60%)',pointerEvents:'none'}} />
-          <div style={{maxWidth:1200,margin:'0 auto',position:'relative'}}>
-            <div style={{textAlign:'center',marginBottom:48}}>
-              <div style={{fontSize:12,fontWeight:600,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.5)',marginBottom:12}}>Why rent accounts</div>
-              <h2 style={{fontSize:'clamp(28px,3.5vw,40px)',fontWeight:700,letterSpacing:'-0.03em',color:'#fff',marginBottom:16,fontFamily:'Montserrat,sans-serif'}}>LinkedIn is powerful — but limited</h2>
-              <p style={{fontSize:16,color:'rgba(255,255,255,0.7)',maxWidth:600,margin:'0 auto',lineHeight:1.7}}>
-                With a single account, you&#39;re limited to around 100 connection requests per week, approximately 50 messages and InMails, and just one campaign at a time. LinkedVelocity removes those limits by giving you access to multiple verified accounts.
-              </p>
-            </div>
-
-            <div style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.14)',borderRadius:16,padding:'24px 16px',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}>
-              <h3 style={{fontSize:22,fontWeight:700,letterSpacing:'-0.02em',color:'#fff',marginBottom:24,fontFamily:'Montserrat,sans-serif'}}>Scale with real, verified accounts</h3>
-              <div className="mobile-2col">
-                <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
-                  <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(0,184,92,0.28)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                  </div>
-                  <div>
-                    <h4 style={{fontSize:14,fontWeight:600,color:'#fff',marginBottom:2}}>Real people, verified by LinkedIn</h4>
-                    <p style={{fontSize:13,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>No bots or fakes. Accounts that won&#39;t get restricted.</p>
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
-                  <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(0,184,92,0.28)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                  </div>
-                  <div>
-                    <h4 style={{fontSize:14,fontWeight:600,color:'#fff',marginBottom:2}}>Works with Chrome extensions</h4>
-                    <p style={{fontSize:13,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>PhantomBuster, custom AI tools, or any automation you use.</p>
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
-                  <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(0,184,92,0.28)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                  </div>
-                  <div>
-                    <h4 style={{fontSize:14,fontWeight:600,color:'#fff',marginBottom:2}}>Scale in minutes</h4>
-                    <p style={{fontSize:13,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>Go from one campaign to ten without hiring.</p>
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
-                  <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(0,184,92,0.28)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                  </div>
-                  <div>
-                    <h4 style={{fontSize:14,fontWeight:600,color:'#fff',marginBottom:2}}>No restriction risk</h4>
-                    <p style={{fontSize:13,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>Genuine profiles don&#39;t trigger LinkedIn&#39;s spam detection.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* AMBASSADOR — slim band that routes to the dedicated ambassador page */}
-        <section id="ambassador" style={{padding:'20px 40px 100px'}}>
-          <div style={{maxWidth:1200,margin:'0 auto'}}>
-            <div className="amb-band">
-              <div>
-                <div className="amb-band-label">For professionals</div>
-                <div className="amb-band-title">Own a LinkedIn account? Earn $10–$500/mo.</div>
-                <p className="amb-band-desc">List your profile and get paid every month — guaranteed, whether we find a renter or not.</p>
-              </div>
-              <Link href="/become-ambassador" className="amb-band-btn">Learn about earning →</Link>
-            </div>
-          </div>
-        </section>
-
-        {/* TESTIMONIALS */}
-        <section className="testimonials-bg">
-          <div className="kl-section">
-            <div className="section-label">What people say</div>
-            <div className="section-title" style={{marginBottom:40}}>Trusted by growth teams and professionals worldwide</div>
-            <div className="testimonial-grid">
-              <div className="testimonial-card">
-                <div className="testimonial-quote">&quot;We went from 200 connection requests a week to over 2,000. Our pipeline tripled in the first month. LinkedVelocity is a no-brainer for any outbound team.&quot;</div>
-                <div className="testimonial-author">
-                  <div className="testimonial-avatar" style={{background:'var(--blue)'}}>DM</div>
-                  <div><div className="testimonial-name">David M.</div><div className="testimonial-role">Head of Growth, Series B SaaS</div></div>
-                </div>
-              </div>
-              <div className="testimonial-card">
-                <div className="testimonial-quote">&quot;We spun up five accounts and split our outreach across industries. We booked more qualified demos in a month than the whole previous quarter.&quot;</div>
-                <div className="testimonial-author">
-                  <div className="testimonial-avatar" style={{background:'var(--green)'}}>SK</div>
-                  <div><div className="testimonial-name">Sana K.</div><div className="testimonial-role">Demand Gen Lead, B2B SaaS</div></div>
-                </div>
-              </div>
-              <div className="testimonial-card">
-                <div className="testimonial-quote">&quot;The distributed risk model is what sold us. Instead of burning our CEO&apos;s account, we rent 5 accounts and spread the outreach. Zero flags in 6 months.&quot;</div>
-                <div className="testimonial-author">
-                  <div className="testimonial-avatar" style={{background:'#7C3AED'}}>JP</div>
-                  <div><div className="testimonial-name">James P.</div><div className="testimonial-role">RevOps Lead, Enterprise SaaS</div></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* FINAL CTA — renter-focused */}
-        <section className="final-cta">
-          <h2>Ready to break through LinkedIn&apos;s ceiling?</h2>
-          <p>Rent verified, pre-warmed accounts and scale your outreach today.</p>
-          <div className="cta-row">
-            <Link href="/catalogue" className="btn-blue">Browse Accounts →</Link>
-          </div>
-          <p style={{marginTop:20,fontSize:14,color:'var(--text-mid)'}}>Own a LinkedIn account? <Link href="/become-ambassador" style={{color:'var(--blue)',fontWeight:600,textDecoration:'none'}}>Earn by sharing it →</Link></p>
-        </section>
-
-        {/* Footer is now global (src/components/layout/footer.tsx) via the root layout */}
-        {/* Telegram floating button is global (root layout) — removed the homepage's duplicate */}
-      </div>
-    </>
+      {/* ================= FINAL CTA ================= */}
+      <section style={{ background: "#F6F5F1", padding: "40px 24px 96px", textAlign: "center" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <h2 style={{ font: `700 clamp(32px,5vw,52px) ${POP}`, lineHeight: 1.08, letterSpacing: "-0.03em", margin: "0 0 18px" }}>Ready to break through LinkedIn&apos;s ceiling?</h2>
+          <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: "0 0 34px" }}>Rent verified, pre-warmed accounts and scale your outreach today.</p>
+          <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, padding: "16px 30px", borderRadius: 12, textDecoration: "none", boxShadow: "0 12px 30px rgba(10,102,194,0.28)" }}>Browse Accounts →</Link>
+          <div style={{ marginTop: 24, fontSize: 15, color: "#8A93A2" }}>Own a LinkedIn account? <Link href="/become-ambassador" style={{ color: "#0A66C2", fontWeight: 600, textDecoration: "none" }}>Earn by sharing it →</Link></div>
+        </div>
+      </section>
+    </div>
   );
 }
