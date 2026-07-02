@@ -30,7 +30,7 @@ const FAQ_GROUPS: FaqGroup[] = [
       },
       {
         q: "What tools can I use with a rented account?",
-        a: "Any Chrome extension or LinkedIn automation tool — Dripify, Expandi, Linked Helper and others all work inside the browser session. Sales Navigator is available on accounts that include it. We recommend keeping activity within safe limits (roughly 100–200 actions a week), which we help you configure.",
+        a: "Any Chrome extension or LinkedIn automation tool — Dripify, Expandi, Linked Helper and others all work inside the browser session. Sales Navigator is available on accounts that include it. We recommend keeping activity within safe limits (roughly 100–200 actions a week), and we'll share recommended ranges to guide you.",
       },
       {
         q: "How fast do I get access after renting?",
@@ -60,7 +60,7 @@ const FAQ_GROUPS: FaqGroup[] = [
       },
       {
         q: "What sending limits should I stay within?",
-        a: "We recommend keeping activity within safe limits — roughly 100–200 actions per week — to keep the account healthy. We'll help you configure your outreach tool to stay in range.",
+        a: "We recommend keeping activity within safe limits — roughly 100–200 actions per week — to keep the account healthy, and we'll share recommended ranges so you can set your outreach tool accordingly.",
       },
       {
         q: "What happens if an account is restricted mid-campaign?",
