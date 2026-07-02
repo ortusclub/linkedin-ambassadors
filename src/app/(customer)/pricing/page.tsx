@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Montserrat, Karla } from "next/font/google";
-
-const dmSans = Karla({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-dm-sans" });
-const instrumentSans = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-instrument-sans" });
+import { blogFontVars } from "@/lib/blog-fonts";
 
 export const metadata: Metadata = {
   title: "Pricing — How LinkedVelocity Account Rental Pricing Works",
@@ -12,161 +9,163 @@ export const metadata: Metadata = {
   alternates: { canonical: "/pricing" },
 };
 
+const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
+
+type Tier = {
+  eyebrow: string; eyebrowBg: string; eyebrowFg: string; name: string; topColor: string; dots: string[];
+  person: string; role: string; initials: string; avatarBg: string;
+  connections: string; verified: string; verifiedOn: boolean; nav: string; navOn: boolean;
+  desc: string; price: string; featured?: boolean; ribbon?: string;
+};
+
+const TIERS: Tier[] = [
+  {
+    eyebrow: "Entry", eyebrowBg: "#EAF2FC", eyebrowFg: "#0A66C2", name: "New / Basic", topColor: "#4B9BEA", dots: ["#0A66C2", "#D3DAE3", "#D3DAE3"],
+    person: "Jordan T.", role: "Sales Associate", initials: "JT", avatarBg: "#4B9BEA",
+    connections: "<500", verified: "No", verifiedOn: false, nav: "—", navOn: false,
+    desc: "Newer profiles with under 500 connections and no Sales Navigator. Great for testing or higher-volume, lower-stakes outreach.",
+    price: "$75",
+  },
+  {
+    eyebrow: "Sweet spot", eyebrowBg: "#0A66C2", eyebrowFg: "#FFFFFF", name: "Established", topColor: "#0A66C2", dots: ["#0A66C2", "#0A66C2", "#D3DAE3"],
+    person: "Anna K.", role: "Marketing Manager", initials: "AK", avatarBg: "#0A66C2",
+    connections: "500+", verified: "Yes", verifiedOn: true, nav: "✓", navOn: true,
+    desc: "Verified profiles with 500+ connections and Sales Navigator included. The reliable middle ground most renters choose.",
+    price: "$125", featured: true, ribbon: "Most popular",
+  },
+  {
+    eyebrow: "Top tier", eyebrowBg: "#0D1B2A", eyebrowFg: "#FFFFFF", name: "Premium", topColor: "#0D1B2A", dots: ["#0A66C2", "#0A66C2", "#0A66C2"],
+    person: "Marcus L.", role: "VP of Sales", initials: "ML", avatarBg: "#0D1B2A",
+    connections: "5k+", verified: "Yes", verifiedOn: true, nav: "✓", navOn: true,
+    desc: "Senior, large networks with Sales Navigator. Maximum reach and credibility for serious outreach.",
+    price: "$150+",
+  },
+];
+
+const stroke = { fill: "none", stroke: "#0A66C2", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const FACTORS = [
+  { icon: <svg width="22" height="22" viewBox="0 0 24 24" {...stroke}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>, title: "Connections", desc: "More connections = more reach." },
+  { icon: <svg width="22" height="22" viewBox="0 0 24 24" {...stroke}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>, title: "Account age", desc: "Older = more trusted, lower risk." },
+  { icon: <svg width="22" height="22" viewBox="0 0 24 24" {...stroke}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg>, title: "Sales Navigator", desc: "Premium outreach power." },
+  { icon: <svg width="22" height="22" viewBox="0 0 24 24" {...stroke}><path d="M12 2l2.4 1.8 3 .2.9 2.9 2.1 2.1-1.1 2.8 1.1 2.8-2.1 2.1-.9 2.9-3 .2L12 22l-2.4-1.8-3-.2-.9-2.9-2.1-2.1L4.7 12 3.6 9.2l2.1-2.1.9-2.9 3-.2z" /><path d="M9 12l2 2 4-4" /></svg>, title: "Photo & verification", desc: "Signals a real, credible profile." },
+  { icon: <svg width="22" height="22" viewBox="0 0 24 24" {...stroke}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>, title: "Seniority & industry", desc: "Senior titles open more doors." },
+];
+
 export default function PricingPage() {
   return (
-    <>
+    <div className={blogFontVars} style={{ fontFamily: INT, color: "#0B1220", background: "linear-gradient(180deg,#F4F7FB 0%,#FBFCFD 340px,#FBFCFD 100%)" }}>
       <style>{`
-        .pp{font-family:var(--font-dm-sans),'Karla',system-ui,sans-serif;color:#0F1419;background:#FAFAF8}
-        .pp h1,.pp h2,.pp h3,.pp h4{font-family:var(--font-instrument-sans),'Montserrat',system-ui,sans-serif;letter-spacing:-0.02em}
-        .pp-hero{position:relative;overflow:hidden;text-align:center;padding:72px 40px 26px}
-        .pp-hero::before{content:'';position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:600px;height:320px;background:radial-gradient(closest-side,rgba(10,102,194,0.13),transparent 70%);pointer-events:none}
-        .pp-hero > *{position:relative;z-index:1}
-        .pp-pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:#0F1419;background:#fff;border:1px solid #E8E6E1;border-radius:999px;padding:6px 14px}
-        .pp-pill .d{width:7px;height:7px;border-radius:50%;background:#00B85C;box-shadow:0 0 0 3px rgba(0,184,92,0.2)}
-        .pp-hero h1{font-size:clamp(34px,4.5vw,52px);font-weight:800;letter-spacing:-0.035em;margin:18px auto 12px;max-width:640px;line-height:1.08}
-        .pp-hero p{font-size:17px;color:#536471;max-width:560px;margin:0 auto;line-height:1.6}
-        .pp-wrap{max-width:1080px;margin:0 auto;padding:30px 40px 40px}
-        .pp-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-        .pp-tiers{align-items:start}
-        .pp-tier{position:relative;border:1px solid #E8E6E1;border-radius:18px;padding:30px 28px;background:#fff;transition:.2s}
-        .pp-tier::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;border-radius:18px 18px 0 0;background:#9cc1ec}
-        .pp-tier.t-est::before{background:#0A66C2}
-        .pp-tier.t-prem::before{background:#0B2A52}
-        .pp-tier:hover{transform:translateY(-4px);box-shadow:0 22px 44px -24px rgba(10,102,194,0.3)}
-        .pp-tier.feat{border:2px solid #0A66C2;box-shadow:0 30px 60px -26px rgba(10,102,194,0.55);transform:translateY(-14px)}
-        .pp-tier.feat:hover{transform:translateY(-18px)}
-        .pp-strength{display:inline-flex;gap:4px;margin-left:9px;vertical-align:middle}
-        .pp-strength i{width:7px;height:7px;border-radius:50%;background:#D5DBE3;display:inline-block}
-        .pp-strength i.on{background:#0A66C2}
-        .pp-tier.t-prem .pp-strength i.on{background:#0B2A52}
-        .pp-badge{position:absolute;top:-11px;left:28px;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:linear-gradient(135deg,#00B85C,#007A3D);padding:4px 11px;border-radius:999px}
-        .pp-cat{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#0A66C2;background:#E8F1FA;border-radius:999px;padding:4px 11px;display:inline-block}
-        .pp-tier.t-est .pp-cat{color:#fff;background:#0A66C2}
-        .pp-tier.t-prem .pp-cat{color:#fff;background:#0B2A52}
-        .pp-tier h3{font-size:20px;margin:14px 0 4px}
-        .pp-tier .desc{font-size:13.5px;color:#536471;min-height:44px;line-height:1.5}
-        .pp-band{font-size:16px;font-weight:800;color:#0A66C2;margin:16px 0 4px}
-        .pp-band small{color:#8899A6;font-weight:600}
-        .pp-eg{display:flex;align-items:center;gap:11px;margin:14px 0 10px;padding:11px 12px;border:1px solid #E8E6E1;border-radius:12px;background:#FAFBFC}
-        .pp-eg-av{width:42px;height:42px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;position:relative;flex:0 0 42px}
-        .pp-eg-dot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;background:#00B85C;border:2px solid #FAFBFC}
-        .pp-eg-name{font-weight:700;font-size:14px}
-        .pp-eg-tag{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8899A6;background:#EEF0F4;border-radius:6px;padding:2px 6px;margin-left:6px;vertical-align:middle}
-        .pp-eg-role{font-size:12px;color:#536471}
-        .pp-egstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
-        .pp-egstats > div{background:#F4F7FB;border-radius:9px;padding:8px 6px;text-align:center}
-        .pp-egstats b{display:block;font-family:var(--font-instrument-sans),'Montserrat',sans-serif;font-size:15px;color:#0A66C2}
-        .pp-egstats span{font-size:10px;color:#8899A6}
-        .pp-tier ul{margin:12px 0 0;padding:0;list-style:none}
-        .pp-tier li{font-size:13.5px;color:#3b4658;padding:5px 0 5px 24px;position:relative}
-        .pp-tier li::before{content:'✓';position:absolute;left:0;color:#00B85C;font-weight:800}
-        .pp-factors{margin:30px 0 0;border:1px solid #E8E6E1;border-radius:18px;background:#fff;padding:26px}
-        .pp-factors h2{font-size:21px;margin:0 0 4px}
-        .pp-factors .lead{font-size:14px;color:#536471;margin:0 0 18px}
-        .pp-frow{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
-        .pp-f{background:#F8F9FC;border:1px solid #eef0f5;border-radius:14px;padding:14px;text-align:center}
-        .pp-f .ic{font-size:22px}
-        .pp-f h4{margin:8px 0 3px;font-size:13.5px}
-        .pp-f p{margin:0;font-size:11.5px;color:#536471;line-height:1.4}
-        .pp-note{margin:22px 0 0;background:#E8F1FA;border:1px solid #bcd9f5;border-radius:14px;color:#0A3161;font-size:13.5px;padding:13px 16px}
-        .pp-cta{margin:40px;border-radius:24px;text-align:center;padding:64px 32px;color:#fff;position:relative;overflow:hidden;background:linear-gradient(160deg,#0B1A2E 0%,#0A3161 45%,#0A66C2 120%)}
-        .pp-cta::before{content:'';position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:520px;height:300px;background:radial-gradient(closest-side,rgba(0,184,92,0.2),transparent 70%);pointer-events:none}
-        .pp-cta > *{position:relative;z-index:1}
-        .pp-cta h2{font-size:clamp(26px,3vw,38px);margin-bottom:10px}
-        .pp-cta p{color:rgba(255,255,255,0.82);margin-bottom:24px}
-        .pp-btn{display:inline-flex;background:#fff;color:#0B1A2E;font-weight:700;padding:14px 28px;border-radius:12px;text-decoration:none;transition:.18s}
-        .pp-btn:hover{transform:translateY(-2px)}
-        @media(max-width:860px){.pp-tiers,.pp-frow{grid-template-columns:1fr}.pp-hero{padding:48px 22px 20px}.pp-wrap{padding:24px 20px}.pp-cta{margin:24px 16px;padding:44px 24px}}
+        .pp2-tiers{max-width:1160px;margin:0 auto;padding:44px 40px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;align-items:stretch;}
+        .pp2-factors{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+        @media(max-width:900px){
+          .pp2-tiers{grid-template-columns:1fr;padding:36px 18px 0;}
+          .pp2-factors{grid-template-columns:repeat(2,1fr);}
+          .pp2-featured{transform:none!important;}
+          .pp2-wrap{padding-left:18px!important;padding-right:18px!important;}
+        }
       `}</style>
 
-      <div className={`pp ${dmSans.variable} ${instrumentSans.variable}`}>
-        <section className="pp-hero">
-          <span className="pp-pill"><span className="d" /> Pricing</span>
-          <h1>Pay per account — priced by quality</h1>
-          <p>Every profile is priced on its own merits, so costs range. Here&apos;s what you&apos;re paying for, and how to pick the right fit.</p>
-        </section>
-
-        <div className="pp-wrap">
-          {/* TODO before full launch: replace the illustrative price bands below with real ranges */}
-          <div className="pp-tiers">
-            <div className="pp-tier t-basic">
-              <span className="pp-cat">Entry</span>
-              <h3>New / Basic <span className="pp-strength"><i className="on" /><i /><i /></span></h3>
-              <div className="pp-eg">
-                <div className="pp-eg-av" style={{ background: "linear-gradient(135deg,#9cc1ec,#5b91d1)" }}>JT<span className="pp-eg-dot" /></div>
-                <div>
-                  <div><span className="pp-eg-name">Jordan T.</span><span className="pp-eg-tag">Example</span></div>
-                  <div className="pp-eg-role">Sales Associate</div>
-                </div>
-              </div>
-              <div className="pp-egstats">
-                <div><b>~900</b><span>connections</span></div>
-                <div><b>1 yr</b><span>account age</span></div>
-                <div><b style={{ color: "#C4CAD3" }}>—</b><span>Sales Nav</span></div>
-              </div>
-              <div className="desc">Newer profiles with fewer connections. Great for testing or higher-volume, lower-stakes outreach.</div>
-              <div className="pp-band">Lower price <small>· e.g. from ~$40/mo</small></div>
-            </div>
-            <div className="pp-tier feat t-est">
-              <span className="pp-badge">Most popular</span>
-              <span className="pp-cat">Sweet spot</span>
-              <h3>Established <span className="pp-strength"><i className="on" /><i className="on" /><i /></span></h3>
-              <div className="pp-eg">
-                <div className="pp-eg-av" style={{ background: "linear-gradient(135deg,#4f90d9,#0A66C2)" }}>AK<span className="pp-eg-dot" /></div>
-                <div>
-                  <div><span className="pp-eg-name">Anna K.</span><span className="pp-eg-tag">Example</span></div>
-                  <div className="pp-eg-role">Marketing Manager</div>
-                </div>
-              </div>
-              <div className="pp-egstats">
-                <div><b>4,200</b><span>connections</span></div>
-                <div><b>4 yrs</b><span>account age</span></div>
-                <div><b style={{ color: "#00B85C" }}>✓</b><span>Sales Nav</span></div>
-              </div>
-              <div className="desc">Solid connection counts and an active history. The reliable middle ground most renters choose.</div>
-              <div className="pp-band">Mid price <small>· e.g. ~$90–$130/mo</small></div>
-            </div>
-            <div className="pp-tier t-prem">
-              <span className="pp-cat">Top tier</span>
-              <h3>Premium <span className="pp-strength"><i className="on" /><i className="on" /><i className="on" /></span></h3>
-              <div className="pp-eg">
-                <div className="pp-eg-av" style={{ background: "linear-gradient(135deg,#0A66C2,#0B2A52)" }}>ML<span className="pp-eg-dot" /></div>
-                <div>
-                  <div><span className="pp-eg-name">Marcus L.</span><span className="pp-eg-tag">Example</span></div>
-                  <div className="pp-eg-role">VP of Sales</div>
-                </div>
-              </div>
-              <div className="pp-egstats">
-                <div><b>12,000</b><span>connections</span></div>
-                <div><b>9 yrs</b><span>account age</span></div>
-                <div><b style={{ color: "#00B85C" }}>✓</b><span>Sales Nav</span></div>
-              </div>
-              <div className="desc">Senior, large networks with Sales Navigator. Maximum reach and credibility for serious outreach.</div>
-              <div className="pp-band">Top price <small>· e.g. $150+/mo</small></div>
-            </div>
-          </div>
-
-          <div className="pp-factors">
-            <h2>What sets each price</h2>
-            <p className="lead">Every account is scored on the same factors — the higher it scores, the more reach and trust it carries (and the more it costs).</p>
-            <div className="pp-frow">
-              <div className="pp-f"><div className="ic">🔗</div><h4>Connections</h4><p>More connections = more reach.</p></div>
-              <div className="pp-f"><div className="ic">📅</div><h4>Account age</h4><p>Older = more trusted, lower risk.</p></div>
-              <div className="pp-f"><div className="ic">🎯</div><h4>Sales Navigator</h4><p>Premium outreach power.</p></div>
-              <div className="pp-f"><div className="ic">🖼️</div><h4>Photo &amp; verification</h4><p>Signals a real, credible profile.</p></div>
-              <div className="pp-f"><div className="ic">💼</div><h4>Seniority &amp; industry</h4><p>Senior titles open more doors.</p></div>
-            </div>
-          </div>
-
-          <div className="pp-note">💡 Exact prices are set per profile and shown on each listing — these tiers just explain the <em>why</em>. You&apos;ll always see the real monthly price before you rent. No hidden fees, cancel anytime.</div>
+      {/* header */}
+      <div style={{ textAlign: "center", padding: "60px 24px 8px" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#FFFFFF", border: "1px solid #E6E8EC", borderRadius: 999, padding: "6px 14px", fontSize: 12.5, fontWeight: 600, color: "#3F4856", marginBottom: 22, boxShadow: "0 1px 2px rgba(16,24,40,0.04)" }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00B85C" }} />Pricing
         </div>
-
-        <section className="pp-cta">
-          <h2>Find the right account for your budget</h2>
-          <p>Browse live profiles and see the real price for each.</p>
-          <Link href="/catalogue" className="pp-btn">Browse available profiles →</Link>
-        </section>
+        <h1 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(34px,4.6vw,54px)", lineHeight: 1.04, letterSpacing: "-0.03em", margin: "0 0 20px" }}>Pay per account —<br />priced by quality</h1>
+        <p style={{ fontSize: 19, lineHeight: 1.55, color: "#5A6473", margin: "0 auto", maxWidth: 560 }}>Every profile is priced on its own merits, so costs range. Here&apos;s what you&apos;re paying for, and how to pick the right fit.</p>
       </div>
-    </>
+
+      {/* tiers */}
+      <div className="pp2-tiers">
+        {TIERS.map((t) => (
+          <div key={t.name} className={t.featured ? "pp2-featured" : ""} style={{
+            position: "relative", background: "linear-gradient(180deg,#FFFFFF 0%,#FCFDFE 100%)", borderRadius: 20,
+            border: "1px solid " + (t.featured ? "#0A66C2" : "#E9ECF0"), borderTop: "3px solid " + t.topColor,
+            boxShadow: t.featured ? "0 24px 56px rgba(10,102,194,0.20), 0 4px 14px rgba(10,102,194,0.10)" : "0 10px 30px rgba(16,24,40,0.07), 0 2px 6px rgba(16,24,40,0.04)",
+            transform: t.featured ? "translateY(-10px)" : "none", display: "flex", flexDirection: "column",
+          }}>
+            {t.ribbon && <div style={{ position: "absolute", top: -13, left: "50%", transform: "translateX(-50%)", background: "#00B85C", color: "#fff", fontFamily: MONO, fontSize: 10.5, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase", padding: "5px 14px", borderRadius: 999, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,184,92,0.3)" }}>{t.ribbon}</div>}
+            <div style={{ padding: "30px 28px 28px", display: "flex", flexDirection: "column", height: "100%" }}>
+              <span style={{ alignSelf: "flex-start", fontFamily: MONO, fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", color: t.eyebrowFg, background: t.eyebrowBg, padding: "5px 11px", borderRadius: 7, textTransform: "uppercase" }}>{t.eyebrow}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 20px" }}>
+                <span style={{ fontFamily: POP, fontWeight: 700, fontSize: 24, letterSpacing: "-0.01em", color: "#0B1220" }}>{t.name}</span>
+                <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                  {t.dots.map((d, i) => <span key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: d, display: "inline-block" }} />)}
+                </span>
+              </div>
+
+              {/* example person */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
+                <span style={{ flexShrink: 0, width: 38, height: 38, borderRadius: "50%", background: t.avatarBg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: POP, fontWeight: 600, fontSize: 13 }}>{t.initials}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14.5, color: "#0B1220" }}>{t.person}</span>
+                    <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#96A0AD", border: "1px solid #E2E6EB", borderRadius: 5, padding: "2px 6px" }}>Example</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "#8A93A2", marginTop: 2 }}>{t.role}</div>
+                </div>
+              </div>
+
+              {/* stats */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
+                {[
+                  { v: t.connections, l: "connections", c: "#0A66C2" },
+                  { v: t.verified, l: "verified", c: t.verifiedOn ? "#00A150" : "#C2C9D2" },
+                  { v: t.nav, l: "Sales Nav", c: t.navOn ? "#00A150" : "#C2C9D2" },
+                ].map((s) => (
+                  <div key={s.l} style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "12px 6px", textAlign: "center" }}>
+                    <div style={{ fontFamily: POP, fontWeight: 700, fontSize: 17, color: s.c }}>{s.v}</div>
+                    <div style={{ fontSize: 11, color: "#96A0AD", marginTop: 3 }}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+
+              <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 22px" }}>{t.desc}</p>
+
+              <div style={{ marginTop: "auto" }}>
+                <div style={{ height: 1, background: "#EDEFF2", marginBottom: 16 }} />
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontFamily: POP, fontWeight: 700, fontSize: 26, color: "#0A66C2" }}>{t.price}</span>
+                  <span style={{ fontSize: 13.5, color: "#96A0AD" }}>/mo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* what sets price */}
+      <div className="pp2-wrap" style={{ maxWidth: 1160, margin: "40px auto 0", padding: "0 40px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #EAECEF", borderRadius: 20, padding: "36px 36px 40px", boxShadow: "0 1px 2px rgba(16,24,40,0.03)" }}>
+          <h2 style={{ fontFamily: POP, fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", margin: "0 0 8px" }}>What sets each price</h2>
+          <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 26px", maxWidth: 720 }}>Every account is scored on the same factors — the higher it scores, the more reach and trust it carries (and the more it costs).</p>
+          <div className="pp2-factors">
+            {FACTORS.map((f) => (
+              <div key={f.title} style={{ background: "#FBFCFD", border: "1px solid #EDEFF2", borderRadius: 14, padding: "22px 16px", textAlign: "center" }}>
+                <div style={{ width: 44, height: 44, margin: "0 auto 14px", borderRadius: 11, background: "#EAF2FC", display: "flex", alignItems: "center", justifyContent: "center" }}>{f.icon}</div>
+                <div style={{ fontFamily: POP, fontWeight: 600, fontSize: 15, color: "#0B1220", marginBottom: 6 }}>{f.title}</div>
+                <div style={{ fontSize: 13, lineHeight: 1.5, color: "#8A93A2" }}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* reassurance */}
+      <div className="pp2-wrap" style={{ maxWidth: 1160, margin: "20px auto 0", padding: "0 40px" }}>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start", background: "#F2F7FF", border: "1px solid #DCE9FB", borderRadius: 14, padding: "18px 22px" }}>
+          <span style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 9, background: "#0A66C2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 16v-4" /><path d="M12 8h.01" /><circle cx="12" cy="12" r="9" /></svg>
+          </span>
+          <p style={{ fontSize: 14.5, lineHeight: 1.65, color: "#37424F", margin: 0 }}><strong>Exact prices are set per profile and shown on each listing</strong> — these tiers just explain the <em>why</em>. You&apos;ll always see the real monthly price before you rent. No hidden fees, cancel anytime.</p>
+        </div>
+      </div>
+
+      {/* dark CTA */}
+      <div style={{ marginTop: 64, background: "radial-gradient(120% 130% at 22% 0%, #12305F 0%, #0A1826 62%)", padding: "72px 40px 78px", textAlign: "center" }}>
+        <h2 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(28px,3.6vw,40px)", letterSpacing: "-0.02em", color: "#fff", margin: "0 0 14px" }}>Find the right account for your budget</h2>
+        <p style={{ fontSize: 17, color: "#AFC0D6", margin: "0 auto 30px", maxWidth: 480 }}>Browse live profiles and see the real price for each.</p>
+        <Link href="/catalogue" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", color: "#0B1220", fontSize: 16, fontWeight: 600, padding: "15px 28px", borderRadius: 12, textDecoration: "none" }}>Browse available profiles →</Link>
+      </div>
+    </div>
   );
 }

@@ -78,7 +78,7 @@ const FAQ_GROUPS: FaqGroup[] = [
       },
       {
         q: "What does an account cost?",
-        a: "Pricing depends on the account's seniority, connections, and whether Sales Navigator is included. Most accounts fall between $75 and $125 per month, and you'll see the exact price before you commit.",
+        a: "Pricing depends on the account's seniority, connections, and whether Sales Navigator is included. Most accounts fall between $75 and $125 per month, with premium profiles priced higher, and you'll see the exact price before you commit.",
       },
       {
         q: "Can I set up auto-renew?",
