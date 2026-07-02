@@ -113,6 +113,22 @@ export default function AdminRentalsPage() {
     finally { setBusy(null); }
   };
 
+  // Generate a Stripe subscription link that puts this rental onto auto-renew, and copy it
+  // so you can send it to the renter. Doesn't charge until their current period ends.
+  const handleAutoRenewLink = async (id: string) => {
+    if (!window.confirm("Generate an auto-renew (recurring) link for this renter? It won't charge until their current paid period ends — no double-charge.")) return;
+    setBusy(id);
+    try {
+      const res = await fetch(`/api/admin/rentals/${id}/autorenew-link`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        try { await navigator.clipboard?.writeText(data.url); } catch {}
+        window.prompt("Auto-renew link (copied to clipboard) — send this to the renter:", data.url);
+      } else alert("Failed: " + (data.error || res.status));
+    } catch (e) { alert("Request failed: " + (e instanceof Error ? e.message : "")); }
+    finally { setBusy(null); }
+  };
+
   // notes (per rental)
   const saveNotes = async (r: Rental, value: string) => {
     if (value === (r.notes || "")) return;
@@ -310,6 +326,9 @@ export default function AdminRentalsPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                       {(r.status === "active" || r.status === "payment_failed" || r.status === "expired") && (
                         <button onClick={() => handleSendRenewalLink(r.id)} disabled={busy === r.id} style={{ font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", border: "none", padding: "7px 10px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>Send renewal</button>
+                      )}
+                      {!r.autoRenew && (r.status === "active" || r.status === "payment_failed") && (
+                        <button onClick={() => handleAutoRenewLink(r.id)} disabled={busy === r.id} title="Generate a recurring-billing link to put this renter on auto-renew" style={{ font: `600 12px ${F_SANS}`, color: "var(--st-active-fg)", background: "transparent", border: "1px solid var(--st-active-fg)", padding: "7px 10px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>Set up auto-renew</button>
                       )}
                       <div style={{ display: "flex", gap: 6 }}>
                         {restricted ? (

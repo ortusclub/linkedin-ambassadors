@@ -52,6 +52,8 @@ export async function POST(req: Request) {
           await handleWalletTopUp(session);
         } else if (session.metadata?.type === "rental_renewal") {
           await handleRentalRenewal(session);
+        } else if (session.metadata?.type === "rental_autorenew") {
+          await handleAutoRenewSetup(session);
         } else {
           await handleCheckoutCompleted(session);
         }
@@ -203,6 +205,23 @@ async function handleRentalRenewal(session: Stripe.Checkout.Session) {
   } catch (e) {
     console.error("Failed to send renewal confirmation:", e);
   }
+}
+
+// Renter set up auto-renew on an EXISTING rental (via the admin "Set up auto-renew" link).
+// Attach the new subscription + flip autoRenew on. The subscription's trial_end = the
+// already-paid-through date, so it won't charge until then; the trial-end invoice extends
+// the period via handlePaymentSucceeded. No double charge for the month already paid.
+async function handleAutoRenewSetup(session: Stripe.Checkout.Session) {
+  const rentalId = session.metadata?.rentalId;
+  const subRef = session.subscription;
+  const subscriptionId = typeof subRef === "string" ? subRef : subRef?.id;
+  if (!rentalId || !subscriptionId) return;
+  const rental = await prisma.rental.findUnique({ where: { id: rentalId } });
+  if (!rental) return;
+  await prisma.rental.update({
+    where: { id: rentalId },
+    data: { stripeSubscriptionId: subscriptionId, autoRenew: true, status: "active" },
+  });
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
