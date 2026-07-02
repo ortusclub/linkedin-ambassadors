@@ -27,6 +27,7 @@ const updateSchema = z.object({
   gologinShareLink: z.string().nullable().optional(),
   verificationProof: z.string().nullable().optional(),
   linkedinVerified: z.boolean().optional(),
+  linkedinAccountHealth: z.string().nullable().optional(),
 }).partial();
 
 export async function GET(
@@ -69,6 +70,11 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
     const data = updateSchema.parse(body);
+
+    // A manual health mark stamps the check date server-side.
+    if (data.linkedinAccountHealth !== undefined) {
+      (data as Record<string, unknown>).healthCheckedAt = new Date();
+    }
 
     const account = await prisma.linkedInAccount.update({
       where: { id },

@@ -113,6 +113,11 @@ export default function AdminAccountsPage() {
     try { await patch(a.id, { verificationProof: value || null }); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, verificationProof: value || null } : x))); }
     finally { setSavingProof(null); }
   };
+  // Manual health mark — for when you've verified the account yourself (in GoLogin).
+  const markHealth = async (a: Account, health: string) => {
+    setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, linkedinAccountHealth: health, healthCheckedAt: new Date().toISOString() } : x)));
+    await patch(a.id, { linkedinAccountHealth: health });
+  };
   const checkHealth = async (id: string) => {
     setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, linkedinAccountHealth: "checking" } : a)));
     const res = await fetch(`/api/admin/accounts/${id}/check-health`, { method: "POST" });
@@ -352,10 +357,15 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <div style={{ display: "flex", flexDirection: "column", gap: 8, gridColumn: "span 2" }}>
                               <span style={labelCss}>Health actions</span>
                               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                {a.restrictedAt
-                                  ? <button onClick={() => setRestricted(a, false)} disabled={busy === a.id} style={outBtn("var(--st-active-fg)")}>Mark recovered</button>
-                                  : <button onClick={() => setRestricted(a, true)} disabled={busy === a.id} style={outBtn("var(--danger)")}>Mark restricted</button>}
-                                <button onClick={() => checkHealth(a.id)} title="Best-effort public check. LinkedIn blocks logged-out checks, so this is usually 'Unknown' — the reliable signal is the renter, then Mark restricted." style={secBtn}>↻ Re-check</button>
+                                {a.restrictedAt ? (
+                                  <button onClick={() => setRestricted(a, false)} disabled={busy === a.id} style={outBtn("var(--st-active-fg)")}>Mark recovered</button>
+                                ) : (
+                                  <>
+                                    <button onClick={() => markHealth(a, "active")} disabled={busy === a.id} title="You've verified it's working (e.g. opened it in GoLogin) — mark it Active, stamped today" style={outBtn("var(--st-active-fg)")}>✓ Mark active</button>
+                                    <button onClick={() => setRestricted(a, true)} disabled={busy === a.id} style={outBtn("var(--danger)")}>Mark restricted</button>
+                                  </>
+                                )}
+                                <button onClick={() => checkHealth(a.id)} title="Best-effort automated public check. LinkedIn blocks logged-out checks, so this is usually 'Unknown' — verify in GoLogin and use Mark active / Mark restricted instead." style={secBtn}>↻ Re-check (auto)</button>
                                 <button onClick={() => handleDelete(a)} disabled={busy === a.id} style={{ ...outBtn("var(--danger)"), marginLeft: "auto" }}>🗑 Delete</button>
                               </div>
                             </div>
