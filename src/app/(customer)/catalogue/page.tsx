@@ -99,7 +99,7 @@ export default function CataloguePage() {
         .cat2-wrap{max-width:1220px;margin:0 auto;padding:0 40px;}
         .cat2-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
         .cat2-card{transition:transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s ease, border-color .2s ease;}
-        .cat2-card:hover{transform:translateY(-5px);box-shadow:0 20px 44px rgba(16,24,40,0.13), 0 4px 12px rgba(16,24,40,0.07)!important;border-color:#C3D6EE!important;}
+        .cat2-card:hover{transform:translateY(-5px);border-color:#0A66C2!important;box-shadow:0 18px 44px rgba(10,102,194,0.28), 0 6px 16px rgba(10,102,194,0.16), 0 0 0 1px rgba(10,102,194,0.25)!important;}
         .cat2-row:hover{background:#F8FAFC;}
         input::placeholder{color:#9AA4B2;}
         @media(max-width:1040px){.cat2-grid{grid-template-columns:1fr 1fr;}}
