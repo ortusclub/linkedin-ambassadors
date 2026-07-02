@@ -355,8 +355,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <DField label="Owner">{ownerOf(a)}</DField>
                             <DField label="Age · Sales Nav · Listed">{`${a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"} · SN ${a.hasSalesNav ? "Yes" : "No"} · Listed ${a.listed ? "Yes" : "No"}`}</DField>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2", minWidth: 0 }}>
-                              <span style={labelCss}>Verification proof (private){savingProof === a.id ? " · saving…" : ""}</span>
-                              <textarea defaultValue={a.verificationProof || ""} placeholder="Proof links / notes…" onBlur={(e) => saveProof(a, e.target.value.trim())} style={{ width: "100%", minHeight: 52, resize: "vertical", ...modalInput, font: `500 12.5px ${F_SANS}` }} />
+                              <span style={labelCss}>Notes (private){savingProof === a.id ? " · saving…" : ""}</span>
+                              <textarea defaultValue={a.verificationProof || ""} placeholder="Notes — restriction reasons, verification/proof links, anything about this account…" onBlur={(e) => saveProof(a, e.target.value.trim())} style={{ width: "100%", minHeight: 52, resize: "vertical", ...modalInput, font: `500 12.5px ${F_SANS}` }} />
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 8, gridColumn: "span 2" }}>
                               <span style={labelCss}>Health actions</span>
