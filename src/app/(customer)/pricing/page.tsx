@@ -57,6 +57,9 @@ export default function PricingPage() {
       <style>{`
         .pp2-tiers{max-width:1160px;margin:0 auto;padding:44px 40px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;align-items:stretch;}
         .pp2-factors{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+        .pp2-card{transition:transform .18s ease, box-shadow .18s ease;}
+        .pp2-card:hover{transform:translateY(-6px)!important;box-shadow:0 22px 48px rgba(16,24,40,0.14)!important;}
+        .pp2-featured:hover{transform:translateY(-16px)!important;box-shadow:0 30px 64px rgba(10,102,194,0.24)!important;}
         @media(max-width:900px){
           .pp2-tiers{grid-template-columns:1fr;padding:36px 18px 0;}
           .pp2-factors{grid-template-columns:repeat(2,1fr);}
@@ -77,7 +80,7 @@ export default function PricingPage() {
       {/* tiers */}
       <div className="pp2-tiers">
         {TIERS.map((t) => (
-          <div key={t.name} className={t.featured ? "pp2-featured" : ""} style={{
+          <div key={t.name} className={"pp2-card" + (t.featured ? " pp2-featured" : "")} style={{
             position: "relative", background: "linear-gradient(180deg,#FFFFFF 0%,#FCFDFE 100%)", borderRadius: 20,
             border: "1px solid " + (t.featured ? "#0A66C2" : "#E9ECF0"), borderTop: "3px solid " + t.topColor,
             boxShadow: t.featured ? "0 24px 56px rgba(10,102,194,0.20), 0 4px 14px rgba(10,102,194,0.10)" : "0 10px 30px rgba(16,24,40,0.07), 0 2px 6px rgba(16,24,40,0.04)",
