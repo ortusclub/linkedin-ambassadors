@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatNumber, formatCurrency } from "@/lib/utils";
@@ -22,26 +22,21 @@ interface Account {
   showcase?: boolean;
 }
 
-const AVATAR_COLORS = [
-  "linear-gradient(135deg,#0A66C2,#004182)",
-  "linear-gradient(135deg,#00B85C,#007A3D)",
-  "linear-gradient(135deg,#7C3AED,#5B21B6)",
-  "linear-gradient(135deg,#DC2626,#991B1B)",
-  "linear-gradient(135deg,#D97706,#92400E)",
-  "linear-gradient(135deg,#0891B2,#155E75)",
-];
-
-function getAvatarColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-function getInitials(name: string) {
-  return name.replace(/\s*\(.*\)\s*$/, "").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-}
-
+const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
+
+const AVATAR_COLORS = ["#0A66C2", "#0E7C74", "#5747C9", "#B23150", "#946011", "#067A45", "#0D1B2A", "#C2410C"];
+const INDUSTRY_COLORS: Record<string, string> = { Sales: "#5747C9", Marketing: "#B23150", Technology: "#0A66C2", Operations: "#0E7C74", Finance: "#946011" };
+
+function getAvatarColor(name: string) { return AVATAR_COLORS[(name.charCodeAt(0) + name.length) % AVATAR_COLORS.length]; }
+function getInitials(name: string) { return name.replace(/\s*\(.*\)\s*$/, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(); }
+
+const SORTS: Record<string, (a: Account, b: Account) => number> = {
+  "conn-desc": (a, b) => b.connectionCount - a.connectionCount,
+  "conn-asc": (a, b) => a.connectionCount - b.connectionCount,
+  "price-asc": (a, b) => Number(a.monthlyPrice) - Number(b.monthlyPrice),
+  "price-desc": (a, b) => Number(b.monthlyPrice) - Number(a.monthlyPrice),
+};
 
 export default function CataloguePage() {
   const router = useRouter();
@@ -49,16 +44,15 @@ export default function CataloguePage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [industry, setIndustry] = useState("");
-  const [sort, setSort] = useState("connectionCount");
+  const [sort, setSort] = useState("conn-desc");
   const [hasSalesNav, setHasSalesNav] = useState(false);
   const [activeFilter, setActiveFilter] = useState("All");
+  const [view, setView] = useState<"list" | "grid">("list");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<{ id: string } | null>(null);
 
   useEffect(() => {
-    fetch("/api/auth/me").then((r) => r.json()).then((data) => {
-      if (data.user) setUser(data.user);
-    }).catch(() => {});
+    fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.user) setUser(d.user); }).catch(() => {});
   }, []);
 
   const fetchAccounts = async () => {
@@ -66,370 +60,285 @@ export default function CataloguePage() {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
     if (industry) params.set("industry", industry);
-    if (sort) params.set("sort", sort);
     if (hasSalesNav) params.set("hasSalesNav", "true");
-
     const res = await fetch(`/api/accounts?${params}`);
     const data = await res.json();
     setAccounts(data.accounts || []);
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchAccounts();
-  }, [sort, hasSalesNav, industry]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchAccounts(); }, [hasSalesNav, industry]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchAccounts();
-  };
+  const handleSearch = (e: React.FormEvent) => { e.preventDefault(); fetchAccounts(); };
+  const handleFilterClick = (f: string) => { setActiveFilter(f); setIndustry(f === "All" ? "" : f); };
 
-  const handleFilterClick = (filter: string) => {
-    setActiveFilter(filter);
-    setIndustry(filter === "All" ? "" : filter);
-    // The effect above refetches when `industry` changes.
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    const available = accounts.filter((a) => a.status === "available" && !a.showcase);
-    if (selected.size === available.length && available.length > 0) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(available.map((a) => a.id)));
-    }
-  };
+  const toggleSelect = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const rentable = accounts.filter((a) => a.status === "available" && !a.showcase);
+  const toggleSelectAll = () => setSelected(selected.size === rentable.length && rentable.length > 0 ? new Set() : new Set(rentable.map((a) => a.id)));
 
   const handleBulkRent = () => {
     if (selected.size === 0) return;
-    if (!user) {
-      router.push("/login?message=You must sign in or sign up before you can rent accounts.");
-      return;
-    }
+    if (!user) { router.push("/login?message=You must sign in or sign up before you can rent accounts."); return; }
     router.push(`/checkout?accounts=${Array.from(selected).join(",")}`);
   };
+  const selectedTotal = accounts.filter((a) => selected.has(a.id)).reduce((s, a) => s + Number(a.monthlyPrice), 0);
 
-  const selectedTotal = accounts
-    .filter((a) => selected.has(a.id))
-    .reduce((sum, a) => sum + Number(a.monthlyPrice), 0);
-
-  // Group by status so the action buttons line up cleanly instead of scattering:
-  // rentable accounts first (real "Rent" before showcase "Book a call"), then rented
-  // accounts at the bottom. A stable sort preserves the user's chosen sort within
-  // each group (price / connections / etc.).
+  // rentable first, then showcase, then rented — chosen sort applied within each group
   const statusRank = (a: Account) => (a.status === "available" ? (a.showcase ? 1 : 0) : 2);
-  const visibleAccounts = [...accounts].sort((a, b) => statusRank(a) - statusRank(b));
+  const visible = useMemo(() => [...accounts].sort((a, b) => statusRank(a) - statusRank(b) || SORTS[sort](a, b)), [accounts, sort]);
+  const availCount = rentable.length;
+
+  const chip = (on: boolean) => ({ cursor: "pointer", font: `${on ? 600 : 500} 13.5px ${INT}`, color: on ? "#FFFFFF" : "#3F4856", background: on ? "#0B1220" : "#FFFFFF", border: "1px solid " + (on ? "#0B1220" : "#E0E3E9"), borderRadius: 999, padding: "9px 18px", transition: "all .15s" } as const);
+  const seg = (on: boolean) => ({ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 13px ${INT}`, color: on ? "#0B1220" : "#8A93A2", background: on ? "#FFFFFF" : "transparent", border: "none", borderRadius: 8, padding: "7px 14px", boxShadow: on ? "0 1px 2px rgba(16,24,40,0.12)" : "none" } as const);
 
   return (
-    <>
+    <div style={{ fontFamily: INT, color: "#0B1220", background: "#FBFCFD", minHeight: "100vh" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500&display=swap');
-        .cat-page{font-family:'Karla','Montserrat',system-ui,sans-serif;background:#FAFAF8;min-height:100vh;-webkit-font-smoothing:antialiased}
-        .cat-page h1,.cat-page h2,.cat-page h3,.cat-page h4{font-family:'Montserrat','Karla',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
-        .cat-inner{max-width:1320px;margin:0 auto;padding:40px 40px 80px}
-        .cat-header{margin-bottom:32px}
-        .cat-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#0A66C2;margin-bottom:12px}
-        .cat-title{font-size:clamp(28px,3.5vw,42px);line-height:1.15;letter-spacing:-0.03em;margin-bottom:8px;color:#0F1419}
-        .cat-subtitle{font-size:14px;color:#536471}
-        .cat-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:32px;flex-wrap:wrap}
-        .cat-filters{display:flex;gap:8px;flex-wrap:wrap}
-        .cat-chip{padding:8px 16px;border-radius:100px;font-size:13px;font-weight:500;border:1px solid #E8E6E1;background:#FFFFFF;color:#536471;cursor:pointer;transition:all .15s;font-family:'Karla',system-ui,sans-serif}
-        .cat-chip:hover,.cat-chip.active{background:#1D1B16;color:#fff;border-color:#1D1B16}
-        .cat-search{display:flex;gap:8px;align-items:center}
-        .cat-search input{padding:8px 16px;border-radius:10px;border:1px solid #E8E6E1;font-size:13px;font-family:'Karla',system-ui,sans-serif;background:#fff;color:#0F1419;outline:none;width:240px;transition:border-color .15s}
-        .cat-search input:focus{border-color:#0A66C2}
-        .cat-search button{padding:8px 20px;border-radius:10px;background:#0A66C2;color:#fff;font-size:13px;font-weight:600;border:none;cursor:pointer;font-family:'Karla',system-ui,sans-serif;transition:all .15s}
-        .cat-search button:hover{background:#004182}
-        .cat-sort{padding:8px 12px;border-radius:10px;border:1px solid #E8E6E1;font-size:13px;font-family:'Karla',system-ui,sans-serif;background:#fff;color:#536471;outline:none;cursor:pointer}
-        .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-        .cat-card{background:#FFFFFF;border:1px solid #E8E6E1;border-radius:16px;padding:24px;transition:all .2s;cursor:pointer;position:relative;text-decoration:none;color:inherit;display:block}
-        .cat-card:hover{border-color:#0A66C2;box-shadow:0 8px 24px rgba(10,102,194,0.08);transform:translateY(-2px)}
-        .cat-card-header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
-        .cat-avatar{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;overflow:hidden}
-        .cat-avatar img{width:100%;height:100%;object-fit:cover}
-        .cat-name{font-weight:600;font-size:15px;margin-bottom:2px;color:#0F1419}
-        .cat-role{font-size:13px;color:#536471;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
-        .cat-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-        .cat-meta-item{background:#F3F2EE;padding:8px 12px;border-radius:8px}
-        .cat-meta-item .val{font-size:15px;font-weight:600;font-family:'Montserrat',sans-serif;color:#0F1419}
-        .cat-meta-item .lbl{font-size:11px;color:#8899A6;margin-top:1px}
-        .cat-tags{display:flex;gap:6px;flex-wrap:wrap}
-        .cat-tag{font-size:11px;padding:4px 10px;border-radius:100px;background:#E8F1FA;color:#0A66C2;font-weight:500}
-        .cat-price-row{margin-top:16px;padding-top:16px;border-top:1px solid #E8E6E1;display:flex;align-items:baseline;justify-content:space-between}
-        .cat-price{font-size:22px;font-weight:700;font-family:'Montserrat',sans-serif;letter-spacing:-0.02em;color:#0F1419}
-        .cat-period{font-size:13px;color:#8899A6}
-        .cat-view-btn{padding:4px 10px;border-radius:6px;background:#0A66C2;color:#fff;font-size:11px;font-weight:600;border:none;cursor:pointer;transition:all .15s;font-family:'Karla',system-ui,sans-serif;white-space:nowrap}
-        .cat-view-btn:hover{background:#004182}
-        .cat-rent-btn{padding:4px 10px;border-radius:6px;background:#00B85C;color:#fff;font-size:11px;font-weight:600;border:none;cursor:pointer;transition:all .15s;font-family:'Karla',system-ui,sans-serif;white-space:nowrap}
-        .cat-rent-btn:hover{background:#007A3D}
-        .cat-rent-btn:disabled{opacity:0.5;cursor:not-allowed}
-        .cat-empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:#536471}
-        .cat-loading{height:200px;border-radius:16px;background:#E8E6E1;animation:pulse 1.5s ease-in-out infinite}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-        .cat-nav-check{display:flex;align-items:center;gap:8px;font-size:13px;color:#536471;font-family:'Karla',system-ui,sans-serif;cursor:pointer;font-weight:500}
-        .cat-nav-check input{accent-color:#0A66C2}
-        @media(max-width:900px){
-          .cat-inner{padding:24px 16px 60px}
-          .cat-toolbar{flex-direction:column;align-items:stretch}
-          .cat-search input{width:100%}
-          .cat-grid{grid-template-columns:1fr}
-        }
+        .cat2-wrap{max-width:1220px;margin:0 auto;padding:0 40px;}
+        .cat2-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+        .cat2-card{transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;}
+        .cat2-card:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(16,24,40,0.10)!important;border-color:#D3DEEC!important;}
+        .cat2-row:hover{background:#F8FAFC;}
+        input::placeholder{color:#9AA4B2;}
+        @media(max-width:1040px){.cat2-grid{grid-template-columns:1fr 1fr;}}
+        @media(max-width:900px){.cat2-wrap{padding:0 18px;}.cat2-grid{grid-template-columns:1fr;}.cat2-listhead,.cat2-row{grid-template-columns:28px minmax(0,2.2fr) 1fr 1.4fr!important;}.cat2-hide{display:none!important;}}
       `}</style>
-      <div className="cat-page">
-        <div className="cat-inner">
-          <div className="cat-header">
-            <div className="cat-label">Marketplace</div>
-            <h1 className="cat-title">Browse available accounts</h1>
-            <p className="cat-subtitle">200+ accounts ready to rent right now</p>
-          </div>
 
-          <div className="cat-toolbar">
-            <div className="cat-filters">
-              {["All", "Sales", "Marketing", "Technology", "Operations", "Finance"].map(f => (
-                <span
-                  key={f}
-                  className={`cat-chip ${activeFilter === f ? "active" : ""}`}
-                  onClick={() => handleFilterClick(f)}
-                >
-                  {f}
-                </span>
-              ))}
-            </div>
-            <div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
-              <label className="cat-nav-check">
-                <input
-                  type="checkbox"
-                  checked={hasSalesNav}
-                  onChange={(e) => setHasSalesNav(e.target.checked)}
-                />
-                Sales Navigator
-              </label>
-              <select className="cat-sort" value={sort} onChange={(e) => setSort(e.target.value)}>
-                <option value="connectionCount">Most Connections</option>
-                <option value="newest">Newest Added</option>
+      {/* header */}
+      <div className="cat2-wrap" style={{ paddingTop: 44 }}>
+        <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 14 }}>Marketplace</div>
+        <h1 style={{ font: `700 clamp(30px,4vw,44px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Browse available accounts</h1>
+        <p style={{ fontSize: 17, color: "#5A6473", margin: 0 }}>Verified, pre-warmed profiles — ready to rent right now.</p>
+      </div>
+
+      {/* controls */}
+      <div className="cat2-wrap" style={{ paddingTop: 26 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
+            {["All", "Sales", "Marketing", "Technology", "Operations", "Finance"].map((c) => (
+              <button key={c} onClick={() => handleFilterClick(c)} style={chip(activeFilter === c)}>{c}</button>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <button onClick={() => setHasSalesNav((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#FFFFFF", border: "1px solid #E0E3E9", borderRadius: 10, padding: "9px 14px", font: `500 13.5px ${INT}`, color: "#3F4856" }}>
+              <span style={{ width: 17, height: 17, borderRadius: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", font: `700 11px ${INT}`, color: "#fff", border: "1.5px solid " + (hasSalesNav ? "#0A66C2" : "#CBD2DB"), background: hasSalesNav ? "#0A66C2" : "#fff" }}>{hasSalesNav ? "✓" : ""}</span>
+              Sales Navigator
+            </button>
+            <div style={{ position: "relative" }}>
+              <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ appearance: "none", WebkitAppearance: "none", background: "#FFFFFF", border: "1px solid #E0E3E9", borderRadius: 10, padding: "10px 38px 10px 14px", font: `500 13.5px ${INT}`, color: "#3F4856", cursor: "pointer" }}>
+                <option value="conn-desc">Most Connections</option>
+                <option value="conn-asc">Fewest Connections</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
               </select>
-              <form onSubmit={handleSearch} className="cat-search">
-                <input
-                  placeholder="Search accounts..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <button type="submit">Search</button>
-              </form>
+              <span style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#8A93A2", fontSize: 11 }}>▼</span>
             </div>
+            <form onSubmit={handleSearch}>
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search accounts…" style={{ background: "#FFFFFF", border: "1px solid #E0E3E9", borderRadius: 10, padding: "10px 14px", font: `400 13.5px ${INT}`, color: "#0B1220", width: 210 }} />
+            </form>
           </div>
+        </div>
 
-          {/* Bulk rent bar */}
-          {selected.size > 0 && (
-            <div style={{background:'#0A66C2',borderRadius:12,padding:'12px 20px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',color:'#fff'}}>
-              <div style={{display:'flex',alignItems:'center',gap:12}}>
-                <span style={{fontWeight:600,fontSize:14}}>{selected.size} account{selected.size > 1 ? 's' : ''} selected</span>
-                <span style={{fontSize:13,opacity:0.85}}>Total: {formatCurrency(selectedTotal)}/mo</span>
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <button
-                  onClick={() => setSelected(new Set())}
-                  style={{padding:'6px 14px',borderRadius:8,border:'1px solid rgba(255,255,255,0.3)',background:'transparent',color:'#fff',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}
-                >
-                  Clear
-                </button>
-                <button
-                  onClick={handleBulkRent}
-                  style={{padding:'6px 18px',borderRadius:8,border:'none',background:'#fff',color:'#0A66C2',fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}
-                >
-                  {`Rent ${selected.size} Account${selected.size > 1 ? 's' : ''}`}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {loading ? (
-            <div style={{display:'flex',flexDirection:'column',gap:12}}>
-              {[1,2,3,4,5,6].map(i => <div key={i} className="cat-loading" style={{height:56}} />)}
-            </div>
-          ) : accounts.length === 0 ? (
-            <div className="cat-empty">
-              <p style={{fontSize:16,fontWeight:500}}>No accounts available right now.</p>
-              <p style={{fontSize:14,marginTop:8}}>Check back soon or adjust your filters.</p>
-            </div>
-          ) : (
-            <div style={{background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,overflowX:'auto'}}>
-              <table style={{width:'100%',borderCollapse:'collapse',fontSize:14,minWidth:980}}>
-                <thead>
-                  <tr style={{borderBottom:'1px solid #E8E6E1',textAlign:'left',fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'#8899A6'}}>
-                    <th style={{padding:'12px 12px 12px 16px',width:40}}>
-                      <input
-                        type="checkbox"
-                        checked={selected.size > 0 && selected.size === accounts.filter(a => a.status === 'available' && !a.showcase).length}
-                        onChange={toggleSelectAll}
-                        style={{accentColor:'#0A66C2',cursor:'pointer'}}
-                      />
-                    </th>
-                    <th style={{padding:'12px 16px'}}>Profile</th>
-                    <th style={{padding:'12px 16px'}}>Connections</th>
-                    <th style={{padding:'12px 16px'}}>Industry</th>
-                    <th style={{padding:'12px 16px'}}>Location</th>
-                    <th style={{padding:'12px 16px'}}>Sales Nav</th>
-                    <th style={{padding:'12px 16px'}}>Status</th>
-                    <th style={{padding:'12px 16px'}}>Price</th>
-                    <th style={{padding:'12px 16px'}}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleAccounts.map((a) => {
-                    const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
-                    const initials = getInitials(a.linkedinName);
-                    const price = Number(a.monthlyPrice);
-                    const isAvailable = a.status === 'available';
-                    const isRentable = isAvailable && !a.showcase;
-                    const isSelected = selected.has(a.id);
-                    const statusColors: Record<string, {bg:string,text:string,dot:string}> = {
-                      available: {bg:'#E6F9EE',text:'#007A3D',dot:'#00B85C'},
-                      rented: {bg:'#FEF3C7',text:'#92400E',dot:'#D97706'},
-                      maintenance: {bg:'#E8F1FA',text:'#004182',dot:'#0A66C2'},
-                      retired: {bg:'#F3F2EE',text:'#536471',dot:'#8899A6'},
-                    };
-                    const sc = statusColors[a.status] || statusColors.retired;
-                    return (
-                      <tr
-                        key={a.id}
-                        style={{borderBottom:'1px solid #F0EFEB',transition:'background .15s',cursor:'pointer',background:isSelected?'#F0F7FF':'transparent'}}
-                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background='#FAFAF8'; }}
-                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background='transparent'; }}
-                      >
-                        <td style={{padding:'12px 12px 12px 16px',width:40}}>
-                          {isRentable ? (
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleSelect(a.id)}
-                              style={{accentColor:'#0A66C2',cursor:'pointer'}}
-                            />
-                          ) : (
-                            <input type="checkbox" disabled style={{opacity:0.3}} />
-                          )}
-                        </td>
-                        <td style={{padding:'12px 16px'}}>
-                          <div style={{display:'flex',alignItems:'center',gap:12}}>
-                            <div className="cat-avatar" style={{background: getAvatarColor(a.linkedinName),width:36,height:36,borderRadius:9,fontSize:13}}>
-                              {a.profilePhotoUrl ? (
-                                <img src={a.profilePhotoUrl} alt={displayName} />
-                              ) : initials}
-                            </div>
-                            <div>
-                              <div style={{fontWeight:600,color:'#0F1419',display:'flex',alignItems:'center',gap:6}}>
-                                {displayName}
-                                {a.linkedinVerified && (
-                                  <span title="LinkedIn verified" style={{display:'inline-flex',alignItems:'center',gap:3,background:'#E8F1FA',color:'#0A66C2',fontSize:10,fontWeight:700,padding:'2px 6px',borderRadius:999,whiteSpace:'nowrap'}}>
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                                    Verified
-                                  </span>
-                                )}
-                              </div>
-                              {a.linkedinHeadline && <div style={{fontSize:12,color:'#8899A6',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.linkedinHeadline}</div>}
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{padding:'12px 16px',color:'#0F1419',fontWeight:500}}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : '—'}</td>
-                        <td style={{padding:'12px 16px',color:'#536471'}}>{a.industry || '—'}</td>
-                        <td style={{padding:'12px 16px',color:'#536471'}}>{a.location || '—'}</td>
-                        <td style={{padding:'12px 16px',textAlign:'center'}}>
-                          {a.hasSalesNav ? (
-                            <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:'50%',background:'#E6F9EE',color:'#00B85C'}}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                            </span>
-                          ) : (
-                            <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:'50%',background:'#FEF2F2',color:'#DC2626'}}>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                            </span>
-                          )}
-                        </td>
-                        <td style={{padding:'12px 16px'}}>
-                          <span style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 10px',borderRadius:100,fontSize:12,fontWeight:600,background:sc.bg,color:sc.text}}>
-                            <span style={{width:6,height:6,borderRadius:'50%',background:sc.dot}} />
-                            {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
-                          </span>
-                        </td>
-                        <td style={{padding:'12px 16px',fontWeight:700,color:'#0F1419',whiteSpace:'nowrap'}}>{formatCurrency(price)}<span style={{fontWeight:400,color:'#8899A6',fontSize:12}}>/mo</span></td>
-                        <td style={{padding:'12px 16px',textAlign:'right'}}>
-                          <div style={{display:'flex',gap:4,justifyContent:'flex-end'}}>
-                            {a.linkedinUrl ? (
-                              <a
-                                href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="cat-view-btn"
-                                style={{display:'inline-block',textDecoration:'none'}}
-                              >
-                                View Profile
-                              </a>
-                            ) : !a.showcase ? (
-                              <Link href={`/account/${a.id}`} className="cat-view-btn" style={{display:'inline-block',textDecoration:'none'}}>
-                                View Profile
-                              </Link>
-                            ) : null}
-                            {/* Action only on AVAILABLE accounts — rented ones (incl. showcase) show no Book/Rent button */}
-                            {isAvailable ? (
-                              a.showcase ? (
-                                <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
-                                  Book a call
-                                </a>
-                              ) : (
-                                <Link href={`/account/${a.id}`} className="cat-rent-btn" style={{display:'inline-block',textDecoration:'none'}}>
-                                  Rent
-                                </Link>
-                              )
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {!loading && !user && (
-            <div style={{marginTop:24,background:'#fff',border:'1px solid #E8E6E1',borderRadius:16,padding:'28px 32px',textAlign:'center'}}>
-              <h3 style={{fontSize:20,fontWeight:600,color:'#0F1419',marginBottom:6,letterSpacing:'-0.02em'}}>Ready to rent?</h3>
-              <p style={{fontSize:14,color:'#536471',marginBottom:18,maxWidth:460,marginLeft:'auto',marginRight:'auto',lineHeight:1.5}}>Create a free account to rent any of these profiles — it only takes a minute.</p>
-              <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
-                <Link href="/register" style={{padding:'11px 22px',borderRadius:10,background:'linear-gradient(135deg,#0A66C2,#004182)',color:'#fff',fontSize:14,fontWeight:600,textDecoration:'none'}}>Create free account</Link>
-                <Link href="/login" style={{padding:'11px 22px',borderRadius:10,background:'#F3F2EE',color:'#0F1419',fontSize:14,fontWeight:600,textDecoration:'none'}}>Sign in</Link>
-              </div>
-            </div>
-          )}
-
-          {!loading && accounts.length > 0 && (
-            <div style={{marginTop:32,background:'linear-gradient(135deg,#0A66C2 0%,#004182 100%)',borderRadius:16,padding:'32px 40px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:24,flexWrap:'wrap',color:'#fff'}}>
-              <div style={{flex:'1 1 320px',minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:600,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.7)',marginBottom:8}}>Need a hand?</div>
-                <h3 style={{fontSize:22,fontWeight:600,letterSpacing:'-0.02em',marginBottom:6,color:'#fff'}}>Looking for something specific?</h3>
-                <p style={{fontSize:14,color:'rgba(255,255,255,0.85)',lineHeight:1.5}}>Book a quick call and we&apos;ll help match you to the right account for your campaign.</p>
-              </div>
-              <a
-                href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{padding:'14px 28px',borderRadius:12,background:'#fff',color:'#0A66C2',fontSize:14,fontWeight:700,textDecoration:'none',whiteSpace:'nowrap',transition:'transform .15s,box-shadow .15s',display:'inline-flex',alignItems:'center',gap:8}}
-                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.15)';}}
-                onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='';}}
-              >
-                Book a Meeting →
-              </a>
-            </div>
-          )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "#8A93A2" }}>
+            <span style={{ font: `500 13.5px ${MONO}`, color: "#0A66C2" }}>{visible.length}</span> accounts match
+            <span style={{ font: `600 12px ${INT}`, color: "#067A45", background: "#E4F6EC", borderRadius: 999, padding: "3px 10px", marginLeft: 4 }}>{availCount} available now</span>
+          </div>
+          <div style={{ display: "inline-flex", background: "#EEF1F5", borderRadius: 10, padding: 3, gap: 2 }}>
+            <button onClick={() => setView("list")} style={seg(view === "list")}>▤ List</button>
+            <button onClick={() => setView("grid")} style={seg(view === "grid")}>▦ Grid</button>
+          </div>
         </div>
       </div>
+
+      {/* bulk-rent bar */}
+      {selected.size > 0 && (
+        <div className="cat2-wrap" style={{ marginTop: 16 }}>
+          <div style={{ background: "#0A66C2", borderRadius: 12, padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>{selected.size} account{selected.size > 1 ? "s" : ""} selected</span>
+              <span style={{ fontSize: 13, opacity: 0.85 }}>Total: {formatCurrency(selectedTotal)}/mo</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => setSelected(new Set())} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.3)", background: "transparent", color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: INT }}>Clear</button>
+              <button onClick={handleBulkRent} style={{ padding: "6px 18px", borderRadius: 8, border: "none", background: "#fff", color: "#0A66C2", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: INT }}>Rent {selected.size} Account{selected.size > 1 ? "s" : ""}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* body */}
+      <div className="cat2-wrap" style={{ paddingTop: 22, paddingBottom: 8 }}>
+        {loading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3, 4, 5, 6].map((i) => <div key={i} style={{ height: 60, borderRadius: 14, background: "#EAECEF", animation: "pulse 1.5s ease-in-out infinite" }} />)}</div>
+        ) : accounts.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#5A6473" }}>
+            <p style={{ fontSize: 16, fontWeight: 500 }}>No accounts match your filters.</p>
+            <p style={{ fontSize: 14, marginTop: 8 }}>Try clearing a filter or check back soon.</p>
+          </div>
+        ) : view === "grid" ? (
+          <div className="cat2-grid">
+            {visible.map((a) => <GridCard key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} />)}
+          </div>
+        ) : (
+          <div style={{ background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+            <div className="cat2-listhead" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) 0.9fr 1.1fr 1.3fr 0.8fr 1fr 1.6fr", alignItems: "center", gap: 16, padding: "14px 22px", background: "#F8FAFC", borderBottom: "1px solid #EDEFF2", font: `500 11px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A93A2" }}>
+              <input type="checkbox" checked={selected.size > 0 && selected.size === rentable.length} onChange={toggleSelectAll} style={{ accentColor: "#0A66C2", cursor: "pointer" }} />
+              <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span className="cat2-hide">Sales Nav</span><span>Price</span><span></span>
+            </div>
+            {visible.map((a) => <ListRow key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} />)}
+          </div>
+        )}
+      </div>
+
+      {/* logged-out gate */}
+      {!loading && !user && (
+        <div className="cat2-wrap" style={{ marginTop: 24 }}>
+          <div style={{ background: "#fff", border: "1px solid #E9ECF0", borderRadius: 16, padding: "28px 32px", textAlign: "center" }}>
+            <h3 style={{ font: `700 20px ${POP}`, color: "#0B1220", marginBottom: 6 }}>Ready to rent?</h3>
+            <p style={{ fontSize: 14, color: "#5A6473", marginBottom: 18, maxWidth: 460, margin: "0 auto 18px", lineHeight: 1.5 }}>Create a free account to rent any of these profiles — it only takes a minute.</p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              <Link href="/register" style={{ padding: "11px 22px", borderRadius: 10, background: "#0A66C2", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>Create free account</Link>
+              <Link href="/login" style={{ padding: "11px 22px", borderRadius: 10, background: "#EEF1F5", color: "#0B1220", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>Sign in</Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* dark CTA */}
+      {!loading && accounts.length > 0 && (
+        <div className="cat2-wrap" style={{ marginTop: 36, paddingBottom: 64 }}>
+          <div style={{ background: "radial-gradient(130% 150% at 12% 0%, #12305F 0%, #0A1826 65%)", borderRadius: 20, padding: "40px 44px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 28, flexWrap: "wrap" }}>
+            <div style={{ maxWidth: 560 }}>
+              <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#7FA8E0", marginBottom: 10 }}>Need a hand?</div>
+              <div style={{ font: `700 27px ${POP}`, color: "#fff", marginBottom: 8, letterSpacing: "-0.01em" }}>Looking for something specific?</div>
+              <p style={{ fontSize: 15.5, lineHeight: 1.55, color: "#AFC0D6", margin: 0 }}>Book a quick call and we&apos;ll match you to the right account for your campaign.</p>
+            </div>
+            <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, whiteSpace: "nowrap", textDecoration: "none" }}>Book a Meeting →</a>
+          </div>
+        </div>
+      )}
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}`}</style>
+    </div>
+  );
+}
+
+function StatusBadge({ rented }: { rented: boolean }) {
+  return (
+    <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "4px 11px", color: rented ? "#946011" : "#067A45", background: rented ? "#FBF0DA" : "#E4F6EC" }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: rented ? "#E0A43B" : "#00B85C" }} />{rented ? "Rented" : "Available"}
+    </span>
+  );
+}
+
+function Verified() {
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600, color: "#0A66C2", background: "#EAF2FC", borderRadius: 6, padding: "2px 7px" }}>✓ Verified</span>;
+}
+
+function IndustryTag({ industry }: { industry: string }) {
+  const c = INDUSTRY_COLORS[industry] || "#0A66C2";
+  return <span style={{ font: `500 11px ${MONO}`, letterSpacing: "0.04em", color: c, background: c + "14", borderRadius: 6, padding: "4px 9px" }}>{industry}</span>;
+}
+
+function Actions({ a }: { a: Account }) {
+  const isAvailable = a.status === "available";
+  const viewStyle = { fontSize: 13, fontWeight: 600, color: "#0A66C2", background: "#EAF2FC", borderRadius: 9, padding: "9px 13px", textDecoration: "none", whiteSpace: "nowrap" } as const;
+  return (
+    <>
+      {a.linkedinUrl ? (
+        <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={viewStyle}>View</a>
+      ) : !a.showcase ? (
+        <Link href={`/account/${a.id}`} style={viewStyle}>View</Link>
+      ) : null}
+      {isAvailable ? (
+        a.showcase ? (
+          <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#00A150", borderRadius: 9, padding: "9px 15px", textDecoration: "none", whiteSpace: "nowrap" }}>Book a call</a>
+        ) : (
+          <Link href={`/account/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#00A150", borderRadius: 9, padding: "9px 17px", textDecoration: "none", whiteSpace: "nowrap" }}>Rent</Link>
+        )
+      ) : (
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#96A0AD", background: "#F2F4F7", borderRadius: 9, padding: "9px 15px", whiteSpace: "nowrap" }}>Rented</span>
+      )}
     </>
+  );
+}
+
+function Avatar({ a, rented }: { a: Account; rented: boolean }) {
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <span style={{ width: 46, height: 46, borderRadius: "50%", background: getAvatarColor(a.linkedinName), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `600 15px ${POP}`, overflow: "hidden", filter: rented ? "grayscale(0.5)" : "none" }}>
+        {a.profilePhotoUrl ? <img src={a.profilePhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : getInitials(a.linkedinName)}
+      </span>
+      <span style={{ position: "absolute", bottom: 1, right: 1, width: 12, height: 12, borderRadius: "50%", border: "2px solid #fff", background: rented ? "#E0A43B" : "#00B85C" }} />
+    </div>
+  );
+}
+
+function GridCard({ a, selected, onToggle }: { a: Account; selected: boolean; onToggle: (id: string) => void }) {
+  const rented = a.status !== "available";
+  const rentable = a.status === "available" && !a.showcase;
+  const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+  return (
+    <div className="cat2-card" style={{ position: "relative", background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(16,24,40,0.04)", opacity: rented ? 0.72 : 1, display: "flex", flexDirection: "column" }}>
+      {rentable && (
+        <input type="checkbox" checked={selected} onChange={() => onToggle(a.id)} title="Select for bulk rent" style={{ position: "absolute", top: 16, right: 16, accentColor: "#0A66C2", cursor: "pointer", width: 16, height: 16 }} />
+      )}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 13, marginBottom: 16 }}>
+        <Avatar a={a} rented={rented} />
+        <div style={{ minWidth: 0, flex: 1, paddingRight: rentable ? 20 : 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+            <span style={{ font: `600 16px ${POP}`, color: "#0B1220", lineHeight: 1.2 }}>{displayName}</span>
+            {a.linkedinVerified && <Verified />}
+          </div>
+          {a.linkedinHeadline && <div style={{ fontSize: 13, color: "#8A93A2", marginTop: 3, lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{a.linkedinHeadline}</div>}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {a.industry && <IndustryTag industry={a.industry} />}
+        {a.location && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#5A6473" }}><span style={{ color: "#B0B7C2" }}>◍</span>{a.location}</span>}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 18 }}>
+        <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}>
+          <div style={{ font: `700 16px ${POP}`, color: "#0B1220" }}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</div>
+          <div style={{ fontSize: 11, color: "#96A0AD", marginTop: 2 }}>connections</div>
+        </div>
+        <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}>
+          <div style={{ font: `700 15px ${POP}`, color: a.hasSalesNav ? "#00A150" : "#C2C9D2" }}>{a.hasSalesNav ? "✓ Yes" : "— No"}</div>
+          <div style={{ fontSize: 11, color: "#96A0AD", marginTop: 2 }}>Sales Navigator</div>
+        </div>
+      </div>
+      <div style={{ height: 1, background: "#EDEFF2", marginBottom: 14 }} />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div><span style={{ font: `700 19px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 13, color: "#96A0AD" }}>/mo</span></div>
+        <div style={{ display: "flex", gap: 8 }}><Actions a={a} /></div>
+      </div>
+    </div>
+  );
+}
+
+function ListRow({ a, selected, onToggle }: { a: Account; selected: boolean; onToggle: (id: string) => void }) {
+  const rented = a.status !== "available";
+  const rentable = a.status === "available" && !a.showcase;
+  const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+  return (
+    <div className="cat2-row" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) 0.9fr 1.1fr 1.3fr 0.8fr 1fr 1.6fr", alignItems: "center", gap: 16, padding: "15px 22px", borderBottom: "1px solid #F0F2F5", opacity: rented ? 0.66 : 1, background: selected ? "#F0F7FF" : "transparent", transition: "background .15s" }}>
+      {rentable ? <input type="checkbox" checked={selected} onChange={() => onToggle(a.id)} style={{ accentColor: "#0A66C2", cursor: "pointer" }} /> : <input type="checkbox" disabled style={{ opacity: 0.3 }} />}
+      <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
+        <Avatar a={a} rented={rented} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+            <span style={{ font: `600 15px ${POP}`, color: "#0B1220", lineHeight: 1.2 }}>{displayName}</span>
+            {a.linkedinVerified && <Verified />}
+          </div>
+          {a.linkedinHeadline && <div style={{ fontSize: 12.5, color: "#8A93A2", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline}</div>}
+        </div>
+      </div>
+      <span className="cat2-hide" style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</span>
+      <span className="cat2-hide">{a.industry ? <IndustryTag industry={a.industry} /> : "—"}</span>
+      <span className="cat2-hide" style={{ fontSize: 13, color: "#5A6473", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.location || "—"}</span>
+      <span className="cat2-hide" style={{ width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: a.hasSalesNav ? "#067A45" : "#C23150", background: a.hasSalesNav ? "#E4F6EC" : "#FBE7EB" }}>{a.hasSalesNav ? "✓" : "✕"}</span>
+      <span><span style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span></span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} /><Actions a={a} /></div>
+    </div>
   );
 }

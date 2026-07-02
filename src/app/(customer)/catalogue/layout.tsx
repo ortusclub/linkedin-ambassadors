@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { maskName } from "@/lib/mask";
+import { blogFontVars } from "@/lib/blog-fonts";
 
 export const metadata: Metadata = {
   title: "Browse LinkedIn Accounts for Rent",
@@ -117,7 +118,7 @@ export default async function CatalogueLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       )}
-      {children}
+      <div className={blogFontVars}>{children}</div>
       {/* SEO-only content for search engines — hidden visually but indexable */}
       <div
         style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}
