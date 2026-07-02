@@ -98,8 +98,8 @@ export default function CataloguePage() {
       <style>{`
         .cat2-wrap{max-width:1220px;margin:0 auto;padding:0 40px;}
         .cat2-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
-        .cat2-card{transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;}
-        .cat2-card:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(16,24,40,0.10)!important;border-color:#D3DEEC!important;}
+        .cat2-card{transition:transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s ease, border-color .2s ease;}
+        .cat2-card:hover{transform:translateY(-5px);box-shadow:0 20px 44px rgba(16,24,40,0.13), 0 4px 12px rgba(16,24,40,0.07)!important;border-color:#C3D6EE!important;}
         .cat2-row:hover{background:#F8FAFC;}
         input::placeholder{color:#9AA4B2;}
         @media(max-width:1040px){.cat2-grid{grid-template-columns:1fr 1fr;}}
@@ -281,7 +281,7 @@ function GridCard({ a, selected, onToggle }: { a: Account; selected: boolean; on
   const rentable = a.status === "available" && !a.showcase;
   const displayName = shortName(a.linkedinName);
   return (
-    <div className="cat2-card" style={{ position: "relative", background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(16,24,40,0.04)", opacity: rented ? 0.72 : 1, display: "flex", flexDirection: "column" }}>
+    <div className="cat2-card" style={{ position: "relative", background: "#FFFFFF", border: "1px solid #DFE3E9", borderRadius: 16, padding: 20, boxShadow: "0 8px 24px rgba(16,24,40,0.07), 0 1px 3px rgba(16,24,40,0.05)", opacity: rented ? 0.72 : 1, display: "flex", flexDirection: "column" }}>
       {rentable && (
         <input type="checkbox" checked={selected} onChange={() => onToggle(a.id)} title="Select for bulk rent" style={{ position: "absolute", top: 16, right: 16, accentColor: "#0A66C2", cursor: "pointer", width: 16, height: 16 }} />
       )}
