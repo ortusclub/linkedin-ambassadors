@@ -32,6 +32,18 @@ const FAQ_GROUPS: FaqGroup[] = [
         q: "What tools can I use with a rented account?",
         a: "Any Chrome extension or LinkedIn automation tool — Dripify, Expandi, Linked Helper and others all work inside the browser session. Sales Navigator is available on accounts that include it. We recommend keeping activity within safe limits (roughly 100–200 actions a week), which we help you configure.",
       },
+      {
+        q: "How fast do I get access after renting?",
+        a: "Typically within minutes. Once you've completed the quick one-time browser setup, we grant access to your rented account and you can start outreach straight away.",
+      },
+      {
+        q: "Which regions are the accounts based in?",
+        a: "We have accounts based across the US, UK, Canada, Australia and other regions. Browse the catalogue to filter by location, or tell us your target market and we'll match you to the best fit.",
+      },
+      {
+        q: "Can I rent more than one account?",
+        a: "Yes — rent as many as you need. Each is billed separately, and teams running higher volume often run several accounts at once.",
+      },
     ],
   },
   {
@@ -46,6 +58,14 @@ const FAQ_GROUPS: FaqGroup[] = [
         q: "Is this compliant and safe for the account owner?",
         a: "Every account is shared with the owner's explicit, ongoing consent, and they can withdraw at any time. We secure access, mask credentials, and never expose the owner's password to renters.",
       },
+      {
+        q: "What sending limits should I stay within?",
+        a: "We recommend keeping activity within safe limits — roughly 100–200 actions per week — to keep the account healthy. We'll help you configure your outreach tool to stay in range.",
+      },
+      {
+        q: "What happens if an account is restricted mid-campaign?",
+        a: "We pause billing for that account immediately, credit you for the downtime, and move you to a replacement so your outreach keeps running with minimal disruption.",
+      },
     ],
   },
   {
@@ -59,6 +79,18 @@ const FAQ_GROUPS: FaqGroup[] = [
       {
         q: "What does an account cost?",
         a: "Pricing depends on the account's seniority, connections, and whether Sales Navigator is included. Most accounts fall between $75 and $125 per month, and you'll see the exact price before you commit.",
+      },
+      {
+        q: "Can I set up auto-renew?",
+        a: "Yes. You can switch on monthly auto-renew so your account continues without interruption, and turn it off anytime.",
+      },
+      {
+        q: "What payment methods do you accept?",
+        a: "Card via Stripe, or USDC (on Base). You'll choose at checkout.",
+      },
+      {
+        q: "Is there a setup fee or minimum term?",
+        a: "No setup fee and no minimum term — you pay a flat monthly fee per account and can cancel anytime.",
       },
     ],
   },
