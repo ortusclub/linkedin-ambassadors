@@ -48,6 +48,7 @@ const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
   { key: "Offline", hint: "temporarily not rentable", dot: "var(--neutral-chip-text)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
+  { key: "Showcase", hint: "public-catalogue demo accounts — not real inventory", dot: "var(--warn-badge-text)" },
 ];
 const statusChip = (disp: string): React.CSSProperties => {
   const m: Record<string, [string, string]> = { Available: ["var(--st-active-bg)", "var(--st-active-fg)"], Rented: ["var(--blue-chip-bg)", "var(--blue-chip-text)"], Offline: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"], Removed: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"] };
@@ -67,7 +68,10 @@ function healthOf(a: Account): { label: string; bg: string; fg: string; note: st
 const profileEmailOf = (a: Account) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || null;
 const ownerOf = (a: Account) => { const notes = a.notes || ""; if (notes.includes("[SHOWCASE]")) return "Dummy"; if ([profileEmailOf(a), a.ownerEmail].some((e) => isCompanyEmail(e))) return "Ortus"; return a.ownerEmail || "—"; };
 // A rented account should be health-checked weekly — flag it if the last check is >7 days old (or never).
-const checkDue = (a: Account) => a.status === "rented" && !a.restrictedAt && (!a.healthCheckedAt || Date.now() - new Date(a.healthCheckedAt).getTime() > 7 * 86400000);
+const isDummy = (a: Account) => (a.notes || "").includes("[SHOWCASE]");
+const checkDue = (a: Account) => !isDummy(a) && a.status === "rented" && !a.restrictedAt && (!a.healthCheckedAt || Date.now() - new Date(a.healthCheckedAt).getTime() > 7 * 86400000);
+// dummies (public-catalogue showcase accounts) get their own group, not mixed with real inventory
+const groupKey = (a: Account) => (isDummy(a) ? "Showcase" : displayStatus(a.status));
 
 const GRID = "minmax(0,1fr) 150px 100px 172px 168px";
 
@@ -188,20 +192,25 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     setImportResult({ success, failed }); setImporting(false); load();
   };
 
-  const counts = useMemo(() => ({
-    all: accounts.length,
-    Available: accounts.filter((a) => displayStatus(a.status) === "Available").length,
-    Rented: accounts.filter((a) => displayStatus(a.status) === "Rented").length,
-    Offline: accounts.filter((a) => displayStatus(a.status) === "Offline").length,
-    Removed: accounts.filter((a) => displayStatus(a.status) === "Removed").length,
-    recovering: accounts.filter((a) => a.restrictedAt).length,
-    checksDue: accounts.filter(checkDue).length,
-  }), [accounts]);
+  const counts = useMemo(() => {
+    const real = accounts.filter((a) => !isDummy(a));
+    return {
+      total: accounts.length, // "All" chip (everything)
+      realTotal: real.length, // headline — sellable inventory, excludes dummies
+      Available: real.filter((a) => displayStatus(a.status) === "Available").length,
+      Rented: real.filter((a) => displayStatus(a.status) === "Rented").length,
+      Offline: real.filter((a) => displayStatus(a.status) === "Offline").length,
+      Removed: real.filter((a) => displayStatus(a.status) === "Removed").length,
+      Showcase: accounts.filter(isDummy).length,
+      recovering: real.filter((a) => a.restrictedAt).length,
+      checksDue: accounts.filter(checkDue).length,
+    };
+  }, [accounts]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return accounts.filter((a) => {
-      if (filter !== "all" && displayStatus(a.status) !== filter) return false;
+      if (filter !== "all" && groupKey(a) !== filter) return false;
       if (!q) return true;
       return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.ownerEmail || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
     });
@@ -225,7 +234,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.all, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Offline", "Offline", counts.Offline, "var(--neutral-chip-text)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Offline", "Offline", counts.Offline, "var(--neutral-chip-text)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
@@ -250,11 +259,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       {/* summary */}
       <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{counts.all}</span>
+          <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{counts.realTotal}</span>
           <span style={{ font: `600 12px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--label)" }}>accounts</span>
         </div>
         <span style={{ width: 1, height: 20, background: "var(--divider)" }} />
-        {[["var(--st-active-fg)", `${counts.Available} available`], ["var(--blue-chip-text)", `${counts.Rented} rented`], ["var(--st-unreach-fg)", `${counts.recovering} recovering`], ["var(--warn-badge-text)", `${counts.checksDue} checks due`]].map(([dot, txt]) => (
+        {[["var(--st-active-fg)", `${counts.Available} available`], ["var(--blue-chip-text)", `${counts.Rented} rented`], ["var(--st-unreach-fg)", `${counts.recovering} recovering`], ["var(--warn-badge-text)", `${counts.checksDue} checks due`], ["var(--muted2)", `${counts.Showcase} showcase`]].map(([dot, txt]) => (
           <span key={txt} style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />{txt}</span>
         ))}
       </div>
@@ -280,7 +289,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         {filtered.length === 0 ? (
           <div style={{ padding: 44, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No accounts match.</div>
         ) : GROUPS.map((g) => {
-          const rows = filtered.filter((a) => displayStatus(a.status) === g.key);
+          const rows = filtered.filter((a) => groupKey(a) === g.key);
           if (rows.length === 0) return null;
           return (
             <div key={g.key}>
@@ -307,6 +316,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           <div style={{ minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
                               <span style={{ font: `600 14px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinName}</span>
+                              {isDummy(a) && <span title="Showcase / demo account — not real inventory" style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".06em", padding: "2px 7px", borderRadius: 5, flex: "none", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>DUMMY</span>}
                               <button onClick={(e) => { e.stopPropagation(); toggleVerified(a); }} title="LinkedIn verified — click to toggle"
                                 style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap", border: "none", cursor: "pointer", ...(a.linkedinVerified ? { background: "var(--verified-bg, var(--blue-chip-bg))", color: "var(--verified-fg, var(--blue-chip-text))" } : { background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }) }}>{a.linkedinVerified ? "✓ Verified" : "Verify"}</button>
                             </div>
