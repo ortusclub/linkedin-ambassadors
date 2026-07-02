@@ -30,6 +30,8 @@ const INDUSTRY_COLORS: Record<string, string> = { Sales: "#5747C9", Marketing: "
 
 function getAvatarColor(name: string) { return AVATAR_COLORS[(name.charCodeAt(0) + name.length) % AVATAR_COLORS.length]; }
 function getInitials(name: string) { return name.replace(/\s*\(.*\)\s*$/, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(); }
+// Compact, uniform display name: "Tony Otto" -> "Tony O." (View Profile still links the full identity)
+function shortName(name: string) { const p = name.replace(/\s*\(.*\)\s*$/, "").trim().split(/\s+/).filter(Boolean); return p.length < 2 ? (p[0] || "") : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`; }
 
 const SORTS: Record<string, (a: Account, b: Account) => number> = {
   "conn-desc": (a, b) => b.connectionCount - a.connectionCount,
@@ -277,7 +279,7 @@ function Avatar({ a, rented }: { a: Account; rented: boolean }) {
 function GridCard({ a, selected, onToggle }: { a: Account; selected: boolean; onToggle: (id: string) => void }) {
   const rented = a.status !== "available";
   const rentable = a.status === "available" && !a.showcase;
-  const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+  const displayName = shortName(a.linkedinName);
   return (
     <div className="cat2-card" style={{ position: "relative", background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(16,24,40,0.04)", opacity: rented ? 0.72 : 1, display: "flex", flexDirection: "column" }}>
       {rentable && (
@@ -319,7 +321,7 @@ function GridCard({ a, selected, onToggle }: { a: Account; selected: boolean; on
 function ListRow({ a, selected, onToggle }: { a: Account; selected: boolean; onToggle: (id: string) => void }) {
   const rented = a.status !== "available";
   const rentable = a.status === "available" && !a.showcase;
-  const displayName = a.linkedinName.replace(/\s*\(.*\)\s*$/, "");
+  const displayName = shortName(a.linkedinName);
   return (
     <div className="cat2-row" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) 0.9fr 1.1fr 1.3fr 0.8fr 1fr 1.6fr", alignItems: "center", gap: 16, padding: "15px 22px", borderBottom: "1px solid #F0F2F5", opacity: rented ? 0.66 : 1, background: selected ? "#F0F7FF" : "transparent", transition: "background .15s" }}>
       {rentable ? <input type="checkbox" checked={selected} onChange={() => onToggle(a.id)} style={{ accentColor: "#0A66C2", cursor: "pointer" }} /> : <input type="checkbox" disabled style={{ opacity: 0.3 }} />}
