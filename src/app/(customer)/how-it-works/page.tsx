@@ -38,11 +38,11 @@ export default function HowItWorksPage() {
 
       {/* HERO */}
       <section style={{ position: "relative", overflow: "hidden", background: "radial-gradient(80% 70% at 50% -10%, rgba(10,102,194,0.28) 0%, rgba(10,24,38,0) 60%), radial-gradient(60% 60% at 88% 15%, rgba(38,120,220,0.16) 0%, rgba(10,24,38,0) 60%), linear-gradient(180deg,#0F2439 0%,#0A1826 100%)", padding: "60px 24px 84px", color: "#EAF0FA" }}>
-        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+        <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
           <div style={{ fontSize: 13, color: "#7FA0C4", marginBottom: 22 }}>Home · How It Works</div>
-          <h1 style={{ font: `800 clamp(34px,5.6vw,56px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 22px", color: "#fff", maxWidth: 760 }}>Rent a LinkedIn account in minutes — no warm-up, no setup wizard</h1>
-          <p style={{ fontSize: 19, lineHeight: 1.6, color: "#AFC4DB", margin: 0, maxWidth: 600 }}>Every rented account comes with its own GoLogin anti-detect browser profile and dedicated proxy. No password to manage, no verification step — click an account and you&apos;re in.</p>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 34 }}>
+          <h1 style={{ font: `800 clamp(34px,5.6vw,56px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 auto 22px", color: "#fff", maxWidth: 760 }}>Rent a LinkedIn account in minutes — no warm-up, no setup wizard</h1>
+          <p style={{ fontSize: 19, lineHeight: 1.6, color: "#AFC4DB", margin: "0 auto", maxWidth: 600 }}>Every rented account comes with its own GoLogin anti-detect browser profile and dedicated proxy. No password to manage, no verification step — click an account and you&apos;re in.</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "center", marginTop: 34 }}>
             <Link href="/catalogue" style={{ background: "#fff", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>Browse Available Accounts →</Link>
             <Link href="/faqs" style={{ background: "rgba(255,255,255,0.08)", color: "#EAF0FA", border: "1px solid rgba(255,255,255,0.18)", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>Renter FAQs</Link>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "#8FA8C6", marginLeft: 4 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00E676", boxShadow: "0 0 6px 2px rgba(0,230,118,0.4)" }} />Ready in minutes</span>
