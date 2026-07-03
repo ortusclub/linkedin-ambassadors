@@ -15,6 +15,8 @@ type LeadInput = {
   followUpDate?: string | null;
   outcome?: string | null;
   notes?: string | null;
+  stage?: string;
+  ownerEmail?: string | null;
   firstContactAt?: string | null;
 };
 
@@ -31,9 +33,13 @@ function toData(b: LeadInput) {
   if (b.followUpDate !== undefined) d.followUpDate = b.followUpDate ? new Date(b.followUpDate) : null;
   if (b.outcome !== undefined) d.outcome = b.outcome || null;
   if (b.notes !== undefined) d.notes = b.notes || null;
+  if (typeof b.stage === "string") d.stage = b.stage;
+  if (b.ownerEmail !== undefined) d.ownerEmail = b.ownerEmail || null;
   if (b.firstContactAt) d.firstContactAt = new Date(b.firstContactAt);
   return d;
 }
+
+type Comm = { ts: string; channel: string; body: string };
 
 // List inbound leads (Telegram messagers, manually-added website/call leads).
 export async function GET() {
@@ -72,9 +78,19 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     await requireAdmin();
-    const body = (await req.json()) as LeadInput & { id?: string };
+    const body = (await req.json()) as LeadInput & { id?: string; addNote?: { channel?: string; body?: string } };
     if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 });
-    const lead = await prisma.inboundLead.update({ where: { id: body.id }, data: toData(body) });
+    const data = toData(body);
+    // Append a timestamped comms entry to the timeline (and bump last-contact).
+    const noteBody = (body.addNote?.body || "").trim();
+    if (noteBody) {
+      const existing = await prisma.inboundLead.findUnique({ where: { id: body.id }, select: { commsLog: true } });
+      const log = (Array.isArray(existing?.commsLog) ? existing!.commsLog : []) as Comm[];
+      log.unshift({ ts: new Date().toISOString(), channel: (body.addNote?.channel || "note").trim(), body: noteBody });
+      data.commsLog = log;
+      data.lastContactAt = new Date();
+    }
+    const lead = await prisma.inboundLead.update({ where: { id: body.id }, data });
     return NextResponse.json({ ok: true, lead });
   } catch (error) {
     return err(error);

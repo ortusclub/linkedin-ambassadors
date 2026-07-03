@@ -297,6 +297,9 @@ model InboundLead {
   outcome        String?
   source         String?
   notes          String?
+  stage          String   @default("new")                    // CRM pipeline: new | warm | active | cold | lost
+  ownerEmail     String?  @map("owner_email")                 // who on the team owns this relationship
+  commsLog       Json?    @map("comms_log")                   // timestamped touchbase timeline: [{ ts, channel, body }]
   messageCount   Int      @default(1)  @map("message_count")
   firstContactAt DateTime @default(now()) @map("first_contact_at")
   lastContactAt  DateTime @default(now()) @map("last_contact_at")
