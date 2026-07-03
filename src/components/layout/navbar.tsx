@@ -120,6 +120,7 @@ export function Navbar() {
               ) : (
                 <>
                   <Link href="/catalogue">Browse Accounts</Link>
+                  <Link href="/how-it-works">How it works</Link>
                   <Link href="/pricing">Pricing</Link>
                   <Link href="/blog">Blog</Link>
                   <Link href="/faqs">FAQs</Link>
@@ -180,6 +181,7 @@ export function Navbar() {
           ) : (
             <>
               <Link href="/catalogue">Browse Accounts</Link>
+              <Link href="/how-it-works">How it works</Link>
               <Link href="/pricing">Pricing</Link>
               <Link href="/become-ambassador">Earn with your account</Link>
               <Link href="/faqs">FAQs</Link>
