@@ -164,8 +164,6 @@ export default function CrmPage() {
                       </select>
                       <label style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>Owner</label>
                       <input defaultValue={l.ownerEmail || ""} placeholder="team member" onBlur={(e) => { if (e.target.value !== (l.ownerEmail || "")) patch(l.id, { ownerEmail: e.target.value }); }} style={{ ...input, width: 150 }} />
-                      <label style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>Next follow-up</label>
-                      <input type="date" defaultValue={l.followUpDate ? l.followUpDate.slice(0, 10) : ""} onChange={(e) => patch(l.id, { followUpDate: e.target.value || null })} style={input} />
                     </div>
 
                     {/* general notes (context) — separate from the dated comms log */}
