@@ -2,8 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { formatNumber, formatCurrency } from "@/lib/utils";
+import { blogFontVars } from "@/lib/blog-fonts";
+
+const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
+const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
 
 interface Account {
   id: string;
@@ -17,17 +22,30 @@ interface Account {
   profilePhotoUrl: string | null;
   accountAgeMonths: number | null;
   hasSalesNav: boolean;
+  linkedinVerified?: boolean;
   monthlyPrice: number | string;
   status: string;
   notes: string | null;
   gologinProfileId: string | null;
   showcase?: boolean;
 }
+interface User { id: string; role: string; }
 
-interface User {
-  id: string;
-  role: string;
-}
+const shortName = (n: string) => { const p = n.replace(/\s*\(.*\)\s*$/, "").trim().split(/\s+/).filter(Boolean); return p.length < 2 ? (p[0] || "") : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`; };
+
+const STEPS = [
+  { n: "1", title: "Rent the account", body: "Subscribe monthly — access is set up instantly. No passwords to manage, no setup." },
+  { n: "2", title: "Open it in the LinkedVelocity browser", body: "The account is pre-warmed and already logged in. You and the owner can both be online at the same time." },
+  { n: "3", title: "Run your outreach", body: "Send connection requests and messages from an established, real profile. The owner's name and photo stay as-is. Cancel anytime." },
+];
+const PERKS = [
+  { title: "Opens in GoLogin", body: "Browser profile shared straight to your own GoLogin account." },
+  { title: "Dedicated proxy", body: "A dedicated proxy assigned to this account for a consistent session." },
+  { title: "Pre-authenticated", body: "LinkedIn session already logged in and ready to use." },
+  { title: "Works anywhere", body: "Access from any device with GoLogin installed." },
+  { title: "Cancel anytime", body: "No lock-in — cancel your subscription whenever you want." },
+  { title: "Email reminders", body: "Renewal notifications so you're always in control." },
+];
 
 export default function AccountDetailPage() {
   const params = useParams();
@@ -57,22 +75,10 @@ export default function AccountDetailPage() {
     if (!account?.gologinProfileId) return;
     setActionLoading(true);
     try {
-      const res = await fetch("/api/admin/browser/open", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: account.gologinProfileId, accountName: account.linkedinName }),
-      });
+      const res = await fetch("/api/admin/browser/open", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: account.gologinProfileId, accountName: account.linkedinName }) });
       const data = await res.json();
-      if (res.ok) {
-        setBrowserOpen(true);
-      } else {
-        alert(data.error || "Failed to open browser");
-      }
-    } catch {
-      alert("Failed to open browser");
-    } finally {
-      setActionLoading(false);
-    }
+      if (res.ok) setBrowserOpen(true); else alert(data.error || "Failed to open browser");
+    } catch { alert("Failed to open browser"); } finally { setActionLoading(false); }
   };
 
   const handleRent = async () => {
@@ -81,393 +87,184 @@ export default function AccountDetailPage() {
     try {
       const meRes = await fetch("/api/auth/me");
       const meData = await meRes.json();
-      if (!meData.user) {
-        router.push(`/login?redirect=${encodeURIComponent(`/account/${params.id}`)}`);
-        return;
-      }
-
+      if (!meData.user) { router.push(`/login?redirect=${encodeURIComponent(`/account/${params.id}`)}`); return; }
       const balRes = await fetch("/api/wallet/balance");
       const balData = await balRes.json();
       const balance = parseFloat(balData.balance || "0");
-      const price = typeof account.monthlyPrice === "string"
-        ? parseFloat(account.monthlyPrice)
-        : Number(account.monthlyPrice);
-
-      if (balance < price) {
-        setInsufficientInfo({ balance, price });
-        setShowInsufficientModal(true);
-        return;
-      }
-
+      const price = typeof account.monthlyPrice === "string" ? parseFloat(account.monthlyPrice) : Number(account.monthlyPrice);
+      if (balance < price) { setInsufficientInfo({ balance, price }); setShowInsufficientModal(true); return; }
       router.push(`/checkout?accounts=${params.id}`);
-    } catch {
-      alert("Something went wrong. Please try again.");
-    } finally {
-      setActionLoading(false);
-    }
+    } catch { alert("Something went wrong. Please try again."); } finally { setActionLoading(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <div className="h-96 animate-pulse rounded-2xl bg-gray-200" />
-      </div>
-    );
-  }
+  if (loading) return <div style={{ maxWidth: 1180, margin: "0 auto", padding: "48px 40px" }}><div style={{ height: 420, borderRadius: 18, background: "#EAECEF", animation: "pulse 1.5s ease-in-out infinite" }} /><style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}`}</style></div>;
+  if (!account) return <div style={{ maxWidth: 1180, margin: "0 auto", padding: "80px 40px", textAlign: "center" }}><h1 style={{ font: `700 24px ${POP}` }}>Account not found</h1></div>;
 
-  if (!account) {
-    return (
-      <div className="mx-auto max-w-5xl px-4 py-12 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Account not found</h1>
-      </div>
-    );
-  }
-
-  const price =
-    typeof account.monthlyPrice === "string"
-      ? parseFloat(account.monthlyPrice)
-      : account.monthlyPrice;
-
-  const displayName = account.linkedinName.replace(/\s*\(.*\)\s*$/, "");
-
-  const ageLabel = account.accountAgeMonths
-    ? account.accountAgeMonths >= 12
-      ? `${Math.floor(account.accountAgeMonths / 12)}+ years`
-      : `${account.accountAgeMonths} months`
-    : null;
+  const price = typeof account.monthlyPrice === "string" ? parseFloat(account.monthlyPrice) : account.monthlyPrice;
+  const name = shortName(account.linkedinName);
+  const rentable = account.status === "available" && !account.showcase;
+  const initial = account.linkedinName.replace(/\s*\(.*\)\s*$/, "").charAt(0).toUpperCase();
+  const detailVal = (v: string, c?: string) => ({ font: `600 14px ${POP}`, color: c || "#0B1220" });
+  const chip = (fg: string, bg: string, bd: string) => ({ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: fg, background: bg, border: `1px solid ${bd}`, borderRadius: 8, padding: "7px 12px" } as const);
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8]">
-      {/* Hero header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-start gap-6">
-            {/* Photo */}
-            {account.profilePhotoUrl ? (
-              <img
-                src={account.profilePhotoUrl}
-                alt={displayName}
-                className="h-24 w-24 rounded-2xl object-cover shadow-sm border border-gray-100 flex-shrink-0"
-              />
-            ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0A66C2] to-[#004182] text-3xl font-bold text-white shadow-sm flex-shrink-0">
-                {displayName.charAt(0)}
+    <div className={blogFontVars} style={{ fontFamily: INT, color: "#0B1220", background: "#FBFCFD", minHeight: "100vh" }}>
+      <style>{`
+        .ac-grid{max-width:1180px;margin:0 auto;padding:22px 40px 72px;display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:34px;align-items:start;}
+        .ac-side{position:sticky;top:24px;align-self:start;}
+        .ac-cta{transition:transform .18s ease, box-shadow .18s ease;}
+        .ac-cta:hover{transform:translateY(-2px);}
+        @media(max-width:900px){.ac-grid{grid-template-columns:1fr;padding:20px 18px 56px;}.ac-side{position:static;}}
+      `}</style>
+
+      {/* breadcrumb */}
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 40px 0" }}>
+        <div style={{ fontSize: 13.5, color: "#8A93A2" }}><Link href="/catalogue" style={{ color: "#0A66C2", textDecoration: "none" }}>Browse Accounts</Link>{account.industry ? ` · ${account.industry}` : ""} · {name}</div>
+      </div>
+
+      <div className="ac-grid">
+        {/* LEFT */}
+        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 22 }}>
+          {/* profile preview */}
+          <div>
+            <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#8A93A2", margin: "6px 0 14px 4px" }}>Profile preview</div>
+            <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 30px rgba(16,24,40,0.08)" }}>
+              <div style={{ position: "relative", height: 104, background: "linear-gradient(120deg,#0A66C2,#0E4F98)" }}>
+                <span style={{ position: "absolute", top: 14, right: 16, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 999, padding: "4px 12px" }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: rentable ? "#3EF08A" : "#E0A43B" }} />{rentable ? "Available now" : account.status.charAt(0).toUpperCase() + account.status.slice(1)}
+                </span>
               </div>
-            )}
-
-            {/* Name & headline */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{displayName}</h1>
-              {account.linkedinHeadline && (
-                <p className="mt-1.5 text-gray-600 text-lg leading-relaxed">{account.linkedinHeadline}</p>
-              )}
-              {account.location && (
-                <p className="mt-1 text-sm text-gray-500">{account.location}</p>
-              )}
-
-              {/* Key stats */}
-              <div className="mt-4 flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-1.5">
-                  <span className="text-sm font-semibold text-blue-700">{formatNumber(account.connectionCount)}</span>
-                  <span className="text-sm text-blue-600">connections</span>
+              <div style={{ padding: "0 28px 26px", marginTop: -44 }}>
+                {account.profilePhotoUrl ? (
+                  <img src={account.profilePhotoUrl} alt="" style={{ width: 92, height: 92, border: "4px solid #fff", borderRadius: "50%", objectFit: "cover", boxShadow: "0 4px 12px rgba(16,24,40,0.12)" }} />
+                ) : (
+                  <div style={{ width: 92, height: 92, border: "4px solid #fff", borderRadius: "50%", background: "linear-gradient(135deg,#0A66C2,#004182)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 32px ${POP}`, color: "#fff", boxShadow: "0 4px 12px rgba(16,24,40,0.12)" }}>{initial}</div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+                  <span style={{ font: `700 24px ${POP}`, letterSpacing: "-0.02em", color: "#0B1220" }}>{name}</span>
+                  {account.linkedinVerified && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "#0A66C2", background: "#EAF2FC", borderRadius: 7, padding: "3px 9px" }}>✓ Verified</span>}
                 </div>
-                {ageLabel && (
-                  <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-1.5">
-                    <span className="text-sm font-semibold text-green-700">{ageLabel}</span>
-                    <span className="text-sm text-green-600">on LinkedIn</span>
-                  </div>
-                )}
-                {account.hasSalesNav && (
-                  <div className="flex items-center gap-2 rounded-lg bg-purple-50 px-3 py-1.5">
-                    <span className="text-sm font-semibold text-purple-700">Sales Navigator</span>
-                  </div>
-                )}
-                {account.industry && (
-                  <div className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5">
-                    <span className="text-sm text-gray-700">{account.industry}</span>
-                  </div>
+                {account.linkedinHeadline && <div style={{ fontSize: 16, color: "#3F4856", marginTop: 5 }}>{account.linkedinHeadline}</div>}
+                {account.location && <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, color: "#8A93A2", marginTop: 4 }}><span style={{ color: "#B0B7C2" }}>◍</span>{account.location}</div>}
+                <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 16 }}>
+                  {account.connectionCount > 0 && <span style={chip("#0B1220", "#F1F5FA", "#E4E9F0")}><span style={{ color: "#0A66C2", font: `700 13px ${POP}` }}>{formatNumber(account.connectionCount)}+</span>connections</span>}
+                  {account.hasSalesNav && <span style={chip("#5747C9", "#EDEBFB", "#E0DCF7")}>Sales Navigator</span>}
+                  {account.industry && <span style={chip("#0E7C74", "#DEF3F1", "#CDECE9")}>{account.industry}</span>}
+                </div>
+                {account.profileScreenshotUrl && <div style={{ marginTop: 18, overflow: "hidden", borderRadius: 12, border: "1px solid #EDEFF2" }}><img src={account.profileScreenshotUrl} alt="" style={{ width: "100%", display: "block" }} /></div>}
+                {account.linkedinUrl && (
+                  <a href={account.linkedinUrl.startsWith("http") ? account.linkedinUrl : `https://${account.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", background: "#0A66C2", color: "#fff", fontSize: 14, fontWeight: 600, borderRadius: 999, padding: 11, marginTop: 20, textDecoration: "none" }}>View full profile on LinkedIn ↗</a>
                 )}
               </div>
+            </div>
+            <div style={{ fontSize: 12.5, color: "#96A0AD", margin: "12px 0 0 4px", display: "flex", alignItems: "center", gap: 7 }}><span>🔒</span>The owner&apos;s real name and photo stay exactly as shown — you never change the profile.</div>
+          </div>
+
+          {/* how renting works */}
+          <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 18, padding: "26px 28px", boxShadow: "0 4px 14px rgba(16,24,40,0.05)" }}>
+            <div style={{ font: `600 18px ${POP}`, color: "#0B1220", marginBottom: 20 }}>How renting this account works</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {STEPS.map((s) => (
+                <div key={s.n} style={{ display: "flex", gap: 15, alignItems: "flex-start" }}>
+                  <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(150deg,#0A66C2,#2678DC)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 14px ${POP}`, boxShadow: "0 5px 12px rgba(10,102,194,0.26)" }}>{s.n}</span>
+                  <div><div style={{ font: `600 15.5px ${POP}`, color: "#0B1220", marginBottom: 3 }}>{s.title}</div><p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>{s.body}</p></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* what's included */}
+          <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 18, padding: "26px 28px", boxShadow: "0 4px 14px rgba(16,24,40,0.05)" }}>
+            <div style={{ font: `600 18px ${POP}`, color: "#0B1220", marginBottom: 20 }}>What&apos;s included</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 22px" }}>
+              {PERKS.map((p) => (
+                <div key={p.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <span style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 7, background: "#E4F6EC", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>✓</span>
+                  <div><div style={{ font: `600 14.5px ${POP}`, color: "#0B1220", marginBottom: 2 }}>{p.title}</div><p style={{ fontSize: 13.5, lineHeight: 1.55, color: "#8A93A2", margin: 0 }}>{p.body}</p></div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main content */}
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-3">
-          {/* Left: Screenshot + About */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Profile preview — full identity visible + direct link to the real LinkedIn (Sam's call) */}
-            <div>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Profile Preview</h2>
-              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                <div className="h-24" style={{ background: "linear-gradient(120deg,#0A66C2,#004182)" }} />
-                <div className="px-6 pb-6">
-                  <div className="-mt-10 mb-3">
-                    {account.profilePhotoUrl ? (
-                      <img src={account.profilePhotoUrl} alt="" className="h-20 w-20 rounded-full border-4 border-white object-cover shadow" />
-                    ) : (
-                      <div className="h-20 w-20 rounded-full border-4 border-white bg-gradient-to-br from-[#0A66C2] to-[#004182] flex items-center justify-center text-2xl font-bold text-white shadow">{displayName.charAt(0)}</div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold text-gray-900">{displayName}</span>
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Verified</span>
-                  </div>
-                  {account.linkedinHeadline && <p className="mt-0.5 text-sm text-gray-600">{account.linkedinHeadline}</p>}
-                  <p className="mt-1 text-xs text-gray-400">{account.location ? `${account.location} · ` : ""}{formatNumber(account.connectionCount)} connections</p>
-
-                  {/* Highlights from the data we have — looks like a profile snapshot, no fakes */}
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    {[
-                      { label: "Connections", value: `${formatNumber(account.connectionCount)}+` },
-                      account.industry ? { label: "Industry", value: account.industry } : null,
-                      account.accountAgeMonths ? { label: "Account age", value: account.accountAgeMonths >= 12 ? `${Math.floor(account.accountAgeMonths / 12)}+ yr${Math.floor(account.accountAgeMonths / 12) > 1 ? "s" : ""}` : `${account.accountAgeMonths} mo` } : null,
-                      account.hasSalesNav ? { label: "Sales Navigator", value: "Active" } : null,
-                      account.location ? { label: "Location", value: account.location } : null,
-                    ].filter(Boolean).map((s) => (
-                      <div key={(s as { label: string }).label} className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
-                        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{(s as { label: string }).label}</p>
-                        <p className="mt-0.5 text-sm font-semibold text-gray-900">{(s as { value: string }).value}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Real profile screenshot if one's been uploaded for this account */}
-                  {account.profileScreenshotUrl && (
-                    <div className="mt-5 overflow-hidden rounded-xl border border-gray-200">
-                      <img src={account.profileScreenshotUrl} alt={`${displayName} LinkedIn profile`} className="w-full" />
-                    </div>
-                  )}
-
-                  <div className="mt-6">
-                    {account.linkedinUrl ? (
-                      <a
-                        href={account.linkedinUrl.startsWith("http") ? account.linkedinUrl : `https://${account.linkedinUrl}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#004182] transition-colors"
-                      >
-                        View full profile on LinkedIn
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
-                      </a>
-                    ) : (
-                      <p className="text-sm text-gray-400">LinkedIn profile link coming soon.</p>
-                    )}
-                  </div>
+        {/* RIGHT */}
+        <div className="ac-side" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 20, padding: 26, boxShadow: "0 16px 44px rgba(16,24,40,0.12), 0 2px 6px rgba(16,24,40,0.05)" }}>
+            {isAdmin ? (
+              browserOpen ? (
+                <div style={{ borderRadius: 12, background: "#E4F6EC", border: "1px solid #CDEBD9", padding: 16, fontSize: 14, color: "#067A45" }}>Browser is open — the LinkedVelocity window should be visible on your screen.</div>
+              ) : account.gologinProfileId ? (
+                <Button size="lg" variant="outline" onClick={handleOpenBrowser} loading={actionLoading} className="w-full">Open Browser Session</Button>
+              ) : (
+                <div style={{ textAlign: "center" }}><p style={{ font: `800 32px ${POP}`, color: "#0B1220" }}>{formatCurrency(price)}<span style={{ fontSize: 16, color: "#8A93A2", fontWeight: 500 }}>/mo</span></p><p style={{ marginTop: 8, fontSize: 12, color: "#96A0AD" }}>Admin preview — renters see a Rent button here.</p></div>
+              )
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ font: `800 40px ${POP}`, letterSpacing: "-0.02em", color: "#0B1220" }}>{formatCurrency(price)}</span>
+                  <span style={{ fontSize: 16, color: "#8A93A2", fontWeight: 500 }}>/month</span>
                 </div>
-              </div>
-            </div>
+                <div style={{ fontSize: 13.5, color: "#8A93A2", marginTop: 4 }}>Flat monthly rate · billed until you cancel</div>
 
-            {/* How renting works */}
-            <div className="rounded-2xl bg-white border border-gray-200 p-6">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">How renting works</h2>
-              <ol className="space-y-4">
-                {[
-                  { n: 1, t: "Rent the account", d: "Subscribe monthly — access is set up instantly. No passwords to manage, no setup." },
-                  { n: 2, t: "Open it in the LinkedVelocity browser", d: "The account is pre-warmed and already logged in. You and the owner can both be online at the same time." },
-                  { n: 3, t: "Run your outreach", d: "Send connection requests and messages from an established, real profile. The owner's name & photo stay as-is. Cancel anytime." },
-                ].map((s) => (
-                  <li key={s.n} className="flex gap-4">
-                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">{s.n}</div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{s.t}</p>
-                      <p className="mt-0.5 text-sm text-gray-500">{s.d}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
+                {account.showcase ? (
+                  <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="ac-cta" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, borderRadius: 12, padding: 15, marginTop: 20, textDecoration: "none", boxShadow: "0 12px 28px rgba(10,102,194,0.28)" }}>Book a call →</a>
+                ) : rentable ? (
+                  <button onClick={handleRent} disabled={actionLoading} className="ac-cta" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, marginTop: 20, cursor: "pointer", boxShadow: "0 12px 28px rgba(10,102,194,0.28)" }}>{actionLoading ? "Processing…" : "Rent this account →"}</button>
+                ) : (
+                  <div style={{ width: "100%", textAlign: "center", background: "#F2F4F7", color: "#96A0AD", fontSize: 15, fontWeight: 600, borderRadius: 12, padding: 15, marginTop: 20 }}>Currently unavailable</div>
+                )}
+                {rentable && <Link href="/catalogue" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#fff", color: "#0B1220", border: "1px solid #DFE3E9", fontSize: 14.5, fontWeight: 600, borderRadius: 12, padding: 12, marginTop: 10, textDecoration: "none" }}>Add to a multi-account campaign</Link>}
 
-            {/* What you get */}
-            {(
-              <div className="rounded-2xl bg-white border border-gray-200 p-6">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">What You Get</h2>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {[
-                    { title: "Opens in GoLogin", desc: "Browser profile shared straight to your own GoLogin account" },
-                    { title: "Dedicated Proxy", desc: "Residential proxy assigned exclusively to this account" },
-                    { title: "Pre-Authenticated", desc: "LinkedIn session already logged in and ready to use" },
-                    { title: "Works Anywhere", desc: "Access from any device with GoLogin installed" },
-                    { title: "Cancel Anytime", desc: "No lock-in, cancel your subscription whenever you want" },
-                    { title: "Email Reminders", desc: "Renewal notifications so you're always in control" },
-                  ].map((item) => (
-                    <div key={item.title} className="flex items-start gap-3 rounded-xl bg-gray-50 p-4">
-                      <div className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600 flex-shrink-0">
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{item.title}</p>
-                        <p className="text-sm text-gray-500 mt-0.5">{item.desc}</p>
-                      </div>
-                    </div>
+                <div style={{ height: 1, background: "#EEF0F3", margin: "20px 0" }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                  {["Instant access after payment", "Cancel anytime — no lock-in", "Secure managed access via GoLogin"].map((t) => (
+                    <div key={t} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: "#37424F" }}><span style={{ color: "#00A150", fontWeight: 700 }}>✓</span>{t}</div>
                   ))}
                 </div>
-              </div>
+              </>
             )}
           </div>
 
-          {/* Right sidebar: Pricing + Actions */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8 space-y-4">
-              {/* Pricing card */}
-              <div className="rounded-2xl bg-white border border-gray-200 p-6 shadow-sm">
-                {isAdmin ? (
-                  <div className="space-y-3">
-                    {browserOpen ? (
-                      <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-sm text-green-800">
-                        Browser is open. The LinkedVelocity window should be visible on your screen.
-                      </div>
-                    ) : account.gologinProfileId ? (
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        onClick={handleOpenBrowser}
-                        loading={actionLoading}
-                        className="w-full"
-                      >
-                        Open Browser Session
-                      </Button>
-                    ) : (
-                      <div className="text-center">
-                        <p className="text-3xl font-bold text-gray-900">{formatCurrency(price)}<span className="text-base font-normal text-gray-500">/mo</span></p>
-                        <p className="mt-2 text-xs text-gray-400">Admin preview — renters see a Rent button here.</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-center mb-6">
-                      <p className="text-4xl font-bold text-gray-900 tracking-tight">
-                        {formatCurrency(price)}
-                        <span className="text-lg font-normal text-gray-500">/mo</span>
-                      </p>
-                      <p className="mt-1 text-sm text-gray-500">Cancel anytime</p>
-                    </div>
-
-                    <div className="flex gap-3">
-                      {account.linkedinUrl && (
-                        <a
-                          href={account.linkedinUrl.startsWith("http") ? account.linkedinUrl : `https://${account.linkedinUrl}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 flex items-center justify-center rounded-lg border border-gray-200 h-11 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
-                          View Profile
-                        </a>
-                      )}
-                      {account.showcase ? (
-                        <a
-                          href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 flex items-center justify-center rounded-lg bg-blue-600 h-11 text-sm font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
-                        >
-                          Book a call
-                        </a>
-                      ) : account.status === "available" ? (
-                        <button onClick={handleRent} disabled={actionLoading} className="flex-1 flex items-center justify-center rounded-lg bg-blue-600 h-11 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 whitespace-nowrap">
-                          {actionLoading ? "Processing..." : "Rent Account"}
-                        </button>
-                      ) : (
-                        <button disabled className="flex-1 flex items-center justify-center rounded-lg bg-gray-100 h-11 text-sm font-semibold text-gray-400 cursor-not-allowed">
-                          Unavailable
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
+          {/* account details */}
+          <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 18, padding: "22px 24px", boxShadow: "0 4px 14px rgba(16,24,40,0.05)" }}>
+            <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2", marginBottom: 16 }}>Account details</div>
+            {[
+              ["Connections", formatNumber(account.connectionCount), undefined],
+              ...(account.industry ? [["Industry", account.industry, undefined] as const] : []),
+              ...(account.location ? [["Location", account.location, undefined] as const] : []),
+              ["Sales Navigator", account.hasSalesNav ? "Included" : "—", account.hasSalesNav ? "#00A150" : undefined],
+              ["Status", account.status.charAt(0).toUpperCase() + account.status.slice(1), account.status === "available" ? "#00A150" : undefined],
+            ].map(([label, value, color]) => (
+              <div key={label as string} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid #F1F3F6" }}>
+                <span style={{ fontSize: 14, color: "#8A93A2" }}>{label}</span>
+                <span style={detailVal(value as string, color as string | undefined)}>{value}</span>
               </div>
+            ))}
+          </div>
 
-              {/* Quick stats card */}
-              <div className="rounded-2xl bg-white border border-gray-200 p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Account Details</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Connections</span>
-                    <span className="text-sm font-semibold text-gray-900">{formatNumber(account.connectionCount)}</span>
-                  </div>
-                  {ageLabel && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500">Account Age</span>
-                      <span className="text-sm font-semibold text-gray-900">{ageLabel}</span>
-                    </div>
-                  )}
-                  {account.industry && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500">Industry</span>
-                      <span className="text-sm font-semibold text-gray-900">{account.industry}</span>
-                    </div>
-                  )}
-                  {account.location && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500">Location</span>
-                      <span className="text-sm font-semibold text-gray-900">{account.location}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Sales Navigator</span>
-                    <span className="text-sm font-semibold text-gray-900">{account.hasSalesNav ? "Yes" : "No"}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Status</span>
-                    <span className={`text-sm font-semibold ${account.status === "available" ? "text-green-600" : "text-gray-500"}`}>
-                      {account.status.charAt(0).toUpperCase() + account.status.slice(1)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 11, background: "#F2F7FF", border: "1px solid #DCE9FB", borderRadius: 14, padding: "15px 18px" }}>
+            <span style={{ flexShrink: 0, color: "#0A66C2" }}>💬</span>
+            <div style={{ fontSize: 13, lineHeight: 1.55, color: "#37424F" }}>Questions about this account? <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={{ color: "#0A66C2", fontWeight: 600, textDecoration: "none" }}>Chat with us →</a></div>
           </div>
         </div>
       </div>
 
       {showInsufficientModal && insufficientInfo && (
-        <div
-          onClick={() => setShowInsufficientModal(false)}
-          style={{position:'fixed',inset:0,background:'rgba(15,20,25,0.55)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{background:'#fff',borderRadius:20,maxWidth:440,width:'100%',padding:32,boxShadow:'0 24px 60px rgba(15,20,25,0.25)',fontFamily:"'Karla','Montserrat',system-ui,sans-serif"}}
-          >
-            <div style={{width:56,height:56,borderRadius:16,background:'#FFF4E5',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF6B00" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div onClick={() => setShowInsufficientModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,20,25,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, maxWidth: 440, width: "100%", padding: 32, boxShadow: "0 24px 60px rgba(15,20,25,0.25)", fontFamily: INT }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: "#FFF4E5", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF6B00" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
             </div>
-            <h2 style={{fontSize:22,fontWeight:700,color:'#0F1419',letterSpacing:'-0.02em',marginBottom:8,fontFamily:"'Montserrat','Karla',system-ui,sans-serif"}}>
-              Top up to rent this account
-            </h2>
-            <p style={{fontSize:14,color:'#536471',lineHeight:1.55,marginBottom:20}}>
-              You need to deposit money to rent this account. Top up your balance and you&apos;ll be back here in seconds.
-            </p>
-            <div style={{background:'#F8F8F5',borderRadius:12,padding:'14px 16px',marginBottom:24,display:'flex',flexDirection:'column',gap:8}}>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
-                <span style={{color:'#536471'}}>Your balance</span>
-                <span style={{fontWeight:700,color:'#0F1419'}}>${insufficientInfo.balance.toFixed(2)}</span>
-              </div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
-                <span style={{color:'#536471'}}>Rental price</span>
-                <span style={{fontWeight:700,color:'#0F1419'}}>${insufficientInfo.price.toFixed(2)}/mo</span>
-              </div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,paddingTop:8,borderTop:'1px solid #E8E6E1'}}>
-                <span style={{color:'#991B1B',fontWeight:600}}>Amount needed</span>
-                <span style={{fontWeight:800,color:'#991B1B'}}>${(insufficientInfo.price - insufficientInfo.balance).toFixed(2)}</span>
-              </div>
+            <h2 style={{ font: `700 22px ${POP}`, color: "#0B1220", letterSpacing: "-0.02em", marginBottom: 8 }}>Top up to rent this account</h2>
+            <p style={{ fontSize: 14, color: "#536471", lineHeight: 1.55, marginBottom: 20 }}>You need to deposit money to rent this account. Top up your balance and you&apos;ll be back here in seconds.</p>
+            <div style={{ background: "#F8F8F5", borderRadius: 12, padding: "14px 16px", marginBottom: 24, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}><span style={{ color: "#536471" }}>Your balance</span><span style={{ fontWeight: 700, color: "#0F1419" }}>${insufficientInfo.balance.toFixed(2)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}><span style={{ color: "#536471" }}>Rental price</span><span style={{ fontWeight: 700, color: "#0F1419" }}>${insufficientInfo.price.toFixed(2)}/mo</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, paddingTop: 8, borderTop: "1px solid #E8E6E1" }}><span style={{ color: "#991B1B", fontWeight: 600 }}>Amount needed</span><span style={{ fontWeight: 800, color: "#991B1B" }}>${(insufficientInfo.price - insufficientInfo.balance).toFixed(2)}</span></div>
             </div>
-            <div style={{display:'flex',gap:10}}>
-              <button
-                onClick={() => setShowInsufficientModal(false)}
-                style={{flex:1,padding:'13px',borderRadius:10,background:'#fff',color:'#536471',fontSize:14,fontWeight:600,border:'1px solid #E8E6E1',cursor:'pointer',fontFamily:'inherit'}}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => router.push("/dashboard?topup=1#wallet")}
-                style={{flex:1.4,padding:'13px',borderRadius:10,background:'#FF6B00',color:'#fff',fontSize:14,fontWeight:700,border:'none',cursor:'pointer',fontFamily:'inherit'}}
-              >
-                Top Up Now →
-              </button>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowInsufficientModal(false)} style={{ flex: 1, padding: 13, borderRadius: 10, background: "#fff", color: "#536471", fontSize: 14, fontWeight: 600, border: "1px solid #E8E6E1", cursor: "pointer", fontFamily: INT }}>Cancel</button>
+              <button onClick={() => router.push("/dashboard?topup=1#wallet")} style={{ flex: 1.4, padding: 13, borderRadius: 10, background: "#FF6B00", color: "#fff", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: INT }}>Top Up Now →</button>
             </div>
           </div>
         </div>
