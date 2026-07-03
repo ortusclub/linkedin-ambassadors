@@ -33,9 +33,13 @@ export default function CrmPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", companyEmail: "", type: "Potential Renter", stage: "new", message: "" });
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const load = () => fetch("/api/admin/inbound").then((r) => r.json()).then((d) => setLeads(d.leads || [])).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
+  useEffect(() => { fetch("/api/admin/inbound/export-url").then((r) => r.json()).then((d) => { if (d.configured) setSheetUrl(d.url); }).catch(() => {}); }, []);
+  const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   const patch = async (id: string, body: Record<string, unknown>) => {
     setBusy(id);
@@ -88,7 +92,10 @@ export default function CrmPage() {
           <h1 style={{ font: "700 22px var(--font-grotesk)", color: "var(--text)", margin: 0 }}>CRM</h1>
           <p style={{ fontSize: 13, color: "var(--muted)", margin: "4px 0 0" }}>Every lead & client in one place — active, warm and cold, with a timestamped comms history.</p>
         </div>
-        <button onClick={() => setAdding((v) => !v)} style={{ font: "600 13px var(--font-sans)", color: "var(--nav-active-text)", background: "var(--nav-active-bg)", border: "none", borderRadius: 9, padding: "9px 16px", cursor: "pointer" }}>{adding ? "Cancel" : "+ Add contact"}</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {sheetUrl && <button onClick={copyFormula} title="Paste into cell A1 of a blank Google Sheet to mirror this view" style={{ font: "600 13px var(--font-sans)", color: "var(--muted)", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 9, padding: "9px 16px", cursor: "pointer" }}>{copied ? "Copied ✓" : "📊 Copy Google Sheets link"}</button>}
+          <button onClick={() => setAdding((v) => !v)} style={{ font: "600 13px var(--font-sans)", color: "var(--nav-active-text)", background: "var(--nav-active-bg)", border: "none", borderRadius: 9, padding: "9px 16px", cursor: "pointer" }}>{adding ? "Cancel" : "+ Add contact"}</button>
+        </div>
       </div>
 
       {adding && (
