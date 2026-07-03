@@ -141,11 +141,7 @@ export default function CataloguePage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "#8A93A2" }}>
-            <span style={{ font: `500 13.5px ${MONO}`, color: "#0A66C2" }}>{visible.length}</span> accounts match
-            <span style={{ font: `600 12px ${INT}`, color: "#067A45", background: "#E4F6EC", borderRadius: 999, padding: "3px 10px", marginLeft: 4 }}>{availCount} available now</span>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
           <div style={{ display: "inline-flex", background: "#EEF1F5", borderRadius: 10, padding: 3, gap: 2 }}>
             <button onClick={() => setView("list")} style={seg(view === "list")}>▤ List</button>
             <button onClick={() => setView("grid")} style={seg(view === "grid")}>▦ Grid</button>

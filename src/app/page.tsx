@@ -219,7 +219,7 @@ export default async function HomePage() {
         <div style={{ maxWidth: 1160, margin: "0 auto" }}>
           <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 16 }}>Marketplace</div>
           <h2 style={{ font: `700 clamp(30px,4vw,42px) ${POP}`, lineHeight: 1.08, letterSpacing: "-0.03em", margin: "0 0 14px" }}>Browse available accounts</h2>
-          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 44px" }}>{availCount > 0 ? `${availCount} account${availCount > 1 ? "s" : ""} available right now` : "Verified accounts, added regularly."}</p>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 44px" }}>Verified, pre-warmed accounts — added regularly.</p>
           <div className="lvh-3">
             {preview.map((a) => {
               const rented = a.status !== "available";

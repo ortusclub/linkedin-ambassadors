@@ -158,7 +158,7 @@ export default function CreatingMultiVsRentPage() {
 
         <section className="vs-cta">
           <h2>Skip the warming. Rent real accounts.</h2>
-          <p>50+ accounts available now. Filter by industry and Sales Navigator. Cancel anytime.</p>
+          <p>Verified accounts available across industries. Filter by industry and Sales Navigator. Cancel anytime.</p>
           <div className="vs-cta-row">
             <Link href="/catalogue" className="vs-btn-primary">Browse Catalogue →</Link>
             <Link href="/how-it-works" className="vs-btn-secondary">How LinkedVelocity Works</Link>
