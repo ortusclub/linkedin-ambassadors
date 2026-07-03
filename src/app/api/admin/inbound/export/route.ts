@@ -24,7 +24,7 @@ function fmtDate(d: Date | string | null): string {
 }
 
 const platformLabel = (c: string) =>
-  c === "telegram" ? "Telegram" : c === "website" ? "Website" : c === "call" ? "Call booking" : c === "whatsapp" ? "WhatsApp" : c === "renter" ? "Renter" : c === "manual" ? "Manual" : c;
+  c === "telegram" ? "Telegram" : c === "website" ? "Website" : c === "email" ? "Email" : c === "call" ? "Call booking" : c === "whatsapp" ? "WhatsApp" : c === "renter" ? "Renter" : c === "manual" ? "Manual" : c;
 
 // Build the timestamped touchbase log for one contact into a single multi-line cell.
 function commsHistory(log: unknown): string {
@@ -55,23 +55,16 @@ export async function GET(req: NextRequest) {
   const leads = await prisma.inboundLead.findMany({ orderBy: { lastContactAt: "desc" } });
 
   const headers = [
-    "Date", "Name / Username", "Platform", "Company / Email", "Type",
-    "Use Case / Message", "Status", "Follow Up Date", "Outcome", "Notes",
-    "Stage", "Comms History (newest first)",
+    "Name / Username", "Type", "Platform", "Company / Email", "Follow-up",
+    "Comms History (newest first)",
   ];
   const width = headers.length;
   const rowFor = (l: (typeof leads)[number]) => [
-    fmtDate(l.firstContactAt),
     l.handle || l.name,
+    l.type || "",
     platformLabel(l.channel),
     l.companyEmail || "",
-    l.type || "",
-    l.message || "",
-    l.status,
     fmtDate(l.followUpDate),
-    l.outcome || "",
-    l.notes || "",
-    (l.stage || "new"),
     commsHistory(l.commsLog),
   ];
 
