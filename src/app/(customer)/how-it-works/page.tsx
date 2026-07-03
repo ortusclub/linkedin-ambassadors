@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { blogFontVars } from "@/lib/blog-fonts";
 
 export const metadata: Metadata = {
   title: "How It Works — Renting & Sharing LinkedIn Accounts",
@@ -14,235 +15,102 @@ export const metadata: Metadata = {
   },
 };
 
-const renterSteps = [
-  {
-    name: "Browse the catalogue",
-    text: "Open linkedvelocity.com/catalogue and filter by industry, connection count, geography, and Sales Navigator availability. Every account shows price, account stats, and current status.",
-  },
-  {
-    name: "Select your account(s)",
-    text: "Tick one or more accounts and proceed to checkout. You can rent a single account or bulk-rent across a multi-account campaign in one flow.",
-  },
-  {
-    name: "Top up your balance",
-    text: "Add funds to your wallet balance — pay by card via Stripe, or deposit USDC on Base network from any wallet. Your balance updates within seconds.",
-  },
-  {
-    name: "Pay and confirm rental",
-    text: "Rentals are monthly subscriptions and renew automatically. Cancel anytime from your dashboard with no penalty.",
-  },
-  {
-    name: "Open your account in GoLogin",
-    text: "Each rented account's browser profile is shared straight to your own GoLogin account, each as its own isolated profile with a dedicated residential proxy.",
-  },
-  {
-    name: "Open and run your campaigns",
-    text: "Click the account to open it as a real Chrome session. Install Dripify, Expandi, Linked Helper, or any other extension. Run connection, intro, and open-profile campaigns exactly as you would on your own account.",
-  },
-];
+const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 
-const ambassadorSteps = [
-  {
-    name: "Apply for valuation",
-    text: "Visit linkedvelocity.com/become-ambassador, fill in your LinkedIn URL and contact details. We instantly value your account based on connections, industry, age, and Sales Navigator.",
-  },
-  {
-    name: "Onboard the account",
-    text: "Our team imports your account into a managed GoLogin profile with a dedicated proxy. Your password, recovery email, and 2FA stay yours — LinkedVelocity never owns the account.",
-  },
-  {
-    name: "Get paid monthly",
-    text: "Earn $10-$500 per month while the account is rented. Payouts go out on the 1st of every month via USDC by default, or PayPal / Wise / bank transfer on request.",
-  },
-  {
-    name: "Cancel anytime",
-    text: "Give 30 days notice and we offboard the account. You keep all your contacts, content, and connections — nothing changes on your profile.",
-  },
+const STEPS = [
+  { n: "1", tag: "Browse", title: "Browse the catalogue", body: "Open the catalogue and filter by industry, connection count, geography, and Sales Navigator availability. Every account shows its price, stats, and current status." },
+  { n: "2", tag: "Select", title: "Select your account(s)", body: "Tick one or more accounts and proceed to checkout. Rent a single account, or bulk-rent across a multi-account campaign in one flow." },
+  { n: "3", tag: "Top up", title: "Top up your balance", body: "Add funds to your wallet — pay by card via Stripe, or deposit USDC on Base from any wallet. Your balance updates within seconds." },
+  { n: "4", tag: "Confirm", title: "Pay and confirm rental", body: "Rentals are monthly and paid from your balance, renewing automatically. Cancel anytime from your dashboard — no penalty." },
+  { n: "5", tag: "Connect", title: "Open your account in GoLogin", body: "Each rented account's browser profile is shared straight to your own GoLogin account — its own isolated profile with a dedicated proxy. No password to manage." },
+  { n: "6", tag: "Launch", title: "Run your campaigns", body: "Click the account to open it as a real Chrome session. Install Dripify, Expandi, Linked Helper, or any extension, and run connection, intro, and open-profile campaigns exactly as you would on your own account." },
 ];
 
 export default function HowItWorksPage() {
-  const breadcrumbSchema = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://linkedvelocity.com" },
-      { "@type": "ListItem", position: 2, name: "How It Works", item: "https://linkedvelocity.com/how-it-works" },
-    ],
-  };
-
-  const renterHowTo = {
-    "@context": "https://schema.org",
-    "@type": "HowTo",
-    name: "How to rent a LinkedIn account on LinkedVelocity",
-    description:
-      "Rent a pre-warmed, verified LinkedIn account for outreach in minutes. Each rental includes GoLogin browser access with a dedicated residential proxy.",
-    totalTime: "PT10M",
-    estimatedCost: { "@type": "MonetaryAmount", currency: "USD", value: "10" },
-    supply: [{ "@type": "HowToSupply", name: "Email address" }, { "@type": "HowToSupply", name: "USDC or credit card for monthly payment" }],
-    tool: [{ "@type": "HowToTool", name: "GoLogin account (Mac/Windows)" }],
-    step: renterSteps.map((s, i) => ({
-      "@type": "HowToStep",
-      position: i + 1,
-      name: s.name,
-      text: s.text,
-    })),
-  };
-
-  const ambassadorHowTo = {
-    "@context": "https://schema.org",
-    "@type": "HowTo",
-    name: "How to share a LinkedIn account and earn passive income on LinkedVelocity",
-    description:
-      "Submit your LinkedIn profile for instant valuation. Earn $10-500/month per account while keeping full ownership and ability to use the profile yourself.",
-    totalTime: "PT5M",
-    step: ambassadorSteps.map((s, i) => ({
-      "@type": "HowToStep",
-      position: i + 1,
-      name: s.name,
-      text: s.text,
-    })),
-  };
-
   return (
-    <>
+    <div className={blogFontVars} style={{ fontFamily: INT, color: "#0B1220", background: "#FBFCFD" }}>
       <style>{`
-        :root{
-          --bg:#FAFAF8;--surface:#FFFFFF;--surface-alt:#F3F2EE;--text:#0F1419;--text-mid:#536471;--text-light:#8899A6;--border:#E8E6E1;
-          --blue:#0A66C2;--blue-dark:#004182;--blue-light:#E8F1FA;--green:#00B85C;--green-dark:#007A3D;--green-light:#E6F9EE;
-          --accent:#1D1B16;--radius:10px;--radius-lg:16px;--radius-xl:24px;
-        }
-        body{font-family:'Karla','Montserrat',system-ui,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
-        h1,h2,h3,h4,h5{font-family:'Montserrat','Karla',system-ui,sans-serif;font-weight:600;letter-spacing:-0.02em}
-        .hiw-page{max-width:1100px;margin:0 auto;padding:64px 40px 120px}
-        .hiw-crumb{font-size:13px;color:var(--text-light);margin-bottom:24px}
-        .hiw-crumb a{color:var(--text-light);text-decoration:none}
-        .hiw-crumb a:hover{color:var(--text)}
-        .hiw-header{margin-bottom:56px;max-width:760px}
-        .hiw-label{font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
-        .hiw-title{font-size:clamp(32px,4vw,52px);line-height:1.1;letter-spacing:-0.03em;margin-bottom:16px}
-        .hiw-subtitle{font-size:18px;color:var(--text-mid);line-height:1.6}
-        .hiw-section{margin-top:64px;padding-top:48px;border-top:1px solid var(--border)}
-        .hiw-section:first-of-type{border-top:none;padding-top:0;margin-top:0}
-        .hiw-section-header{display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:32px}
-        .hiw-section-header h2{font-size:clamp(24px,2.5vw,32px);margin:0}
-        .hiw-section-tag{font-size:13px;color:var(--text-light);background:var(--surface-alt);padding:4px 12px;border-radius:100px}
-        .hiw-section-lede{font-size:15px;color:var(--text-mid);line-height:1.7;margin-bottom:32px;max-width:720px}
-        .hiw-steps{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
-        .hiw-step{display:grid;grid-template-columns:56px 1fr;gap:20px;padding:24px 28px;border-bottom:1px solid var(--border)}
-        .hiw-step:last-child{border-bottom:none}
-        .hiw-step-num{width:36px;height:36px;border-radius:10px;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;font-family:'Montserrat',sans-serif}
-        .hiw-step-num.green{background:var(--green-light);color:var(--green-dark)}
-        .hiw-step-body h3{font-size:17px;margin:0 0 6px;font-weight:600}
-        .hiw-step-body p{font-size:14px;color:var(--text-mid);line-height:1.65;margin:0}
-        .hiw-cta-row{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
-        .hiw-btn-primary{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:var(--radius);background:var(--blue);color:#fff;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s}
-        .hiw-btn-primary:hover{background:var(--blue-dark)}
-        .hiw-btn-secondary{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:var(--radius);background:#fff;color:var(--text);font-size:15px;font-weight:600;text-decoration:none;border:1px solid var(--border);transition:all .2s}
-        .hiw-btn-secondary:hover{border-color:var(--text)}
-        .hiw-note{background:var(--surface-alt);border-radius:var(--radius-lg);padding:24px 28px;margin-top:32px;font-size:14px;color:var(--text-mid);line-height:1.7}
-        .hiw-note strong{color:var(--text)}
-        @media(max-width:700px){
-          .hiw-page{padding:32px 16px 80px}
-          .hiw-step{grid-template-columns:40px 1fr;gap:14px;padding:18px 18px}
-          .hiw-step-num{width:28px;height:28px;font-size:13px;border-radius:8px}
-        }
+        .hiw-line{position:absolute;left:23px;top:12px;bottom:12px;width:2px;background:linear-gradient(180deg,#0A66C2,#4B9BEA 60%,rgba(75,155,234,0.2));z-index:0;}
+        .hiw-card{transition:transform .18s cubic-bezier(.2,.7,.3,1), box-shadow .18s ease, border-color .18s ease;}
+        .hiw-card:hover{transform:translateX(4px);border-color:#C3D6EE!important;box-shadow:0 14px 32px rgba(16,24,40,0.10), 0 3px 8px rgba(16,24,40,0.06)!important;}
+        @media(max-width:640px){.hiw-line{display:none;}.hiw-node{width:38px!important;height:38px!important;}.hiw-cta{padding-left:0!important;}}
       `}</style>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(renterHowTo) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ambassadorHowTo) }} />
-
-      <div className="hiw-page">
-        <div className="hiw-crumb">
-          <Link href="/">Home</Link> · How It Works
+      {/* HERO */}
+      <section style={{ position: "relative", overflow: "hidden", background: "radial-gradient(80% 70% at 50% -10%, rgba(10,102,194,0.28) 0%, rgba(10,24,38,0) 60%), radial-gradient(60% 60% at 88% 15%, rgba(38,120,220,0.16) 0%, rgba(10,24,38,0) 60%), linear-gradient(180deg,#0F2439 0%,#0A1826 100%)", padding: "60px 24px 84px", color: "#EAF0FA" }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div style={{ fontSize: 13, color: "#7FA0C4", marginBottom: 22 }}>Home · How It Works</div>
+          <h1 style={{ font: `800 clamp(34px,5.6vw,56px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 22px", color: "#fff", maxWidth: 760 }}>Rent a LinkedIn account in minutes — no warm-up, no setup wizard</h1>
+          <p style={{ fontSize: 19, lineHeight: 1.6, color: "#AFC4DB", margin: 0, maxWidth: 600 }}>Every rented account comes with its own GoLogin anti-detect browser profile and dedicated proxy. No password to manage, no verification step — click an account and you&apos;re in.</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 34 }}>
+            <Link href="/catalogue" style={{ background: "#fff", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>Browse Available Accounts →</Link>
+            <Link href="/faqs" style={{ background: "rgba(255,255,255,0.08)", color: "#EAF0FA", border: "1px solid rgba(255,255,255,0.18)", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>Renter FAQs</Link>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "#8FA8C6", marginLeft: 4 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00E676", boxShadow: "0 0 6px 2px rgba(0,230,118,0.4)" }} />Ready in minutes</span>
+          </div>
         </div>
+      </section>
 
-        <div className="hiw-header">
-          <div className="hiw-label">How it works</div>
-          <h1 className="hiw-title">Rent a LinkedIn account in minutes. Or earn from one you don&apos;t use.</h1>
-          <p className="hiw-subtitle">
-            LinkedVelocity is a two-sided marketplace. Growth teams rent pre-warmed, verified LinkedIn
-            accounts for outreach. Professionals with dormant profiles earn $10-500/month while
-            keeping full ownership. Here&apos;s exactly how each side works.
-          </p>
+      {/* STEPS */}
+      <section style={{ background: "#FBFCFD", padding: "76px 24px 40px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <h2 style={{ font: `700 clamp(26px,3.4vw,30px) ${POP}`, letterSpacing: "-0.02em", margin: "0 0 6px", textAlign: "center" }}>Six steps from browsing to sending</h2>
+          <p style={{ fontSize: 16, color: "#5A6473", margin: "0 0 52px", textAlign: "center" }}>For growth teams, agencies, and SDRs.</p>
+
+          <div style={{ position: "relative" }}>
+            <div className="hiw-line" />
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {STEPS.map((s) => (
+                <div key={s.n} style={{ position: "relative", zIndex: 1, display: "flex", gap: 24, alignItems: "flex-start" }}>
+                  <div className="hiw-node" style={{ flexShrink: 0, width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(150deg,#0A66C2,#2678DC)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 18px ${POP}`, boxShadow: "0 8px 18px rgba(10,102,194,0.28)", border: "4px solid #FBFCFD" }}>{s.n}</div>
+                  <div className="hiw-card" style={{ flex: 1, background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, padding: "20px 24px", boxShadow: "0 4px 14px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.04)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+                      <span style={{ font: `500 10.5px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", color: "#0A66C2", background: "#EAF2FC", padding: "4px 10px", borderRadius: 6 }}>{s.tag}</span>
+                      <span style={{ font: `600 18px ${POP}`, color: "#0B1220" }}>{s.title}</span>
+                    </div>
+                    <p style={{ fontSize: 15, lineHeight: 1.65, color: "#5A6473", margin: 0 }}>{s.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="hiw-cta" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 40, paddingLeft: 47 }}>
+            <Link href="/catalogue" style={{ background: "#0A66C2", color: "#fff", fontSize: 15, fontWeight: 600, padding: "13px 22px", borderRadius: 12, textDecoration: "none", boxShadow: "0 10px 26px rgba(10,102,194,0.24)" }}>Browse Available Accounts →</Link>
+            <Link href="/faqs" style={{ background: "#fff", border: "1px solid #DFE3E9", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "13px 22px", borderRadius: 12, textDecoration: "none" }}>Renter FAQs</Link>
+          </div>
         </div>
+      </section>
 
-        <section className="hiw-section">
-          <div className="hiw-section-header">
-            <h2>For renters — growth teams, agencies, SDRs</h2>
-            <span className="hiw-section-tag">~10 minutes end-to-end</span>
+      {/* WHY GOLOGIN — honest (no fabricated 0% stat) */}
+      <section style={{ background: "#FBFCFD", padding: "24px 24px 88px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <div style={{ display: "flex", gap: 18, alignItems: "flex-start", background: "#F2F7FF", border: "1px solid #DCE9FB", borderLeft: "4px solid #0A66C2", borderRadius: 16, padding: "26px 28px" }}>
+            <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 12, background: "linear-gradient(150deg,#0A66C2,#2678DC)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 18px rgba(10,102,194,0.24)" }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></svg>
+            </span>
+            <div>
+              <div style={{ font: `600 17px ${POP}`, color: "#0B1220", marginBottom: 6 }}>Why GoLogin matters</div>
+              <p style={{ fontSize: 15, lineHeight: 1.7, color: "#37424F", margin: 0 }}>Each rented account runs in an isolated browser fingerprint with its own dedicated IP. To LinkedIn, the session looks like the original account holder logging in from their usual location — one consistent user. And in the rare case an account is ever restricted, we <strong>pause your billing for it and move you to a replacement</strong> so your campaigns keep running.</p>
+            </div>
           </div>
-          <p className="hiw-section-lede">
-            Every rented account comes with its own GoLogin anti-detect browser profile and
-            dedicated residential proxy. There&apos;s no password to manage, no verification step,
-            no setup wizard. Click an account and you&apos;re in.
-          </p>
+        </div>
+      </section>
 
-          <div className="hiw-steps">
-            {renterSteps.map((s, i) => (
-              <div className="hiw-step" key={s.name}>
-                <div className="hiw-step-num">{i + 1}</div>
-                <div className="hiw-step-body">
-                  <h3>{s.name}</h3>
-                  <p>{s.text}</p>
-                </div>
+      {/* AMBASSADOR CROSS-LINK */}
+      <section style={{ background: "#F6F5F1", padding: "56px 24px 72px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 28, flexWrap: "wrap", background: "#fff", border: "1px solid #E6E8EC", borderRadius: 16, padding: "24px 28px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <span style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 11, background: "#E4F6EC", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700 }}>$</span>
+              <div>
+                <div style={{ font: `600 16px ${POP}`, color: "#0B1220" }}>Have an account instead of needing one?</div>
+                <div style={{ fontSize: 14, color: "#5A6473", marginTop: 2 }}>Professionals earn $10–500/month sharing a dormant profile — you keep full ownership.</div>
               </div>
-            ))}
+            </div>
+            <Link href="/become-ambassador" style={{ flexShrink: 0, color: "#00A150", fontWeight: 600, fontSize: 14.5, textDecoration: "none" }}>See how earning works →</Link>
           </div>
-
-          <div className="hiw-cta-row">
-            <Link href="/catalogue" className="hiw-btn-primary">Browse Available Accounts →</Link>
-            <Link href="/faqs" className="hiw-btn-secondary">Renter FAQs</Link>
-          </div>
-
-          <div className="hiw-note">
-            <strong>Why GoLogin matters.</strong> Each rented account runs in an isolated browser
-            fingerprint with its own residential IP. To LinkedIn, the session looks identical to
-            the original account holder logging in from their usual location — which is why
-            LinkedVelocity has maintained a 0% restriction rate across all rentals.
-          </div>
-        </section>
-
-        <section className="hiw-section">
-          <div className="hiw-section-header">
-            <h2>For ambassadors — professionals with unused accounts</h2>
-            <span className="hiw-section-tag">$10-500 per account per month</span>
-          </div>
-          <p className="hiw-section-lede">
-            If you have a LinkedIn account you don&apos;t actively use, LinkedVelocity turns it into a
-            monthly income stream. You retain ownership, you&apos;re never locked out, and renters
-            cannot change your profile content.
-          </p>
-
-          <div className="hiw-steps">
-            {ambassadorSteps.map((s, i) => (
-              <div className="hiw-step" key={s.name}>
-                <div className="hiw-step-num green">{i + 1}</div>
-                <div className="hiw-step-body">
-                  <h3>{s.name}</h3>
-                  <p>{s.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="hiw-cta-row">
-            <Link href="/become-ambassador" className="hiw-btn-primary">Get Your Profile Valuation →</Link>
-            <Link
-              href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
-              className="hiw-btn-secondary"
-            >
-              Book a Meeting
-            </Link>
-          </div>
-
-          <div className="hiw-note">
-            <strong>You&apos;re not selling the account.</strong> LinkedVelocity never asks for ownership
-            transfer, and LinkedIn&apos;s terms prohibit account sales — not shared browser
-            sessions. Because you keep the credentials, you can revoke access at any time.
-          </div>
-        </section>
-      </div>
-    </>
+        </div>
+      </section>
+    </div>
   );
 }

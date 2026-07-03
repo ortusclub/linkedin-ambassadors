@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkedIn Carousel — Cold Openers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#20242b;font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;gap:24px;padding:24px;}
+  .tip{max-width:1080px;background:#0A66C2;color:#fff;border-radius:14px;padding:18px 24px;font-size:15px;line-height:1.6;}
+  .tip b{font-weight:700;}
+  .slide{position:relative;width:1080px;height:1080px;overflow:hidden;color:#EAF0FA;padding:96px 92px;display:flex;flex-direction:column;
+    background:radial-gradient(70% 55% at 50% -8%, rgba(10,102,194,0.30) 0%, rgba(10,24,38,0) 60%),
+               radial-gradient(60% 55% at 8% 110%, rgba(0,184,92,0.20) 0%, rgba(10,24,38,0) 55%),
+               linear-gradient(180deg,#0F2439 0%,#0A1826 100%);}
+  h1,h2{font-family:'Poppins',sans-serif;letter-spacing:-0.02em;color:#fff;}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:24px;letter-spacing:0.16em;text-transform:uppercase;color:#7FA8E0;margin-bottom:30px;}
+  .big{font-family:'Poppins';font-weight:800;font-size:82px;line-height:1.04;}
+  .big .g{color:#26C879;}
+  .lead{font-size:38px;line-height:1.45;color:#C6D4E6;margin-top:34px;font-weight:500;}
+  .card{border-radius:26px;padding:44px 46px;font-size:37px;line-height:1.5;font-weight:500;}
+  .bad{background:rgba(240,68,56,0.12);border:1px solid rgba(240,68,56,0.4);color:#FFD9D5;}
+  .good{background:rgba(0,184,92,0.13);border:1px solid rgba(0,184,92,0.42);color:#D6F7E4;}
+  .tag{display:inline-flex;align-items:center;gap:14px;font-family:'Poppins';font-weight:700;font-size:34px;margin-bottom:26px;}
+  .tag.r{color:#FF6B5E;} .tag.gn{color:#26C879;}
+  .note{font-size:30px;color:#9FB6D0;margin-top:28px;line-height:1.4;}
+  .changes{display:flex;flex-direction:column;gap:34px;margin-top:20px;}
+  .chg{display:flex;gap:24px;align-items:flex-start;font-size:40px;line-height:1.3;color:#E7EEF7;font-weight:500;}
+  .arr{color:#26C879;font-family:'Poppins';font-weight:800;flex:none;}
+  .foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;}
+  .mark{font-family:'Poppins';font-weight:700;font-size:30px;}
+  .mark .g{color:#26C879;}
+  .pg{font-family:'JetBrains Mono',monospace;font-size:24px;color:#8CA0BC;}
+  .center{justify-content:center;}
+  @media print{
+    body{background:#fff;gap:0;padding:0;}
+    .tip{display:none;}
+    @page{size:1080px 1080px;margin:0;}
+    .slide{page-break-after:always;}
+  }
+</style>
+</head>
+<body>
+  <div class="tip noprint">
+    <b>To post on LinkedIn:</b> &nbsp;① <b>Cmd+P</b> → Destination <b>Save as PDF</b> → set <b>Margins: None</b> → Save → upload on LinkedIn as a <b>Document</b> (swipeable carousel).&nbsp; <b>Or</b> screenshot each dark card below → post as a <b>multi-image</b> post. (This blue bar won't appear in the export.)
+  </div>
+
+  <!-- 1 HOOK -->
+  <div class="slide center">
+    <div class="eyebrow">Cold outreach</div>
+    <h1 class="big">The fastest way to get <span class="g">ignored</span> on LinkedIn?</h1>
+    <div class="lead">Make your first message all about <em>you.</em></div>
+    <div class="foot"><span class="mark">Linked<span class="g">Velocity</span></span><span class="pg">1 / 6 →</span></div>
+  </div>
+
+  <!-- 2 BAD -->
+  <div class="slide">
+    <div class="tag r">❌ The version I see every day</div>
+    <div class="card bad">"Hi Sarah, I'd love to connect and share how we help companies like yours grow. Would you be open to a quick 15 minutes this week?"</div>
+    <div class="note">Nothing wrong with the grammar. Everything wrong with the aim — it's all about the sender, timed to nothing, and asking for a meeting before there's a reason to meet.</div>
+    <div class="foot"><span class="mark">Linked<span class="g">Velocity</span></span><span class="pg">2 / 6 →</span></div>
+  </div>
+
+  <!-- 3 GOOD -->
+  <div class="slide">
+    <div class="tag gn">✅ Same outreach, rewritten</div>
+    <div class="card good">"Sarah, saw your team just opened three SDR roles. Scaling outbound and hiring for it at the same time is brutal. Curious how you're splitting the load right now?"</div>
+    <div class="foot"><span class="mark">Linked<span class="g">Velocity</span></span><span class="pg">3 / 6 →</span></div>
+  </div>
+
+  <!-- 4 WHAT CHANGED -->
+  <div class="slide center">
+    <div class="eyebrow">Three things changed</div>
+    <div class="changes">
+      <div class="chg"><span class="arr">→</span> It's about <b>her</b>, not us</div>
+      <div class="chg"><span class="arr">→</span> It's tied to something <b>real and current</b></div>
+      <div class="chg"><span class="arr">→</span> The ask is a <b>genuine question</b>, not a calendar invite</div>
+    </div>
+    <div class="foot"><span class="mark">Linked<span class="g">Velocity</span></span><span class="pg">4 / 6 →</span></div>
+  </div>
+
+  <!-- 5 LESSON -->
+  <div class="slide center">
+    <h2 class="big" style="font-size:70px;">Reply rates don't climb because you sent more.</h2>
+    <div class="lead" style="font-size:44px;color:#fff;">They climb because the person on the other end felt <span style="color:#26C879;font-weight:700;">seen.</span></div>
+    <div class="foot"><span class="mark">Linked<span class="g">Velocity</span></span><span class="pg">5 / 6 →</span></div>
+  </div>
+
+  <!-- 6 CTA -->
+  <div class="slide center">
+    <div class="eyebrow" style="color:#7FE3AC;">Your turn</div>
+    <h2 class="big" style="font-size:76px;">Drop the worst opener that's ever landed in your inbox.</h2>
+    <div class="lead">I'll rewrite one in the comments. 👇</div>
+    <div class="foot"><span class="mark">Linked<span class="g">Velocity</span></span><span class="pg">6 / 6</span></div>
+  </div>
+</body>
+</html>
