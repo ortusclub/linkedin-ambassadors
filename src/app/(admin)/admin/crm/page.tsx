@@ -168,6 +168,12 @@ export default function CrmPage() {
                       <input type="date" defaultValue={l.followUpDate ? l.followUpDate.slice(0, 10) : ""} onChange={(e) => patch(l.id, { followUpDate: e.target.value || null })} style={input} />
                     </div>
 
+                    {/* general notes (context) — separate from the dated comms log */}
+                    <div>
+                      <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 5 }}>Notes <span style={{ opacity: 0.7 }}>(general context — not a dated touchbase)</span></label>
+                      <textarea defaultValue={l.notes || ""} onBlur={(e) => { if (e.target.value !== (l.notes || "")) patch(l.id, { notes: e.target.value }); }} placeholder="e.g. competitor, prefers Western accounts, budget under $100…" style={{ ...input, width: "100%", minHeight: 44, resize: "vertical" }} />
+                    </div>
+
                     {/* add comms */}
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
                       <select value={d.channel} onChange={(e) => setDraft((p) => ({ ...p, [l.id]: { ...d, channel: e.target.value } }))} style={input}>

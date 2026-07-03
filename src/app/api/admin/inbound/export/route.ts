@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 
   const headers = [
     "Name / Username", "Type", "Platform", "Company / Email", "Next follow-up",
-    "Comms History (newest first)",
+    "Notes", "Comms History (newest first)",
   ];
   const width = headers.length;
   const rowFor = (l: (typeof leads)[number]) => [
@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
     platformLabel(l.channel),
     l.companyEmail || "",
     fmtDate(l.followUpDate),
+    l.notes || "",
     commsHistory(l.commsLog),
   ];
 
