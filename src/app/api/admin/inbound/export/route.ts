@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
   const leads = await prisma.inboundLead.findMany({ orderBy: { lastContactAt: "desc" } });
 
   const headers = [
-    "Name / Username", "Type", "Platform", "Company / Email", "Follow-up",
+    "Name / Username", "Type", "Platform", "Company / Email", "Next follow-up",
     "Comms History (newest first)",
   ];
   const width = headers.length;
