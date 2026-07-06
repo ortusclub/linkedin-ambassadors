@@ -469,8 +469,9 @@ export default function BecomeAmbassadorPage() {
         </section>
       )}
 
-      {/* === Landing marketing (only on the choice/landing step) === */}
-      {step === "choice" && (
+      {/* === Landing marketing (how it works + FAQ) — on both landing steps so the
+          ambassador nav anchors (#how, #earn, #faq) resolve for logged-in users too === */}
+      {(step === "choice" || step === "logged-in-choice") && (
         <>
           {/* HOW IT WORKS */}
           <section id="how" className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
