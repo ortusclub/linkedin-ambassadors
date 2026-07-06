@@ -363,7 +363,7 @@ export default function BecomeAmbassadorPage() {
           hides once the user starts the valuation form. */}
       {(step === "choice" || step === "logged-in-choice") && (
       <>
-      <style>{`@keyframes lvAurA{0%,100%{transform:translate(0,0) scale(1);opacity:.9}50%{transform:translate(6%,4%) scale(1.12);opacity:1}}@keyframes lvAurB{0%,100%{transform:translate(0,0) scale(1);opacity:.8}50%{transform:translate(-5%,3%) scale(1.15);opacity:.95}}@media(max-width:720px){.a-earn-grid{grid-template-columns:1fr!important}}`}</style>
+      <style>{`@keyframes lvAurA{0%,100%{transform:translate(0,0) scale(1);opacity:.9}50%{transform:translate(6%,4%) scale(1.12);opacity:1}}@keyframes lvAurB{0%,100%{transform:translate(0,0) scale(1);opacity:.8}50%{transform:translate(-5%,3%) scale(1.15);opacity:.95}}@media(max-width:720px){.a-earn-grid{grid-template-columns:1fr!important}}.a-earn-card{transition:transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s ease}.a-earn-card.setup:hover{transform:translateY(-6px);box-shadow:0 22px 48px rgba(16,24,40,0.12)!important}.a-earn-card.month:hover{transform:translateY(-6px);box-shadow:0 30px 64px rgba(0,161,80,0.24)!important}`}</style>
 
       {/* Hero — green ambassador design */}
       <section id="amb-hero" style={{ position: "relative", overflow: "hidden", background: "radial-gradient(80% 60% at 50% -10%, rgba(0,184,92,0.30) 0%, rgba(11,32,24,0) 62%), radial-gradient(70% 60% at 88% 10%, rgba(20,160,90,0.20) 0%, rgba(11,32,24,0) 55%), linear-gradient(180deg,#10432C 0%,#0B2018 100%)", padding: "74px 24px 84px", textAlign: "center", color: "#EAF6EE" }}>
@@ -396,12 +396,12 @@ export default function BecomeAmbassadorPage() {
         </div>
 
         <div style={{ maxWidth: 820, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, alignItems: "stretch" }} className="a-earn-grid">
-          <div style={{ background: "#fff", border: "1px solid #E7EBE8", borderRadius: 20, padding: "30px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+          <div className="a-earn-card setup" style={{ background: "#fff", border: "1px solid #E7EBE8", borderRadius: 20, padding: "30px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", color: "#067A45", background: "#E7F6EE", padding: "5px 11px", borderRadius: 7 }}>ONE-TIME</span>
             <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 22, color: "#0B1220", margin: "20px 0 6px" }}>Setup bonus</div>
             <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid once when your account is approved and set up — just for getting started.</p>
           </div>
-          <div style={{ position: "relative", background: "#fff", border: "1.5px solid #00A150", borderRadius: 20, padding: "30px", boxShadow: "0 18px 44px rgba(0,161,80,0.16)" }}>
+          <div className="a-earn-card month" style={{ position: "relative", background: "#fff", border: "1.5px solid #00A150", borderRadius: 20, padding: "30px", boxShadow: "0 18px 44px rgba(0,161,80,0.16)" }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", color: "#fff", background: "#00A150", padding: "5px 11px", borderRadius: 7 }}>EVERY MONTH</span>
             <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 22, color: "#00A150", margin: "20px 0 6px" }}>Monthly payout</div>
             <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid every month your account stays active — for as long as you keep it shared. Cancel anytime.</p>
