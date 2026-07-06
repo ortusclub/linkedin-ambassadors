@@ -147,7 +147,7 @@ export default function AccountDetailPage() {
                 {account.linkedinHeadline && <div style={{ fontSize: 16, color: "#3F4856", marginTop: 5 }}>{account.linkedinHeadline}</div>}
                 {account.location && <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, color: "#8A93A2", marginTop: 4 }}><span style={{ color: "#B0B7C2" }}>◍</span>{account.location}</div>}
                 <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 16 }}>
-                  {account.connectionCount > 0 && <span style={chip("#0B1220", "#F1F5FA", "#E4E9F0")}><span style={{ color: "#0A66C2", font: `700 13px ${POP}` }}>{formatNumber(account.connectionCount)}+</span>connections</span>}
+                  {account.connectionCount > 0 && <span style={chip("#0B1220", "#F1F5FA", "#E4E9F0")}><span style={{ color: "#0A66C2", font: `700 13px ${POP}` }}>{formatNumber(account.connectionCount)}</span>connections</span>}
                   {account.hasSalesNav && <span style={chip("#5747C9", "#EDEBFB", "#E0DCF7")}>Sales Navigator</span>}
                   {account.industry && <span style={chip("#0E7C74", "#DEF3F1", "#CDECE9")}>{account.industry}</span>}
                 </div>
