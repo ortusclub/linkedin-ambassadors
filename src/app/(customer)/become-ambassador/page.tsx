@@ -189,6 +189,27 @@ export default function BecomeAmbassadorPage() {
       });
   }, []);
 
+  // Nav header anchors (#how, #earn, #faq) must work from anywhere — including mid-flow.
+  // Those sections only render on the landing steps, so if the user clicks a header while
+  // in the form/flow, return to the landing view first, then scroll to the section.
+  useEffect(() => {
+    const ANCHORS = ["#how", "#earn", "#faq"];
+    const scrollTo = (hash: string, tries = 0) => {
+      const el = document.querySelector(hash);
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+      if (tries < 10) setTimeout(() => scrollTo(hash, tries + 1), 60);
+    };
+    const onHash = () => {
+      const h = window.location.hash;
+      if (!ANCHORS.includes(h)) return;
+      setStep((prev) => (prev === "choice" || prev === "logged-in-choice" ? prev : (isLoggedIn ? "logged-in-choice" : "choice")));
+      scrollTo(h);
+    };
+    window.addEventListener("hashchange", onHash);
+    if (ANCHORS.includes(window.location.hash)) onHash(); // handle deep-link on load
+    return () => window.removeEventListener("hashchange", onHash);
+  }, [isLoggedIn]);
+
   // Auto-fetch proxy when entering the GoLogin setup step
   useEffect(() => {
     if (step !== "login" || assignedProxy) return;
