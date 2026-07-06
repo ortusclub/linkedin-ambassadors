@@ -121,13 +121,18 @@ export default function AdminContentPage() {
   }, [posts]);
 
   const byDate = useMemo(() => {
-    const map: Record<string, { p: Post; li?: boolean }[]> = {};
+    // Each post appears ONCE. LinkedIn posts (have a caption) land on their posted/planned
+    // day as a LinkedIn item; everything else is a website/blog item on its schedule/publish day.
+    // Chip COLOR = workflow state; a small badge shows the CHANNEL (in = LinkedIn, web = Website).
+    const map: Record<string, { p: Post; li: boolean; state: string }[]> = {};
     for (const p of posts) {
-      // blog schedule / publish date
-      const when = p.scheduledFor || p.publishedAt;
-      if (when && p.status !== "idea") (map[when.slice(0, 10)] ||= []).push({ p });
-      // LinkedIn posts land on the day they were shared
-      if (p.linkedinPostedAt) (map[p.linkedinPostedAt.slice(0, 10)] ||= []).push({ p, li: true });
+      if (p.linkedinPost) {
+        const when = p.linkedinPostedAt || p.scheduledFor;
+        if (when) (map[when.slice(0, 10)] ||= []).push({ p, li: true, state: p.linkedinPostedAt ? "published" : p.status });
+      } else {
+        const when = p.scheduledFor || p.publishedAt;
+        if (when && p.status !== "idea") (map[when.slice(0, 10)] ||= []).push({ p, li: false, state: p.status });
+      }
     }
     return map;
   }, [posts]);
@@ -278,9 +283,12 @@ export default function AdminContentPage() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-              {[["In Review", "var(--ct-review-fg)"], ["Approved", "var(--ct-approved-fg)"], ["Published", "var(--ct-published-fg)"], ["LinkedIn", "var(--blue-chip-text)"]].map(([lbl, col]) => (
+              {[["In Review", "var(--ct-review-fg)"], ["Approved", "var(--ct-approved-fg)"], ["Published", "var(--ct-published-fg)"]].map(([lbl, col]) => (
                 <span key={lbl} style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ width: 8, height: 8, borderRadius: 999, background: col }} />{lbl}</span>
               ))}
+              <span style={{ width: 1, height: 14, background: "var(--divider)" }} />
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ font: `700 8.5px ${F_SANS}`, padding: "1px 5px", borderRadius: 4, background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>in</span>LinkedIn</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ font: `700 8.5px ${F_SANS}`, padding: "1px 5px", borderRadius: 4, background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }}>web</span>Website</span>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
@@ -291,7 +299,10 @@ export default function AdminContentPage() {
                 <div key={date ? ymd(date) : `e${i}`} style={{ minHeight: 96, border: "1px solid", borderColor: date ? "var(--card-border)" : "transparent", borderRadius: 9, padding: 6, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden", background: date ? "var(--card)" : "transparent" }}>
                   {date && <div style={{ font: `600 11px ${F_GRO}`, color: "var(--muted)", marginBottom: 1 }}>{date.getDate()}</div>}
                   {items.slice(0, 3).map((it, idx) => (
-                    <button key={it.p.id + (it.li ? "-li" : "") + idx} onClick={() => open(it.p.id)} title={it.li ? "LinkedIn post — shared this day" : undefined} style={{ font: `600 9.5px ${F_SANS}`, padding: "3px 6px", borderRadius: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", border: "none", cursor: "pointer", textAlign: "left", ...(it.li ? { background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" } : stStyle(it.p.status)) }}>{it.li ? "in  " : ""}{it.p.title}</button>
+                    <button key={it.p.id + (it.li ? "-li" : "") + idx} onClick={() => open(it.p.id)} title={`${it.li ? "LinkedIn" : "Website"} · ${STATUS_LABEL[it.state] || it.state}`} style={{ display: "flex", alignItems: "center", gap: 4, font: `600 9.5px ${F_SANS}`, padding: "3px 5px", borderRadius: 5, border: "none", cursor: "pointer", textAlign: "left", ...stStyle(it.state) }}>
+                      <span style={{ flex: "none", font: `700 8px ${F_SANS}`, padding: "1px 4px", borderRadius: 3, ...(it.li ? { background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" } : { background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }) }}>{it.li ? "in" : "web"}</span>
+                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.p.title}</span>
+                    </button>
                   ))}
                   {items.length > 3 && <div style={{ font: `500 9px ${F_SANS}`, color: "var(--muted)" }}>+{items.length - 3} more</div>}
                 </div>
