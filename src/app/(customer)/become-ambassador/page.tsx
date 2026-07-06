@@ -104,6 +104,8 @@ function calculateOffer(data: {
 export default function BecomeAmbassadorPage() {
   const [step, setStep] = useState<Step | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currency, setCurrency] = useState<"PHP" | "USD">("PHP");
+  const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [assignedProxy, setAssignedProxy] = useState<{host:string;port:number;username:string;password:string}|null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -384,7 +386,7 @@ export default function BecomeAmbassadorPage() {
           hides once the user starts the valuation form. */}
       {(step === "choice" || step === "logged-in-choice") && (
       <>
-      <style>{`@keyframes lvAurA{0%,100%{transform:translate(0,0) scale(1);opacity:.9}50%{transform:translate(6%,4%) scale(1.12);opacity:1}}@keyframes lvAurB{0%,100%{transform:translate(0,0) scale(1);opacity:.8}50%{transform:translate(-5%,3%) scale(1.15);opacity:.95}}@media(max-width:720px){.a-earn-grid{grid-template-columns:1fr!important}}.a-earn-card{transition:transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s ease}.a-earn-card.setup:hover{transform:translateY(-6px);box-shadow:0 22px 48px rgba(16,24,40,0.12)!important}.a-earn-card.month:hover{transform:translateY(-6px);box-shadow:0 30px 64px rgba(0,161,80,0.24)!important}`}</style>
+      <style>{`@keyframes lvAurA{0%,100%{transform:translate(0,0) scale(1);opacity:.9}50%{transform:translate(6%,4%) scale(1.12);opacity:1}}@keyframes lvAurB{0%,100%{transform:translate(0,0) scale(1);opacity:.8}50%{transform:translate(-5%,3%) scale(1.15);opacity:.95}}@media(max-width:720px){.a-earn-grid{grid-template-columns:1fr!important}}.a-earn-card{transition:transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s ease}.a-earn-card.setup:hover{transform:translateY(-6px);box-shadow:0 22px 48px rgba(16,24,40,0.12)!important}.a-earn-card.month:hover{transform:translateY(-6px);box-shadow:0 30px 64px rgba(0,161,80,0.24)!important}.a-lift{transition:transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s ease}.a-lift:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(16,24,40,0.12)!important}@media(max-width:900px){.a-3grid{grid-template-columns:1fr 1fr!important}.a-4grid{grid-template-columns:1fr 1fr!important}}@media(max-width:600px){.a-3grid,.a-2grid,.a-4grid{grid-template-columns:1fr!important}}`}</style>
 
       {/* Hero — green ambassador design */}
       <section id="amb-hero" style={{ position: "relative", overflow: "hidden", background: "radial-gradient(80% 60% at 50% -10%, rgba(0,184,92,0.30) 0%, rgba(11,32,24,0) 62%), radial-gradient(70% 60% at 88% 10%, rgba(20,160,90,0.20) 0%, rgba(11,32,24,0) 55%), linear-gradient(180deg,#10432C 0%,#0B2018 100%)", padding: "74px 24px 84px", textAlign: "center", color: "#EAF6EE" }}>
@@ -408,29 +410,50 @@ export default function BecomeAmbassadorPage() {
         </div>
       </section>
 
-      {/* How earning works — structure only, no public payout figures */}
+      {/* EARN — flat payout, real public figures with PHP/USD toggle */}
+      {(() => {
+        const M = currency === "PHP" ? { setup: "₱1,000", monthly: "₱500", year: "₱7,000" } : { setup: "$18", monthly: "$9", year: "$126" };
+        const pill = (on: boolean) => ({ cursor: "pointer", border: "none", borderRadius: 999, padding: "7px 18px", fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: on ? "#0B1220" : "#7B8A81", background: on ? "#fff" : "transparent", boxShadow: on ? "0 1px 2px rgba(16,24,40,0.12)" : "none" } as const);
+        return (
       <section id="earn" style={{ background: "#FBFCFB", padding: "64px 24px 8px", borderBottom: "1px solid #E8E6E1" }}>
         <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 40px" }}>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>How earning works</div>
-          <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>A bonus to start, then paid every month</h2>
-          <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>Get a one-time setup bonus when your account is approved, then a payout every month it stays active. Get your free valuation to see exactly what yours is worth.</p>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>What you can earn</div>
+          <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>Simple, flat payouts</h2>
+          <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: "0 0 22px" }}>No tiers, no fine print. Every approved account earns the same — a one-time setup bonus, then a fixed amount every month.</p>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#EEF2F0", border: "1px solid #E0E7E2", borderRadius: 999, padding: 4 }}>
+            <button onClick={() => setCurrency("PHP")} style={pill(currency === "PHP")}>PHP</button>
+            <button onClick={() => setCurrency("USD")} style={pill(currency === "USD")}>USD</button>
+          </div>
+          <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Payouts are made in PHP{currency === "USD" ? " — USD shown for reference." : "."}</div>
         </div>
 
         <div style={{ maxWidth: 820, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, alignItems: "stretch" }} className="a-earn-grid">
           <div className="a-earn-card setup" style={{ background: "#fff", border: "1px solid #E7EBE8", borderRadius: 20, padding: "30px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", color: "#067A45", background: "#E7F6EE", padding: "5px 11px", borderRadius: 7 }}>ONE-TIME</span>
-            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 22, color: "#0B1220", margin: "20px 0 6px" }}>Setup bonus</div>
+            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 46, lineHeight: 1, letterSpacing: "-0.02em", color: "#0B1220", margin: "20px 0 4px" }}>{M.setup}</div>
+            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 16, color: "#0B1220", marginBottom: 6 }}>Setup bonus</div>
             <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid once when your account is approved and set up — just for getting started.</p>
           </div>
           <div className="a-earn-card month" style={{ position: "relative", background: "#fff", border: "1.5px solid #00A150", borderRadius: 20, padding: "30px", boxShadow: "0 18px 44px rgba(0,161,80,0.16)" }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", color: "#fff", background: "#00A150", padding: "5px 11px", borderRadius: 7 }}>EVERY MONTH</span>
-            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 22, color: "#00A150", margin: "20px 0 6px" }}>Monthly payout</div>
-            <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid every month your account stays active — for as long as you keep it shared. Cancel anytime.</p>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, margin: "20px 0 4px" }}>
+              <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 46, lineHeight: 1, letterSpacing: "-0.02em", color: "#00A150" }}>{M.monthly}</span>
+              <span style={{ fontSize: 16, color: "#8A93A2", fontWeight: 500 }}>/month</span>
+            </div>
+            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 16, color: "#0B1220", marginBottom: 6 }}>Monthly payout</div>
+            <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid every month your account stays active — even in months it isn&apos;t rented. Cancel anytime.</p>
           </div>
         </div>
 
         <div style={{ maxWidth: 820, margin: "18px auto 0", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", justifyContent: "center", background: "#F6FAF7", border: "1px solid #E6F0EA", borderRadius: 14, padding: "16px 22px" }}>
-          <span style={{ fontSize: 14.5, color: "#37424F" }}><strong style={{ color: "#0B1220" }}>More accounts, more income:</strong> share your own and your family&apos;s — each approved account earns its own setup bonus + monthly payout.</span>
+          <span style={{ fontSize: 14.5, color: "#37424F" }}><strong style={{ color: "#0B1220" }}>First year example:</strong> {M.setup} setup + {M.monthly} × 12 months = <strong style={{ color: "#00A150" }}>{M.year}</strong> from a single account.</span>
+        </div>
+
+        <div style={{ maxWidth: 820, margin: "14px auto 0" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", background: "#fff", border: "1px dashed #CDDCD3", borderRadius: 14, padding: "15px 22px", flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "#946011", background: "#FBF0DA", padding: "4px 9px", borderRadius: 6 }}>Coming soon</span>
+            <span style={{ fontSize: 14, color: "#5A6473" }}>Higher payouts for stronger profiles (more connections, Sales Navigator) are on the way.</span>
+          </div>
         </div>
 
         <div style={{ maxWidth: 900, margin: "34px auto 0" }}>
@@ -439,11 +462,10 @@ export default function BecomeAmbassadorPage() {
             <p style={{ fontSize: 15.5, lineHeight: 1.65, color: "#37424F", margin: "0 auto", maxWidth: 640 }}>Got family who don&apos;t use their LinkedIn? Your siblings, parents, aunties, uncles — submit their accounts too and earn a setup bonus plus monthly payout for each one. If the account exists, it has value.</p>
           </div>
         </div>
-
-        <div style={{ textAlign: "center", padding: "34px 0 0" }}>
-          <button type="button" onClick={() => setStep("info")} style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#00B85C", color: "#fff", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 12px 28px rgba(0,184,92,0.28)" }}>Get my free valuation →</button>
-        </div>
       </section>
+        );
+      })()}
+
       </>
       )}
 
@@ -507,7 +529,7 @@ export default function BecomeAmbassadorPage() {
                   {t:"Get a free valuation",d:"Enter your profile and see what it's worth instantly — no sign-up needed."},
                   {t:"Share your profile securely",d:"We set up protected, proxy-based access. Your login stays safe."},
                   {t:"We review & approve",d:"Our team checks the account and lists it for renters."},
-                  {t:"Get paid monthly",d:"Earn every month via USDC, PayPal or Wise — guaranteed."},
+                  {t:"Get paid monthly",d:"Earn every month via Wise or bank transfer — guaranteed."},
                 ].map((s,i)=>(
                   <div key={i} className="rounded-2xl border border-[#E8E6E1] bg-white p-6">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl text-white font-bold" style={{background:'linear-gradient(135deg,#00B85C,#007A3D)',boxShadow:'0 10px 20px -8px rgba(0,184,92,0.6)'}}>{i+1}</div>
@@ -624,7 +646,7 @@ export default function BecomeAmbassadorPage() {
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 max-w-4xl mx-auto">
                 {[
                   {h:"1st",t:"Paid monthly",d:"On the 1st of every month, like clockwork."},
-                  {h:"3 ways",t:"Your choice",d:"USDC, PayPal, or Wise — whatever suits you."},
+                  {h:"Wise",t:"How you're paid",d:"Via Wise, or bank transfer — whichever's convenient."},
                   {h:"100%",t:"Guaranteed",d:"Paid even in months your account isn't rented."},
                   {h:"+",t:"Scale up",d:"Add more accounts (yours or family's) for more income."},
                 ].map((s,i)=>(
@@ -673,7 +695,7 @@ export default function BecomeAmbassadorPage() {
                 {[
                   {q:"Is it safe to share my account?",a:"Yes. Access is proxy-protected through a secure anti-detect browser, and the account is used for outreach only. Your password and profile stay yours."},
                   {q:"Will this affect my LinkedIn account?",a:"No. Real, established accounts used for normal outreach don't get flagged, and nothing about your profile is changed."},
-                  {q:"When and how do I get paid?",a:"On the 1st of each month via USDC, PayPal, or Wise — guaranteed, whether or not your account is rented that month."},
+                  {q:"When and how do I get paid?",a:"On the 1st of each month via Wise or bank transfer — guaranteed, whether or not your account is rented that month."},
                   {q:"Do I have to do anything day-to-day?",a:"No. Once it's set up, it runs in the background. You just get paid."},
                   {q:"Can I stop anytime?",a:"Yes — you can withdraw your account whenever you like. There's no lock-in."},
                   {q:"Can I submit accounts that aren't mine?",a:"Family members' accounts are welcome with their permission — submit each one and earn for each."},
@@ -1165,25 +1187,6 @@ export default function BecomeAmbassadorPage() {
 
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod("paypal")}
-                  className={`flex items-center gap-4 w-full rounded-xl border-2 p-5 text-left transition-all ${paymentMethod === "paypal" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 flex-shrink-0">
-                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-indigo-600" fill="currentColor">
-                      <path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 00-.607-.541c1.652 1.046 2.024 2.986 1.488 5.74-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.44 9.137a.641.641 0 00.633.74h3.874c.457 0 .85-.334.922-.788l.038-.2.728-4.617.047-.254a.932.932 0 01.922-.788h.58c3.76 0 6.705-1.528 7.566-5.946.36-1.847.174-3.388-.777-4.471a3.71 3.71 0 00-1.092-.709z"/>
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">PayPal</p>
-                    <p className="text-sm text-gray-500">Receive payment to your PayPal account. Available worldwide.</p>
-                  </div>
-                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${paymentMethod === "paypal" ? "border-blue-600" : "border-gray-300"}`}>
-                    {paymentMethod === "paypal" && <div className="h-2.5 w-2.5 rounded-full bg-blue-600" />}
-                  </div>
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => setPaymentMethod("wise")}
                   className={`flex items-center gap-4 w-full rounded-xl border-2 p-5 text-left transition-all ${paymentMethod === "wise" ? "border-blue-600 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
                 >
@@ -1229,25 +1232,6 @@ export default function BecomeAmbassadorPage() {
                     </div>
                     <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
                       Make sure your wallet supports USDC on the selected network. Sending to the wrong network may result in lost funds.
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* PayPal fields */}
-              {paymentMethod === "paypal" && (
-                <Card>
-                  <CardContent className="py-6 space-y-4">
-                    <Input
-                      id="paypalEmail"
-                      label="PayPal Email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={bankForm.paypalEmail}
-                      onChange={(e) => updateBank("paypalEmail", e.target.value)}
-                    />
-                    <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">
-                      Make sure this is the email address linked to your PayPal account. PayPal fees may apply.
                     </div>
                   </CardContent>
                 </Card>
@@ -1705,7 +1689,7 @@ export default function BecomeAmbassadorPage() {
               {[
                 { q: "Is my account safe?", a: "Yes. Your account is accessed through a secure, isolated browser profile with its own fingerprint and proxy. It looks like normal usage to LinkedIn." },
                 { q: "Do I lose access to my own account?", a: "No. Both you and the renter have access to the account at any time through our proprietary software. You can see what they're using it for and who they're messaging. You don't lose access to anything." },
-                { q: "How do I get paid?", a: "We offer several payment options: bank transfer to a bank of your choice, PayPal, Wise, or USDC. We pay out on the 1st of every month." },
+                { q: "How do I get paid?", a: "We pay via Wise or bank transfer to a bank of your choice. We pay out on the 1st of every month." },
                 { q: "Can I stop at any time?", a: "Yes. You can withdraw your account anytime — just change your password or remove it. You won't be paid for the following month, and we'd appreciate a heads up, but it's completely up to you. You always have full access to your account, just like anybody else." },
               ].map((faq) => (
                 <div key={faq.q}>
