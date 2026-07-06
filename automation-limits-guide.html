@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Safe Automation Limits — LinkedVelocity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;color:#0B1220;background:#F4F7FB;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:820px;margin:0 auto;padding:0 20px 64px;}
+  h1,h2,h3{font-family:'Poppins',sans-serif;letter-spacing:-0.02em;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .card{background:#fff;border:1px solid #E9ECF0;border-radius:18px;padding:26px 30px;box-shadow:0 6px 20px rgba(16,24,40,0.05);margin-top:18px;}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11.5px;letter-spacing:0.16em;text-transform:uppercase;color:#0A66C2;margin-bottom:10px;}
+  table{width:100%;border-collapse:collapse;margin-top:6px;}
+  th,td{text-align:left;padding:13px 12px;font-size:14.5px;border-bottom:1px solid #EDEFF2;vertical-align:top;}
+  th{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#8A93A2;font-weight:500;}
+  td:first-child{font-family:'Poppins',sans-serif;font-weight:600;color:#0B1220;width:38%;}
+  .lim{color:#0A66C2;font-weight:700;}
+  ul{list-style:none;}
+  li{position:relative;padding-left:24px;margin-bottom:10px;font-size:15px;color:#37424F;}
+  li::before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:50%;background:#00B85C;}
+  .warn li::before{background:#F04438;}
+  .box{border-radius:14px;padding:18px 22px;font-size:14.5px;line-height:1.65;margin-top:16px;}
+  .box.blue{background:#F2F7FF;border:1px solid #DCE9FB;color:#37424F;}
+  .box.amber{background:#FFF7E6;border:1px solid #F5DFA6;color:#5A4A1F;}
+  @media print{body{background:#fff;}.card{box-shadow:none;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="background:radial-gradient(120% 130% at 20% 0%, #12305F 0%, #0A1826 65%);border-radius:0 0 22px 22px;padding:40px 34px 34px;color:#fff;">
+    <div style="font-family:'Poppins';font-weight:700;font-size:18px;margin-bottom:20px;">Linked<span style="color:#00B85C;">Velocity</span></div>
+    <div class="mono" style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#7FE3AC;margin-bottom:12px;">Renter Guide</div>
+    <h1 style="font-size:32px;line-height:1.1;">Safe automation &amp; scraping limits</h1>
+    <p style="font-size:16px;color:#AFC0D6;margin-top:12px;">Per account. LinkedIn changes constantly — so keep automation minimal and stay under these ranges to avoid any disruption.</p>
+  </div>
+
+  <div class="card">
+    <p style="font-size:15px;color:#37424F;">LinkedIn doesn't publish exact limits, and they shift over time — so these are <strong>safe, tried-and-tested ranges</strong> that keep you well under the radar. The golden rule: <strong>steady and human beats fast and robotic.</strong></p>
+    <div class="box amber">⚠️ <strong>An honest heads-up:</strong> LinkedIn's detection changes day to day — there's no fixed, guaranteed "safe" number, and what's fine one week can shift the next. So our best advice is simple: <strong>keep automation to a minimum and stay comfortably below these ranges.</strong> The lower and steadier you run, the less chance of any disruption. Treat the numbers below as a <em>ceiling to stay under</em>, not a target to hit.</div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">Daily limits per account</div>
+    <table>
+      <tr><th>Activity</th><th>Safe limit</th><th>Notes</th></tr>
+      <tr><td>Connection requests</td><td class="lim">15–20 / day · ≤100 / week</td><td>LinkedIn caps weekly invites — stay under 100/week.</td></tr>
+      <tr><td>Messages (1st-degree)</td><td class="lim">50–100 / day</td><td>Personalize — no identical blasts (spam filter).</td></tr>
+      <tr><td>InMails</td><td class="lim">Within your credits</td><td>~50/month on Sales Navigator. Don't exceed.</td></tr>
+      <tr><td>Profile views (scraping)</td><td class="lim">~100–150 / day</td><td>The main scraping metric — steady, not bursts.</td></tr>
+      <tr><td>Searches</td><td class="lim">Spaced &amp; steady</td><td>Sales Nav removes the free "commercial use" cap.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">For data scraping</div>
+    <ul>
+      <li>Keep <strong>profile views around 100–150/day</strong> — a steady pace beats one big burst.</li>
+      <li><strong>Space out searches</strong> — don't rip through hundreds of result pages rapidly.</li>
+      <li><strong>Randomize delays</strong> between actions (~5–30 seconds) — most tools have this setting; turn it on.</li>
+      <li><strong>Ramp up gradually</strong> — run at ~50% for the first 1–2 weeks, then build up.</li>
+      <li>Run during <strong>business hours</strong> in the account's region — not 24/7.</li>
+    </ul>
+    <div class="box blue">💡 <strong>Sales Navigator gives you more headroom</strong> — higher view/search tolerance and no commercial-use limit. But the "steady &amp; human" principle still applies.</div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">Back off immediately if you see</div>
+    <ul class="warn">
+      <li>A <strong>CAPTCHA</strong> or security checkpoint</li>
+      <li>A <strong>"you've reached your weekly limit"</strong> banner</li>
+      <li>A <strong>sudden drop</strong> in results or acceptance</li>
+    </ul>
+    <div class="box amber">⚠️ If any of these appear: <strong>pause automation for a few days, go manual, then resume slower.</strong> This almost always clears it before it becomes a restriction.</div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">Scaling safely</div>
+    <p style="font-size:15px;color:#37424F;">When you want more volume, the safe way isn't cranking one account harder — it's <strong>spreading activity across multiple accounts.</strong> One account maxed out looks robotic; several at a steady pace look like several real people. That's how you scale reach without the flags.</p>
+  </div>
+
+  <div style="text-align:center;margin-top:24px;color:#8A93A2;font-size:13px;">
+    <span class="mono" style="letter-spacing:0.16em;text-transform:uppercase;color:#0A66C2;">LinkedVelocity</span> · Questions? Just reach out.
+  </div>
+</div>
+</body>
+</html>

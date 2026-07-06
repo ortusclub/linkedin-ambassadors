@@ -17,9 +17,10 @@ const ACCESS = [
 ];
 
 const LIMITS = [
-  { activity: "Connection requests", limit: "20–30 per day maximum" },
+  { activity: "Connection requests", limit: "15–20 per day · keep under ~100 per week" },
   { activity: "Messages to connections", limit: "50–80 per day" },
-  { activity: "Profile views", limit: "Keep natural — don't bulk view hundreds at once" },
+  { activity: "Profile views / scraping", limit: "Keep it modest — steady pace, not hundreds in a burst" },
+  { activity: "Searches", limit: "Space them out — don't rip through pages rapidly" },
   { activity: "InMail messages", limit: "Use sparingly — only to 2nd/3rd degree connections" },
   { activity: "Endorsements / reactions", limit: "Keep minimal — focus on outreach only" },
 ];
@@ -109,6 +110,32 @@ export default function AccountGuidePage() {
           </div>
           <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 10, padding: "12px 14px", marginTop: 16, fontSize: 14, color: "#9A3412", lineHeight: 1.6 }}>
             <strong>Warm-up:</strong> for the first week on a fresh account, start lower (~5–10 a day) and build up. If LinkedIn ever shows a warning, just pause for a couple of days and ease back in — it usually settles on its own.
+          </div>
+        </div>
+      </section>
+
+      {/* Automation & scraping */}
+      <section style={{ padding: "48px 0 0" }}>
+        <div className="g-wrap">
+          <h2 className="g-h" style={{ fontSize: 26, fontWeight: 700, marginBottom: 8 }}>Automation &amp; scraping</h2>
+          <p style={{ fontSize: 15, color: "#536471", lineHeight: 1.6, margin: "0 0 20px", maxWidth: 620 }}>You&apos;re welcome to run automation and data-scraping tools <strong>inside your GoLogin browser</strong> (Dripify, Expandi, Linked Helper, and similar). Just keep it steady and human-paced.</p>
+          <div className="g-card">
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 11 }}>
+              {[
+                "Turn on randomized delays between actions (~5–30 seconds) — most tools have this setting.",
+                "Ramp up gradually — run at roughly half-pace for the first week or two, then build.",
+                "Run during business hours in the account's region, not around the clock.",
+                "If you see a CAPTCHA, a \"weekly limit\" banner, or a drop in results — pause for a few days and ease back in.",
+              ].map((t) => (
+                <li key={t} style={{ display: "flex", gap: 10, fontSize: 14.5, color: "#374151", lineHeight: 1.55 }}><span style={{ color: "#00B85C", fontWeight: 800 }}>✓</span>{t}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="g-card" style={{ background: "#FFF7ED", borderColor: "#F59E0B", borderWidth: 2, marginTop: 16 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "#B45309", background: "#FEF3C7", border: "1px solid #FCD34D", borderRadius: 999, padding: "4px 12px", marginBottom: 12 }}>⚠️ Important</div>
+            <p style={{ fontSize: 15, color: "#9A3412", lineHeight: 1.65, margin: 0 }}>
+              <strong>There&apos;s no guaranteed &quot;safe&quot; number.</strong> LinkedIn&apos;s detection changes day to day, so the limits above are a <strong>ceiling to stay under, not a target to hit</strong>. The safest approach is to keep automation to a minimum and stay comfortably below these ranges — the lower and steadier you run, the less chance of any disruption. And run tools <strong>inside GoLogin only</strong> — never a cloud tool that logs into the account separately (that&apos;s the #1 cause of restrictions).
+            </p>
           </div>
         </div>
       </section>
