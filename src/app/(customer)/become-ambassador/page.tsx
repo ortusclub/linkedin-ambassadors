@@ -516,211 +516,165 @@ export default function BecomeAmbassadorPage() {
           ambassador nav anchors (#how, #earn, #faq) resolve for logged-in users too === */}
       {(step === "choice" || step === "logged-in-choice") && (
         <>
-          {/* HOW IT WORKS */}
-          <section id="how" className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
-            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-              <div className="text-center max-w-2xl mx-auto mb-10">
-                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>How it works</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>From sign-up to your first payout</h2>
-                <p className="mt-3 text-gray-600">Four simple steps. No technical know-how needed.</p>
-              </div>
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  {t:"Get a free valuation",d:"Enter your profile and see what it's worth instantly — no sign-up needed."},
-                  {t:"Share your profile securely",d:"We set up protected, proxy-based access. Your login stays safe."},
-                  {t:"We review & approve",d:"Our team checks the account and lists it for renters."},
-                  {t:"Get paid monthly",d:"Earn every month via Wise or bank transfer — guaranteed."},
-                ].map((s,i)=>(
-                  <div key={i} className="rounded-2xl border border-[#E8E6E1] bg-white p-6">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl text-white font-bold" style={{background:'linear-gradient(135deg,#00B85C,#007A3D)',boxShadow:'0 10px 20px -8px rgba(0,184,92,0.6)'}}>{i+1}</div>
-                    <h3 className="mt-4 text-base font-semibold text-gray-900">{s.t}</h3>
-                    <p className="mt-1.5 text-sm text-gray-600 leading-relaxed">{s.d}</p>
-                  </div>
-                ))}
-              </div>
+          {/* BENEFITS */}
+          <section style={{ background: "#FBFCFB", padding: "64px 24px 8px" }}>
+            <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 44px" }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>Ambassador benefits</div>
+              <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>Why ambassadors love this</h2>
+              <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>Everything you gain — nothing you lose.</p>
+            </div>
+            <div className="a-3grid" style={{ maxWidth: 1160, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+              {[
+                { c: "#E7F6EE", ic: "💰", title: "Earn monthly income", body: "Predictable recurring payouts every month your account is active." },
+                { c: "#EAF2FC", ic: "🖐️", title: "Completely hands-off", body: "You don't run campaigns, reply to messages, or manage anything — we handle it all." },
+                { c: "#E7F6EE", ic: "🎚️", title: "Stay in full control", body: "Pause or withdraw whenever you want. No lock-in, no penalties." },
+                { c: "#EAF2FC", ic: "🛡️", title: "Safe & protected", body: "Human-paced activity within LinkedIn's limits. Your profile stays protected." },
+                { c: "#E7F6EE", ic: "🌐", title: "Grow your network", body: "Real, relevant connections get added as outreach runs on your behalf." },
+                { c: "#EAF2FC", ic: "🌙", title: "Even idle accounts pay", body: "Barely use LinkedIn? Accounts you — or family — don't use still earn." },
+              ].map((b) => (
+                <div key={b.title} className="a-lift" style={{ background: "#fff", border: "1px solid #E7EBE8", borderRadius: 18, padding: "26px 26px 24px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 13, background: b.c, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 18 }}>{b.ic}</div>
+                  <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 17, color: "#0B1220", marginBottom: 8 }}>{b.title}</div>
+                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>{b.body}</p>
+                </div>
+              ))}
             </div>
           </section>
 
-          {/* WHY AMBASSADORS LOVE THIS — benefits */}
-          <section className="bg-[#FAFAF8] border-t" style={{borderColor:'#E8E6E1'}}>
-            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-              <div className="text-center max-w-2xl mx-auto mb-10">
-                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Ambassador benefits</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Why ambassadors love this</h2>
-                <p className="mt-3 text-gray-600">Everything you gain — nothing you lose.</p>
-              </div>
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  {icon:"💵",tint:"green",t:"Earn monthly income",d:"Predictable recurring payouts every month your account is active."},
-                  {icon:"🙌",tint:"blue",t:"Completely hands-off",d:"You don't run campaigns, reply to messages, or manage anything — we handle it all."},
-                  {icon:"🎛️",tint:"green",t:"Stay in full control",d:"Pause or withdraw whenever you want. No lock-in, no penalties."},
-                  {icon:"🛡️",tint:"blue",t:"Safe & protected",d:"Human-paced activity within LinkedIn's limits. Your profile stays protected."},
-                  {icon:"🌐",tint:"green",t:"Grow your network",d:"Real, relevant connections get added as outreach runs on your behalf."},
-                  {icon:"💤",tint:"blue",t:"Even idle accounts pay",d:"Barely use LinkedIn? Accounts you — or family — don't use still earn."},
-                ].map((b,i)=>(
-                  <div key={i} className="rounded-2xl border border-[#E8E6E1] bg-white p-6">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl text-lg" style={{background: b.tint==="blue" ? "#E8F1FA" : "#E6F9EE"}}>{b.icon}</div>
-                    <h3 className="mt-4 text-base font-semibold text-gray-900">{b.t}</h3>
-                    <p className="mt-1.5 text-sm text-gray-600 leading-relaxed">{b.d}</p>
-                  </div>
-                ))}
-              </div>
+          {/* SAFE & CONTROL */}
+          <section style={{ background: "#F6FAF7", padding: "64px 24px 68px" }}>
+            <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 44px" }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>Safe &amp; in your control</div>
+              <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>Your account always stays yours</h2>
+              <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>Sharing an account doesn&apos;t mean giving it away. Here&apos;s how we keep you protected.</p>
             </div>
-          </section>
-
-          {/* WHY YOU'RE NEEDED — bot vs real comparison */}
-          <section className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
-            <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-              <div className="text-center max-w-2xl mx-auto mb-8">
-                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Why you&apos;re needed</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Why businesses need real profiles</h2>
-                <p className="mt-3 text-gray-600">Messages from real professionals vastly outperform automated bot accounts — that&apos;s why companies partner with verified individuals.</p>
-              </div>
-              <div className="overflow-x-auto rounded-2xl border border-[#E8E6E1] bg-white">
-                <table className="w-full text-left text-sm" style={{minWidth:520}}>
-                  <thead>
-                    <tr className="border-b border-[#E8E6E1] bg-[#FAFAF8]">
-                      <th className="px-5 py-3.5 font-semibold text-gray-500">Feature</th>
-                      <th className="px-5 py-3.5 font-semibold" style={{color:'#DC2626'}}>Bot outreach</th>
-                      <th className="px-5 py-3.5 font-semibold" style={{color:'#007A3D'}}>Real profile outreach</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      {f:"Account type",bot:"Fake / recycled accounts",real:"Verified real professional"},
-                      {f:"Restriction risk",bot:"High restriction risk",real:"Low restriction rate"},
-                      {f:"Acceptance rates",bot:"Low acceptance rates",real:"Higher acceptance rates"},
-                      {f:"Messaging feel",bot:"Feels spammy",real:"Human communication"},
-                      {f:"Trust level",bot:"No trust",real:"Trusted company representative"},
-                    ].map((r,i)=>(
-                      <tr key={i} className="border-b border-[#F0F1F3] last:border-0">
-                        <td className="px-5 py-3.5 font-medium text-gray-900">{r.f}</td>
-                        <td className="px-5 py-3.5 text-gray-600"><span className="mr-1.5" style={{color:'#DC2626'}}>✗</span>{r.bot}</td>
-                        <td className="px-5 py-3.5 text-gray-700"><span className="mr-1.5" style={{color:'#00B85C'}}>✓</span>{r.real}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-6 text-center text-gray-600">Companies pay for trust &amp; deliverability — <strong className="text-gray-900">your real identity makes outreach work.</strong></p>
-            </div>
-          </section>
-
-          {/* TRUST & SAFETY */}
-          <section className="bg-[#FAFAF8] border-t" style={{borderColor:'#E8E6E1'}}>
-            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-              <div className="text-center max-w-2xl mx-auto mb-10">
-                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Safe &amp; in your control</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Your account always stays yours</h2>
-                <p className="mt-3 text-gray-600">Sharing an account doesn&apos;t mean giving it away. Here&apos;s how we keep you protected.</p>
-              </div>
-              <div className="grid gap-5 sm:grid-cols-2 max-w-3xl mx-auto">
-                {[
-                  {t:"You stay in control",d:"Your name, photo and headline never change. The account is used for outreach only."},
-                  {t:"Protected access",d:"Every account runs through a dedicated proxy and a secure anti-detect browser (GoLogin)."},
-                  {t:"Nothing posted as you",d:"Renters can't change your profile or post on your behalf."},
-                  {t:"Stop whenever",d:"Withdraw your account at any time. No lock-in, no penalties."},
-                ].map((s,i)=>(
-                  <div key={i} className="flex gap-3.5 rounded-2xl border border-[#E8E6E1] bg-white p-5">
-                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg" style={{background:'#E6F9EE'}}>
-                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="#00B85C" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                    </div>
-                    <div>
-                      <h3 className="text-[15px] font-semibold text-gray-900">{s.t}</h3>
-                      <p className="mt-1 text-sm text-gray-600 leading-relaxed">{s.d}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="a-2grid" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+              {[
+                { title: "You stay in control", body: "Your name, photo and headline never change. The account is used for outreach only." },
+                { title: "Protected access", body: "Every account runs through a dedicated proxy and a secure anti-detect browser (GoLogin)." },
+                { title: "Nothing posted as you", body: "Renters can't change your profile or post on your behalf." },
+                { title: "Stop whenever", body: "Withdraw your account at any time. No lock-in, no penalties." },
+              ].map((s) => (
+                <div key={s.title} className="a-lift" style={{ display: "flex", gap: 15, alignItems: "flex-start", background: "#fff", border: "1px solid #E7EBE8", borderRadius: 16, padding: "22px 24px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+                  <span style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 11, background: "linear-gradient(150deg,#E4F6EC,#C9EED8)", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                  </span>
+                  <div><div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 16, color: "#0B1220", marginBottom: 5 }}>{s.title}</div><p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>{s.body}</p></div>
+                </div>
+              ))}
             </div>
           </section>
 
           {/* PAYOUTS */}
-          <section className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
-            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-              <div className="text-center max-w-2xl mx-auto mb-10">
-                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>Payouts</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Get paid every month — guaranteed</h2>
-                <p className="mt-3 text-gray-600">Whether or not we find a renter, you get paid.</p>
-              </div>
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 max-w-4xl mx-auto">
-                {[
-                  {h:"1st",t:"Paid monthly",d:"On the 1st of every month, like clockwork."},
-                  {h:"Wise",t:"How you're paid",d:"Via Wise, or bank transfer — whichever's convenient."},
-                  {h:"100%",t:"Guaranteed",d:"Paid even in months your account isn't rented."},
-                  {h:"+",t:"Scale up",d:"Add more accounts (yours or family's) for more income."},
-                ].map((s,i)=>(
-                  <div key={i} className="rounded-2xl border border-[#E8E6E1] bg-[#FAFAF8] p-6 text-center">
-                    <div className="text-2xl font-bold" style={{fontFamily:"'Montserrat',sans-serif",color:'#0A66C2'}}>{s.h}</div>
-                    <h3 className="mt-2 text-[15px] font-semibold text-gray-900">{s.t}</h3>
-                    <p className="mt-1 text-sm text-gray-600 leading-relaxed">{s.d}</p>
-                  </div>
-                ))}
-              </div>
+          <section style={{ background: "#FBFCFB", padding: "64px 24px 8px" }}>
+            <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 44px" }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>Payouts</div>
+              <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>Get paid every month — guaranteed</h2>
+              <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>Whether or not we find a renter, you get paid.</p>
+            </div>
+            <div className="a-4grid" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
+              {[
+                { stat: "Monthly", label: "Paid every month", body: "A reliable payout each month, like clockwork." },
+                { stat: "Wise", label: "How you're paid", body: "Via Wise, or bank transfer — whichever's convenient for you." },
+                { stat: "100%", label: "Guaranteed", body: "Paid even in months your account isn't rented." },
+                { stat: "+", label: "Scale up", body: "Add more accounts (yours or family's) for more income." },
+              ].map((p) => (
+                <div key={p.label} className="a-lift" style={{ textAlign: "center", background: "#fff", border: "1px solid #E7EBE8", borderRadius: 16, padding: "28px 20px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+                  <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, letterSpacing: "-0.02em", color: "#00A150", lineHeight: 1 }}>{p.stat}</div>
+                  <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 15, color: "#0B1220", margin: "12px 0 6px" }}>{p.label}</div>
+                  <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "#8A93A2", margin: 0 }}>{p.body}</p>
+                </div>
+              ))}
             </div>
           </section>
 
-          {/* WHAT HAPPENS NEXT */}
-          <section className="bg-[#FAFAF8] border-t" style={{borderColor:'#E8E6E1'}}>
-            <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-              <div className="text-center mb-10">
-                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>What&apos;s next</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>After you submit</h2>
-                <p className="mt-3 text-gray-600">No mystery — here&apos;s exactly what happens.</p>
-              </div>
-              <div className="space-y-4">
-                {[
-                  {t:"Instant valuation",d:"You see your estimated monthly value right away."},
-                  {t:"Quick review",d:"Our team verifies the account, usually within a couple of days."},
-                  {t:"You're notified & listed",d:"We let you know it's approved and add it to the marketplace."},
-                  {t:"Earnings begin",d:"You start earning on your next monthly payout."},
-                ].map((s,i)=>(
-                  <div key={i} className="flex gap-4 rounded-2xl border border-[#E8E6E1] bg-white p-5">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{background:'#00B85C'}}>{i+1}</div>
-                    <div><h3 className="text-[15px] font-semibold text-gray-900">{s.t}</h3><p className="mt-0.5 text-sm text-gray-600">{s.d}</p></div>
+          {/* HOW IT WORKS — step flow */}
+          <section id="how" style={{ background: "#FBFCFB", padding: "64px 24px 8px" }}>
+            <div style={{ maxWidth: 1180, margin: "0 auto 44px", height: 1, background: "#EAEDEA" }} />
+            <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 44px" }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>How it works</div>
+              <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>From sign-up to your first payout</h2>
+              <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>Four simple steps. No technical know-how needed.</p>
+            </div>
+            <div className="a-4grid" style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 22 }}>
+              {[
+                { n: "1", icon: "🔍", title: "Get a free valuation", body: "Enter your profile and see what it's worth instantly — no sign-up needed." },
+                { n: "2", icon: "🛡️", title: "Share your profile securely", body: "We set up protected, proxy-based access through GoLogin. Your login stays safe." },
+                { n: "3", icon: "✅", title: "We review & approve", body: "Our team checks the account and lists it for renters — usually within a day or two." },
+                { n: "4", icon: "💸", title: "Get paid monthly", body: "Earn every month, guaranteed, via Wise or bank transfer." },
+              ].map((s) => (
+                <div key={s.n} className="a-lift" style={{ background: "#fff", border: "1px solid #E7EBE8", borderRadius: 18, padding: "26px 24px 24px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+                    <span style={{ width: 44, height: 44, borderRadius: 13, background: "linear-gradient(150deg,#00B85C,#068A48)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 18, boxShadow: "0 8px 18px rgba(0,161,80,0.3)" }}>{s.n}</span>
+                    <span style={{ fontSize: 20 }}>{s.icon}</span>
                   </div>
-                ))}
-              </div>
+                  <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 17, color: "#0B1220", marginBottom: 8, lineHeight: 1.25 }}>{s.title}</div>
+                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>{s.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* AFTER YOU SUBMIT */}
+          <section style={{ background: "#F6FAF7", padding: "64px 24px 68px", marginTop: 56 }}>
+            <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 44px" }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>What&apos;s next</div>
+              <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>After you submit</h2>
+              <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>No mystery — here&apos;s exactly what happens.</p>
+            </div>
+            <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+              {[
+                { n: "1", title: "Instant valuation", body: "You see your estimated monthly value right away." },
+                { n: "2", title: "Quick review", body: "Our team verifies the account, usually within a couple of days." },
+                { n: "3", title: "You're notified & listed", body: "We let you know it's approved and add it to the marketplace." },
+                { n: "4", title: "Earnings begin", body: "You start earning on your next monthly payout." },
+              ].map((s) => (
+                <div key={s.n} className="a-lift" style={{ display: "flex", gap: 20, alignItems: "center", background: "#fff", border: "1px solid #E7EBE8", borderRadius: 16, padding: "20px 24px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+                  <span style={{ flexShrink: 0, width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(150deg,#00B85C,#068A48)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 15, boxShadow: "0 6px 14px rgba(0,161,80,0.3)" }}>{s.n}</span>
+                  <div><div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 16.5, color: "#0B1220", marginBottom: 3 }}>{s.title}</div><p style={{ fontSize: 14.5, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>{s.body}</p></div>
+                </div>
+              ))}
             </div>
           </section>
 
           {/* FAQ */}
-          <section id="faq" className="bg-white border-t" style={{borderColor:'#E8E6E1'}}>
-            <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-              <div className="text-center mb-8">
-                <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>FAQ</div>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Common questions</h2>
-              </div>
-              <div>
-                {[
-                  {q:"Is it safe to share my account?",a:"Yes. Access is proxy-protected through a secure anti-detect browser, and the account is used for outreach only. Your password and profile stay yours."},
-                  {q:"Will this affect my LinkedIn account?",a:"No. Real, established accounts used for normal outreach don't get flagged, and nothing about your profile is changed."},
-                  {q:"When and how do I get paid?",a:"On the 1st of each month via Wise or bank transfer — guaranteed, whether or not your account is rented that month."},
-                  {q:"Do I have to do anything day-to-day?",a:"No. Once it's set up, it runs in the background. You just get paid."},
-                  {q:"Can I stop anytime?",a:"Yes — you can withdraw your account whenever you like. There's no lock-in."},
-                  {q:"Can I submit accounts that aren't mine?",a:"Family members' accounts are welcome with their permission — submit each one and earn for each."},
-                ].map((f,i)=>(
-                  <details key={i} className="group border-b border-[#E8E6E1] py-4">
-                    <summary className="flex cursor-pointer items-center justify-between font-semibold text-gray-900" style={{listStyle:'none'}}>
-                      {f.q}
-                      <span className="ml-4 text-xl leading-none transition-transform group-open:rotate-45" style={{color:'#00B85C'}}>+</span>
-                    </summary>
-                    <p className="mt-3 text-sm text-gray-600 leading-relaxed">{f.a}</p>
-                  </details>
-                ))}
-              </div>
+          <section id="faq" style={{ background: "#fff", padding: "64px 24px 72px" }}>
+            <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 40px" }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>FAQ</div>
+              <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: 0 }}>Common questions</h2>
+            </div>
+            <div style={{ maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                { q: "Is it safe to share my account?", a: "Yes. Access runs through a dedicated proxy and a secure anti-detect browser (GoLogin), and your password is never exposed. Renters use the account for outreach only — they can never change your profile or post as you." },
+                { q: "Will this affect my LinkedIn account?", a: "Activity is kept human-paced and within LinkedIn's normal limits to protect the account. Your name, photo, and headline stay exactly as they are." },
+                { q: "When and how do I get paid?", a: "You're paid every month via Wise, or bank transfer — even in months your account isn't rented." },
+                { q: "Do I have to do anything day-to-day?", a: "Nothing. It's completely hands-off — you don't run campaigns, reply to messages, or manage anything. We handle it all." },
+                { q: "Can I stop anytime?", a: "Yes. You can withdraw your account at any time with no lock-in and no penalties." },
+                { q: "Can I submit accounts that aren't mine?", a: "You can submit accounts belonging to family members with their consent — siblings, parents, aunties, uncles. Each approved account earns its own setup bonus and monthly payout." },
+              ].map((f, i) => {
+                const open = faqOpen === i;
+                return (
+                  <div key={i} style={{ background: "#fff", border: "1px solid " + (open ? "#9FD9B8" : "#E9ECF0"), borderRadius: 14, boxShadow: open ? "0 6px 20px rgba(16,24,40,0.06)" : "0 1px 2px rgba(16,24,40,0.03)", overflow: "hidden", transition: "border-color .15s, box-shadow .15s" }}>
+                    <button onClick={() => setFaqOpen(open ? null : i)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, background: "transparent", border: "none", cursor: "pointer", padding: "20px 22px", textAlign: "left" }}>
+                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 16.5, lineHeight: 1.35, color: "#0B1220" }}>{f.q}</span>
+                      <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 400, lineHeight: 1, color: open ? "#fff" : "#00A150", background: open ? "#00A150" : "#E7F6EE", transition: "all .15s" }}>{open ? "–" : "+"}</span>
+                    </button>
+                    <div style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", transition: "grid-template-rows .28s ease", overflow: "hidden" }}>
+                      <div style={{ minHeight: 0, overflow: "hidden" }}><div style={{ padding: "0 22px 22px", fontSize: 15.5, lineHeight: 1.7, color: "#4A5563" }}>{f.a}</div></div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
 
           {/* CLOSING CTA */}
-          <section className="relative overflow-hidden" style={{background:'linear-gradient(160deg,#06231A 0%,#0A4D30 45%,#00B85C 130%)'}}>
-            <div aria-hidden className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-72 w-[34rem] rounded-full" style={{background:'radial-gradient(closest-side,rgba(79,144,217,0.22),transparent 70%)'}} />
-            <div className="relative mx-auto max-w-3xl px-4 py-20 text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Ready to start earning?</h2>
-              <p className="mt-3 text-lg text-white/80">Get a free, instant valuation — no sign-up needed.</p>
-              <div className="mt-7">
-                <button type="button" onClick={() => setStep("info")} className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-base font-bold text-[#06231A] transition hover:-translate-y-0.5" style={{boxShadow:'0 18px 36px -14px rgba(0,0,0,0.6)'}}>Get my free valuation →</button>
-              </div>
+          <section style={{ position: "relative", overflow: "hidden", background: "radial-gradient(80% 90% at 50% -10%, rgba(0,184,92,0.30) 0%, rgba(11,32,24,0) 60%), linear-gradient(135deg,#10432C 0%,#0B2018 100%)", padding: "80px 24px", textAlign: "center" }}>
+            <div aria-hidden style={{ position: "absolute", width: 520, height: 520, left: "50%", top: -260, transform: "translateX(-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(0,184,92,0.22), rgba(0,184,92,0) 65%)", filter: "blur(20px)", pointerEvents: "none", animation: "lvAurA 16s ease-in-out infinite" }} />
+            <div style={{ position: "relative" }}>
+              <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: "clamp(30px,4.5vw,44px)", letterSpacing: "-0.03em", color: "#fff", margin: "0 0 14px" }}>Ready to start earning?</h2>
+              <p style={{ fontSize: 18, color: "#B7D4C4", margin: "0 auto 32px", maxWidth: 440 }}>Get a free, instant valuation — no sign-up needed.</p>
+              <button type="button" onClick={() => setStep("info")} style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", color: "#0B1220", fontSize: 16, fontWeight: 600, padding: "16px 30px", borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 16px 40px rgba(0,0,0,0.28)" }}>Get my free valuation →</button>
             </div>
           </section>
         </>
