@@ -129,16 +129,16 @@ export default function AccountDetailPage() {
           <div>
             <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#8A93A2", margin: "6px 0 14px 4px" }}>Profile preview</div>
             <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 18, overflow: "hidden", boxShadow: "0 10px 30px rgba(16,24,40,0.08)" }}>
-              <div style={{ position: "relative", height: 104, background: "linear-gradient(120deg,#0A66C2,#0E4F98)" }}>
+              <div style={{ position: "relative", height: 88, background: "linear-gradient(120deg,#0A66C2,#0E4F98)" }}>
                 <span style={{ position: "absolute", top: 14, right: 16, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 999, padding: "4px 12px" }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: rentable ? "#3EF08A" : "#E0A43B" }} />{rentable ? "Available now" : account.status.charAt(0).toUpperCase() + account.status.slice(1)}
                 </span>
               </div>
-              <div style={{ padding: "0 28px 26px", marginTop: -44 }}>
+              <div style={{ padding: "0 28px 26px", marginTop: -30 }}>
                 {account.profilePhotoUrl ? (
-                  <img src={account.profilePhotoUrl} alt="" style={{ width: 92, height: 92, border: "4px solid #fff", borderRadius: "50%", objectFit: "cover", boxShadow: "0 4px 12px rgba(16,24,40,0.12)" }} />
+                  <img src={account.profilePhotoUrl} alt="" style={{ position: "relative", zIndex: 2, width: 92, height: 92, border: "4px solid #fff", borderRadius: "50%", objectFit: "cover", objectPosition: "center top", boxShadow: "0 4px 12px rgba(16,24,40,0.12)" }} />
                 ) : (
-                  <div style={{ width: 92, height: 92, border: "4px solid #fff", borderRadius: "50%", background: "linear-gradient(135deg,#0A66C2,#004182)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 32px ${POP}`, color: "#fff", boxShadow: "0 4px 12px rgba(16,24,40,0.12)" }}>{initial}</div>
+                  <div style={{ position: "relative", zIndex: 2, width: 92, height: 92, border: "4px solid #fff", borderRadius: "50%", background: "linear-gradient(135deg,#0A66C2,#004182)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 32px ${POP}`, color: "#fff", boxShadow: "0 4px 12px rgba(16,24,40,0.12)" }}>{initial}</div>
                 )}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
                   <span style={{ font: `700 24px ${POP}`, letterSpacing: "-0.02em", color: "#0B1220" }}>{name}</span>
