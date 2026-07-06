@@ -363,87 +363,64 @@ export default function BecomeAmbassadorPage() {
           hides once the user starts the valuation form. */}
       {(step === "choice" || step === "logged-in-choice") && (
       <>
-      {/* Hero — green-primary (ambassador side), brand-blue accents */}
-      <section id="amb-hero" className="relative overflow-hidden" style={{background:'linear-gradient(160deg,#06231A 0%,#0A4D30 42%,#00B85C 125%)'}}>
-        <div aria-hidden className="pointer-events-none absolute -top-24 right-[6%] h-80 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(79,144,217,0.22),transparent 70%)'}} />
-        <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full" style={{background:'radial-gradient(closest-side,rgba(255,255,255,0.08),transparent 70%)'}} />
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white">
-            <span className="h-1.5 w-1.5 rounded-full" style={{background:'#4f90d9',boxShadow:'0 0 0 3px rgba(79,144,217,0.3)'}} />
-            For account owners &amp; professionals
+      <style>{`@keyframes lvAurA{0%,100%{transform:translate(0,0) scale(1);opacity:.9}50%{transform:translate(6%,4%) scale(1.12);opacity:1}}@keyframes lvAurB{0%,100%{transform:translate(0,0) scale(1);opacity:.8}50%{transform:translate(-5%,3%) scale(1.15);opacity:.95}}@media(max-width:720px){.a-earn-grid{grid-template-columns:1fr!important}}`}</style>
+
+      {/* Hero — green ambassador design */}
+      <section id="amb-hero" style={{ position: "relative", overflow: "hidden", background: "radial-gradient(80% 60% at 50% -10%, rgba(0,184,92,0.30) 0%, rgba(11,32,24,0) 62%), radial-gradient(70% 60% at 88% 10%, rgba(20,160,90,0.20) 0%, rgba(11,32,24,0) 55%), linear-gradient(180deg,#10432C 0%,#0B2018 100%)", padding: "74px 24px 84px", textAlign: "center", color: "#EAF6EE" }}>
+        <div aria-hidden style={{ position: "absolute", width: 620, height: 620, left: -160, top: -220, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,184,92,0.26), rgba(0,184,92,0) 65%)", filter: "blur(20px)", pointerEvents: "none", animation: "lvAurA 16s ease-in-out infinite" }} />
+        <div aria-hidden style={{ position: "absolute", width: 560, height: 560, right: -140, bottom: -200, borderRadius: "50%", background: "radial-gradient(circle, rgba(20,180,110,0.22), rgba(20,180,110,0) 65%)", filter: "blur(20px)", pointerEvents: "none", animation: "lvAurB 19s ease-in-out infinite" }} />
+        <div style={{ position: "relative", maxWidth: 820, margin: "0 auto" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 999, padding: "7px 15px", fontSize: 13, fontWeight: 600, color: "#CFEAD9", marginBottom: 26 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#3EF08A" }} />For account owners &amp; professionals
           </span>
-          <h1 className="mt-5 text-5xl font-bold tracking-tight text-white" style={{letterSpacing:'-0.03em'}}>
-            <span style={{color:'#4f90d9'}}>Get paid</span> for your<br />LinkedIn accounts
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-lg text-white/80">
-            Every LinkedIn account has value — whether you&apos;re a student, a retiree, a professional, or someone who barely uses LinkedIn. Companies need real accounts for outreach, and we pay <strong className="text-white">$10 to $500/month</strong> for every account shared.
-          </p>
-          <div className="mt-8">
-            <button type="button" onClick={() => setStep("info")} className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-[15px] font-bold text-[#06231A] transition hover:-translate-y-0.5" style={{boxShadow:'0 16px 32px -14px rgba(0,0,0,0.6)'}}>Get my free valuation →</button>
+          <h1 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 800, fontSize: "clamp(36px,5.8vw,58px)", lineHeight: 1.04, letterSpacing: "-0.03em", margin: "0 auto 22px", color: "#fff", maxWidth: 720 }}>Get paid for your <span style={{ color: "#4FE08C" }}>LinkedIn account</span></h1>
+          <p style={{ fontSize: 19, lineHeight: 1.6, color: "#B7D4C4", margin: "0 auto", maxWidth: 600 }}>Every LinkedIn account has value — whether you&apos;re a student, a professional, or barely use it. Companies need real profiles for outreach, and we pay you a <strong style={{ color: "#fff" }}>setup bonus plus a monthly payout</strong> for every account you share.</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "center", marginTop: 34 }}>
+            <button type="button" onClick={() => setStep("info")} style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, padding: "15px 26px", borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 14px 32px rgba(0,184,92,0.34)" }}>Get my free valuation →</button>
+            <a href="#earn" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "rgba(255,255,255,0.08)", color: "#EAF6EE", border: "1px solid rgba(255,255,255,0.2)", fontSize: 16, fontWeight: 600, padding: "15px 26px", borderRadius: 12, textDecoration: "none" }}>See how it works</a>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 26, flexWrap: "wrap", justifyContent: "center", marginTop: 34, fontSize: 13.5, color: "#9DC4AE" }}>
+            {["No cost to join", "You stay in control", "Cancel anytime"].map((t) => (
+              <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ color: "#4FE08C" }}>✓</span>{t}</span>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Earnings tiers — same card design as renter pricing, green-primary */}
-      <section id="earn" className="bg-[#FAFAF8]" style={{borderBottom:'1px solid #E8E6E1'}}>
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-10">
-            <div className="text-xs font-bold uppercase mb-3" style={{color:'#00B85C',letterSpacing:'0.12em'}}>What you can earn</div>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900" style={{fontFamily:"'Montserrat',sans-serif",letterSpacing:'-0.03em'}}>Your account&apos;s quality sets your pay</h2>
-            <p className="mt-3 text-gray-600">The stronger the profile, the more it earns each month. Here&apos;s roughly what each tier pays.</p>
+      {/* How earning works — structure only, no public payout figures */}
+      <section id="earn" style={{ background: "#FBFCFB", padding: "64px 24px 8px", borderBottom: "1px solid #E8E6E1" }}>
+        <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 40px" }}>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>How earning works</div>
+          <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>A bonus to start, then paid every month</h2>
+          <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>Get a one-time setup bonus when your account is approved, then a payout every month it stays active. Get your free valuation to see exactly what yours is worth.</p>
+        </div>
+
+        <div style={{ maxWidth: 820, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, alignItems: "stretch" }} className="a-earn-grid">
+          <div style={{ background: "#fff", border: "1px solid #E7EBE8", borderRadius: 20, padding: "30px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", color: "#067A45", background: "#E7F6EE", padding: "5px 11px", borderRadius: 7 }}>ONE-TIME</span>
+            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 22, color: "#0B1220", margin: "20px 0 6px" }}>Setup bonus</div>
+            <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid once when your account is approved and set up — just for getting started.</p>
           </div>
-          <div className="atiers">
-            <div className="atier t-basic">
-              <span className="a-cat">Entry</span>
-              <h3>New / Basic <span className="a-strength"><i className="on" /><i /><i /></span></h3>
-              <div className="a-eg">
-                <div className="a-eg-av" style={{background:'linear-gradient(135deg,#9be0b8,#4caf80)'}}>JT<span className="a-eg-dot" /></div>
-                <div><div><span className="a-eg-name">Jordan T.</span><span className="a-eg-tag">Example</span></div><div className="a-eg-role">Sales Associate</div></div>
-              </div>
-              <div className="a-egstats">
-                <div><b>~900</b><span>connections</span></div>
-                <div><b>1 yr</b><span>account age</span></div>
-                <div><b style={{color:'#C4CAD3'}}>—</b><span>Sales Nav</span></div>
-              </div>
-              <p className="a-desc">Newer profiles, fewer connections. Every account still earns.</p>
-              <div className="a-band">You earn <small>· $10–$30/mo</small></div>
-            </div>
-            <div className="atier feat t-est">
-              <span className="a-badge">Most common</span>
-              <span className="a-cat">Sweet spot</span>
-              <h3>Established <span className="a-strength"><i className="on" /><i className="on" /><i /></span></h3>
-              <div className="a-eg">
-                <div className="a-eg-av" style={{background:'linear-gradient(135deg,#6fd99e,#00B85C)'}}>AK<span className="a-eg-dot" /></div>
-                <div><div><span className="a-eg-name">Anna K.</span><span className="a-eg-tag">Example</span></div><div className="a-eg-role">Marketing Manager</div></div>
-              </div>
-              <div className="a-egstats">
-                <div><b>4,200</b><span>connections</span></div>
-                <div><b>4 yrs</b><span>account age</span></div>
-                <div><b style={{color:'#0A66C2'}}>✓</b><span>Sales Nav</span></div>
-              </div>
-              <p className="a-desc">Solid connections and an active history — the most common earner.</p>
-              <div className="a-band">You earn <small>· $30–$100/mo</small></div>
-            </div>
-            <div className="atier t-prem">
-              <span className="a-cat">Top tier</span>
-              <h3>Premium <span className="a-strength"><i className="on" /><i className="on" /><i className="on" /></span></h3>
-              <div className="a-eg">
-                <div className="a-eg-av" style={{background:'linear-gradient(135deg,#00B85C,#0A4D30)'}}>ML<span className="a-eg-dot" /></div>
-                <div><div><span className="a-eg-name">Marcus L.</span><span className="a-eg-tag">Example</span></div><div className="a-eg-role">VP of Sales</div></div>
-              </div>
-              <div className="a-egstats">
-                <div><b>12,000</b><span>connections</span></div>
-                <div><b>9 yrs</b><span>account age</span></div>
-                <div><b style={{color:'#0A66C2'}}>✓</b><span>Sales Nav</span></div>
-              </div>
-              <p className="a-desc">Senior, large networks with Sales Navigator. Top monthly payouts.</p>
-              <div className="a-band">You earn <small>· $100–$500/mo</small></div>
-            </div>
+          <div style={{ position: "relative", background: "#fff", border: "1.5px solid #00A150", borderRadius: 20, padding: "30px", boxShadow: "0 18px 44px rgba(0,161,80,0.16)" }}>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", color: "#fff", background: "#00A150", padding: "5px 11px", borderRadius: 7 }}>EVERY MONTH</span>
+            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 22, color: "#00A150", margin: "20px 0 6px" }}>Monthly payout</div>
+            <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid every month your account stays active — for as long as you keep it shared. Cancel anytime.</p>
           </div>
-          <div className="mx-auto mt-10 max-w-3xl rounded-xl border border-green-200 bg-green-50 p-5 text-center">
-            <p className="text-sm font-semibold text-green-800 mb-1">It&apos;s not just your account</p>
-            <p className="text-sm text-green-700">Got family members who don&apos;t use their LinkedIn? Your brothers, sisters, parents, aunties, uncles — submit their accounts too and get paid for each one. If the account exists, it has value.</p>
+        </div>
+
+        <div style={{ maxWidth: 820, margin: "18px auto 0", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", justifyContent: "center", background: "#F6FAF7", border: "1px solid #E6F0EA", borderRadius: 14, padding: "16px 22px" }}>
+          <span style={{ fontSize: 14.5, color: "#37424F" }}><strong style={{ color: "#0B1220" }}>More accounts, more income:</strong> share your own and your family&apos;s — each approved account earns its own setup bonus + monthly payout.</span>
+        </div>
+
+        <div style={{ maxWidth: 900, margin: "34px auto 0" }}>
+          <div style={{ background: "linear-gradient(135deg,#E7F6EE,#F1FAF4)", border: "1px solid #CDEBD9", borderRadius: 16, padding: "26px 30px", textAlign: "center" }}>
+            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 19, color: "#0B1220", marginBottom: 8 }}>It&apos;s not just your account</div>
+            <p style={{ fontSize: 15.5, lineHeight: 1.65, color: "#37424F", margin: "0 auto", maxWidth: 640 }}>Got family who don&apos;t use their LinkedIn? Your siblings, parents, aunties, uncles — submit their accounts too and earn a setup bonus plus monthly payout for each one. If the account exists, it has value.</p>
           </div>
+        </div>
+
+        <div style={{ textAlign: "center", padding: "34px 0 0" }}>
+          <button type="button" onClick={() => setStep("info")} style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#00B85C", color: "#fff", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 12px 28px rgba(0,184,92,0.28)" }}>Get my free valuation →</button>
         </div>
       </section>
       </>
