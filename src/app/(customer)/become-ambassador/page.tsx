@@ -574,14 +574,16 @@ export default function BecomeAmbassadorPage() {
             </div>
             <div className="a-4grid" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
               {[
-                { stat: "1st", label: "Paid monthly", body: "On the 1st of every month, like clockwork." },
-                { stat: "Bank", label: "Your choice", body: "Bank transfer, straight to an account of your choice." },
-                { stat: "100%", label: "Guaranteed", body: "Paid even in months your account isn't rented." },
-                { stat: "+", label: "Scale up", body: "Add more accounts (yours or family's) for more income." },
+                { icon: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M9 15l2 2 4-4" /></>, bg: "#E7F6EE", fg: "#067A45", label: "Paid monthly", body: "On the 1st of every month, like clockwork." },
+                { icon: <path d="M3 21h18M4 10h16M5 10l7-6 7 6M6 10v11M18 10v11M10 10v11M14 10v11" />, bg: "#EAF2FC", fg: "#0A66C2", label: "Your choice", body: "Bank transfer, straight to an account of your choice." },
+                { icon: <><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></>, bg: "#E7F6EE", fg: "#067A45", label: "Guaranteed", body: "Paid even in months your account isn't rented." },
+                { icon: <path d="M12 5v14M5 12h14" />, bg: "#EAF2FC", fg: "#0A66C2", label: "Scale up", body: "Add more accounts (yours or family's) for more income." },
               ].map((p) => (
                 <div key={p.label} className="a-lift" style={{ textAlign: "center", background: "#fff", border: "1px solid #E7EBE8", borderRadius: 16, padding: "28px 20px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
-                  <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, letterSpacing: "-0.02em", color: "#00A150", lineHeight: 1 }}>{p.stat}</div>
-                  <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 15, color: "#0B1220", margin: "12px 0 6px" }}>{p.label}</div>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: p.bg, color: p.fg, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{p.icon}</svg>
+                  </div>
+                  <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 15, color: "#0B1220", margin: "14px 0 6px" }}>{p.label}</div>
                   <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "#8A93A2", margin: 0 }}>{p.body}</p>
                 </div>
               ))}
