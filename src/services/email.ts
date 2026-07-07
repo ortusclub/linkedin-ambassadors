@@ -458,7 +458,7 @@ export async function sendFieldMarketingLead(app: {
       : `<tr><td style="padding:6px 12px;color:#536471;font-size:13px;white-space:nowrap;">${label}</td><td style="padding:6px 12px;color:#0F1419;font-size:13px;">${value}</td></tr>`;
 
   return sendEmail({
-    to: "sam@linkedvelocity.com",
+    to: "info@linkedvelocity.com",
     subject: `New field marketing applicant: ${app.fullName}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 20px;">

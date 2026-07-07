@@ -59,8 +59,8 @@ export function FieldMarketingForm() {
         </p>
         <p className="mt-4 text-sm text-gray-500">
           Any questions? Email us at{" "}
-          <a href="mailto:sam@linkedvelocity.com" className="text-blue-600 underline">
-            sam@linkedvelocity.com
+          <a href="mailto:info@linkedvelocity.com" className="text-blue-600 underline">
+            info@linkedvelocity.com
           </a>
         </p>
       </div>
@@ -116,8 +116,8 @@ export function FieldMarketingForm() {
 
       <p className="text-center text-xs text-gray-500">
         Questions? Email{" "}
-        <a href="mailto:sam@linkedvelocity.com" className="text-blue-600 underline">
-          sam@linkedvelocity.com
+        <a href="mailto:info@linkedvelocity.com" className="text-blue-600 underline">
+          info@linkedvelocity.com
         </a>
       </p>
     </form>
