@@ -598,15 +598,14 @@ export default function BecomeAmbassadorPage() {
             </div>
             <div className="a-4grid" style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 22 }}>
               {[
-                { n: "1", icon: "🔍", title: "Get a free valuation", body: "Enter your profile and see what it's worth instantly — no sign-up needed." },
-                { n: "2", icon: "🛡️", title: "Share your profile securely", body: "We set up protected, proxy-based access through GoLogin. Your login stays safe." },
-                { n: "3", icon: "✅", title: "We review & approve", body: "Our team checks the account and lists it for renters — usually within a day or two." },
-                { n: "4", icon: "💸", title: "Get paid monthly", body: "Earn every month, guaranteed, via Wise or bank transfer." },
+                { n: "1", title: "Get a free valuation", body: "Enter your profile and see what it's worth instantly — no sign-up needed." },
+                { n: "2", title: "Share your profile securely", body: "We set up protected, proxy-based access through GoLogin. Your login stays safe." },
+                { n: "3", title: "We review & approve", body: "Our team checks the account and lists it for renters — usually within a day or two." },
+                { n: "4", title: "Get paid monthly", body: "Earn every month, guaranteed, via Wise or bank transfer." },
               ].map((s) => (
                 <div key={s.n} className="a-lift" style={{ background: "#fff", border: "1px solid #E7EBE8", borderRadius: 18, padding: "26px 24px 24px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
                     <span style={{ width: 44, height: 44, borderRadius: 13, background: "linear-gradient(150deg,#00B85C,#068A48)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 18, boxShadow: "0 8px 18px rgba(0,161,80,0.3)" }}>{s.n}</span>
-                    <span style={{ fontSize: 20 }}>{s.icon}</span>
                   </div>
                   <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 17, color: "#0B1220", marginBottom: 8, lineHeight: 1.25 }}>{s.title}</div>
                   <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>{s.body}</p>
