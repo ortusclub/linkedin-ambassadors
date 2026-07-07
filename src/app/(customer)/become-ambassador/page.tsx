@@ -644,8 +644,14 @@ export default function BecomeAmbassadorPage() {
             </div>
             <div style={{ maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }}>
               {[
+                { q: "Is this allowed? Is it legal?", a: "Completely legal — it's your account, and it's your choice to share access to it if you want to. Everything is consent-based and secure: you decide to take part, you stay in full control, and you can stop anytime. We only work with vetted businesses using accounts for normal professional outreach." },
                 { q: "Is it safe to share my account?", a: "Yes. Access runs through a dedicated proxy and a secure anti-detect browser (GoLogin), and your password is never exposed. Renters use the account for outreach only — they can never change your profile or post as you." },
+                { q: "Do I have to share my password?", a: "No — never. Your password stays entirely yours. We simply add a secure access email to your account, so access works through our software without your password ever being shared." },
+                { q: "What will renters use my account for?", a: "Normal B2B outreach — sending connection requests and messages to potential clients. Renters are vetted businesses, and they can never change your profile, post as you, or touch your settings. It's used for outreach only." },
+                { q: "Can I still use my account while it's shared?", a: "Yes. You keep full access to your own account at any time, and you can see exactly how it's being used and who's being messaged. Sharing doesn't mean giving it up." },
                 { q: "Will this affect my LinkedIn account?", a: "Activity is kept human-paced and within LinkedIn's normal limits to protect the account. Your name, photo, and headline stay exactly as they are." },
+                { q: "What if my account gets restricted?", a: "It's rare — activity is kept human-paced and secure to protect the account. If a restriction ever does happen, we work to recover it, and since it's your own account you're never penalised for it." },
+                { q: "How much will I earn?", a: "A ₱1,000 one-time setup bonus, then ₱500 every month your account stays active — the same for every approved account. Have more than one (yours or family's)? Each earns its own bonus and monthly payout. Higher payouts for stronger profiles are coming soon." },
                 { q: "When and how do I get paid?", a: "You're paid every month via bank transfer — even in months your account isn't rented." },
                 { q: "Do I have to do anything day-to-day?", a: "Nothing. It's completely hands-off — you don't run campaigns, reply to messages, or manage anything. We handle it all." },
                 { q: "Can I stop anytime?", a: "Yes. You can withdraw your account at any time with no lock-in and no penalties." },
