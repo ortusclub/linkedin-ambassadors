@@ -574,8 +574,8 @@ export default function BecomeAmbassadorPage() {
             </div>
             <div className="a-4grid" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
               {[
-                { stat: "Monthly", label: "Paid every month", body: "A reliable payout each month, like clockwork." },
-                { stat: "Bank", label: "How you're paid", body: "Bank transfer, straight to an account of your choice." },
+                { stat: "1st", label: "Paid monthly", body: "On the 1st of every month, like clockwork." },
+                { stat: "Bank", label: "Your choice", body: "Bank transfer, straight to an account of your choice." },
                 { stat: "100%", label: "Guaranteed", body: "Paid even in months your account isn't rented." },
                 { stat: "+", label: "Scale up", body: "Add more accounts (yours or family's) for more income." },
               ].map((p) => (
