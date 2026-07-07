@@ -575,7 +575,7 @@ export default function BecomeAmbassadorPage() {
             <div className="a-4grid" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
               {[
                 { stat: "Monthly", label: "Paid every month", body: "A reliable payout each month, like clockwork." },
-                { stat: "Wise", label: "How you're paid", body: "Via Wise, or bank transfer — whichever's convenient for you." },
+                { stat: "Bank", label: "How you're paid", body: "Bank transfer, straight to an account of your choice." },
                 { stat: "100%", label: "Guaranteed", body: "Paid even in months your account isn't rented." },
                 { stat: "+", label: "Scale up", body: "Add more accounts (yours or family's) for more income." },
               ].map((p) => (
@@ -601,7 +601,7 @@ export default function BecomeAmbassadorPage() {
                 { n: "1", title: "Get a free valuation", body: "Enter your profile and see what it's worth instantly — no sign-up needed." },
                 { n: "2", title: "Share your profile securely", body: "We set up protected, proxy-based access through GoLogin. Your login stays safe." },
                 { n: "3", title: "We review & approve", body: "Our team checks the account and lists it for renters — usually within a day or two." },
-                { n: "4", title: "Get paid monthly", body: "Earn every month, guaranteed, via Wise or bank transfer." },
+                { n: "4", title: "Get paid monthly", body: "Earn every month, guaranteed, via bank transfer." },
               ].map((s) => (
                 <div key={s.n} className="a-lift" style={{ background: "#fff", border: "1px solid #E7EBE8", borderRadius: 18, padding: "26px 24px 24px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
@@ -646,7 +646,7 @@ export default function BecomeAmbassadorPage() {
               {[
                 { q: "Is it safe to share my account?", a: "Yes. Access runs through a dedicated proxy and a secure anti-detect browser (GoLogin), and your password is never exposed. Renters use the account for outreach only — they can never change your profile or post as you." },
                 { q: "Will this affect my LinkedIn account?", a: "Activity is kept human-paced and within LinkedIn's normal limits to protect the account. Your name, photo, and headline stay exactly as they are." },
-                { q: "When and how do I get paid?", a: "You're paid every month via Wise, or bank transfer — even in months your account isn't rented." },
+                { q: "When and how do I get paid?", a: "You're paid every month via bank transfer — even in months your account isn't rented." },
                 { q: "Do I have to do anything day-to-day?", a: "Nothing. It's completely hands-off — you don't run campaigns, reply to messages, or manage anything. We handle it all." },
                 { q: "Can I stop anytime?", a: "Yes. You can withdraw your account at any time with no lock-in and no penalties." },
                 { q: "Can I submit accounts that aren't mine?", a: "You can submit accounts belonging to family members with their consent — siblings, parents, aunties, uncles. Each approved account earns its own setup bonus and monthly payout." },
@@ -933,7 +933,7 @@ export default function BecomeAmbassadorPage() {
                     <span style={{ fontSize: 20, color: "#9DC4AE", fontWeight: 500 }}>/mo</span>
                   </div>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ ₱1,000 one-time setup bonus</div>
-                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via Wise or bank transfer on the 1st of each month. Cancel anytime.</p>
+                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via bank transfer on the 1st of each month. Cancel anytime.</p>
                 </div>
               </div>
 
@@ -1582,7 +1582,7 @@ export default function BecomeAmbassadorPage() {
               {[
                 { q: "Is my account safe?", a: "Yes. Your account is accessed through a secure, isolated browser profile with its own fingerprint and proxy. It looks like normal usage to LinkedIn." },
                 { q: "Do I lose access to my own account?", a: "No. Both you and the renter have access to the account at any time through our proprietary software. You can see what they're using it for and who they're messaging. You don't lose access to anything." },
-                { q: "How do I get paid?", a: "We pay via Wise or bank transfer to a bank of your choice. We pay out on the 1st of every month." },
+                { q: "How do I get paid?", a: "We pay via bank transfer to a bank of your choice. We pay out on the 1st of every month." },
                 { q: "Can I stop at any time?", a: "Yes. You can withdraw your account anytime — just change your password or remove it. You won't be paid for the following month, and we'd appreciate a heads up, but it's completely up to you. You always have full access to your account, just like anybody else." },
               ].map((faq) => (
                 <div key={faq.q}>
