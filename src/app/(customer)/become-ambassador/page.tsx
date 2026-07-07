@@ -734,10 +734,10 @@ export default function BecomeAmbassadorPage() {
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-start justify-between">
             {[
-              { n: "1", title: "Get a Valuation", active: step === "info" || step === "scanning" || step === "result" || step === "bank", done: ["account-details","login","complete","done"].includes(step as string), goTo: "info" as Step, color: "#0A66C2" },
-              { n: "2", title: "Share Your Profile", active: step === "account-details" || step === "login", done: ["complete","done"].includes(step as string), goTo: "account-details" as Step, color: "#00B85C" },
-              { n: "3", title: "Get Approved", active: step === "complete", done: step === "done", goTo: "complete" as Step, color: "#0A66C2" },
-              { n: "4", title: "Get Paid Monthly", active: false, done: step === "done", goTo: "done" as Step, color: "#00B85C" },
+              { n: "1", title: "Get a Valuation", active: step === "info" || step === "scanning" || step === "result" || step === "bank" || step === "scheduled" || step === "review", done: ["account-details","login","complete","done"].includes(step as string), goTo: "info" as Step, color: "#00A150" },
+              { n: "2", title: "Share Your Profile", active: step === "account-details" || step === "login", done: ["complete","done"].includes(step as string), goTo: "account-details" as Step, color: "#00A150" },
+              { n: "3", title: "Get Approved", active: step === "complete", done: step === "done", goTo: "complete" as Step, color: "#00A150" },
+              { n: "4", title: "Get Paid Monthly", active: false, done: step === "done", goTo: "done" as Step, color: "#00A150" },
             ].map((s, i, arr) => (
               <div key={s.n} className="flex items-start" style={{flex:1}}>
                 <div
@@ -772,272 +772,212 @@ export default function BecomeAmbassadorPage() {
       )}
 
       {step !== "choice" && (
-      <section className="py-16">
-        <div className="mx-auto max-w-xl px-4">
+      <section className="py-16" style={{ background: "#FBFCFB" }}>
+        <div className="mx-auto px-4" style={{ maxWidth: step === "info" ? 1120 : 576 }}>
           {error && <div className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+          <style>{`.ambf-in{width:100%;font-family:'Inter',sans-serif;font-size:15px;color:#0B1220;background:#fff;border:1px solid #DCE3DE;border-radius:11px;padding:13px 14px;outline:none;transition:border-color .15s, box-shadow .15s}.ambf-in:focus{border-color:#00A150;box-shadow:0 0 0 3px rgba(0,161,80,0.14)}.ambf-in::placeholder{color:#A6B0AA}@media(max-width:820px){.ambf-grid{grid-template-columns:1fr!important}.ambf-side{position:static!important}}`}</style>
 
-          {/* STEP 1: Form */}
+          {/* STEP 1: Form — new green design (form + sidebar) */}
           {step === "info" && (
-            <form onSubmit={handleSubmit}>
-              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Get Your Profile Valuation</h2>
-              <p className="text-center text-gray-500 mb-2">We&apos;ll evaluate your profile instantly</p>
-              <button
-                type="button"
-                onClick={() => {
-                  if (isLoggedIn) {
-                    setStep("scheduled");
-                  } else {
-                    stashSignupPrefill();
-                    window.location.href = "/register?redirect=" + encodeURIComponent("/become-ambassador?booked=1");
-                  }
-                }}
-                className="block mx-auto mb-6 text-sm text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Skip valuation for now →
-              </button>
-              <Card>
-                <CardContent className="py-6 space-y-4">
-                  {/* Your details */}
-                  <div className="border-b border-gray-100 pb-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Your Details</p>
-                    <div className="space-y-4">
-                      <Input id="fullName" label="Your Full Name *" value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required />
-                      <Input id="email" label="Your Email *" type="email" placeholder="your@email.com" value={form.email} onChange={(e) => update("email", e.target.value)} required />
-                      <div className="space-y-1">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp or Telegram *</label>
-                          <div className="flex gap-2 mb-2">
-                            <button
-                              type="button"
-                              onClick={() => update("contactMethod", "whatsapp")}
-                              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${form.contactMethod === "whatsapp" ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
-                            >
-                              WhatsApp
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => update("contactMethod", "telegram")}
-                              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${form.contactMethod === "telegram" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
-                            >
-                              Telegram
-                            </button>
-                          </div>
-                          <input
-                            type="text"
-                            value={form.contactHandle}
-                            onChange={(e) => update("contactHandle", e.target.value)}
-                            placeholder={form.contactMethod === "whatsapp" ? "+44 7700 000000" : "@username"}
-                            required
-                            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        </div>
-                        <p className="text-xs text-gray-400">Please include your country code (e.g. +1, +44). We'll only contact you if there's an issue with one of your ambassador accounts or if we're having issues with your billing or payment information. We won't contact you for marketing or spamming.</p>
-                      </div>
-                    </div>
+            <div>
+              <div style={{ textAlign: "center", maxWidth: 600, margin: "0 auto 8px" }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 12 }}>Step 1 · Get a valuation</div>
+                <h1 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,38px)", letterSpacing: "-0.03em", margin: "0 0 10px" }}>Get your profile valuation</h1>
+                <p style={{ fontSize: 17, color: "#5A6473", margin: "0 0 6px" }}>We&apos;ll evaluate your profile instantly — free, no obligation.</p>
+                <button type="button" onClick={() => { if (isLoggedIn) { setStep("scheduled"); } else { stashSignupPrefill(); window.location.href = "/register?redirect=" + encodeURIComponent("/become-ambassador?booked=1"); } }} style={{ background: "none", border: "none", fontSize: 14.5, color: "#0A66C2", fontWeight: 600, cursor: "pointer" }}>Skip valuation for now →</button>
+              </div>
+
+              <div className="ambf-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px", gap: 34, alignItems: "start", marginTop: 34 }}>
+                {/* FORM */}
+                <form onSubmit={handleSubmit} style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 20, padding: "30px 32px", boxShadow: "0 6px 20px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.04)" }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2", marginBottom: 18 }}>Your details</div>
+
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Your full name <span style={{ color: "#00A150" }}>*</span></label>
+                    <input className="ambf-in" type="text" value={form.fullName} onChange={(e) => update("fullName", e.target.value)} required />
+                  </div>
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Your email <span style={{ color: "#00A150" }}>*</span></label>
+                    <input className="ambf-in" type="email" placeholder="you@email.com" value={form.email} onChange={(e) => update("email", e.target.value)} required />
                   </div>
 
-                  {/* LinkedIn profile details */}
-                  <div className="border-b border-gray-100 pb-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">LinkedIn Profile You Want to Share</p>
-                    <div className="space-y-4">
-                      <label className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={form.sameNameAsProfile}
-                          onChange={(e) => setForm(prev => ({ ...prev, sameNameAsProfile: e.target.checked }))}
-                          className="rounded border-gray-300"
-                        />
-                        The LinkedIn profile name is the same as my name above
-                      </label>
-                      {!form.sameNameAsProfile && (
-                        <Input id="linkedinProfileName" label="Name on LinkedIn Profile *" placeholder="e.g. John Smith" value={form.linkedinProfileName} onChange={(e) => update("linkedinProfileName", e.target.value)} />
-                      )}
-
-                      <label className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={form.sameEmailAsProfile}
-                          onChange={(e) => setForm(prev => ({ ...prev, sameEmailAsProfile: e.target.checked }))}
-                          className="rounded border-gray-300"
-                        />
-                        The LinkedIn login email is the same as my email above
-                      </label>
-                      {!form.sameEmailAsProfile && (
-                        <Input id="linkedinEmail" label="Email Used for LinkedIn Login *" type="email" placeholder="linkedin@email.com" value={form.linkedinEmail} onChange={(e) => update("linkedinEmail", e.target.value)} />
-                      )}
-
-                      <Input id="linkedinUrl" label="LinkedIn Profile URL *" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} required />
+                  <div style={{ marginBottom: 6 }}>
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>WhatsApp or Telegram <span style={{ color: "#00A150" }}>*</span></label>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                      {(["whatsapp", "telegram"] as const).map((m) => {
+                        const on = form.contactMethod === m;
+                        return <button key={m} type="button" onClick={() => update("contactMethod", m)} style={{ flex: 1, cursor: "pointer", fontFamily: "'Inter',sans-serif", fontSize: 14, fontWeight: 600, borderRadius: 10, padding: 11, transition: "all .15s", color: on ? "#067A45" : "#5A6473", background: on ? "#EAF7F0" : "#fff", border: "1.5px solid " + (on ? "#00A150" : "#DCE3DE") }}>{m === "whatsapp" ? "WhatsApp" : "Telegram"}</button>;
+                      })}
                     </div>
+                    <input className="ambf-in" type="text" value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder={form.contactMethod === "whatsapp" ? "+44 7700 000000" : "@yourhandle"} required />
+                    <p style={{ fontSize: 12, lineHeight: 1.55, color: "#96A0AD", margin: "9px 0 0" }}>Include your country code. We&apos;ll only contact you about your ambassador accounts or billing — never marketing or spam.</p>
                   </div>
 
-                  {/* How did you hear about us? */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">How did you hear about us?</label>
-                    <select
-                      value={form.referralSource}
-                      onChange={(e) => update("referralSource", e.target.value)}
-                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
+                  <div style={{ height: 1, background: "#EEF0F3", margin: "24px 0" }} />
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2", marginBottom: 16 }}>LinkedIn profile you want to share</div>
+
+                  <label style={{ display: "flex", gap: 11, alignItems: "flex-start", cursor: "pointer", marginBottom: 12 }}>
+                    <input type="checkbox" checked={form.sameNameAsProfile} onChange={(e) => setForm(prev => ({ ...prev, sameNameAsProfile: e.target.checked }))} style={{ marginTop: 3, accentColor: "#00A150" }} />
+                    <span style={{ fontSize: 14, color: "#37424F", lineHeight: 1.4 }}>The LinkedIn profile name is the same as my name above</span>
+                  </label>
+                  {!form.sameNameAsProfile && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Name on LinkedIn profile <span style={{ color: "#00A150" }}>*</span></label>
+                      <input className="ambf-in" type="text" placeholder="e.g. John Smith" value={form.linkedinProfileName} onChange={(e) => update("linkedinProfileName", e.target.value)} />
+                    </div>
+                  )}
+                  <label style={{ display: "flex", gap: 11, alignItems: "flex-start", cursor: "pointer", marginBottom: 18 }}>
+                    <input type="checkbox" checked={form.sameEmailAsProfile} onChange={(e) => setForm(prev => ({ ...prev, sameEmailAsProfile: e.target.checked }))} style={{ marginTop: 3, accentColor: "#00A150" }} />
+                    <span style={{ fontSize: 14, color: "#37424F", lineHeight: 1.4 }}>The LinkedIn login email is the same as my email above</span>
+                  </label>
+                  {!form.sameEmailAsProfile && (
+                    <div style={{ marginBottom: 18 }}>
+                      <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Email used for LinkedIn login <span style={{ color: "#00A150" }}>*</span></label>
+                      <input className="ambf-in" type="email" placeholder="linkedin@email.com" value={form.linkedinEmail} onChange={(e) => update("linkedinEmail", e.target.value)} />
+                    </div>
+                  )}
+
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>LinkedIn profile URL <span style={{ color: "#00A150" }}>*</span></label>
+                    <input className="ambf-in" type="url" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} required />
+                  </div>
+                  <div style={{ marginBottom: 26 }}>
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>How did you hear about us?</label>
+                    <select className="ambf-in" value={form.referralSource} onChange={(e) => update("referralSource", e.target.value)}>
                       <option value="">Select an option (optional)</option>
-                      <option>Google search</option>
-                      <option>LinkedIn</option>
-                      <option>ChatGPT / AI tool</option>
-                      <option>Social media</option>
-                      <option>Reddit</option>
-                      <option>Friend or referral</option>
-                      <option>Other</option>
+                      <option>Google search</option><option>LinkedIn</option><option>ChatGPT / AI tool</option><option>Social media</option><option>Reddit</option><option>Friend or referral</option><option>Other</option>
                     </select>
                   </div>
 
-                  <Button type="submit" className="w-full" size="lg">Get Profile Valuation</Button>
-                </CardContent>
-              </Card>
-            </form>
+                  <button type="submit" style={{ width: "100%", background: "#00B85C", color: "#fff", fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: "pointer", boxShadow: "0 12px 28px rgba(0,184,92,0.28)" }}>Get my profile valuation →</button>
+                  <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Free · instant · no account required</div>
+                </form>
+
+                {/* SIDEBAR */}
+                <div className="ambf-side" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 24 }}>
+                  <div style={{ background: "#0D2A1C", borderRadius: 18, padding: 24 }}>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6FCF97", marginBottom: 14 }}>What you&apos;ll earn</div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: "#fff" }}>₱500</span>
+                      <span style={{ fontSize: 14, color: "#9DC4AE" }}>/month</span>
+                    </div>
+                    <div style={{ fontSize: 13.5, color: "#9DC4AE", marginTop: 4 }}>plus a ₱1,000 one-time setup bonus.</div>
+                    <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "18px 0" }} />
+                    {["Paid every month, guaranteed", "You keep full control of your account", "Cancel anytime, no penalties"].map((t) => (
+                      <div key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: "#D6E7DD", lineHeight: 1.45, marginBottom: 12 }}><span style={{ color: "#3EF08A", fontWeight: 700 }}>✓</span>{t}</div>
+                    ))}
+                  </div>
+
+                  <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 16, padding: "20px 22px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
+                    <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 15, marginBottom: 12 }}>What happens after this</div>
+                    {[["1", "Instant estimate of your monthly value"], ["2", "Quick review by our team (1–2 days)"], ["3", "Approved, listed, and you start earning"]].map(([n, t]) => (
+                      <div key={n} style={{ display: "flex", gap: 11, alignItems: "flex-start", marginBottom: 12 }}>
+                        <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", background: "#E7F6EE", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 11 }}>{n}</span>
+                        <span style={{ fontSize: 13, color: "#5A6473", lineHeight: 1.5 }}>{t}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, justifyContent: "center", fontSize: 12.5, color: "#96A0AD" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    Your details are kept private
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* STEP 2: Scanning animation */}
           {step === "scanning" && (
-            <div className="text-center py-12">
-              <div className="mx-auto mb-8 relative">
-                {/* Spinning rings */}
-                <div className="mx-auto h-32 w-32 relative">
-                  <div className="absolute inset-0 rounded-full border-4 border-blue-200 animate-ping opacity-20" />
-                  <div className="absolute inset-2 rounded-full border-4 border-blue-300 animate-spin" style={{ borderTopColor: "transparent", animationDuration: "1.5s" }} />
-                  <div className="absolute inset-4 rounded-full border-4 border-blue-400 animate-spin" style={{ borderBottomColor: "transparent", animationDuration: "2s", animationDirection: "reverse" }} />
-                  <div className="absolute inset-6 rounded-full border-4 border-blue-500 animate-spin" style={{ borderTopColor: "transparent", animationDuration: "1s" }} />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <svg className="h-10 w-10 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                    </svg>
+            <div style={{ maxWidth: 520, margin: "0 auto", textAlign: "center", padding: "20px 0 40px" }}>
+              <style>{`@keyframes ambSpin{to{transform:rotate(360deg)}}@keyframes ambPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.9;transform:scale(1.04)}}`}</style>
+              <div style={{ position: "relative", width: 150, height: 150, margin: "0 auto 30px" }}>
+                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,184,92,0.10), rgba(0,184,92,0) 70%)", animation: "ambPulse 2.4s ease-in-out infinite" }} />
+                <div style={{ position: "absolute", inset: 18, borderRadius: "50%", border: "3px solid #E4F1EA", borderTopColor: "#00B85C", borderRightColor: "#00B85C", animation: "ambSpin 1.1s linear infinite" }} />
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#00A150" }}>
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+                </div>
+              </div>
+              <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 30, letterSpacing: "-0.02em", margin: "0 0 8px" }}>Assessing your profile</h2>
+              <p style={{ fontSize: 16, color: "#8A93A2", margin: "0 0 30px" }}>This will only take a moment…</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 340, margin: "0 auto 34px", textAlign: "left" }}>
+                {SCAN_STEPS.map((label, i) => {
+                  const done = i < scanIndex, activeS = i === scanIndex;
+                  return (
+                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 13 }}>
+                      <span style={{ flexShrink: 0, width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: done ? "#067A45" : "#00A150", background: done ? "#E7F6EE" : (activeS ? "transparent" : "#F1F3F2"), border: activeS ? "2.5px solid #E4F1EA" : "none", borderTopColor: activeS ? "#00B85C" : undefined, animation: activeS ? "ambSpin 0.9s linear infinite" : "none" }}>{done ? "✓" : ""}</span>
+                      <span style={{ fontSize: 15.5, fontWeight: (done || activeS) ? 600 : 500, color: done ? "#067A45" : (activeS ? "#0B1220" : "#B0B7C2") }}>{label}{done ? "" : "…"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ maxWidth: 400, margin: "0 auto", height: 8, borderRadius: 999, background: "#EAEFEC", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${Math.min(100, (scanIndex / SCAN_STEPS.length) * 100)}%`, borderRadius: 999, background: "linear-gradient(90deg,#00B85C,#00A150)", transition: "width .5s ease" }} />
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: Result & offer — green design */}
+          {step === "result" && offer && (
+            <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center", padding: "16px 0 40px" }}>
+              <div style={{ width: 74, height: 74, margin: "0 auto 22px", borderRadius: "50%", background: "linear-gradient(150deg,#00B85C,#068A48)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 16px 34px rgba(0,161,80,0.32)" }}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+              </div>
+              <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 32, letterSpacing: "-0.02em", margin: "0 0 8px" }}>Assessment complete</h2>
+              <p style={{ fontSize: 17, color: "#8A93A2", margin: "0 0 28px" }}>Here&apos;s what we found{form.fullName ? `, ${form.fullName.split(" ")[0]}` : ""}.</p>
+
+              <div style={{ position: "relative", overflow: "hidden", background: "linear-gradient(160deg,#0D2A1C,#0B2018)", borderRadius: 22, padding: "38px 34px", boxShadow: "0 24px 56px rgba(0,0,0,0.2)" }}>
+                <div style={{ position: "absolute", width: 340, height: 340, left: "50%", top: -180, transform: "translateX(-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(0,184,92,0.24), rgba(0,184,92,0) 65%)", filter: "blur(16px)", pointerEvents: "none" }} />
+                <div style={{ position: "relative" }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6FCF97", marginBottom: 16 }}>Based on your profile, we&apos;d like to offer you</div>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 8 }}>
+                    <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 64, lineHeight: 1, letterSpacing: "-0.03em", color: "#fff" }}>₱500</span>
+                    <span style={{ fontSize: 20, color: "#9DC4AE", fontWeight: 500 }}>/mo</span>
                   </div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ ₱1,000 one-time setup bonus</div>
+                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via Wise or bank transfer on the 1st of each month. Cancel anytime.</p>
                 </div>
               </div>
 
-              <h2 className="text-2xl font-bold text-gray-900">Assessing Your Profile</h2>
-              <p className="mt-2 text-gray-500">This will only take a moment...</p>
+              <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+                <button onClick={() => { if (!isLoggedIn) { stashSignupPrefill(); window.location.href = "/register?redirect=" + encodeURIComponent("/become-ambassador?booked=1"); return; } setStep("scheduled"); }} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: "pointer", boxShadow: "0 12px 28px rgba(0,184,92,0.28)" }}>Accept &amp; continue →</button>
+                <button onClick={() => setStep("review")} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", color: "#0B1220", border: "1px solid #DFE3E9", fontSize: 15, fontWeight: 600, borderRadius: 12, padding: 15, cursor: "pointer" }}>Request manual review</button>
+              </div>
+              <p style={{ fontSize: 12.5, lineHeight: 1.55, color: "#96A0AD", margin: "18px 0 0" }}>By accepting, you agree to the <a href="/ambassador-terms" target="_blank" rel="noopener noreferrer" style={{ color: "#00A150", fontWeight: 600 }}>Ambassador Agreement</a> (LinkedIn account access &amp; usage terms).</p>
+            </div>
+          )}
 
-              {/* Scan steps */}
-              <div className="mt-8 text-left max-w-sm mx-auto space-y-3">
-                {SCAN_STEPS.map((label, i) => (
-                  <div key={label} className={`flex items-center gap-3 transition-all duration-500 ${i < scanIndex ? "opacity-100" : i === scanIndex ? "opacity-100" : "opacity-0"}`}>
-                    {i < scanIndex ? (
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 flex-shrink-0">
-                        <svg className="h-3.5 w-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    ) : i === scanIndex ? (
-                      <div className="flex h-6 w-6 items-center justify-center flex-shrink-0">
-                        <div className="h-4 w-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                      </div>
-                    ) : (
-                      <div className="h-6 w-6 flex-shrink-0" />
-                    )}
-                    <span className={`text-sm ${i < scanIndex ? "text-green-700" : i === scanIndex ? "text-blue-700 font-medium" : "text-gray-400"}`}>
-                      {label}
-                    </span>
+          {/* STEP: Book your onboarding call — green design */}
+          {step === "scheduled" && (
+            <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center", padding: "16px 0 40px" }}>
+              <div style={{ position: "relative", width: 88, height: 88, margin: "0 auto 24px" }}>
+                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,184,92,0.16), rgba(0,184,92,0) 70%)" }} />
+                <div style={{ position: "absolute", inset: 8, borderRadius: "50%", background: "linear-gradient(150deg,#00B85C,#068A48)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 16px 34px rgba(0,161,80,0.34)" }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                </div>
+              </div>
+              <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 34, letterSpacing: "-0.02em", margin: "0 0 10px" }}>You&apos;re in{form.fullName ? `, ${form.fullName.split(" ")[0]}` : ""}! 🎉</h2>
+              <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 auto 30px", maxWidth: 460 }}>We&apos;ve got your details. The last step is a quick onboarding call to verify your profile and get you set up to earn.</p>
+
+              <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 11, background: "#00B85C", color: "#fff", fontSize: 16.5, fontWeight: 600, padding: "16px 30px", borderRadius: 14, textDecoration: "none", boxShadow: "0 14px 32px rgba(0,184,92,0.32)" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>Book your onboarding call
+              </a>
+
+              <div style={{ textAlign: "left", background: "#F6FAF7", border: "1px solid #E1EFE7", borderRadius: 18, padding: "24px 26px", marginTop: 30 }}>
+                <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 16, color: "#0B1220", marginBottom: 18 }}>What happens on the call</div>
+                {[["1", "We quickly verify your LinkedIn profile."], ["2", "We connect your account securely via GoLogin — you keep full control."], ["3", "You start earning every month it's active."]].map(([n, t]) => (
+                  <div key={n} style={{ display: "flex", gap: 13, alignItems: "flex-start", marginBottom: 16 }}>
+                    <span style={{ flexShrink: 0, width: 26, height: 26, borderRadius: "50%", background: "#E7F6EE", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 12 }}>{n}</span>
+                    <span style={{ fontSize: 15, lineHeight: 1.55, color: "#37424F" }}>{t}</span>
                   </div>
                 ))}
               </div>
 
-              {/* Progress bar */}
-              <div className="mt-8 mx-auto max-w-sm">
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 rounded-full transition-all duration-700 ease-out"
-                    style={{ width: `${(scanIndex / SCAN_STEPS.length) * 100}%` }}
-                  />
-                </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexWrap: "wrap", marginTop: 22 }}>
+                {["Takes ~10 minutes", "No cost, no commitment"].map((t) => (
+                  <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, color: "#8A93A2" }}><span style={{ color: "#00A150", fontWeight: 700 }}>✓</span>{t}</span>
+                ))}
               </div>
-            </div>
-          )}
-
-          {/* STEP 3: Result & offer */}
-          {step === "result" && offer && (
-            <div className="py-4">
-              <div className="text-center mb-6">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                  <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900">Assessment Complete</h2>
-                <p className="mt-1 text-gray-500">Here&apos;s what we found, {form.fullName.split(" ")[0]}</p>
-              </div>
-
-              {/* Offer */}
-              <Card className="mt-4">
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-gray-500 uppercase tracking-wide font-medium">Based on your {offer.tier} profile, we&apos;d like to offer you</p>
-                  <p className="mt-4 text-6xl font-bold text-green-600">
-                    {formatCurrency(offer.amount)}
-                  </p>
-                  <p className="mt-1 text-lg text-gray-500">per month</p>
-                  <p className="mt-4 text-sm text-gray-500">
-                    Paid by a method of your choosing on the 1st of each month.
-                    <br />Cancel anytime.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <div className="mt-6 flex gap-4">
-                <Button onClick={() => {
-                  if (!isLoggedIn) {
-                    stashSignupPrefill();
-                    window.location.href = "/register?redirect=" + encodeURIComponent("/become-ambassador?booked=1");
-                    return;
-                  }
-                  setStep("scheduled");
-                }} size="lg" className="flex-1">
-                  Accept &amp; Continue
-                </Button>
-                <Button variant="outline" size="lg" onClick={() => setStep("review")} className="flex-1">
-                  Request Manual Review
-                </Button>
-              </div>
-              <p className="mt-4 text-center text-xs text-gray-400">
-                By accepting, you agree to the{" "}
-                <a href="/ambassador-terms" target="_blank" rel="noopener noreferrer" className="text-green-700 underline hover:text-green-800">
-                  Ambassador Agreement
-                </a>{" "}
-                (LinkedIn Account Access &amp; Usage terms).
-              </p>
-            </div>
-          )}
-
-          {/* STEP: Book your onboarding call (interim — after accepting + signing up) */}
-          {step === "scheduled" && (
-            <div className="text-center">
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#E6F9EE]">
-                <svg className="h-8 w-8 text-[#00B85C]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900">You&apos;re in{form.fullName ? `, ${form.fullName.split(" ")[0]}` : ""}! 🎉</h2>
-              <p className="mt-2 text-gray-600 max-w-md mx-auto">
-                We&apos;ve got your details. The last step is a quick onboarding call so we can verify your profile and get you set up to start earning.
-              </p>
-
-              <a
-                href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#00B85C] px-7 py-3.5 text-[15px] font-bold text-white transition hover:bg-[#00A050]"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                Book your onboarding call
-              </a>
-
-              <div className="mt-8 max-w-md mx-auto rounded-xl border border-green-100 bg-green-50/50 p-5 text-left">
-                <p className="text-sm font-semibold text-gray-900 mb-2">What happens on the call</p>
-                <ol className="space-y-1.5 text-sm text-gray-600">
-                  <li>1. We quickly verify your LinkedIn profile.</li>
-                  <li>2. We connect your account securely via GoLogin (you keep full control).</li>
-                  <li>3. You start earning every month it&apos;s active.</li>
-                </ol>
-              </div>
-
-              <a href="/dashboard" className="mt-6 inline-block text-sm font-medium text-gray-500 hover:text-gray-700">
-                Go to my dashboard →
-              </a>
+              <a href="/dashboard" style={{ display: "inline-block", marginTop: 26, fontSize: 15, fontWeight: 600, color: "#5A6473", textDecoration: "none" }}>Go to my dashboard →</a>
             </div>
           )}
 
