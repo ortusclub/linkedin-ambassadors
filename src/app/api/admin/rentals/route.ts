@@ -8,6 +8,9 @@ export async function GET() {
     await requireAdmin();
 
     const rentals = await prisma.rental.findMany({
+      // Cancelled/ended rentals aren't "live" — keep them out of the list so ending a
+      // rental makes it disappear (and it stops being counted / showing a fake renewal).
+      where: { status: { not: "cancelled" } },
       include: {
         user: {
           select: {

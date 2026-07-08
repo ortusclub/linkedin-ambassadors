@@ -40,8 +40,9 @@ export async function POST(
     if (action === "revoke") {
       await prisma.rental.update({ where: { id }, data: { paused: true } });
     } else {
-      // end: permanent — mark cancelled, not paused
-      await prisma.rental.update({ where: { id }, data: { paused: false, status: "cancelled" } });
+      // end: permanent — mark cancelled + free the account so it can be rented again
+      const ended = await prisma.rental.update({ where: { id }, data: { paused: false, status: "cancelled" }, select: { linkedinAccountId: true } });
+      await prisma.linkedInAccount.update({ where: { id: ended.linkedinAccountId }, data: { status: "available" } });
     }
     return NextResponse.json({ ok: true, action, revoked });
   } catch (error) {
