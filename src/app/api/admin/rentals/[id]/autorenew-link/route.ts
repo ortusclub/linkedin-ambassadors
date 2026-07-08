@@ -43,9 +43,13 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     }
 
     // Defer the first charge until the already-paid period ends (avoids double-charging).
+    // Stripe requires trial_end to be >= 48h in the future — so only defer when the paid-through
+    // date is genuinely >2 days out. If the period is near-lapsed/past (e.g. renter let it run
+    // down), skip the trial and bill on checkout — there's no paid period left to double-charge.
     const nowSec = Math.floor(Date.now() / 1000);
     const periodEndSec = rental.currentPeriodEnd ? Math.floor(new Date(rental.currentPeriodEnd).getTime() / 1000) : 0;
-    const trialEnd = periodEndSec > nowSec + 3600 ? periodEndSec : undefined;
+    const minTrialSec = nowSec + 2 * 86400 + 3600; // 48h + 1h buffer
+    const trialEnd = periodEndSec > minTrialSec ? periodEndSec : undefined;
 
     const meta = { type: "rental_autorenew", rentalId: rental.id, userId: rental.user.id };
 
