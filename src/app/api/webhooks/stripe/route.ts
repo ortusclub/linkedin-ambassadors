@@ -218,9 +218,18 @@ async function handleAutoRenewSetup(session: Stripe.Checkout.Session) {
   if (!rentalId || !subscriptionId) return;
   const rental = await prisma.rental.findUnique({ where: { id: rentalId } });
   if (!rental) return;
+  // If this rental has never had access granted (e.g. an auto-renew link used to sell a NEW
+  // account), leave it "pending_access" so the auto-grant cron shares the profile automatically
+  // — no manual "Grant" needed. An existing active rental just adding auto-renew stays "active".
+  const shares = (rental.gologinShareIds as unknown as unknown[] | null) || [];
+  const needsAccess = !rental.accessGrantedAt && shares.length === 0;
   await prisma.rental.update({
     where: { id: rentalId },
-    data: { stripeSubscriptionId: subscriptionId, autoRenew: true, status: "active" },
+    data: {
+      stripeSubscriptionId: subscriptionId,
+      autoRenew: true,
+      status: needsAccess ? "pending_access" : "active",
+    },
   });
 }
 
