@@ -119,6 +119,17 @@ export default function AdminAccountsPage() {
     try { await patch(a.id, { verificationProof: value || null }); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, verificationProof: value || null } : x))); }
     finally { setSavingProof(null); }
   };
+  // Set account age from an "opened" month (YYYY-MM) → stores accountAgeMonths.
+  const saveAge = async (a: Account, opened: string) => {
+    let months: number | null = null;
+    if (opened) {
+      const [y, m] = opened.split("-").map(Number);
+      if (y && m) { const now = new Date(); months = Math.max(0, (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m)); }
+    }
+    if (months === (a.accountAgeMonths ?? null)) return;
+    setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, accountAgeMonths: months } : x)));
+    await patch(a.id, { accountAgeMonths: months });
+  };
   // Manual health mark — for when you've verified the account yourself (in GoLogin).
   const markHealth = async (a: Account, health: string) => {
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, linkedinAccountHealth: health, healthCheckedAt: new Date().toISOString() } : x)));
@@ -363,7 +374,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             </DField>
                             <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}` : "None"}</DField>
                             <DField label="Owner">{ownerOf(a)}</DField>
-                            <DField label="Age · Sales Nav · Listed">{`${a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "—"} · SN ${a.hasSalesNav ? "Yes" : "No"} · Listed ${a.listed ? "Yes" : "No"}`}</DField>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                              <span style={labelCss}>Account opened (sets age)</span>
+                              <input type="month" defaultValue={a.accountAgeMonths != null ? (() => { const d = new Date(); d.setMonth(d.getMonth() - a.accountAgeMonths); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })() : ""} onBlur={(e) => saveAge(a, e.target.value)} style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
+                              <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)" }}>{a.accountAgeMonths ? `Age ${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "Age not set"} · SN {a.hasSalesNav ? "Yes" : "No"} · Listed {a.listed ? "Yes" : "No"}</span>
+                            </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2", minWidth: 0 }}>
                               <span style={labelCss}>Notes (private){savingProof === a.id ? " · saving…" : ""}</span>
                               <textarea defaultValue={a.verificationProof || ""} placeholder="Notes — restriction reasons, verification/proof links, anything about this account…" onBlur={(e) => saveProof(a, e.target.value.trim())} style={{ width: "100%", minHeight: 52, resize: "vertical", ...modalInput, font: `500 12.5px ${F_SANS}` }} />
