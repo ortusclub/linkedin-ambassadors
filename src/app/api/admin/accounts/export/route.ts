@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     "Renter", "Rented Until", "Auto Renew",
     "Monthly Price", "Ambassador Payout", "Owner",
     "Location", "Number of Connections", "Sales Navigator", "LinkedIn URL",
-    "GoLogin Profile ID", "Shareable Link",
+    "GoLogin Profile ID", "Shareable Link", "Account Age",
   ];
 
   const rows = sorted.map((a) => {
@@ -97,6 +97,7 @@ export async function GET(req: NextRequest) {
       a.linkedinUrl || "",
       a.gologinProfileId || "",
       a.gologinShareLink || "",
+      a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "",
     ];
   });
 

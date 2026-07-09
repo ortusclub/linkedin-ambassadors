@@ -105,6 +105,7 @@ export default function AccountDetailPage() {
   const rentable = account.status === "available" && !account.showcase;
   const initial = account.linkedinName.replace(/\s*\(.*\)\s*$/, "").charAt(0).toUpperCase();
   const detailVal = (v: string, c?: string) => ({ font: `600 14px ${POP}`, color: c || "#0B1220" });
+  const ageLabel = account.accountAgeMonths ? (account.accountAgeMonths >= 12 ? `${Math.floor(account.accountAgeMonths / 12)}+ years` : `${account.accountAgeMonths} months`) : null;
   const chip = (fg: string, bg: string, bd: string) => ({ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: fg, background: bg, border: `1px solid ${bd}`, borderRadius: 8, padding: "7px 12px" } as const);
 
   return (
@@ -148,6 +149,7 @@ export default function AccountDetailPage() {
                 {account.location && <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, color: "#8A93A2", marginTop: 4 }}><span style={{ color: "#B0B7C2" }}>◍</span>{account.location}</div>}
                 <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 16 }}>
                   {account.connectionCount > 0 && <span style={chip("#0B1220", "#F1F5FA", "#E4E9F0")}><span style={{ color: "#0A66C2", font: `700 13px ${POP}` }}>{formatNumber(account.connectionCount)}</span>connections</span>}
+                  {ageLabel && <span style={chip("#946011", "#FBF0DA", "#F0E1BE")}>{ageLabel} on LinkedIn</span>}
                   {account.hasSalesNav && <span style={chip("#5747C9", "#EDEBFB", "#E0DCF7")}>Sales Navigator</span>}
                   {account.industry && <span style={chip("#0E7C74", "#DEF3F1", "#CDECE9")}>{account.industry}</span>}
                 </div>
@@ -230,6 +232,7 @@ export default function AccountDetailPage() {
             <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2", marginBottom: 16 }}>Account details</div>
             {[
               ["Connections", formatNumber(account.connectionCount), undefined],
+              ...(ageLabel ? [["Account age", ageLabel, undefined] as const] : []),
               ...(account.industry ? [["Industry", account.industry, undefined] as const] : []),
               ...(account.location ? [["Location", account.location, undefined] as const] : []),
               ["Sales Navigator", account.hasSalesNav ? "Included" : "—", account.hasSalesNav ? "#00A150" : undefined],
