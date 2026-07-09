@@ -180,7 +180,7 @@ export default function CataloguePage() {
           </div>
         ) : (
           <div style={{ background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
-            <div className="cat2-listhead" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) 0.9fr 1.1fr 1.3fr 0.8fr 1fr 1.6fr", alignItems: "center", gap: 16, padding: "14px 22px", background: "#F8FAFC", borderBottom: "1px solid #EDEFF2", font: `500 11px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A93A2" }}>
+            <div className="cat2-listhead" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,0.8fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "14px 22px", background: "#F8FAFC", borderBottom: "1px solid #EDEFF2", font: `500 11px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A93A2" }}>
               <input type="checkbox" checked={selected.size > 0 && selected.size === rentable.length} onChange={toggleSelectAll} style={{ accentColor: "#0A66C2", cursor: "pointer" }} />
               <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span className="cat2-hide">Sales Nav</span><span>Price</span><span></span>
             </div>
@@ -319,7 +319,7 @@ function ListRow({ a, selected, onToggle }: { a: Account; selected: boolean; onT
   const rentable = a.status === "available" && !a.showcase;
   const displayName = shortName(a.linkedinName);
   return (
-    <div className="cat2-row" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) 0.9fr 1.1fr 1.3fr 0.8fr 1fr 1.6fr", alignItems: "center", gap: 16, padding: "15px 22px", borderBottom: "1px solid #F0F2F5", opacity: rented ? 0.66 : 1, background: selected ? "#F0F7FF" : "transparent", transition: "background .15s" }}>
+    <div className="cat2-row" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,0.8fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "15px 22px", borderBottom: "1px solid #F0F2F5", opacity: rented ? 0.66 : 1, background: selected ? "#F0F7FF" : "transparent", transition: "background .15s" }}>
       {rentable ? <input type="checkbox" checked={selected} onChange={() => onToggle(a.id)} style={{ accentColor: "#0A66C2", cursor: "pointer" }} /> : <input type="checkbox" disabled style={{ opacity: 0.3 }} />}
       <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
         <Avatar a={a} rented={rented} />
