@@ -35,7 +35,7 @@ export async function POST(req: Request) {
             handlesRejection: data.handlesRejection || "",
             experience: data.experience || "",
             trialAvailability: data.trialAvailability || "",
-            source: data.source || "Website",
+            source: data.source || "Organic",
           }),
         });
       } catch (sheetError) {
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
         handlesRejection: data.handlesRejection,
         experience: data.experience,
         trialAvailability: data.trialAvailability,
-        source: data.source || "Website",
+        source: data.source || "Organic",
       });
     } catch (emailError) {
       console.error("Field marketing lead email failed:", emailError);

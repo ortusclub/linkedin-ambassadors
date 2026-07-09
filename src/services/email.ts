@@ -476,7 +476,7 @@ export async function sendFieldMarketingLead(app: {
           ${row("Handles rejection", app.handlesRejection ? `${app.handlesRejection} / 5` : null)}
           ${row("Prior people-facing work", app.experience)}
           ${row("Trial availability (end July, Market! Market!)", app.trialAvailability)}
-          ${row("Source", app.source || "Website")}
+          ${row("Source", app.source || "Organic")}
         </table>
       </div>
     `,
