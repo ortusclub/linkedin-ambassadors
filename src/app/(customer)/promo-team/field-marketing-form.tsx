@@ -7,16 +7,63 @@ import { poppins } from "./fonts";
 // Leave empty and applicants are told we'll email a link instead.
 const BOOKING_URL = "https://calendly.com/milee-linkedvelocity/30min";
 
-const COMFORT_SCALE = ["1", "2", "3", "4", "5"];
 const STEPS = ["Your details", "About you", "Book a call"];
+const SCALE = ["1", "2", "3", "4", "5"];
+const YES_NO = ["Yes", "No"];
 
 const inputCls =
   "w-full rounded-[11px] border border-[#DCE3DE] bg-white px-3.5 py-[13px] text-[15px] text-[#0B1220] outline-none transition placeholder:text-[#A6B0AA] focus:border-[#00A150] focus:shadow-[0_0_0_3px_rgba(0,161,80,0.14)]";
-const labelCls = "mb-2 block text-[14px] font-semibold text-[#0B1220]";
+const labelCls = "mb-[10px] block text-[14px] font-semibold text-[#0B1220]";
 const primaryBtn =
   "flex items-center justify-center rounded-xl bg-[#00B85C] px-6 py-[15px] text-[16px] font-semibold text-white shadow-[0_12px_28px_rgba(0,184,92,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(0,184,92,0.36)] disabled:opacity-60 disabled:hover:translate-y-0";
 const backBtn =
   "flex items-center justify-center rounded-xl bg-[#F2F4F3] px-6 py-[15px] text-[15px] font-semibold text-[#37424F]";
+
+// One-tap choice buttons — used for both the 1–5 scales and Yes/No.
+function ChoiceButtons({
+  value,
+  onChange,
+  options,
+  cols,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  cols: number;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      className="grid gap-[10px]"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}
+      role="radiogroup"
+      aria-label={ariaLabel}
+    >
+      {options.map((o) => {
+        const on = value === o;
+        return (
+          <button
+            key={o}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(o)}
+            className={`${poppins.className} rounded-[11px] py-[14px] text-[17px] font-bold transition`}
+            style={{
+              border: `1.5px solid ${on ? "#00A150" : "#DCE3DE"}`,
+              background: on ? "#E7F6EE" : "#fff",
+              color: on ? "#067A45" : "#3F4856",
+              boxShadow: on ? "0 0 0 3px rgba(0,161,80,0.12)" : "none",
+            }}
+          >
+            {o}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function FieldMarketingForm() {
   const [step, setStep] = useState(1);
@@ -26,7 +73,6 @@ export function FieldMarketingForm() {
   const [contactNumber, setContactNumber] = useState("");
   const [comfortApproaching, setComfortApproaching] = useState("");
   const [handlesRejection, setHandlesRejection] = useState("");
-  const [interest, setInterest] = useState("");
   const [experience, setExperience] = useState("");
   const [trialAvailability, setTrialAvailability] = useState("");
 
@@ -54,12 +100,8 @@ export function FieldMarketingForm() {
   async function submitAndBook(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!comfortApproaching) {
-      setError("Please rate how comfortable you are approaching strangers.");
-      return;
-    }
-    if (!trialAvailability) {
-      setError("Please let us know your availability for the trial day.");
+    if (!comfortApproaching || !handlesRejection || !experience || !trialAvailability) {
+      setError("Please answer all the questions — just a tap each.");
       return;
     }
 
@@ -73,9 +115,8 @@ export function FieldMarketingForm() {
           email: email.trim(),
           contactNumber: contactNumber.trim(),
           comfortApproaching,
-          handlesRejection: handlesRejection.trim() || undefined,
-          interest: interest.trim() || undefined,
-          experience: experience.trim() || undefined,
+          handlesRejection,
+          experience,
           trialAvailability,
         }),
       });
@@ -144,7 +185,7 @@ export function FieldMarketingForm() {
             Apply to the promo team
           </h2>
           <p className="m-0 mb-[26px] text-[15.5px] text-[#5A6473]">
-            Start with your details — takes about 2 minutes in all.
+            Start with your details — takes about a minute.
           </p>
           <div className="flex flex-col gap-[18px]">
             <div>
@@ -173,82 +214,49 @@ export function FieldMarketingForm() {
         </form>
       )}
 
-      {/* STEP 2 — about you */}
+      {/* STEP 2 — about you (all one-tap) */}
       {step === 2 && (
         <form onSubmit={submitAndBook}>
           <h2 className={`${poppins.className} m-0 mb-1.5 text-[26px] font-bold tracking-[-0.02em]`}>
             A bit about you
           </h2>
           <p className="m-0 mb-[26px] text-[15.5px] text-[#5A6473]">
-            A few quick questions. We&apos;ll explain the full role on the call.
+            Quick taps — no typing. We&apos;ll get into the details on the call.
           </p>
 
           <div className="flex flex-col gap-6">
-            {/* comfort scale */}
             <div>
-              <label className="mb-[10px] block text-[14px] font-semibold text-[#0B1220]">
+              <label className={labelCls}>
                 How comfortable are you walking up to strangers and starting a conversation?{" "}
                 <span className="text-[#00A150]">*</span>
               </label>
-              <div className="grid grid-cols-5 gap-[10px]" role="radiogroup" aria-label="Comfort, 1 to 5">
-                {COMFORT_SCALE.map((v) => {
-                  const on = comfortApproaching === v;
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => setComfortApproaching(v)}
-                      className={`${poppins.className} rounded-[11px] py-[14px] text-[17px] font-bold transition`}
-                      style={{
-                        border: `1.5px solid ${on ? "#00A150" : "#DCE3DE"}`,
-                        background: on ? "#E7F6EE" : "#fff",
-                        color: on ? "#067A45" : "#3F4856",
-                        boxShadow: on ? "0 0 0 3px rgba(0,161,80,0.12)" : "none",
-                      }}
-                    >
-                      {v}
-                    </button>
-                  );
-                })}
-              </div>
+              <ChoiceButtons value={comfortApproaching} onChange={setComfortApproaching} options={SCALE} cols={5} ariaLabel="Comfort approaching strangers, 1 to 5" />
               <div className="mt-2 text-[12.5px] text-[#8A93A2]">1 = I&apos;d find it hard · 5 = Totally comfortable</div>
             </div>
 
             <div>
-              <label htmlFor="handlesRejection" className={labelCls}>
-                Out promoting, a lot of people will say no or brush you off. How do you handle that?
+              <label className={labelCls}>
+                If people brush you off or say no, how well do you handle it?{" "}
+                <span className="text-[#00A150]">*</span>
               </label>
-              <textarea id="handlesRejection" rows={3} className={`${inputCls} min-h-[92px] resize-y leading-[1.5]`} placeholder="A sentence or two is fine." value={handlesRejection} onChange={(e) => setHandlesRejection(e.target.value)} />
+              <ChoiceButtons value={handlesRejection} onChange={setHandlesRejection} options={SCALE} cols={5} ariaLabel="Handling rejection, 1 to 5" />
+              <div className="mt-2 text-[12.5px] text-[#8A93A2]">1 = It really gets to me · 5 = Doesn&apos;t bother me</div>
             </div>
 
             <div>
-              <label htmlFor="interest" className={labelCls}>
-                What made you interested in this role?
-              </label>
-              <textarea id="interest" rows={3} className={`${inputCls} min-h-[92px] resize-y leading-[1.5]`} placeholder="A sentence or two is fine." value={interest} onChange={(e) => setInterest(e.target.value)} />
-            </div>
-
-            <div>
-              <label htmlFor="experience" className={labelCls}>
+              <label className={labelCls}>
                 Any promo, sales, or people-facing work before?{" "}
-                <span className="font-normal text-[#8A93A2]">(optional)</span>
+                <span className="text-[#00A150]">*</span>
               </label>
-              <input id="experience" className={inputCls} placeholder='e.g. "Brand ambassador for 6 months" — or "None, but I love talking to people"' value={experience} onChange={(e) => setExperience(e.target.value)} />
+              <ChoiceButtons value={experience} onChange={setExperience} options={YES_NO} cols={2} ariaLabel="Prior people-facing work" />
             </div>
 
             <div>
-              <label htmlFor="trialAvailability" className={labelCls}>
-                We&apos;re planning a trial day at Market! Market!, BGC around the end of July (exact
-                date TBD). Are you likely available? <span className="text-[#00A150]">*</span>
+              <label className={labelCls}>
+                Are you free for a trial day at Market! Market!, BGC around the end of July (exact
+                date TBD)? <span className="text-[#00A150]">*</span>
               </label>
-              <select id="trialAvailability" className={inputCls} value={trialAvailability} onChange={(e) => setTrialAvailability(e.target.value)}>
-                <option value="">Select one…</option>
-                <option value="Yes">Yes, I&apos;m likely available</option>
-                <option value="Maybe">Maybe — depends on the date</option>
-                <option value="No">No, I can&apos;t make that</option>
-              </select>
+              <ChoiceButtons value={trialAvailability} onChange={setTrialAvailability} options={YES_NO} cols={2} ariaLabel="Trial day availability" />
             </div>
           </div>
 
