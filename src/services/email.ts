@@ -454,6 +454,7 @@ export async function sendFieldMarketingLead(app: {
   handlesRejection?: string | null;
   experience?: string | null;
   trialAvailability?: string | null;
+  source?: string | null;
 }) {
   const row = (label: string, value: string | null | undefined) =>
     value === null || value === undefined || value === ""
@@ -475,6 +476,7 @@ export async function sendFieldMarketingLead(app: {
           ${row("Handles rejection", app.handlesRejection ? `${app.handlesRejection} / 5` : null)}
           ${row("Prior people-facing work", app.experience)}
           ${row("Trial availability (end July, Market! Market!)", app.trialAvailability)}
+          ${row("Source", app.source || "Website")}
         </table>
       </div>
     `,

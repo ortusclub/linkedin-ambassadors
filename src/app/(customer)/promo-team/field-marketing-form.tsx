@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { poppins } from "./fonts";
 
 // Calendly booking link shown inline on the final step.
@@ -76,8 +76,15 @@ export function FieldMarketingForm() {
   const [experience, setExperience] = useState("");
   const [trialAvailability, setTrialAvailability] = useState("");
 
+  const [source, setSource] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Capture the ?src= channel tag (e.g. ?src=fb) so we know where each applicant came from.
+  useEffect(() => {
+    const s = new URLSearchParams(window.location.search).get("src");
+    if (s) setSource(s);
+  }, []);
 
   function scrollToTop() {
     if (typeof window !== "undefined") {
@@ -118,6 +125,7 @@ export function FieldMarketingForm() {
           handlesRejection,
           experience,
           trialAvailability,
+          source: source || undefined,
         }),
       });
       if (!res.ok) throw new Error("Something went wrong. Please try again.");

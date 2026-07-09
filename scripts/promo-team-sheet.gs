@@ -30,6 +30,7 @@ var COLUMNS = [
   { key: 'handlesRejection',   label: 'Handles rejection (1-5)' },
   { key: 'experience',         label: 'Prior people-facing work' },
   { key: 'trialAvailability',  label: 'Trial availability' },
+  { key: 'source',             label: 'Source' },
 ];
 
 function doPost(e) {

@@ -10,6 +10,7 @@ const applySchema = z.object({
   handlesRejection: z.string().optional(),
   experience: z.string().optional(),
   trialAvailability: z.string().optional(),
+  source: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
             handlesRejection: data.handlesRejection || "",
             experience: data.experience || "",
             trialAvailability: data.trialAvailability || "",
+            source: data.source || "Website",
           }),
         });
       } catch (sheetError) {
@@ -51,6 +53,7 @@ export async function POST(req: Request) {
         handlesRejection: data.handlesRejection,
         experience: data.experience,
         trialAvailability: data.trialAvailability,
+        source: data.source || "Website",
       });
     } catch (emailError) {
       console.error("Field marketing lead email failed:", emailError);
