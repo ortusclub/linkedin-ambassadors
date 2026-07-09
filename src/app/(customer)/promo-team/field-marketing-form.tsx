@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { poppins } from "./fonts";
 
 // Calendly booking link shown inline on the final step.
 // Leave empty and applicants are told we'll email a link instead.
@@ -10,6 +9,14 @@ const BOOKING_URL = "https://calendly.com/milee-linkedvelocity/30min";
 
 const COMFORT_SCALE = ["1", "2", "3", "4", "5"];
 const STEPS = ["Your details", "About you", "Book a call"];
+
+const inputCls =
+  "w-full rounded-[11px] border border-[#DCE3DE] bg-white px-3.5 py-[13px] text-[15px] text-[#0B1220] outline-none transition placeholder:text-[#A6B0AA] focus:border-[#00A150] focus:shadow-[0_0_0_3px_rgba(0,161,80,0.14)]";
+const labelCls = "mb-2 block text-[14px] font-semibold text-[#0B1220]";
+const primaryBtn =
+  "flex items-center justify-center rounded-xl bg-[#00B85C] px-6 py-[15px] text-[16px] font-semibold text-white shadow-[0_12px_28px_rgba(0,184,92,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(0,184,92,0.36)] disabled:opacity-60 disabled:hover:translate-y-0";
+const backBtn =
+  "flex items-center justify-center rounded-xl bg-[#F2F4F3] px-6 py-[15px] text-[15px] font-semibold text-[#37424F]";
 
 export function FieldMarketingForm() {
   const [step, setStep] = useState(1);
@@ -26,6 +33,13 @@ export function FieldMarketingForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  function scrollToTop() {
+    if (typeof window !== "undefined") {
+      const el = document.getElementById("promo-apply");
+      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 30, behavior: "smooth" });
+    }
+  }
+
   function goToStep2(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -34,6 +48,7 @@ export function FieldMarketingForm() {
       return;
     }
     setStep(2);
+    scrollToTop();
   }
 
   async function submitAndBook(e: React.FormEvent) {
@@ -64,10 +79,9 @@ export function FieldMarketingForm() {
           trialAvailability,
         }),
       });
-      if (!res.ok) {
-        throw new Error("Something went wrong. Please try again.");
-      }
+      if (!res.ok) throw new Error("Something went wrong. Please try again.");
       setStep(3);
+      scrollToTop();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -75,251 +89,249 @@ export function FieldMarketingForm() {
     }
   }
 
+  const firstName = fullName.trim().split(" ")[0];
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-      {/* Step indicator */}
-      <div className="mb-6 flex items-center gap-2">
+    <div
+      style={{ boxShadow: "0 10px 34px rgba(16,24,40,0.08), 0 1px 3px rgba(16,24,40,0.04)" }}
+      className="rounded-[22px] border border-[#E7EBE8] bg-white p-8 sm:p-[38px]"
+    >
+      {/* Stepper */}
+      <div className="mb-[30px] flex items-center">
         {STEPS.map((label, i) => {
           const n = i + 1;
           const active = step === n;
-          const complete = step > n;
+          const done = step > n;
+          const last = n === STEPS.length;
           return (
-            <div key={label} className="flex flex-1 items-center gap-2">
-              <div
-                className={
-                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold " +
-                  (active
-                    ? "bg-blue-600 text-white"
-                    : complete
-                      ? "bg-green-600 text-white"
-                      : "bg-gray-100 text-gray-500")
-                }
-              >
-                {complete ? "✓" : n}
+            <div key={label} className="flex items-center" style={{ flex: last ? "0" : "1" }}>
+              <div className="flex flex-shrink-0 items-center gap-[10px]">
+                <span
+                  className={`${poppins.className} flex h-[30px] w-[30px] items-center justify-center rounded-full text-[13px] font-bold`}
+                  style={{
+                    background: done ? "#00A150" : active ? "#00B85C" : "#EEF1EF",
+                    color: done || active ? "#fff" : "#96A0AD",
+                    boxShadow: active ? "0 6px 14px rgba(0,184,92,0.3)" : "none",
+                  }}
+                >
+                  {done ? "✓" : n}
+                </span>
+                <span
+                  className="hidden whitespace-nowrap text-[14.5px] sm:inline"
+                  style={{
+                    fontWeight: active ? 600 : 500,
+                    color: active || done ? "#0B1220" : "#96A0AD",
+                  }}
+                >
+                  {label}
+                </span>
               </div>
-              <span
-                className={
-                  "hidden text-xs font-medium sm:inline " +
-                  (active ? "text-gray-900" : "text-gray-400")
-                }
-              >
-                {label}
-              </span>
-              {n < STEPS.length && <div className="h-px flex-1 bg-gray-200" />}
+              {!last && (
+                <span
+                  className="mx-[14px] h-[1.5px] flex-1"
+                  style={{ background: done ? "#00A150" : "#E7EBE8" }}
+                />
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* Step 1 — details */}
+      {/* STEP 1 — details */}
       {step === 1 && (
-        <form onSubmit={goToStep2} className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Apply to the Promo Team</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Start with your details — takes about 2 minutes in all.
-            </p>
-          </div>
-          <Input
-            id="fullName"
-            label="Full name *"
-            placeholder="Juan Dela Cruz"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            autoComplete="name"
-          />
-          <Input
-            id="email"
-            label="Email *"
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
-          <Input
-            id="contactNumber"
-            label="Contact number *"
-            type="tel"
-            placeholder="09XX XXX XXXX"
-            value={contactNumber}
-            onChange={(e) => setContactNumber(e.target.value)}
-            autoComplete="tel"
-          />
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <Button type="submit" size="lg" className="w-full">
-            Continue
-          </Button>
-        </form>
-      )}
-
-      {/* Step 2 — screening questions */}
-      {step === 2 && (
-        <form onSubmit={submitAndBook} className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">A bit about you</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              A few quick questions. We&apos;ll explain the full role on the call.
-            </p>
-          </div>
-
-          {/* Comfort approaching strangers — 1 to 5 */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">
-              How comfortable are you walking up to strangers and starting a conversation? *
-            </label>
-            <div className="flex gap-2" role="radiogroup" aria-label="Comfort approaching strangers, 1 to 5">
-              {COMFORT_SCALE.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  role="radio"
-                  aria-checked={comfortApproaching === n}
-                  onClick={() => setComfortApproaching(n)}
-                  className={
-                    "flex h-10 flex-1 items-center justify-center rounded-lg border text-sm font-semibold transition focus:outline-none focus:ring-1 focus:ring-blue-500 " +
-                    (comfortApproaching === n
-                      ? "border-blue-600 bg-blue-600 text-white"
-                      : "border-gray-300 bg-white text-gray-700 hover:border-blue-400")
-                  }
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-gray-400">1 = I&apos;d find it hard · 5 = Totally comfortable</p>
-          </div>
-
-          {/* Handling rejection */}
-          <div className="space-y-1">
-            <label htmlFor="handlesRejection" className="block text-sm font-medium text-gray-700">
-              Out promoting, a lot of people will say no or brush you off. How do you handle that?
-            </label>
-            <textarea
-              id="handlesRejection"
-              rows={3}
-              placeholder="A sentence or two is fine."
-              value={handlesRejection}
-              onChange={(e) => setHandlesRejection(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-            />
-          </div>
-
-          {/* Interest */}
-          <div className="space-y-1">
-            <label htmlFor="interest" className="block text-sm font-medium text-gray-700">
-              What made you interested in this role?
-            </label>
-            <textarea
-              id="interest"
-              rows={3}
-              placeholder="A sentence or two is fine."
-              value={interest}
-              onChange={(e) => setInterest(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-            />
-          </div>
-
-          {/* Experience */}
-          <Input
-            id="experience"
-            label="Any promo, sales, or people-facing work before? (optional)"
-            placeholder='e.g. "Brand ambassador for 6 months" — or "None, but I love talking to people"'
-            value={experience}
-            onChange={(e) => setExperience(e.target.value)}
-          />
-
-          {/* Trial availability */}
-          <div className="space-y-1">
-            <label htmlFor="trialAvailability" className="block text-sm font-medium text-gray-700">
-              We&apos;re planning a trial day at Market! Market!, BGC around the end of July (exact
-              date TBD). Are you likely available? *
-            </label>
-            <select
-              id="trialAvailability"
-              value={trialAvailability}
-              onChange={(e) => setTrialAvailability(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-            >
-              <option value="">Select one…</option>
-              <option value="Yes">Yes, I&apos;m available</option>
-              <option value="Maybe">Maybe — depends on the exact date</option>
-              <option value="No">No, not around then</option>
-            </select>
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              size="lg"
-              variant="secondary"
-              className="flex-1"
-              onClick={() => {
-                setError("");
-                setStep(1);
-              }}
-            >
-              Back
-            </Button>
-            <Button type="submit" size="lg" loading={loading} className="flex-[2]">
-              {loading ? "Submitting..." : "Continue"}
-            </Button>
-          </div>
-        </form>
-      )}
-
-      {/* Step 3 — book a call */}
-      {step === 3 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
+        <form onSubmit={goToStep2}>
+          <h2 className={`${poppins.className} m-0 mb-1.5 text-[26px] font-bold tracking-[-0.02em]`}>
+            Apply to the promo team
+          </h2>
+          <p className="m-0 mb-[26px] text-[15.5px] text-[#5A6473]">
+            Start with your details — takes about 2 minutes in all.
+          </p>
+          <div className="flex flex-col gap-[18px]">
+            <div>
+              <label htmlFor="fullName" className={labelCls}>
+                Full name <span className="text-[#00A150]">*</span>
+              </label>
+              <input id="fullName" className={inputCls} placeholder="Juan Dela Cruz" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">You&apos;re in!</h2>
-              <p className="text-sm text-gray-600">
+              <label htmlFor="email" className={labelCls}>
+                Email <span className="text-[#00A150]">*</span>
+              </label>
+              <input id="email" type="email" className={inputCls} placeholder="you@example.com" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="contactNumber" className={labelCls}>
+                Contact number <span className="text-[#00A150]">*</span>
+              </label>
+              <input id="contactNumber" type="tel" className={inputCls} placeholder="09XX XXX XXXX" autoComplete="tel" value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} />
+            </div>
+          </div>
+          {error && <p className="mt-4 text-[14px] text-red-600">{error}</p>}
+          <button type="submit" className={`${primaryBtn} mt-[26px] w-full`}>
+            Continue →
+          </button>
+        </form>
+      )}
+
+      {/* STEP 2 — about you */}
+      {step === 2 && (
+        <form onSubmit={submitAndBook}>
+          <h2 className={`${poppins.className} m-0 mb-1.5 text-[26px] font-bold tracking-[-0.02em]`}>
+            A bit about you
+          </h2>
+          <p className="m-0 mb-[26px] text-[15.5px] text-[#5A6473]">
+            A few quick questions. We&apos;ll explain the full role on the call.
+          </p>
+
+          <div className="flex flex-col gap-6">
+            {/* comfort scale */}
+            <div>
+              <label className="mb-[10px] block text-[14px] font-semibold text-[#0B1220]">
+                How comfortable are you walking up to strangers and starting a conversation?{" "}
+                <span className="text-[#00A150]">*</span>
+              </label>
+              <div className="grid grid-cols-5 gap-[10px]" role="radiogroup" aria-label="Comfort, 1 to 5">
+                {COMFORT_SCALE.map((v) => {
+                  const on = comfortApproaching === v;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setComfortApproaching(v)}
+                      className={`${poppins.className} rounded-[11px] py-[14px] text-[17px] font-bold transition`}
+                      style={{
+                        border: `1.5px solid ${on ? "#00A150" : "#DCE3DE"}`,
+                        background: on ? "#E7F6EE" : "#fff",
+                        color: on ? "#067A45" : "#3F4856",
+                        boxShadow: on ? "0 0 0 3px rgba(0,161,80,0.12)" : "none",
+                      }}
+                    >
+                      {v}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 text-[12.5px] text-[#8A93A2]">1 = I&apos;d find it hard · 5 = Totally comfortable</div>
+            </div>
+
+            <div>
+              <label htmlFor="handlesRejection" className={labelCls}>
+                Out promoting, a lot of people will say no or brush you off. How do you handle that?
+              </label>
+              <textarea id="handlesRejection" rows={3} className={`${inputCls} min-h-[92px] resize-y leading-[1.5]`} placeholder="A sentence or two is fine." value={handlesRejection} onChange={(e) => setHandlesRejection(e.target.value)} />
+            </div>
+
+            <div>
+              <label htmlFor="interest" className={labelCls}>
+                What made you interested in this role?
+              </label>
+              <textarea id="interest" rows={3} className={`${inputCls} min-h-[92px] resize-y leading-[1.5]`} placeholder="A sentence or two is fine." value={interest} onChange={(e) => setInterest(e.target.value)} />
+            </div>
+
+            <div>
+              <label htmlFor="experience" className={labelCls}>
+                Any promo, sales, or people-facing work before?{" "}
+                <span className="font-normal text-[#8A93A2]">(optional)</span>
+              </label>
+              <input id="experience" className={inputCls} placeholder='e.g. "Brand ambassador for 6 months" — or "None, but I love talking to people"' value={experience} onChange={(e) => setExperience(e.target.value)} />
+            </div>
+
+            <div>
+              <label htmlFor="trialAvailability" className={labelCls}>
+                We&apos;re planning a trial day at Market! Market!, BGC around the end of July (exact
+                date TBD). Are you likely available? <span className="text-[#00A150]">*</span>
+              </label>
+              <select id="trialAvailability" className={inputCls} value={trialAvailability} onChange={(e) => setTrialAvailability(e.target.value)}>
+                <option value="">Select one…</option>
+                <option value="Yes">Yes, I&apos;m likely available</option>
+                <option value="Maybe">Maybe — depends on the date</option>
+                <option value="No">No, I can&apos;t make that</option>
+              </select>
+            </div>
+          </div>
+
+          {error && <p className="mt-4 text-[14px] text-red-600">{error}</p>}
+
+          <div className="mt-[26px] flex gap-3">
+            <button type="button" className={backBtn} onClick={() => { setError(""); setStep(1); }}>
+              Back
+            </button>
+            <button type="submit" disabled={loading} className={`${primaryBtn} flex-1`}>
+              {loading ? "Submitting…" : "Continue →"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* STEP 3 — book a call */}
+      {step === 3 && (
+        <div>
+          <div className="mb-6 flex items-start gap-[15px]">
+            <span
+              className="flex h-[44px] w-[44px] flex-shrink-0 items-center justify-center rounded-full"
+              style={{ background: "linear-gradient(150deg,#00B85C,#068A48)", boxShadow: "0 10px 24px rgba(0,161,80,0.3)" }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </span>
+            <div>
+              <h2 className={`${poppins.className} m-0 mb-1 text-[26px] font-bold tracking-[-0.02em]`}>
+                You&apos;re in{firstName ? `, ${firstName}` : ""}!
+              </h2>
+              <p className="m-0 text-[15.5px] leading-[1.55] text-[#5A6473]">
                 Last step — book a quick call so we can walk you through the role.
               </p>
             </div>
           </div>
 
           {BOOKING_URL ? (
-            <>
-              <div className="overflow-hidden rounded-xl border border-gray-200">
-                <iframe
-                  src={`${BOOKING_URL}?hide_gdpr_banner=1`}
-                  title="Book your call"
-                  className="h-[640px] w-full"
-                  frameBorder="0"
-                />
+            <div className="overflow-hidden rounded-[18px] border border-[#E7EBE8] shadow-[0_4px_14px_rgba(16,24,40,0.05)]">
+              <div className="border-b border-[#E7EBE8] bg-[#F6FAF7] px-[26px] py-6 text-center">
+                <div className="mb-1 text-[13px] text-[#8A93A2]">LinkedVelocity · Recruiting</div>
+                <div className={`${poppins.className} text-[22px] font-bold tracking-[-0.01em] text-[#0B1220]`}>
+                  Promo Team Screening Call
+                </div>
+                <div className="mt-[14px] flex flex-wrap items-center justify-center gap-5">
+                  <span className="inline-flex items-center gap-[7px] text-[13.5px] text-[#37424F]">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00A150" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 7v5l3 2" />
+                    </svg>
+                    30 min
+                  </span>
+                  <span className="inline-flex items-center gap-[7px] text-[13.5px] text-[#37424F]">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00A150" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 7l-7 5 7 5V7z" />
+                      <rect x="1" y="5" width="15" height="14" rx="2" />
+                    </svg>
+                    Web conferencing details on confirmation
+                  </span>
+                </div>
               </div>
-              <a href={BOOKING_URL} target="_blank" rel="noopener noreferrer" className="block">
-                <Button size="lg" className="w-full">
-                  Book your call →
-                </Button>
-              </a>
-            </>
+              <iframe src={`${BOOKING_URL}?hide_gdpr_banner=1`} title="Book your call" className="h-[640px] w-full" frameBorder="0" />
+            </div>
           ) : (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 text-center">
-              <p className="text-gray-700">
-                Thanks — we&apos;ve got your details. We&apos;ll email you shortly with a link to
-                book your quick call.
+            <div className="rounded-[18px] border border-[#E1EFE7] bg-[#F6FAF7] p-6 text-center">
+              <p className="text-[#37424F]">
+                Thanks — we&apos;ve got your details. We&apos;ll email you shortly with a link to book your quick call.
               </p>
             </div>
           )}
 
-          <p className="text-center text-xs text-gray-500">
+          <div className="mt-4 flex gap-3">
+            <button type="button" className={backBtn} onClick={() => setStep(2)}>
+              Back
+            </button>
+          </div>
+          <div className="mt-4 text-center text-[13px] text-[#96A0AD]">
             Questions? Email{" "}
-            <a href="mailto:info@linkedvelocity.com" className="text-blue-600 underline">
+            <a href="mailto:info@linkedvelocity.com" className="font-semibold text-[#00A150] hover:underline">
               info@linkedvelocity.com
             </a>
-          </p>
+          </div>
         </div>
       )}
     </div>
