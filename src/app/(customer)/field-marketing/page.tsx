@@ -17,19 +17,19 @@ export const metadata: Metadata = {
 const perks = [
   {
     title: "₱2,000 per day",
-    desc: "Guaranteed daily pay for your time on the ground.",
+    desc: "Guaranteed base pay for every day you work.",
   },
   {
-    title: "Transport & meals covered",
-    desc: "We pay for your travel and food while you work — no out-of-pocket costs.",
+    title: "Flexible & on-call",
+    desc: "Work around your own schedule — we let you know when there's a day on.",
   },
   {
     title: "₱500 per sign-up",
-    desc: "Earn a ₱500 bonus for every single sign-up you bring in.",
+    desc: "A bonus for every person who successfully joins — uncapped.",
   },
   {
     title: "Uncapped earning potential",
-    desc: "There's no ceiling — the more sign-ups you drive, the more you earn.",
+    desc: "No ceiling — the more good sign-ups you bring in, the more you earn.",
   },
 ];
 
@@ -46,8 +46,9 @@ export default function FieldMarketingPage() {
             Join Our Promo Team
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-            Represent LinkedVelocity in malls across Metro Manila — handing out flyers and
-            signing people up. Great pay, real bonuses, and no limit on what you can earn.
+            A flexible, on-call role — hand out flyers and share your sign-up link to help
+            people start earning from a LinkedIn account they already have. Base pay every day
+            you work, plus an uncapped bonus for every person who joins.
           </p>
         </div>
 
@@ -70,21 +71,24 @@ export default function FieldMarketingPage() {
           <ul className="mt-4 space-y-3 text-gray-700">
             <li className="flex gap-3">
               <span className="text-blue-600">•</span>
-              <span>Work in shopping malls across the Metro Manila area.</span>
+              <span>Hand out flyers and share your personal sign-up link in the right spots around Metro Manila.</span>
             </li>
             <li className="flex gap-3">
               <span className="text-blue-600">•</span>
-              <span>Hand out flyers and talk to shoppers about LinkedVelocity.</span>
+              <span>Help people start earning passive income from a LinkedIn account they already have.</span>
             </li>
             <li className="flex gap-3">
               <span className="text-blue-600">•</span>
-              <span>Get people signed up — you earn ₱500 for each one.</span>
+              <span>Every sign-up is tracked to you automatically — earn ₱500 for each person who joins.</span>
             </li>
             <li className="flex gap-3">
               <span className="text-blue-600">•</span>
               <span>Friendly, outgoing, and comfortable approaching people is all you need.</span>
             </li>
           </ul>
+          <p className="mt-4 text-sm text-gray-500">
+            We&apos;ll walk you through exactly how it works on a quick call.
+          </p>
         </div>
 
         {/* Form */}
