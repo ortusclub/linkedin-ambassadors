@@ -5,12 +5,12 @@ export const metadata: Metadata = {
   title: "Promo Team Role — Metro Manila | ₱2,000/day + Bonuses",
   description:
     "Join the LinkedVelocity promo team in Metro Manila. Earn ₱2,000/day plus transport and meals, with a ₱500 bonus for every sign-up and uncapped earning potential. Apply today.",
-  alternates: { canonical: "/field-marketing" },
+  alternates: { canonical: "/promo-team" },
   openGraph: {
     title: "Promo Team Role — Metro Manila | ₱2,000/day + Bonuses",
     description:
-      "Earn ₱2,000/day plus transport and meals, ₱500 per sign-up, uncapped earnings. On-the-ground promo work in Metro Manila malls. Apply now.",
-    url: "https://linkedvelocity.com/field-marketing",
+      "Earn ₱2,000/day base plus ₱500 per successful sign-up, uncapped. Flexible, on-call promo work in Metro Manila. Apply now.",
+    url: "https://linkedvelocity.com/promo-team",
   },
 };
 
@@ -25,7 +25,7 @@ const perks = [
   },
   {
     title: "₱500 per sign-up",
-    desc: "A bonus for every person who successfully joins — uncapped.",
+    desc: "A bonus for every successful sign-up that gets onboarded — uncapped.",
   },
   {
     title: "Uncapped earning potential",
@@ -79,7 +79,7 @@ export default function FieldMarketingPage() {
             </li>
             <li className="flex gap-3">
               <span className="text-blue-600">•</span>
-              <span>Every sign-up is tracked to you automatically — earn ₱500 for each person who joins.</span>
+              <span>Every sign-up is tracked to you automatically — earn ₱500 for each one that successfully onboards.</span>
             </li>
             <li className="flex gap-3">
               <span className="text-blue-600">•</span>

@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
       { source: "/dashboard-mockup", destination: "/dashboard-mockup.html" },
     ];
   },
+  async redirects() {
+    return [
+      // Page renamed field-marketing -> promo-team. Keep old links (FB ads) working.
+      { source: "/field-marketing", destination: "/promo-team", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
