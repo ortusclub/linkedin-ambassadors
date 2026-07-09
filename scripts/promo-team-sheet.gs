@@ -34,7 +34,12 @@ var COLUMNS = [
 ];
 
 function doPost(e) {
+  // Serialize concurrent submissions — a burst (e.g. from a blast) can otherwise
+  // drop a row when several writes hit the sheet at the same instant.
+  var lock = LockService.getScriptLock();
   try {
+    lock.waitLock(30000);
+
     var data = JSON.parse(e.postData.contents);
     // First tab of the bound spreadsheet. Change to
     // getSheetByName('YourTabName') if your intake tab is not the first.
@@ -47,10 +52,13 @@ function doPost(e) {
       return (v === undefined || v === null) ? '' : v;
     });
     sheet.appendRow(row);
+    SpreadsheetApp.flush();
 
     return json_({ ok: true });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
+  } finally {
+    lock.releaseLock();
   }
 }
 
