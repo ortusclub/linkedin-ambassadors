@@ -26,11 +26,9 @@ var COLUMNS = [
   { key: 'fullName',           label: 'Full name' },
   { key: 'email',              label: 'Email' },
   { key: 'contactNumber',      label: 'Contact number' },
-  { key: 'linkedinUrl',        label: 'LinkedIn' },
   { key: 'comfortApproaching', label: 'Comfort approaching (1-5)' },
-  { key: 'handlesRejection',   label: 'Handles rejection' },
-  { key: 'interest',           label: 'Why interested' },
-  { key: 'experience',         label: 'Experience' },
+  { key: 'handlesRejection',   label: 'Handles rejection (1-5)' },
+  { key: 'experience',         label: 'Prior people-facing work' },
   { key: 'trialAvailability',  label: 'Trial availability' },
 ];
 
@@ -55,20 +53,16 @@ function doPost(e) {
   }
 }
 
-/** Ensure the header row exists and covers every column. */
+/** Ensure row 1 exactly matches the current column labels (self-correcting). */
 function ensureHeaders_(sheet) {
   var labels = COLUMNS.map(function (c) { return c.label; });
-
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, labels.length).setValues([labels]).setFontWeight('bold');
-    return;
-  }
-
-  var lastCol = sheet.getLastColumn();
-  if (lastCol < labels.length) {
-    sheet.getRange(1, lastCol + 1, 1, labels.length - lastCol)
-         .setValues([labels.slice(lastCol)])
-         .setFontWeight('bold');
+  var header = sheet.getRange(1, 1, 1, labels.length);
+  var current = header.getValues()[0];
+  var matches = current.length === labels.length && labels.every(function (l, i) {
+    return current[i] === l;
+  });
+  if (!matches) {
+    header.setValues([labels]).setFontWeight('bold');
   }
 }
 

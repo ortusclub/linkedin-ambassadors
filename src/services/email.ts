@@ -450,10 +450,8 @@ export async function sendFieldMarketingLead(app: {
   fullName: string;
   email: string;
   contactNumber: string;
-  linkedinUrl?: string | null;
   comfortApproaching?: string | null;
   handlesRejection?: string | null;
-  interest?: string | null;
   experience?: string | null;
   trialAvailability?: string | null;
 }) {
@@ -473,11 +471,9 @@ export async function sendFieldMarketingLead(app: {
           ${row("Name", app.fullName)}
           ${row("Email", app.email)}
           ${row("Contact", app.contactNumber)}
-          ${row("LinkedIn", app.linkedinUrl ? `<a href="${app.linkedinUrl}" style="color:#0A66C2;">${app.linkedinUrl}</a>` : null)}
           ${row("Comfort approaching strangers", app.comfortApproaching ? `${app.comfortApproaching} / 5` : null)}
-          ${row("Handles rejection", app.handlesRejection)}
-          ${row("Why interested", app.interest)}
-          ${row("Experience", app.experience)}
+          ${row("Handles rejection", app.handlesRejection ? `${app.handlesRejection} / 5` : null)}
+          ${row("Prior people-facing work", app.experience)}
           ${row("Trial availability (end July, Market! Market!)", app.trialAvailability)}
         </table>
       </div>
