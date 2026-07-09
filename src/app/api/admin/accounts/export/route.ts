@@ -63,8 +63,8 @@ export async function GET(req: NextRequest) {
     "LinkedIn Account", "Headline / Title", "Status", "Verified",
     "Renter", "Rented Until", "Auto Renew",
     "Monthly Price", "Ambassador Payout", "Owner",
-    "Location", "Number of Connections", "Sales Navigator", "LinkedIn URL",
-    "GoLogin Profile ID", "Shareable Link", "Account Age",
+    "Location", "Number of Connections", "Account Age", "Sales Navigator", "LinkedIn URL",
+    "GoLogin Profile ID", "Shareable Link",
   ];
 
   const rows = sorted.map((a) => {
@@ -93,11 +93,11 @@ export async function GET(req: NextRequest) {
       ownerDisplay,
       a.location || "",
       a.connectionCount > 0 ? String(a.connectionCount) : "",
+      a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "",
       a.hasSalesNav ? "Yes" : "No",
       a.linkedinUrl || "",
       a.gologinProfileId || "",
       a.gologinShareLink || "",
-      a.accountAgeMonths ? `${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "",
     ];
   });
 
