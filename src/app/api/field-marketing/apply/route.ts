@@ -7,6 +7,11 @@ const applySchema = z.object({
   email: z.string().email(),
   contactNumber: z.string().min(1),
   linkedinUrl: z.string().optional(),
+  comfortApproaching: z.string().optional(),
+  handlesRejection: z.string().optional(),
+  interest: z.string().optional(),
+  experience: z.string().optional(),
+  trialAvailability: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -28,6 +33,11 @@ export async function POST(req: Request) {
             email: data.email,
             contactNumber: data.contactNumber,
             linkedinUrl: data.linkedinUrl || "",
+            comfortApproaching: data.comfortApproaching || "",
+            handlesRejection: data.handlesRejection || "",
+            interest: data.interest || "",
+            experience: data.experience || "",
+            trialAvailability: data.trialAvailability || "",
           }),
         });
       } catch (sheetError) {
@@ -42,6 +52,11 @@ export async function POST(req: Request) {
         email: data.email,
         contactNumber: data.contactNumber,
         linkedinUrl: data.linkedinUrl,
+        comfortApproaching: data.comfortApproaching,
+        handlesRejection: data.handlesRejection,
+        interest: data.interest,
+        experience: data.experience,
+        trialAvailability: data.trialAvailability,
       });
     } catch (emailError) {
       console.error("Field marketing lead email failed:", emailError);

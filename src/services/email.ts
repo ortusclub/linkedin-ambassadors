@@ -451,24 +451,34 @@ export async function sendFieldMarketingLead(app: {
   email: string;
   contactNumber: string;
   linkedinUrl?: string | null;
+  comfortApproaching?: string | null;
+  handlesRejection?: string | null;
+  interest?: string | null;
+  experience?: string | null;
+  trialAvailability?: string | null;
 }) {
   const row = (label: string, value: string | null | undefined) =>
     value === null || value === undefined || value === ""
       ? ""
-      : `<tr><td style="padding:6px 12px;color:#536471;font-size:13px;white-space:nowrap;">${label}</td><td style="padding:6px 12px;color:#0F1419;font-size:13px;">${value}</td></tr>`;
+      : `<tr><td style="padding:6px 12px;color:#536471;font-size:13px;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 12px;color:#0F1419;font-size:13px;">${value}</td></tr>`;
 
   return sendEmail({
     to: "info@linkedvelocity.com",
-    subject: `New field marketing applicant: ${app.fullName}`,
+    subject: `New promo team applicant: ${app.fullName}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 20px;">
-        <h2 style="color:#0F1419;margin-bottom:8px;">New Field Marketing Applicant</h2>
-        <p style="color:#536471;font-size:14px;margin-bottom:20px;">Someone just applied for the Metro Manila field marketing role.</p>
+        <h2 style="color:#0F1419;margin-bottom:8px;">New Promo Team Applicant</h2>
+        <p style="color:#536471;font-size:14px;margin-bottom:20px;">Someone just applied for the Metro Manila promo team role.</p>
         <table style="width:100%;border-collapse:collapse;background:#F8F8F5;border-radius:12px;overflow:hidden;">
           ${row("Name", app.fullName)}
           ${row("Email", app.email)}
           ${row("Contact", app.contactNumber)}
           ${row("LinkedIn", app.linkedinUrl ? `<a href="${app.linkedinUrl}" style="color:#0A66C2;">${app.linkedinUrl}</a>` : null)}
+          ${row("Comfort approaching strangers", app.comfortApproaching ? `${app.comfortApproaching} / 5` : null)}
+          ${row("Handles rejection", app.handlesRejection)}
+          ${row("Why interested", app.interest)}
+          ${row("Experience", app.experience)}
+          ${row("Trial availability (end July, Market! Market!)", app.trialAvailability)}
         </table>
       </div>
     `,

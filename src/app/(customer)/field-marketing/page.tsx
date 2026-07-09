@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import { FieldMarketingForm } from "./field-marketing-form";
 
 export const metadata: Metadata = {
-  title: "Field Marketing Role — Metro Manila | ₱2,000/day + Bonuses",
+  title: "Promo Team Role — Metro Manila | ₱2,000/day + Bonuses",
   description:
-    "Join our field marketing team in Metro Manila. Earn ₱2,000/day plus transport and meals, with a ₱500 bonus for every sign-up and uncapped earning potential. Register your interest today.",
+    "Join the LinkedVelocity promo team in Metro Manila. Earn ₱2,000/day plus transport and meals, with a ₱500 bonus for every sign-up and uncapped earning potential. Apply today.",
   alternates: { canonical: "/field-marketing" },
   openGraph: {
-    title: "Field Marketing Role — Metro Manila | ₱2,000/day + Bonuses",
+    title: "Promo Team Role — Metro Manila | ₱2,000/day + Bonuses",
     description:
-      "Earn ₱2,000/day plus transport and meals, ₱500 per sign-up, uncapped earnings. Field marketing in Metro Manila malls. Apply now.",
+      "Earn ₱2,000/day plus transport and meals, ₱500 per sign-up, uncapped earnings. On-the-ground promo work in Metro Manila malls. Apply now.",
     url: "https://linkedvelocity.com/field-marketing",
   },
 };
@@ -43,7 +43,7 @@ export default function FieldMarketingPage() {
             📍 Metro Manila · Now hiring
           </span>
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            Field Marketing Role
+            Join Our Promo Team
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
             Represent LinkedVelocity in malls across Metro Manila — handing out flyers and
