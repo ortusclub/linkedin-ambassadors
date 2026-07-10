@@ -53,26 +53,37 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
     const meta = { type: "rental_autorenew", rentalId: rental.id, userId: rental.user.id };
 
-    const session = await stripe.checkout.sessions.create({
-      customer: stripeCustomerId,
-      mode: "subscription",
-      line_items: [{
-        price_data: {
-          currency: "usd",
-          product_data: { name: `LinkedVelocity rental — ${rental.linkedinAccount.linkedinName} (monthly, auto-renew)` },
-          unit_amount: Math.round(price * 100),
-          recurring: { interval: "month" },
-        },
-        quantity: 1,
-      }],
-      metadata: meta,
-      subscription_data: { metadata: meta, ...(trialEnd ? { trial_end: trialEnd } : {}) },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?autorenew=on`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+    // Use a Payment Link (never expires) instead of a Checkout Session (dies after 24h — the
+    // thing renters kept hitting). Payment Links need a real Price, so create a product + price,
+    // then a single-use link that carries the sync metadata so the webhook still attaches the sub.
+    const product = await stripe.products.create({
+      name: `LinkedVelocity rental — ${rental.linkedinAccount.linkedinName} (monthly, auto-renew)`,
+    });
+    const priceObj = await stripe.prices.create({
+      product: product.id,
+      currency: "usd",
+      unit_amount: Math.round(price * 100),
+      recurring: { interval: "month" },
     });
 
-    if (!session.url) return NextResponse.json({ error: "Stripe did not return a URL" }, { status: 500 });
-    return NextResponse.json({ ok: true, url: session.url, price });
+    // Payment Links take a trial length in DAYS (not an absolute timestamp like checkout's
+    // trial_end), so convert the already-paid-through date. Never charges before the paid period
+    // ends, so it can't double-charge.
+    const trialDays = trialEnd ? Math.max(1, Math.ceil((trialEnd - nowSec) / 86400)) : undefined;
+
+    const link = await stripe.paymentLinks.create({
+      line_items: [{ price: priceObj.id, quantity: 1 }],
+      metadata: meta,
+      subscription_data: { metadata: meta, ...(trialDays ? { trial_period_days: trialDays } : {}) },
+      restrictions: { completed_sessions: { limit: 1 } },
+      after_completion: {
+        type: "redirect",
+        redirect: { url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?autorenew=on` },
+      },
+    });
+
+    if (!link.url) return NextResponse.json({ error: "Stripe did not return a URL" }, { status: 500 });
+    return NextResponse.json({ ok: true, url: link.url, price });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     if (msg === "Forbidden" || msg === "Unauthorized") {
