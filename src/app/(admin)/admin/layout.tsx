@@ -40,7 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const s = typeof window !== "undefined" ? localStorage.getItem("lv-admin-theme") : null;
     if (s === "light" || s === "dark") setTheme(s);
   }, []);
-  const changeTheme = (t: AdminTheme) => { setTheme(t); try { localStorage.setItem("lv-admin-theme", t); } catch {} };
+  const changeTheme = (t: AdminTheme) => { setTheme(t); try { localStorage.setItem("lv-admin-theme", t); } catch {} try { window.dispatchEvent(new CustomEvent("lv-admin-theme", { detail: t })); } catch {} };
 
   useEffect(() => {
     fetch("/api/auth/me")
