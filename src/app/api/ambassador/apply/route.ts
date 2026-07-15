@@ -15,6 +15,7 @@ const applySchema = z.object({
   location: z.string().optional(),
   notes: z.string().optional(),
   referralSource: z.string().optional(),
+  referredBy: z.string().optional(),
 });
 
 export async function POST(req: Request) {

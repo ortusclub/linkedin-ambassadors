@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
   const headers = [
     "Account Name", "Owner Email (POC)", "LinkedIn Login Email", "LinkedIn URL", "Contact",
     "Connections", "Location", "Status", "Payment Method", "Heard From", "Notes", "Applied",
+    "Referred By (Marketer)",
   ];
 
   const rows = applications.map((a) => [
@@ -53,6 +54,7 @@ export async function GET(req: NextRequest) {
     a.referralSource || "",
     a.notes || "",
     fmtDate(a.createdAt),
+    a.referredBy || "",
   ]);
 
   const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");

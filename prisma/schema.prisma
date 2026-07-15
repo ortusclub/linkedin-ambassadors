@@ -223,6 +223,7 @@ model AmbassadorApplication {
   location          String?
   notes             String?
   referralSource    String?          @map("referral_source")
+  referredBy        String?          @map("referred_by")
   status            AmbassadorStatus @default(pending)
   offeredAmount     Decimal?         @map("offered_amount") @db.Decimal(10, 2)
   adminNotes        String?          @map("admin_notes")

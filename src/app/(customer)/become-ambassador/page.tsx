@@ -132,6 +132,7 @@ export default function BecomeAmbassadorPage() {
     hasSalesNav: false,
     notes: "",
     referralSource: "",
+    referredBy: "",
   });
 
   const [accountName, setAccountName] = useState("");
@@ -155,6 +156,26 @@ export default function BecomeAmbassadorPage() {
 
   const updateBank = (field: string, value: string) =>
     setBankForm((prev) => ({ ...prev, [field]: value }));
+
+  // Capture the field-marketer referral tag from ?ref= (e.g. /become-ambassador?ref=mark-lewis-estacio),
+  // set by the marketer's personal QR. Persist it in sessionStorage so it survives the valuation flow
+  // AND the login redirect round-trip, and attach it at submit. Also default "how did you hear" to
+  // "Friend or referral" so the manual fail-safe field shows pre-filled.
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const fromUrl = sp.get("ref") || "";
+      if (fromUrl) sessionStorage.setItem("lv_ref", fromUrl);
+      const ref = fromUrl || sessionStorage.getItem("lv_ref") || "";
+      if (ref) {
+        setForm((prev) => ({
+          ...prev,
+          referredBy: prev.referredBy || ref,
+          referralSource: prev.referralSource || "Friend or referral",
+        }));
+      }
+    } catch {}
+  }, []);
 
   // Pre-fill from logged-in user and skip choice step. If "?valuation=1" is in the URL
   // (e.g. the "Get my valuation" nav button), jump straight into the form.
@@ -266,6 +287,7 @@ export default function BecomeAmbassadorPage() {
           connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
           location: form.location || undefined,
           referralSource: form.referralSource || undefined,
+          referredBy: form.referredBy || undefined,
           notes: [
             form.verified ? "Verified profile" : "",
             form.hasSalesNav ? "Sales Navigator" : "",
@@ -855,6 +877,16 @@ export default function BecomeAmbassadorPage() {
                       <option>Google search</option><option>LinkedIn</option><option>ChatGPT / AI tool</option><option>Social media</option><option>Reddit</option><option>Friend or referral</option><option>Other</option>
                     </select>
                   </div>
+
+                  {/* Fail-safe attribution: shows when "Friend or referral" is picked (auto-selected when
+                      they arrive via a marketer's ?ref= QR). Pre-filled from the ref tag; editable if the
+                      link didn't carry, so the marketer still gets credit. */}
+                  {form.referralSource === "Friend or referral" && (
+                    <div style={{ marginBottom: 26 }}>
+                      <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Who referred you? <span style={{ fontWeight: 400, color: "#96A0AD" }}>(name or code)</span></label>
+                      <input className="ambf-in" type="text" placeholder="e.g. their name" value={form.referredBy} onChange={(e) => update("referredBy", e.target.value)} />
+                    </div>
+                  )}
 
                   <button type="submit" style={{ width: "100%", background: "#00B85C", color: "#fff", fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: "pointer", boxShadow: "0 12px 28px rgba(0,184,92,0.28)" }}>Get my profile valuation →</button>
                   <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Free · instant · no account required</div>
