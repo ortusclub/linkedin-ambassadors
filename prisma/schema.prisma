@@ -243,6 +243,29 @@ model AmbassadorApplication {
   @@map("ambassador_applications")
 }
 
+// A field marketer / ambassador who refers signups. `slug` is the ?ref= value in
+// their QR; `token` is the secret for their portal link /m/<token>. Self-editable
+// fields (contact, payment) are filled by them via the portal.
+model Referrer {
+  id               String   @id @default(uuid()) @db.Uuid
+  slug             String   @unique
+  token            String   @unique
+  name             String
+  type             String   @default("marketer")
+  channel          String?
+  contactMethod    String?  @map("contact_method")
+  contactHandle    String?  @map("contact_handle")
+  paymentMethod    String?  @map("payment_method")
+  paymentDetails   String?  @map("payment_details")
+  assignedDay      String?  @map("assigned_day")
+  assignedLocation String?  @map("assigned_location")
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("referrers")
+}
+
 enum TransactionType {
   deposit
   rental_payment

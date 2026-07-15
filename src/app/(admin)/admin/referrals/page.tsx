@@ -8,6 +8,8 @@ interface App {
   status: string;
 }
 
+interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; }
+
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
@@ -40,9 +42,15 @@ export default function AdminReferralsPage() {
   const [tier, setTier] = useState("all");
   const [query, setQuery] = useState("");
   const [nextMonday, setNextMonday] = useState("");
+  const [referrers, setReferrers] = useState<Referrer[]>([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState({ name: "", type: "marketer", channel: "", assignedDay: "", assignedLocation: "" });
+  const [creating, setCreating] = useState(false);
+  const [copiedKey, setCopiedKey] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/ambassadors").then((r) => r.json()).then((d) => setApps(d.applications || [])).finally(() => setLoading(false));
+    fetch("/api/admin/referrers").then((r) => r.json()).then((d) => setReferrers(d.referrers || [])).catch(() => {});
     // Next Monday label (client-only to avoid hydration mismatch).
     const d = new Date();
     d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
@@ -105,9 +113,24 @@ export default function AdminReferralsPage() {
     owed: rows.reduce((s, r) => s + r.owed, 0),
   }), [rows]);
 
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const refLink = (r: Referrer) => `${origin}/become-ambassador?ref=${r.slug}`;
+  const portalLink = (r: Referrer) => `${origin}/m/${r.token}`;
+  const copy = (key: string, text: string) => { navigator.clipboard?.writeText(text); setCopiedKey(key); setTimeout(() => setCopiedKey(""), 1500); };
+  const addReferrer = async () => {
+    if (!addForm.name.trim()) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/referrers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(addForm) });
+      if (res.ok) { const d = await res.json(); setReferrers((prev) => [d.referrer, ...prev]); setAddForm({ name: "", type: "marketer", channel: "", assignedDay: "", assignedLocation: "" }); setShowAdd(false); }
+    } finally { setCreating(false); }
+  };
+
   const label: React.CSSProperties = { font: `700 10.5px ${F_SANS}`, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--label)" };
   const th: React.CSSProperties = { font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
   const chip = (active: boolean): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 13px", borderRadius: 999, cursor: "pointer", font: `600 12.5px ${F_SANS}`, color: "var(--text)", border: "1px solid", borderColor: active ? "var(--chip-active-border)" : "var(--card-border)", background: active ? "var(--chip-active-bg)" : "transparent" });
+  const inpStyle: React.CSSProperties = { background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 8, padding: "9px 11px", font: `500 12.5px ${F_SANS}`, color: "var(--input-fg)", outline: "none" };
+  const copyBtn: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 10px", borderRadius: 7, cursor: "pointer", whiteSpace: "nowrap" };
   const tile = (labelText: string, value: string, valueColor: string, sub: string) => (
     <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, padding: "16px 18px", boxShadow: "var(--card-shadow)" }}>
       <div style={{ ...label, marginBottom: 8 }}>{labelText}</div>
@@ -124,6 +147,38 @@ export default function AdminReferralsPage() {
       <div style={{ marginBottom: 22, maxWidth: 660 }}>
         <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Referrals</h1>
         <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Who&apos;s bringing in new ambassador signups. Track referral volume, see how many convert into inventory, spot your top performers to re-invite, and see commissions owed — ₱{RATE} per converted signup.</p>
+      </div>
+
+      {/* marketers & links */}
+      <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "16px 18px", marginBottom: 22, boxShadow: "var(--card-shadow)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ font: `700 13.5px ${F_SANS}`, color: "var(--text)" }}>Marketers &amp; their links</span>
+          <button onClick={() => setShowAdd((v) => !v)} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "8px 14px", borderRadius: 9, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add referrer"}</button>
+        </div>
+        {showAdd && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, padding: "14px 0 4px", marginTop: 12, borderTop: "1px solid var(--divider)" }}>
+            <input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} placeholder="Name *" style={inpStyle} />
+            <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value })} style={inpStyle}><option value="marketer">Marketer</option><option value="ambassador">Ambassador</option></select>
+            <input value={addForm.channel} onChange={(e) => setAddForm({ ...addForm, channel: e.target.value })} placeholder="Channel (optional)" style={inpStyle} />
+            <input value={addForm.assignedDay} onChange={(e) => setAddForm({ ...addForm, assignedDay: e.target.value })} placeholder="Day (optional)" style={inpStyle} />
+            <input value={addForm.assignedLocation} onChange={(e) => setAddForm({ ...addForm, assignedLocation: e.target.value })} placeholder="Location (optional)" style={inpStyle} />
+            <button onClick={addReferrer} disabled={creating || !addForm.name.trim()} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--accent)", border: "none", padding: "9px 14px", borderRadius: 9, cursor: creating || !addForm.name.trim() ? "default" : "pointer", opacity: creating || !addForm.name.trim() ? 0.6 : 1 }}>{creating ? "Creating…" : "Create + links"}</button>
+          </div>
+        )}
+        {referrers.length === 0 ? (
+          !showAdd && <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)", marginTop: 12 }}>No marketers yet. Add one to generate their QR link and personal portal link.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 12 }}>
+            {referrers.map((r) => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 0", borderTop: "1px solid var(--divider)" }}>
+                <span style={{ font: `600 13px ${F_SANS}`, color: "var(--text)", minWidth: 120 }}>{r.name}</span>
+                <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)", flex: 1, minWidth: 100 }}>{[r.type, r.channel, r.assignedDay, r.assignedLocation].filter(Boolean).join(" · ") || "—"}</span>
+                <button onClick={() => copy(`ref-${r.id}`, refLink(r))} style={copyBtn}>{copiedKey === `ref-${r.id}` ? "Copied ✓" : "Copy QR link"}</button>
+                <button onClick={() => copy(`portal-${r.id}`, portalLink(r))} style={copyBtn}>{copiedKey === `portal-${r.id}` ? "Copied ✓" : "Copy portal link"}</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* summary strip */}
