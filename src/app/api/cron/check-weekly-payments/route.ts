@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { fetchIncomingUsdt } from "@/lib/tron-payments";
 import { weeklyBilling, weeklyDueState, confirmWeeklyPayment } from "@/lib/rental-tracker";
 
@@ -74,7 +75,25 @@ async function run(req: NextRequest) {
       consumed.add(match.txId);
       const paidDate = ymdOf(match.ts);
       const newNotes = confirmWeeklyPayment(r.notes, paidDate, match.txId);
-      await prisma.rental.update({ where: { id: r.id }, data: { notes: newNotes } });
+
+      // Advance the badge AND record the payment so it shows in /admin/transactions.
+      // Idempotent: skip the ledger row if this tx was already recorded.
+      await prisma.$transaction(async (dbtx) => {
+        await dbtx.rental.update({ where: { id: r.id }, data: { notes: newNotes } });
+        const already = await dbtx.transaction.findFirst({ where: { txHash: match.txId } });
+        if (!already) {
+          await dbtx.transaction.create({
+            data: {
+              userId: r.userId,
+              type: "rental_payment",
+              amount: new Prisma.Decimal(match.amount),
+              txHash: match.txId,
+              rentalId: r.id,
+              description: `Weekly USDT (TRC-20) · ${r.linkedinAccount.linkedinName} · ${r.user.fullName}`,
+            },
+          });
+        }
+      });
 
       const next = weeklyBilling(newNotes)?.nextDue;
       result.confirmed++;
