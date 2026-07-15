@@ -44,6 +44,7 @@ export default function AdminReferralsPage() {
   const [nextMonday, setNextMonday] = useState("");
   const [referrers, setReferrers] = useState<Referrer[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [linksOpen, setLinksOpen] = useState(false);
   const [addForm, setAddForm] = useState({ name: "", type: "marketer", channel: "", assignedDay: "", assignedLocation: "" });
   const [creating, setCreating] = useState(false);
   const [copiedKey, setCopiedKey] = useState("");
@@ -131,6 +132,7 @@ export default function AdminReferralsPage() {
   const chip = (active: boolean): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 13px", borderRadius: 999, cursor: "pointer", font: `600 12.5px ${F_SANS}`, color: "var(--text)", border: "1px solid", borderColor: active ? "var(--chip-active-border)" : "var(--card-border)", background: active ? "var(--chip-active-bg)" : "transparent" });
   const inpStyle: React.CSSProperties = { background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 8, padding: "9px 11px", font: `500 12.5px ${F_SANS}`, color: "var(--input-fg)", outline: "none" };
   const copyBtn: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "6px 10px", borderRadius: 7, cursor: "pointer", whiteSpace: "nowrap" };
+  const roleBadge = (t: string): React.CSSProperties => ({ font: `700 9.5px ${F_SANS}`, letterSpacing: ".03em", padding: "2px 7px", borderRadius: 5, flex: "none", textTransform: "capitalize", background: t === "ambassador" ? "var(--blue-chip-bg)" : "var(--test-bg)", color: t === "ambassador" ? "var(--blue-chip-text)" : "var(--test-fg)" });
   const tile = (labelText: string, value: string, valueColor: string, sub: string) => (
     <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, padding: "16px 18px", boxShadow: "var(--card-shadow)" }}>
       <div style={{ ...label, marginBottom: 8 }}>{labelText}</div>
@@ -149,34 +151,44 @@ export default function AdminReferralsPage() {
         <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Who&apos;s bringing in new ambassador signups. Track referral volume, see how many convert into inventory, spot your top performers to re-invite, and see commissions owed — ₱{RATE} per converted signup.</p>
       </div>
 
-      {/* marketers & links */}
-      <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "16px 18px", marginBottom: 22, boxShadow: "var(--card-shadow)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ font: `700 13.5px ${F_SANS}`, color: "var(--text)" }}>Marketers &amp; their links</span>
-          <button onClick={() => setShowAdd((v) => !v)} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "8px 14px", borderRadius: 9, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add referrer"}</button>
+      {/* referral links (collapsible) */}
+      <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, marginBottom: 22, boxShadow: "var(--card-shadow)", overflow: "hidden" }}>
+        <div onClick={() => setLinksOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "15px 20px", cursor: "pointer", userSelect: "none", flexWrap: "wrap" }}>
+          <span style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", width: 12, textAlign: "center", flex: "none", transition: "transform .18s ease", transform: linksOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▸</span>
+          <span style={{ font: `700 13.5px ${F_SANS}`, color: "var(--text)" }}>Referral links</span>
+          <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{referrers.length} referrer{referrers.length === 1 ? "" : "s"}</span>
+          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>portal &amp; QR links to share</span>
+          <button onClick={(e) => { e.stopPropagation(); setLinksOpen(true); setShowAdd((v) => !v); }} style={{ marginLeft: "auto", font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "7px 13px", borderRadius: 8, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add referrer"}</button>
         </div>
-        {showAdd && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, padding: "14px 0 4px", marginTop: 12, borderTop: "1px solid var(--divider)" }}>
-            <input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} placeholder="Name *" style={inpStyle} />
-            <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value })} style={inpStyle}><option value="marketer">Marketer</option><option value="ambassador">Ambassador</option></select>
-            <input value={addForm.channel} onChange={(e) => setAddForm({ ...addForm, channel: e.target.value })} placeholder="Channel (optional)" style={inpStyle} />
-            <input value={addForm.assignedDay} onChange={(e) => setAddForm({ ...addForm, assignedDay: e.target.value })} placeholder="Day (optional)" style={inpStyle} />
-            <input value={addForm.assignedLocation} onChange={(e) => setAddForm({ ...addForm, assignedLocation: e.target.value })} placeholder="Location (optional)" style={inpStyle} />
-            <button onClick={addReferrer} disabled={creating || !addForm.name.trim()} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--accent)", border: "none", padding: "9px 14px", borderRadius: 9, cursor: creating || !addForm.name.trim() ? "default" : "pointer", opacity: creating || !addForm.name.trim() ? 0.6 : 1 }}>{creating ? "Creating…" : "Create + links"}</button>
-          </div>
-        )}
-        {referrers.length === 0 ? (
-          !showAdd && <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)", marginTop: 12 }}>No marketers yet. Add one to generate their QR link and personal portal link.</div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", marginTop: 12 }}>
-            {referrers.map((r) => (
-              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 0", borderTop: "1px solid var(--divider)" }}>
-                <span style={{ font: `600 13px ${F_SANS}`, color: "var(--text)", minWidth: 120 }}>{r.name}</span>
-                <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)", flex: 1, minWidth: 100 }}>{[r.type, r.channel, r.assignedDay, r.assignedLocation].filter(Boolean).join(" · ") || "—"}</span>
-                <button onClick={() => copy(`ref-${r.id}`, refLink(r))} style={copyBtn}>{copiedKey === `ref-${r.id}` ? "Copied ✓" : "Copy QR link"}</button>
-                <button onClick={() => copy(`portal-${r.id}`, portalLink(r))} style={copyBtn}>{copiedKey === `portal-${r.id}` ? "Copied ✓" : "Copy portal link"}</button>
+        {linksOpen && (
+          <div style={{ borderTop: "1px solid var(--divider)" }}>
+            {showAdd && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, padding: "14px 20px", borderBottom: "1px solid var(--divider)" }}>
+                <input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} placeholder="Name *" style={inpStyle} />
+                <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value })} style={inpStyle}><option value="marketer">Marketer</option><option value="ambassador">Ambassador</option></select>
+                <input value={addForm.channel} onChange={(e) => setAddForm({ ...addForm, channel: e.target.value })} placeholder="Channel (optional)" style={inpStyle} />
+                <input value={addForm.assignedDay} onChange={(e) => setAddForm({ ...addForm, assignedDay: e.target.value })} placeholder="Day (optional)" style={inpStyle} />
+                <input value={addForm.assignedLocation} onChange={(e) => setAddForm({ ...addForm, assignedLocation: e.target.value })} placeholder="Location (optional)" style={inpStyle} />
+                <button onClick={addReferrer} disabled={creating || !addForm.name.trim()} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--accent)", border: "none", padding: "9px 14px", borderRadius: 9, cursor: creating || !addForm.name.trim() ? "default" : "pointer", opacity: creating || !addForm.name.trim() ? 0.6 : 1 }}>{creating ? "Creating…" : "Create + links"}</button>
               </div>
-            ))}
+            )}
+            {referrers.length === 0 ? (
+              !showAdd && <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)", padding: "14px 20px" }}>No marketers yet. Add one to generate their QR link and personal portal link.</div>
+            ) : (
+              referrers.map((r) => (
+                <div key={r.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 14, alignItems: "center", padding: "11px 20px", borderBottom: "1px solid var(--divider)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                    <span style={{ font: `600 13px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+                    <span style={roleBadge(r.type)}>{r.type}</span>
+                    <span style={{ font: `500 11.5px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>ref: {r.slug}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 7, flex: "none" }}>
+                    <button onClick={() => copy(`ref-${r.id}`, refLink(r))} style={copyBtn}>{copiedKey === `ref-${r.id}` ? "Copied ✓" : "Copy QR"}</button>
+                    <button onClick={() => copy(`portal-${r.id}`, portalLink(r))} style={copyBtn}>{copiedKey === `portal-${r.id}` ? "Copied ✓" : "Copy portal link"}</button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>
