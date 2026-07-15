@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
 import * as gologin from "@/services/gologin";
+import { persistImageUrl } from "@/lib/persist-image";
 
 const createAccountSchema = z.object({
   linkedinName: z.string().min(1),
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
         industry: data.industry,
         location: data.location,
         profileScreenshotUrl: data.profileScreenshotUrl,
-        profilePhotoUrl: data.profilePhotoUrl,
+        profilePhotoUrl: await persistImageUrl(data.profilePhotoUrl),
         proxyHost: data.proxyHost,
         proxyPort: data.proxyPort,
         proxyUsername: data.proxyUsername,
