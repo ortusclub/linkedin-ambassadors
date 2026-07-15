@@ -185,7 +185,8 @@ export default function BecomeAmbassadorPage() {
     let wantSubmit = false;
     try {
       const sp = new URLSearchParams(window.location.search);
-      wantValuation = !!sp.get("valuation");
+      // A marketer's QR (?ref=slug) drops straight onto the form — skip the hero/choice screen.
+      wantValuation = !!sp.get("valuation") || !!sp.get("ref");
       booked = !!sp.get("booked"); // returning here after signing up — show the book-a-call step
       wantSubmit = !!sp.get("submit"); // logged-in user adding an account — skip valuation, go straight to the form
     } catch {}
