@@ -18,6 +18,10 @@
     {
       "path": "/api/cron/snapshot-metrics",
       "schedule": "55 23 * * *"
+    },
+    {
+      "path": "/api/cron/check-weekly-payments",
+      "schedule": "0 10 * * *"
     }
   ]
 }

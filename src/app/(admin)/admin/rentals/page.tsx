@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { paymentStatus, accessStatus, isManualGrant } from "@/lib/rental-tracker";
+import { paymentStatus, accessStatus, isManualGrant, weeklyBilling, weeklyDueState, advanceWeeklyNotes, weeklyPaidStamp } from "@/lib/rental-tracker";
 
 interface Rental {
   id: string;
@@ -34,7 +34,20 @@ const fmtY = (d: string | null) => { if (!d) return "—"; try { return new Date
 const daysUntil = (d: string | null) => (d ? Math.ceil((new Date(d).getTime() - Date.now()) / DAY) : null);
 const profileEmail = (a: Rental["linkedinAccount"]) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || a.linkedinName;
 const initialsOf = (s: string) => (s || "?").replace(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase() || "?";
-const attnOf = (r: Rental) => !!r.linkedinAccount.restrictedAt || ["Overdue", "Expired"].includes(paymentStatus(r)) || accessStatus(r) === "Revoked";
+const weeklyOverdue = (r: Rental) => { const b = weeklyBilling(r.notes); return !!b && weeklyDueState(b.nextDue).tone === "overdue"; };
+const attnOf = (r: Rental) => !!r.linkedinAccount.restrictedAt || ["Overdue", "Expired"].includes(paymentStatus(r)) || accessStatus(r) === "Revoked" || weeklyOverdue(r);
+
+// Colour a weekly-due badge by urgency (reuses the existing status-chip tokens).
+const weeklyStyle = (tone: string): React.CSSProperties => {
+  const m: Record<string, [string, string]> = {
+    overdue: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
+    due: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
+    soon: ["var(--blue-chip-bg)", "var(--blue-chip-text)"],
+    ok: ["var(--st-active-bg)", "var(--st-active-fg)"],
+  };
+  const [bg, fg] = m[tone] || m.ok;
+  return { background: bg, color: fg };
+};
 
 const payStyle = (p: string): React.CSSProperties => {
   const m: Record<string, [string, string]> = { Paid: ["var(--st-active-bg)", "var(--st-active-fg)"], Pending: ["var(--blue-chip-bg)", "var(--blue-chip-text)"], Overdue: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"], Expired: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"], Cancelled: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"] };
@@ -134,6 +147,15 @@ export default function AdminRentalsPage() {
     if (value === (r.notes || "")) return;
     setRentals((prev) => prev.map((x) => (x.id === r.id ? { ...x, notes: value || null } : x)));
     await fetch("/api/admin/rentals", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, notes: value || null }) });
+  };
+  // Off-platform weekly rentals: roll the "next due" marker forward one week.
+  const markWeeklyPaid = async (r: Rental) => {
+    const b = weeklyBilling(r.notes);
+    if (!b) return;
+    const newNotes = advanceWeeklyNotes(r.notes);
+    const nextDue = weeklyBilling(newNotes)?.nextDue;
+    if (!window.confirm(`Mark this week's $${b.amountRaw} payment from ${r.user.fullName} as received?\n\nNext payment due rolls to ${nextDue}.`)) return;
+    await saveNotes(r, newNotes);
   };
   // company (per user -> applies to all that renter's rentals)
   const saveCompany = async (userId: string, anyRentalId: string, value: string) => {
@@ -297,6 +319,8 @@ export default function AdminRentalsPage() {
                 const restricted = !!r.linkedinAccount.restrictedAt;
                 const days = daysUntil(r.currentPeriodEnd);
                 const renewLabel = restricted ? "Billing paused" : days == null ? "—" : days >= 0 ? `${r.autoRenew ? "Renews" : "Ends"} in ${days}d` : `Overdue ${-days}d`;
+                const wb = weeklyBilling(r.notes);
+                const wDue = wb ? weeklyDueState(wb.nextDue) : null;
                 return (
                   <div key={r.id} style={{ display: "grid", gridTemplateColumns: F.GRID, gap: 18, alignItems: "start", padding: "16px 22px", borderTop: "1px solid var(--divider)", borderLeft: "3px solid", borderLeftColor: attnOf(r) ? "var(--warn-badge-text)" : "transparent" }}>
                     {/* account */}
@@ -307,9 +331,22 @@ export default function AdminRentalsPage() {
                     </div>
                     {/* billing */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span style={{ font: `600 13px ${F_SANS}`, color: restricted ? "var(--warn-badge-text)" : "var(--accent)" }}>{renewLabel}</span>
-                      <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>{fmt(r.startDate)} → {fmt(r.currentPeriodEnd)}</span>
-                      <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{r.autoRenew ? "✓ Auto-renew on" : "○ Auto-renew off"}</span>
+                      {wb && wDue && !restricted ? (
+                        <>
+                          <span style={{ ...chip, ...weeklyStyle(wDue.tone), alignSelf: "flex-start" }}>{wDue.label} · ${wb.amountRaw}/wk</span>
+                          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>Next payment {fmtY(wb.nextDue)}</span>
+                          {(() => { const ps = weeklyPaidStamp(r.notes); return ps ? (
+                            <span title={`Confirmed on-chain · tx ${ps.tx}`} style={{ font: `600 11px ${F_SANS}`, color: "var(--st-active-fg)" }}>✓ Paid {fmtY(ps.date)} · tx {ps.tx.slice(0, 6)}…</span>
+                          ) : null; })()}
+                          <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>Weekly · manual (off-platform)</span>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ font: `600 13px ${F_SANS}`, color: restricted ? "var(--warn-badge-text)" : "var(--accent)" }}>{renewLabel}</span>
+                          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>{fmt(r.startDate)} → {fmt(r.currentPeriodEnd)}</span>
+                          <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{r.autoRenew ? "✓ Auto-renew on" : "○ Auto-renew off"}</span>
+                        </>
+                      )}
                     </div>
                     {/* status */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
@@ -319,16 +356,22 @@ export default function AdminRentalsPage() {
                     </div>
                     {/* notes */}
                     <div style={{ minWidth: 0 }}>
-                      <textarea defaultValue={r.notes || ""} placeholder="Issues, internal notes…" rows={2} onBlur={(e) => saveNotes(r, e.target.value.trim())}
+                      <textarea key={`notes-${r.id}-${wb?.nextDue ?? "x"}`} defaultValue={r.notes || ""} placeholder="Issues, internal notes…" rows={2} onBlur={(e) => saveNotes(r, e.target.value.trim())}
                         style={{ width: "100%", resize: "vertical", font: `500 12.5px/1.5 ${F_SANS}`, color: "var(--text2)", background: "var(--quote-bg)", border: "1px solid var(--card-border)", borderRadius: 9, padding: "9px 11px", outline: "none", minHeight: 40 }} />
                     </div>
                     {/* manage */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                      {(r.status === "active" || r.status === "payment_failed" || r.status === "expired") && (
-                        <button onClick={() => handleSendRenewalLink(r.id)} disabled={busy === r.id} style={{ font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", border: "none", padding: "7px 10px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>Send renewal</button>
-                      )}
-                      {!r.autoRenew && (r.status === "active" || r.status === "payment_failed") && (
-                        <button onClick={() => handleAutoRenewLink(r.id)} disabled={busy === r.id} title="Generate a recurring-billing link to put this renter on auto-renew" style={{ font: `600 12px ${F_SANS}`, color: "var(--st-active-fg)", background: "transparent", border: "1px solid var(--st-active-fg)", padding: "7px 10px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>Set up auto-renew</button>
+                      {wb ? (
+                        <button onClick={() => markWeeklyPaid(r)} disabled={busy === r.id} title="Log this week's payment as received and roll the due date forward one week" style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", border: "none", padding: "7px 10px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>✓ Mark paid (+1 wk)</button>
+                      ) : (
+                        <>
+                          {(r.status === "active" || r.status === "payment_failed" || r.status === "expired") && (
+                            <button onClick={() => handleSendRenewalLink(r.id)} disabled={busy === r.id} style={{ font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", border: "none", padding: "7px 10px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>Send renewal</button>
+                          )}
+                          {!r.autoRenew && (r.status === "active" || r.status === "payment_failed") && (
+                            <button onClick={() => handleAutoRenewLink(r.id)} disabled={busy === r.id} title="Generate a recurring-billing link to put this renter on auto-renew" style={{ font: `600 12px ${F_SANS}`, color: "var(--st-active-fg)", background: "transparent", border: "1px solid var(--st-active-fg)", padding: "7px 10px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>Set up auto-renew</button>
+                          )}
+                        </>
                       )}
                       <div style={{ display: "flex", gap: 6 }}>
                         {restricted ? (

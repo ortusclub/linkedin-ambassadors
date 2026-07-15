@@ -211,7 +211,7 @@ export default function AdminTransactionsPage() {
                     <span style={{ font: `600 14.5px ${F_GRO}`, textAlign: "right", fontVariantNumeric: "tabular-nums", color: amountColor(amt) }}>{money(amt)}</span>
                     <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-end" }}>
                       <span style={{ font: `500 12px ${F_SANS}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{timeOf(t.createdAt)}</span>
-                      {t.txHash ? <a href={`https://basescan.org/tx/${t.txHash}`} target="_blank" rel="noopener noreferrer" style={{ font: `500 11px ${F_GRO}`, color: "var(--link)" }}>{t.txHash.slice(0, 12)}…</a> : <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)" }}>—</span>}
+                      {t.txHash ? <a href={t.txHash.startsWith("0x") ? `https://basescan.org/tx/${t.txHash}` : `https://tronscan.org/#/transaction/${t.txHash}`} target="_blank" rel="noopener noreferrer" style={{ font: `500 11px ${F_GRO}`, color: "var(--link)" }}>{t.txHash.slice(0, 12)}…</a> : <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)" }}>—</span>}
                     </div>
                   </div>
                 );

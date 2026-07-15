@@ -42,23 +42,28 @@ export async function POST(
       await prisma.user.update({ where: { id: rental.user.id }, data: { stripeCustomerId } });
     }
 
-    const session = await stripe.checkout.sessions.create({
-      customer: stripeCustomerId,
-      mode: "payment",
-      line_items: [{
-        price_data: {
-          currency: "usd",
-          product_data: { name: `LinkedVelocity rental — ${rental.linkedinAccount.linkedinName} (1 month)` },
-          unit_amount: Math.round(price * 100),
-        },
-        quantity: 1,
-      }],
+    // Payment Link (never expires) rather than a Checkout Session (24h). Needs a real Price, so
+    // create a product + one-time price, then a single-use link tagged so the webhook extends the
+    // rental (metadata.type === "rental_renewal") and records the transaction on payment.
+    const product = await stripe.products.create({
+      name: `LinkedVelocity rental — ${rental.linkedinAccount.linkedinName} (1 month)`,
+    });
+    const priceObj = await stripe.prices.create({
+      product: product.id,
+      currency: "usd",
+      unit_amount: Math.round(price * 100),
+    });
+    const link = await stripe.paymentLinks.create({
+      line_items: [{ price: priceObj.id, quantity: 1 }],
       metadata: { type: "rental_renewal", rentalId: rental.id },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?rental=renewed`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+      restrictions: { completed_sessions: { limit: 1 } },
+      after_completion: {
+        type: "redirect",
+        redirect: { url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?rental=renewed` },
+      },
     });
 
-    if (!session.url) {
+    if (!link.url) {
       return NextResponse.json({ error: "Stripe did not return a payment URL" }, { status: 500 });
     }
 
@@ -70,12 +75,12 @@ export async function POST(
     await sendRenewalLinkEmail(
       rental.user.email,
       firstName,
-      session.url,
+      link.url,
       dueDate,
       `$${price.toFixed(0)}`,
     );
 
-    return NextResponse.json({ ok: true, sentTo: rental.user.email, url: session.url });
+    return NextResponse.json({ ok: true, sentTo: rental.user.email, url: link.url });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     if (msg === "Forbidden" || msg === "Unauthorized") {

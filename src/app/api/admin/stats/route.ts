@@ -92,6 +92,23 @@ export async function GET(req: NextRequest) {
     const netProfit = mrr - payouts;
     const utilization = totalAccounts > 0 ? Math.round((rentedAccounts / totalAccounts) * 100) : 0;
 
+    // Cash actually collected in the selected month = money IN from customers:
+    // on-platform USDC top-ups (deposit) + off-platform weekly rental payments the
+    // TRON cron records (positive rental_payment). Excludes internal sweeps/refunds.
+    // Computed straight from the ledger, so it's accurate for any month.
+    const collectedAgg = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      _count: true,
+      where: {
+        createdAt: { gte: mStart, lt: mEnd },
+        amount: { gt: 0 },
+        type: { in: ["deposit", "rental_payment"] },
+        ...(includeTest ? {} : { user: { isTest: false } }),
+      },
+    });
+    const collected = Number(collectedAgg._sum.amount ?? 0);
+    const collectedCount = collectedAgg._count;
+
     // ── Month filter + month-over-month trends, powered by the daily snapshot table ──
     // baseline = the latest snapshot strictly before the selected month (i.e. last month's
     // end-of-day state); list of months we actually have snapshots for (drives the dropdown).
@@ -149,6 +166,7 @@ export async function GET(req: NextRequest) {
       stats: {
         // money (live for the current month, snapshot for a past month)
         netProfit: disp.netProfit, mrr: disp.mrr, payouts: disp.payouts, activeRentals: disp.activeRentals,
+        collected, collectedCount,
         // demand
         totalCustomers: disp.totalCustomers, newCustomers30d, renewalsDue30d, atRisk,
         // supply
