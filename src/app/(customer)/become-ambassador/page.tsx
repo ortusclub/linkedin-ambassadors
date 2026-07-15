@@ -870,33 +870,38 @@ export default function BecomeAmbassadorPage() {
                   </div>
 
                   <div style={{ height: 1, background: "#EEF0F3", margin: "24px 0" }} />
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2", marginBottom: 16 }}>LinkedIn profile you want to share</div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2", marginBottom: 16 }}>Your LinkedIn account <span style={{ textTransform: "none", letterSpacing: 0, color: "#A6B0AA" }}>(optional)</span></div>
 
-                  <label style={{ display: "flex", gap: 11, alignItems: "flex-start", cursor: "pointer", marginBottom: 12 }}>
-                    <input type="checkbox" checked={form.sameNameAsProfile} onChange={(e) => setForm(prev => ({ ...prev, sameNameAsProfile: e.target.checked }))} style={{ marginTop: 3, accentColor: "#00A150" }} />
-                    <span style={{ fontSize: 14, color: "#37424F", lineHeight: 1.4 }}>The LinkedIn profile name is the same as my name above</span>
-                  </label>
-                  {!form.sameNameAsProfile && (
-                    <div style={{ marginBottom: 14 }}>
-                      <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Name on LinkedIn profile <span style={{ color: "#00A150" }}>*</span></label>
-                      <input className="ambf-in" type="text" placeholder="e.g. John Smith" value={form.linkedinProfileName} onChange={(e) => update("linkedinProfileName", e.target.value)} />
-                    </div>
-                  )}
-                  <label style={{ display: "flex", gap: 11, alignItems: "flex-start", cursor: "pointer", marginBottom: 18 }}>
-                    <input type="checkbox" checked={form.sameEmailAsProfile} onChange={(e) => setForm(prev => ({ ...prev, sameEmailAsProfile: e.target.checked }))} style={{ marginTop: 3, accentColor: "#00A150" }} />
-                    <span style={{ fontSize: 14, color: "#37424F", lineHeight: 1.4 }}>The LinkedIn login email is the same as my email above</span>
-                  </label>
-                  {!form.sameEmailAsProfile && (
-                    <div style={{ marginBottom: 18 }}>
-                      <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Email used for LinkedIn login <span style={{ color: "#00A150" }}>*</span></label>
-                      <input className="ambf-in" type="email" placeholder="linkedin@email.com" value={form.linkedinEmail} onChange={(e) => update("linkedinEmail", e.target.value)} />
-                    </div>
-                  )}
-
-                  <div style={{ marginBottom: 18 }}>
-                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>LinkedIn profile URL <span style={{ fontWeight: 400, color: "#96A0AD" }}>(needed for your instant valuation)</span></label>
+                  <div style={{ marginBottom: form.linkedinUrl.trim() ? 16 : 6 }}>
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>LinkedIn profile URL <span style={{ fontWeight: 400, color: "#96A0AD" }}>(optional)</span></label>
                     <input className="ambf-in" type="url" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} />
+                    <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 6 }}>Have your profile link? Add it for an instant valuation. No account yet? Leave it blank — we&apos;ll help you get set up.</div>
                   </div>
+
+                  {form.linkedinUrl.trim() && (
+                    <>
+                      <label style={{ display: "flex", gap: 11, alignItems: "flex-start", cursor: "pointer", margin: "4px 0 12px" }}>
+                        <input type="checkbox" checked={form.sameNameAsProfile} onChange={(e) => setForm(prev => ({ ...prev, sameNameAsProfile: e.target.checked }))} style={{ marginTop: 3, accentColor: "#00A150" }} />
+                        <span style={{ fontSize: 14, color: "#37424F", lineHeight: 1.4 }}>The LinkedIn profile name is the same as my name above</span>
+                      </label>
+                      {!form.sameNameAsProfile && (
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Name on LinkedIn profile <span style={{ color: "#00A150" }}>*</span></label>
+                          <input className="ambf-in" type="text" placeholder="e.g. John Smith" value={form.linkedinProfileName} onChange={(e) => update("linkedinProfileName", e.target.value)} />
+                        </div>
+                      )}
+                      <label style={{ display: "flex", gap: 11, alignItems: "flex-start", cursor: "pointer", marginBottom: 18 }}>
+                        <input type="checkbox" checked={form.sameEmailAsProfile} onChange={(e) => setForm(prev => ({ ...prev, sameEmailAsProfile: e.target.checked }))} style={{ marginTop: 3, accentColor: "#00A150" }} />
+                        <span style={{ fontSize: 14, color: "#37424F", lineHeight: 1.4 }}>The LinkedIn login email is the same as my email above</span>
+                      </label>
+                      {!form.sameEmailAsProfile && (
+                        <div style={{ marginBottom: 18 }}>
+                          <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Email used for LinkedIn login <span style={{ color: "#00A150" }}>*</span></label>
+                          <input className="ambf-in" type="email" placeholder="linkedin@email.com" value={form.linkedinEmail} onChange={(e) => update("linkedinEmail", e.target.value)} />
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div style={{ marginBottom: 26 }}>
                     <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>How did you hear about us?</label>
                     <select className="ambf-in" value={form.referralSource} onChange={(e) => update("referralSource", e.target.value)}>
