@@ -56,6 +56,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   return NextResponse.json({
     me: {
       name: me.name,
+      slug: me.slug,
       contactMethod: me.contactMethod,
       contactHandle: me.contactHandle,
       paymentMethod: me.paymentMethod,
