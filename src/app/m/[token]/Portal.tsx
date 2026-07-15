@@ -14,13 +14,21 @@ interface Data {
 const peso = (n: number) => "₱" + n.toLocaleString("en-US");
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-const GUIDE: { t: string; b: string }[] = [
-  { t: "What you're doing", b: "You help people turn their existing LinkedIn account into passive monthly income. Approach them, explain the offer simply, and get them to sign up by scanning your QR code. Our team handles all the technical setup afterwards — you just capture the sign-up." },
-  { t: "How a sign-up works", b: "1) Pitch it in one line. 2) Check they qualify (17+, account older than a week). 3) They scan your QR. 4) They fill in their details — they can skip the valuation if they want. 5) Done — our team takes it from there." },
-  { t: "The offer you're sharing", b: "They earn ₱1,000 to set up (paid to their bank about 3 days after setup), then ₱500 on the 1st of every month, plus ₱500 for anyone they refer. It's fully reversible and safe — they keep control and can take their account back anytime. Payment always comes after setup, never cash on the spot." },
-  { t: "Who qualifies", b: "Anyone 17 or older with a LinkedIn account older than one week. Students are welcome." },
-  { t: "Do & don't", b: "DO: be friendly and quick, get them to complete the form, and be honest that payment comes after setup. DON'T: promise cash on the spot, collect passwords / PINs / 2FA codes, or sign up anyone under 17 or with a brand-new account." },
+const STEPS = [
+  "Pitch it in one line — they earn passive income each month just by lending us their LinkedIn.",
+  "Check they qualify: 17 or older, and their account is older than a week.",
+  "They scan your QR code.",
+  "They fill in their details — they can skip the valuation.",
+  "Done — our team handles onboarding, setup and payment afterwards.",
 ];
+const OFFER: { w: string; a: string; d: string }[] = [
+  { w: "Set-up", a: "₱1,000", d: "to their bank, ~3 days after setup" },
+  { w: "Monthly", a: "₱500", d: "on the 1st of every month" },
+  { w: "Referral", a: "₱500", d: "for anyone they refer who signs up" },
+];
+const ELIGIBILITY = ["17 years or older (students welcome)", "LinkedIn account older than 1 week", "They own the account and can access its email"];
+const DOS = ["Be friendly, casual and quick", "Get them to complete the form", "Be honest that payment comes after setup", "Check age (17+) and account age (>1 week)"];
+const DONTS = ["Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up under-17s or brand-new accounts"];
 
 const FAQ: { q: string; a: string }[] = [
   { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up that gets accepted onto our inventory. Commissions release about 3 days after a sign-up is accepted and are paid the following Monday." },
@@ -37,8 +45,6 @@ export default function Portal({ token }: { token: string }) {
   const [form, setForm] = useState({ contactMethod: "whatsapp", contactHandle: "", paymentMethod: "GCash", paymentDetails: "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [open, setOpen] = useState<Set<string>>(new Set());
-  const toggle = (id: string) => setOpen((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   useEffect(() => {
     fetch(`/api/m/${token}`)
@@ -75,18 +81,7 @@ export default function Portal({ token }: { token: string }) {
   const inp: React.CSSProperties = { width: "100%", border: `1px solid ${C.line}`, borderRadius: 10, padding: "11px 12px", font: "500 15px system-ui", color: C.ink, outline: "none", background: "#fff" };
   const lbl: React.CSSProperties = { font: "600 12px system-ui", color: C.muted, display: "block", marginBottom: 6 };
 
-  const AccRow = ({ id, title, children }: { id: string; title: string; children: React.ReactNode }) => {
-    const isOpen = open.has(id);
-    return (
-      <div style={{ borderTop: `1px solid ${C.line}` }}>
-        <button onClick={() => toggle(id)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: "none", border: "none", padding: "12px 0", cursor: "pointer", textAlign: "left", font: "600 14px system-ui", color: C.ink }}>
-          <span>{title}</span>
-          <span style={{ color: C.muted, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s", fontSize: 18, flex: "none" }}>›</span>
-        </button>
-        {isOpen && <div style={{ fontSize: 13.5, lineHeight: 1.6, color: C.muted, padding: "0 0 12px" }}>{children}</div>}
-      </div>
-    );
-  };
+  const sub: React.CSSProperties = { font: "700 13px system-ui", color: C.ink, margin: "4px 0 10px" };
 
   if (state === "loading") return <div style={{ ...wrap, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted }}>Loading…</div>;
   if (state === "notfound" || !data) return (
@@ -205,13 +200,55 @@ export default function Portal({ token }: { token: string }) {
         {/* field day guide */}
         <div style={card}>
           <h2 style={h2}>Field day guide</h2>
-          {GUIDE.map((g, i) => <AccRow key={i} id={`g${i}`} title={g.t}>{g.b}</AccRow>)}
+
+          <div style={sub}>How a sign-up works</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+            {STEPS.map((s, i) => (
+              <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
+                <span style={{ flex: "none", width: 24, height: 24, borderRadius: 999, background: C.brand, color: "#fff", font: "700 12px system-ui", display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
+                <span style={{ fontSize: 13.5, lineHeight: 1.5, color: C.ink, paddingTop: 2 }}>{s}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={sub}>The offer you share</div>
+          <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden" }}>
+            {OFFER.map((o, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderTop: i === 0 ? "none" : `1px solid ${C.line}` }}>
+                <span style={{ font: "600 13px system-ui", width: 62, flex: "none" }}>{o.w}</span>
+                <span style={{ font: "800 15px system-ui", color: C.brand, width: 60, flex: "none" }}>{o.a}</span>
+                <span style={{ fontSize: 12.5, color: C.muted }}>{o.d}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 12.5, color: C.warn, margin: "8px 0 20px" }}>Payment comes after setup — never cash on the spot.</div>
+
+          <div style={sub}>Who qualifies</div>
+          <ul style={{ margin: "0 0 20px", paddingLeft: 18 }}>
+            {ELIGIBILITY.map((e, i) => <li key={i} style={{ fontSize: 13.5, lineHeight: 1.6, color: C.ink }}>{e}</li>)}
+          </ul>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 13px" }}>
+              <div style={{ font: "700 12px system-ui", color: "#15803d", marginBottom: 7 }}>DO</div>
+              <ul style={{ margin: 0, paddingLeft: 15 }}>{DOS.map((d, i) => <li key={i} style={{ fontSize: 12, lineHeight: 1.5, color: C.ink, marginBottom: 4 }}>{d}</li>)}</ul>
+            </div>
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 13px" }}>
+              <div style={{ font: "700 12px system-ui", color: "#b91c1c", marginBottom: 7 }}>DON&apos;T</div>
+              <ul style={{ margin: 0, paddingLeft: 15 }}>{DONTS.map((d, i) => <li key={i} style={{ fontSize: 12, lineHeight: 1.5, color: C.ink, marginBottom: 4 }}>{d}</li>)}</ul>
+            </div>
+          </div>
         </div>
 
         {/* faqs */}
         <div style={card}>
           <h2 style={h2}>FAQs</h2>
-          {FAQ.map((f, i) => <AccRow key={i} id={`f${i}`} title={f.q}>{f.a}</AccRow>)}
+          {FAQ.map((f, i) => (
+            <div key={i} style={{ padding: "13px 0", borderTop: i === 0 ? "none" : `1px solid ${C.line}` }}>
+              <div style={{ font: "700 14px system-ui", color: C.ink, marginBottom: 5 }}>{f.q}</div>
+              <div style={{ fontSize: 13.5, lineHeight: 1.6, color: C.muted }}>{f.a}</div>
+            </div>
+          ))}
         </div>
 
         <div style={{ textAlign: "center", color: C.muted, fontSize: 11.5, marginTop: 20 }}>Questions? Message your LinkedVelocity contact.</div>
