@@ -158,6 +158,7 @@ export default function Portal({ token }: { token: string }) {
               <button onClick={copyLink} style={{ flex: 1, font: `700 14px ${JAK}`, color: "#fff", background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.3)", padding: 13, borderRadius: 12, cursor: "pointer" }}>{linkCopied ? "Copied ✓" : "⧉ Copy link"}</button>
             </div>
             <div style={{ marginTop: 11, font: `500 11.5px ${GRO}`, color: "rgba(255,255,255,.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myLinkShort}</div>
+            <div style={{ marginTop: 9, paddingTop: 9, borderTop: "1px solid rgba(255,255,255,.18)", font: `500 12px ${JAK}`, color: "rgba(255,255,255,.82)" }}>Can&apos;t scan? Give them your code: <b style={{ font: `700 13px ${GRO}`, color: "#fff", letterSpacing: ".02em" }}>{me.slug}</b></div>
           </div>
 
           {/* stats */}

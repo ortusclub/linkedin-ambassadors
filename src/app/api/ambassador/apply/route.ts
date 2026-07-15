@@ -25,6 +25,15 @@ export async function POST(req: Request) {
     const linkedinUrl = data.linkedinUrl || "";
     const hasUrl = linkedinUrl.length > 0;
 
+    // Canonicalize a referral code to the matching referrer's slug, so a manually-typed
+    // code ("Lewis-4823", "lewis 4823", "LEWIS-4823") credits the same person as the QR.
+    let referredBy = data.referredBy?.trim() || undefined;
+    if (referredBy) {
+      const norm = referredBy.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      const match = norm ? await prisma.referrer.findUnique({ where: { slug: norm } }) : null;
+      if (match) referredBy = match.slug;
+    }
+
     // Leads without a LinkedIn URL (e.g. a field-day walk-up who skipped the valuation)
     // are captured as "pending" for the team to follow up — no auto-assessment or account.
     // Only run the duplicate check when we actually have a URL to match on.
@@ -55,6 +64,7 @@ export async function POST(req: Request) {
       data: {
         ...data,
         linkedinUrl,
+        referredBy,
         status: assessment ? (assessment.autoApproved ? "approved" : "reviewing") : "pending",
         offeredAmount: assessment?.offeredAmount,
         adminNotes: assessment

@@ -126,6 +126,11 @@ export default function AdminReferralsPage() {
       if (res.ok) { const d = await res.json(); setReferrers((prev) => [d.referrer, ...prev]); setAddForm({ name: "", type: "marketer", channel: "", assignedDay: "", assignedLocation: "" }); setShowAdd(false); }
     } finally { setCreating(false); }
   };
+  const deleteReferrer = async (r: Referrer) => {
+    if (!confirm(`Remove ${r.name}? Their QR/portal links stop working.`)) return;
+    setReferrers((prev) => prev.filter((x) => x.id !== r.id));
+    try { await fetch(`/api/admin/referrers/${r.id}`, { method: "DELETE" }); } catch {}
+  };
 
   const label: React.CSSProperties = { font: `700 10.5px ${F_SANS}`, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--label)" };
   const th: React.CSSProperties = { font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
@@ -185,6 +190,7 @@ export default function AdminReferralsPage() {
                   <div style={{ display: "flex", gap: 7, flex: "none" }}>
                     <button onClick={() => copy(`ref-${r.id}`, refLink(r))} style={copyBtn}>{copiedKey === `ref-${r.id}` ? "Copied ✓" : "Copy QR"}</button>
                     <button onClick={() => copy(`portal-${r.id}`, portalLink(r))} style={copyBtn}>{copiedKey === `portal-${r.id}` ? "Copied ✓" : "Copy portal link"}</button>
+                    <button onClick={() => deleteReferrer(r)} title="Remove referrer" style={{ ...copyBtn, color: "var(--danger)", borderColor: "var(--danger-border)", padding: "6px 9px" }}>✕</button>
                   </div>
                 </div>
               ))
