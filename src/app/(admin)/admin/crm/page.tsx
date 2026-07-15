@@ -136,11 +136,15 @@ export default function CrmPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return leads.filter((l) => {
-      if (filter !== "all" && (l.stage || "new") !== filter) return false;
-      if (!q) return true;
-      return `${l.name} ${l.companyEmail || ""} ${l.type || ""} ${l.source || ""} ${l.handle || ""} ${l.notes || ""}`.toLowerCase().includes(q);
-    });
+    const ts = (l: Lead) => new Date(l.lastContactAt || l.firstContactAt).getTime() || 0;
+    return leads
+      .filter((l) => {
+        if (filter !== "all" && (l.stage || "new") !== filter) return false;
+        if (!q) return true;
+        return `${l.name} ${l.companyEmail || ""} ${l.type || ""} ${l.source || ""} ${l.handle || ""} ${l.notes || ""}`.toLowerCase().includes(q);
+      })
+      // most recently contacted first — whoever we talked to latest floats to the top
+      .sort((a, b) => ts(b) - ts(a));
   }, [leads, filter, search]);
 
   const cur = useMemo(() => filtered.find((l) => l.id === selId) || filtered[0] || null, [filtered, selId]);
