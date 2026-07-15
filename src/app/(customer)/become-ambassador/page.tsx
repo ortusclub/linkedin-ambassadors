@@ -1024,7 +1024,7 @@ export default function BecomeAmbassadorPage() {
                 </div>
               </div>
               <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 34, letterSpacing: "-0.02em", margin: "0 0 10px" }}>You&apos;re in{form.fullName ? `, ${form.fullName.split(" ")[0]}` : ""}! 🎉</h2>
-              <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 auto 30px", maxWidth: 460 }}>We&apos;ve got your details. The last step is a quick onboarding call to verify your profile and get you set up to earn.</p>
+              <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 auto 30px", maxWidth: 460 }}>{form.linkedinUrl.trim() ? "We've got your details. The last step is a quick onboarding call to verify your profile and get you set up to earn." : "We've got your details. The last step is a quick onboarding call — we'll help you get your LinkedIn ready and connected so you can start earning. No account yet? No problem, we'll sort it with you."}</p>
 
               <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 11, background: "#00B85C", color: "#fff", fontSize: 16.5, fontWeight: 600, padding: "16px 30px", borderRadius: 14, textDecoration: "none", boxShadow: "0 14px 32px rgba(0,184,92,0.32)" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>Book your onboarding call
@@ -1032,7 +1032,10 @@ export default function BecomeAmbassadorPage() {
 
               <div style={{ textAlign: "left", background: "#F6FAF7", border: "1px solid #E1EFE7", borderRadius: 18, padding: "24px 26px", marginTop: 30 }}>
                 <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 16, color: "#0B1220", marginBottom: 18 }}>What happens on the call</div>
-                {[["1", "We quickly verify your LinkedIn profile."], ["2", "We connect your account securely via GoLogin — you keep full control."], ["3", "You start earning every month it's active."]].map(([n, t]) => (
+                {(form.linkedinUrl.trim()
+                  ? [["1", "We quickly verify your LinkedIn profile."], ["2", "We connect your account securely via GoLogin — you keep full control."], ["3", "You start earning every month it's active."]]
+                  : [["1", "We help you get your LinkedIn account ready — if you don't have one yet, we'll set it up with you (takes a few minutes)."], ["2", "We connect it securely via GoLogin — you keep full control."], ["3", "Once it's active (about a week for a brand-new account), you start earning every month."]]
+                ).map(([n, t]) => (
                   <div key={n} style={{ display: "flex", gap: 13, alignItems: "flex-start", marginBottom: 16 }}>
                     <span style={{ flexShrink: 0, width: 26, height: 26, borderRadius: "50%", background: "#E7F6EE", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 12 }}>{n}</span>
                     <span style={{ fontSize: 15, lineHeight: 1.55, color: "#37424F" }}>{t}</span>
