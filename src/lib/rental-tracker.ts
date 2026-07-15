@@ -93,6 +93,27 @@ export function advanceWeeklyNotes(notes: string | null | undefined): string {
   return (notes || "").replace(b.marker, `[weekly $${b.amountRaw} due ${y}-${mo}-${da}]`);
 }
 
+// A single "last payment confirmed on-chain" audit tag the weekly-payment cron
+// writes into notes, e.g.  [paid 2026-07-19 tx 7f873227]  — surfaced in admin so
+// the team can see the last auto-detected payment (and its tx) at a glance.
+const PAID_RE = /\[paid (\d{4}-\d{2}-\d{2}) tx ([0-9a-fA-F]{6,16})\]/;
+
+export interface WeeklyPaidStamp { date: string; tx: string }
+
+export function weeklyPaidStamp(notes: string | null | undefined): WeeklyPaidStamp | null {
+  const m = (notes || "").match(PAID_RE);
+  return m ? { date: m[1], tx: m[2] } : null;
+}
+
+// Advance the weekly due date one week AND record the confirmed payment (date +
+// short tx id). Replaces any prior [paid …] tag so only the latest is kept.
+export function confirmWeeklyPayment(notes: string | null | undefined, paidDate: string, txId: string): string {
+  const advanced = advanceWeeklyNotes(notes);
+  const stamp = `[paid ${paidDate} tx ${txId.slice(0, 8)}]`;
+  const stripped = advanced.replace(PAID_RE, "").replace(/[ \t]{2,}/g, " ").trimEnd();
+  return `${stripped} ${stamp}`.trim();
+}
+
 // GoLogin access state, independent of payment.
 export function accessStatus(r: TrackerRental): "Granted" | "Paused" | "Revoked" | "Not granted" {
   if (r.paused) return "Paused";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { paymentStatus, accessStatus, isManualGrant, weeklyBilling, weeklyDueState, advanceWeeklyNotes } from "@/lib/rental-tracker";
+import { paymentStatus, accessStatus, isManualGrant, weeklyBilling, weeklyDueState, advanceWeeklyNotes, weeklyPaidStamp } from "@/lib/rental-tracker";
 
 interface Rental {
   id: string;
@@ -335,6 +335,9 @@ export default function AdminRentalsPage() {
                         <>
                           <span style={{ ...chip, ...weeklyStyle(wDue.tone), alignSelf: "flex-start" }}>{wDue.label} · ${wb.amountRaw}/wk</span>
                           <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>Next payment {fmtY(wb.nextDue)}</span>
+                          {(() => { const ps = weeklyPaidStamp(r.notes); return ps ? (
+                            <span title={`Confirmed on-chain · tx ${ps.tx}`} style={{ font: `600 11px ${F_SANS}`, color: "var(--st-active-fg)" }}>✓ Paid {fmtY(ps.date)} · tx {ps.tx.slice(0, 6)}…</span>
+                          ) : null; })()}
                           <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>Weekly · manual (off-platform)</span>
                         </>
                       ) : (
