@@ -265,7 +265,7 @@ export default function Portal({ token }: { token: string }) {
             <p style={{ font: `500 12.5px ${JAK}`, color: C.muted, margin: "0 0 14px" }}>Keep these up to date so we can pay you.</p>
             <div style={{ font: `600 11px ${JAK}`, color: C.muted, marginBottom: 6 }}>Contact</div>
             <div style={{ display: "flex", gap: 9, marginBottom: 14 }}>
-              <select value={form.contactMethod} onChange={(e) => setForm({ ...form, contactMethod: e.target.value })} style={sel}><option>WhatsApp</option><option>Telegram</option><option>Email</option></select>
+              <select value={form.contactMethod} onChange={(e) => setForm({ ...form, contactMethod: e.target.value })} style={sel}><option>WhatsApp</option><option>Telegram</option><option>Viber</option><option>Email</option></select>
               <input value={form.contactHandle} onChange={(e) => setForm({ ...form, contactHandle: e.target.value })} placeholder="number / @handle" style={inp} />
             </div>
             <div style={{ font: `600 11px ${JAK}`, color: C.muted, marginBottom: 6 }}>Pay me via</div>

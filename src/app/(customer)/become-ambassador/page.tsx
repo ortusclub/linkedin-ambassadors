@@ -119,7 +119,7 @@ export default function BecomeAmbassadorPage() {
     fullName: "",
     email: "",
     contactNumber: "",
-    contactMethod: "whatsapp" as "whatsapp" | "telegram",
+    contactMethod: "whatsapp" as "whatsapp" | "telegram" | "viber",
     contactHandle: "",
     linkedinProfileName: "",
     linkedinEmail: "",
@@ -199,8 +199,8 @@ export default function BecomeAmbassadorPage() {
             fullName: prev.fullName || data.user.fullName || "",
             email: prev.email || data.user.email || "",
             contactNumber: prev.contactNumber || data.user.contactNumber || "",
-            contactMethod: data.user.contactNumber?.startsWith("telegram:") ? "telegram" as const : "whatsapp" as const,
-            contactHandle: prev.contactHandle || (data.user.contactNumber?.replace(/^(whatsapp|telegram):/, "") || ""),
+            contactMethod: data.user.contactNumber?.startsWith("telegram:") ? "telegram" as const : data.user.contactNumber?.startsWith("viber:") ? "viber" as const : "whatsapp" as const,
+            contactHandle: prev.contactHandle || (data.user.contactNumber?.replace(/^(whatsapp|telegram|viber):/, "") || ""),
           }));
           setIsLoggedIn(true);
           setStep(booked ? "scheduled" : wantSubmit ? "account-details" : wantValuation ? "info" : "logged-in-choice");
@@ -268,10 +268,11 @@ export default function BecomeAmbassadorPage() {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!form.fullName || !form.email || !form.linkedinUrl || !form.contactHandle) {
-      setError("Please fill in all required fields");
+    if (!form.fullName || !form.email || !form.contactHandle) {
+      setError("Please fill in your name, email and contact");
       return;
     }
+    const hasUrl = !!form.linkedinUrl.trim();
 
     // Create ambassador application immediately so it appears in admin, and capture
     // the server's assessed offer so the applicant sees the SAME number we store/pay.
@@ -284,7 +285,7 @@ export default function BecomeAmbassadorPage() {
           email: form.email,
           linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
           contactNumber: `${form.contactMethod}:${form.contactHandle}`,
-          linkedinUrl: form.linkedinUrl,
+          linkedinUrl: form.linkedinUrl || undefined,
           connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
           location: form.location || undefined,
           referralSource: form.referralSource || undefined,
@@ -311,8 +312,10 @@ export default function BecomeAmbassadorPage() {
       }
     } catch {} // Don't block the flow if this fails
 
-    setScanIndex(0);
-    setStep("scanning");
+    // With a LinkedIn URL we run the instant valuation; without one we've still captured
+    // the lead, so go straight to the confirmation (no valuation to show).
+    if (hasUrl) { setScanIndex(0); setStep("scanning"); }
+    else { setStep("scheduled"); }
   }, [form]);
 
   // Stash what they already typed so the signup page pre-fills it (no re-entering).
@@ -815,29 +818,28 @@ export default function BecomeAmbassadorPage() {
                 <h1 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,38px)", letterSpacing: "-0.03em", margin: "0 0 10px" }}>Get your profile valuation</h1>
                 <p style={{ fontSize: 17, color: "#5A6473", margin: "0 0 6px" }}>We&apos;ll evaluate your profile instantly — free, no obligation.</p>
                 <button type="button" onClick={async () => {
-                  // Capture the lead (name/email/contact + referral) before moving on, so a walk-up who
-                  // skips the valuation — even without a LinkedIn URL yet — still lands in admin with the
-                  // marketer's referral attached. Fire-and-forget; never block the flow if it fails.
-                  if (form.fullName && form.email && form.contactHandle) {
-                    try {
-                      await fetch("/api/ambassador/apply", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          fullName: form.fullName,
-                          email: form.email,
-                          linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
-                          contactNumber: `${form.contactMethod}:${form.contactHandle}`,
-                          linkedinUrl: form.linkedinUrl || undefined,
-                          connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
-                          location: form.location || undefined,
-                          referralSource: form.referralSource || undefined,
-                          referredBy: form.referredBy || undefined,
-                        }),
-                      });
-                    } catch {}
-                  }
-                  if (isLoggedIn) { setStep("scheduled"); } else { stashSignupPrefill(); window.location.href = "/register?redirect=" + encodeURIComponent("/become-ambassador?booked=1"); }
+                  // Capture the lead (name/email/contact + referral) and go straight to the confirmation
+                  // — no valuation, no separate register form. Same clean ending as a completed signup.
+                  setError("");
+                  if (!form.fullName || !form.email || !form.contactHandle) { setError("Please add your name, email and contact so we can reach you."); return; }
+                  try {
+                    await fetch("/api/ambassador/apply", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        fullName: form.fullName,
+                        email: form.email,
+                        linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
+                        contactNumber: `${form.contactMethod}:${form.contactHandle}`,
+                        linkedinUrl: form.linkedinUrl || undefined,
+                        connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
+                        location: form.location || undefined,
+                        referralSource: form.referralSource || undefined,
+                        referredBy: form.referredBy || undefined,
+                      }),
+                    });
+                  } catch {}
+                  setStep("scheduled");
                 }} style={{ background: "none", border: "none", fontSize: 14.5, color: "#0A66C2", fontWeight: 600, cursor: "pointer" }}>Skip valuation for now →</button>
               </div>
 
@@ -856,11 +858,11 @@ export default function BecomeAmbassadorPage() {
                   </div>
 
                   <div style={{ marginBottom: 6 }}>
-                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>WhatsApp or Telegram <span style={{ color: "#00A150" }}>*</span></label>
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>WhatsApp, Telegram or Viber <span style={{ color: "#00A150" }}>*</span></label>
                     <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                      {(["whatsapp", "telegram"] as const).map((m) => {
+                      {(["whatsapp", "telegram", "viber"] as const).map((m) => {
                         const on = form.contactMethod === m;
-                        return <button key={m} type="button" onClick={() => update("contactMethod", m)} style={{ flex: 1, cursor: "pointer", fontFamily: "'Inter',sans-serif", fontSize: 14, fontWeight: 600, borderRadius: 10, padding: 11, transition: "all .15s", color: on ? "#067A45" : "#5A6473", background: on ? "#EAF7F0" : "#fff", border: "1.5px solid " + (on ? "#00A150" : "#DCE3DE") }}>{m === "whatsapp" ? "WhatsApp" : "Telegram"}</button>;
+                        return <button key={m} type="button" onClick={() => update("contactMethod", m)} style={{ flex: 1, cursor: "pointer", fontFamily: "'Inter',sans-serif", fontSize: 14, fontWeight: 600, borderRadius: 10, padding: 11, transition: "all .15s", color: on ? "#067A45" : "#5A6473", background: on ? "#EAF7F0" : "#fff", border: "1.5px solid " + (on ? "#00A150" : "#DCE3DE") }}>{m === "whatsapp" ? "WhatsApp" : m === "telegram" ? "Telegram" : "Viber"}</button>;
                       })}
                     </div>
                     <input className="ambf-in" type="text" value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder={form.contactMethod === "whatsapp" ? "+44 7700 000000" : "@yourhandle"} required />
@@ -910,8 +912,8 @@ export default function BecomeAmbassadorPage() {
                     <input className="ambf-in" type="text" placeholder="If someone referred you, enter their name or code" value={form.referredBy} onChange={(e) => update("referredBy", e.target.value)} />
                   </div>
 
-                  <button type="submit" style={{ width: "100%", background: "#00B85C", color: "#fff", fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: "pointer", boxShadow: "0 12px 28px rgba(0,184,92,0.28)" }}>Get my profile valuation →</button>
-                  <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Free · instant · no account required</div>
+                  <button type="submit" style={{ width: "100%", background: "#00B85C", color: "#fff", fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: "pointer", boxShadow: "0 12px 28px rgba(0,184,92,0.28)" }}>{form.linkedinUrl.trim() ? "Get my profile valuation →" : "Sign me up →"}</button>
+                  <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>{form.linkedinUrl.trim() ? "Free · instant · no account required" : "No account needed · we'll set you up"}</div>
                 </form>
 
                 {/* SIDEBAR */}
