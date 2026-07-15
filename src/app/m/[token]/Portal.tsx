@@ -16,7 +16,7 @@ const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: 
 
 const STEPS = [
   "Pitch it in one line — they earn passive income each month just by lending us their LinkedIn.",
-  "Check they qualify: 17 or older, and their account is older than a week.",
+  "Check they qualify: they're 18 or older. Any LinkedIn account works — brand-new ones just pay out a bit later.",
   "They scan your QR code.",
   "They fill in their details — they can skip the valuation.",
   "Done — our team handles onboarding, setup and payment afterwards.",
@@ -24,18 +24,18 @@ const STEPS = [
 const OFFER: { w: string; a: string; d: string }[] = [
   { w: "Set-up", a: "₱1,000", d: "to their bank, ~3 days after setup" },
   { w: "Monthly", a: "₱500", d: "on the 1st of every month" },
-  { w: "Referral", a: "₱500", d: "for anyone they refer who signs up" },
 ];
-const ELIGIBILITY = ["17 years or older (students welcome)", "LinkedIn account older than 1 week", "They own the account and can access its email"];
-const DOS = ["Be friendly, casual and quick", "Get them to complete the form", "Be honest that payment comes after setup", "Check age (17+) and account age (>1 week)"];
-const DONTS = ["Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up under-17s or brand-new accounts"];
+const ELIGIBILITY = ["18 years or older (students welcome)", "Any LinkedIn account — new ones are fine, they just pay out once the account is a week old", "They own the account and can access its email"];
+const DOS = ["Be friendly, casual and quick", "Get them to complete the form", "Be honest that payment comes after setup", "Check they're 18 or older"];
+const DONTS = ["Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up anyone under 18"];
 
 const FAQ: { q: string; a: string }[] = [
   { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up that gets accepted onto our inventory. Commissions release about 3 days after a sign-up is accepted and are paid the following Monday." },
   { q: "Is it safe for them? Can you steal their account?", a: "No. They keep recovery access to their own account at all times and can take it back whenever they want. It's used for professional outreach only." },
-  { q: "Do they get paid today?", a: "No — after they're onboarded online, we wait a few days to be sure the account is stable, then send ₱1,000 to their bank. After that, ₱500 lands on the 1st of every month." },
-  { q: "What if someone doesn't qualify?", a: "Just thank them and move on — only 17+ with an account older than a week qualifies." },
-  { q: "Can they sign up friends or family?", a: "Yes — anyone 17+ with an account older than a week. Each account earns its own bonus and monthly payout, and you get credit for the referral." },
+  { q: "Do they get paid today?", a: "No — after they're onboarded online, we wait a few days to be sure the account is stable, then send ₱1,000 to their bank. A brand-new account waits until it's about a week old. After that, ₱500 lands on the 1st of every month." },
+  { q: "Can they use a brand-new LinkedIn account?", a: "Yes — new accounts are welcome. It just takes a little longer: the account needs to be about a week old before the first payment goes out." },
+  { q: "What if someone doesn't qualify?", a: "Just thank them and move on — they only need to be 18 or older." },
+  { q: "Can they sign up friends or family?", a: "Yes — anyone 18 or older. Each account earns its own set-up bonus and monthly payout." },
   { q: "What if they want their account back later?", a: "No problem — they can reclaim it anytime, and the monthly payments simply stop." },
 ];
 
