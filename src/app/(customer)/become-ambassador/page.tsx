@@ -814,7 +814,31 @@ export default function BecomeAmbassadorPage() {
                 <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 12 }}>Step 1 · Get a valuation</div>
                 <h1 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,38px)", letterSpacing: "-0.03em", margin: "0 0 10px" }}>Get your profile valuation</h1>
                 <p style={{ fontSize: 17, color: "#5A6473", margin: "0 0 6px" }}>We&apos;ll evaluate your profile instantly — free, no obligation.</p>
-                <button type="button" onClick={() => { if (isLoggedIn) { setStep("scheduled"); } else { stashSignupPrefill(); window.location.href = "/register?redirect=" + encodeURIComponent("/become-ambassador?booked=1"); } }} style={{ background: "none", border: "none", fontSize: 14.5, color: "#0A66C2", fontWeight: 600, cursor: "pointer" }}>Skip valuation for now →</button>
+                <button type="button" onClick={async () => {
+                  // Capture the lead (name/email/contact + referral) before moving on, so a walk-up who
+                  // skips the valuation — even without a LinkedIn URL yet — still lands in admin with the
+                  // marketer's referral attached. Fire-and-forget; never block the flow if it fails.
+                  if (form.fullName && form.email && form.contactHandle) {
+                    try {
+                      await fetch("/api/ambassador/apply", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          fullName: form.fullName,
+                          email: form.email,
+                          linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
+                          contactNumber: `${form.contactMethod}:${form.contactHandle}`,
+                          linkedinUrl: form.linkedinUrl || undefined,
+                          connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
+                          location: form.location || undefined,
+                          referralSource: form.referralSource || undefined,
+                          referredBy: form.referredBy || undefined,
+                        }),
+                      });
+                    } catch {}
+                  }
+                  if (isLoggedIn) { setStep("scheduled"); } else { stashSignupPrefill(); window.location.href = "/register?redirect=" + encodeURIComponent("/become-ambassador?booked=1"); }
+                }} style={{ background: "none", border: "none", fontSize: 14.5, color: "#0A66C2", fontWeight: 600, cursor: "pointer" }}>Skip valuation for now →</button>
               </div>
 
               <div className="ambf-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px", gap: 34, alignItems: "start", marginTop: 34 }}>
@@ -868,8 +892,8 @@ export default function BecomeAmbassadorPage() {
                   )}
 
                   <div style={{ marginBottom: 18 }}>
-                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>LinkedIn profile URL <span style={{ color: "#00A150" }}>*</span></label>
-                    <input className="ambf-in" type="url" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} required />
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>LinkedIn profile URL <span style={{ fontWeight: 400, color: "#96A0AD" }}>(needed for your instant valuation)</span></label>
+                    <input className="ambf-in" type="url" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} />
                   </div>
                   <div style={{ marginBottom: 26 }}>
                     <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>How did you hear about us?</label>
@@ -879,15 +903,12 @@ export default function BecomeAmbassadorPage() {
                     </select>
                   </div>
 
-                  {/* Fail-safe attribution: shows when "Flyer" or "Friend or referral" is picked ("Flyer"
-                      is auto-selected when they arrive via a marketer's ?ref= QR). Pre-filled from the ref
-                      tag; editable if the link didn't carry, so the marketer still gets credit. */}
-                  {(form.referralSource === "Flyer" || form.referralSource === "Friend or referral") && (
-                    <div style={{ marginBottom: 26 }}>
-                      <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Who referred you? <span style={{ fontWeight: 400, color: "#96A0AD" }}>(name or code)</span></label>
-                      <input className="ambf-in" type="text" placeholder="e.g. their name" value={form.referredBy} onChange={(e) => update("referredBy", e.target.value)} />
-                    </div>
-                  )}
+                  {/* Referral attribution — always visible & optional. Pre-filled from a marketer's
+                      ?ref= QR; anyone else can type a name/code so the marketer still gets credit. */}
+                  <div style={{ marginBottom: 26 }}>
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Referral code <span style={{ fontWeight: 400, color: "#96A0AD" }}>(optional)</span></label>
+                    <input className="ambf-in" type="text" placeholder="If someone referred you, enter their name or code" value={form.referredBy} onChange={(e) => update("referredBy", e.target.value)} />
+                  </div>
 
                   <button type="submit" style={{ width: "100%", background: "#00B85C", color: "#fff", fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: "pointer", boxShadow: "0 12px 28px rgba(0,184,92,0.28)" }}>Get my profile valuation →</button>
                   <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Free · instant · no account required</div>
