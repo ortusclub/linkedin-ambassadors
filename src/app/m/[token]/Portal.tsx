@@ -14,12 +14,31 @@ interface Data {
 const peso = (n: number) => "₱" + n.toLocaleString("en-US");
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
+const GUIDE: { t: string; b: string }[] = [
+  { t: "What you're doing", b: "You help people turn their existing LinkedIn account into passive monthly income. Approach them, explain the offer simply, and get them to sign up by scanning your QR code. Our team handles all the technical setup afterwards — you just capture the sign-up." },
+  { t: "How a sign-up works", b: "1) Pitch it in one line. 2) Check they qualify (17+, account older than a week). 3) They scan your QR. 4) They fill in their details — they can skip the valuation if they want. 5) Done — our team takes it from there." },
+  { t: "The offer you're sharing", b: "They earn ₱1,000 to set up (paid to their bank about 3 days after setup), then ₱500 on the 1st of every month, plus ₱500 for anyone they refer. It's fully reversible and safe — they keep control and can take their account back anytime. Payment always comes after setup, never cash on the spot." },
+  { t: "Who qualifies", b: "Anyone 17 or older with a LinkedIn account older than one week. Students are welcome." },
+  { t: "Do & don't", b: "DO: be friendly and quick, get them to complete the form, and be honest that payment comes after setup. DON'T: promise cash on the spot, collect passwords / PINs / 2FA codes, or sign up anyone under 17 or with a brand-new account." },
+];
+
+const FAQ: { q: string; a: string }[] = [
+  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up that gets accepted onto our inventory. Commissions release about 3 days after a sign-up is accepted and are paid the following Monday." },
+  { q: "Is it safe for them? Can you steal their account?", a: "No. They keep recovery access to their own account at all times and can take it back whenever they want. It's used for professional outreach only." },
+  { q: "Do they get paid today?", a: "No — after they're onboarded online, we wait a few days to be sure the account is stable, then send ₱1,000 to their bank. After that, ₱500 lands on the 1st of every month." },
+  { q: "What if someone doesn't qualify?", a: "Just thank them and move on — only 17+ with an account older than a week qualifies." },
+  { q: "Can they sign up friends or family?", a: "Yes — anyone 17+ with an account older than a week. Each account earns its own bonus and monthly payout, and you get credit for the referral." },
+  { q: "What if they want their account back later?", a: "No problem — they can reclaim it anytime, and the monthly payments simply stop." },
+];
+
 export default function Portal({ token }: { token: string }) {
   const [data, setData] = useState<Data | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
   const [form, setForm] = useState({ contactMethod: "whatsapp", contactHandle: "", paymentMethod: "GCash", paymentDetails: "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setOpen((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   useEffect(() => {
     fetch(`/api/m/${token}`)
@@ -55,6 +74,19 @@ export default function Portal({ token }: { token: string }) {
   const h2: React.CSSProperties = { font: "700 13px system-ui", textTransform: "uppercase", letterSpacing: ".05em", color: C.muted, margin: "0 0 12px" };
   const inp: React.CSSProperties = { width: "100%", border: `1px solid ${C.line}`, borderRadius: 10, padding: "11px 12px", font: "500 15px system-ui", color: C.ink, outline: "none", background: "#fff" };
   const lbl: React.CSSProperties = { font: "600 12px system-ui", color: C.muted, display: "block", marginBottom: 6 };
+
+  const AccRow = ({ id, title, children }: { id: string; title: string; children: React.ReactNode }) => {
+    const isOpen = open.has(id);
+    return (
+      <div style={{ borderTop: `1px solid ${C.line}` }}>
+        <button onClick={() => toggle(id)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: "none", border: "none", padding: "12px 0", cursor: "pointer", textAlign: "left", font: "600 14px system-ui", color: C.ink }}>
+          <span>{title}</span>
+          <span style={{ color: C.muted, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s", fontSize: 18, flex: "none" }}>›</span>
+        </button>
+        {isOpen && <div style={{ fontSize: 13.5, lineHeight: 1.6, color: C.muted, padding: "0 0 12px" }}>{children}</div>}
+      </div>
+    );
+  };
 
   if (state === "loading") return <div style={{ ...wrap, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted }}>Loading…</div>;
   if (state === "notfound" || !data) return (
@@ -168,6 +200,18 @@ export default function Portal({ token }: { token: string }) {
           <button onClick={save} disabled={saving} style={{ width: "100%", background: saved ? C.brandDk : C.brand, color: "#fff", border: "none", borderRadius: 10, padding: 13, font: "700 15px system-ui", cursor: "pointer" }}>
             {saving ? "Saving…" : saved ? "Saved ✓" : "Save details"}
           </button>
+        </div>
+
+        {/* field day guide */}
+        <div style={card}>
+          <h2 style={h2}>Field day guide</h2>
+          {GUIDE.map((g, i) => <AccRow key={i} id={`g${i}`} title={g.t}>{g.b}</AccRow>)}
+        </div>
+
+        {/* faqs */}
+        <div style={card}>
+          <h2 style={h2}>FAQs</h2>
+          {FAQ.map((f, i) => <AccRow key={i} id={`f${i}`} title={f.q}>{f.a}</AccRow>)}
         </div>
 
         <div style={{ textAlign: "center", color: C.muted, fontSize: 11.5, marginTop: 20 }}>Questions? Message your LinkedVelocity contact.</div>
