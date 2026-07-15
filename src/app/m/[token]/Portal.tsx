@@ -29,14 +29,21 @@ const ELIGIBILITY = ["18 years or older (students welcome)", "Any LinkedIn accou
 const DOS = ["Be friendly, casual and quick", "Get them to complete the form", "Be honest that payment comes after setup", "Check they're 18 or older"];
 const DONTS = ["Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up anyone under 18"];
 
-const FAQ: { q: string; a: string }[] = [
+const MARKETER_FAQ: { q: string; a: string }[] = [
   { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up that gets accepted onto our inventory. Commissions release about 3 days after a sign-up is accepted and are paid the following Monday." },
-  { q: "Is it safe for them? Can you steal their account?", a: "No. They keep recovery access to their own account at all times and can take it back whenever they want. It's used for professional outreach only." },
-  { q: "Do they get paid today?", a: "No — after they're onboarded online, we wait a few days to be sure the account is stable, then send ₱1,000 to their bank. A brand-new account waits until it's about a week old. After that, ₱500 lands on the 1st of every month." },
-  { q: "Can they use a brand-new LinkedIn account?", a: "Yes — new accounts are welcome. It just takes a little longer: the account needs to be about a week old before the first payment goes out." },
+  { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding. That's when your ₱500 is triggered." },
   { q: "What if someone doesn't qualify?", a: "Just thank them and move on — they only need to be 18 or older." },
-  { q: "Can they sign up friends or family?", a: "Yes — anyone 18 or older. Each account earns its own set-up bonus and monthly payout." },
-  { q: "What if they want their account back later?", a: "No problem — they can reclaim it anytime, and the monthly payments simply stop." },
+  { q: "How do I update my payout details?", a: "Right here — scroll up to \"Your payout details\" and save your GCash / bank info so we can pay you." },
+  { q: "How do I get invited back?", a: "We track sign-ups per person — strong performers get first pick for the next field days." },
+];
+
+const AMBASSADOR_FAQ: { q: string; a: string }[] = [
+  { q: "Is it safe? Can you steal my account?", a: "No. You keep recovery access to your own account at all times and can take it back whenever you want. It's used for professional outreach only." },
+  { q: "How much will I earn?", a: "₱1,000 to set up (paid to your bank ~3 days after setup), then ₱500 on the 1st of every month, for as long as your account is with us." },
+  { q: "Do I get paid today?", a: "Not today — after you're onboarded online, we wait a few days to be sure the account is stable, then send ₱1,000 to your bank. A brand-new account waits until it's about a week old. After that, ₱500 lands on the 1st of every month." },
+  { q: "Can I use a brand-new LinkedIn account?", a: "Yes — new accounts are welcome. It just takes a little longer: the account needs to be about a week old before the first payment goes out." },
+  { q: "Can my friends or family do it too?", a: "Yes — anyone 18 or older. Each account earns its own set-up bonus and monthly payout." },
+  { q: "What if I want my account back later?", a: "No problem — reclaim it anytime, and the monthly payments simply stop." },
 ];
 
 export default function Portal({ token }: { token: string }) {
@@ -240,11 +247,23 @@ export default function Portal({ token }: { token: string }) {
           </div>
         </div>
 
-        {/* faqs */}
+        {/* your faqs (marketer) */}
         <div style={card}>
-          <h2 style={h2}>FAQs</h2>
-          {FAQ.map((f, i) => (
+          <h2 style={h2}>Your FAQs</h2>
+          {MARKETER_FAQ.map((f, i) => (
             <div key={i} style={{ padding: "13px 0", borderTop: i === 0 ? "none" : `1px solid ${C.line}` }}>
+              <div style={{ font: "700 14px system-ui", color: C.ink, marginBottom: 5 }}>{f.q}</div>
+              <div style={{ fontSize: 13.5, lineHeight: 1.6, color: C.muted }}>{f.a}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ambassador faqs (what people will ask you) */}
+        <div style={card}>
+          <h2 style={h2}>Questions people will ask you</h2>
+          <p style={{ fontSize: 12.5, color: C.muted, margin: "-4px 0 8px" }}>Use these to answer anyone you sign up.</p>
+          {AMBASSADOR_FAQ.map((f, i) => (
+            <div key={i} style={{ padding: "13px 0", borderTop: `1px solid ${C.line}` }}>
               <div style={{ font: "700 14px system-ui", color: C.ink, marginBottom: 5 }}>{f.q}</div>
               <div style={{ fontSize: 13.5, lineHeight: 1.6, color: C.muted }}>{f.a}</div>
             </div>
