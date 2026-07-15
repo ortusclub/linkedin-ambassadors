@@ -15,6 +15,7 @@ interface Application {
   location: string | null;
   notes: string | null;
   referralSource: string | null;
+  referredBy: string | null;
   status: string;
   offeredAmount: string | number | null;
   adminNotes: string | null;
@@ -63,6 +64,7 @@ export default function AdminAmbassadorsPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [marketer, setMarketer] = useState("all");
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
@@ -91,18 +93,26 @@ export default function AdminAmbassadorsPage() {
     return c;
   }, [apps]);
 
+  // Distinct marketers (from the referral tag) with their submission counts, busiest first.
+  const marketers = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of apps) { const r = (a.referredBy || "").trim(); if (r) m.set(r, (m.get(r) || 0) + 1); }
+    return [...m.entries()].sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+  }, [apps]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     // group a person's submissions together, newest owner first
     const rows = apps.filter((a) => {
       if (filter !== "all" && bucketOf(a.status) !== filter) return false;
+      if (marketer !== "all" && (a.referredBy || "").trim() !== marketer) return false;
       if (!q) return true;
-      return `${a.fullName} ${a.email} ${a.contactNumber || ""} ${a.linkedinUrl}`.toLowerCase().includes(q);
+      return `${a.fullName} ${a.email} ${a.contactNumber || ""} ${a.linkedinUrl} ${a.referredBy || ""}`.toLowerCase().includes(q);
     });
     const lastSeen = new Map<string, number>();
     rows.forEach((a) => { const t = new Date(a.createdAt).getTime(); lastSeen.set(a.email, Math.max(lastSeen.get(a.email) ?? 0, t)); });
     return [...rows].sort((a, b) => (a.email !== b.email ? lastSeen.get(b.email)! - lastSeen.get(a.email)! : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-  }, [apps, filter, query]);
+  }, [apps, filter, marketer, query]);
 
   const toggle = (id: string) => setCollapsed((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allCollapsed = filtered.length > 0 && filtered.every((a) => collapsed.has(a.id));
@@ -148,7 +158,13 @@ export default function AdminAmbassadorsPage() {
 
       {/* search + collapse */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, owner email, contact or LinkedIn…" style={{ flex: 1, minWidth: 220, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "10px 13px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, owner email, contact, LinkedIn or referral…" style={{ flex: 1, minWidth: 220, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "10px 13px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
+        {marketers.length > 0 && (
+          <select value={marketer} onChange={(e) => setMarketer(e.target.value)} title="Filter by the marketer who referred them" style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "10px 13px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none", cursor: "pointer", maxWidth: 220 }}>
+            <option value="all">All marketers ({marketers.reduce((s, [, n]) => s + n, 0)})</option>
+            {marketers.map(([name, n]) => <option key={name} value={name}>{name} ({n})</option>)}
+          </select>
+        )}
         <button onClick={collapseAll} style={{ ...secBtn, whiteSpace: "nowrap", padding: "10px 15px" }}>{allCollapsed ? "Expand all" : "Collapse all"}</button>
       </div>
 
@@ -192,6 +208,7 @@ export default function AdminAmbassadorsPage() {
                     <Field label="Location">{a.location || a.industry || "—"}</Field>
                     <Field label="LinkedIn URL"><a href={liHref(a.linkedinUrl)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>{liShort(a.linkedinUrl)}</a></Field>
                     <Field label="Heard from">{a.referralSource || "—"}</Field>
+                    <Field label="Referred by">{a.referredBy ? <span style={{ color: "var(--st-active-fg)", fontWeight: 600 }}>{a.referredBy}</span> : "—"}</Field>
                   </div>
                   {/* actions */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "14px 22px", borderTop: "1px solid var(--divider)", background: "var(--band)", flexWrap: "wrap" }}>
