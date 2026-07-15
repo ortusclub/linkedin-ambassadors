@@ -160,7 +160,7 @@ export default function BecomeAmbassadorPage() {
   // Capture the field-marketer referral tag from ?ref= (e.g. /become-ambassador?ref=mark-lewis-estacio),
   // set by the marketer's personal QR. Persist it in sessionStorage so it survives the valuation flow
   // AND the login redirect round-trip, and attach it at submit. Also default "how did you hear" to
-  // "Friend or referral" so the manual fail-safe field shows pre-filled.
+  // "Flyer" (a QR scan comes from a marketer's flyer) so the manual fail-safe field shows pre-filled.
   useEffect(() => {
     try {
       const sp = new URLSearchParams(window.location.search);
@@ -171,7 +171,7 @@ export default function BecomeAmbassadorPage() {
         setForm((prev) => ({
           ...prev,
           referredBy: prev.referredBy || ref,
-          referralSource: prev.referralSource || "Friend or referral",
+          referralSource: prev.referralSource || "Flyer",
         }));
       }
     } catch {}
@@ -874,14 +874,14 @@ export default function BecomeAmbassadorPage() {
                     <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>How did you hear about us?</label>
                     <select className="ambf-in" value={form.referralSource} onChange={(e) => update("referralSource", e.target.value)}>
                       <option value="">Select an option (optional)</option>
-                      <option>Google search</option><option>LinkedIn</option><option>ChatGPT / AI tool</option><option>Social media</option><option>Reddit</option><option>Friend or referral</option><option>Other</option>
+                      <option>Google search</option><option>LinkedIn</option><option>ChatGPT / AI tool</option><option>Social media</option><option>Reddit</option><option>Friend or referral</option><option>Flyer</option><option>Other</option>
                     </select>
                   </div>
 
-                  {/* Fail-safe attribution: shows when "Friend or referral" is picked (auto-selected when
-                      they arrive via a marketer's ?ref= QR). Pre-filled from the ref tag; editable if the
-                      link didn't carry, so the marketer still gets credit. */}
-                  {form.referralSource === "Friend or referral" && (
+                  {/* Fail-safe attribution: shows when "Flyer" or "Friend or referral" is picked ("Flyer"
+                      is auto-selected when they arrive via a marketer's ?ref= QR). Pre-filled from the ref
+                      tag; editable if the link didn't carry, so the marketer still gets credit. */}
+                  {(form.referralSource === "Flyer" || form.referralSource === "Friend or referral") && (
                     <div style={{ marginBottom: 26 }}>
                       <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Who referred you? <span style={{ fontWeight: 400, color: "#96A0AD" }}>(name or code)</span></label>
                       <input className="ambf-in" type="text" placeholder="e.g. their name" value={form.referredBy} onChange={(e) => update("referredBy", e.target.value)} />
