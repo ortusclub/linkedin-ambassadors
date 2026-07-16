@@ -31,12 +31,12 @@ export async function POST(req: Request) {
     const name = (body.name || "").trim();
     if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
-    // The slug doubles as the referral CODE, so make it unique — name + 4 digits
-    // (e.g. "lewis-4823") — not a bare first name, so a manually-typed code maps to
-    // exactly one referrer even if two share a name.
-    const base = slugify(name) || "ref";
+    // The slug doubles as the referral CODE — keep it short & memorable so a marketer can
+    // say it out loud: first name + 2 digits (e.g. "lewis-42"). The digits disambiguate two
+    // people with the same name; the DB checks uniqueness and retries on the rare collision.
+    const first = slugify(name.trim().split(/\s+/)[0] || name) || "ref";
     let slug = "";
-    do { slug = `${base}-${Math.floor(1000 + Math.random() * 9000)}`; } while (await prisma.referrer.findUnique({ where: { slug } }));
+    do { slug = `${first}-${Math.floor(10 + Math.random() * 90)}`; } while (await prisma.referrer.findUnique({ where: { slug } }));
 
     const token = randomBytes(18).toString("base64url");
     const referrer = await prisma.referrer.create({
