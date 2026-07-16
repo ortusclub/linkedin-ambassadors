@@ -8,7 +8,7 @@ interface App {
   status: string;
 }
 
-interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; }
+interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
@@ -48,6 +48,9 @@ export default function AdminReferralsPage() {
   const [addForm, setAddForm] = useState({ name: "", type: "marketer", channel: "", assignedDay: "", assignedLocation: "" });
   const [creating, setCreating] = useState(false);
   const [copiedKey, setCopiedKey] = useState("");
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [dForm, setDForm] = useState({ contactMethod: "WhatsApp", contactHandle: "", paymentMethod: "GCash", paymentDetails: "" });
+  const [dSaving, setDSaving] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/ambassadors").then((r) => r.json()).then((d) => setApps(d.applications || [])).finally(() => setLoading(false));
@@ -126,6 +129,18 @@ export default function AdminReferralsPage() {
       if (res.ok) { const d = await res.json(); setReferrers((prev) => [d.referrer, ...prev]); setAddForm({ name: "", type: "marketer", channel: "", assignedDay: "", assignedLocation: "" }); setShowAdd(false); }
     } finally { setCreating(false); }
   };
+  const openDetails = (r: Referrer) => {
+    if (detailId === r.id) { setDetailId(null); return; }
+    setDForm({ contactMethod: r.contactMethod || "WhatsApp", contactHandle: r.contactHandle || "", paymentMethod: r.paymentMethod || "GCash", paymentDetails: r.paymentDetails || "" });
+    setDetailId(r.id);
+  };
+  const saveDetails = async (r: Referrer) => {
+    setDSaving(true);
+    try {
+      const res = await fetch(`/api/admin/referrers/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dForm) });
+      if (res.ok) { setReferrers((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...dForm } : x))); setDetailId(null); }
+    } finally { setDSaving(false); }
+  };
   const deleteReferrer = async (r: Referrer) => {
     if (!confirm(`Remove ${r.name}? Their QR/portal links stop working.`)) return;
     setReferrers((prev) => prev.filter((x) => x.id !== r.id));
@@ -181,17 +196,40 @@ export default function AdminReferralsPage() {
               !showAdd && <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)", padding: "14px 20px" }}>No marketers yet. Add one to generate their QR link and personal portal link.</div>
             ) : (
               referrers.map((r) => (
-                <div key={r.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 14, alignItems: "center", padding: "11px 20px", borderBottom: "1px solid var(--divider)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-                    <span style={{ font: `600 13px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
-                    <span style={roleBadge(r.type)}>{r.type}</span>
-                    <span style={{ font: `500 11.5px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>ref: {r.slug}</span>
+                <div key={r.id} style={{ borderBottom: "1px solid var(--divider)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 14, alignItems: "center", padding: "11px 20px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, flexWrap: "wrap" }}>
+                      <span style={{ font: `600 13px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+                      <span style={roleBadge(r.type)}>{r.type}</span>
+                      <span style={{ font: `500 11.5px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>ref: {r.slug}</span>
+                      <span style={{ font: `600 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", background: r.paymentDetails ? "var(--st-active-bg)" : "var(--warn-badge-bg)", color: r.paymentDetails ? "var(--st-active-fg)" : "var(--warn-badge-text)" }}>{r.paymentDetails ? "payout set ✓" : "no payout details"}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 7, flex: "none" }}>
+                      <button onClick={() => openDetails(r)} style={{ ...copyBtn, ...(detailId === r.id ? { borderColor: "var(--chip-active-border)", background: "var(--chip-active-bg)" } : {}) }}>Details</button>
+                      <button onClick={() => copy(`ref-${r.id}`, refLink(r))} style={copyBtn}>{copiedKey === `ref-${r.id}` ? "Copied ✓" : "Copy QR"}</button>
+                      <button onClick={() => copy(`portal-${r.id}`, portalLink(r))} style={copyBtn}>{copiedKey === `portal-${r.id}` ? "Copied ✓" : "Copy portal link"}</button>
+                      <button onClick={() => deleteReferrer(r)} title="Remove referrer" style={{ ...copyBtn, color: "var(--danger)", borderColor: "var(--danger-border)", padding: "6px 9px" }}>✕</button>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: 7, flex: "none" }}>
-                    <button onClick={() => copy(`ref-${r.id}`, refLink(r))} style={copyBtn}>{copiedKey === `ref-${r.id}` ? "Copied ✓" : "Copy QR"}</button>
-                    <button onClick={() => copy(`portal-${r.id}`, portalLink(r))} style={copyBtn}>{copiedKey === `portal-${r.id}` ? "Copied ✓" : "Copy portal link"}</button>
-                    <button onClick={() => deleteReferrer(r)} title="Remove referrer" style={{ ...copyBtn, color: "var(--danger)", borderColor: "var(--danger-border)", padding: "6px 9px" }}>✕</button>
-                  </div>
+                  {detailId === r.id && (
+                    <div style={{ padding: "2px 20px 16px", display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+                      <div style={{ flex: "1 1 240px" }}>
+                        <div style={{ font: `600 10px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--label)", marginBottom: 5 }}>Contact</div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <select value={dForm.contactMethod} onChange={(e) => setDForm({ ...dForm, contactMethod: e.target.value })} style={{ ...inpStyle, width: 108, flex: "none" }}><option>WhatsApp</option><option>Telegram</option><option>Viber</option><option>Email</option></select>
+                          <input value={dForm.contactHandle} onChange={(e) => setDForm({ ...dForm, contactHandle: e.target.value })} placeholder="number / @handle" style={inpStyle} />
+                        </div>
+                      </div>
+                      <div style={{ flex: "1 1 240px" }}>
+                        <div style={{ font: `600 10px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--label)", marginBottom: 5 }}>Pay via</div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <select value={dForm.paymentMethod} onChange={(e) => setDForm({ ...dForm, paymentMethod: e.target.value })} style={{ ...inpStyle, width: 108, flex: "none" }}><option>GCash</option><option>Maya</option><option>Bank transfer</option></select>
+                          <input value={dForm.paymentDetails} onChange={(e) => setDForm({ ...dForm, paymentDetails: e.target.value })} placeholder="account number / details" style={inpStyle} />
+                        </div>
+                      </div>
+                      <button onClick={() => saveDetails(r)} disabled={dSaving} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 16px", borderRadius: 9, cursor: "pointer", opacity: dSaving ? 0.6 : 1 }}>{dSaving ? "Saving…" : "Save"}</button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
