@@ -28,7 +28,15 @@ const OFFER: { w: string; a: string; d: string }[] = [
   { w: "Monthly", a: "₱500", d: "on the 1st of every month" },
 ];
 const DOS = ["Be friendly, casual and quick", "Get them to complete the form", "Be honest that payment comes after setup", "Check they're 18 or older"];
-const DONTS = ["Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up anyone under 18"];
+const DONTS = ["Pressure anyone — encourage, never force", "Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up anyone under 18"];
+
+const TIPS = [
+  "They can remove their account at any time.",
+  "They can view their account any time and see exactly how it's being used.",
+  "Their password is never shared with renters — only we have access.",
+  "We vet every renter to make sure they're a legitimate business.",
+  "They can test it with just one account first to see how it works.",
+];
 
 const MARKETER_FAQ = [
   { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up accepted onto our inventory. Commissions release about 3 days after a sign-up is accepted and are paid the following Monday." },
@@ -38,10 +46,15 @@ const MARKETER_FAQ = [
   { q: "How do I get invited back?", a: "We track sign-ups per person — strong performers get first pick for the next field days." },
 ];
 const AMBASSADOR_FAQ = [
+  { q: "What is LinkedIn?", a: "LinkedIn is like Facebook, but for professionals and businesses — people use it to network, find work, and reach out to potential clients." },
+  { q: "Why would a business want to use my account?", a: "LinkedIn limits how many people one account can message or connect with. Businesses need lots of real, established accounts to reach potential clients — so they pay to use accounts like yours." },
+  { q: "What will my account be used for?", a: "Two things: sending connection requests and messages to potential clients (outreach), and gathering public professional info like company names and job titles (research). Nothing is ever posted as you." },
+  { q: "Is this a scam or illegal?", a: "No — it's completely legal. It's your account and your choice to share access. It does go against LinkedIn's own rules, but that isn't the same as illegal, and everything is consent-based. We only work with vetted, legitimate businesses doing normal professional outreach." },
   { q: "Is it safe? Can you steal my account?", a: "No. You keep recovery access to your own account at all times and can take it back whenever you want. It's used for professional outreach only." },
-  { q: "How much will I earn?", a: "₱1,000 to set up (paid to your bank ~3 days after setup), then ₱500 on the 1st of every month, for as long as your account is with us." },
-  { q: "Do I get paid today?", a: "Not today — after you're onboarded online, we wait a few days to be sure the account is stable, then send ₱1,000 to your bank. A brand-new account waits until it's about a week old. After that, ₱500 lands on the 1st of every month." },
-  { q: "Can I use a brand-new LinkedIn account?", a: "Yes — new accounts are welcome. It just takes a little longer: the account needs to be about a week old before the first payment goes out." },
+  { q: "How much will I earn?", a: "₱1,000 to start — paid to your bank about 3 days after setup (or a week if it's a brand-new account). Then ₱500 every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ₱1,000 covers your first partial month, so you're never short-changed." },
+  { q: "Can I use a brand-new LinkedIn account?", a: "Yes — new accounts are welcome. It just needs to be about a week old before we pay the setup fee." },
+  { q: "Can I still use my account?", a: "Yes. You keep full access, you can see exactly how it's being used, and you can use it yourself any time it isn't being rented." },
+  { q: "Do I have to share my password?", a: "Your password is never shared with the renter — they only access the account through our software. We keep it secure so we can quickly sort out any issue with your account for you." },
   { q: "Can my friends or family do it too?", a: "Yes — anyone 18 or older. Each account earns its own set-up bonus and monthly payout." },
   { q: "What if I want my account back later?", a: "No problem — reclaim it anytime, and the monthly payments simply stop." },
 ];
@@ -244,6 +257,18 @@ export default function Portal({ token }: { token: string }) {
                 {DONTS.map((d, i) => <div key={i} style={{ font: `500 12px/1.4 ${JAK}`, color: "#8a4a4a", marginBottom: 7 }}>{d}</div>)}
               </div>
             </div>
+          </div>
+
+          {/* tips to reassure */}
+          <div style={card}>
+            <div style={{ ...secLbl, marginBottom: 4 }}>Tips to reassure them</div>
+            <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Handy points to bring up if someone&apos;s unsure.</p>
+            {TIPS.map((t, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
+                <span style={{ color: C.green, font: `700 13px ${JAK}`, flex: "none", lineHeight: 1.4 }}>✓</span>
+                <span style={{ font: `500 13px/1.45 ${JAK}`, color: C.slate }}>{t}</span>
+              </div>
+            ))}
           </div>
 
           {/* ambassador faqs */}
