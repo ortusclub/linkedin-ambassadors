@@ -576,7 +576,7 @@ export default function BecomeAmbassadorPage() {
             </div>
             <div className="a-2grid" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
               {[
-                { title: "You stay in control", body: "Your name, photo and headline never change. The account is used for outreach only." },
+                { title: "You stay in control", body: "Your name and photo never change. The account is used for professional outreach only." },
                 { title: "Protected access", body: "Every account runs through a dedicated proxy and a secure anti-detect browser (GoLogin)." },
                 { title: "Nothing posted as you", body: "Renters can't change your profile or post on your behalf." },
                 { title: "Stop whenever", body: "Withdraw your account at any time. No lock-in, no penalties." },
@@ -677,7 +677,7 @@ export default function BecomeAmbassadorPage() {
                 { q: "Do I have to share my password?", a: "Your login is only ever used to keep your account secure and running — it's stored safely and never shared with renters, who access the account only through our software. You stay in full control and can change it or withdraw your account at any time. We'll walk you through exactly how access works when you get started." },
                 { q: "What will renters use my account for?", a: "Normal B2B outreach — sending connection requests and messages to potential clients. Renters are vetted businesses, and they can never change your profile, post as you, or touch your settings. It's used for outreach only." },
                 { q: "Can I still use my account while it's shared?", a: "Yes. You keep full access to your own account at any time, and you can see exactly how it's being used and who's being messaged. Sharing doesn't mean giving it up." },
-                { q: "Will this affect my LinkedIn account?", a: "Activity is kept human-paced and within LinkedIn's normal limits to protect the account. Your name, photo, and headline stay exactly as they are." },
+                { q: "Will this affect my LinkedIn account?", a: "Activity is kept human-paced and within LinkedIn's normal limits to protect the account. Your name and photo stay exactly as they are — other details like your headline, job or About may be tweaked to keep the profile credible for professional outreach." },
                 { q: "What if my account gets restricted?", a: "It's rare — activity is kept human-paced and secure to protect the account. If a restriction ever does happen, we work to recover it, and since it's your own account you're never penalised for it." },
                 { q: "How much will I earn?", a: "A ₱1,000 one-time setup bonus, then ₱500 every month your account stays active — the same for every approved account. Have more than one (yours or family's)? Each earns its own bonus and monthly payout. Higher payouts for stronger profiles are coming soon." },
                 { q: "When and how do I get paid?", a: "You're paid every month via bank transfer — even in months your account isn't rented." },
