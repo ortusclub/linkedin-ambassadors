@@ -101,6 +101,14 @@ function calculateOffer(data: {
   return { amount: Math.min(amount, 75), tier, reasons };
 }
 
+// Accept whatever the user pastes for their LinkedIn URL and tidy it up — add https://
+// if missing so "linkedin.com/in/name" (no protocol) still works. Empty -> undefined.
+const cleanLinkedinUrl = (u: string): string | undefined => {
+  const s = u.trim().replace(/\s+/g, "");
+  if (!s) return undefined;
+  return /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, "")}`;
+};
+
 export default function BecomeAmbassadorPage() {
   const [step, setStep] = useState<Step | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -285,7 +293,7 @@ export default function BecomeAmbassadorPage() {
           email: form.email,
           linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
           contactNumber: `${form.contactMethod}:${form.contactHandle}`,
-          linkedinUrl: form.linkedinUrl || undefined,
+          linkedinUrl: cleanLinkedinUrl(form.linkedinUrl),
           connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
           location: form.location || undefined,
           referralSource: form.referralSource || undefined,
@@ -831,7 +839,7 @@ export default function BecomeAmbassadorPage() {
                         email: form.email,
                         linkedinEmail: form.sameEmailAsProfile ? form.email : (form.linkedinEmail || form.email),
                         contactNumber: `${form.contactMethod}:${form.contactHandle}`,
-                        linkedinUrl: form.linkedinUrl || undefined,
+                        linkedinUrl: cleanLinkedinUrl(form.linkedinUrl),
                         connectionCount: form.connectionCount ? Number(form.connectionCount) : undefined,
                         location: form.location || undefined,
                         referralSource: form.referralSource || undefined,
@@ -874,7 +882,7 @@ export default function BecomeAmbassadorPage() {
 
                   <div style={{ marginBottom: form.linkedinUrl.trim() ? 16 : 6 }}>
                     <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>LinkedIn profile URL <span style={{ fontWeight: 400, color: "#96A0AD" }}>(optional)</span></label>
-                    <input className="ambf-in" type="url" placeholder="https://linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} />
+                    <input className="ambf-in" type="text" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} />
                     <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 6 }}>Have your profile link? Add it for an instant valuation. No account yet? Leave it blank — we&apos;ll help you get set up.</div>
                   </div>
 
