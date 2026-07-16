@@ -85,6 +85,12 @@ export default function AdminAmbassadorsPage() {
       if (res.ok) { const d = await res.json(); if (d.application) setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...d.application } : a))); }
     } finally { setBusy(null); }
   };
+
+  const deleteApp = async (a: Application) => {
+    if (!confirm(`Delete the signup from ${a.fullName || a.email}? This can't be undone.`)) return;
+    setApps((prev) => prev.filter((x) => x.id !== a.id));
+    try { await fetch(`/api/admin/ambassadors/${a.id}`, { method: "DELETE" }); } catch {}
+  };
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
   const counts = useMemo(() => {
@@ -222,7 +228,10 @@ export default function AdminAmbassadorsPage() {
                               : secBtn}>{act.label}</button>
                       ))}
                     </div>
-                    <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>Accepting creates the inventory profile</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>Accepting creates the inventory profile</span>
+                      <button onClick={() => deleteApp(a)} title="Delete this signup" style={{ font: `600 12px ${F_SANS}`, color: "var(--danger)", background: "transparent", border: "1px solid var(--danger-border)", padding: "7px 12px", borderRadius: 8, cursor: "pointer" }}>Delete</button>
+                    </div>
                   </div>
                 </div>
               )}
