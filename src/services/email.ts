@@ -15,14 +15,19 @@ interface EmailOptions {
   to: string | string[];
   subject: string;
   html: string;
+  bcc?: string | string[];
 }
 
-async function sendEmail({ to, subject, html }: EmailOptions) {
+// BCC the team inbox on billing/renewal emails so there's visibility of what went out to renters
+// (reminders, charges, failures) without checking the Resend dashboard.
+const billingBcc = adminEmail;
+
+async function sendEmail({ to, subject, html, bcc }: EmailOptions) {
   if (!process.env.RESEND_API_KEY) {
-    console.log(`[Email] Would send to ${to}: ${subject}`);
+    console.log(`[Email] Would send to ${to}${bcc ? ` (bcc ${bcc})` : ""}: ${subject}`);
     return;
   }
-  return getResend().emails.send({ from, to, subject, html });
+  return getResend().emails.send({ from, to, subject, html, ...(bcc ? { bcc } : {}) });
 }
 
 export async function sendVerificationCode(email: string, code: string) {
@@ -305,6 +310,7 @@ export async function sendRenewalConfirmation(email: string) {
   return sendEmail({
     to: email,
     subject: `Your LinkedVelocity rental is renewed 🎉`,
+    bcc: billingBcc,
     html: brandWrap(`
       <p style="font-size:16px;margin:0 0 8px;"><strong>You're renewed! 🎉</strong></p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your LinkedVelocity rental has been renewed for another month — your access continues uninterrupted.</p>
@@ -314,17 +320,77 @@ export async function sendRenewalConfirmation(email: string) {
 
 // --- Auto-renew ON emails ---
 
-// Reassuring heads-up sent ~3 days before an auto-renewing rental renews.
-export async function sendRenewalHeadsUp(email: string, firstName: string, renewDate: string) {
+// Reassuring heads-up sent ~3 days before an auto-renewing rental renews. When the rental is
+// billed to a saved card on file, pass amount (+ optional cardLast4) so the notice states the
+// exact upcoming charge — a card is never charged without this advance warning going out first.
+export async function sendRenewalHeadsUp(
+  email: string, firstName: string, renewDate: string, amount?: string, cardLast4?: string | null
+) {
   const hi = firstName ? `Hi ${firstName},` : "Hi there,";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  const card = cardLast4 ? `your card ending <strong>${cardLast4}</strong>` : "your card on file";
+  const chargeLine = amount
+    ? `<p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">On <strong>${renewDate}</strong> we'll automatically charge ${card} <strong>${amount}</strong> to renew your rental for another month. Your account keeps running exactly as it is — no interruption, nothing you need to do.</p>`
+    : `<p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Just a quick heads-up that your LinkedVelocity rental renews on <strong>${renewDate}</strong>. Your account will keep running exactly as it is — no interruption.</p>`;
   return sendEmail({
     to: email,
-    subject: `Your LinkedVelocity rental renews on ${renewDate} — nothing to do`,
+    subject: amount
+      ? `Heads-up: ${card.replace(/<[^>]+>/g, "")} will be charged ${amount} on ${renewDate}`
+      : `Your LinkedVelocity rental renews on ${renewDate} — nothing to do`,
+    bcc: billingBcc,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Just a quick heads-up that your LinkedVelocity rental renews on <strong>${renewDate}</strong>. Your account will keep running exactly as it is — no interruption.</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 18px;">You don't need to do anything right now. If you'd like to review your plan or update your billing details, you can do that anytime below.</p>
+      ${chargeLine}
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 18px;">Nothing to do to keep it going. If you'd like to review your plan, update your card, or cancel before then, you can do that anytime below.</p>
+      <a href="${appUrl}/dashboard" style="display:inline-block;background:#F3F2EE;color:#0F1419;text-decoration:none;font-weight:600;font-size:14px;padding:11px 22px;border-radius:10px;">Manage billing</a>
+    `),
+  });
+}
+
+// Consolidated pre-charge reminder — one email per renter covering several card-on-file
+// accounts renewing around the same time. Lists each account + amount and the combined total
+// that will hit the card. Charges still happen per-account; only the notice is bundled.
+export async function sendRenewalHeadsUpBatch(
+  email: string,
+  firstName: string,
+  items: { account: string; amount: string; date: string }[],
+  total: string,
+  cardLast4?: string | null
+) {
+  const hi = firstName ? `Hi ${firstName},` : "Hi there,";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  const card = cardLast4 ? `your card ending <strong>${cardLast4}</strong>` : "your card on file";
+  const cardPlain = cardLast4 ? `your card ending ${cardLast4}` : "your card on file";
+  const dates = Array.from(new Set(items.map((i) => i.date)));
+  const whenLabel = dates.length === 1 ? `on <strong>${dates[0]}</strong>` : `over the next few days`;
+  const rows = items
+    .map(
+      (i) => `<tr>
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:14px;color:#0F1419;">${i.account}</td>
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:13px;color:#536471;">renews ${i.date}</td>
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:14px;color:#0F1419;text-align:right;font-weight:600;">${i.amount}</td>
+      </tr>`
+    )
+    .join("");
+  return sendEmail({
+    to: email,
+    subject:
+      dates.length === 1
+        ? `Heads-up: ${cardPlain} will be charged ${total} on ${dates[0]}`
+        : `Heads-up: upcoming renewals on ${cardPlain} (${total})`,
+    bcc: billingBcc,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Quick heads-up — we'll automatically renew your LinkedVelocity rentals ${whenLabel}, charging ${card} a combined <strong>${total}</strong>. Everything keeps running exactly as it is — no interruption, nothing you need to do.</p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 8px;">
+        <tbody>${rows}
+          <tr>
+            <td style="padding:11px 12px;border-top:2px solid #e2e5e8;font-size:14px;color:#0F1419;font-weight:700;" colspan="2">Total</td>
+            <td style="padding:11px 12px;border-top:2px solid #e2e5e8;font-size:14px;color:#0F1419;text-align:right;font-weight:700;">${total}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:16px 0 18px;">Each account is billed separately, so you'll see them as individual charges. If you'd like to review, update your card, or cancel any before then, you can do that anytime below.</p>
       <a href="${appUrl}/dashboard" style="display:inline-block;background:#F3F2EE;color:#0F1419;text-decoration:none;font-weight:600;font-size:14px;padding:11px 22px;border-radius:10px;">Manage billing</a>
     `),
   });
@@ -336,6 +402,7 @@ export async function sendPaymentFailedEmail(email: string, firstName: string, p
   return sendEmail({
     to: email,
     subject: `Quick payment hiccup on your LinkedVelocity rental`,
+    bcc: billingBcc,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">We had trouble processing your latest payment — but no worries, <strong>your access is still on</strong>. We'll keep retrying automatically over the next few days.</p>
@@ -359,6 +426,7 @@ export async function sendAccessRevokedEmail(
   return sendEmail({
     to: email,
     subject: `Your LinkedVelocity access has been paused`,
+    bcc: billingBcc,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">We weren't able to collect payment for your rental, so access to ${acct} has been paused for now.</p>
