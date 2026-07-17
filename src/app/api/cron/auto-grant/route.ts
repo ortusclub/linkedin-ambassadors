@@ -45,3 +45,8 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, processed: pending.length, granted, stillPending });
 }
+
+// Vercel Cron triggers with GET — alias to POST so this job actually runs (was 405 before).
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
