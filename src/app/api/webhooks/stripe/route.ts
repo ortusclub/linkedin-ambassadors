@@ -228,6 +228,10 @@ async function handleAutoRenewSetup(session: Stripe.Checkout.Session) {
     data: {
       stripeSubscriptionId: subscriptionId,
       autoRenew: true,
+      // Move the rental fully onto the card rail: Stripe now bills the card monthly, so the
+      // rental must leave the wallet-charging cron — otherwise it'd be charged twice (and an
+      // empty wallet would wrongly flip it to payment_failed + revoke access).
+      usdcPayment: false,
       status: needsAccess ? "pending_access" : "active",
     },
   });
