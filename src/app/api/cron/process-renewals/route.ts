@@ -296,3 +296,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+// Vercel Cron Jobs trigger the endpoint with a GET request (carrying the CRON_SECRET bearer),
+// so a GET handler is REQUIRED or the daily job never runs (405). Alias it to POST, which also
+// stays available for manual triggering.
+export async function GET(req: NextRequest) {
+  return POST(req);
+}

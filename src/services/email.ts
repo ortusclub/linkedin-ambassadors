@@ -396,6 +396,21 @@ export async function sendRenewalHeadsUpBatch(
   });
 }
 
+// Internal watchdog alert — sent when the daily renewal cron looks like it stopped running
+// (rentals stuck past their renewal date). Goes to milee@ per request.
+export async function sendRenewalCronAlert(stuck: number, activeAutoRenew: number) {
+  const one = stuck === 1;
+  return sendEmail({
+    to: "milee@linkedvelocity.com",
+    subject: `[Alert] LinkedVelocity renewal cron may not be running (${stuck} stuck)`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">Heads-up — the automated renewal job may have stopped running.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;"><strong>${stuck}</strong> active auto-renew rental${one ? "" : "s"} ${one ? "is" : "are"} more than 4 days past ${one ? "its" : "their"} renewal date and still unprocessed (of ${activeAutoRenew} active auto-renew total). If the daily job were running, ${one ? "it" : "they"} would have been charged, moved into the grace window, or expired by now.</p>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:0;">Check the Vercel cron for the <strong>klabber</strong> project — <code>/api/cron/process-renewals</code>, scheduled 09:00 UTC — and its deployment logs. Live status: <a href="https://linkedvelocity.com/api/cron/health" style="color:#0A66C2;">/api/cron/health</a>.</p>
+    `),
+  });
+}
+
 // Payment hiccup on an auto-renewing rental — access stays ON, we keep retrying.
 export async function sendPaymentFailedEmail(email: string, firstName: string, payUrl: string) {
   const hi = firstName ? `Hi ${firstName},` : "Hi there,";
