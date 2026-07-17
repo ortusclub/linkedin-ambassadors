@@ -120,6 +120,18 @@ export default function AdminReferralsPage() {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const refLink = (r: Referrer) => `${origin}/become-ambassador?ref=${r.slug}`;
   const portalLink = (r: Referrer) => `${origin}/m/${r.token}`;
+  const printFlyers = () => {
+    if (!referrers.length) return;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    const flyers = referrers.map((r) => {
+      const link = `${origin}/r/${r.slug}`;
+      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=0&data=${encodeURIComponent(link)}`;
+      return `<div class="sheet"><div class="top"><div class="brand">LINKEDVELOCITY</div><h2>Turn your LinkedIn into <span>monthly income</span></h2><p>Lend us your account. Get paid every month. Take it back anytime.</p></div><div class="body"><div class="benefits"><div class="b"><b>&#8369;1,000</b><span>set-up, to your bank</span></div><div class="b"><b>&#8369;500</b><span>every month it's active</span></div></div><div class="qrwrap"><img class="qr" src="${qr}" alt="QR"/><div class="qrt"><div class="lead">Scan to start &rarr;</div><div class="sub">Point your phone camera here &mdash; it opens the sign-up form.</div></div></div><div class="who">Signing up with <b>${r.name}</b> &middot; code <b>${r.slug}</b></div><div class="elig">Anyone <b>18+</b> with a LinkedIn account. Students welcome. Payment comes after setup &mdash; never cash on the spot.</div></div><div class="bot">LinkedVelocity &middot; Ambassador Program</div></div>`;
+    }).join("");
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Field Day Flyers</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0f172a}.sheet{width:148mm;min-height:210mm;margin:0 auto;display:flex;flex-direction:column;page-break-after:always;overflow:hidden}.top{background:linear-gradient(140deg,#0f766e,#155e75);color:#fff;padding:34px 30px;text-align:center}.brand{font-size:12px;font-weight:800;letter-spacing:.18em;opacity:.9;margin-bottom:16px}.top h2{font-size:33px;line-height:1.1;font-weight:800}.top h2 span{color:#5eead4}.top p{margin-top:12px;font-size:15px;opacity:.95}.body{flex:1;padding:30px 30px 20px;display:flex;flex-direction:column}.benefits{display:flex;gap:12px;margin-bottom:26px}.b{flex:1;text-align:center;border:1px solid #e2e8f0;border-radius:14px;padding:16px 8px}.b b{display:block;font-size:26px;color:#0f766e}.b span{font-size:12px;color:#64748b}.qrwrap{display:flex;align-items:center;gap:18px;background:#ccfbf1;border-radius:18px;padding:20px;margin-bottom:20px}.qr{width:150px;height:150px;flex:none;background:#fff;border-radius:12px;padding:8px}.qrt .lead{font-size:22px;font-weight:800;color:#134e4a}.qrt .sub{font-size:13px;color:#134e4a;opacity:.85;margin-top:5px}.who{text-align:center;font-size:15px;color:#334155;margin-bottom:12px}.who b{color:#0f172a}.elig{text-align:center;font-size:13px;color:#64748b;margin-top:auto}.bot{background:#0f172a;color:#cbd5e1;text-align:center;font-size:12px;padding:12px}@page{size:A5;margin:0}</style></head><body>${flyers}<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});</script></body></html>`);
+    win.document.close();
+  };
   const copy = (key: string, text: string) => { navigator.clipboard?.writeText(text); setCopiedKey(key); setTimeout(() => setCopiedKey(""), 1500); };
   const addReferrer = async () => {
     if (!addForm.name.trim()) return;
@@ -178,7 +190,8 @@ export default function AdminReferralsPage() {
           <span style={{ font: `700 13.5px ${F_SANS}`, color: "var(--text)" }}>Referral links</span>
           <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{referrers.length} referrer{referrers.length === 1 ? "" : "s"}</span>
           <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>portal &amp; QR links to share</span>
-          <button onClick={(e) => { e.stopPropagation(); setLinksOpen(true); setShowAdd((v) => !v); }} style={{ marginLeft: "auto", font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "7px 13px", borderRadius: 8, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add referrer"}</button>
+          <button onClick={(e) => { e.stopPropagation(); printFlyers(); }} disabled={!referrers.length} style={{ marginLeft: "auto", font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "7px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>Print flyers</button>
+          <button onClick={(e) => { e.stopPropagation(); setLinksOpen(true); setShowAdd((v) => !v); }} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "7px 13px", borderRadius: 8, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add referrer"}</button>
         </div>
         {linksOpen && (
           <div style={{ borderTop: "1px solid var(--divider)" }}>
