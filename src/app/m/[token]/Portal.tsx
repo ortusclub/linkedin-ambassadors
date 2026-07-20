@@ -211,7 +211,7 @@ export default function Portal({ token }: { token: string }) {
 
           {/* recent signups */}
           <div style={card}>
-            <div style={{ ...secLbl, marginBottom: 6 }}>Recent signups</div>
+            <div style={{ ...secLbl, marginBottom: 6 }}>Your recent signups</div>
             {activity.length === 0 ? (
               <div style={{ color: C.muted, fontSize: 13, paddingTop: 4 }}>No signups yet — show your QR to get started.</div>
             ) : activity.map((a, i) => {

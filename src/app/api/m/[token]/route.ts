@@ -7,8 +7,8 @@ const RATE = 500;
 const isConverted = (s: string) => s === "approved" || s === "onboarded";
 
 // Public marketer portal data, keyed by the secret token in the URL. Returns the
-// referrer's own figures, a PII-free competitive board (counts only), and a
-// PII-free activity feed (names, no email/number).
+// referrer's own figures, a PII-free competitive board (counts only), and the
+// referrer's own signup feed (names, no email/number — never other marketers').
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const me = await prisma.referrer.findUnique({ where: { token } });
@@ -41,17 +41,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   const mine = counts.get(me.slug) || { signups: 0, converted: 0 };
 
-  // Activity feed — recent signups, names only (no email/number).
-  const activity = apps.slice(0, 15).map((a) => {
-    const slug = (a.referredBy || "").trim();
-    return {
+  // Activity feed — this marketer's own signups only, names only (no email/number).
+  const activity = apps
+    .filter((a) => (a.referredBy || "").trim() === me.slug)
+    .slice(0, 15)
+    .map((a) => ({
       kind: isConverted(a.status) ? "converted" : "signup",
       name: a.fullName,
-      referrer: slug ? (nameBySlug.get(slug) || slug) : null,
-      mine: slug === me.slug,
+      referrer: null,
+      mine: true,
       date: a.createdAt,
-    };
-  });
+    }));
 
   return NextResponse.json({
     me: {
