@@ -39,6 +39,17 @@ export async function buildRenewalForecast(now = new Date()): Promise<ForecastEv
 
   const events: ForecastEvent[] = [];
 
+  // The cron runs daily at 09:00 UTC. An email whose trigger time is already in the past (an
+  // overdue rental) actually fires at the NEXT run — clamp to that so the forecast shows a real
+  // future date, never a past one.
+  const nextRun = (from: Date) => {
+    const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), 9, 0, 0));
+    if (d.getTime() <= from.getTime()) d.setUTCDate(d.getUTCDate() + 1);
+    return d;
+  };
+  const nr = nextRun(now);
+  const fire = (t: Date) => (t.getTime() <= now.getTime() ? nr : t);
+
   for (const r of rentals) {
     if (!r.currentPeriodEnd) continue;
     const end = new Date(r.currentPeriodEnd);
@@ -64,31 +75,34 @@ export async function buildRenewalForecast(now = new Date()): Promise<ForecastEv
       }
     };
 
+    // Only project stages that will ACTUALLY still fire — mirror the cron's own conditions so
+    // already-sent or window-passed stages don't appear as "upcoming".
+    const overdue = now.getTime() >= end.getTime();
     if (r.status === "active" && r.autoRenew) {
-      // Auto-renew (card on file / wallet)
-      if (!sent.includes("heads_up")) {
-        await add(new Date(Math.max(end.getTime() - 3 * DAY, now.getTime())), "heads_up", "Pre-charge reminder (~3 days before)", null,
+      // Auto-renew (card on file / wallet). Heads-up only while not yet due and not already sent.
+      if (!sent.includes("heads_up") && !overdue) {
+        await add(fire(new Date(end.getTime() - 3 * DAY)), "heads_up", "Pre-charge reminder (~3 days before)", null,
           () => sendRenewalHeadsUp(email, first, fmtDate(end), onCard ? amount : undefined, onCard ? r.user.cardLast4 : undefined));
       }
-      await add(end, "confirmation", "Renewal confirmation", "if the charge succeeds", () => sendRenewalConfirmation(email));
-      await add(end, "payment_hiccup", "Payment hiccup (dunning)", "if the charge fails", () => sendPaymentFailedEmail(email, first, renewUrl));
-      await add(releaseDate, "access_revoked", "Access paused", "if still unpaid after retries", () => sendAccessRevokedEmail(email, first, renewUrl, fmtDate(releaseDate), acct));
+      await add(fire(end), "confirmation", "Renewal confirmation", "if the charge succeeds", () => sendRenewalConfirmation(email));
+      await add(fire(end), "payment_hiccup", "Payment hiccup (dunning)", "if the charge fails", () => sendPaymentFailedEmail(email, first, renewUrl));
+      await add(fire(releaseDate), "access_revoked", "Access paused", "if still unpaid after retries", () => sendAccessRevokedEmail(email, first, renewUrl, fmtDate(releaseDate), acct));
     } else if (r.status === "active" && !r.autoRenew) {
-      // Manual cadence
-      if (!sent.includes("reminder_3d")) {
-        await add(new Date(end.getTime() - 3 * DAY), "reminder_3d", "Renewal reminder (3 days before)", null,
+      // Manual cadence — each stage gated on the cron's real precondition.
+      if (!sent.includes("reminder_3d") && !overdue) {
+        await add(fire(new Date(end.getTime() - 3 * DAY)), "reminder_3d", "Renewal reminder (3 days before)", null,
           () => sendRenewalReminder3d(email, first, renewUrl, fmtDate(end), amount));
       }
-      if (!sent.includes("grace")) {
-        await add(end, "grace", "Grace notice (24h left)", null,
+      if (!sent.includes("grace") && now.getTime() < end.getTime() + DAY) {
+        await add(fire(end), "grace", "Grace notice (24h left)", null,
           () => sendRenewalGraceNotice(email, first, renewUrl, fmtDate(new Date(end.getTime() + DAY)), amount));
       }
-      await add(new Date(end.getTime() + DAY), "access_revoked", "Access paused (lapse)", "if unpaid", () => sendAccessRevokedEmail(email, first, renewUrl, fmtDate(releaseDate), acct));
-      if (!sent.includes("winback")) {
-        await add(new Date(end.getTime() + (RECLAIM_DAYS - 1) * DAY), "winback", "Last chance (win-back)", "if still unpaid", () => sendRenewalWinBack(email, first, renewUrl, amount, acct, fmtDate(releaseDate)));
+      await add(fire(new Date(end.getTime() + DAY)), "access_revoked", "Access paused (lapse)", "if unpaid", () => sendAccessRevokedEmail(email, first, renewUrl, fmtDate(releaseDate), acct));
+      if (!sent.includes("winback") && now.getTime() < end.getTime() + RECLAIM_DAYS * DAY) {
+        await add(fire(new Date(end.getTime() + (RECLAIM_DAYS - 1) * DAY)), "winback", "Last chance (win-back)", "if still unpaid", () => sendRenewalWinBack(email, first, renewUrl, amount, acct, fmtDate(releaseDate)));
       }
-    } else if (r.status === "expired" && !sent.includes("winback")) {
-      await add(new Date(end.getTime() + (RECLAIM_DAYS - 1) * DAY), "winback", "Last chance (win-back)", "if still unpaid", () => sendRenewalWinBack(email, first, renewUrl, amount, acct, fmtDate(releaseDate)));
+    } else if (r.status === "expired" && !sent.includes("winback") && now.getTime() < end.getTime() + RECLAIM_DAYS * DAY) {
+      await add(fire(new Date(end.getTime() + (RECLAIM_DAYS - 1) * DAY)), "winback", "Last chance (win-back)", "if still unpaid", () => sendRenewalWinBack(email, first, renewUrl, amount, acct, fmtDate(releaseDate)));
     }
   }
 

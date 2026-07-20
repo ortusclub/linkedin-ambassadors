@@ -7,7 +7,7 @@ interface SentRow { id: string; to: string; subject: string; bcc: string | null;
 interface ForecastEvent { date: string; rentalId: string; account: string; to: string; stage: string; label: string; subject: string; html: string; condition: string | null; }
 
 // unified row used by the list/preview
-interface Item { id: string; status: "sent" | "failed" | "scheduled"; to: string; subject: string; body: string | null; when: string; type: string; condition: string | null; }
+interface Item { id: string; status: "sent" | "failed" | "scheduled"; to: string; subject: string; body: string | null; when: string; type: string; condition: string | null; account: string | null; }
 
 const JAK = "var(--font-sans),'Plus Jakarta Sans',system-ui,-apple-system,sans-serif";
 const GRO = "var(--font-grotesk),'Space Grotesk',var(--font-sans),system-ui,sans-serif";
@@ -120,11 +120,11 @@ export default function EmailsPage() {
       ]);
       const sentItems: Item[] = (a.emails || []).map((r: SentRow) => ({
         id: r.id, status: r.status === "failed" ? "failed" : "sent", to: r.to, subject: r.subject,
-        body: r.body, when: r.createdAt, type: classify(r.subject), condition: null,
+        body: r.body, when: r.createdAt, type: classify(r.subject), condition: null, account: null,
       }));
       const schedItems: Item[] = (b.events || []).map((e: ForecastEvent, i: number) => ({
         id: `sched-${i}`, status: "scheduled", to: e.to, subject: e.subject, body: e.html,
-        when: e.date, type: classify(e.subject, e.stage), condition: e.condition,
+        when: e.date, type: classify(e.subject, e.stage), condition: e.condition, account: e.account,
       }));
       setSent(sentItems);
       setSched(schedItems);
@@ -211,8 +211,8 @@ export default function EmailsPage() {
             ) : filtered.map((e) => {
               const meta = TYPE_META[e.type];
               const isSel = sel && e.id === sel.id;
-              const showGroup = view === "scheduled" && dayLabel(e.when) !== lastDay;
-              if (view === "scheduled") lastDay = dayLabel(e.when);
+              const showGroup = dayLabel(e.when) !== lastDay;
+              lastDay = dayLabel(e.when);
               return (
                 <div key={e.id}>
                   {showGroup && <div style={{ font: `700 10px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)", padding: "9px 18px 7px", background: "var(--group-bg)", borderBottom: "1px solid var(--divider)" }}>{dayLabel(e.when)}, 2026</div>}
@@ -225,6 +225,7 @@ export default function EmailsPage() {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                         <span style={badge(meta.color)}>{meta.label}</span>
+                        {e.account && <span style={{ font: `600 12px ${JAK}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: "none", maxWidth: 150 }}>{e.account}</span>}
                         <span style={{ font: `500 12px ${JAK}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.to}</span>
                       </div>
                     </div>
@@ -245,7 +246,7 @@ export default function EmailsPage() {
                   <span style={statusBadge(sel.status)}>{statusText(sel.status)}</span>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 26px" }}>
-                  {[["To", sel.to], [sel.status === "scheduled" ? "Sends" : "Sent", `${dayLabel(sel.when)}, 2026 · ${timeLabel(sel.when)}`], ["Type", TYPE_META[sel.type].label]].map(([k, v], i) => (
+                  {[["To", sel.to], ...(sel.account ? [["Profile", sel.account] as [string, string]] : []), [sel.status === "scheduled" ? "Sends" : "Sent", `${dayLabel(sel.when)}, 2026 · ${timeLabel(sel.when)}`], ["Type", TYPE_META[sel.type].label]].map(([k, v], i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ font: `700 9.5px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)", width: 42 }}>{k}</span>
                       {k === "Type" ? <span style={badge(TYPE_META[sel.type].color)}>{v}</span> : <span style={{ font: `500 12.5px ${JAK}`, color: "var(--text2)" }}>{v}</span>}
