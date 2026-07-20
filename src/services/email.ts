@@ -24,7 +24,25 @@ interface EmailOptions {
 // (reminders, charges, failures) without checking the Resend dashboard.
 const billingBcc = adminEmail;
 
+// Capture mode: when set, sendEmail records the composed email instead of sending it. Lets the
+// admin "upcoming emails" forecast render the REAL templates (identical to what the cron sends)
+// without dispatching anything. Admin-only / low-traffic; renders are awaited one at a time.
+let _capture: { to: string | string[]; subject: string; html: string; bcc?: string | string[] }[] | null = null;
+export async function renderEmail(
+  fn: () => Promise<unknown>
+): Promise<{ to: string | string[]; subject: string; html: string; bcc?: string | string[] } | null> {
+  const prev = _capture;
+  _capture = [];
+  try {
+    await fn();
+    return _capture[0] ?? null;
+  } finally {
+    _capture = prev;
+  }
+}
+
 async function sendEmail({ to, subject, html, bcc }: EmailOptions) {
+  if (_capture) { _capture.push({ to, subject, html, bcc }); return; }
   let status: "sent" | "failed" | "skipped" = "sent";
   let errorMsg: string | null = null;
   try {
