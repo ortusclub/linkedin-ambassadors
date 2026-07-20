@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 
 const updateSchema = z.object({
   status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
   offeredAmount: z.number().optional(),
   adminNotes: z.string().optional(),
+  poc: z.string().optional(),
+  nextFollowUp: z.string().datetime().nullable().optional(),
+  addTouch: z.object({
+    ch: z.enum(["whatsapp", "email", "call", "reply", "booked", "done", "note"]),
+    text: z.string().min(1),
+  }).optional(),
 });
 
 export async function PATCH(
@@ -14,10 +21,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
-    const data = updateSchema.parse(body);
+    const { addTouch, nextFollowUp, ...rest } = updateSchema.parse(body);
 
     // Get the current application before updating
     const currentApp = await prisma.ambassadorApplication.findUnique({ where: { id } });
@@ -25,13 +32,23 @@ export async function PATCH(
       return NextResponse.json({ error: "Application not found" }, { status: 404 });
     }
 
+    const updateData: Prisma.AmbassadorApplicationUpdateInput = { ...rest };
+    if (nextFollowUp !== undefined) updateData.nextFollowUp = nextFollowUp ? new Date(nextFollowUp) : null;
+    if (addTouch) {
+      const log = Array.isArray(currentApp.outreachLog) ? (currentApp.outreachLog as unknown[]) : [];
+      updateData.outreachLog = [
+        ...log,
+        { ch: addTouch.ch, text: addTouch.text, by: admin.fullName || admin.email, at: new Date().toISOString() },
+      ] as Prisma.InputJsonValue;
+    }
+
     const application = await prisma.ambassadorApplication.update({
       where: { id },
-      data,
+      data: updateData,
     });
 
     // When status changes to "approved", automatically create a LinkedInAccount
-    if (data.status === "approved" && currentApp.status !== "approved") {
+    if (rest.status === "approved" && currentApp.status !== "approved") {
       // Check if a LinkedInAccount already exists for this LinkedIn URL
       const existingAccount = await prisma.linkedInAccount.findFirst({
         where: { linkedinUrl: application.linkedinUrl },
