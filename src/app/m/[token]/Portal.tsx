@@ -20,14 +20,15 @@ const STEPS = [
   "Pitch it in one line — they earn passive income each month just by lending us their LinkedIn.",
   "Check they qualify: they're 18 or older. Any LinkedIn account works — brand-new ones just pay out a bit later.",
   "They scan your QR code.",
-  "They fill in their details — they can skip the valuation.",
-  "Done — our team handles onboarding, setup and payment afterwards.",
+  "They fill in their details and sign up — that's what records them against your code, so don't stop before this.",
+  "Most important: stay with them until they pick a slot on the \"Book your onboarding call\" screen at the end. Don't let them leave on \"I'll do it later\" — they won't.",
+  "Done — our team takes it from there on the call, then setup and payment.",
 ];
 const OFFER: { w: string; a: string; d: string }[] = [
   { w: "Set-up", a: "₱1,000", d: "to their bank, ~3 days after setup" },
   { w: "Monthly", a: "₱500", d: "on the 1st of every month" },
 ];
-const DOS = ["Be friendly, casual and quick", "Get them to complete the form", "Be honest that payment comes after setup", "Check they're 18 or older"];
+const DOS = ["Be friendly, casual and quick", "Get them to complete the form", "Watch them book a call slot before they walk away", "Be honest that payment comes after setup", "Check they're 18 or older"];
 const DONTS = ["Pressure anyone — encourage, never force", "Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up anyone under 18"];
 
 const TIPS = [
@@ -237,6 +238,11 @@ export default function Portal({ token }: { token: string }) {
                 <span style={{ font: `500 13px/1.45 ${JAK}`, color: C.slate }}>{s}</span>
               </div>
             ))}
+            <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 12, padding: "12px 14px", marginTop: 14 }}>
+              <div style={{ font: `700 12.5px ${JAK}`, color: C.greenDk, marginBottom: 5 }}>A booked call is what counts</div>
+              <div style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate }}>A form on its own often goes nowhere. Someone who books a call almost always gets set up — and you only earn on sign-ups that get accepted. If you get one thing right today, make it this.</div>
+            </div>
+
             <div style={{ ...sub, margin: "16px 0 10px" }}>The offer you share</div>
             <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", marginBottom: 10 }}>
               {OFFER.map((o, i) => (

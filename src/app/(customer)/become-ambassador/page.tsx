@@ -8,6 +8,10 @@ import { formatCurrency } from "@/lib/utils";
 
 type Step = "choice" | "logged-in-choice" | "info" | "scanning" | "result" | "bank" | "account-details" | "login" | "complete" | "done" | "review" | "scheduled";
 
+// Onboarding-call booking. Every path that ends a signup should push to this —
+// a booked call converts far better than leaving someone to "check back soon".
+const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
+
 const SCAN_STEPS = [
   "Locating your LinkedIn profile...",
   "Analysing your connection network...",
@@ -1065,8 +1069,23 @@ export default function BecomeAmbassadorPage() {
             <div>
               <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Request a Manual Review</h2>
               <p className="text-center text-gray-500 mb-6">
-                Our team will personally review your profile and get back to you with a tailored offer. Reach out to us through any of the channels below.
+                The quickest way is a short call — our team reviews your profile with you and gives you a tailored offer there and then.
               </p>
+
+              <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center mb-6">
+                <a
+                  href={CALENDAR_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-green-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-green-600/25 hover:bg-green-700 transition-colors"
+                >
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+                  Book a call
+                </a>
+                <p className="mt-2.5 text-xs text-gray-500">About 10 minutes. No cost, no commitment.</p>
+              </div>
+
+              <p className="text-center text-sm text-gray-500 mb-4">Or reach us another way:</p>
 
               <div className="space-y-3">
                 <a
@@ -1542,11 +1561,23 @@ export default function BecomeAmbassadorPage() {
 
               <Card>
                 <CardContent className="py-6">
-                  <div className="rounded-lg bg-blue-50 border border-blue-100 p-4 text-sm text-blue-700 text-center mb-6">
-                    <strong>Please check back soon.</strong> We&apos;ll review your shared profile and get back to you as quickly as possible.
+                  <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center mb-6">
+                    <p className="text-base font-semibold text-gray-900">Last step — book your onboarding call</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
+                      We can&apos;t set your account up or start your payments until we&apos;ve spoken. It takes about 10 minutes and there&apos;s no cost or commitment — pick a time that suits you now, while it&apos;s in front of you.
+                    </p>
+                    <a
+                      href={CALENDAR_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-flex items-center justify-center gap-2.5 rounded-xl bg-green-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-green-600/25 hover:bg-green-700 transition-colors"
+                    >
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+                      Book my onboarding call
+                    </a>
                   </div>
 
-                  <p className="text-sm text-gray-500 text-center mb-4">If you need to reach out to us at any point, you can do so using these contact methods:</p>
+                  <p className="text-sm text-gray-500 text-center mb-4">Prefer to talk to us another way? You can reach us here:</p>
 
                   <div className="space-y-3">
                     <a href="https://wa.me/639399388701" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-green-50 hover:border-green-200 transition-all">
@@ -1642,9 +1673,19 @@ export default function BecomeAmbassadorPage() {
                 </CardContent>
               </Card>
 
-              <div className="mt-6">
-                <a href="/dashboard" className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-8 py-3 text-center font-semibold text-white hover:bg-blue-700 transition-colors">
-                  Go to Dashboard
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <a
+                  href={CALENDAR_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-green-600 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-green-600/25 hover:bg-green-700 transition-colors"
+                >
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+                  Book my onboarding call
+                </a>
+                <p className="text-xs text-gray-500">Haven&apos;t booked yet? This is the step that gets you paid.</p>
+                <a href="/dashboard" className="mt-1 text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors">
+                  Go to my dashboard →
                 </a>
               </div>
             </div>
