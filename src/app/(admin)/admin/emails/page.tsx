@@ -9,6 +9,7 @@ interface EmailRow {
   bcc: string | null;
   status: string;
   error: string | null;
+  body: string | null;
   createdAt: string;
 }
 
@@ -32,6 +33,7 @@ export default function EmailsPage() {
   const [rows, setRows] = useState<EmailRow[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState<EmailRow | null>(null);
 
   const load = useCallback(async (query: string) => {
     setLoading(true);
@@ -50,7 +52,7 @@ export default function EmailsPage() {
     <div style={{ padding: "24px 28px", maxWidth: 1100, margin: "0 auto", fontFamily: F_SANS }}>
       <h1 style={{ font: `700 22px ${F_SANS}`, margin: "0 0 4px", color: "var(--fg,#0F1419)" }}>Email log</h1>
       <p style={{ font: `400 13px ${F_SANS}`, color: "var(--muted,#536471)", margin: "0 0 18px" }}>
-        Every email the app has sent — reminders, charges, renewals, verification. Newest first, latest 300.
+        Every email the app has sent — reminders, charges, renewals, verification. Click a row to read the full email. Newest first, latest 300.
       </p>
 
       <form
@@ -84,7 +86,12 @@ export default function EmailsPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} style={{ borderTop: "1px solid var(--border,#eef0f2)" }} title={r.error || (r.bcc ? `bcc: ${r.bcc}` : "")}>
+                <tr
+                  key={r.id}
+                  onClick={() => setOpen(r)}
+                  style={{ borderTop: "1px solid var(--border,#eef0f2)", cursor: "pointer" }}
+                  title="Click to read the full email"
+                >
                   <td style={{ padding: "9px 12px", font: `400 12.5px ${F_SANS}`, color: "var(--muted,#536471)", whiteSpace: "nowrap" }}>{when(r.createdAt)}</td>
                   <td style={{ padding: "9px 12px", font: `500 12.5px ${F_SANS}`, color: "var(--fg,#0F1419)", whiteSpace: "nowrap" }}>{r.to}</td>
                   <td style={{ padding: "9px 12px", font: `400 12.5px ${F_SANS}`, color: "var(--fg,#0F1419)" }}>{r.subject}</td>
@@ -93,6 +100,36 @@ export default function EmailsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {open && (
+        <div
+          onClick={() => setOpen(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto", zIndex: 1000 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 12, maxWidth: 640, width: "100%", boxShadow: "0 12px 40px rgba(0,0,0,.25)" }}
+          >
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #eef0f2" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                <div>
+                  <div style={{ font: `700 15px ${F_SANS}`, color: "#0F1419", marginBottom: 4 }}>{open.subject}</div>
+                  <div style={{ font: `400 12px ${F_SANS}`, color: "#536471" }}>
+                    To {open.to}{open.bcc ? ` · bcc ${open.bcc}` : ""} · {when(open.createdAt)} · <span style={statusStyle(open.status)}>{open.status}</span>
+                  </div>
+                </div>
+                <button onClick={() => setOpen(null)} style={{ border: "none", background: "transparent", font: `400 22px ${F_SANS}`, color: "#536471", cursor: "pointer", lineHeight: 1 }}>×</button>
+              </div>
+              {open.error && <div style={{ font: `400 12px ${F_SANS}`, color: "#c0392b", marginTop: 8 }}>Error: {open.error}</div>}
+            </div>
+            <div style={{ padding: "8px 8px 20px" }}>
+              {open.body
+                ? <div style={{ border: "1px solid #eef0f2", borderRadius: 8, overflow: "hidden" }} dangerouslySetInnerHTML={{ __html: open.body }} />
+                : <p style={{ font: `400 13px ${F_SANS}`, color: "#536471", padding: "12px 14px" }}>No stored content for this email (it predates content capture).</p>}
+            </div>
+          </div>
         </div>
       )}
     </div>

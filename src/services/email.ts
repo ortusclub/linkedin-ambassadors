@@ -42,9 +42,9 @@ async function sendEmail({ to, subject, html, bcc }: EmailOptions) {
   // what went out without the Resend dashboard. Best-effort: logging must never break sending.
   try {
     await prisma.$executeRaw`
-      INSERT INTO email_log (id, "to", subject, bcc, status, error, created_at)
+      INSERT INTO email_log (id, "to", subject, bcc, status, error, body, created_at)
       VALUES (${randomUUID()}, ${Array.isArray(to) ? to.join(", ") : to}, ${subject},
-              ${bcc ? (Array.isArray(bcc) ? bcc.join(", ") : bcc) : null}, ${status}, ${errorMsg}, now())`;
+              ${bcc ? (Array.isArray(bcc) ? bcc.join(", ") : bcc) : null}, ${status}, ${errorMsg}, ${html}, now())`;
   } catch (e) {
     console.error("[Email] log write failed:", e);
   }

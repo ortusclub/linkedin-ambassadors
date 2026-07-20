@@ -9,6 +9,7 @@ type Row = {
   bcc: string | null;
   status: string;
   error: string | null;
+  body: string | null;
   created_at: Date;
 };
 
@@ -19,11 +20,11 @@ export async function GET(req: NextRequest) {
     const q = (req.nextUrl.searchParams.get("q") || "").trim();
     const rows = q
       ? await prisma.$queryRaw<Row[]>`
-          SELECT id, "to", subject, bcc, status, error, created_at FROM email_log
+          SELECT id, "to", subject, bcc, status, error, body, created_at FROM email_log
           WHERE "to" ILIKE ${"%" + q + "%"} OR subject ILIKE ${"%" + q + "%"}
           ORDER BY created_at DESC LIMIT 300`
       : await prisma.$queryRaw<Row[]>`
-          SELECT id, "to", subject, bcc, status, error, created_at FROM email_log
+          SELECT id, "to", subject, bcc, status, error, body, created_at FROM email_log
           ORDER BY created_at DESC LIMIT 300`;
     return NextResponse.json({
       emails: rows.map((r) => ({
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest) {
         bcc: r.bcc,
         status: r.status,
         error: r.error,
+        body: r.body,
         createdAt: r.created_at,
       })),
     });
