@@ -237,6 +237,9 @@ model AmbassadorApplication {
   usdcNetwork       String?          @map("usdc_network")
   paypalEmail       String?          @map("paypal_email")
   wiseEmail         String?          @map("wise_email")
+  poc               String?          @map("poc")
+  outreachLog       Json?            @map("outreach_log")
+  nextFollowUp      DateTime?        @map("next_follow_up")
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 

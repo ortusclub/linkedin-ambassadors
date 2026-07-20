@@ -28,6 +28,9 @@ interface Application {
     title: string | null;
     cancelled: boolean;
   } | null;
+  poc?: string | null;
+  outreachLog?: { ch: string; text: string; by?: string; at: string }[] | null;
+  nextFollowUp?: string | null;
 }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
@@ -81,6 +84,32 @@ const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+
 const liHref = (url: string) => (url.startsWith("http") ? url : `https://${url}`);
 const liShort = (url: string) => { const h = url.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, "").replace(/[/?].*$/, ""); return h ? `in/${h.length > 18 ? h.slice(0, 18) + "…" : h}` : "profile"; };
 
+// outreach touch channels: [label, bg var, fg var]
+const TOUCH: Record<string, [string, string, string]> = {
+  whatsapp: ["WhatsApp", "--green-chip-bg", "--green-chip-text"],
+  email: ["Email", "--blue-chip-bg", "--blue-chip-text"],
+  call: ["Call", "--st-unreach-bg", "--st-unreach-fg"],
+  reply: ["Reply", "--st-replied-bg", "--st-replied-fg"],
+  booked: ["Booked", "--blue-chip-bg", "--blue-chip-text"],
+  done: ["Call", "--st-active-bg", "--st-active-fg"],
+  note: ["Note", "--neutral-chip-bg", "--neutral-chip-text"],
+};
+const touchLabel = (ch: string) => (TOUCH[ch] || TOUCH.note)[0];
+const touchChipStyle = (ch: string): React.CSSProperties => {
+  const c = TOUCH[ch] || TOUCH.note;
+  return { font: `600 9.5px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", padding: "4px 0", borderRadius: 6, flex: "none", width: 66, textAlign: "center", background: `var(${c[1]})`, color: `var(${c[2]})` };
+};
+const callSummary = (a: Application): string => {
+  const c = a.call;
+  if (!c || c.stage === "none") return "No call booked";
+  if (c.stage === "booked") return `Booked · ${fmtDateTime(c.scheduledAt)}`;
+  return c.scheduledAt ? `Completed · ${fmtDate(c.scheduledAt)}` : "Completed";
+};
+const lastTouchAt = (a: Application): string => {
+  const log = a.outreachLog;
+  return log && log.length ? fmtDateTime(log[log.length - 1].at) : "";
+};
+
 export default function AdminAmbassadorsPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +141,21 @@ export default function AdminAmbassadorsPage() {
     if (!confirm(`Delete the signup from ${a.fullName || a.email}? This can't be undone.`)) return;
     setApps((prev) => prev.filter((x) => x.id !== a.id));
     try { await fetch(`/api/admin/ambassadors/${a.id}`, { method: "DELETE" }); } catch {}
+  };
+
+  const logTouch = async (id: string, ch: string) => {
+    const text = ({ whatsapp: "WhatsApp message sent", email: "Email sent", call: "Call attempted — no answer" } as Record<string, string>)[ch] || "Note added";
+    setBusy(id);
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, outreachLog: [...(a.outreachLog || []), { ch, text, by: "You", at: new Date().toISOString() }] } : a)));
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ addTouch: { ch, text } }) });
+      if (res.ok) { const d = await res.json(); if (d.application) setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...d.application } : a))); }
+    } finally { setBusy(null); }
+  };
+
+  const savePoc = async (id: string, poc: string) => {
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, poc } : a)));
+    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc }) }); } catch {}
   };
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
@@ -265,23 +309,41 @@ export default function AdminAmbassadorsPage() {
                     <Field label="LinkedIn URL"><a href={liHref(a.linkedinUrl)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>{liShort(a.linkedinUrl)}</a></Field>
                     <Field label="Heard from">{a.referralSource || "—"}</Field>
                     <Field label="Referred by">{a.referredBy ? <span style={{ color: "var(--st-active-fg)", fontWeight: 600 }}>{a.referredBy}</span> : "—"}</Field>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+                      <span style={labelCss}>POC <span style={{ color: "var(--muted2)", textTransform: "none", letterSpacing: 0 }}>· who owns this</span></span>
+                      <input defaultValue={a.poc || ""} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (a.poc || "")) savePoc(a.id, v); }} placeholder="Type a name…" style={{ width: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 8, padding: "7px 9px", font: `600 13px ${F_SANS}`, color: "var(--text)", outline: "none" }} />
+                    </div>
                   </div>
-                  {/* call — live from info@'s Google Calendar */}
-                  <div style={{ padding: "0 22px 16px" }}>
-                    {a.call && a.call.stage !== "none" ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "11px 14px", borderRadius: 10, background: "var(--band)", border: "1px solid var(--divider)" }}>
-                        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" }}>Call</span>
-                        <span style={{ font: `600 12px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, background: CALL_BUCKET[a.call.stage].bg, color: CALL_BUCKET[a.call.stage].fg }}>{CALL_BUCKET[a.call.stage].label}</span>
-                        {a.call.scheduledAt && <span style={{ font: `600 13px ${F_SANS}`, color: "var(--text)" }}>{fmtDateTime(a.call.scheduledAt)}</span>}
-                        {a.call.channel && <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>via {a.call.channel}</span>}
-                        {a.call.meetLink && <a href={a.call.meetLink} target="_blank" rel="noopener noreferrer" style={{ marginLeft: "auto", font: `600 12.5px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", padding: "6px 12px", borderRadius: 8 }}>Join Meet ↗</a>}
+                  {/* outreach & call */}
+                  <div style={{ padding: "0 22px 18px" }}>
+                    <div style={{ border: "1px solid var(--divider)", borderRadius: 12, overflow: "hidden" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", background: "var(--band)", borderBottom: "1px solid var(--divider)" }}>
+                        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" }}>Outreach &amp; call — what we&apos;ve done to push them to a call</span>
+                        <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>Handler: <strong style={{ fontWeight: 700, color: "var(--text2)" }}>{a.poc || "—"}</strong></span>
                       </div>
-                    ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, background: "var(--band)", border: "1px dashed var(--divider)" }}>
-                        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" }}>Call</span>
-                        <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>No call booked yet</span>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px 20px", padding: "14px 16px", borderBottom: "1px solid var(--divider)" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Call</span><span style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{callSummary(a)}</span></div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Touches</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{(a.outreachLog?.length || 0)} touch{(a.outreachLog?.length || 0) === 1 ? "" : "es"}</span></div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Last contact</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{lastTouchAt(a) || "—"}</span></div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Next follow-up</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{a.nextFollowUp ? fmtDate(a.nextFollowUp) : "—"}</span></div>
                       </div>
-                    )}
+                      <div style={{ padding: "12px 16px" }}>
+                        {a.outreachLog && a.outreachLog.length ? [...a.outreachLog].reverse().map((t, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "7px 0" }}>
+                            <span style={touchChipStyle(t.ch)}>{touchLabel(t.ch)}</span>
+                            <span style={{ flex: 1, font: `500 13px ${F_SANS}`, color: "var(--text2)", lineHeight: 1.4 }}>{t.text}</span>
+                            <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)", whiteSpace: "nowrap" }}>{(t.by ? t.by + " · " : "") + fmtDateTime(t.at)}</span>
+                          </div>
+                        )) : <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>No outreach logged yet — reach out and log the first touch.</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "0 16px 14px" }}>
+                        <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)", marginRight: 2 }}>Log:</span>
+                        {(["whatsapp", "email", "call"] as const).map((ch) => (
+                          <button key={ch} onClick={() => logTouch(a.id, ch)} disabled={busy === a.id} style={{ ...secBtn, padding: "7px 13px", font: `600 12px ${F_SANS}` }}>+ {ch === "whatsapp" ? "WhatsApp" : ch === "email" ? "Email" : "Call attempt"}</button>
+                        ))}
+                        {a.call && a.call.stage !== "none" && a.call.meetLink && <a href={a.call.meetLink} target="_blank" rel="noopener noreferrer" style={{ marginLeft: "auto", font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", padding: "7px 13px", borderRadius: 8 }}>Join Meet ↗</a>}
+                      </div>
+                    </div>
                   </div>
                   {/* actions */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "14px 22px", borderTop: "1px solid var(--divider)", background: "var(--band)", flexWrap: "wrap" }}>
