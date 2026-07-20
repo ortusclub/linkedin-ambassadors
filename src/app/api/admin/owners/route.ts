@@ -12,9 +12,10 @@ export async function GET() {
   try {
     await requireAdmin();
 
-    // Source 1: LinkedIn accounts that have an owner in notes
+    // Source 1: LinkedIn accounts that have an owner in notes.
+    // Exclude removed/retired so deleted profiles don't linger in the owners view.
     const accounts = await prisma.linkedInAccount.findMany({
-      where: { notes: { contains: "Owner:" } },
+      where: { notes: { contains: "Owner:" }, status: { notIn: ["removed", "retired"] } },
       select: {
         id: true,
         linkedinName: true,
@@ -116,6 +117,7 @@ export async function GET() {
     }
 
     const allLinkedInAccounts = await prisma.linkedInAccount.findMany({
+      where: { status: { notIn: ["removed", "retired"] } },
       select: {
         id: true,
         linkedinName: true,

@@ -45,6 +45,8 @@ export default function AdminOwnersPage() {
     return map[s] || "default";
   };
 
+  const withAccounts = owners.filter((o) => o.accountCount > 0).length;
+
   return (
     <div>
       <div className="flex items-start justify-between mb-6">
@@ -52,7 +54,7 @@ export default function AdminOwnersPage() {
           <h2 className="text-2xl font-bold text-gray-900">Account Owners</h2>
           <p className="mt-1 max-w-2xl text-sm text-gray-500">The ambassadors who supply profiles — your supply side. See how many accounts each owns and the monthly payout you owe them.</p>
         </div>
-        <p className="text-sm text-gray-500">{owners.length} ambassador{owners.length !== 1 ? "s" : ""} with accounts</p>
+        <p className="text-sm text-gray-500">{withAccounts} ambassador{withAccounts !== 1 ? "s" : ""} with accounts</p>
       </div>
 
       {loading ? (
