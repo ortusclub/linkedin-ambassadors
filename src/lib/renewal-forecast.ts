@@ -77,7 +77,7 @@ export async function buildRenewalForecast(now = new Date()): Promise<ForecastEv
     const u = rows[0].user;
     const first = firstNameOf(u.fullName);
 
-    const headsUp: AItem[] = [];
+    const headsUp: { account: string; date: string; amount: string }[] = [];
     let headsUpFire: Date | null = null;
     const manual = new Map<string, { items: AItem[]; fire: Date; graceDeadline?: string; releaseDate?: string }>();
     const addManual = (stage: string, item: AItem, f: Date, extra?: { graceDeadline?: string; releaseDate?: string }) => {
@@ -123,7 +123,7 @@ export async function buildRenewalForecast(now = new Date()): Promise<ForecastEv
       const total = `$${headsUp.reduce((s, i) => s + Number((i.amount || "$0").replace(/[^0-9.]/g, "")), 0).toFixed(0)}`;
       await add(headsUpFire ?? nr, u.email, summarize(headsUp), "heads_up", "Pre-charge reminder (~3 days before)", null,
         () => headsUp.length === 1
-          ? sendRenewalHeadsUp(u.email, first, headsUp[0].date!, headsUp[0].amount, u.cardLast4)
+          ? sendRenewalHeadsUp(u.email, first, headsUp[0].date, headsUp[0].amount, u.cardLast4)
           : sendRenewalHeadsUpBatch(u.email, first, headsUp, total, u.cardLast4));
     }
 
