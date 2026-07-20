@@ -201,7 +201,7 @@ async function handleRentalRenewal(session: Stripe.Checkout.Session) {
     },
   });
   try {
-    await sendRenewalConfirmation(rental.user.email);
+    await sendRenewalConfirmation(rental.user.email, rental.linkedinAccount.linkedinName);
   } catch (e) {
     console.error("Failed to send renewal confirmation:", e);
   }
@@ -347,7 +347,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     },
   });
 
-  await sendRenewalConfirmation(rental.user.email);
+  await sendRenewalConfirmation(rental.user.email, rental.linkedinAccount.linkedinName);
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
