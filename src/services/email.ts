@@ -350,14 +350,20 @@ export async function sendRenewalReminder(
   });
 }
 
-export async function sendRenewalConfirmation(email: string) {
+export async function sendRenewalConfirmation(email: string, accounts?: string | string[]) {
+  const list = accounts ? (Array.isArray(accounts) ? accounts : [accounts]) : [];
+  const what = list.length === 1
+    ? `Your rental of <strong>${list[0]}</strong> has been renewed`
+    : list.length > 1
+      ? `Your rentals of <strong>${list.join(", ")}</strong> have been renewed`
+      : `Your LinkedVelocity rental has been renewed`;
   return sendEmail({
     to: email,
-    subject: `Your LinkedVelocity rental is renewed 🎉`,
+    subject: list.length > 1 ? `Your LinkedVelocity rentals are renewed 🎉` : `Your LinkedVelocity rental is renewed 🎉`,
     bcc: billingBcc,
     html: brandWrap(`
       <p style="font-size:16px;margin:0 0 8px;"><strong>You're renewed! 🎉</strong></p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your LinkedVelocity rental has been renewed for another month — your access continues uninterrupted.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">${what} for another month — your access continues uninterrupted.</p>
     `),
   });
 }
@@ -492,6 +498,101 @@ export async function sendAccessRevokedEmail(
       ${reclaim}
       <a href="${payUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Re-activate &amp; keep this account →</a>
       <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Questions? We're here on Telegram <a href="https://t.me/linkedvelocity_support_bot" style="color:#0A66C2;">@linkedvelocity_support_bot</a>.</p>
+    `),
+  });
+}
+
+// Shared account-table rows for the consolidated (batch) renewal emails.
+type AcctItem = { account: string; date?: string; amount?: string };
+function acctRows(items: AcctItem[]) {
+  return items.map((i) => `<tr>
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:14px;color:#0F1419;">${i.account}</td>${i.date ? `
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:13px;color:#536471;">${i.date}</td>` : ""}${i.amount ? `
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:14px;color:#0F1419;text-align:right;font-weight:600;">${i.amount}</td>` : ""}
+      </tr>`).join("");
+}
+const dashUrl = () => `${process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com"}/dashboard`;
+const btn = (label: string, href: string, bg = "#0A66C2") =>
+  `<a href="${href}" style="display:inline-block;background:${bg};color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">${label}</a>`;
+const acctTable = (items: AcctItem[]) =>
+  `<table style="width:100%;border-collapse:collapse;margin:0 0 8px;"><tbody>${acctRows(items)}</tbody></table>`;
+
+// --- Consolidated (one email per renter) versions of the manual-cadence emails. Each lists the
+// accounts involved so the renter (and the team) can see exactly which profiles are affected. ---
+
+export async function sendRenewalReminder3dBatch(email: string, first: string, items: AcctItem[]) {
+  const hi = first ? `Hi ${first},` : "Hi there,";
+  const dates = Array.from(new Set(items.map((i) => i.date).filter(Boolean)));
+  const when = dates.length === 1 ? `on <strong>${dates[0]}</strong>` : `over the next few days`;
+  const n = items.length;
+  return sendEmail({
+    to: email,
+    bcc: billingBcc,
+    subject: dates.length === 1 ? `Your LinkedVelocity rentals end ${dates[0]} — renew to keep them going` : `${n} of your LinkedVelocity rentals are ending soon — renew to keep them`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Quick heads-up — <strong>${n}</strong> of your LinkedVelocity rentals end ${when}. They're not set to auto-renew, so you'll need to renew to keep your access going.</p>
+      ${acctTable(items)}
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:16px 0 18px;">Renew any of them from your dashboard below.</p>
+      ${btn("Renew now →", dashUrl())}
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">Thanks for being part of LinkedVelocity! 💙</p>
+    `),
+  });
+}
+
+export async function sendRenewalGraceNoticeBatch(email: string, first: string, items: AcctItem[], graceDeadline: string) {
+  const hi = first ? `Hi ${first},` : "Hi there,";
+  const n = items.length;
+  return sendEmail({
+    to: email,
+    bcc: billingBcc,
+    subject: `Your LinkedVelocity rentals — 24 hours left to renew`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;"><strong>${n}</strong> of your LinkedVelocity rentals ended today — but your access stays active for the next <strong>24 hours</strong> (until <strong>${graceDeadline}</strong>), so there's still time.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">If they lapse, you'll lose access to these profiles through GoLogin, and any campaigns running on them will stop:</p>
+      ${acctTable(items)}
+      <div style="margin:16px 0 0;">${btn("Renew now →", dashUrl())}</div>
+    `),
+  });
+}
+
+export async function sendRenewalWinBackBatch(email: string, first: string, items: AcctItem[], releaseDate?: string) {
+  const hi = first ? `Hi ${first},` : "Hi there,";
+  const n = items.length;
+  const lead = releaseDate
+    ? `We're about to <strong>release ${n} of your accounts to other renters on ${releaseDate}</strong>. This is your last chance to keep them.`
+    : `Your rentals lapsed — but everything's intact and waiting for you.`;
+  return sendEmail({
+    to: email,
+    bcc: billingBcc,
+    subject: releaseDate ? `Last chance to keep your LinkedVelocity accounts` : `Your LinkedVelocity rentals are still here whenever you're ready`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">${lead} Re-activate now and you pick up the same accounts exactly where you left off — no re-setup.</p>
+      ${acctTable(items)}
+      <div style="margin:16px 0 0;">${btn("Reactivate &amp; keep them →", dashUrl(), "#00B85C")}</div>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:20px 0 0;">That's the last we'll nudge you — thanks for being part of LinkedVelocity.</p>
+    `),
+  });
+}
+
+export async function sendAccessRevokedBatch(email: string, first: string, items: AcctItem[], releaseDate?: string) {
+  const hi = first ? `Hi ${first},` : "Hi there,";
+  const n = items.length;
+  const reclaim = releaseDate
+    ? `<p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we're <strong>holding these for you</strong>. Re-activate before <strong>${releaseDate}</strong> and you'll pick up the <strong>same accounts</strong> exactly where you left off, campaigns and all. After that date they'll be released and available for anyone to rent.</p>`
+    : `<p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your accounts and everything in them are safe — settle below and we'll restore your access right away.</p>`;
+  return sendEmail({
+    to: email,
+    bcc: billingBcc,
+    subject: `Your LinkedVelocity access has been paused`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">We weren't able to collect payment, so access to <strong>${n}</strong> of your rented accounts has been paused for now:</p>
+      ${acctTable(items)}
+      ${reclaim}
+      ${btn("Re-activate &amp; keep these accounts →", dashUrl())}
     `),
   });
 }

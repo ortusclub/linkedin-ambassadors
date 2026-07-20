@@ -4,9 +4,10 @@ import { Prisma } from "@/generated/prisma/client";
 import { stripe } from "@/lib/stripe";
 import { revokeRentalAccess } from "@/lib/rental-access";
 import {
-  sendRenewalReminder3d,
-  sendRenewalGraceNotice,
-  sendRenewalWinBack,
+  sendRenewalReminder3dBatch,
+  sendRenewalGraceNoticeBatch,
+  sendRenewalWinBackBatch,
+  sendAccessRevokedBatch,
   sendRenewalConfirmation,
   sendRenewalHeadsUp,
   sendRenewalHeadsUpBatch,
@@ -130,7 +131,7 @@ export async function POST(req: NextRequest) {
             },
           });
         });
-        try { await sendRenewalConfirmation(r.user.email); } catch (e) { console.error(e); }
+        try { await sendRenewalConfirmation(r.user.email, r.linkedinAccount.linkedinName); } catch (e) { console.error(e); }
         result.renewed++;
         renewed = true;
       } else if (r.user.stripeCustomerId && r.user.stripePaymentMethodId) {
@@ -184,7 +185,7 @@ export async function POST(req: NextRequest) {
               },
             });
           });
-          try { await sendRenewalConfirmation(r.user.email); } catch (e) { console.error(e); }
+          try { await sendRenewalConfirmation(r.user.email, r.linkedinAccount.linkedinName); } catch (e) { console.error(e); }
           result.renewed++;
           result.cardRenewed++;
           renewed = true;
@@ -223,41 +224,69 @@ export async function POST(req: NextRequest) {
       where: { autoRenew: false, status: { in: ["active", "expired"] }, linkedinAccount: { restrictedAt: null } },
       include: { user: true, linkedinAccount: true },
     });
+    // Emails are CONSOLIDATED per renter + stage — one email listing all of the renter's affected
+    // accounts, not one per account. First pass classifies each rental into a stage (doing the
+    // per-rental side effects like the lapse revoke); second pass sends one batched email per group.
+    type RentalRow = (typeof manual)[number];
+    type Grp = { user: RentalRow["user"]; first: string; stage: string; items: { account: string; date?: string; amount?: string }[]; rentals: RentalRow[]; graceDeadline?: string; releaseDate?: string };
+    const groups = new Map<string, Grp>();
+    const enqueue = (r: RentalRow, stage: string, item: { account: string; date?: string; amount?: string }, extra?: { graceDeadline?: string; releaseDate?: string }) => {
+      const key = `${r.userId}|${stage}`;
+      let g = groups.get(key);
+      if (!g) { g = { user: r.user, first: firstNameOf(r.user.fullName), stage, items: [], rentals: [] }; groups.set(key, g); }
+      g.items.push(item);
+      g.rentals.push(r);
+      if (extra?.graceDeadline && (!g.graceDeadline || extra.graceDeadline < g.graceDeadline)) g.graceDeadline = extra.graceDeadline;
+      if (extra?.releaseDate && (!g.releaseDate || extra.releaseDate < g.releaseDate)) g.releaseDate = extra.releaseDate;
+    };
+
     for (const r of manual) {
       if (!r.currentPeriodEnd) continue;
       const end = new Date(r.currentPeriodEnd);
       const sent = Array.isArray(r.renewalRemindersSent) ? (r.renewalRemindersSent as string[]) : [];
-      const renewUrl = `${APP_URL}/api/rentals/${r.id}/renew`;
-      const first = firstNameOf(r.user.fullName);
       const amount = `$${Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice).toFixed(0)}`;
-      const markSent = (stage: string) =>
-        prisma.rental.update({ where: { id: r.id }, data: { renewalRemindersSent: [...sent, stage] as unknown as Prisma.InputJsonValue } });
+      const account = r.linkedinAccount.linkedinName;
 
       // Reminder — within 3 days before the end date.
       if (r.status === "active" && now < end && end.getTime() - now.getTime() <= 3 * DAY && !sent.includes("reminder_3d")) {
-        try { await sendRenewalReminder3d(r.user.email, first, renewUrl, fmtDate(end), amount); await markSent("reminder_3d"); result.reminded++; } catch (e) { console.error(e); }
+        enqueue(r, "reminder_3d", { account, date: fmtDate(end), amount });
         continue;
       }
       // Grace notice — on/after expiry, still within the 24h grace window.
       if (r.status === "active" && now >= end && now < new Date(end.getTime() + DAY) && !sent.includes("grace")) {
-        try { await sendRenewalGraceNotice(r.user.email, first, renewUrl, fmtDate(new Date(end.getTime() + DAY)), amount); await markSent("grace"); result.graceNoticed++; } catch (e) { console.error(e); }
+        enqueue(r, "grace", { account, amount }, { graceDeadline: fmtDate(new Date(end.getTime() + DAY)) });
         continue;
       }
-      // Lapse — grace window passed, still unpaid → revoke + expire (but the account is
-      // HELD for the reclaim window, not released yet).
+      // Lapse — grace window passed, still unpaid → revoke + expire (side effects now; email batched).
+      // The account is HELD for the reclaim window, not released yet.
       if (r.status === "active" && now >= new Date(end.getTime() + DAY)) {
         await prisma.rental.update({ where: { id: r.id }, data: { status: "expired" } });
         try { await revokeRentalAccess(r.id); } catch (e) { console.error("revoke on lapse", r.id, e); }
-        const releaseDate = new Date(end.getTime() + RECLAIM_DAYS * DAY);
-        try { await sendAccessRevokedEmail(r.user.email, first, renewUrl, fmtDate(releaseDate), r.linkedinAccount.linkedinName); } catch (e) { console.error(e); }
+        enqueue(r, "access_revoked", { account }, { releaseDate: fmtDate(new Date(end.getTime() + RECLAIM_DAYS * DAY)) });
         result.lapsed++;
         continue;
       }
-      // Last chance — 1 day before the profile is released to others.
+      // Last chance — 1 day before the profiles are released to others.
       if (r.status === "expired" && now >= new Date(end.getTime() + (RECLAIM_DAYS - 1) * DAY) && now < new Date(end.getTime() + RECLAIM_DAYS * DAY) && !sent.includes("winback")) {
-        const releaseDate = new Date(end.getTime() + RECLAIM_DAYS * DAY);
-        try { await sendRenewalWinBack(r.user.email, first, renewUrl, amount, r.linkedinAccount.linkedinName, fmtDate(releaseDate)); await markSent("winback"); result.winBack++; } catch (e) { console.error(e); }
+        enqueue(r, "winback", { account, amount }, { releaseDate: fmtDate(new Date(end.getTime() + RECLAIM_DAYS * DAY)) });
         continue;
+      }
+    }
+
+    // Second pass — one consolidated email per (renter, stage), then mark the stage on each rental.
+    for (const g of groups.values()) {
+      try {
+        if (g.stage === "reminder_3d") { await sendRenewalReminder3dBatch(g.user.email, g.first, g.items); result.reminded++; }
+        else if (g.stage === "grace") { await sendRenewalGraceNoticeBatch(g.user.email, g.first, g.items, g.graceDeadline || ""); result.graceNoticed++; }
+        else if (g.stage === "access_revoked") { await sendAccessRevokedBatch(g.user.email, g.first, g.items, g.releaseDate); }
+        else if (g.stage === "winback") { await sendRenewalWinBackBatch(g.user.email, g.first, g.items, g.releaseDate); result.winBack++; }
+      } catch (e) { console.error("batch renewal email failed", g.stage, e); }
+      // access_revoked needs no marker — the status → "expired" change stops it re-firing.
+      if (g.stage !== "access_revoked") {
+        for (const r of g.rentals) {
+          const sent = Array.isArray(r.renewalRemindersSent) ? (r.renewalRemindersSent as string[]) : [];
+          try { await prisma.rental.update({ where: { id: r.id }, data: { renewalRemindersSent: [...sent, g.stage] as unknown as Prisma.InputJsonValue } }); } catch (e) { console.error(e); }
+        }
       }
     }
 
