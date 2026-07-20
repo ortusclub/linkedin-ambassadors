@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { getCallsByEmail } from "@/lib/calendar-calls";
 
 export async function GET() {
   try {
@@ -20,9 +21,13 @@ export async function GET() {
       : [];
     const contactMap = new Map(users.map(u => [u.email, u.contactNumber]));
 
+    // Live call status from info@'s Google Calendar (matched by the guest's email).
+    const calls = await getCallsByEmail();
+
     const enriched = applications.map(a => ({
       ...a,
       contactNumber: contactMap.get(a.email) || a.contactNumber,
+      call: calls.get(a.email.toLowerCase()) || null,
     }));
 
     return NextResponse.json({ applications: enriched });

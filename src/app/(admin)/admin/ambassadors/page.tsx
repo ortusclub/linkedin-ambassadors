@@ -20,6 +20,14 @@ interface Application {
   offeredAmount: string | number | null;
   adminNotes: string | null;
   createdAt: string;
+  call?: {
+    stage: "none" | "booked" | "done";
+    scheduledAt: string | null;
+    meetLink: string | null;
+    channel: string | null;
+    title: string | null;
+    cancelled: boolean;
+  } | null;
 }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
@@ -55,7 +63,20 @@ const ACTIONS: { db: string; label: string; kind: "accept" | "reject" | "seconda
   { db: "unreachable", label: "No response", kind: "secondary" },
 ];
 
+// call stage (booked/done/none) — sourced live from info@'s Google Calendar
+const CALL_BUCKET: Record<string, { label: string; bg: string; fg: string }> = {
+  none: { label: "No call yet", bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)" },
+  booked: { label: "Call booked", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" },
+  done: { label: "Call done", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" },
+};
+const CALL_CHIPS: [string, string, string | null][] = [
+  ["all", "All", null], ["none", "No call yet", "var(--neutral-chip-text)"],
+  ["booked", "Call booked", "var(--blue-chip-text)"], ["done", "Call done", "var(--st-active-fg)"],
+];
+const callBucketOf = (a: Application): string => a.call?.stage || "none";
+
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const fmtDateTime = (iso: string | null) => iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
 const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
 const liHref = (url: string) => (url.startsWith("http") ? url : `https://${url}`);
 const liShort = (url: string) => { const h = url.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, "").replace(/[/?].*$/, ""); return h ? `in/${h.length > 18 ? h.slice(0, 18) + "…" : h}` : "profile"; };
@@ -64,6 +85,7 @@ export default function AdminAmbassadorsPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [callFilter, setCallFilter] = useState("all");
   const [marketer, setMarketer] = useState("all");
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -99,6 +121,12 @@ export default function AdminAmbassadorsPage() {
     return c;
   }, [apps]);
 
+  const callCounts = useMemo(() => {
+    const c: Record<string, number> = { all: apps.length };
+    for (const a of apps) { const b = callBucketOf(a); c[b] = (c[b] || 0) + 1; }
+    return c;
+  }, [apps]);
+
   // Distinct marketers (from the referral tag) with their submission counts, busiest first.
   const marketers = useMemo(() => {
     const m = new Map<string, number>();
@@ -111,6 +139,7 @@ export default function AdminAmbassadorsPage() {
     // group a person's submissions together, newest owner first
     const rows = apps.filter((a) => {
       if (filter !== "all" && bucketOf(a.status) !== filter) return false;
+      if (callFilter !== "all" && callBucketOf(a) !== callFilter) return false;
       if (marketer !== "all" && (a.referredBy || "").trim() !== marketer) return false;
       if (!q) return true;
       return `${a.fullName} ${a.email} ${a.contactNumber || ""} ${a.linkedinUrl} ${a.referredBy || ""}`.toLowerCase().includes(q);
@@ -118,7 +147,7 @@ export default function AdminAmbassadorsPage() {
     const lastSeen = new Map<string, number>();
     rows.forEach((a) => { const t = new Date(a.createdAt).getTime(); lastSeen.set(a.email, Math.max(lastSeen.get(a.email) ?? 0, t)); });
     return [...rows].sort((a, b) => (a.email !== b.email ? lastSeen.get(b.email)! - lastSeen.get(a.email)! : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-  }, [apps, filter, marketer, query]);
+  }, [apps, filter, callFilter, marketer, query]);
 
   const toggle = (id: string) => setCollapsed((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allCollapsed = filtered.length > 0 && filtered.every((a) => collapsed.has(a.id));
@@ -152,14 +181,30 @@ export default function AdminAmbassadorsPage() {
         )}
       </div>
 
-      {/* filter chips */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-        {CHIPS.map(([key, lbl, dot]) => (
-          <button key={key} onClick={() => setFilter(key)} style={chipStyle(filter === key)}>
-            {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
-            {lbl}<span style={{ color: "var(--muted)" }}>{counts[key] || 0}</span>
-          </button>
-        ))}
+      {/* filter chips: status + call stage */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ ...labelCss, width: 48, flex: "none" }}>Status</span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {CHIPS.map(([key, lbl, dot]) => (
+              <button key={key} onClick={() => setFilter(key)} style={chipStyle(filter === key)}>
+                {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
+                {lbl}<span style={{ color: "var(--muted)" }}>{counts[key] || 0}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ ...labelCss, width: 48, flex: "none" }}>Call</span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {CALL_CHIPS.map(([key, lbl, dot]) => (
+              <button key={key} onClick={() => setCallFilter(key)} style={chipStyle(callFilter === key)}>
+                {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
+                {lbl}<span style={{ color: "var(--muted)" }}>{callCounts[key] || 0}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* search + collapse */}
@@ -198,7 +243,12 @@ export default function AdminAmbassadorsPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 7 }}>
-                    <span style={{ font: `600 12px ${F_SANS}`, padding: "5px 13px", borderRadius: 999, whiteSpace: "nowrap", background: b.bg, color: b.fg }}>{b.label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {a.call && a.call.stage !== "none" && (
+                        <span style={{ font: `600 12px ${F_SANS}`, padding: "5px 13px", borderRadius: 999, whiteSpace: "nowrap", background: CALL_BUCKET[a.call.stage].bg, color: CALL_BUCKET[a.call.stage].fg }}>{CALL_BUCKET[a.call.stage].label}</span>
+                      )}
+                      <span style={{ font: `600 12px ${F_SANS}`, padding: "5px 13px", borderRadius: 999, whiteSpace: "nowrap", background: b.bg, color: b.fg }}>{b.label}</span>
+                    </div>
                     <span style={{ font: `500 12px ${F_SANS}`, color: "var(--date-color)" }}>Applied {fmtDate(a.createdAt)}</span>
                   </div>
                   <span style={{ font: `600 13px ${F_SANS}`, color: "var(--muted)", width: 14, textAlign: "center", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>
@@ -215,6 +265,23 @@ export default function AdminAmbassadorsPage() {
                     <Field label="LinkedIn URL"><a href={liHref(a.linkedinUrl)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>{liShort(a.linkedinUrl)}</a></Field>
                     <Field label="Heard from">{a.referralSource || "—"}</Field>
                     <Field label="Referred by">{a.referredBy ? <span style={{ color: "var(--st-active-fg)", fontWeight: 600 }}>{a.referredBy}</span> : "—"}</Field>
+                  </div>
+                  {/* call — live from info@'s Google Calendar */}
+                  <div style={{ padding: "0 22px 16px" }}>
+                    {a.call && a.call.stage !== "none" ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "11px 14px", borderRadius: 10, background: "var(--band)", border: "1px solid var(--divider)" }}>
+                        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" }}>Call</span>
+                        <span style={{ font: `600 12px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, background: CALL_BUCKET[a.call.stage].bg, color: CALL_BUCKET[a.call.stage].fg }}>{CALL_BUCKET[a.call.stage].label}</span>
+                        {a.call.scheduledAt && <span style={{ font: `600 13px ${F_SANS}`, color: "var(--text)" }}>{fmtDateTime(a.call.scheduledAt)}</span>}
+                        {a.call.channel && <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>via {a.call.channel}</span>}
+                        {a.call.meetLink && <a href={a.call.meetLink} target="_blank" rel="noopener noreferrer" style={{ marginLeft: "auto", font: `600 12.5px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", padding: "6px 12px", borderRadius: 8 }}>Join Meet ↗</a>}
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, background: "var(--band)", border: "1px dashed var(--divider)" }}>
+                        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" }}>Call</span>
+                        <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>No call booked yet</span>
+                      </div>
+                    )}
                   </div>
                   {/* actions */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "14px 22px", borderTop: "1px solid var(--divider)", background: "var(--band)", flexWrap: "wrap" }}>
