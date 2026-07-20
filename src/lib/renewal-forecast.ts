@@ -79,10 +79,14 @@ export async function buildRenewalForecast(now = new Date()): Promise<ForecastEv
 
     const headsUp: { account: string; date: string; amount: string }[] = [];
     let headsUpFire: Date | null = null;
-    const manual = new Map<string, { items: AItem[]; fire: Date; graceDeadline?: string; releaseDate?: string }>();
+    // Key by stage AND fire-day: the cron sends one email per run, so accounts only consolidate
+    // if they hit the same stage on the SAME day. (Nico's Jul-18 accounts lapse today; his Jul-23
+    // ones lapse Jul 24 — those are separate emails, not one 10-account blast.)
+    const manual = new Map<string, { stage: string; items: AItem[]; fire: Date; graceDeadline?: string; releaseDate?: string }>();
     const addManual = (stage: string, item: AItem, f: Date, extra?: { graceDeadline?: string; releaseDate?: string }) => {
-      let g = manual.get(stage);
-      if (!g) { g = { items: [], fire: f }; manual.set(stage, g); }
+      const key = `${stage}|${f.toISOString().slice(0, 10)}`;
+      let g = manual.get(key);
+      if (!g) { g = { stage, items: [], fire: f }; manual.set(key, g); }
       g.items.push(item);
       if (f.getTime() < g.fire.getTime()) g.fire = f;
       if (extra?.graceDeadline) g.graceDeadline = extra.graceDeadline;
@@ -127,7 +131,8 @@ export async function buildRenewalForecast(now = new Date()): Promise<ForecastEv
           : sendRenewalHeadsUpBatch(u.email, first, headsUp, total, u.cardLast4));
     }
 
-    for (const [stage, g] of manual) {
+    for (const g of manual.values()) {
+      const stage = g.stage;
       const label = stage === "reminder_3d" ? "Renewal reminder (3 days before)" : stage === "grace" ? "Grace notice (24h left)" : stage === "access_revoked" ? "Access paused (lapse)" : "Last chance (win-back)";
       const condition = stage === "access_revoked" ? "if unpaid" : stage === "winback" ? "if still unpaid" : null;
       await add(g.fire, u.email, summarize(g.items), stage, label, condition,
