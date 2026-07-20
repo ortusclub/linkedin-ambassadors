@@ -13,6 +13,63 @@ interface Referrer { id: string; slug: string; token: string; name: string; type
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
+// ---- Printable field-day collateral (shared by cards + flyers) ----
+// One B&W card design, authored at 105mm x 148.5mm (a quartered A4). Cards print
+// 4-up on A4; the flyer is the same card scaled up to fill a single A5 sheet.
+// Every copy carries the marketer's own /r/ link + QR, so each print is unique.
+const CARD_FONTS = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">`;
+// Wait for QR images + web fonts before printing, so nothing prints half-loaded.
+const PRINT_BOOT = `<script>window.addEventListener('load',function(){var imgs=[].slice.call(document.images);Promise.all(imgs.map(function(im){return im.complete?1:new Promise(function(res){im.onload=im.onerror=res;});})).then(function(){return (document.fonts&&document.fonts.ready)||1;}).then(function(){setTimeout(function(){window.print();},250);});});<\/script>`;
+const RESET_CSS = `*{box-sizing:border-box;margin:0;padding:0}html,body{margin:0;padding:0}body{font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}`;
+const CARD_CSS = `.card{position:relative;border:0.3mm dashed #b6b6b6;padding:16px 17px 14px;display:flex;flex-direction:column;background:#fff;color:#000;overflow:hidden}.brandrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px}.brand{font:700 13px 'Space Grotesk';color:#000}.badge{font:700 7.5px 'Plus Jakarta Sans';letter-spacing:.04em;text-transform:uppercase;color:#000;border:1px solid #000;border-radius:999px;padding:3px 8px}.hl{font:700 23px/1.02 'Space Grotesk';color:#000;margin:0 0 6px;letter-spacing:-.02em}.lead{font:500 10.5px/1.4 'Plus Jakarta Sans';color:#333;margin:0 0 12px}.tiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:13px}.tile{border:1.4px solid #000;border-radius:9px;padding:8px 4px;text-align:center}.tile.dark{background:#000}.tile b{display:block;font:700 14px/1 'Space Grotesk';color:#000}.tile.dark b{color:#fff}.tile span{display:block;font:600 8px 'Plus Jakarta Sans';color:#555;margin-top:3px}.tile.dark span{color:#cfcfcf}.exp{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}.exp div{font:500 9px/1.35 'Plus Jakarta Sans';color:#333}.exp b{font-weight:700;color:#000}.sect{font:700 8px 'Plus Jakarta Sans';letter-spacing:.06em;text-transform:uppercase;color:#000;margin-bottom:8px}.sect.sm{font-size:7.5px;letter-spacing:.07em;margin-bottom:6px}.steps{display:flex;flex-direction:column;gap:7px;margin-bottom:11px}.step{display:flex;gap:8px;align-items:flex-start}.num{width:15px;height:15px;border-radius:999px;background:#000;color:#fff;font:700 8.5px 'Space Grotesk';display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}.st{font:500 9.5px/1.25 'Plus Jakarta Sans';color:#1a1a1a}.st b{font-weight:700;color:#000}.whygrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-bottom:7px}.why{display:flex;gap:5px;align-items:flex-start}.why i{font:700 8.5px 'Plus Jakarta Sans';line-height:1.2;flex:none;font-style:normal}.why span{font:500 8.5px/1.2 'Plus Jakarta Sans';color:#1a1a1a}.note{font:600 8px 'Plus Jakarta Sans';color:#444;margin-bottom:6px}.signup{margin-top:auto;border-top:1px solid #000;padding-top:12px;display:flex;align-items:center;gap:13px}.qr{width:82px;height:82px;flex:none;border:1px solid #000;padding:4px;background:#fff}.su-head{font:700 15px/1 'Space Grotesk';color:#000;margin-bottom:5px}.su-or{font:500 9px 'Plus Jakarta Sans';color:#555;margin-bottom:2px}.su-url{font:700 10.5px/1.2 'Plus Jakarta Sans';color:#000;word-break:break-all;margin-bottom:5px}.su-more{font:500 9px 'Plus Jakarta Sans';color:#333;margin-bottom:6px}.su-more b{font-weight:700;color:#000}.su-ref{font:500 8.5px 'Plus Jakarta Sans';color:#555}.su-ref b{font-weight:700;color:#000}`;
+// One card's markup, carrying this marketer's /r/ link + QR.
+const cardMarkup = (origin: string, r: { slug: string; name: string }) => {
+  const link = `${origin}/r/${r.slug}`;
+  const shortLink = link.replace(/^https?:\/\//, "");
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=0&data=${encodeURIComponent(link)}`;
+  return `<div class="card">
+    <div class="brandrow"><span class="brand">&#10022; LinkedVelocity</span><span class="badge">For students &amp; professionals</span></div>
+    <h1 class="hl">Get paid for your LinkedIn</h1>
+    <p class="lead">Earn every month just by lending us your account. It stays yours &mdash; take it back anytime.</p>
+    <div class="tiles">
+      <div class="tile"><b>&#8369;1,000</b><span>to start</span></div>
+      <div class="tile dark"><b>&#8369;500</b><span>every month</span></div>
+      <div class="tile"><b>&#8776;&#8369;7k</b><span>first year</span></div>
+    </div>
+    <div class="exp">
+      <div><b>What it is &mdash; </b>LinkedVelocity pays you to lend your LinkedIn to vetted businesses that use it for professional outreach.</div>
+      <div><b>Why your LinkedIn &mdash; </b>Real, established profiles perform far better than brand-new ones, so we pay to borrow yours.</div>
+      <div><b>What's in it for you &mdash; </b>&#8369;1,000 to start, &#8369;500 every month, zero effort &mdash; and your profile always stays yours.</div>
+    </div>
+    <div class="sect">How it works</div>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><span class="st">Scan the code and sign up &mdash; takes 2 minutes.</span></div>
+      <div class="step"><span class="num">2</span><span class="st">We set it up and rent it to a vetted business. Your <b>name, photo &amp; password stay yours</b>.</span></div>
+      <div class="step"><span class="num">3</span><span class="st">Get <b>&#8369;500 every month</b> &mdash; take it back anytime, no penalties.</span></div>
+    </div>
+    <div class="sect sm">Why people say yes</div>
+    <div class="whygrid">
+      <div class="why"><i>&#10003;</i><span>Name &amp; photo never change</span></div>
+      <div class="why"><i>&#10003;</i><span>You keep full access anytime</span></div>
+      <div class="why"><i>&#10003;</i><span>Cancel anytime &mdash; no penalties</span></div>
+      <div class="why"><i>&#10003;</i><span>Vetted, legitimate businesses</span></div>
+      <div class="why"><i>&#10003;</i><span>Password is never shared</span></div>
+      <div class="why"><i>&#10003;</i><span>Add accounts to earn more</span></div>
+    </div>
+    <div class="note">Ages 18+ &middot; paid to GCash, Maya or your bank.</div>
+    <div class="signup">
+      <img class="qr" src="${qr}" alt="QR"/>
+      <div style="min-width:0">
+        <div class="su-head">Scan to sign up</div>
+        <div class="su-or">or sign up at</div>
+        <div class="su-url">${shortLink}</div>
+        <div class="su-more">Curious first? Learn more at <b>linkedvelocity.com</b></div>
+        <div class="su-ref">Referred by <b>${r.name}</b> &middot; code <b>${r.slug}</b></div>
+      </div>
+    </div>
+  </div>`;
+};
+
 // ₱ per converted (accepted / on-inventory) signup.
 const RATE = 500;
 // A referrer is "top" once this many of their signups convert.
@@ -120,32 +177,30 @@ export default function AdminReferralsPage() {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const refLink = (r: Referrer) => `${origin}/become-ambassador?ref=${r.slug}`;
   const portalLink = (r: Referrer) => `${origin}/m/${r.token}`;
-  const printFlyers = () => {
-    if (!referrers.length) return;
+  // A5 flyer — the same card design scaled up to fill one A5 sheet, one per marketer.
+  // Pass a single referrer to print just theirs; omit to print one sheet per marketer.
+  const printFlyers = (only?: Referrer) => {
+    const list = only ? [only] : referrers;
+    if (!list.length) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    const flyers = referrers.map((r) => {
-      const link = `${origin}/r/${r.slug}`;
-      const shortLink = link.replace(/^https?:\/\//, "");
-      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=0&data=${encodeURIComponent(link)}`;
-      return `<div class="sheet"><div class="top"><div class="wm">&#10022; LinkedVelocity</div><div class="badge">For students &amp; professionals</div><h2>Get paid for your <span>LinkedIn</span></h2><p>Earn every month just by lending us your account. It stays yours &mdash; take it back anytime.</p></div><div class="body"><div class="benefits"><div class="b"><b>&#8369;1,000</b><span>to start</span></div><div class="b feat"><b>&#8369;500</b><span>every month</span></div><div class="b"><b>&#8776;&#8369;7,000</b><span>first year</span></div></div><div class="wt">Why people say yes</div><div class="wl"><div><i>&#10003;</i><span>Your <b>name &amp; photo never change</b> &mdash; it stays your profile</span></div><div><i>&#10003;</i><span>You keep <b>full access</b> &mdash; check your account anytime and see how it's used</span></div><div><i>&#10003;</i><span><b>Take it back anytime</b>, cancel anytime &mdash; no penalties</span></div><div><i>&#10003;</i><span>We only work with <b>vetted, legitimate businesses</b></span></div><div><i>&#10003;</i><span>Your <b>password is never shared</b> with anyone</span></div><div><i>&#10003;</i><span><b>Start with one &mdash; add more accounts</b> (yours or family's) to earn even more</span></div></div><div class="qrwrap"><img class="qr" src="${qr}" alt="QR"/><div class="qrt"><div class="lead">Scan to sign up</div><div class="or">&hellip; or just type this link:</div><div class="url">${shortLink}</div><div class="code">Referred by <b>${r.name}</b> &middot; code <b>${r.slug}</b></div></div></div></div><div class="bot">18+ &middot; any LinkedIn account &mdash; new is fine &middot; students welcome</div></div>`;
-    }).join("");
-    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Field Day Flyers</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0F1419}.sheet{width:148mm;min-height:210mm;margin:0 auto;display:flex;flex-direction:column;page-break-after:always;overflow:hidden}.top{background:linear-gradient(155deg,#00A150,#0B6B3A);color:#fff;padding:24px 26px 28px;text-align:center}.wm{font-size:13.5px;font-weight:800;opacity:.96;margin-bottom:13px}.badge{display:inline-block;font-size:11px;font-weight:700;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:4px 11px;border-radius:999px;margin-bottom:13px}.top h2{font-size:34px;line-height:1.06;font-weight:800;letter-spacing:-.02em}.top h2 span{color:#B9F5CF}.top p{margin:11px auto 0;font-size:14px;line-height:1.5;opacity:.95;max-width:33ch}.body{flex:1;padding:20px 26px 14px;display:flex;flex-direction:column}.benefits{display:flex;gap:10px;margin-bottom:18px}.b{flex:1;text-align:center;border:1px solid #E2E8F0;border-radius:13px;padding:13px 5px}.b.feat{border:1.5px solid #00A150;background:#F1FBF5}.b b{display:block;font-size:21px;color:#0B6B3A;font-weight:800}.b span{font-size:11px;color:#64748B}.wt{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#00A150;margin-bottom:10px}.wl div{display:flex;gap:9px;font-size:13px;line-height:1.45;color:#37424F;margin-bottom:8px}.wl i{color:#00A150;font-weight:800;font-style:normal;flex:none}.qrwrap{display:flex;align-items:center;gap:15px;background:#E7F6EE;border:1px solid #C9EED8;border-radius:16px;padding:15px;margin-top:auto}.qr{width:128px;height:128px;flex:none;background:#fff;border-radius:11px;padding:7px}.qrt .lead{font-size:19px;font-weight:800;color:#0B6B3A}.qrt .or{font-size:12px;color:#3f7d5a;margin-top:6px}.qrt .url{font-size:15px;font-weight:800;color:#0F1419;margin-top:2px;word-break:break-all}.qrt .code{font-size:12px;color:#537a64;margin-top:8px}.bot{background:#0B2018;color:#B7D4C4;text-align:center;font-size:11px;padding:11px}@page{size:A5;margin:0}</style></head><body>${flyers}<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});</script></body></html>`);
+    const sheets = list.map((r) => `<div class="sheet">${cardMarkup(origin, r)}</div>`).join("");
+    // Card is authored at 105x148.5mm; scale 1.409x fills an A5 sheet (148x210mm).
+    const css = `${RESET_CSS}.sheet{width:148mm;height:210mm;overflow:hidden;background:#fff;page-break-after:always}.sheet .card{width:105mm;height:148.5mm;border:none;transform:scale(1.409);transform-origin:top left}${CARD_CSS}@page{size:A5;margin:0}`;
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Field Day Flyers</title>${CARD_FONTS}<style>${css}</style></head><body>${sheets}${PRINT_BOOT}</body></html>`);
     win.document.close();
   };
-  // Compact, ink-light cards — 4 per A4 page, one full page of cuttable cards per marketer.
-  const printCards = () => {
-    if (!referrers.length) return;
+  // B&W cards — 4 identical cards per A4 page (quartered). One full page of cuttable
+  // cards per marketer, each carrying that marketer's own /r/ link + QR. Pass a single
+  // referrer to print just their page; omit to print one page for every marketer.
+  const printCards = (only?: Referrer) => {
+    const list = only ? [only] : referrers;
+    if (!list.length) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    const card = (r: Referrer) => {
-      const link = `${origin}/r/${r.slug}`;
-      const shortLink = link.replace(/^https?:\/\//, "");
-      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=0&data=${encodeURIComponent(link)}`;
-      return `<div class="card"><div class="brand">LinkedVelocity</div><div class="h">Get paid for your LinkedIn</div><div class="sub">Earn every month just by lending us your account &mdash; it stays yours.</div><div class="pays"><span>&#8369;1,000 to start</span><span>&#8369;500 / month</span></div><div class="why"><div>&#10003; Your name &amp; photo never change</div><div>&#10003; Take it back anytime &mdash; no penalties</div><div>&#10003; Add more accounts to earn more</div></div><div class="mid"><img class="qr" src="${qr}" alt="QR"/><div class="mt"><div class="lead">Scan to sign up</div><div class="url">or go to <b>${shortLink}</b></div></div></div><div class="ask">Ask <b>${r.name}</b> &middot; code <b>${r.slug}</b></div></div>`;
-    };
-    const pages = referrers.map((r) => `<div class="page">${card(r).repeat(4)}</div>`).join("");
-    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Field Day Cards</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0F1419}.page{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(2,1fr);gap:6mm;width:194mm;height:281mm;margin:0 auto;page-break-after:always}.card{border:1px dashed #9aa3b2;border-radius:10px;padding:15px 17px;display:flex;flex-direction:column;overflow:hidden}.brand{font-size:11px;font-weight:800;letter-spacing:.02em}.h{font-size:21px;font-weight:800;line-height:1.08;margin-top:4px}.sub{font-size:12px;line-height:1.4;color:#37424F;margin-top:6px}.pays{display:flex;gap:9px;margin:13px 0 11px}.pays span{flex:1;text-align:center;border:1px solid #cbd5e1;border-radius:9px;padding:9px 4px;font-size:14px;font-weight:800}.why div{font-size:11.5px;line-height:1.55;color:#37424F}.mid{display:flex;gap:13px;align-items:center;margin-top:auto;padding-top:12px}.qr{width:38mm;height:38mm;flex:none}.mt .lead{font-size:16px;font-weight:800}.mt .url{font-size:11px;color:#334155;word-break:break-all;margin-top:4px}.mt .url b{color:#000}.ask{font-size:11px;text-align:center;color:#334155;border-top:1px dashed #cbd5e1;padding-top:9px;margin-top:11px}.ask b{color:#000}@page{size:A4;margin:8mm}</style></head><body>${pages}<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});</script></body></html>`);
+    const pages = list.map((r) => `<div class="page">${cardMarkup(origin, r).repeat(4)}</div>`).join("");
+    const css = `${RESET_CSS}.page{width:210mm;height:297mm;display:grid;grid-template-columns:105mm 105mm;grid-template-rows:148.5mm 148.5mm;background:#fff;page-break-after:always}${CARD_CSS}@page{size:A4;margin:0}`;
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Field Day Cards</title>${CARD_FONTS}<style>${css}</style></head><body>${pages}${PRINT_BOOT}</body></html>`);
     win.document.close();
   };
   const copy = (key: string, text: string) => { navigator.clipboard?.writeText(text); setCopiedKey(key); setTimeout(() => setCopiedKey(""), 1500); };
@@ -206,8 +261,8 @@ export default function AdminReferralsPage() {
           <span style={{ font: `700 13.5px ${F_SANS}`, color: "var(--text)" }}>Referral links</span>
           <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{referrers.length} referrer{referrers.length === 1 ? "" : "s"}</span>
           <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>portal &amp; QR links to share</span>
-          <button onClick={(e) => { e.stopPropagation(); printCards(); }} disabled={!referrers.length} style={{ marginLeft: "auto", font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "7px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>Cards · 4/page</button>
-          <button onClick={(e) => { e.stopPropagation(); printFlyers(); }} disabled={!referrers.length} style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "7px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>Flyers · A5</button>
+          <button onClick={(e) => { e.stopPropagation(); printCards(); }} disabled={!referrers.length} title="Print a 4-up card page for every marketer (one page each)" style={{ marginLeft: "auto", font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "7px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>All cards · 4/page</button>
+          <button onClick={(e) => { e.stopPropagation(); printFlyers(); }} disabled={!referrers.length} title="Print an A5 flyer for every marketer (one sheet each)" style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "7px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>All flyers · A5</button>
           <button onClick={(e) => { e.stopPropagation(); setLinksOpen(true); setShowAdd((v) => !v); }} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "7px 13px", borderRadius: 8, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add referrer"}</button>
         </div>
         {linksOpen && (
@@ -234,8 +289,10 @@ export default function AdminReferralsPage() {
                       <span style={{ font: `500 11.5px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>ref: {r.slug}</span>
                       <span style={{ font: `600 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", background: r.paymentDetails ? "var(--st-active-bg)" : "var(--warn-badge-bg)", color: r.paymentDetails ? "var(--st-active-fg)" : "var(--warn-badge-text)" }}>{r.paymentDetails ? "payout set ✓" : "no payout details"}</span>
                     </div>
-                    <div style={{ display: "flex", gap: 7, flex: "none" }}>
+                    <div style={{ display: "flex", gap: 7, flex: "none", flexWrap: "wrap", justifyContent: "flex-end" }}>
                       <button onClick={() => openDetails(r)} style={{ ...copyBtn, ...(detailId === r.id ? { borderColor: "var(--chip-active-border)", background: "var(--chip-active-bg)" } : {}) }}>Details</button>
+                      <button onClick={() => printCards(r)} title={`Print a 4/page card sheet for ${r.name} (their QR)`} style={copyBtn}>Cards · 4/page</button>
+                      <button onClick={() => printFlyers(r)} title={`Print an A5 flyer for ${r.name} (their QR)`} style={copyBtn}>Flyer · A5</button>
                       <button onClick={() => copy(`ref-${r.id}`, refLink(r))} style={copyBtn}>{copiedKey === `ref-${r.id}` ? "Copied ✓" : "Copy QR"}</button>
                       <button onClick={() => copy(`portal-${r.id}`, portalLink(r))} style={copyBtn}>{copiedKey === `portal-${r.id}` ? "Copied ✓" : "Copy portal link"}</button>
                       <button onClick={() => deleteReferrer(r)} title="Remove referrer" style={{ ...copyBtn, color: "var(--danger)", borderColor: "var(--danger-border)", padding: "6px 9px" }}>✕</button>
