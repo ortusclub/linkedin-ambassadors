@@ -117,9 +117,18 @@ export async function buildRenewalForecast(now = new Date()): Promise<ForecastEv
         if (!sent.includes("reminder_3d") && !overdue) addManual("reminder_3d", { account, date: fmtDate(end), amount }, fire(new Date(end.getTime() - 3 * DAY)));
         if (!sent.includes("grace") && now.getTime() < end.getTime() + DAY) addManual("grace", { account, amount }, fire(end), { graceDeadline: fmtDate(new Date(end.getTime() + DAY)) });
         addManual("access_revoked", { account }, fire(new Date(end.getTime() + DAY)), { releaseDate: fmtDate(releaseDate) });
-        if (!sent.includes("winback") && now.getTime() < end.getTime() + RECLAIM_DAYS * DAY) addManual("winback", { account, amount }, fire(new Date(end.getTime() + (RECLAIM_DAYS - 1) * DAY)), { releaseDate: fmtDate(releaseDate) });
-      } else if (r.status === "expired" && !sent.includes("winback") && now.getTime() < end.getTime() + RECLAIM_DAYS * DAY) {
-        addManual("winback", { account, amount }, fire(new Date(end.getTime() + (RECLAIM_DAYS - 1) * DAY)), { releaseDate: fmtDate(releaseDate) });
+        // Win-back can only fire the run AFTER the lapse (the account must be "expired" first), and
+        // only while still inside the reclaim window [end+2d, end+3d). For accounts already deep
+        // overdue, that window has passed by the next run → no last-chance (they're just released).
+        if (!sent.includes("winback")) {
+          const afterLapse = nextRun(fire(new Date(end.getTime() + DAY)));
+          if (afterLapse.getTime() >= end.getTime() + (RECLAIM_DAYS - 1) * DAY && afterLapse.getTime() < end.getTime() + RECLAIM_DAYS * DAY) {
+            addManual("winback", { account, amount }, afterLapse, { releaseDate: fmtDate(releaseDate) });
+          }
+        }
+      } else if (r.status === "expired" && !sent.includes("winback")) {
+        const wf = fire(new Date(end.getTime() + (RECLAIM_DAYS - 1) * DAY));
+        if (wf.getTime() < end.getTime() + RECLAIM_DAYS * DAY) addManual("winback", { account, amount }, wf, { releaseDate: fmtDate(releaseDate) });
       }
     }
 
