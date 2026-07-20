@@ -1,4 +1,6 @@
 import { Resend } from "resend";
+import { randomUUID } from "crypto";
+import { prisma } from "@/lib/prisma";
 
 let _resend: Resend | null = null;
 function getResend(): Resend {
@@ -23,11 +25,31 @@ interface EmailOptions {
 const billingBcc = adminEmail;
 
 async function sendEmail({ to, subject, html, bcc }: EmailOptions) {
-  if (!process.env.RESEND_API_KEY) {
-    console.log(`[Email] Would send to ${to}${bcc ? ` (bcc ${bcc})` : ""}: ${subject}`);
-    return;
+  let status: "sent" | "failed" | "skipped" = "sent";
+  let errorMsg: string | null = null;
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.log(`[Email] Would send to ${to}${bcc ? ` (bcc ${bcc})` : ""}: ${subject}`);
+      status = "skipped";
+    } else {
+      await getResend().emails.send({ from, to, subject, html, ...(bcc ? { bcc } : {}) });
+    }
+  } catch (e) {
+    status = "failed";
+    errorMsg = e instanceof Error ? e.message : String(e);
   }
-  return getResend().emails.send({ from, to, subject, html, ...(bcc ? { bcc } : {}) });
+  // In-app email log — a record of everything we send (to/subject/status), so the team can see
+  // what went out without the Resend dashboard. Best-effort: logging must never break sending.
+  try {
+    await prisma.$executeRaw`
+      INSERT INTO email_log (id, "to", subject, bcc, status, error, created_at)
+      VALUES (${randomUUID()}, ${Array.isArray(to) ? to.join(", ") : to}, ${subject},
+              ${bcc ? (Array.isArray(bcc) ? bcc.join(", ") : bcc) : null}, ${status}, ${errorMsg}, now())`;
+  } catch (e) {
+    console.error("[Email] log write failed:", e);
+  }
+  // Preserve prior behaviour: throw on a real send failure so callers don't mark things as sent.
+  if (status === "failed") throw new Error(errorMsg ?? "email send failed");
 }
 
 export async function sendVerificationCode(email: string, code: string) {
@@ -202,6 +224,7 @@ export async function sendRenewalLinkEmail(
   return sendEmail({
     to: email,
     subject: `Time to renew your LinkedVelocity rental`,
+    bcc: billingBcc,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your LinkedVelocity rental is up for renewal on <strong>${dueDate}</strong>. We'd love for you to keep it going — renew below and your access carries on with <strong>zero interruption</strong>:</p>
@@ -228,6 +251,7 @@ export async function sendRenewalReminder3d(
   return sendEmail({
     to: email,
     subject: `Your LinkedVelocity rental ends ${endDate} — renew to keep it going`,
+    bcc: billingBcc,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Quick heads-up — your LinkedVelocity rental ends on <strong>${endDate}</strong>. It's not set to auto-renew, so you'll need to renew to keep your access going.</p>
@@ -245,6 +269,7 @@ export async function sendRenewalGraceNotice(
   return sendEmail({
     to: email,
     subject: `Your LinkedVelocity rental — 24 hours left to renew`,
+    bcc: billingBcc,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your LinkedVelocity rental ended today — but your access stays active for the next <strong>24 hours</strong> (until <strong>${graceDeadline}</strong>), so there's still time.</p>
@@ -266,6 +291,7 @@ export async function sendRenewalWinBack(
   return sendEmail({
     to: email,
     subject: releaseDate ? `Last chance to keep your LinkedVelocity account` : `Your LinkedVelocity rental is still here whenever you're ready`,
+    bcc: billingBcc,
     html: brandWrap(`
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">${deadline} Re-activate now and you pick up the same account exactly where you left off — no re-setup. After that it's first-come, first-served for everyone.</p>
