@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -120,6 +120,8 @@ export default function BecomeAmbassadorPage() {
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [assignedProxy, setAssignedProxy] = useState<{host:string;port:number;username:string;password:string}|null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState("");
   const [scanIndex, setScanIndex] = useState(0);
   const [offer, setOffer] = useState<{ amount: number; tier: string; reasons: { label: string; detail: string; positive: boolean }[] } | null>(null);
@@ -279,9 +281,18 @@ export default function BecomeAmbassadorPage() {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    // Guard against double-submits: on a slow connection people tap the button
+    // repeatedly and each tap used to file another application (one field-day
+    // signup landed 6 times in a single minute). The ref blocks re-entry
+    // synchronously — state alone updates too late to stop a fast second tap.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
     setError("");
     if (!form.fullName || !form.email || !form.contactHandle) {
       setError("Please fill in your name, email and contact");
+      submittingRef.current = false;
+      setSubmitting(false);
       return;
     }
     const hasUrl = !!form.linkedinUrl.trim();
@@ -323,6 +334,11 @@ export default function BecomeAmbassadorPage() {
         }
       }
     } catch {} // Don't block the flow if this fails
+
+    setSubmitting(false);
+    // Deliberately NOT clearing submittingRef: we're leaving the form for the next
+    // step, and this application is filed. Keeping it latched means a stray extra
+    // tap can't file a second copy.
 
     // With a LinkedIn URL we run the instant valuation; without one we've still captured
     // the lead, so go straight to the confirmation (no valuation to show).
@@ -929,7 +945,7 @@ export default function BecomeAmbassadorPage() {
                     <input className="ambf-in" type="text" placeholder="If someone referred you, enter their name or code" value={form.referredBy} onChange={(e) => update("referredBy", e.target.value)} />
                   </div>
 
-                  <button type="submit" style={{ width: "100%", background: "#00B85C", color: "#fff", fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: "pointer", boxShadow: "0 12px 28px rgba(0,184,92,0.28)" }}>{form.linkedinUrl.trim() ? "Get my profile valuation →" : "Sign me up →"}</button>
+                  <button type="submit" disabled={submitting} style={{ width: "100%", background: submitting ? "#8FD9B4" : "#00B85C", color: "#fff", fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: submitting ? "not-allowed" : "pointer", boxShadow: submitting ? "none" : "0 12px 28px rgba(0,184,92,0.28)" }}>{submitting ? "Sending — one moment…" : form.linkedinUrl.trim() ? "Get my profile valuation →" : "Sign me up →"}</button>
                   <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>{form.linkedinUrl.trim() ? "Free · instant · no account required" : "No account needed · we'll set you up"}</div>
                 </form>
 

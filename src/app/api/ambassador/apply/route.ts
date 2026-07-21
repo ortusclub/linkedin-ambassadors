@@ -49,6 +49,25 @@ export async function POST(req: Request) {
       }
     }
 
+    // Double-submit guard for URL-less leads, which the check above skips — that gap let
+    // one field-day walk-up file six identical applications in a single minute. Treat a
+    // repeat from the same email within a few minutes as the same submission and hand back
+    // what we already stored, so the applicant still moves on to the booking step and we
+    // don't re-notify the team.
+    // Matched on linkedinUrl too (both empty for a walk-up lead) so someone genuinely
+    // signing up a SECOND account on the same email isn't blocked.
+    const recent = await prisma.ambassadorApplication.findFirst({
+      where: {
+        email: data.email,
+        linkedinUrl,
+        createdAt: { gt: new Date(Date.now() - 10 * 60 * 1000) },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (recent) {
+      return NextResponse.json({ application: recent, assessment: null, duplicate: true }, { status: 200 });
+    }
+
     // Auto-assess the profile — only when we have a URL to value.
     const assessment = hasUrl
       ? assessFromApplication({
