@@ -32,6 +32,10 @@ interface Application {
   outreachLog?: { ch: string; text: string; by?: string; at: string }[] | null;
   nextFollowUp?: string | null;
   callOutcome?: string | null;
+  onboardedAt?: string | null;
+  accountFreshness?: string | null;
+  paidAt?: string | null;
+  marketerPaidAt?: string | null;
 }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
@@ -117,6 +121,9 @@ const lastTouchAt = (a: Application): string => {
 };
 // a "touch" is an actual outreach contact — notes are annotations, not touches
 const touchCount = (a: Application): number => (a.outreachLog || []).filter((t) => t.ch !== "note").length;
+// stability-check hold: 3 days for established accounts, 1 week for fresh ones
+const holdDays = (a: Application): number => (a.accountFreshness === "fresh" ? 7 : 3);
+const eligibleMs = (a: Application): number | null => a.onboardedAt ? new Date(a.onboardedAt).getTime() + holdDays(a) * 86400000 : null;
 
 export default function AdminAmbassadorsPage() {
   const [apps, setApps] = useState<Application[]>([]);
@@ -174,6 +181,23 @@ export default function AdminAmbassadorsPage() {
   const setOutcome = async (id: string, outcome: string | null) => {
     setApps((prev) => prev.map((a) => (a.id === id ? { ...a, callOutcome: outcome } : a)));
     try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ callOutcome: outcome }) }); } catch {}
+  };
+
+  const markOnboarded = async (id: string, freshness: string) => {
+    const onboardedAt = new Date().toISOString();
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status: "onboarded", onboardedAt, accountFreshness: freshness } : a)));
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "onboarded", onboardedAt, accountFreshness: freshness }) });
+      if (res.ok) { const d = await res.json(); if (d.application) setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...d.application } : a))); }
+    } catch {}
+  };
+  const clearOnboarded = async (id: string) => {
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, onboardedAt: null, accountFreshness: null } : a)));
+    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ onboardedAt: null, accountFreshness: null }) }); } catch {}
+  };
+  const setPaid = async (id: string, field: "paidAt" | "marketerPaidAt", value: string | null) => {
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, [field]: value } : a)));
+    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) }); } catch {}
   };
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
@@ -288,6 +312,13 @@ export default function AdminAmbassadorsPage() {
         ) : filtered.map((a) => {
           const b = BUCKET[bucketOf(a.status)];
           const cs = callBucketOf(a);
+          const onboarded = !!a.onboardedAt;
+          const accepted = a.status === "approved" || a.status === "onboarded";
+          const elig = eligibleMs(a);
+          const ready = elig !== null && Date.now() >= elig;
+          const fullyPaid = !!a.paidAt && (!a.referredBy || !!a.marketerPaidAt);
+          const payStage = !onboarded ? "Agreed · awaiting transfer" : fullyPaid ? "Paid" : ready ? "Ready to pay" : "In hold";
+          const payPill = !onboarded ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : (fullyPaid || ready) ? { bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" } : { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" };
           const open = !collapsed.has(a.id);
           return (
             <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
@@ -377,6 +408,66 @@ export default function AdminAmbassadorsPage() {
                       </div>
                     </div>
                   </div>
+                  {/* onboarding & payout — shown once they've agreed (Accepted) */}
+                  {accepted && (
+                    <div style={{ padding: "0 22px 18px" }}>
+                      <div style={{ border: "1px solid var(--divider)", borderRadius: 12, overflow: "hidden" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", background: "var(--band)", borderBottom: "1px solid var(--divider)" }}>
+                          <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" }}>Onboarding &amp; payout</span>
+                          <span style={{ font: `600 11.5px ${F_SANS}`, padding: "3px 11px", borderRadius: 999, whiteSpace: "nowrap", background: payPill.bg, color: payPill.fg }}>{payStage}</span>
+                        </div>
+                        {!onboarded ? (
+                          <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                            <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>Agreed — waiting on the account transfer (login / 2FA). Once it&apos;s in hand, mark it onboarded to start the hold:</span>
+                            <button onClick={() => markOnboarded(a.id, "established")} disabled={busy === a.id} style={{ ...secBtn, padding: "8px 13px", font: `600 12px ${F_SANS}` }}>Onboarded · established (3-day)</button>
+                            <button onClick={() => markOnboarded(a.id, "fresh")} disabled={busy === a.id} style={{ ...secBtn, padding: "8px 13px", font: `600 12px ${F_SANS}` }}>Onboarded · fresh (1-week)</button>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px 20px", padding: "14px 16px", borderBottom: "1px solid var(--divider)" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Onboarded</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{fmtDate(a.onboardedAt!)}</span></div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Hold</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{holdDays(a)}-day · {a.accountFreshness || "established"}</span></div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Pay-eligible</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{elig ? fmtDate(new Date(elig).toISOString()) : "—"}</span></div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Check</span><span style={{ font: `600 13.5px ${F_SANS}`, color: ready ? "var(--st-active-fg)" : "var(--warn-badge-text)" }}>{ready ? "Cleared ✓" : "In hold"}</span></div>
+                            </div>
+                            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--text)", minWidth: 160 }}>Ambassador payout</span>
+                                {a.paidAt ? (
+                                  <>
+                                    <span style={{ font: `600 12px ${F_SANS}`, color: "var(--st-active-fg)" }}>Paid · {fmtDate(a.paidAt)}</span>
+                                    <button onClick={() => setPaid(a.id, "paidAt", null)} style={{ ...secBtn, padding: "5px 10px", font: `600 11.5px ${F_SANS}` }}>Undo</button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span style={{ font: `500 12.5px ${F_SANS}`, color: ready ? "var(--st-active-fg)" : "var(--muted)" }}>{ready ? "Ready to pay" : `Hold until ${elig ? fmtDate(new Date(elig).toISOString()) : "—"}`}</span>
+                                    {ready && <button onClick={() => setPaid(a.id, "paidAt", new Date().toISOString())} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: "pointer" }}>Mark paid</button>}
+                                  </>
+                                )}
+                              </div>
+                              {a.referredBy && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                  <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--text)", minWidth: 160 }}>Marketer commission <span style={{ color: "var(--muted)", fontWeight: 500 }}>· {a.referredBy}</span></span>
+                                  {a.marketerPaidAt ? (
+                                    <>
+                                      <span style={{ font: `600 12px ${F_SANS}`, color: "var(--st-active-fg)" }}>Paid · {fmtDate(a.marketerPaidAt)}</span>
+                                      <button onClick={() => setPaid(a.id, "marketerPaidAt", null)} style={{ ...secBtn, padding: "5px 10px", font: `600 11.5px ${F_SANS}` }}>Undo</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span style={{ font: `500 12.5px ${F_SANS}`, color: ready ? "var(--st-active-fg)" : "var(--muted)" }}>{ready ? "Ready to pay" : `Hold until ${elig ? fmtDate(new Date(elig).toISOString()) : "—"}`}</span>
+                                      {ready && <button onClick={() => setPaid(a.id, "marketerPaidAt", new Date().toISOString())} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: "pointer" }}>Mark paid</button>}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                              <button onClick={() => clearOnboarded(a.id)} style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", padding: "2px 0", cursor: "pointer", textDecoration: "underline", alignSelf: "flex-start" }}>Undo onboarded</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {/* actions */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "14px 22px", borderTop: "1px solid var(--divider)", background: "var(--band)", flexWrap: "wrap" }}>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

@@ -241,6 +241,10 @@ model AmbassadorApplication {
   outreachLog       Json?            @map("outreach_log")
   nextFollowUp      DateTime?        @map("next_follow_up")
   callOutcome       String?          @map("call_outcome")
+  onboardedAt       DateTime?         @map("onboarded_at")
+  accountFreshness  String?          @map("account_freshness")
+  paidAt            DateTime?         @map("paid_at")
+  marketerPaidAt    DateTime?         @map("marketer_paid_at")
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
