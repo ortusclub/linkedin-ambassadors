@@ -86,6 +86,20 @@ interface Row {
   isTop: boolean; active: boolean; convRate: string; earned: number; owed: number;
 }
 
+interface Payout {
+  id: string; referrerId: string; type: string; description: string | null; amount: number;
+  method: string | null; reference: string | null; paidAt: string | null; paidBy: string | null;
+  confirmedAt: string | null; confirmedBy: string | null;
+  referrer: { id: string; name: string; slug: string; paymentMethod: string | null; paymentDetails: string | null };
+}
+
+const PAYOUT_TYPES: [string, string][] = [
+  ["day_rate", "Field day rate"],
+  ["commission", "Signup commission"],
+  ["bonus", "Bonus"],
+  ["other", "Other"],
+];
+
 const CHIPS: [string, string, string | null][] = [
   ["all", "All", null],
   ["top", "Top performers", "var(--green)"],
@@ -108,10 +122,17 @@ export default function AdminReferralsPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [dForm, setDForm] = useState({ contactMethod: "WhatsApp", contactHandle: "", paymentMethod: "GCash", paymentDetails: "" });
   const [dSaving, setDSaving] = useState(false);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [payOpen, setPayOpen] = useState(false);
+  const [pForm, setPForm] = useState({ referrerId: "", type: "day_rate", amount: "", description: "" });
+  const [pBusy, setPBusy] = useState("");
+
+  const reloadPayouts = () => fetch("/api/admin/payouts").then((r) => r.json()).then((d) => setPayouts(d.payouts || [])).catch(() => {});
 
   useEffect(() => {
     fetch("/api/admin/ambassadors").then((r) => r.json()).then((d) => setApps(d.applications || [])).finally(() => setLoading(false));
     fetch("/api/admin/referrers").then((r) => r.json()).then((d) => setReferrers(d.referrers || [])).catch(() => {});
+    reloadPayouts();
     // Next Monday label (client-only to avoid hydration mismatch).
     const d = new Date();
     d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
@@ -230,6 +251,40 @@ export default function AdminReferralsPage() {
     try { await fetch(`/api/admin/referrers/${r.id}`, { method: "DELETE" }); } catch {}
   };
 
+  const addPayout = async () => {
+    const amount = Number(pForm.amount);
+    if (!pForm.referrerId || !Number.isFinite(amount) || amount <= 0) return;
+    setPBusy("new");
+    try {
+      await fetch("/api/admin/payouts", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...pForm, amount }),
+      });
+      setPForm({ referrerId: "", type: "day_rate", amount: "", description: "" });
+      await reloadPayouts();
+    } finally { setPBusy(""); }
+  };
+
+  const patchPayout = async (id: string, body: Record<string, unknown>) => {
+    setPBusy(id);
+    try {
+      await fetch(`/api/admin/payouts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      await reloadPayouts();
+    } finally { setPBusy(""); }
+  };
+
+  const deletePayout = async (p: Payout) => {
+    if (!confirm(`Delete the ${peso(p.amount)} payment for ${p.referrer.name}? This can't be undone.`)) return;
+    setPBusy(p.id);
+    try {
+      await fetch(`/api/admin/payouts/${p.id}`, { method: "DELETE" });
+      await reloadPayouts();
+    } finally { setPBusy(""); }
+  };
+
+  const owedTotal = payouts.filter((p) => !p.paidAt).reduce((s, p) => s + p.amount, 0);
+  const awaitingCount = payouts.filter((p) => p.paidAt && !p.confirmedAt).length;
+
   const label: React.CSSProperties = { font: `700 10.5px ${F_SANS}`, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--label)" };
   const th: React.CSSProperties = { font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
   const chip = (active: boolean): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 13px", borderRadius: 999, cursor: "pointer", font: `600 12.5px ${F_SANS}`, color: "var(--text)", border: "1px solid", borderColor: active ? "var(--chip-active-border)" : "var(--card-border)", background: active ? "var(--chip-active-bg)" : "transparent" });
@@ -329,7 +384,72 @@ export default function AdminReferralsPage() {
         {tile("Active referrers", String(totals.active), "var(--text)", "brought ≥1 signup")}
         {tile("Total signups", String(totals.signups), "var(--accent)", `${totals.converted} converted to inventory`)}
         {tile("Commission owed", peso(totals.owed), "var(--warn-num)", `${peso(totals.owed)} ready · ₱0 held`)}
-        {tile("Paid to date", "₱0", "var(--green)", "payout tracking — coming soon")}
+        {tile("Paid to date", peso(payouts.filter((p) => p.paidAt).reduce((s, p) => s + p.amount, 0)), "var(--green)", awaitingCount ? `${awaitingCount} awaiting confirmation` : "all payments confirmed")}
+      </div>
+
+      {/* payments & receipts */}
+      <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, marginBottom: 22, boxShadow: "var(--card-shadow)", overflow: "hidden" }}>
+        <div onClick={() => setPayOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "15px 20px", cursor: "pointer", userSelect: "none", flexWrap: "wrap" }}>
+          <span style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", width: 12, textAlign: "center", flex: "none", transition: "transform .18s ease", transform: payOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▸</span>
+          <span style={{ font: `700 13.5px ${F_SANS}`, color: "var(--text)" }}>Payments &amp; receipts</span>
+          {owedTotal > 0 && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-num)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{peso(owedTotal)} to send</span>}
+          {awaitingCount > 0 && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{awaitingCount} awaiting confirmation</span>}
+          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>cash &amp; GCash — the marketer confirms receipt in their own portal</span>
+        </div>
+
+        {payOpen && (
+          <div style={{ borderTop: "1px solid var(--divider)", padding: "16px 20px" }}>
+            {/* add a payment */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+              <select value={pForm.referrerId} onChange={(e) => setPForm({ ...pForm, referrerId: e.target.value })} style={{ ...inpStyle, minWidth: 150 }}>
+                <option value="">Who…</option>
+                {referrers.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              <select value={pForm.type} onChange={(e) => setPForm({ ...pForm, type: e.target.value })} style={{ ...inpStyle, minWidth: 150 }}>
+                {PAYOUT_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              <input value={pForm.amount} onChange={(e) => setPForm({ ...pForm, amount: e.target.value })} placeholder="Amount ₱" inputMode="decimal" style={{ ...inpStyle, width: 110 }} />
+              <input value={pForm.description} onChange={(e) => setPForm({ ...pForm, description: e.target.value })} placeholder="What it's for (e.g. Field day 1 — BGC)" style={{ ...inpStyle, flex: 1, minWidth: 200 }} />
+              <button onClick={addPayout} disabled={!pForm.referrerId || !pForm.amount || pBusy === "new"} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 8, cursor: pForm.referrerId && pForm.amount ? "pointer" : "default", opacity: pForm.referrerId && pForm.amount ? 1 : 0.5 }}>
+                {pBusy === "new" ? "Adding…" : "+ Add payment"}
+              </button>
+            </div>
+
+            {payouts.length === 0 ? (
+              <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>No payments logged yet. Add one above, mark it sent once you&apos;ve handed over the cash or sent the GCash, then the marketer confirms it from their portal — that confirmation is your receipt.</div>
+            ) : payouts.map((p) => {
+              const busy = pBusy === p.id;
+              return (
+                <div key={p.id} style={{ borderTop: "1px solid var(--divider)", padding: "12px 0", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <span style={{ font: `600 13px ${F_SANS}`, color: "var(--text)", minWidth: 120 }}>{p.referrer.name}</span>
+                  <span style={{ font: `600 14px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums", minWidth: 70 }}>{peso(p.amount)}</span>
+                  <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", flex: 1, minWidth: 140 }}>{p.description || (PAYOUT_TYPES.find(([v]) => v === p.type)?.[1] ?? "Payment")}</span>
+
+                  {!p.paidAt ? (
+                    <>
+                      <input defaultValue={p.method || "GCash"} onBlur={(e) => e.target.value !== (p.method || "") && patchPayout(p.id, { method: e.target.value })} placeholder="Cash / GCash" style={{ ...inpStyle, width: 100 }} />
+                      <input defaultValue={p.reference || ""} onBlur={(e) => e.target.value !== (p.reference || "") && patchPayout(p.id, { reference: e.target.value })} placeholder="Ref no." style={{ ...inpStyle, width: 110 }} />
+                      <button onClick={() => patchPayout(p.id, { markPaid: true })} disabled={busy} style={{ font: `600 11.5px ${F_SANS}`, color: "#fff", background: "var(--green)", border: "none", padding: "7px 12px", borderRadius: 7, cursor: "pointer" }}>{busy ? "…" : "Mark sent"}</button>
+                    </>
+                  ) : p.confirmedAt ? (
+                    <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--green)", whiteSpace: "nowrap" }}>
+                      ✓ Confirmed by {p.confirmedBy} · {new Date(p.confirmedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                  ) : (
+                    <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--warn-num)", whiteSpace: "nowrap" }}>Sent{p.method ? ` · ${p.method}` : ""} — awaiting their confirmation</span>
+                  )}
+
+                  {p.paidAt && !p.confirmedAt && (
+                    <button onClick={() => patchPayout(p.id, { markPaid: false })} disabled={busy} title="Undo — marks this as not sent" style={{ ...copyBtn, padding: "6px 9px" }}>Undo</button>
+                  )}
+                  {!p.confirmedAt && (
+                    <button onClick={() => deletePayout(p)} disabled={busy} title="Delete this payment" style={{ ...copyBtn, padding: "6px 9px", color: "var(--warn-num)" }}>✕</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* payout schedule banner */}

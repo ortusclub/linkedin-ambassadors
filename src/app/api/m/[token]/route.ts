@@ -14,12 +14,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const me = await prisma.referrer.findUnique({ where: { token } });
   if (!me) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const [referrers, apps] = await Promise.all([
+  const [referrers, apps, payouts] = await Promise.all([
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
       select: { fullName: true, referredBy: true, status: true, createdAt: true },
     }),
+    prisma.payout.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" } }),
   ]);
 
   const nameBySlug = new Map(referrers.map((r) => [r.slug, r.name]));
@@ -67,6 +68,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     stats: { signups: mine.signups, converted: mine.converted, commission: mine.converted * RATE, rate: RATE },
     board,
     activity,
+    payouts: payouts.map((p) => ({
+      id: p.id,
+      type: p.type,
+      description: p.description,
+      amount: Number(p.amount),
+      method: p.method,
+      reference: p.reference,
+      paidAt: p.paidAt,
+      confirmedAt: p.confirmedAt,
+    })),
   });
 }
 

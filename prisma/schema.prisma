@@ -265,8 +265,33 @@ model Referrer {
   active           Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
+  payouts          Payout[]
 
   @@map("referrers")
+}
+
+// One row per payment owed to a marketer. Cash leaves no trace, so the row carries
+// BOTH sides: what we say we paid (paidAt/method/reference) and the marketer's own
+// acknowledgement from their portal (confirmedAt) — that second half is the evidence.
+model Payout {
+  id          String    @id @default(uuid()) @db.Uuid
+  referrerId  String    @map("referrer_id") @db.Uuid
+  referrer    Referrer  @relation(fields: [referrerId], references: [id], onDelete: Cascade)
+  type        String    @default("day_rate") // day_rate | commission | bonus | other
+  description String?
+  amount      Decimal   @db.Decimal(10, 2)
+  method      String?   // cash | gcash | bank
+  reference   String?   // GCash reference no. / receipt
+  paidAt      DateTime? @map("paid_at")
+  paidBy      String?   @map("paid_by")
+  confirmedAt DateTime? @map("confirmed_at")
+  confirmedBy String?   @map("confirmed_by") // name the marketer typed when confirming
+  note        String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([referrerId])
+  @@map("payouts")
 }
 
 enum TransactionType {

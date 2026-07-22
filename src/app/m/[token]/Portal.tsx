@@ -4,12 +4,21 @@ import { useEffect, useState } from "react";
 
 interface BoardRow { name: string; signups: number; converted: number; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
+interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Data {
   me: { name: string; slug: string; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; assignedDay: string | null; assignedLocation: string | null; };
   stats: { signups: number; converted: number; commission: number; rate: number; };
   board: BoardRow[];
   activity: Activity[];
+  payouts: Payout[];
 }
+
+const PAYOUT_LABEL: Record<string, string> = {
+  day_rate: "Field day rate",
+  commission: "Signup commission",
+  bonus: "Bonus",
+  other: "Payment",
+};
 
 const JAK = "var(--font-jak), system-ui, sans-serif";
 const GRO = "var(--font-gro), system-ui, sans-serif";
@@ -78,6 +87,10 @@ export default function Portal({ token }: { token: string }) {
   const [qrOpen, setQrOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [faqOpen, setFaqOpen] = useState<Set<string>>(new Set());
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [confirmName, setConfirmName] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [confirmErr, setConfirmErr] = useState("");
 
   useEffect(() => {
     fetch(`/api/m/${token}`)
@@ -104,6 +117,25 @@ export default function Portal({ token }: { token: string }) {
   };
   const toggleFaq = (k: string) => setFaqOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
+  // Confirming is deliberately a two-step (button → type your name → confirm) so it
+  // can't be tapped by accident. Once sent it can't be undone from this side.
+  const confirmPayout = async (id: string) => {
+    setConfirming(true); setConfirmErr("");
+    try {
+      const res = await fetch(`/api/m/${token}/payouts/${id}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmedBy: confirmName }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { setConfirmErr(body.error || "Couldn't confirm — please try again."); return; }
+      setData((d) => d && ({ ...d, payouts: d.payouts.map((p) => p.id === id ? { ...p, confirmedAt: body.confirmedAt || new Date().toISOString() } : p) }));
+      setConfirmId(null); setConfirmName("");
+    } catch {
+      setConfirmErr("Couldn't confirm — check your connection and try again.");
+    } finally { setConfirming(false); }
+  };
+
   const outer: React.CSSProperties = { minHeight: "100vh", background: C.pageBg, display: "flex", justifyContent: "center", fontFamily: JAK, color: C.ink };
 
   if (state === "loading") return <div style={{ ...outer, alignItems: "center", color: C.muted }}>Loading…</div>;
@@ -116,7 +148,7 @@ export default function Portal({ token }: { token: string }) {
     </div>
   );
 
-  const { me, stats, board, activity } = data;
+  const { me, stats, board, activity, payouts } = data;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const myLink = `${origin}/r/${me.slug}`;
   const myLinkShort = myLink.replace(/^https?:\/\//, "");
@@ -209,6 +241,56 @@ export default function Portal({ token }: { token: string }) {
             ))}
             <div style={{ marginTop: 10, paddingTop: 11, borderTop: `1px solid ${C.line2}`, font: `500 12px/1.5 ${JAK}`, color: C.muted }}>Strong performers get first pick for the next field days. 💪</div>
           </div>
+
+          {/* payments — marketer confirms receipt, which is our record for cash */}
+          {payouts.length > 0 && (
+            <div style={card}>
+              <div style={{ ...secLbl, marginBottom: 10 }}>Your payments</div>
+              {payouts.map((p) => {
+                const label = PAYOUT_LABEL[p.type] || PAYOUT_LABEL.other;
+                const confirming_ = confirmId === p.id;
+                return (
+                  <div key={p.id} style={{ borderTop: `1px solid ${C.line2}`, padding: "12px 0" }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                      <span style={{ font: `700 15px ${GRO}`, color: C.ink }}>{peso(p.amount)}</span>
+                      <span style={{ font: `500 12.5px ${JAK}`, color: C.slate, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description || label}</span>
+                      <span style={{ marginLeft: "auto", font: `600 9.5px ${JAK}`, padding: "3px 8px", borderRadius: 5, whiteSpace: "nowrap", flex: "none", background: p.confirmedAt ? C.accBg : C.pendBg, color: p.confirmedAt ? C.accFg : C.pendFg }}>
+                        {p.confirmedAt ? "Confirmed" : p.paidAt ? "Awaiting your confirmation" : "Not sent yet"}
+                      </span>
+                    </div>
+
+                    {p.paidAt && !p.confirmedAt && !confirming_ && (
+                      <button onClick={() => { setConfirmId(p.id); setConfirmName(""); setConfirmErr(""); }} style={{ marginTop: 9, width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 10, padding: "11px 12px", font: `600 13px ${JAK}`, cursor: "pointer" }}>
+                        I received this
+                      </button>
+                    )}
+
+                    {confirming_ && (
+                      <div style={{ marginTop: 9, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 10, padding: 12 }}>
+                        <div style={{ font: `500 12px/1.5 ${JAK}`, color: C.slate, marginBottom: 8 }}>
+                          Type your full name to confirm you received {peso(p.amount)}{p.method ? ` by ${p.method}` : ""}. This is your receipt — it&apos;s recorded with today&apos;s date and can&apos;t be undone.
+                        </div>
+                        <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Your full name" style={{ ...inp, width: "100%", marginBottom: 8 }} />
+                        {confirmErr && <div style={{ font: `500 12px ${JAK}`, color: C.warn, marginBottom: 8 }}>{confirmErr}</div>}
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button disabled={confirming || !confirmName.trim()} onClick={() => confirmPayout(p.id)} style={{ flex: 1, background: confirmName.trim() ? C.green : C.softGreenBorder, color: "#fff", border: "none", borderRadius: 9, padding: "10px 12px", font: `600 13px ${JAK}`, cursor: confirmName.trim() ? "pointer" : "not-allowed" }}>
+                            {confirming ? "Confirming…" : "Confirm"}
+                          </button>
+                          <button onClick={() => { setConfirmId(null); setConfirmErr(""); }} style={{ flex: "none", background: "#fff", color: C.slate, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 14px", font: `600 13px ${JAK}`, cursor: "pointer" }}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {p.confirmedAt && (
+                      <div style={{ marginTop: 6, font: `500 11.5px ${JAK}`, color: C.muted2 }}>
+                        You confirmed this on {fmtDate(p.confirmedAt)}{p.reference ? ` · ref ${p.reference}` : ""}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* recent signups */}
           <div style={card}>
