@@ -18,14 +18,15 @@ const setupDueDate = (onboardedAt: string | null, freshness: string | null): Dat
   return d;
 };
 
-// Monthly ₱500 lands on the 1st business day of each month, starting the first
-// full month after onboarding. The Nth payment (idx, 0-based) advances by a month.
+// Monthly ₱500 is paid on the 1st, after one full month of service. The first
+// payment is the 1st on/after the one-month anniversary; each later payment (idx,
+// 0-based) advances by a month.
 const monthlyDueDate = (onboardedAt: string | null, idx: number): Date | null => {
   if (!onboardedAt) return null;
   const o = new Date(onboardedAt);
-  const d = new Date(o.getFullYear(), o.getMonth() + 1 + idx, 1);
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-  return d;
+  const anchor = new Date(o.getFullYear(), o.getMonth() + 1, o.getDate()); // one full month later
+  const firstMonth = anchor.getDate() === 1 ? anchor.getMonth() : anchor.getMonth() + 1;
+  return new Date(anchor.getFullYear(), firstMonth + idx, 1);
 };
 
 const isOverdue = (d: Date | null) => !!d && d.getTime() < Date.now();
@@ -269,7 +270,7 @@ export default function AdminOwnersPage() {
                                   ? `${monthlyCount > 0 ? `${monthlyCount} logged · next` : "First payment"} due ${fmtDate(nextMonthlyDue)}${isOverdue(nextMonthlyDue) ? " · overdue" : ""}`
                                   : "Set an onboarding date to schedule this"}
                               </p>
-                              <p className="text-[11px] text-gray-400">1st business day of each month</p>
+                              <p className="text-[11px] text-gray-400">On the 1st, after one full month of service</p>
                             </div>
                             <button type="button"
                               onClick={() => patchOwner(owner.applicationId, { addMonthlyPayout: { amount: monthlyAmt } })}
