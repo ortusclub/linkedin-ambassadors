@@ -31,6 +31,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         data.confirmedBy = null;
       }
     }
+    // Explicit paid date wins over the auto-now above — lets a payment be backdated
+    // to when it actually went out (e.g. logged after the field day). Ignored when
+    // clearing "paid".
+    if ("paidAt" in body && body.paidAt) {
+      const d = new Date(body.paidAt);
+      if (!isNaN(d.getTime())) data.paidAt = d;
+    }
     for (const key of ["method", "reference", "paidBy", "description", "note", "type"] as const) {
       if (key in body) data[key] = typeof body[key] === "string" ? body[key] : null;
     }

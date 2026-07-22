@@ -259,6 +259,12 @@ export default function Portal({ token }: { token: string }) {
                       </span>
                     </div>
 
+                    {p.paidAt && (
+                      <div style={{ marginTop: 4, font: `500 11.5px ${JAK}`, color: C.muted2 }}>
+                        {p.method || "Paid"} · {fmtDate(p.paidAt)}{p.reference ? ` · ref ${p.reference}` : ""}
+                      </div>
+                    )}
+
                     {p.paidAt && !p.confirmedAt && !confirming_ && (
                       <button onClick={() => { setConfirmId(p.id); setConfirmName(""); setConfirmErr(""); }} style={{ marginTop: 9, width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 10, padding: "11px 12px", font: `600 13px ${JAK}`, cursor: "pointer" }}>
                         I received this

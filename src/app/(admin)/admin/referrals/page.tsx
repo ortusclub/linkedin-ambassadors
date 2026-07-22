@@ -126,6 +126,8 @@ export default function AdminReferralsPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [pForm, setPForm] = useState({ referrerId: "", type: "day_rate", amount: "", description: "" });
   const [pBusy, setPBusy] = useState("");
+  const [paidDates, setPaidDates] = useState<Record<string, string>>({});
+  const [today, setToday] = useState("");
 
   const reloadPayouts = () => fetch("/api/admin/payouts").then((r) => r.json()).then((d) => setPayouts(d.payouts || [])).catch(() => {});
 
@@ -137,6 +139,9 @@ export default function AdminReferralsPage() {
     const d = new Date();
     d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
     setNextMonday(d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }));
+    // Local YYYY-MM-DD for the date inputs (client-only to avoid hydration mismatch).
+    const n = new Date();
+    setToday(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`);
   }, []);
 
   const rows = useMemo<Row[]>(() => {
@@ -429,14 +434,15 @@ export default function AdminReferralsPage() {
                     <>
                       <input defaultValue={p.method || "GCash"} onBlur={(e) => e.target.value !== (p.method || "") && patchPayout(p.id, { method: e.target.value })} placeholder="Cash / GCash" style={{ ...inpStyle, width: 100 }} />
                       <input defaultValue={p.reference || ""} onBlur={(e) => e.target.value !== (p.reference || "") && patchPayout(p.id, { reference: e.target.value })} placeholder="Ref no." style={{ ...inpStyle, width: 110 }} />
-                      <button onClick={() => patchPayout(p.id, { markPaid: true })} disabled={busy} style={{ font: `600 11.5px ${F_SANS}`, color: "#fff", background: "var(--green)", border: "none", padding: "7px 12px", borderRadius: 7, cursor: "pointer" }}>{busy ? "…" : "Mark sent"}</button>
+                      <input type="date" value={paidDates[p.id] ?? today} max={today} onChange={(e) => setPaidDates({ ...paidDates, [p.id]: e.target.value })} title="Date the payment was made" style={{ ...inpStyle, width: 140 }} />
+                      <button onClick={() => patchPayout(p.id, { markPaid: true, paidAt: paidDates[p.id] ?? today })} disabled={busy} style={{ font: `600 11.5px ${F_SANS}`, color: "#fff", background: "var(--green)", border: "none", padding: "7px 12px", borderRadius: 7, cursor: "pointer" }}>{busy ? "…" : "Mark sent"}</button>
                     </>
                   ) : p.confirmedAt ? (
                     <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--green)", whiteSpace: "nowrap" }}>
-                      ✓ Confirmed by {p.confirmedBy} · {new Date(p.confirmedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      ✓ Paid {new Date(p.paidAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{p.method ? ` · ${p.method}` : ""} · confirmed by {p.confirmedBy} {new Date(p.confirmedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
                   ) : (
-                    <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--warn-num)", whiteSpace: "nowrap" }}>Sent{p.method ? ` · ${p.method}` : ""} — awaiting their confirmation</span>
+                    <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--warn-num)", whiteSpace: "nowrap" }}>Sent {new Date(p.paidAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{p.method ? ` · ${p.method}` : ""} — awaiting confirmation</span>
                   )}
 
                   {p.paidAt && !p.confirmedAt && (
