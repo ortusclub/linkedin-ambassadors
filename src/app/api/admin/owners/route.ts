@@ -80,6 +80,7 @@ export async function GET() {
         monthlyPayouts: true,
         onboardedAt: true,
         verifiedAt: true,
+        accountFreshness: true,
         offeredAmount: true,
         createdAt: true,
       },
@@ -182,6 +183,7 @@ export async function GET() {
         monthlyPayouts: Array.isArray(app?.monthlyPayouts) ? app!.monthlyPayouts : [],
         onboardedAt: app?.onboardedAt || null,
         verifiedAt: app?.verifiedAt || null,
+        accountFreshness: app?.accountFreshness || null,
         accounts: data.accounts,
       };
     });

@@ -7,8 +7,28 @@ import { Card, CardContent } from "@/components/ui/card";
 // Ambassador payouts are in PHP. Setup fee is a one-time ₱1,000; recurring is ₱500/mo.
 const peso = (n: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(n);
 const SETUP_FEE = 1000;
-const fmtDate = (d: string | null | undefined) =>
+const fmtDate = (d: string | Date | null | undefined) =>
   d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
+
+// Setup fee is due N days after onboarding: 3 for an established account, 1 week for a fresh one.
+const setupDueDate = (onboardedAt: string | null, freshness: string | null): Date | null => {
+  if (!onboardedAt) return null;
+  const d = new Date(onboardedAt);
+  d.setDate(d.getDate() + (freshness === "fresh" ? 7 : 3));
+  return d;
+};
+
+// Monthly ₱500 lands on the 1st business day of each month, starting the first
+// full month after onboarding. The Nth payment (idx, 0-based) advances by a month.
+const monthlyDueDate = (onboardedAt: string | null, idx: number): Date | null => {
+  if (!onboardedAt) return null;
+  const o = new Date(onboardedAt);
+  const d = new Date(o.getFullYear(), o.getMonth() + 1 + idx, 1);
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+  return d;
+};
+
+const isOverdue = (d: Date | null) => !!d && d.getTime() < Date.now();
 
 interface OwnerAccount {
   id: string;
@@ -43,6 +63,7 @@ interface Owner {
   monthlyPayouts: MonthlyPayout[];
   onboardedAt: string | null;
   verifiedAt: string | null;
+  accountFreshness: string | null;
   accounts: OwnerAccount[];
 }
 
@@ -154,6 +175,9 @@ export default function AdminOwnersPage() {
             const isOpen = expanded.has(owner.email);
             const setupPaid = fmtDate(owner.setupFeePaidAt);
             const monthlyCount = owner.monthlyPayouts.length;
+            const setupDue = setupDueDate(owner.onboardedAt, owner.accountFreshness);
+            const nextMonthlyDue = monthlyDueDate(owner.onboardedAt, monthlyCount);
+            const monthlyAmt = owner.monthlyPayout || 500;
             return (
               <div key={owner.email} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                 {/* Summary row */}
@@ -205,7 +229,26 @@ export default function AdminOwnersPage() {
                         <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2">
                           <div>
                             <p className="text-sm font-medium text-gray-900">Setup fee · {peso(SETUP_FEE)}</p>
-                            <p className="text-xs text-gray-500">{setupPaid ? `Paid ${setupPaid}` : "One-time, on onboarding"}</p>
+                            {setupPaid ? (
+                              <p className="text-xs text-gray-500">Paid {setupPaid}</p>
+                            ) : setupDue ? (
+                              <p className={`text-xs ${isOverdue(setupDue) ? "font-medium text-red-600" : "text-gray-500"}`}>
+                                Due {fmtDate(setupDue)}{isOverdue(setupDue) ? " · overdue" : ""}
+                                <span className="text-gray-400"> · {owner.accountFreshness === "fresh" ? "fresh, +1 week" : "established, +3 days"}</span>
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-400">Set an onboarding date to schedule this</p>
+                            )}
+                            {!setupPaid && (
+                              <select
+                                value={owner.accountFreshness || "established"}
+                                onChange={(e) => patchOwner(owner.applicationId, { accountFreshness: e.target.value })}
+                                className="mt-1 rounded border border-gray-200 bg-white px-1 py-0.5 text-xs text-gray-600 focus:outline-none"
+                              >
+                                <option value="established">Established (setup +3 days)</option>
+                                <option value="fresh">Fresh / new (setup +1 week)</option>
+                              </select>
+                            )}
                           </div>
                           {setupPaid ? (
                             <button type="button" onClick={() => patchOwner(owner.applicationId, { paidAt: null })}
@@ -220,13 +263,18 @@ export default function AdminOwnersPage() {
                         <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium text-gray-900">Monthly · {peso(owner.monthlyPayout || 500)}/mo</p>
-                              <p className="text-xs text-gray-500">{monthlyCount > 0 ? `${monthlyCount} payment${monthlyCount !== 1 ? "s" : ""} logged` : "Recurring, once account is live"}</p>
+                              <p className="text-sm font-medium text-gray-900">Monthly · {peso(monthlyAmt)}/mo</p>
+                              <p className={`text-xs ${isOverdue(nextMonthlyDue) ? "font-medium text-red-600" : "text-gray-500"}`}>
+                                {nextMonthlyDue
+                                  ? `${monthlyCount > 0 ? `${monthlyCount} logged · next` : "First payment"} due ${fmtDate(nextMonthlyDue)}${isOverdue(nextMonthlyDue) ? " · overdue" : ""}`
+                                  : "Set an onboarding date to schedule this"}
+                              </p>
+                              <p className="text-[11px] text-gray-400">1st business day of each month</p>
                             </div>
                             <button type="button"
-                              onClick={() => patchOwner(owner.applicationId, { addMonthlyPayout: { amount: owner.monthlyPayout || 500 } })}
+                              onClick={() => patchOwner(owner.applicationId, { addMonthlyPayout: { amount: monthlyAmt } })}
                               className="rounded-md bg-gray-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-gray-700">
-                              + Log {peso(owner.monthlyPayout || 500)}
+                              + Log {peso(monthlyAmt)}
                             </button>
                           </div>
                           {monthlyCount > 0 && (
