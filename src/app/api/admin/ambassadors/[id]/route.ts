@@ -26,6 +26,12 @@ const updateSchema = z.object({
   verifiedAt: z.string().datetime().nullable().optional(),
   paidAt: z.string().datetime().nullable().optional(),
   marketerPaidAt: z.string().datetime().nullable().optional(),
+  // Owner payout details
+  paymentMethod: z.string().nullable().optional(),
+  paymentDetails: z.string().nullable().optional(),
+  // Recurring ₱500/month payout: append a receipt, or remove one by index.
+  addMonthlyPayout: z.object({ amount: z.number(), note: z.string().optional() }).optional(),
+  removeMonthlyPayout: z.number().int().optional(),
   addTouch: z.object({
     ch: z.enum(["whatsapp", "email", "call", "text", "reply", "booked", "done", "note"]),
     text: z.string().min(1),
@@ -41,7 +47,7 @@ export async function PATCH(
     const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
-    const { addTouch, nextFollowUp, onboardedAt, verifiedAt, paidAt, marketerPaidAt, ...rest } = updateSchema.parse(body);
+    const { addTouch, addMonthlyPayout, removeMonthlyPayout, nextFollowUp, onboardedAt, verifiedAt, paidAt, marketerPaidAt, ...rest } = updateSchema.parse(body);
 
     // Get the current application before updating
     const currentApp = await prisma.ambassadorApplication.findUnique({ where: { id } });
@@ -61,6 +67,19 @@ export async function PATCH(
         ...log,
         { ch: addTouch.ch, text: addTouch.text, by: addTouch.by?.trim() || admin.fullName || admin.email, at: new Date().toISOString() },
       ] as Prisma.InputJsonValue;
+    }
+    if (addMonthlyPayout || removeMonthlyPayout !== undefined) {
+      let payouts = Array.isArray(currentApp.monthlyPayouts) ? (currentApp.monthlyPayouts as unknown[]) : [];
+      if (removeMonthlyPayout !== undefined) {
+        payouts = payouts.filter((_, i) => i !== removeMonthlyPayout);
+      }
+      if (addMonthlyPayout) {
+        payouts = [
+          ...payouts,
+          { paidAt: new Date().toISOString(), amount: addMonthlyPayout.amount, note: addMonthlyPayout.note?.trim() || null, by: admin.fullName || admin.email },
+        ];
+      }
+      updateData.monthlyPayouts = payouts as Prisma.InputJsonValue;
     }
 
     const application = await prisma.ambassadorApplication.update({
