@@ -70,13 +70,15 @@ const cardMarkup = (origin: string, r: { slug: string; name: string }) => {
   </div>`;
 };
 
-// ₱ per converted (accepted / on-inventory) signup.
+// ₱ per converted signup.
 const RATE = 500;
 // A referrer is "top" once this many of their signups convert.
 const TOP_THRESHOLD = 5;
 
 // DB status -> "converted" means the account made it onto inventory.
-const isConverted = (s: string) => s === "approved" || s === "onboarded";
+// "Converted" = the account was actually onboarded/transferred (not just accepted/agreed).
+// The marketer's commission is earned only once the account is in hand.
+const isConverted = (s: string) => s === "onboarded";
 
 const peso = (n: number) => "₱" + n.toLocaleString("en-US");
 const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
