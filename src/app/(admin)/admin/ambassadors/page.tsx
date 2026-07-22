@@ -179,6 +179,11 @@ export default function AdminAmbassadorsPage() {
     try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc }) }); } catch {}
   };
 
+  const saveField = async (id: string, patch: Record<string, unknown>) => {
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); } catch {}
+  };
+
   const setOutcome = async (id: string, outcome: string | null) => {
     setApps((prev) => prev.map((a) => (a.id === id ? { ...a, callOutcome: outcome } : a)));
     try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ callOutcome: outcome }) }); } catch {}
@@ -243,10 +248,25 @@ export default function AdminAmbassadorsPage() {
   const labelCss: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
   const chipStyle = (active: boolean): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 13px", borderRadius: 999, cursor: "pointer", font: `600 12.5px ${F_SANS}`, color: "var(--text)", border: "1px solid", borderColor: active ? "var(--chip-active-border)" : "var(--card-border)", background: active ? "var(--chip-active-bg)" : "transparent" });
   const secBtn: React.CSSProperties = { font: `600 12.5px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "8px 14px", borderRadius: 9, cursor: "pointer" };
-  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  // Inline-editable detail field — saves on blur. Called as {editField(...)} (not <EditField/>)
+  // so it stays plain JSX and the uncontrolled input isn't remounted on re-render.
+  const editField = (id: string, field: string, label: string, value: string | number | null, opts?: { placeholder?: string; numeric?: boolean; notNull?: boolean }) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
       <span style={labelCss}>{label}</span>
-      <span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis" }}>{children}</span>
+      <input
+        defaultValue={value == null ? "" : String(value)}
+        placeholder={opts?.placeholder}
+        inputMode={opts?.numeric ? "numeric" : undefined}
+        onBlur={(e) => {
+          const raw = e.target.value.trim();
+          if (raw === (value == null ? "" : String(value))) return;
+          const v = opts?.numeric
+            ? (raw === "" ? null : (parseInt(raw.replace(/[^0-9]/g, ""), 10) || null))
+            : (raw === "" ? (opts?.notNull ? "" : null) : raw);
+          saveField(id, { [field]: v });
+        }}
+        style={{ width: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 8, padding: "7px 9px", font: `500 13px ${F_SANS}`, color: "var(--text)", outline: "none" }}
+      />
     </div>
   );
 
@@ -353,13 +373,13 @@ export default function AdminAmbassadorsPage() {
               {open && (
                 <div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "18px 24px", padding: "20px 22px" }}>
-                    <Field label="Contact">{a.contactNumber || "—"}</Field>
-                    <Field label="Login email"><span style={{ color: a.linkedinEmail && a.linkedinEmail !== a.email ? "var(--text2)" : "var(--muted)" }}>{a.linkedinEmail && a.linkedinEmail !== a.email ? a.linkedinEmail : "Same as owner"}</span></Field>
-                    <Field label="Connections">{a.connectionCount ? a.connectionCount.toLocaleString() : "—"}</Field>
-                    <Field label="Location">{a.location || a.industry || "—"}</Field>
-                    <Field label="LinkedIn URL"><a href={liHref(a.linkedinUrl)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>{liShort(a.linkedinUrl)}</a></Field>
-                    <Field label="Heard from">{a.referralSource || "—"}</Field>
-                    <Field label="Referred by">{a.referredBy ? <span style={{ color: "var(--st-active-fg)", fontWeight: 600 }}>{a.referredBy}</span> : "—"}</Field>
+                    {editField(a.id, "contactNumber", "Contact", a.contactNumber, { placeholder: "Phone / WhatsApp" })}
+                    {editField(a.id, "linkedinEmail", "Login email", a.linkedinEmail, { placeholder: "Same as owner" })}
+                    {editField(a.id, "connectionCount", "Connections", a.connectionCount ?? null, { numeric: true, placeholder: "e.g. 500" })}
+                    {editField(a.id, "location", "Location", a.location ?? a.industry ?? null, { placeholder: "City / country" })}
+                    {editField(a.id, "linkedinUrl", "LinkedIn URL", a.linkedinUrl, { placeholder: "linkedin.com/in/…", notNull: true })}
+                    {editField(a.id, "referralSource", "Heard from", a.referralSource, { placeholder: "Flyer / FB / referral" })}
+                    {editField(a.id, "referredBy", "Referred by", a.referredBy, { placeholder: "Marketer name" })}
                     <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
                       <span style={labelCss}>POC <span style={{ color: "var(--muted2)", textTransform: "none", letterSpacing: 0 }}>· who owns this</span></span>
                       <input defaultValue={a.poc || ""} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (a.poc || "")) savePoc(a.id, v); }} placeholder="Type a name…" style={{ width: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 8, padding: "7px 9px", font: `600 13px ${F_SANS}`, color: "var(--text)", outline: "none" }} />
