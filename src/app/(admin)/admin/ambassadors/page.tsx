@@ -31,6 +31,7 @@ interface Application {
   poc?: string | null;
   outreachLog?: { ch: string; text: string; by?: string; at: string }[] | null;
   nextFollowUp?: string | null;
+  callOutcome?: string | null;
 }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
@@ -71,12 +72,15 @@ const CALL_BUCKET: Record<string, { label: string; bg: string; fg: string }> = {
   none: { label: "No call yet", bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)" },
   booked: { label: "Call booked", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" },
   done: { label: "Call done", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" },
+  no_show: { label: "No-show", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)" },
 };
 const CALL_CHIPS: [string, string, string | null][] = [
   ["all", "All", null], ["none", "No call yet", "var(--neutral-chip-text)"],
   ["booked", "Call booked", "var(--blue-chip-text)"], ["done", "Call done", "var(--st-active-fg)"],
+  ["no_show", "No-show", "var(--st-cancel-fg)"],
 ];
-const callBucketOf = (a: Application): string => a.call?.stage || "none";
+// call outcome (manual no-show) overrides the calendar-derived stage
+const callBucketOf = (a: Application): string => a.callOutcome === "no_show" ? "no_show" : (a.call?.stage || "none");
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const fmtDateTime = (iso: string | null) => iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
@@ -100,6 +104,7 @@ const touchChipStyle = (ch: string): React.CSSProperties => {
   return { font: `600 9.5px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", padding: "4px 0", borderRadius: 6, flex: "none", width: 66, textAlign: "center", background: `var(${c[1]})`, color: `var(${c[2]})` };
 };
 const callSummary = (a: Application): string => {
+  if (a.callOutcome === "no_show") return "No-show";
   const c = a.call;
   if (!c || c.stage === "none") return "No call booked";
   if (c.stage === "booked") return `Booked · ${fmtDateTime(c.scheduledAt)}`;
@@ -119,6 +124,8 @@ export default function AdminAmbassadorsPage() {
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
+  const [byDraft, setByDraft] = useState<Record<string, string>>({});
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
@@ -144,11 +151,14 @@ export default function AdminAmbassadorsPage() {
   };
 
   const logTouch = async (id: string, ch: string) => {
-    const text = ({ whatsapp: "WhatsApp message sent", email: "Email sent", call: "Call attempted — no answer" } as Record<string, string>)[ch] || "Note added";
+    const draft = (noteDraft[id] || "").trim();
+    const by = (byDraft[id] || "").trim();
+    const text = draft || (({ whatsapp: "WhatsApp message sent", email: "Email sent", call: "Call attempted — no answer", note: "Note added" } as Record<string, string>)[ch] || "Note added");
     setBusy(id);
-    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, outreachLog: [...(a.outreachLog || []), { ch, text, by: "You", at: new Date().toISOString() }] } : a)));
+    setNoteDraft((d) => ({ ...d, [id]: "" }));
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, outreachLog: [...(a.outreachLog || []), { ch, text, by: by || "You", at: new Date().toISOString() }] } : a)));
     try {
-      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ addTouch: { ch, text } }) });
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ addTouch: { ch, text, by: by || undefined } }) });
       if (res.ok) { const d = await res.json(); if (d.application) setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...d.application } : a))); }
     } finally { setBusy(null); }
   };
@@ -156,6 +166,11 @@ export default function AdminAmbassadorsPage() {
   const savePoc = async (id: string, poc: string) => {
     setApps((prev) => prev.map((a) => (a.id === id ? { ...a, poc } : a)));
     try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc }) }); } catch {}
+  };
+
+  const setOutcome = async (id: string, outcome: string | null) => {
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, callOutcome: outcome } : a)));
+    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ callOutcome: outcome }) }); } catch {}
   };
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
@@ -269,6 +284,7 @@ export default function AdminAmbassadorsPage() {
           <div style={{ padding: 48, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No applications in this status.</div>
         ) : filtered.map((a) => {
           const b = BUCKET[bucketOf(a.status)];
+          const cs = callBucketOf(a);
           const open = !collapsed.has(a.id);
           return (
             <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
@@ -288,8 +304,8 @@ export default function AdminAmbassadorsPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 7 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {a.call && a.call.stage !== "none" && (
-                        <span style={{ font: `600 12px ${F_SANS}`, padding: "5px 13px", borderRadius: 999, whiteSpace: "nowrap", background: CALL_BUCKET[a.call.stage].bg, color: CALL_BUCKET[a.call.stage].fg }}>{CALL_BUCKET[a.call.stage].label}</span>
+                      {cs !== "none" && (
+                        <span style={{ font: `600 12px ${F_SANS}`, padding: "5px 13px", borderRadius: 999, whiteSpace: "nowrap", background: CALL_BUCKET[cs].bg, color: CALL_BUCKET[cs].fg }}>{CALL_BUCKET[cs].label}</span>
                       )}
                       <span style={{ font: `600 12px ${F_SANS}`, padding: "5px 13px", borderRadius: 999, whiteSpace: "nowrap", background: b.bg, color: b.fg }}>{b.label}</span>
                     </div>
@@ -336,12 +352,25 @@ export default function AdminAmbassadorsPage() {
                           </div>
                         )) : <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>No outreach logged yet — reach out and log the first touch.</span>}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "0 16px 14px" }}>
-                        <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)", marginRight: 2 }}>Log:</span>
-                        {(["whatsapp", "email", "call"] as const).map((ch) => (
-                          <button key={ch} onClick={() => logTouch(a.id, ch)} disabled={busy === a.id} style={{ ...secBtn, padding: "7px 13px", font: `600 12px ${F_SANS}` }}>+ {ch === "whatsapp" ? "WhatsApp" : ch === "email" ? "Email" : "Call attempt"}</button>
-                        ))}
-                        {a.call && a.call.stage !== "none" && a.call.meetLink && <a href={a.call.meetLink} target="_blank" rel="noopener noreferrer" style={{ marginLeft: "auto", font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", padding: "7px 13px", borderRadius: 8 }}>Join Meet ↗</a>}
+                      <div style={{ padding: "0 16px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <input value={noteDraft[a.id] || ""} onChange={(e) => setNoteDraft((d) => ({ ...d, [a.id]: e.target.value }))} placeholder="What did you say? — logged with the touch (optional)" style={{ flex: 1, minWidth: 220, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 8, padding: "8px 11px", font: `500 12.5px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
+                          <input value={byDraft[a.id] || ""} onChange={(e) => setByDraft((d) => ({ ...d, [a.id]: e.target.value }))} placeholder="Who sent it?" style={{ width: 150, flex: "none", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 8, padding: "8px 11px", font: `500 12.5px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)" }}>Log:</span>
+                          {(["whatsapp", "email", "call", "note"] as const).map((ch) => (
+                            <button key={ch} onClick={() => logTouch(a.id, ch)} disabled={busy === a.id} style={{ ...secBtn, padding: "7px 12px", font: `600 12px ${F_SANS}` }}>+ {ch === "whatsapp" ? "WhatsApp" : ch === "email" ? "Email" : ch === "call" ? "Call" : "Note"}</button>
+                          ))}
+                          <span style={{ width: 1, height: 18, background: "var(--divider)", margin: "0 2px" }} />
+                          <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)" }}>Call:</span>
+                          {a.callOutcome === "no_show" ? (
+                            <button onClick={() => setOutcome(a.id, null)} style={{ ...secBtn, padding: "7px 12px", font: `600 12px ${F_SANS}` }}>Clear no-show</button>
+                          ) : (
+                            <button onClick={() => setOutcome(a.id, "no_show")} style={{ font: `600 12px ${F_SANS}`, color: "var(--st-cancel-fg)", background: "var(--st-cancel-bg)", border: "none", padding: "7px 12px", borderRadius: 8, cursor: "pointer" }}>Mark no-show</button>
+                          )}
+                          {a.call && a.call.stage !== "none" && a.call.meetLink && <a href={a.call.meetLink} target="_blank" rel="noopener noreferrer" style={{ marginLeft: "auto", font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", padding: "7px 13px", borderRadius: 8 }}>Join Meet ↗</a>}
+                        </div>
                       </div>
                     </div>
                   </div>

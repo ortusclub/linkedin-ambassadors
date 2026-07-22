@@ -10,9 +10,11 @@ const updateSchema = z.object({
   adminNotes: z.string().optional(),
   poc: z.string().optional(),
   nextFollowUp: z.string().datetime().nullable().optional(),
+  callOutcome: z.enum(["no_show", "completed"]).nullable().optional(),
   addTouch: z.object({
     ch: z.enum(["whatsapp", "email", "call", "reply", "booked", "done", "note"]),
     text: z.string().min(1),
+    by: z.string().optional(),
   }).optional(),
 });
 
@@ -38,7 +40,7 @@ export async function PATCH(
       const log = Array.isArray(currentApp.outreachLog) ? (currentApp.outreachLog as unknown[]) : [];
       updateData.outreachLog = [
         ...log,
-        { ch: addTouch.ch, text: addTouch.text, by: admin.fullName || admin.email, at: new Date().toISOString() },
+        { ch: addTouch.ch, text: addTouch.text, by: addTouch.by?.trim() || admin.fullName || admin.email, at: new Date().toISOString() },
       ] as Prisma.InputJsonValue;
     }
 
