@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 interface App {
   referredBy: string | null;
   status: string;
+  onboardedAt?: string | null;
+  accountFreshness?: string | null;
 }
 
 interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; }
@@ -80,12 +82,21 @@ const TOP_THRESHOLD = 5;
 // The marketer's commission is earned only once the account is in hand.
 const isConverted = (s: string) => s === "onboarded";
 
+// The commission releases only after the stability hold clears:
+// 3 days for established accounts, 1 week for fresh ones (from the onboard date).
+const holdCleared = (a: App): boolean => {
+  if (!a.onboardedAt) return false;
+  const days = a.accountFreshness === "fresh" ? 7 : 3;
+  return Date.now() >= new Date(a.onboardedAt).getTime() + days * 86400000;
+};
+
 const peso = (n: number) => "₱" + n.toLocaleString("en-US");
 const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
 
 interface Row {
   name: string; initials: string; signups: number; converted: number;
   isTop: boolean; active: boolean; convRate: string; earned: number; owed: number;
+  readyOwed: number; heldOwed: number;
 }
 
 interface Payout {
@@ -147,13 +158,13 @@ export default function AdminReferralsPage() {
   }, []);
 
   const rows = useMemo<Row[]>(() => {
-    const m = new Map<string, { name: string; signups: number; converted: number }>();
+    const m = new Map<string, { name: string; signups: number; converted: number; ready: number; held: number }>();
     for (const a of apps) {
       const name = (a.referredBy || "").trim();
       if (!name) continue;
-      const r = m.get(name) || { name, signups: 0, converted: 0 };
+      const r = m.get(name) || { name, signups: 0, converted: 0, ready: 0, held: 0 };
       r.signups++;
-      if (isConverted(a.status)) r.converted++;
+      if (isConverted(a.status)) { r.converted++; if (holdCleared(a)) r.ready++; else r.held++; }
       m.set(name, r);
     }
     return [...m.values()]
@@ -167,6 +178,8 @@ export default function AdminReferralsPage() {
         convRate: r.signups > 0 ? Math.round((r.converted / r.signups) * 100) + "%" : "—",
         earned: r.converted * RATE,     // Phase 2 will split earned into paid vs owed
         owed: r.converted * RATE,       // Phase 1: nothing paid yet, so all owed
+        readyOwed: r.ready * RATE,      // hold cleared — payable now
+        heldOwed: r.held * RATE,        // onboarded but still in the stability hold
       }))
       .sort((a, b) => b.signups - a.signups || b.converted - a.converted || a.name.localeCompare(b.name));
   }, [apps]);
@@ -200,6 +213,8 @@ export default function AdminReferralsPage() {
     signups: rows.reduce((s, r) => s + r.signups, 0),
     converted: rows.reduce((s, r) => s + r.converted, 0),
     owed: rows.reduce((s, r) => s + r.owed, 0),
+    ready: rows.reduce((s, r) => s + r.readyOwed, 0),
+    held: rows.reduce((s, r) => s + r.heldOwed, 0),
   }), [rows]);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -390,7 +405,7 @@ export default function AdminReferralsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 22 }}>
         {tile("Active referrers", String(totals.active), "var(--text)", "brought ≥1 signup")}
         {tile("Total signups", String(totals.signups), "var(--accent)", `${totals.converted} converted to inventory`)}
-        {tile("Commission owed", peso(totals.owed), "var(--warn-num)", `${peso(totals.owed)} ready · ₱0 held`)}
+        {tile("Commission owed", peso(totals.owed), "var(--warn-num)", `${peso(totals.ready)} ready · ${peso(totals.held)} held`)}
         {tile("Paid to date", peso(payouts.filter((p) => p.paidAt).reduce((s, p) => s + p.amount, 0)), "var(--green)", awaitingCount ? `${awaitingCount} awaiting confirmation` : "all payments confirmed")}
       </div>
 
@@ -534,10 +549,10 @@ export default function AdminReferralsPage() {
             <div style={{ textAlign: "right" }}><span style={{ font: `600 14px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{peso(r.earned)}</span></div>
             <div style={{ textAlign: "right" }}>
               <span style={{ font: `600 14px ${F_GRO}`, fontVariantNumeric: "tabular-nums", color: r.owed > 0 ? "var(--warn-num)" : "var(--muted2)" }}>{peso(r.owed)}</span>
-              <span style={{ font: `500 10.5px ${F_SANS}`, display: "block", color: r.owed > 0 ? "var(--green)" : "var(--muted2)" }}>{r.owed > 0 ? "ready to pay" : "all settled"}</span>
+              <span style={{ font: `500 10.5px ${F_SANS}`, display: "block", color: r.readyOwed > 0 ? "var(--green)" : r.heldOwed > 0 ? "var(--warn-num)" : "var(--muted2)" }}>{r.readyOwed > 0 ? "ready to pay" : r.heldOwed > 0 ? "in hold" : "all settled"}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button disabled title="Payout tracking coming soon" style={{ font: `600 12px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "1px solid var(--btn-secondary-border)", padding: "7px 14px", borderRadius: 8, cursor: "default", whiteSpace: "nowrap", opacity: 0.85 }}>{r.owed > 0 ? "Pay · soon" : "Settled"}</button>
+              <button disabled title="Payout tracking coming soon" style={{ font: `600 12px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "1px solid var(--btn-secondary-border)", padding: "7px 14px", borderRadius: 8, cursor: "default", whiteSpace: "nowrap", opacity: 0.85 }}>{r.readyOwed > 0 ? "Pay · soon" : r.heldOwed > 0 ? "In hold" : "Settled"}</button>
             </div>
           </div>
         ))}
