@@ -115,6 +115,13 @@ model LinkedInAccount {
   proxyPort             Int?          @map("proxy_port")
   proxyUsername         String?       @map("proxy_username")
   proxyPassword         String?       @map("proxy_password")
+  // Login credentials for the ambassador's LinkedIn account (we hold the login).
+  // Admin-only, never exposed to renters. loginEmail = the email the account signs
+  // in with; workEmail = the klabber.co address we added as recovery/secondary.
+  loginEmail            String?       @map("login_email")
+  accountPassword       String?       @map("account_password")
+  twoFactor             String?       @map("two_factor")
+  workEmail             String?       @map("work_email")
   status                AccountStatus @default(available)
   monthlyPrice          Decimal       @default(0) @map("monthly_price") @db.Decimal(10, 2)
   ambassadorPayment     Decimal       @default(0) @map("ambassador_payment") @db.Decimal(10, 2)
@@ -237,6 +244,11 @@ model AmbassadorApplication {
   usdcNetwork       String?          @map("usdc_network")
   paypalEmail       String?          @map("paypal_email")
   wiseEmail         String?          @map("wise_email")
+  // Free-text payout handle (e.g. a GCash number) shown alongside paymentMethod.
+  paymentDetails    String?          @map("payment_details")
+  // Recurring ₱500/month payout log: [{ paidAt: ISO, amount: number, note?: string }].
+  // The one-time ₱1,000 setup fee's paid date is `paidAt` above.
+  monthlyPayouts    Json?            @map("monthly_payouts")
   poc               String?          @map("poc")
   outreachLog       Json?            @map("outreach_log")
   nextFollowUp      DateTime?        @map("next_follow_up")
