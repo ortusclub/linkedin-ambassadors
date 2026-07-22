@@ -49,7 +49,7 @@ const TIPS = [
 ];
 
 const MARKETER_FAQ = [
-  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up accepted onto our inventory. Commissions release about 3 days after a sign-up is accepted and are paid the following Monday." },
+  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up onboarded onto our inventory. Commissions release about 3 days after a sign-up is onboarded and are paid the following Monday." },
   { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding. That's when your ₱500 is triggered." },
   { q: "What if someone doesn't qualify?", a: "Just thank them and move on — they only need to be 18 or older." },
   { q: "How do I update my payout details?", a: "Right here — scroll down to \"Your payout details\" and save your GCash / bank info so we can pay you." },
@@ -210,7 +210,7 @@ export default function Portal({ token }: { token: string }) {
 
           {/* stats */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 }}>
-            {[{ v: String(stats.signups), l: "Signups", c: C.ink }, { v: String(stats.converted), l: "Accepted", c: C.greenDk }, { v: peso(stats.commission), l: "Est. earned", c: C.ink }].map((t) => (
+            {[{ v: String(stats.signups), l: "Signups", c: C.ink }, { v: String(stats.converted), l: "Onboarded", c: C.greenDk }, { v: peso(stats.commission), l: "Est. earned", c: C.ink }].map((t) => (
               <div key={t.l} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: "15px 10px", textAlign: "center" }}>
                 <div style={{ font: `600 24px/1 ${GRO}`, color: t.c, fontVariantNumeric: "tabular-nums" }}>{t.v}</div>
                 <div style={{ font: `600 11px ${JAK}`, color: C.muted, marginTop: 5 }}>{t.l}</div>
@@ -221,7 +221,7 @@ export default function Portal({ token }: { token: string }) {
           {/* how you get paid */}
           <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 16, padding: "17px 18px", marginBottom: 18 }}>
             <div style={{ font: `700 13.5px ${JAK}`, color: C.greenDk, marginBottom: 8 }}>How &amp; when you get paid</div>
-            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{peso(stats.rate)}</b> for every signup accepted onto our inventory. It releases <b>~3 days after</b> acceptance and pays out the <b>following Monday</b>.</p>
+            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{peso(stats.rate)}</b> for every signup onboarded onto our inventory. It releases <b>~3 days after</b> onboarding and pays out the <b>following Monday</b>.</p>
             <p style={{ font: `500 11.5px/1.5 ${JAK}`, color: "#6b8a77", margin: 0 }}>The figure above is an estimate — the exact payable amount is confirmed at payout.</p>
           </div>
 
@@ -304,12 +304,12 @@ export default function Portal({ token }: { token: string }) {
             {activity.length === 0 ? (
               <div style={{ color: C.muted, fontSize: 13, paddingTop: 4 }}>No signups yet — show your QR to get started.</div>
             ) : activity.map((a, i) => {
-              const accepted = a.kind === "converted";
+              const onboarded = a.kind === "converted";
               return (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line2}` }}>
-                  <span style={{ width: 7, height: 7, borderRadius: 999, flex: "none", background: accepted ? C.green : C.blue }} />
+                  <span style={{ width: 7, height: 7, borderRadius: 999, flex: "none", background: onboarded ? C.green : C.blue }} />
                   <span style={{ font: `500 13px ${JAK}`, color: C.slate, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.referrer ? `${a.referrer} → ${a.name}` : `New signup — ${a.name}`}</span>
-                  <span style={{ font: `600 9.5px ${JAK}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", flex: "none", background: accepted ? C.accBg : C.pendBg, color: accepted ? C.accFg : C.pendFg }}>{accepted ? "Accepted" : "Pending"}</span>
+                  <span style={{ font: `600 9.5px ${JAK}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", flex: "none", background: onboarded ? C.accBg : C.pendBg, color: onboarded ? C.accFg : C.pendFg }}>{onboarded ? "Onboarded" : "Pending"}</span>
                   <span style={{ marginLeft: "auto", font: `500 12px ${JAK}`, color: C.muted2, whiteSpace: "nowrap" }}>{fmtDate(a.date)}</span>
                 </div>
               );
@@ -328,7 +328,7 @@ export default function Portal({ token }: { token: string }) {
             ))}
             <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 12, padding: "12px 14px", marginTop: 14 }}>
               <div style={{ font: `700 12.5px ${JAK}`, color: C.greenDk, marginBottom: 5 }}>A booked call is what counts</div>
-              <div style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate }}>A form on its own often goes nowhere. Someone who books a call almost always gets set up — and you only earn on sign-ups that get accepted. If you get one thing right today, make it this.</div>
+              <div style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate }}>A form on its own often goes nowhere. Someone who books a call almost always gets set up — and you only earn on sign-ups that get onboarded. If you get one thing right today, make it this.</div>
             </div>
 
             <div style={{ ...sub, margin: "16px 0 10px" }}>The offer you share</div>

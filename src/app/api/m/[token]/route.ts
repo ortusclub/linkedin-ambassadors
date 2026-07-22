@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 const RATE = 500;
-const isConverted = (s: string) => s === "approved" || s === "onboarded";
+// A signup only counts (and pays) once the account is actually onboarded onto
+// inventory — matches the admin referrals tab. "approved/agreed" is not enough.
+const isConverted = (s: string) => s === "onboarded";
 
 // Public marketer portal data, keyed by the secret token in the URL. Returns the
 // referrer's own figures, a PII-free competitive board (counts only), and the
