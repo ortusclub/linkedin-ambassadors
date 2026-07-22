@@ -27,7 +27,7 @@ export async function GET() {
     const enriched = applications.map(a => ({
       ...a,
       contactNumber: contactMap.get(a.email) || a.contactNumber,
-      call: calls.get(a.email.toLowerCase()) || null,
+      call: calls.get(a.email.toLowerCase()) || (a.bookingEmail ? calls.get(a.bookingEmail.toLowerCase()) : null) || null,
     }));
 
     return NextResponse.json({ applications: enriched });

@@ -8,6 +8,7 @@ interface Application {
   fullName: string;
   email: string;
   linkedinEmail: string | null;
+  bookingEmail?: string | null;
   contactNumber: string | null;
   linkedinUrl: string;
   connectionCount: number | null;
@@ -375,6 +376,7 @@ export default function AdminAmbassadorsPage() {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "18px 24px", padding: "20px 22px" }}>
                     {editField(a.id, "contactNumber", "Contact", a.contactNumber, { placeholder: "Phone / WhatsApp" })}
                     {editField(a.id, "linkedinEmail", "Login email", a.linkedinEmail, { placeholder: "Same as owner" })}
+                    {editField(a.id, "bookingEmail", "Booking email", a.bookingEmail, { placeholder: "If they booked with another email" })}
                     {editField(a.id, "connectionCount", "Connections", a.connectionCount ?? null, { numeric: true, placeholder: "e.g. 500" })}
                     {editField(a.id, "location", "Location", a.location ?? a.industry ?? null, { placeholder: "City / country" })}
                     {editField(a.id, "linkedinUrl", "LinkedIn URL", a.linkedinUrl, { placeholder: "linkedin.com/in/…", notNull: true })}
