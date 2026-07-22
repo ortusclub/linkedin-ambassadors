@@ -12,7 +12,7 @@ const updateSchema = z.object({
   nextFollowUp: z.string().datetime().nullable().optional(),
   callOutcome: z.enum(["no_show", "completed"]).nullable().optional(),
   addTouch: z.object({
-    ch: z.enum(["whatsapp", "email", "call", "reply", "booked", "done", "note"]),
+    ch: z.enum(["whatsapp", "email", "call", "text", "reply", "booked", "done", "note"]),
     text: z.string().min(1),
     by: z.string().optional(),
   }).optional(),

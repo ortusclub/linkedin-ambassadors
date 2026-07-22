@@ -93,6 +93,7 @@ const TOUCH: Record<string, [string, string, string]> = {
   whatsapp: ["WhatsApp", "--green-chip-bg", "--green-chip-text"],
   email: ["Email", "--blue-chip-bg", "--blue-chip-text"],
   call: ["Call", "--st-unreach-bg", "--st-unreach-fg"],
+  text: ["Text", "--st-conv-bg", "--st-conv-fg"],
   reply: ["Reply", "--st-replied-bg", "--st-replied-fg"],
   booked: ["Booked", "--blue-chip-bg", "--blue-chip-text"],
   done: ["Call", "--st-active-bg", "--st-active-fg"],
@@ -114,6 +115,8 @@ const lastTouchAt = (a: Application): string => {
   const log = a.outreachLog;
   return log && log.length ? fmtDateTime(log[log.length - 1].at) : "";
 };
+// a "touch" is an actual outreach contact — notes are annotations, not touches
+const touchCount = (a: Application): number => (a.outreachLog || []).filter((t) => t.ch !== "note").length;
 
 export default function AdminAmbassadorsPage() {
   const [apps, setApps] = useState<Application[]>([]);
@@ -153,7 +156,7 @@ export default function AdminAmbassadorsPage() {
   const logTouch = async (id: string, ch: string) => {
     const draft = (noteDraft[id] || "").trim();
     const by = (byDraft[id] || "").trim();
-    const text = draft || (({ whatsapp: "WhatsApp message sent", email: "Email sent", call: "Call attempted — no answer", note: "Note added" } as Record<string, string>)[ch] || "Note added");
+    const text = draft || (({ whatsapp: "WhatsApp message sent", email: "Email sent", call: "Call attempted — no answer", text: "Text message sent", note: "Note added" } as Record<string, string>)[ch] || "Note added");
     setBusy(id);
     setNoteDraft((d) => ({ ...d, [id]: "" }));
     setApps((prev) => prev.map((a) => (a.id === id ? { ...a, outreachLog: [...(a.outreachLog || []), { ch, text, by: by || "You", at: new Date().toISOString() }] } : a)));
@@ -339,7 +342,7 @@ export default function AdminAmbassadorsPage() {
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px 20px", padding: "14px 16px", borderBottom: "1px solid var(--divider)" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Call</span><span style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{callSummary(a)}</span></div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Touches</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{(a.outreachLog?.length || 0)} touch{(a.outreachLog?.length || 0) === 1 ? "" : "es"}</span></div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Touches</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{touchCount(a)} touch{touchCount(a) === 1 ? "" : "es"}</span></div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Last contact</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{lastTouchAt(a) || "—"}</span></div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Next follow-up</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{a.nextFollowUp ? fmtDate(a.nextFollowUp) : "—"}</span></div>
                       </div>
@@ -359,8 +362,8 @@ export default function AdminAmbassadorsPage() {
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)" }}>Log:</span>
-                          {(["whatsapp", "email", "call", "note"] as const).map((ch) => (
-                            <button key={ch} onClick={() => logTouch(a.id, ch)} disabled={busy === a.id} style={{ ...secBtn, padding: "7px 12px", font: `600 12px ${F_SANS}` }}>+ {ch === "whatsapp" ? "WhatsApp" : ch === "email" ? "Email" : ch === "call" ? "Call" : "Note"}</button>
+                          {(["whatsapp", "email", "call", "text", "note"] as const).map((ch) => (
+                            <button key={ch} onClick={() => logTouch(a.id, ch)} disabled={busy === a.id} style={{ ...secBtn, padding: "7px 12px", font: `600 12px ${F_SANS}` }}>+ {touchLabel(ch)}</button>
                           ))}
                           <span style={{ width: 1, height: 18, background: "var(--divider)", margin: "0 2px" }} />
                           <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)" }}>Call:</span>
