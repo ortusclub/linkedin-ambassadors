@@ -317,7 +317,7 @@ export default function AdminAmbassadorsPage() {
           const accepted = a.status === "approved" || a.status === "onboarded";
           const elig = eligibleMs(a);
           const ready = elig !== null && Date.now() >= elig;
-          const fullyPaid = !!a.paidAt && (!a.referredBy || !!a.marketerPaidAt);
+          const fullyPaid = !!a.paidAt;
           const payStage = !onboarded ? "Agreed · awaiting transfer" : fullyPaid ? "Paid" : ready ? "Ready to pay" : "In hold";
           const payPill = !onboarded ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : (fullyPaid || ready) ? { bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" } : { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" };
           const open = !collapsed.has(a.id);
@@ -447,20 +447,7 @@ export default function AdminAmbassadorsPage() {
                                 )}
                               </div>
                               {a.referredBy && (
-                                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                                  <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--text)", minWidth: 160 }}>Marketer commission <span style={{ color: "var(--muted)", fontWeight: 500 }}>· {a.referredBy}</span></span>
-                                  {a.marketerPaidAt ? (
-                                    <>
-                                      <span style={{ font: `600 12px ${F_SANS}`, color: "var(--st-active-fg)" }}>Paid · {fmtDate(a.marketerPaidAt)}</span>
-                                      <button onClick={() => setPaid(a.id, "marketerPaidAt", null)} style={{ ...secBtn, padding: "5px 10px", font: `600 11.5px ${F_SANS}` }}>Undo</button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span style={{ font: `500 12.5px ${F_SANS}`, color: ready ? "var(--st-active-fg)" : "var(--muted)" }}>{ready ? "Ready to pay" : `Hold until ${elig ? fmtDate(new Date(elig).toISOString()) : "—"}`}</span>
-                                      {ready && <button onClick={() => setPaid(a.id, "marketerPaidAt", new Date().toISOString())} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: "pointer" }}>Mark paid</button>}
-                                    </>
-                                  )}
-                                </div>
+                                <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)" }}>Marketer commission for {a.referredBy} is tracked on the Referrals page.</span>
                               )}
                               <button onClick={() => clearOnboarded(a.id)} style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", padding: "2px 0", cursor: "pointer", textDecoration: "underline", alignSelf: "flex-start" }}>Undo onboarded</button>
                             </div>
