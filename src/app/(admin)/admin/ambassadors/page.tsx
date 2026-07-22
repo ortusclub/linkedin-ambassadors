@@ -35,6 +35,7 @@ interface Application {
   callOutcome?: string | null;
   onboardedAt?: string | null;
   accountFreshness?: string | null;
+  verifiedAt?: string | null;
   paidAt?: string | null;
   marketerPaidAt?: string | null;
 }
@@ -202,7 +203,7 @@ export default function AdminAmbassadorsPage() {
     setApps((prev) => prev.map((a) => (a.id === id ? { ...a, onboardedAt: null, accountFreshness: null } : a)));
     try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ onboardedAt: null, accountFreshness: null }) }); } catch {}
   };
-  const setPaid = async (id: string, field: "paidAt" | "marketerPaidAt", value: string | null) => {
+  const setPaid = async (id: string, field: "paidAt" | "marketerPaidAt" | "verifiedAt", value: string | null) => {
     setApps((prev) => prev.map((a) => (a.id === id ? { ...a, [field]: value } : a)));
     try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) }); } catch {}
   };
@@ -337,10 +338,12 @@ export default function AdminAmbassadorsPage() {
           const onboarded = !!a.onboardedAt;
           const accepted = a.status === "approved" || a.status === "onboarded";
           const elig = eligibleMs(a);
-          const ready = elig !== null && Date.now() >= elig;
+          const holdOver = elig !== null && Date.now() >= elig;
+          const checked = !!a.verifiedAt;
+          const ready = checked; // payable only after the "good to go" stability check
           const fullyPaid = !!a.paidAt;
-          const payStage = !onboarded ? "Agreed · awaiting transfer" : fullyPaid ? "Paid" : ready ? "Ready to pay" : "In hold";
-          const payPill = !onboarded ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : (fullyPaid || ready) ? { bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" } : { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" };
+          const payStage = !onboarded ? "Agreed · awaiting transfer" : fullyPaid ? "Paid" : checked ? "Ready to pay" : holdOver ? "Check due" : "In hold";
+          const payPill = !onboarded ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : (fullyPaid || checked) ? { bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" } : holdOver ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" };
           const open = !collapsed.has(a.id);
           return (
             <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
@@ -451,9 +454,22 @@ export default function AdminAmbassadorsPage() {
                               <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Onboarded</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{fmtDate(a.onboardedAt!)}</span></div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Hold</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{holdDays(a)}-day · {a.accountFreshness || "established"}</span></div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Pay-eligible</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{elig ? fmtDate(new Date(elig).toISOString()) : "—"}</span></div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Check</span><span style={{ font: `600 13.5px ${F_SANS}`, color: ready ? "var(--st-active-fg)" : "var(--warn-badge-text)" }}>{ready ? "Cleared ✓" : "In hold"}</span></div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Check</span><span style={{ font: `600 13.5px ${F_SANS}`, color: checked ? "var(--st-active-fg)" : holdOver ? "var(--warn-badge-text)" : "var(--muted)" }}>{checked ? "Cleared ✓" : holdOver ? "Check due" : "In hold"}</span></div>
                             </div>
                             <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--text)", minWidth: 160 }}>Stability check</span>
+                                {checked ? (
+                                  <>
+                                    <span style={{ font: `600 12px ${F_SANS}`, color: "var(--st-active-fg)" }}>Good to go · {fmtDate(a.verifiedAt!)}</span>
+                                    <button onClick={() => setPaid(a.id, "verifiedAt", null)} style={{ ...secBtn, padding: "5px 10px", font: `600 11.5px ${F_SANS}` }}>Undo</button>
+                                  </>
+                                ) : holdOver ? (
+                                  <button onClick={() => setPaid(a.id, "verifiedAt", new Date().toISOString())} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: "pointer" }}>✓ Good to go</button>
+                                ) : (
+                                  <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>Hold until {elig ? fmtDate(new Date(elig).toISOString()) : "—"} — then check the account</span>
+                                )}
+                              </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                                 <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--text)", minWidth: 160 }}>Ambassador payout</span>
                                 {a.paidAt ? (
@@ -463,7 +479,7 @@ export default function AdminAmbassadorsPage() {
                                   </>
                                 ) : (
                                   <>
-                                    <span style={{ font: `500 12.5px ${F_SANS}`, color: ready ? "var(--st-active-fg)" : "var(--muted)" }}>{ready ? "Ready to pay" : `Hold until ${elig ? fmtDate(new Date(elig).toISOString()) : "—"}`}</span>
+                                    <span style={{ font: `500 12.5px ${F_SANS}`, color: ready ? "var(--st-active-fg)" : "var(--muted)" }}>{ready ? "Ready to pay" : holdOver ? "Awaiting stability check" : `Hold until ${elig ? fmtDate(new Date(elig).toISOString()) : "—"}`}</span>
                                     {ready && <button onClick={() => setPaid(a.id, "paidAt", new Date().toISOString())} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: "pointer" }}>Mark paid</button>}
                                   </>
                                 )}

@@ -6,8 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 interface App {
   referredBy: string | null;
   status: string;
-  onboardedAt?: string | null;
-  accountFreshness?: string | null;
+  verifiedAt?: string | null;
 }
 
 interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; }
@@ -82,13 +81,8 @@ const TOP_THRESHOLD = 5;
 // The marketer's commission is earned only once the account is in hand.
 const isConverted = (s: string) => s === "onboarded";
 
-// The commission releases only after the stability hold clears:
-// 3 days for established accounts, 1 week for fresh ones (from the onboard date).
-const holdCleared = (a: App): boolean => {
-  if (!a.onboardedAt) return false;
-  const days = a.accountFreshness === "fresh" ? 7 : 3;
-  return Date.now() >= new Date(a.onboardedAt).getTime() + days * 86400000;
-};
+// A commission is "ready" only once the account passes its stability check
+// (marked good-to-go on the ambassador card, after the 3-day / 1-week hold).
 
 const peso = (n: number) => "₱" + n.toLocaleString("en-US");
 const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
@@ -164,7 +158,7 @@ export default function AdminReferralsPage() {
       if (!name) continue;
       const r = m.get(name) || { name, signups: 0, converted: 0, ready: 0, held: 0 };
       r.signups++;
-      if (isConverted(a.status)) { r.converted++; if (holdCleared(a)) r.ready++; else r.held++; }
+      if (isConverted(a.status)) { r.converted++; if (a.verifiedAt) r.ready++; else r.held++; }
       m.set(name, r);
     }
     return [...m.values()]
@@ -479,7 +473,7 @@ export default function AdminReferralsPage() {
       <div style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--band)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "12px 16px", marginBottom: 22, flexWrap: "wrap" }}>
         <span style={{ width: 8, height: 8, borderRadius: 999, background: "var(--accent)", flex: "none" }} />
         <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--text2)" }}>Payouts run every Monday.</span>
-        <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>A commission releases 3 days after conversion; if that lands on a weekend it rolls to the next Monday.</span>
+        <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>A commission becomes payable once the account passes its stability check (after the 3-day / 1-week hold); payouts run the next Monday.</span>
         {nextMonday && <span style={{ marginLeft: "auto", font: `600 12px ${F_SANS}`, color: "var(--accent)", whiteSpace: "nowrap" }}>Next payout · {nextMonday}</span>}
       </div>
 
