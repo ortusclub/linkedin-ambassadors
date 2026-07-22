@@ -257,7 +257,7 @@ export default function AdminOwnersPage() {
                               <div className="mb-2 flex items-center gap-2">
                                 <span className="font-medium text-gray-900">{acc.linkedinName}</span>
                                 <Badge variant={statusVariant(acc.status)} className="text-[10px]">{acc.status}</Badge>
-                                {acc.ambassadorPayment ? <span className="text-xs text-gray-400">{peso(Number(acc.ambassadorPayment))}/mo</span> : null}
+                                {Number(acc.ambassadorPayment) > 0 ? <span className="text-xs text-gray-400">{peso(Number(acc.ambassadorPayment))}/mo</span> : null}
                               </div>
                               <div className="grid gap-3 sm:grid-cols-2">
                                 <label className="block sm:col-span-2">
@@ -270,6 +270,19 @@ export default function AdminOwnersPage() {
                                         className="shrink-0 rounded px-1.5 py-0.5 text-xs text-blue-600 hover:bg-blue-50">Open</a>
                                     )}
                                   </div>
+                                </label>
+                                <label className="block">
+                                  <span className="mb-1 block text-xs text-gray-500">Monthly payout (₱)</span>
+                                  <input
+                                    type="number"
+                                    defaultValue={Number(acc.ambassadorPayment) || ""}
+                                    placeholder="500"
+                                    onBlur={(e) => {
+                                      const n = e.target.value === "" ? 0 : Number(e.target.value);
+                                      if (!Number.isNaN(n) && n !== Number(acc.ambassadorPayment)) patchAccount(acc.id, { ambassadorPayment: n });
+                                    }}
+                                    className="w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-900 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                                  />
                                 </label>
                                 <label className="block">
                                   <span className="mb-1 block text-xs text-gray-500">Account email (their login)</span>
