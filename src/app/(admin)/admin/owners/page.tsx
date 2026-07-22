@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
+// Ambassador payouts are in PHP.
+const peso = (n: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(n);
 
 interface OwnerAccount {
   id: string;
@@ -86,7 +87,7 @@ export default function AdminOwnersPage() {
                   <td className="px-4 py-3 text-sm text-gray-600">{owner.email}</td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{owner.accountCount}</td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                    {owner.monthlyPayout > 0 ? formatCurrency(owner.monthlyPayout) : <span className="text-gray-400 font-normal">TBC</span>}
+                    {owner.monthlyPayout > 0 ? peso(owner.monthlyPayout) : <span className="text-gray-400 font-normal">TBC</span>}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {owner.paymentMethod ? <span className="capitalize">{owner.paymentMethod}</span> : <span className="text-gray-400">Not set</span>}

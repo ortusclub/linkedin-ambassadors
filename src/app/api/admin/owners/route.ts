@@ -15,7 +15,7 @@ export async function GET() {
     // Source 1: LinkedIn accounts that have an owner in notes.
     // Exclude removed/retired so deleted profiles don't linger in the owners view.
     const accounts = await prisma.linkedInAccount.findMany({
-      where: { notes: { contains: "Owner:" }, status: { notIn: ["removed", "retired"] } },
+      where: { notes: { contains: "Owner:" }, status: { notIn: ["removed", "retired", "under_review"] } },
       select: {
         id: true,
         linkedinName: true,
@@ -117,7 +117,7 @@ export async function GET() {
     }
 
     const allLinkedInAccounts = await prisma.linkedInAccount.findMany({
-      where: { status: { notIn: ["removed", "retired"] } },
+      where: { status: { notIn: ["removed", "retired", "under_review"] } },
       select: {
         id: true,
         linkedinName: true,
@@ -171,10 +171,12 @@ export async function GET() {
       };
     });
 
-    // Sort: owners with accounts first, then by account count
-    owners.sort((a, b) => b.accountCount - a.accountCount || b.applicationCount - a.applicationCount);
+    // Only converted + onboarded owners: those with at least one live inventory
+    // account (under-review / removed / retired accounts are already excluded above).
+    const onboardedOwners = owners.filter((o) => o.accountCount > 0);
+    onboardedOwners.sort((a, b) => b.accountCount - a.accountCount || b.applicationCount - a.applicationCount);
 
-    return NextResponse.json({ owners });
+    return NextResponse.json({ owners: onboardedOwners });
   } catch (error) {
     if (error instanceof Error && error.message === "Forbidden") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
