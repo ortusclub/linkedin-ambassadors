@@ -139,6 +139,7 @@ export default function AdminAmbassadorsPage() {
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/ambassadors").then((r) => r.json()).then((d) => setApps(d.applications || [])).finally(() => setLoading(false));
@@ -332,7 +333,7 @@ export default function AdminAmbassadorsPage() {
                       <a href={liHref(a.linkedinUrl)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 12px ${F_SANS}`, color: "var(--link)", background: "var(--link-bg)", padding: "4px 10px", borderRadius: 7 }}>↗ {liShort(a.linkedinUrl)}</a>
                       {isLikelyTestEmail(a.email) && <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", padding: "2px 6px", borderRadius: 5, background: "var(--test-bg)", color: "var(--test-fg)" }}>TEST</span>}
                     </div>
-                    <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{a.email}</span>
+                    <span onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(a.email); setCopiedEmail(a.email); setTimeout(() => setCopiedEmail((c) => (c === a.email ? null : c)), 1400); }} title="Click to copy" style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)", cursor: "pointer", userSelect: "text" }}>{a.email}{copiedEmail === a.email && <span style={{ color: "var(--st-active-fg)", marginLeft: 6, fontWeight: 600 }}>· Copied ✓</span>}</span>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
