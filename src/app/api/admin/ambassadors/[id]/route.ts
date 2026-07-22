@@ -65,6 +65,14 @@ export async function PATCH(
       data: updateData,
     });
 
+    // When onboarded, flip the account live (out of under_review) so it shows on the owners page.
+    if (rest.status === "onboarded" && currentApp.status !== "onboarded") {
+      await prisma.linkedInAccount.updateMany({
+        where: { linkedinUrl: application.linkedinUrl, status: "under_review" },
+        data: { status: "available" },
+      });
+    }
+
     // When status changes to "approved", automatically create a LinkedInAccount
     if (rest.status === "approved" && currentApp.status !== "approved") {
       // Check if a LinkedInAccount already exists for this LinkedIn URL
