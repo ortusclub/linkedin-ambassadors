@@ -881,7 +881,7 @@ export async function sendAccountAvailableEmail(email: string, accountName: stri
 // frame it as "skip the wait"; otherwise we simply offer the fast track or a call.
 // Replies go to a monitored inbox so they can just hit reply.
 const FAST_TRACK_REPLY_TO = process.env.FAST_TRACK_REPLY_TO || "info@linkedvelocity.com";
-export async function sendFastTrackInvite(email: string, firstName: string, callDateLabel: string | null) {
+export async function sendFastTrackInvite(email: string | string[], firstName: string, callDateLabel: string | null) {
   const hi = firstName ? `Hi ${firstName},` : "Hi,";
   const opener = callDateLabel
     ? `Thanks again for signing up with LinkedVelocity! We've got your onboarding call booked for <strong>${callDateLabel}</strong> — but if you'd like, there's a faster way to get you set up and earning sooner.`
