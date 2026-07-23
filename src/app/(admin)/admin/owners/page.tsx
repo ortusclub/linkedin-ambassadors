@@ -51,6 +51,26 @@ interface MonthlyPayout {
   by?: string | null;
 }
 
+interface DueItem {
+  kind: "setup" | "monthly";
+  name: string;
+  email: string;
+  method: string | null;
+  details: string | null;
+  amount: number;
+  dueDate: string;
+  overdue: boolean;
+}
+interface MarketerDue { name: string; count: number; amount: number; }
+interface PaymentsDue {
+  setup: DueItem[];
+  monthly: DueItem[];
+  upcoming: DueItem[];
+  marketers: MarketerDue[];
+  totalDueNow: number;
+  horizonDays: number;
+}
+
 interface Owner {
   email: string;
   fullName: string;
@@ -112,13 +132,25 @@ export default function AdminOwnersPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [due, setDue] = useState<PaymentsDue | null>(null);
+  const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   const load = useCallback(() => {
+    fetch("/api/admin/payments-due").then((r) => r.json()).then((d) => setDue(d)).catch(() => {});
     return fetch("/api/admin/owners")
       .then((r) => r.json())
       .then((data) => setOwners(data.owners || []))
       .finally(() => setLoading(false));
   }, []);
+
+  const emailMilee = async () => {
+    setEmailState("sending");
+    try {
+      const r = await fetch("/api/admin/payments-due", { method: "POST" });
+      setEmailState(r.ok ? "sent" : "error");
+    } catch { setEmailState("error"); }
+    setTimeout(() => setEmailState("idle"), 3500);
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -165,6 +197,71 @@ export default function AdminOwnersPage() {
           {totalMonthly > 0 && <p className="text-gray-400">{peso(totalMonthly)}/mo total</p>}
         </div>
       </div>
+
+      {/* Payments due */}
+      {due && (() => {
+        const nothing = due.setup.length === 0 && due.monthly.length === 0 && due.marketers.length === 0;
+        const dueList = (items: DueItem[], title: string) =>
+          items.length === 0 ? null : (
+            <div className="min-w-0 flex-1">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{title} · {items.length}</p>
+              <ul className="space-y-1">
+                {items.map((i, idx) => (
+                  <li key={idx} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="truncate text-gray-700">{i.name}</span>
+                    <span className={`shrink-0 tabular-nums ${i.overdue ? "font-medium text-red-600" : "text-gray-500"}`}>
+                      {peso(i.amount)} · {fmtDate(i.dueDate)}{i.overdue ? " ⚠" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        return (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Payments due</h3>
+                <p className="text-xs text-gray-500">
+                  {nothing ? "Nothing due right now." : <><span className="font-semibold text-gray-900">{peso(due.totalDueNow)}</span> due now across {due.setup.length + due.monthly.length + due.marketers.length} payout{due.setup.length + due.monthly.length + due.marketers.length !== 1 ? "s" : ""}.</>}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={emailMilee}
+                disabled={emailState === "sending"}
+                className="shrink-0 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-60"
+              >
+                {emailState === "sending" ? "Sending…" : emailState === "sent" ? "✓ Sent to Milee" : emailState === "error" ? "Failed — retry" : "Email Milee"}
+              </button>
+            </div>
+            {!nothing && (
+              <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
+                {dueList(due.setup, "Setup fees")}
+                {dueList(due.monthly, "Monthly")}
+                {due.marketers.length > 0 && (
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Marketer ready · {due.marketers.length}</p>
+                    <ul className="space-y-1">
+                      {due.marketers.map((m, idx) => (
+                        <li key={idx} className="flex items-center justify-between gap-2 text-sm">
+                          <span className="truncate text-gray-700">{m.name}</span>
+                          <span className="shrink-0 tabular-nums text-gray-500">{peso(m.amount)} · {m.count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            {due.upcoming.length > 0 && (
+              <p className="mt-3 border-t border-amber-200 pt-2 text-xs text-gray-500">
+                Coming up ({due.horizonDays}d): {due.upcoming.map((u) => `${u.name} (${u.kind === "setup" ? "setup" : "monthly"} ${fmtDate(u.dueDate)})`).join(" · ")}
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-200" />)}</div>
