@@ -874,3 +874,71 @@ export async function sendAccountAvailableEmail(email: string, accountName: stri
     `,
   });
 }
+
+// Internal "who's due to be paid" digest — ambassador setup fees + monthly payouts
+// that have come due, plus marketer commissions cleared for payout. Sent to Milee.
+export async function sendPaymentsDueDigest(
+  to: string | string[],
+  data: {
+    setup: { name: string; email: string; amount: number; dueDate: string; overdue: boolean; method: string | null; details: string | null }[];
+    monthly: { name: string; email: string; amount: number; dueDate: string; overdue: boolean; method: string | null; details: string | null }[];
+    marketers: { name: string; count: number; amount: number }[];
+    upcoming: { kind: string; name: string; amount: number; dueDate: string }[];
+    totalDueNow: number;
+  }
+) {
+  const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
+  const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const pay = (m: string | null, d: string | null) => (m || d) ? `${m || ""}${m && d ? " · " : ""}${d || ""}` : "—";
+
+  const dueRows = (items: typeof data.setup, label: string) =>
+    items.length === 0 ? "" : `
+      <p style="margin:22px 0 8px;font:600 13px sans-serif;color:#0F1419;">${label} — ${items.length}, ${peso(items.reduce((s, i) => s + i.amount, 0))}</p>
+      <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:13px;">
+        <tr style="color:#8899A6;text-align:left;"><th style="padding:6px 8px;font-weight:600;">Who</th><th style="padding:6px 8px;font-weight:600;">Pay to</th><th style="padding:6px 8px;font-weight:600;">Due</th><th style="padding:6px 8px;font-weight:600;text-align:right;">Amount</th></tr>
+        ${items.map((i) => `<tr style="border-top:1px solid #EEF0F2;">
+          <td style="padding:8px;color:#0F1419;">${i.name}<br><span style="color:#8899A6;font-size:11px;">${i.email}</span></td>
+          <td style="padding:8px;color:#536471;">${pay(i.method, i.details)}</td>
+          <td style="padding:8px;color:${i.overdue ? "#C0392B" : "#536471"};">${day(i.dueDate)}${i.overdue ? " · overdue" : ""}</td>
+          <td style="padding:8px;text-align:right;color:#0F1419;font-weight:600;">${peso(i.amount)}</td>
+        </tr>`).join("")}
+      </table>`;
+
+  const marketerRows = data.marketers.length === 0 ? "" : `
+      <p style="margin:22px 0 8px;font:600 13px sans-serif;color:#0F1419;">Marketer commissions ready — ${peso(data.marketers.reduce((s, m) => s + m.amount, 0))}</p>
+      <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:13px;">
+        <tr style="color:#8899A6;text-align:left;"><th style="padding:6px 8px;font-weight:600;">Marketer</th><th style="padding:6px 8px;font-weight:600;">Onboarded</th><th style="padding:6px 8px;font-weight:600;text-align:right;">Amount</th></tr>
+        ${data.marketers.map((m) => `<tr style="border-top:1px solid #EEF0F2;">
+          <td style="padding:8px;color:#0F1419;">${m.name}</td>
+          <td style="padding:8px;color:#536471;">${m.count}</td>
+          <td style="padding:8px;text-align:right;color:#0F1419;font-weight:600;">${peso(m.amount)}</td>
+        </tr>`).join("")}
+      </table>`;
+
+  const upcomingBlock = data.upcoming.length === 0 ? "" : `
+      <p style="margin:22px 0 6px;font:600 12px sans-serif;color:#8899A6;">Coming up (next 7 days)</p>
+      <ul style="margin:0;padding-left:18px;font-family:sans-serif;font-size:12.5px;color:#536471;">
+        ${data.upcoming.map((u) => `<li style="margin:0 0 3px;">${u.name} — ${u.kind === "setup" ? "setup fee" : "monthly"} ${peso(u.amount)}, due ${day(u.dueDate)}</li>`).join("")}
+      </ul>`;
+
+  const nothing = data.setup.length === 0 && data.monthly.length === 0 && data.marketers.length === 0;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+
+  return sendEmail({
+    to,
+    subject: nothing
+      ? "Payments due — nothing due today"
+      : `Payments due — ${peso(data.totalDueNow)} across ${data.setup.length + data.monthly.length + data.marketers.length} payout${data.setup.length + data.monthly.length + data.marketers.length !== 1 ? "s" : ""}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:28px 20px;">
+        <h2 style="color:#0F1419;margin:0 0 4px;">Payments due</h2>
+        <p style="color:#536471;font-size:14px;margin:0 0 4px;">${nothing ? "No ambassador or marketer payouts are due right now." : `<strong style="color:#0F1419;">${peso(data.totalDueNow)}</strong> due now.`}</p>
+        ${dueRows(data.setup, "Setup fees due")}
+        ${dueRows(data.monthly, "Monthly payouts due")}
+        ${marketerRows}
+        ${upcomingBlock}
+        <p style="margin:26px 0 0;"><a href="${appUrl}/admin/owners" style="color:#0A66C2;text-decoration:none;font-size:13px;">Open the Owners page →</a></p>
+      </div>
+    `,
+  });
+}
