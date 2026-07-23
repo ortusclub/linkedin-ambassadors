@@ -18,6 +18,7 @@ interface EmailOptions {
   subject: string;
   html: string;
   bcc?: string | string[];
+  replyTo?: string;
 }
 
 // BCC the team inbox on billing/renewal emails so there's visibility of what went out to renters
@@ -41,7 +42,7 @@ export async function renderEmail(
   }
 }
 
-async function sendEmail({ to, subject, html, bcc }: EmailOptions) {
+async function sendEmail({ to, subject, html, bcc, replyTo }: EmailOptions) {
   if (_capture) { _capture.push({ to, subject, html, bcc }); return; }
   let status: "sent" | "failed" | "skipped" = "sent";
   let errorMsg: string | null = null;
@@ -50,7 +51,7 @@ async function sendEmail({ to, subject, html, bcc }: EmailOptions) {
       console.log(`[Email] Would send to ${to}${bcc ? ` (bcc ${bcc})` : ""}: ${subject}`);
       status = "skipped";
     } else {
-      await getResend().emails.send({ from, to, subject, html, ...(bcc ? { bcc } : {}) });
+      await getResend().emails.send({ from, to, subject, html, ...(bcc ? { bcc } : {}), ...(replyTo ? { replyTo } : {}) });
     }
   } catch (e) {
     status = "failed";
@@ -871,6 +872,37 @@ export async function sendAccountAvailableEmail(email: string, accountName: stri
       <p>The LinkedIn account <strong>${accountName}</strong> you were interested in is now available for rent.</p>
       <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/catalogue">Rent it now</a> before someone else does!</p>
       <p>— LinkedIn Ambassadors Team</p>
+    `,
+  });
+}
+
+// Post-signup nudge: offer a faster "send us your details" setup instead of waiting
+// for the onboarding call. If they have a call booked, we reference the date and
+// frame it as "skip the wait"; otherwise we simply offer the fast track or a call.
+// Replies go to a monitored inbox so they can just hit reply.
+const FAST_TRACK_REPLY_TO = process.env.FAST_TRACK_REPLY_TO || "info@linkedvelocity.com";
+export async function sendFastTrackInvite(email: string, firstName: string, callDateLabel: string | null) {
+  const hi = firstName ? `Hi ${firstName},` : "Hi,";
+  const opener = callDateLabel
+    ? `Thanks again for signing up with LinkedVelocity! We've got your onboarding call booked for <strong>${callDateLabel}</strong> — but if you'd like, there's a faster way to get you set up and earning sooner.`
+    : `Thanks again for signing up with LinkedVelocity! There's a quick way to get you set up and earning sooner.`;
+  const option2 = callDateLabel
+    ? `<strong>Option 2 — Keep your call:</strong> Totally fine to stick with your scheduled call on <strong>${callDateLabel}</strong> — it just means setup takes a little longer to get going.`
+    : `<strong>Option 2 — Book a quick call:</strong> Prefer to hop on a short call first? No problem — just reply and we'll get one booked. It just means setup takes a little longer to get going.`;
+  const p = "margin:0 0 14px;color:#0F1419;font-size:14.5px;line-height:1.6;";
+  return sendEmail({
+    to: email,
+    replyTo: FAST_TRACK_REPLY_TO,
+    subject: "A faster way to get set up with LinkedVelocity",
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 22px;">
+        <p style="${p}">${hi}</p>
+        <p style="${p}">${opener}</p>
+        <p style="${p}"><strong>Option 1 — Skip the wait:</strong> Send us your details by text or email (your LinkedIn login and a quick two-step verification setup — we'll guide you through it), and we can get you set up much faster. The only thing we'd ask is that you're online and reachable for a short window while we do it, since LinkedIn will send a few verification codes we'll need you to pass along.</p>
+        <p style="${p}">${option2}</p>
+        <p style="${p}">Either way works for us — just let us know which you'd prefer! If Option 1 sounds good, reply here and we'll send you exactly what we need.</p>
+        <p style="margin:22px 0 0;color:#536471;font-size:13px;">— The LinkedVelocity Team</p>
+      </div>
     `,
   });
 }
