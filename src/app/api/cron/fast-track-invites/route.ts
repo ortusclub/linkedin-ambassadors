@@ -51,8 +51,12 @@ async function run(req: NextRequest) {
   for (const a of eligible) {
     const { call, matchedEmail, viaName } = pickCall(calls, { email: a.email, bookingEmail: a.bookingEmail, fullName: a.fullName });
     const label = call && call.stage === "booked" && !call.cancelled && call.scheduledAt ? dateLabel(call.scheduledAt) : null;
+    // Reach both inboxes when the booking email differs from the form email.
+    const recipients = new Set<string>([a.email.toLowerCase()]);
+    if (a.bookingEmail) recipients.add(a.bookingEmail.toLowerCase());
+    if (matchedEmail) recipients.add(matchedEmail);
     try {
-      await sendFastTrackInvite(a.email, firstNameOf(a.fullName), label);
+      await sendFastTrackInvite([...recipients], firstNameOf(a.fullName), label);
       // Record a booking email discovered by name-match so it's stored going forward.
       const data: { fastTrackSentAt: Date; bookingEmail?: string } = { fastTrackSentAt: new Date() };
       if (viaName && matchedEmail && !a.bookingEmail && matchedEmail !== a.email.toLowerCase()) data.bookingEmail = matchedEmail;
