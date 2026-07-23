@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendFastTrackInvite } from "@/services/email";
-import { getCallsByEmail } from "@/lib/calendar-calls";
+import { getCallMaps, pickCall } from "@/lib/calendar-calls";
 
 // A few hours after signup, nudge ambassadors who aren't onboarded yet with the
 // "skip the wait — send us your details" fast-track offer. Runs hourly; each person
@@ -44,16 +44,19 @@ async function run(req: NextRequest) {
 
   if (eligible.length === 0) return NextResponse.json({ ok: true, sent: 0, considered: 0 });
 
-  const calls = await getCallsByEmail();
+  const calls = await getCallMaps();
   let sent = 0;
   const failures: string[] = [];
 
   for (const a of eligible) {
-    const call = calls.get(a.email.toLowerCase()) || (a.bookingEmail ? calls.get(a.bookingEmail.toLowerCase()) : null);
+    const { call, matchedEmail, viaName } = pickCall(calls, { email: a.email, bookingEmail: a.bookingEmail, fullName: a.fullName });
     const label = call && call.stage === "booked" && !call.cancelled && call.scheduledAt ? dateLabel(call.scheduledAt) : null;
     try {
       await sendFastTrackInvite(a.email, firstNameOf(a.fullName), label);
-      await prisma.ambassadorApplication.update({ where: { id: a.id }, data: { fastTrackSentAt: new Date() } });
+      // Record a booking email discovered by name-match so it's stored going forward.
+      const data: { fastTrackSentAt: Date; bookingEmail?: string } = { fastTrackSentAt: new Date() };
+      if (viaName && matchedEmail && !a.bookingEmail && matchedEmail !== a.email.toLowerCase()) data.bookingEmail = matchedEmail;
+      await prisma.ambassadorApplication.update({ where: { id: a.id }, data });
       sent++;
     } catch (e) {
       failures.push(`${a.email}: ${e instanceof Error ? e.message : String(e)}`);
