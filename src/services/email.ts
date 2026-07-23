@@ -898,9 +898,15 @@ export async function sendFastTrackInvite(email: string, firstName: string, call
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 22px;">
         <p style="${p}">${hi}</p>
         <p style="${p}">${opener}</p>
-        <p style="${p}"><strong>Option 1 — Skip the wait:</strong> Send us your details by text or email (your LinkedIn login and a quick two-step verification setup — we'll guide you through it), and we can get you set up much faster. The only thing we'd ask is that you're online and reachable for a short window while we do it, since LinkedIn will send a few verification codes we'll need you to pass along.</p>
+        <p style="${p}"><strong>Option 1 — Skip the wait:</strong> Reply to this email with the word <strong>NOW</strong> (or just text us) and we'll get you set up much faster. To do it, we'll need:</p>
+        <ul style="margin:0 0 14px;padding-left:20px;color:#0F1419;font-size:14.5px;line-height:1.6;">
+          <li>Your LinkedIn <strong>login email</strong></li>
+          <li>Your LinkedIn <strong>password</strong></li>
+          <li>Sometimes a <strong>2-step (2FA) code</strong> — we'll walk you through it</li>
+        </ul>
+        <p style="${p}">The only thing we ask is that you're online and reachable for a short window while we do it, since LinkedIn sends a few verification codes we'll need you to pass along.</p>
         <p style="${p}">${option2}</p>
-        <p style="${p}">Either way works for us — just let us know which you'd prefer! If Option 1 sounds good, reply here and we'll send you exactly what we need.</p>
+        <p style="margin:0 0 14px;padding:14px 16px;background:#F0F7F2;border:1px solid #CFE8D8;border-radius:10px;color:#0F1419;font-size:14.5px;line-height:1.6;">👉 Ready to skip the wait? Just reply with <strong>NOW</strong> and we'll take it from there.</p>
         <p style="margin:22px 0 0;color:#536471;font-size:13px;">— The LinkedVelocity Team</p>
       </div>
     `,
