@@ -888,7 +888,7 @@ export async function sendFastTrackInvite(email: string, firstName: string, call
     : `Thanks again for signing up with LinkedVelocity! There's a quick way to get you set up and earning sooner.`;
   const option2 = callDateLabel
     ? `<strong>Option 2 — Keep your call:</strong> Totally fine to stick with your scheduled call on <strong>${callDateLabel}</strong> — it just means setup takes a little longer to get going.`
-    : `<strong>Option 2 — Book a quick call:</strong> Prefer to hop on a short call first? No problem — just reply and we'll get one booked. It just means setup takes a little longer to get going.`;
+    : `<strong>Option 2 — Prefer a call?</strong> If you'd rather hop on a quick call first — or you've already got one booked with us — that's totally fine. It just means setup takes a little longer to get going.`;
   const p = "margin:0 0 14px;color:#0F1419;font-size:14.5px;line-height:1.6;";
   return sendEmail({
     to: email,
