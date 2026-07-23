@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { sendFastTrackInvite } from "@/services/email";
 import { getCallMaps, pickCall } from "@/lib/calendar-calls";
 
@@ -42,7 +43,7 @@ async function run(req: NextRequest) {
       fastTrackSentAt: null,
       createdAt: { gte: new Date(now - WINDOW_DAYS * 24 * HOUR), lte: new Date(now - DELAY_HOURS * HOUR) },
     },
-    select: { id: true, fullName: true, email: true, bookingEmail: true },
+    select: { id: true, fullName: true, email: true, bookingEmail: true, outreachLog: true },
   });
 
   if (eligible.length === 0) return NextResponse.json({ ok: true, sent: 0, considered: 0 });
@@ -60,8 +61,19 @@ async function run(req: NextRequest) {
     if (matchedEmail) recipients.add(matchedEmail);
     try {
       await sendFastTrackInvite([...recipients], firstNameOf(a.fullName), label);
-      // Record a booking email discovered by name-match so it's stored going forward.
-      const data: { fastTrackSentAt: Date; bookingEmail?: string } = { fastTrackSentAt: new Date() };
+      // Log the touch on the card's outreach timeline + record a booking email
+      // discovered by name-match so it's stored going forward.
+      const touch = {
+        ch: "email",
+        text: `Fast-track setup invite emailed${label ? " (call booked)" : ""}`,
+        by: "Auto",
+        at: new Date().toISOString(),
+      };
+      const log = Array.isArray(a.outreachLog) ? (a.outreachLog as unknown[]) : [];
+      const data: Prisma.AmbassadorApplicationUpdateInput = {
+        fastTrackSentAt: new Date(),
+        outreachLog: [...log, touch] as Prisma.InputJsonValue,
+      };
       if (viaName && matchedEmail && !a.bookingEmail && matchedEmail !== a.email.toLowerCase()) data.bookingEmail = matchedEmail;
       await prisma.ambassadorApplication.update({ where: { id: a.id }, data });
       sent++;
