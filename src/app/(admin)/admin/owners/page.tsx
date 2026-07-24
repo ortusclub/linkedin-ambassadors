@@ -73,6 +73,23 @@ const ACCOUNT_ST: Record<string, { bg: string; fg: string }> = {
 };
 const acctStyle = (s: string) => ACCOUNT_ST[s] || { bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)" };
 
+// Required fields for a complete owner record — payout destination, a way to reach them,
+// and the login credentials we hold per profile. Returns the human labels still empty.
+const missingFields = (o: Owner): string[] => {
+  const m: string[] = [];
+  if (!o.paymentMethod) m.push("Payout method");
+  if (!o.paymentDetails) m.push("Payout details");
+  if (!o.contactNumber) m.push("Best contact");
+  o.accounts.forEach((a) => {
+    const who = o.accounts.length > 1 ? `${a.linkedinName}: ` : "";
+    if (!a.linkedinUrl) m.push(`${who}LinkedIn URL`);
+    if (!a.loginEmail) m.push(`${who}Account email`);
+    if (!a.accountPassword) m.push(`${who}Password`);
+    if (!a.twoFactor) m.push(`${who}2FA`);
+  });
+  return m;
+};
+
 interface OwnerAccount {
   id: string;
   linkedinName: string;
@@ -332,6 +349,7 @@ export default function AdminOwnersPage() {
           {shown.map((owner) => {
             const open = expanded.has(owner.email);
             const st = STATUS_META[ownerStatus(owner.applicationStatus)];
+            const missing = missingFields(owner);
             const setupPaid = fmtDate(owner.setupFeePaidAt);
             const monthlyOnly = owner.monthlyPayouts.filter((p) => p.kind !== "setup");
             const monthlyCount = monthlyOnly.length;
@@ -355,6 +373,9 @@ export default function AdminOwnersPage() {
                         <span style={{ font: `600 19px ${F_GRO}`, color: "var(--text)", letterSpacing: "-.01em" }}>{owner.fullName}</span>
                         <span style={{ font: `700 11px ${F_SANS}`, padding: "4px 11px", borderRadius: 999, whiteSpace: "nowrap", background: st.bg, color: st.fg }}>{st.label}</span>
                         <span style={{ font: `700 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-active-bg)", color: "var(--st-active-fg)" }}>Has account · {owner.accountCount}</span>
+                        {missing.length > 0 && (
+                          <span title={`Missing: ${missing.join(", ")}`} style={{ font: `700 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Missing {missing.length} field{missing.length !== 1 ? "s" : ""}</span>
+                        )}
                       </div>
                       <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{owner.email}</span>
                     </div>
