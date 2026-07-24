@@ -339,7 +339,11 @@ export default function AdminAmbassadorsPage() {
         {filtered.length === 0 ? (
           <div style={{ padding: 48, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No applications in this status.</div>
         ) : filtered.map((a) => {
-          const b = BUCKET[bucketOf(a.status)];
+          // Once they've handed over the account, show a distinct "Onboarded" chip
+          // rather than leaving them on "Accepted".
+          const b = a.onboardedAt
+            ? { label: "✓ Onboarded", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" }
+            : BUCKET[bucketOf(a.status)];
           const cs = callBucketOf(a);
           const onboarded = !!a.onboardedAt;
           const accepted = a.status === "approved" || a.status === "onboarded";
