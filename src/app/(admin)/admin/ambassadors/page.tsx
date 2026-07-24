@@ -408,7 +408,9 @@ export default function AdminAmbassadorsPage() {
                         <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>Handler: <strong style={{ fontWeight: 700, color: "var(--text2)" }}>{a.poc || "—"}</strong></span>
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px 20px", padding: "14px 16px", borderBottom: "1px solid var(--divider)" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Call</span><span style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{callSummary(a)}</span></div>
+                        {!(a.onboardedAt && cs === "none") && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Call</span><span style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{callSummary(a)}</span></div>
+                        )}
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Touches</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{touchCount(a)} touch{touchCount(a) === 1 ? "" : "es"}</span></div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Last contact</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{lastTouchAt(a) || "—"}</span></div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Next follow-up</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{a.nextFollowUp ? fmtDate(a.nextFollowUp) : "—"}</span></div>
