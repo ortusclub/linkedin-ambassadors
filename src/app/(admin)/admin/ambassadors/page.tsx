@@ -203,6 +203,12 @@ export default function AdminAmbassadorsPage() {
     setApps((prev) => prev.map((a) => (a.id === id ? { ...a, onboardedAt: null, accountFreshness: null } : a)));
     try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ onboardedAt: null, accountFreshness: null }) }); } catch {}
   };
+  // They've agreed to hand over their account — flip to "approved" (accepted), which
+  // reveals the onboarding/transfer panel. Works regardless of whether a call happened.
+  const markAccepted = async (id: string) => {
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status: "approved" } : a)));
+    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "approved" }) }); } catch {}
+  };
   const setPaid = async (id: string, field: "paidAt" | "marketerPaidAt" | "verifiedAt", value: string | null) => {
     setApps((prev) => prev.map((a) => (a.id === id ? { ...a, [field]: value } : a)));
     try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) }); } catch {}
@@ -418,6 +424,12 @@ export default function AdminAmbassadorsPage() {
                           <input value={byDraft[a.id] || ""} onChange={(e) => setByDraft((d) => ({ ...d, [a.id]: e.target.value }))} placeholder="Who sent it?" style={{ width: 150, flex: "none", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 8, padding: "8px 11px", font: `500 12.5px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          {!accepted && (
+                            <>
+                              <button onClick={() => markAccepted(a.id)} disabled={busy === a.id} title="They've agreed to hand over their account" style={{ font: `700 12px ${F_SANS}`, color: "var(--st-active-fg)", background: "var(--st-active-bg)", border: "none", padding: "7px 13px", borderRadius: 8, cursor: "pointer" }}>✓ Mark accepted</button>
+                              <span style={{ width: 1, height: 18, background: "var(--divider)", margin: "0 2px" }} />
+                            </>
+                          )}
                           <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)" }}>Log:</span>
                           {(["whatsapp", "email", "call", "text", "note"] as const).map((ch) => (
                             <button key={ch} onClick={() => logTouch(a.id, ch)} disabled={busy === a.id} style={{ ...secBtn, padding: "7px 12px", font: `600 12px ${F_SANS}` }}>+ {touchLabel(ch)}</button>
