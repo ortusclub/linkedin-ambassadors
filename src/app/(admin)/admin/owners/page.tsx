@@ -180,6 +180,10 @@ const resolveStatus = (o: Owner): OwnerStatus =>
 const labelCss: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
 const inputCss: React.CSSProperties = { width: "100%", minWidth: 0, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 11px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" };
 const darkBtn: React.CSSProperties = { font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap" };
+// Pay buttons are locked until the account is confirmed Active — no paying a paused/lost owner.
+const disabledBtn: React.CSSProperties = { font: `600 12.5px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "1px solid var(--divider)", padding: "9px 15px", borderRadius: 9, cursor: "not-allowed", whiteSpace: "nowrap", opacity: 0.7 };
+const activeOkStyle: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "var(--st-active-bg)", color: "var(--st-active-fg)", whiteSpace: "nowrap" };
+const confirmActiveStyle: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)", border: "none", cursor: "pointer", whiteSpace: "nowrap" };
 
 // Uncontrolled save-on-blur field. Module scope so it never remounts mid-edit.
 function Editable({
@@ -403,6 +407,10 @@ export default function AdminOwnersPage() {
             const hasSetupRecord = owner.monthlyPayouts.some((p) => p.kind === "setup");
             const totalPaid = owner.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) + (owner.setupFeePaidAt && !hasSetupRecord ? SETUP_FEE : 0);
 
+            const active = resolveStatus(owner) === "active";
+            const activeNote = active
+              ? <span style={activeOkStyle}>● Active — ok to pay</span>
+              : <button type="button" onClick={() => patchOwner(owner.applicationId, { ownerStatus: "active" })} title="Confirm the account is active/working, then you can pay" style={confirmActiveStyle}>○ Confirm active to pay</button>;
             const markSetupPaid = () => patchOwner(owner.applicationId, { paidAt: new Date().toISOString(), ...(hasSetupRecord ? {} : { addMonthlyPayout: { amount: SETUP_FEE, kind: "setup" } }) });
             const attachProof = (index: number) => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) patchOwner(owner.applicationId, { updateMonthlyPayout: { index, proofUrl: url.trim() } }); };
 
@@ -499,7 +507,10 @@ export default function AdminOwnersPage() {
                         {setupPaid ? (
                           <button type="button" onClick={() => patchOwner(owner.applicationId, { paidAt: null })} style={{ font: `600 12.5px ${F_SANS}`, color: "var(--muted)", background: "transparent", border: "1px solid var(--btn-secondary-border)", padding: "9px 14px", borderRadius: 9, cursor: "pointer" }}>Clear</button>
                         ) : (
-                          <button type="button" onClick={markSetupPaid} style={darkBtn}>Mark paid</button>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
+                            {activeNote}
+                            <button type="button" onClick={active ? markSetupPaid : undefined} disabled={!active} style={active ? darkBtn : disabledBtn}>Mark paid</button>
+                          </div>
                         )}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, padding: "14px 16px" }}>
@@ -510,7 +521,10 @@ export default function AdminOwnersPage() {
                           </div>
                           <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", marginTop: 2 }}>On the 1st, after one full month of service</div>
                         </div>
-                        <button type="button" onClick={() => patchOwner(owner.applicationId, { addMonthlyPayout: { amount: monthlyAmt, kind: "monthly", method: owner.paymentMethod } })} style={darkBtn}>+ Log {peso(monthlyAmt)}</button>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
+                          {activeNote}
+                          <button type="button" onClick={active ? () => patchOwner(owner.applicationId, { addMonthlyPayout: { amount: monthlyAmt, kind: "monthly", method: owner.paymentMethod } }) : undefined} disabled={!active} style={active ? darkBtn : disabledBtn}>+ Log {peso(monthlyAmt)}</button>
+                        </div>
                       </div>
                     </div>
 
