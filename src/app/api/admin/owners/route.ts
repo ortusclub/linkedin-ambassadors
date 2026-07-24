@@ -71,6 +71,7 @@ export async function GET() {
         id: true,
         email: true,
         fullName: true,
+        contactNumber: true,
         linkedinUrl: true,
         linkedinEmail: true,
         status: true,
@@ -170,6 +171,7 @@ export async function GET() {
       return {
         email,
         fullName: user?.fullName || app?.fullName || email,
+        contactNumber: app?.contactNumber || null,
         joinedAt: user?.createdAt || null,
         accountCount: data.accounts.length,
         applicationCount: data.applicationCount,

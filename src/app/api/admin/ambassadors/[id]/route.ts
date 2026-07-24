@@ -30,8 +30,22 @@ const updateSchema = z.object({
   paymentMethod: z.string().nullable().optional(),
   paymentDetails: z.string().nullable().optional(),
   // Recurring ₱500/month payout: append a receipt, or remove one by index.
-  addMonthlyPayout: z.object({ amount: z.number(), note: z.string().optional() }).optional(),
+  // A receipt can carry proof-of-payment and its notified / acknowledged audit trail.
+  addMonthlyPayout: z.object({
+    amount: z.number(),
+    note: z.string().optional(),
+    kind: z.enum(["setup", "monthly"]).optional(),
+    method: z.string().nullable().optional(),
+    proofUrl: z.string().nullable().optional(),
+  }).optional(),
   removeMonthlyPayout: z.number().int().optional(),
+  // Patch one existing receipt by index: attach proof, or flip notified / acknowledged.
+  updateMonthlyPayout: z.object({
+    index: z.number().int(),
+    proofUrl: z.string().nullable().optional(),
+    notified: z.boolean().optional(),
+    acknowledged: z.boolean().optional(),
+  }).optional(),
   addTouch: z.object({
     ch: z.enum(["whatsapp", "email", "call", "text", "reply", "booked", "done", "note"]),
     text: z.string().min(1),
@@ -47,7 +61,7 @@ export async function PATCH(
     const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
-    const { addTouch, addMonthlyPayout, removeMonthlyPayout, nextFollowUp, onboardedAt, verifiedAt, paidAt, marketerPaidAt, ...rest } = updateSchema.parse(body);
+    const { addTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardedAt, verifiedAt, paidAt, marketerPaidAt, ...rest } = updateSchema.parse(body);
 
     // Get the current application before updating
     const currentApp = await prisma.ambassadorApplication.findUnique({ where: { id } });
@@ -68,15 +82,39 @@ export async function PATCH(
         { ch: addTouch.ch, text: addTouch.text, by: addTouch.by?.trim() || admin.fullName || admin.email, at: new Date().toISOString() },
       ] as Prisma.InputJsonValue;
     }
-    if (addMonthlyPayout || removeMonthlyPayout !== undefined) {
-      let payouts = Array.isArray(currentApp.monthlyPayouts) ? (currentApp.monthlyPayouts as unknown[]) : [];
+    if (addMonthlyPayout || removeMonthlyPayout !== undefined || updateMonthlyPayout) {
+      let payouts = Array.isArray(currentApp.monthlyPayouts) ? (currentApp.monthlyPayouts as Record<string, unknown>[]) : [];
       if (removeMonthlyPayout !== undefined) {
         payouts = payouts.filter((_, i) => i !== removeMonthlyPayout);
+      }
+      if (updateMonthlyPayout) {
+        const { index, proofUrl, notified, acknowledged } = updateMonthlyPayout;
+        payouts = payouts.map((p, i) => {
+          if (i !== index) return p;
+          const now = new Date().toISOString();
+          const next = { ...p };
+          if (proofUrl !== undefined) next.proofUrl = proofUrl;
+          if (notified !== undefined) { next.notified = notified; next.notifiedAt = notified ? now : null; }
+          if (acknowledged !== undefined) { next.acknowledged = acknowledged; next.acknowledgedAt = acknowledged ? now : null; }
+          return next;
+        });
       }
       if (addMonthlyPayout) {
         payouts = [
           ...payouts,
-          { paidAt: new Date().toISOString(), amount: addMonthlyPayout.amount, note: addMonthlyPayout.note?.trim() || null, by: admin.fullName || admin.email },
+          {
+            paidAt: new Date().toISOString(),
+            amount: addMonthlyPayout.amount,
+            kind: addMonthlyPayout.kind || "monthly",
+            method: addMonthlyPayout.method?.trim() || null,
+            proofUrl: addMonthlyPayout.proofUrl?.trim() || null,
+            note: addMonthlyPayout.note?.trim() || null,
+            by: admin.fullName || admin.email,
+            notified: false,
+            notifiedAt: null,
+            acknowledged: false,
+            acknowledgedAt: null,
+          },
         ];
       }
       updateData.monthlyPayouts = payouts as Prisma.InputJsonValue;
