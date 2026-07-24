@@ -896,6 +896,7 @@ export async function sendFastTrackInvite(email: string | string[], firstName: s
     subject: "A faster way to get set up with LinkedVelocity",
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 22px;">
+        <img src="https://linkedvelocity.com/linkedvelocity-mark.png" alt="LinkedVelocity" width="52" height="52" style="display:block;width:52px;height:52px;border-radius:12px;margin:0 0 22px;" />
         <p style="${p}">${hi}</p>
         <p style="${p}">${opener}</p>
         <p style="${p}"><strong>Option 1 — Skip the wait:</strong> Reply to this email with the word <strong>NOW</strong> (or just text us) and we'll get you set up much faster. To do it, we'll need:</p>
