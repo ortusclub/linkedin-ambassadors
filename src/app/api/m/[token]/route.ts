@@ -36,9 +36,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     counts.set(slug, c);
   }
 
-  // Competitive board — counts only, no money, no PII.
+  // Competitive board — counts only, no money, no PII. Only real referrers appear:
+  // an unknown/typo'd code (someone typing a nickname into the referral field) must
+  // not surface as a phantom "person" on everyone's leaderboard.
   const board = [...counts.entries()]
-    .map(([slug, c]) => ({ name: nameBySlug.get(slug) || slug, signups: c.signups, converted: c.converted, isMe: slug === me.slug }))
+    .filter(([slug]) => nameBySlug.has(slug))
+    .map(([slug, c]) => ({ name: nameBySlug.get(slug)!, signups: c.signups, converted: c.converted, isMe: slug === me.slug }))
     .sort((a, b) => b.signups - a.signups || b.converted - a.converted);
   if (!board.some((b) => b.isMe)) board.push({ name: me.name, signups: 0, converted: 0, isMe: true });
 
