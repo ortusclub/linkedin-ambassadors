@@ -87,12 +87,43 @@ export async function PATCH(
       data: updateData,
     });
 
-    // When onboarded, flip the account live (out of under_review) so it shows on the owners page.
-    if (rest.status === "onboarded" && currentApp.status !== "onboarded") {
-      await prisma.linkedInAccount.updateMany({
-        where: { linkedinUrl: application.linkedinUrl, status: "under_review" },
-        data: { status: "available" },
+    // A person becomes an owner the moment they're onboarded — whether that's via
+    // the status dropdown OR the "mark onboarded" button (which only sets
+    // onboarded_at and can leave status at "approved"). In either case, make sure a
+    // live account exists so they show on the owners page.
+    const justOnboarded =
+      (rest.status === "onboarded" && currentApp.status !== "onboarded") ||
+      (!!application.onboardedAt && !currentApp.onboardedAt);
+    if (justOnboarded) {
+      const existing = await prisma.linkedInAccount.findFirst({
+        where: {
+          status: { notIn: ["removed", "retired"] },
+          OR: [
+            { notes: { contains: `Owner: ${application.email}` } },
+            ...(application.linkedinUrl ? [{ linkedinUrl: application.linkedinUrl }] : []),
+          ],
+        },
       });
+      if (existing) {
+        if (existing.status === "under_review") {
+          await prisma.linkedInAccount.update({ where: { id: existing.id }, data: { status: "available" } });
+        }
+      } else {
+        await prisma.linkedInAccount.create({
+          data: {
+            linkedinName: application.fullName,
+            linkedinUrl: application.linkedinUrl || null,
+            connectionCount: application.connectionCount || 0,
+            industry: application.industry || null,
+            location: application.location || null,
+            status: "available",
+            ambassadorPayment: Number(application.offeredAmount) || 500,
+            gologinAccount: "klabber",
+            listed: false,
+            notes: `Owner: ${application.email}. Profile email: ${application.linkedinEmail || application.email}.`,
+          },
+        });
+      }
     }
 
     // When status changes to "approved", automatically create a LinkedInAccount
