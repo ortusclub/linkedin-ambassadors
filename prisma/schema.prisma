@@ -244,6 +244,10 @@ model AmbassadorApplication {
   usdcNetwork       String?          @map("usdc_network")
   paypalEmail       String?          @map("paypal_email")
   wiseEmail         String?          @map("wise_email")
+  // Owner operational status on the Account Owners page: active/onboarding/paused/lost.
+  ownerStatus       String?          @map("owner_status")
+  // Preferred contact channel (WhatsApp/Telegram/Messenger/Email/Viber); handle = contactNumber.
+  contactChannel    String?          @map("contact_channel")
   // Free-text payout handle (e.g. a GCash number) shown alongside paymentMethod.
   paymentDetails    String?          @map("payment_details")
   // Recurring ₱500/month payout log: [{ paidAt: ISO, amount: number, note?: string }].

@@ -29,6 +29,8 @@ const updateSchema = z.object({
   // Owner payout details
   paymentMethod: z.string().nullable().optional(),
   paymentDetails: z.string().nullable().optional(),
+  ownerStatus: z.enum(["active", "onboarding", "paused", "lost"]).nullable().optional(),
+  contactChannel: z.string().nullable().optional(),
   // Recurring ₱500/month payout: append a receipt, or remove one by index.
   // A receipt can carry proof-of-payment and its notified / acknowledged audit trail.
   addMonthlyPayout: z.object({

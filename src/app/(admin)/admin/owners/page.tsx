@@ -63,7 +63,8 @@ const WHEN_TONE: Record<"over" | "soon" | "later", { bg: string; fg: string }> =
 // Owner relationship status, derived from the application's pipeline status. The four
 // buckets mirror the design's Active / Onboarding / Paused / Lost.
 type OwnerStatus = "active" | "onboarding" | "paused" | "lost";
-const ownerStatus = (s: string | null): OwnerStatus => {
+// Fallback when no status has been set manually — inferred from the pipeline status.
+const deriveStatus = (s: string | null): OwnerStatus => {
   if (s === "onboarded") return "active";
   if (s === "on_hold") return "paused";
   if (s === "rejected" || s === "unreachable") return "lost";
@@ -75,6 +76,9 @@ const STATUS_META: Record<OwnerStatus, { label: string; bg: string; fg: string }
   paused: { label: "Paused", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" },
   lost: { label: "Lost", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)" },
 };
+const STATUS_OPTIONS: OwnerStatus[] = ["active", "onboarding", "paused", "lost"];
+const CHANNEL_OPTIONS = ["", "WhatsApp", "Telegram", "Messenger", "Email", "Viber", "SMS"];
+const toDateInput = (d: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
 const ACCOUNT_ST: Record<string, { bg: string; fg: string }> = {
   available: { bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" },
@@ -157,6 +161,8 @@ interface Owner {
   monthlyPayout: number;
   applicationId: string | null;
   applicationStatus: string | null;
+  ownerStatus: string | null;
+  contactChannel: string | null;
   paymentMethod: string | null;
   paymentDetails: string | null;
   setupFeePaidAt: string | null;
@@ -166,6 +172,10 @@ interface Owner {
   accountFreshness: string | null;
   accounts: OwnerAccount[];
 }
+
+// Manually-set owner status wins; otherwise fall back to the pipeline-derived one.
+const resolveStatus = (o: Owner): OwnerStatus =>
+  o.ownerStatus && o.ownerStatus in STATUS_META ? (o.ownerStatus as OwnerStatus) : deriveStatus(o.applicationStatus);
 
 const labelCss: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
 const inputCss: React.CSSProperties = { width: "100%", minWidth: 0, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 11px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" };
@@ -271,7 +281,7 @@ export default function AdminOwnersPage() {
   };
 
   const q = query.trim().toLowerCase();
-  const shown = owners.filter((o) => !q || `${o.fullName} ${o.email} ${o.paymentMethod || ""} ${o.accounts.map((a) => a.linkedinName).join(" ")} ${ownerStatus(o.applicationStatus)}`.toLowerCase().includes(q));
+  const shown = owners.filter((o) => !q || `${o.fullName} ${o.email} ${o.paymentMethod || ""} ${o.accounts.map((a) => a.linkedinName).join(" ")} ${resolveStatus(o)}`.toLowerCase().includes(q));
   const totalMonthly = owners.reduce((s, o) => s + o.monthlyPayout, 0);
   const allOpen = shown.length > 0 && shown.every((o) => expanded.has(o.email));
   const toggleAll = () => setExpanded(allOpen ? new Set() : new Set(shown.map((o) => o.email)));
@@ -382,7 +392,7 @@ export default function AdminOwnersPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {shown.map((owner) => {
             const open = expanded.has(owner.email);
-            const st = STATUS_META[ownerStatus(owner.applicationStatus)];
+            const st = STATUS_META[resolveStatus(owner)];
             const missing = missingFields(owner);
             const setupPaid = fmtDate(owner.setupFeePaidAt);
             const monthlyOnly = owner.monthlyPayouts.filter((p) => p.kind !== "setup");
@@ -426,16 +436,27 @@ export default function AdminOwnersPage() {
                     <div style={{ ...labelCss, marginBottom: 12 }}>Account</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "16px 20px", marginBottom: 26 }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                        <span style={labelCss}>Relationship status</span>
-                        <span style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}><span style={{ display: "inline-block", font: `700 11px ${F_SANS}`, padding: "4px 11px", borderRadius: 999, background: st.bg, color: st.fg }}>{st.label}</span></span>
+                        <span style={labelCss}>Owner status</span>
+                        <select defaultValue={resolveStatus(owner)} onClick={(e) => e.stopPropagation()} onChange={(e) => patchOwner(owner.applicationId, { ownerStatus: e.target.value })}
+                          style={{ ...inputCss, cursor: "pointer", fontWeight: 600 }}>
+                          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
+                        </select>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                        <span style={labelCss}>Onboarded</span>
-                        <span style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{fmtDate(owner.onboardedAt) || fmtDate(owner.joinedAt) || "—"}</span>
+                        <span style={labelCss}>Date acquired</span>
+                        <input type="date" defaultValue={toDateInput(owner.onboardedAt)} onClick={(e) => e.stopPropagation()}
+                          onBlur={(e) => { const v = e.target.value; if (v && v !== toDateInput(owner.onboardedAt)) patchOwner(owner.applicationId, { onboardedAt: `${v}T00:00:00.000Z` }); }}
+                          style={inputCss} />
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                         <span style={labelCss}>Best contact</span>
-                        <Editable initial={owner.contactNumber} placeholder="handle / number" onSave={(v) => patchOwner(owner.applicationId, { contactNumber: v })} />
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <select defaultValue={owner.contactChannel || ""} onClick={(e) => e.stopPropagation()} onChange={(e) => patchOwner(owner.applicationId, { contactChannel: e.target.value || null })}
+                            style={{ ...inputCss, width: 130, flex: "none", cursor: "pointer", fontWeight: 600 }}>
+                            {CHANNEL_OPTIONS.map((c) => <option key={c} value={c}>{c || "— channel —"}</option>)}
+                          </select>
+                          <Editable initial={owner.contactNumber} placeholder="handle / number" onSave={(v) => patchOwner(owner.applicationId, { contactNumber: v })} />
+                        </div>
                       </div>
                     </div>
 
