@@ -1,0 +1,160 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getOwners, type Owner } from "@/lib/owners";
+
+// CSV export of Account Owners for Google Sheets via
+// =IMPORTDATA("https://linkedvelocity.com/api/admin/owners/export?key=XXXX").
+// Reads getOwners() — the SAME aggregation the admin page uses — so the sheet is a live
+// mirror of the admin view, never a hand-kept copy (one source of truth).
+//
+// Rows are GROUPED by relationship status (Active / Onboarding / Paused / Lost), each
+// preceded by a section-header row — matching the design's buckets. Columns are grouped
+// left-to-right by the card's sections: Owner → Profiles → Payout → Payment status.
+// IMPORTDATA is position-based, so APPEND new columns at the end; never reorder.
+//
+// Credentials (passwords, 2FA, login emails) are DELIBERATELY excluded — they stay in the
+// admin behind reveal toggles and must not land in a shared spreadsheet.
+export const dynamic = "force-dynamic";
+
+function csvCell(v: unknown): string {
+  const s = v === null || v === undefined ? "" : String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+const peso = (n: number) => `₱${new Intl.NumberFormat("en-PH", { maximumFractionDigits: 0 }).format(n)}`;
+
+function fmtDate(d: Date | string | null | undefined): string {
+  if (!d) return "";
+  const dt = typeof d === "string" ? new Date(d) : d;
+  if (isNaN(dt.getTime())) return "";
+  return dt.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+const SETUP_FEE = 1000;
+
+// Roll a date forward off weekends (mirrors lib/payment-schedule / the admin page).
+function nextBusinessDay(d: Date): Date {
+  const r = new Date(d);
+  const day = r.getUTCDay();
+  if (day === 6) r.setUTCDate(r.getUTCDate() + 2);
+  else if (day === 0) r.setUTCDate(r.getUTCDate() + 1);
+  return r;
+}
+function setupDueDate(onboardedAt: Date | null, freshness: string | null): Date | null {
+  if (!onboardedAt) return null;
+  const d = new Date(onboardedAt);
+  d.setUTCDate(d.getUTCDate() + (freshness === "fresh" ? 7 : 3));
+  return nextBusinessDay(d);
+}
+
+// Relationship buckets — mirror the admin page's ownerStatus() / STATUS_META.
+type OwnerStatus = "active" | "onboarding" | "paused" | "lost";
+function ownerStatus(s: string | null): OwnerStatus {
+  if (s === "onboarded") return "active";
+  if (s === "on_hold") return "paused";
+  if (s === "rejected" || s === "unreachable") return "lost";
+  return "onboarding";
+}
+const STATUS_LABEL: Record<OwnerStatus, string> = {
+  active: "Active", onboarding: "Onboarding", paused: "Paused", lost: "Lost",
+};
+const SECTIONS: [OwnerStatus, string][] = [
+  ["active", "ACTIVE"],
+  ["onboarding", "ONBOARDING"],
+  ["paused", "PAUSED"],
+  ["lost", "LOST"],
+];
+
+// Operational completeness (credential fields intentionally NOT counted here).
+function missingFields(o: Owner): string[] {
+  const m: string[] = [];
+  if (!o.paymentMethod) m.push("Payout method");
+  if (!o.paymentDetails) m.push("Payout details");
+  if (!o.contactNumber) m.push("Best contact");
+  o.accounts.forEach((a) => {
+    if (!a.linkedinUrl) m.push(`${o.accounts.length > 1 ? `${a.linkedinName}: ` : ""}LinkedIn URL`);
+  });
+  return m;
+}
+
+function setupStatus(o: Owner): string {
+  if (o.setupFeePaidAt) return `Paid ${fmtDate(o.setupFeePaidAt)}`;
+  const due = setupDueDate(o.onboardedAt, o.accountFreshness);
+  if (!due) return "Not scheduled";
+  const overdue = due.getTime() < Date.now();
+  return `Due ${fmtDate(due)}${overdue ? " · overdue" : ""}`;
+}
+
+function profilesCell(o: Owner): string {
+  return o.accounts.map((a) => `${a.linkedinName} (${a.status})`).join("; ");
+}
+function profileUrlsCell(o: Owner): string {
+  return o.accounts.map((a) => a.linkedinUrl).filter(Boolean).join("; ");
+}
+
+export async function GET(req: NextRequest) {
+  const key = req.nextUrl.searchParams.get("key");
+  const expected = process.env.RENTALS_EXPORT_KEY;
+  if (!expected || !key || key !== expected) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const owners = await getOwners();
+
+  const headers = [
+    // Owner
+    "Owner", "Email", "Best contact", "Relationship", "Onboarded",
+    // Profiles
+    "# Profiles", "Profiles", "LinkedIn URLs",
+    // Payout
+    "Monthly payout", "Payout method", "Payout details",
+    // Payment status
+    "Setup fee", "Monthly payments paid", "Total paid", "Missing fields",
+  ];
+  const width = headers.length;
+
+  const rowFor = (o: Owner) => {
+    const monthlyOnly = o.monthlyPayouts.filter((p) => p.kind !== "setup");
+    const hasSetupRecord = o.monthlyPayouts.some((p) => p.kind === "setup");
+    const totalPaid =
+      o.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) +
+      (o.setupFeePaidAt && !hasSetupRecord ? SETUP_FEE : 0);
+    const missing = missingFields(o);
+    return [
+      // Owner
+      o.fullName,
+      o.email,
+      o.contactNumber || "",
+      STATUS_LABEL[ownerStatus(o.applicationStatus)],
+      fmtDate(o.onboardedAt) || fmtDate(o.joinedAt),
+      // Profiles
+      String(o.accountCount),
+      profilesCell(o),
+      profileUrlsCell(o),
+      // Payout
+      o.monthlyPayout > 0 ? `${peso(o.monthlyPayout)}/mo` : "TBC",
+      o.paymentMethod || "",
+      o.paymentDetails || "",
+      // Payment status
+      setupStatus(o),
+      String(monthlyOnly.length),
+      totalPaid > 0 ? peso(totalPaid) : "",
+      missing.length ? missing.join("; ") : "—",
+    ];
+  };
+
+  const out: string[][] = [headers];
+  for (const [status, label] of SECTIONS) {
+    const group = owners.filter((o) => ownerStatus(o.applicationStatus) === status);
+    if (group.length === 0) continue;
+    const section = new Array(width).fill("");
+    section[0] = `— ${label} (${group.length}) —`;
+    out.push(section);
+    for (const o of group) out.push(rowFor(o));
+  }
+
+  const csv = out.map((row) => row.map(csvCell).join(",")).join("\n");
+  return new NextResponse(csv, {
+    headers: { "Content-Type": "text/csv; charset=utf-8", "Cache-Control": "no-store" },
+  });
+}

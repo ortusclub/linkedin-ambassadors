@@ -227,6 +227,8 @@ export default function AdminOwnersPage() {
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [due, setDue] = useState<PaymentsDue | null>(null);
   const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+  const [sheetCopied, setSheetCopied] = useState(false);
 
   const load = useCallback(() => {
     fetch("/api/admin/payments-due").then((r) => r.json()).then((d) => setDue(d)).catch(() => {});
@@ -236,6 +238,17 @@ export default function AdminOwnersPage() {
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    fetch("/api/admin/owners/export-url").then((r) => r.json())
+      .then((d) => { if (d.configured) setSheetUrl(d.url); }).catch(() => {});
+  }, []);
+
+  const copySheetFormula = () => {
+    if (!sheetUrl) return;
+    navigator.clipboard.writeText(`=IMPORTDATA("${sheetUrl}")`);
+    setSheetCopied(true);
+    setTimeout(() => setSheetCopied(false), 2000);
+  };
 
   const emailMilee = async () => {
     setEmailState("sending");
@@ -273,9 +286,19 @@ export default function AdminOwnersPage() {
             Onboarded ambassadors who supply profiles. Expand an owner for their status, credentials, payout method, and the full payment record — proof of each payout and whether they&apos;ve acknowledged it.
           </p>
         </div>
-        <div style={{ textAlign: "right", flex: "none" }}>
-          <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted)" }}>{owners.length} owner{owners.length !== 1 ? "s" : ""}</div>
-          {totalMonthly > 0 && <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{peso(totalMonthly)}/mo total</div>}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flex: "none" }}>
+          {sheetUrl && (
+            <button type="button" onClick={copySheetFormula}
+              title="Paste into cell A1 of a blank Google Sheet to mirror this view live (auto-syncs, no manual export)"
+              style={{ ...darkBtn, display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" /></svg>
+              {sheetCopied ? "Copied ✓" : "Copy Sheets link"}
+            </button>
+          )}
+          <div style={{ textAlign: "right" }}>
+            <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted)" }}>{owners.length} owner{owners.length !== 1 ? "s" : ""}</div>
+            {totalMonthly > 0 && <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{peso(totalMonthly)}/mo total</div>}
+          </div>
         </div>
       </div>
 
