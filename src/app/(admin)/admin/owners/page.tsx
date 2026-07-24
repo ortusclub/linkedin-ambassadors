@@ -31,6 +31,24 @@ const monthlyDueDate = (onboardedAt: string | null, idx: number): Date | null =>
 
 const isOverdue = (d: Date | null) => !!d && d.getTime() < Date.now();
 
+// Relative "when" for the payments-due rows: overdue / today / in N days, with a tone
+// that drives the pill colour (red overdue, amber if imminent, neutral further out).
+const DAY_MS = 86400000;
+const relWhen = (iso: string): { label: string; tone: "over" | "soon" | "later" } => {
+  const d = new Date(iso); d.setHours(0, 0, 0, 0);
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  const n = Math.round((d.getTime() - t0.getTime()) / DAY_MS);
+  if (n < 0) return { label: "overdue", tone: "over" };
+  if (n === 0) return { label: "today", tone: "soon" };
+  if (n === 1) return { label: "in 1 day", tone: "soon" };
+  return { label: `in ${n} days`, tone: n <= 2 ? "soon" : "later" };
+};
+const WHEN_TONE: Record<"over" | "soon" | "later", { bg: string; fg: string }> = {
+  over: { bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)" },
+  soon: { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" },
+  later: { bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)" },
+};
+
 // Owner relationship status, derived from the application's pipeline status. The four
 // buckets mirror the design's Active / Onboarding / Paused / Lost.
 type OwnerStatus = "active" | "onboarding" | "paused" | "lost";
@@ -235,17 +253,29 @@ export default function AdminOwnersPage() {
 
       {/* payments due */}
       {due && (() => {
-        const items = [...due.setup, ...due.monthly];
-        const count = items.length + due.marketers.length;
-        const nothing = count === 0;
+        // Every dated payout — due now AND coming up within the horizon — as a row,
+        // sorted soonest-first, each with a relative "in N days" pill.
+        const rows = [...due.setup, ...due.monthly, ...due.upcoming].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+        const overdueCount = rows.filter((r) => r.overdue).length;
+        const dueNowCount = due.setup.length + due.monthly.length + due.marketers.length;
+        const upcomingCount = due.upcoming.length;
+        const nothing = rows.length === 0 && due.marketers.length === 0;
+        // Subtitle mirrors the design: call out overdue/ due-now money, else the upcoming count.
+        let subtitle: React.ReactNode;
+        if (nothing) subtitle = "Nothing due right now.";
+        else if (dueNowCount === 0 && upcomingCount > 0) {
+          const kinds = new Set(due.upcoming.map((u) => u.kind));
+          const noun = kinds.size === 1 ? (kinds.has("setup") ? "setup fee" : "monthly payout") : "payment";
+          subtitle = `Nothing overdue — ${upcomingCount} ${noun}${upcomingCount !== 1 ? "s" : ""} coming up this week.`;
+        } else {
+          subtitle = <><strong style={{ color: "var(--text)" }}>{peso(due.totalDueNow)}</strong> due now across {dueNowCount} payout{dueNowCount !== 1 ? "s" : ""}{overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}{upcomingCount > 0 ? `, ${upcomingCount} coming up` : ""}.</>;
+        }
         return (
           <div style={{ background: "var(--warn-bg)", border: "1px solid var(--warn-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 22 }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: nothing ? 0 : 14 }}>
               <div>
                 <div style={{ font: `600 15px ${F_GRO}`, color: "var(--text)", marginBottom: 3 }}>Payments due</div>
-                <div style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>
-                  {nothing ? "Nothing due right now." : <><strong style={{ color: "var(--text)" }}>{peso(due.totalDueNow)}</strong> due now across {count} payout{count !== 1 ? "s" : ""}.</>}
-                </div>
+                <div style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{subtitle}</div>
               </div>
               <button type="button" onClick={emailMilee} disabled={emailState === "sending"} style={{ ...darkBtn, flex: "none", opacity: emailState === "sending" ? 0.6 : 1 }}>
                 {emailState === "sending" ? "Sending…" : emailState === "sent" ? "✓ Sent to Milee" : emailState === "error" ? "Failed — retry" : "✉ Email Milee"}
@@ -253,23 +283,29 @@ export default function AdminOwnersPage() {
             </div>
             {!nothing && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {items.map((i, idx) => (
-                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--card)", border: "1px solid var(--divider)", borderRadius: 11, padding: "11px 14px" }}>
-                    <span style={{ font: `700 11px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, whiteSpace: "nowrap", flex: "none", textAlign: "center", background: i.overdue ? "var(--st-cancel-bg)" : "var(--warn-badge-bg)", color: i.overdue ? "var(--st-cancel-fg)" : "var(--warn-badge-text)" }}>
-                      {i.overdue ? "Overdue" : "Due"}
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{i.name}</div>
-                      <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{i.kind === "setup" ? "Setup fee" : "Monthly"} · {fmtDate(i.dueDate)}</div>
+                {rows.map((i, idx) => {
+                  const w = relWhen(i.dueDate);
+                  return (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--card)", border: "1px solid var(--divider)", borderRadius: 11, padding: "11px 14px" }}>
+                      <span style={{ font: `700 11px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, whiteSpace: "nowrap", flex: "none", textAlign: "center", minWidth: 74, background: WHEN_TONE[w.tone].bg, color: WHEN_TONE[w.tone].fg }}>{w.label}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{i.name}</div>
+                        <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{i.kind === "setup" ? "Setup fee" : "Monthly"} · {fmtDate(i.dueDate)}</div>
+                      </div>
+                      <span style={{ font: `700 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{peso(i.amount)}</span>
                     </div>
-                    <span style={{ font: `700 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{peso(i.amount)}</span>
+                  );
+                })}
+                {due.marketers.map((m, idx) => (
+                  <div key={`mk-${idx}`} style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--card)", border: "1px solid var(--divider)", borderRadius: 11, padding: "11px 14px" }}>
+                    <span style={{ font: `700 11px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, whiteSpace: "nowrap", flex: "none", textAlign: "center", minWidth: 74, background: "var(--st-active-bg)", color: "var(--st-active-fg)" }}>ready</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{m.name}</div>
+                      <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>Marketer · {m.count} signup{m.count !== 1 ? "s" : ""}</div>
+                    </div>
+                    <span style={{ font: `700 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{peso(m.amount)}</span>
                   </div>
                 ))}
-              </div>
-            )}
-            {due.upcoming.length > 0 && (
-              <div style={{ marginTop: 12, borderTop: "1px solid var(--warn-border)", paddingTop: 10, font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>
-                Coming up ({due.horizonDays}d): {due.upcoming.map((u) => `${u.name} (${u.kind} ${fmtDate(u.dueDate)})`).join(" · ")}
               </div>
             )}
           </div>
