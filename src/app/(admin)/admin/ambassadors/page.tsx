@@ -62,7 +62,7 @@ const BUCKET: Record<string, { label: string; bg: string; fg: string }> = {
 // filter chips (order + dot colour)
 const CHIPS: [string, string, string | null][] = [
   ["all", "All", null], ["in_progress", "In progress", "var(--blue-chip-text)"], ["no_response", "No response", "var(--st-unreach-fg)"],
-  ["on_hold", "On hold", "var(--warn-badge-text)"], ["accepted", "Accepted", "var(--st-active-fg)"], ["rejected", "Rejected", "var(--st-cancel-fg)"],
+  ["on_hold", "On hold", "var(--warn-badge-text)"], ["accepted", "Accepted", "var(--blue-chip-text)"], ["onboarded", "Onboarded", "var(--st-active-fg)"], ["rejected", "Rejected", "var(--st-cancel-fg)"],
 ];
 // action buttons -> DB status to set
 const ACTIONS: { db: string; label: string; kind: "accept" | "reject" | "secondary" }[] = [
@@ -87,6 +87,9 @@ const CALL_CHIPS: [string, string, string | null][] = [
 ];
 // call outcome (manual no-show) overrides the calendar-derived stage
 const callBucketOf = (a: Application): string => a.callOutcome === "no_show" ? "no_show" : (a.call?.stage || "none");
+// Display bucket for the status tabs: onboarded people get their own bucket (so
+// "Accepted" = agreed but not yet onboarded, "Onboarded" = handed over).
+const displayBucket = (a: Application): string => a.onboardedAt ? "onboarded" : bucketOf(a.status);
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const fmtDateTime = (iso: string | null) => iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
@@ -217,7 +220,7 @@ export default function AdminAmbassadorsPage() {
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: apps.length };
-    for (const a of apps) { const b = bucketOf(a.status); c[b] = (c[b] || 0) + 1; }
+    for (const a of apps) { const b = displayBucket(a); c[b] = (c[b] || 0) + 1; }
     return c;
   }, [apps]);
 
@@ -238,7 +241,7 @@ export default function AdminAmbassadorsPage() {
     const q = query.trim().toLowerCase();
     // group a person's submissions together, newest owner first
     const rows = apps.filter((a) => {
-      if (filter !== "all" && bucketOf(a.status) !== filter) return false;
+      if (filter !== "all" && displayBucket(a) !== filter) return false;
       if (callFilter !== "all" && callBucketOf(a) !== callFilter) return false;
       if (marketer !== "all" && (a.referredBy || "").trim() !== marketer) return false;
       if (!q) return true;
