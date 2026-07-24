@@ -8,11 +8,12 @@ import { getOwners, type Owner } from "@/lib/owners";
 //
 // Rows are GROUPED by relationship status (Active / Onboarding / Paused / Lost), each
 // preceded by a section-header row — matching the design's buckets. Columns are grouped
-// left-to-right by the card's sections: Owner → Profiles → Payout → Payment status.
-// IMPORTDATA is position-based, so APPEND new columns at the end; never reorder.
+// left-to-right by the card's sections: Owner → Profiles & credentials → Payout → Payment
+// status. IMPORTDATA is position-based, so APPEND new columns at the end; never reorder.
 //
-// Credentials (passwords, 2FA, login emails) are DELIBERATELY excluded — they stay in the
-// admin behind reveal toggles and must not land in a shared spreadsheet.
+// This sheet carries the full per-profile credentials (login email, work email, password,
+// 2FA) at Sam's request — it's operational data we hold. Anyone with the tokenised export
+// URL can read it, so treat the sheet's sharing settings as sensitive.
 export const dynamic = "force-dynamic";
 
 function csvCell(v: unknown): string {
@@ -92,6 +93,21 @@ function profileUrlsCell(o: Owner): string {
   return o.accounts.map((a) => a.linkedinUrl).filter(Boolean).join("; ");
 }
 
+// Per-profile credential cell. For a single-account owner it's just the value; for
+// multi-account owners each value is prefixed with the profile name, one per line,
+// so the cell stays readable in the sheet.
+function credCell(o: Owner, pick: (a: Owner["accounts"][number]) => string | null): string {
+  const multi = o.accounts.length > 1;
+  return o.accounts
+    .map((a) => {
+      const v = pick(a);
+      if (!v) return null;
+      return multi ? `${a.linkedinName}: ${v}` : v;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
   const expected = process.env.RENTALS_EXPORT_KEY;
@@ -104,8 +120,9 @@ export async function GET(req: NextRequest) {
   const headers = [
     // Owner
     "Owner", "Email", "Best contact", "Relationship", "Onboarded",
-    // Profiles
+    // Profiles & credentials
     "# Profiles", "Profiles", "LinkedIn URLs",
+    "Account email (login)", "Work email (klabber.co)", "Password", "2FA / recovery",
     // Payout
     "Monthly payout", "Payout method", "Payout details",
     // Payment status
@@ -127,10 +144,14 @@ export async function GET(req: NextRequest) {
       o.contactNumber || "",
       STATUS_LABEL[ownerStatus(o.applicationStatus)],
       fmtDate(o.onboardedAt) || fmtDate(o.joinedAt),
-      // Profiles
+      // Profiles & credentials
       String(o.accountCount),
       profilesCell(o),
       profileUrlsCell(o),
+      credCell(o, (a) => a.loginEmail),
+      credCell(o, (a) => a.workEmail),
+      credCell(o, (a) => a.accountPassword),
+      credCell(o, (a) => a.twoFactor),
       // Payout
       o.monthlyPayout > 0 ? `${peso(o.monthlyPayout)}/mo` : "TBC",
       o.paymentMethod || "",
