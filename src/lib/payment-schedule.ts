@@ -7,12 +7,23 @@ export const SETUP_FEE = 1000;       // one-time ₱ setup fee
 const MARKETER_RATE = 500;           // ₱ per onboarded signup
 const DAY = 24 * 60 * 60 * 1000;
 
-// Setup fee is due N days after onboarding: 3 for an established account, 1 week for fresh.
+// Roll a date forward to the next business day (Mon–Fri) when it lands on a weekend,
+// so a payment is never scheduled for a Saturday or Sunday.
+export function nextBusinessDay(d: Date): Date {
+  const r = new Date(d);
+  const day = r.getDay(); // 0 = Sun, 6 = Sat
+  if (day === 6) r.setDate(r.getDate() + 2);
+  else if (day === 0) r.setDate(r.getDate() + 1);
+  return r;
+}
+
+// Setup fee is due N days after onboarding: 3 for an established account, 1 week for
+// fresh — rolled to the next business day so it always falls on a weekday.
 export function setupDueDate(onboardedAt: Date | string | null, freshness: string | null): Date | null {
   if (!onboardedAt) return null;
   const d = new Date(onboardedAt);
   d.setDate(d.getDate() + (freshness === "fresh" ? 7 : 3));
-  return d;
+  return nextBusinessDay(d);
 }
 
 // Monthly ₱500 is paid on the 1st, after one full month of service. The Nth

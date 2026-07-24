@@ -11,12 +11,23 @@ const SETUP_FEE = 1000;
 const fmtDate = (d: string | Date | null | undefined) =>
   d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
 
-// Setup fee is due N days after onboarding: 3 for an established account, 1 week for a fresh one.
+// Roll a date forward to the next business day (Mon–Fri) if it lands on a weekend, so a
+// payment is never scheduled for a Saturday or Sunday. Mirrors lib/payment-schedule.
+const nextBusinessDay = (d: Date): Date => {
+  const r = new Date(d);
+  const day = r.getDay(); // 0 = Sun, 6 = Sat
+  if (day === 6) r.setDate(r.getDate() + 2);
+  else if (day === 0) r.setDate(r.getDate() + 1);
+  return r;
+};
+
+// Setup fee is due N days after onboarding: 3 for an established account, 1 week for a
+// fresh one — rolled to the next business day so it always lands on a weekday.
 const setupDueDate = (onboardedAt: string | null, freshness: string | null): Date | null => {
   if (!onboardedAt) return null;
   const d = new Date(onboardedAt);
   d.setDate(d.getDate() + (freshness === "fresh" ? 7 : 3));
-  return d;
+  return nextBusinessDay(d);
 };
 
 // Monthly ₱500 is paid on the 1st, after one full month of service. The first payment is
