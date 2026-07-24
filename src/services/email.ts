@@ -42,16 +42,8 @@ export async function renderEmail(
   }
 }
 
-// Every outgoing email gets the LinkedVelocity mark at the top. Added centrally
-// here (rather than in each template) so branding is consistent everywhere.
-const BRAND_LOGO = "https://linkedvelocity.com/linkedvelocity-mark.png";
-function prependBrandLogo(html: string): string {
-  return `<div style="text-align:center;padding:24px 20px 4px;"><img src="${BRAND_LOGO}" alt="LinkedVelocity" width="48" height="48" style="display:inline-block;width:48px;height:48px;border-radius:11px;" /></div>${html}`;
-}
-
 async function sendEmail({ to, subject, html, bcc, replyTo }: EmailOptions) {
-  const body = prependBrandLogo(html);
-  if (_capture) { _capture.push({ to, subject, html: body, bcc }); return; }
+  if (_capture) { _capture.push({ to, subject, html, bcc }); return; }
   let status: "sent" | "failed" | "skipped" = "sent";
   let errorMsg: string | null = null;
   try {
@@ -59,7 +51,7 @@ async function sendEmail({ to, subject, html, bcc, replyTo }: EmailOptions) {
       console.log(`[Email] Would send to ${to}${bcc ? ` (bcc ${bcc})` : ""}: ${subject}`);
       status = "skipped";
     } else {
-      await getResend().emails.send({ from, to, subject, html: body, ...(bcc ? { bcc } : {}), ...(replyTo ? { replyTo } : {}) });
+      await getResend().emails.send({ from, to, subject, html, ...(bcc ? { bcc } : {}), ...(replyTo ? { replyTo } : {}) });
     }
   } catch (e) {
     status = "failed";
@@ -71,7 +63,7 @@ async function sendEmail({ to, subject, html, bcc, replyTo }: EmailOptions) {
     await prisma.$executeRaw`
       INSERT INTO email_log (id, "to", subject, bcc, status, error, body, created_at)
       VALUES (${randomUUID()}, ${Array.isArray(to) ? to.join(", ") : to}, ${subject},
-              ${bcc ? (Array.isArray(bcc) ? bcc.join(", ") : bcc) : null}, ${status}, ${errorMsg}, ${body}, now())`;
+              ${bcc ? (Array.isArray(bcc) ? bcc.join(", ") : bcc) : null}, ${status}, ${errorMsg}, ${html}, now())`;
   } catch (e) {
     console.error("[Email] log write failed:", e);
   }
@@ -903,7 +895,7 @@ export async function sendFastTrackInvite(email: string | string[], firstName: s
     replyTo: FAST_TRACK_REPLY_TO,
     subject: "A faster way to get set up with LinkedVelocity",
     html: `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:12px 22px 32px;">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:30px 22px;">
         <p style="${p}">${hi}</p>
         <p style="${p}">${opener}</p>
         <p style="${p}"><strong>Option 1 — Skip the wait:</strong> Reply to this email with the word <strong>NOW</strong> (or just text us) and we'll get you set up much faster. To do it, we'll need:</p>
