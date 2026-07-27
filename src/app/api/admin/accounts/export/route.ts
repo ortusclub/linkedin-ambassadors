@@ -6,6 +6,11 @@ import { isCompanyEmail } from "@/lib/company";
 // =IMPORTDATA("https://linkedvelocity.com/api/admin/accounts/export?key=XXXX").
 // Shares the same secret as the rentals export (RENTALS_EXPORT_KEY). IMPORTDATA
 // can't send headers, so auth is a shared key in the URL — keep it private.
+//
+// Login credentials (login email / password / 2FA / work email) are ONLY emitted
+// when a SECOND key is also supplied: &ckey=<CREDENTIALS_EXPORT_KEY>. This keeps
+// credential access independently revocable — rotate CREDENTIALS_EXPORT_KEY to cut
+// off the credential columns without breaking the rest of the feed.
 export const dynamic = "force-dynamic";
 
 function csvCell(v: unknown): string {
@@ -32,6 +37,11 @@ export async function GET(req: NextRequest) {
   if (!expected || !key || key !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Credential columns are gated behind a second, separately-rotatable key.
+  const ckey = req.nextUrl.searchParams.get("ckey");
+  const credKey = process.env.CREDENTIALS_EXPORT_KEY;
+  const showCreds = !!credKey && ckey === credKey;
 
   const accounts = await prisma.linkedInAccount.findMany({
     where: { status: { in: ["under_review", "available", "rented", "maintenance", "unavailable", "retired"] } },
@@ -65,6 +75,7 @@ export async function GET(req: NextRequest) {
     "Monthly Price", "Ambassador Payout", "Owner",
     "Location", "Number of Connections", "Account Age", "Sales Navigator", "LinkedIn URL",
     "GoLogin Profile ID", "Shareable Link",
+    ...(showCreds ? ["Login Email", "Password", "2FA Key", "Work Email"] : []),
   ];
 
   const rows = sorted.map((a) => {
@@ -98,6 +109,9 @@ export async function GET(req: NextRequest) {
       a.linkedinUrl || "",
       a.gologinProfileId || "",
       a.gologinShareLink || "",
+      ...(showCreds
+        ? [a.loginEmail || "", a.accountPassword || "", a.twoFactor || "", a.workEmail || ""]
+        : []),
     ];
   });
 
