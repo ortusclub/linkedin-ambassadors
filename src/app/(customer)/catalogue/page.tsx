@@ -190,7 +190,7 @@ export default function CataloguePage() {
           <div style={{ background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
             <div className="cat2-listhead" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,0.8fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "14px 22px", background: "#F8FAFC", borderBottom: "1px solid #EDEFF2", font: `500 11px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A93A2" }}>
               <input type="checkbox" checked={selected.size > 0 && selected.size === rentable.length} onChange={toggleSelectAll} style={{ accentColor: "#0A66C2", cursor: "pointer" }} />
-              <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span className="cat2-hide">Sales Nav</span><span>{showPricing ? "Price" : ""}</span><span></span>
+              <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span className="cat2-hide">Sales Nav</span><span>Price</span><span></span>
             </div>
             {visible.map((a) => <ListRow key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} showPricing={showPricing} />)}
           </div>
