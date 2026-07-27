@@ -40,6 +40,7 @@ export interface Owner {
   paymentDetails: string | null;
   ownerStatus: string | null;
   contactChannel: string | null;
+  accountIssue: string | null;
   setupFeePaidAt: Date | null;
   monthlyPayouts: MonthlyPayout[];
   onboardedAt: Date | null;
@@ -105,6 +106,7 @@ export async function getOwners(): Promise<Owner[]> {
       paymentDetails: true,
       ownerStatus: true,
       contactChannel: true,
+      accountIssue: true,
       paidAt: true,
       monthlyPayouts: true,
       onboardedAt: true,
@@ -211,6 +213,7 @@ export async function getOwners(): Promise<Owner[]> {
       paymentDetails: app?.paymentDetails || null,
       ownerStatus: app?.ownerStatus || null,
       contactChannel: app?.contactChannel || null,
+      accountIssue: app?.accountIssue || null,
       setupFeePaidAt: app?.paidAt || null,
       monthlyPayouts: Array.isArray(app?.monthlyPayouts) ? (app!.monthlyPayouts as MonthlyPayout[]) : [],
       onboardedAt: app?.onboardedAt || null,

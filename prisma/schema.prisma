@@ -248,6 +248,9 @@ model AmbassadorApplication {
   ownerStatus       String?          @map("owner_status")
   // Preferred contact channel (WhatsApp/Telegram/Messenger/Email/Viber); handle = contactNumber.
   contactChannel    String?          @map("contact_channel")
+  // Set when the account can't be logged into (restricted / wrong password / etc.) —
+  // holds the reason and blocks payouts until resolved. Null = fine.
+  accountIssue      String?          @map("account_issue")
   // Free-text payout handle (e.g. a GCash number) shown alongside paymentMethod.
   paymentDetails    String?          @map("payment_details")
   // Recurring ₱500/month payout log: [{ paidAt: ISO, amount: number, note?: string }].

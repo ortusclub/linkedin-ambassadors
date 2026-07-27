@@ -31,6 +31,7 @@ const updateSchema = z.object({
   paymentDetails: z.string().nullable().optional(),
   ownerStatus: z.enum(["active", "onboarding", "paused", "lost"]).nullable().optional(),
   contactChannel: z.string().nullable().optional(),
+  accountIssue: z.string().nullable().optional(),
   // Recurring ₱500/month payout: append a receipt, or remove one by index.
   // A receipt can carry proof-of-payment and its notified / acknowledged audit trail.
   addMonthlyPayout: z.object({
@@ -129,8 +130,10 @@ export async function PATCH(
 
     // A person becomes an owner the moment they're onboarded — whether that's via
     // the status dropdown OR the "mark onboarded" button (which only sets
-    // onboarded_at and can leave status at "approved"). In either case, make sure a
-    // live account exists so they show on the owners page.
+    // onboarded_at and can leave status at "approved"). In either case, make sure an
+    // account exists so they show on the owners page. It starts OFFLINE (unavailable),
+    // not rentable — a fresh account is warming up and isn't inventory yet. Flip it to
+    // "available" from the inventory view once it's ready to rent.
     const justOnboarded =
       (rest.status === "onboarded" && currentApp.status !== "onboarded") ||
       (!!application.onboardedAt && !currentApp.onboardedAt);
@@ -146,7 +149,7 @@ export async function PATCH(
       });
       if (existing) {
         if (existing.status === "under_review") {
-          await prisma.linkedInAccount.update({ where: { id: existing.id }, data: { status: "available" } });
+          await prisma.linkedInAccount.update({ where: { id: existing.id }, data: { status: "unavailable" } });
         }
       } else {
         await prisma.linkedInAccount.create({
@@ -156,7 +159,7 @@ export async function PATCH(
             connectionCount: application.connectionCount || 0,
             industry: application.industry || null,
             location: application.location || null,
-            status: "available",
+            status: "unavailable",
             ambassadorPayment: Number(application.offeredAmount) || 500,
             gologinAccount: "klabber",
             listed: false,
