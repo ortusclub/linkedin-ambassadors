@@ -186,7 +186,6 @@ const disabledBtn: React.CSSProperties = { font: `600 12.5px ${F_SANS}`, color: 
 const activeOkStyle: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "var(--st-active-bg)", color: "var(--st-active-fg)", whiteSpace: "nowrap" };
 const confirmActiveStyle: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)", border: "none", cursor: "pointer", whiteSpace: "nowrap" };
 const issueStyle: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)", border: "none", cursor: "pointer", whiteSpace: "nowrap" };
-const flagBtnStyle: React.CSSProperties = { font: `600 11px ${F_SANS}`, padding: "5px 9px", borderRadius: 8, background: "transparent", color: "var(--muted)", border: "1px solid var(--divider)", cursor: "pointer", whiteSpace: "nowrap" };
 
 // Uncontrolled save-on-blur field. Module scope so it never remounts mid-edit.
 function Editable({
@@ -417,10 +416,7 @@ export default function AdminOwnersPage() {
             const activeNote = issue ? (
               <button type="button" onClick={() => patchOwner(owner.applicationId, { accountIssue: null })} title="Clear once the account logs in again" style={issueStyle}>⚠ Can&apos;t log in: {issue} · resolve</button>
             ) : active ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                <span style={activeOkStyle}>● Active — ok to pay</span>
-                <button type="button" onClick={flagIssue} title="Flag a login problem (restricted / wrong password / etc.) — blocks payouts" style={flagBtnStyle}>⚑ Flag issue</button>
-              </span>
+              <button type="button" onClick={flagIssue} title="Account can't log in? Click to flag a problem (restricted / wrong password / etc.) — it blocks payout until resolved." style={{ ...activeOkStyle, border: "none", cursor: "pointer" }}>● Active — ok to pay ⚑</button>
             ) : (
               <button type="button" onClick={() => patchOwner(owner.applicationId, { ownerStatus: "active" })} title="Confirm the account is active/working, then you can pay" style={confirmActiveStyle}>○ Confirm active to pay</button>
             );
