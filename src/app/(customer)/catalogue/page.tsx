@@ -32,6 +32,8 @@ function getAvatarColor(name: string) { return AVATAR_COLORS[(name.charCodeAt(0)
 function getInitials(name: string) { return name.replace(/\s*\(.*\)\s*$/, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(); }
 // Compact, uniform display name: "Tony Otto" -> "Tony O." (View Profile still links the full identity)
 function shortName(name: string) { const p = name.replace(/\s*\(.*\)\s*$/, "").trim().split(/\s+/).filter(Boolean); return p.length < 2 ? (p[0] || "") : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`; }
+// Account age in months -> compact label, e.g. 38 -> "3y 2m", 5 -> "5m".
+function ageLabel(m: number | null | undefined) { if (!m || m <= 0) return ""; const y = Math.floor(m / 12), mo = m % 12; return y > 0 ? `${y}y${mo ? ` ${mo}m` : ""}` : `${mo}m`; }
 
 const SORTS: Record<string, (a: Account, b: Account) => number> = {
   "conn-desc": (a, b) => b.connectionCount - a.connectionCount,
@@ -294,6 +296,7 @@ function GridCard({ a, selected, onToggle }: { a: Account; selected: boolean; on
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         {a.industry && <IndustryTag industry={a.industry} />}
         {a.location && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#5A6473" }}><span style={{ color: "#B0B7C2" }}>◍</span>{a.location}</span>}
+        {ageLabel(a.accountAgeMonths) && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#5A6473" }}><span style={{ color: "#B0B7C2" }}>⏳</span>{ageLabel(a.accountAgeMonths)} old</span>}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 18 }}>
         <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}>
@@ -329,6 +332,7 @@ function ListRow({ a, selected, onToggle }: { a: Account; selected: boolean; onT
             {a.linkedinVerified && <Verified />}
           </div>
           {a.linkedinHeadline && <div style={{ fontSize: 12.5, color: "#8A93A2", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline}</div>}
+          {ageLabel(a.accountAgeMonths) && <div style={{ fontSize: 12, color: "#96A0AD", marginTop: 1 }}>⏳ {ageLabel(a.accountAgeMonths)} old</div>}
         </div>
       </div>
       <span className="cat2-hide" style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</span>

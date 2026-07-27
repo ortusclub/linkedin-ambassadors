@@ -257,6 +257,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         </div>
         <div style={{ display: "flex", gap: 10, flex: "none", alignItems: "center", flexWrap: "wrap" }}>
           <Link href="/admin/accounts/new" style={{ font: `600 13px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", padding: "9px 16px", borderRadius: 10, textDecoration: "none" }}>+ Add Account</Link>
+          <a href="/catalogue" target="_blank" rel="noopener noreferrer" title="Public page — share this link with anyone to show available accounts" style={{ font: `600 13px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 15px", borderRadius: 10, textDecoration: "none" }}>Show available accounts ↗</a>
           <button onClick={() => setShowImport(true)} style={{ font: `600 13px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 15px", borderRadius: 10, cursor: "pointer" }}>Import CSV</button>
           {sheetConfigured && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--sheets-bg)", border: "1px solid var(--sheets-border)", padding: "6px 8px 6px 14px", borderRadius: 12 }}>
