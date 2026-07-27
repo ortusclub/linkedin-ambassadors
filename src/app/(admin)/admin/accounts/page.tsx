@@ -30,6 +30,7 @@ interface Account {
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
   restrictedAt: string | null;
+  trialEndsAt: string | null;
   verificationProof: string | null;
   linkedinVerified: boolean;
   removedAt: string | null;
@@ -42,19 +43,32 @@ const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct
 const fmt = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`; };
 const fmtS = (d: string | null) => { if (!d) return ""; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
 
-const displayStatus = (s: string) => (s === "available" ? "Available" : s === "rented" ? "Rented" : s === "removed" ? "Removed" : "Offline");
+const displayStatus = (s: string) => (s === "available" ? "Available" : s === "rented" ? "Rented" : s === "trial" ? "Trial" : s === "removed" ? "Removed" : "Offline");
 const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
+  { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
   { key: "Offline", hint: "temporarily not rentable", dot: "var(--neutral-chip-text)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
   { key: "Showcase", hint: "public-catalogue demo accounts — not real inventory", dot: "var(--warn-badge-text)" },
 ];
 const statusChip = (disp: string): React.CSSProperties => {
-  const m: Record<string, [string, string]> = { Available: ["var(--st-active-bg)", "var(--st-active-fg)"], Rented: ["var(--blue-chip-bg)", "var(--blue-chip-text)"], Offline: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"], Removed: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"] };
+  const m: Record<string, [string, string]> = { Available: ["var(--st-active-bg)", "var(--st-active-fg)"], Rented: ["var(--blue-chip-bg)", "var(--blue-chip-text)"], Trial: ["var(--warn-badge-bg)", "var(--warn-badge-text)"], Offline: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"], Removed: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"] };
   const [bg, fg] = m[disp] || m.Offline;
   return { background: bg, color: fg };
 };
+// Trial state for a row: null unless status=trial. `expired` once trialEndsAt has passed.
+function trialInfo(a: Account): { expired: boolean; label: string } | null {
+  if (a.status !== "trial") return null;
+  const end = a.trialEndsAt ? new Date(a.trialEndsAt).getTime() : 0;
+  const ms = end - Date.now();
+  if (ms <= 0) return { expired: true, label: "Trial expired" };
+  const d = Math.floor(ms / 86400000);
+  const h = Math.floor((ms % 86400000) / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const left = d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+  return { expired: false, label: `${left} left` };
+}
 // combine admin restriction (restrictedAt) + auto health check into one pill
 function healthOf(a: Account): { label: string; bg: string; fg: string; note: string } {
   if (a.restrictedAt) return { label: "Recovering", bg: "var(--st-unreach-bg)", fg: "var(--st-unreach-fg)", note: `restricted ${fmtS(a.restrictedAt)}` };
@@ -73,7 +87,7 @@ const checkDue = (a: Account) => !isDummy(a) && a.status === "rented" && !a.rest
 // dummies (public-catalogue showcase accounts) get their own group, not mixed with real inventory
 const groupKey = (a: Account) => (isDummy(a) ? "Showcase" : displayStatus(a.status));
 
-const GRID = "minmax(0,1fr) 150px 100px 172px 168px";
+const GRID = "minmax(0,1fr) 150px 100px 172px 250px";
 
 export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -101,6 +115,22 @@ export default function AdminAccountsPage() {
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
   const patch = async (id: string, body: Record<string, unknown>) => fetch(`/api/admin/accounts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+  const markForTrial = async (a: Account) => {
+    setBusy(a.id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${a.id}/trial`, { method: "POST" });
+      if (res.ok) await load(); else alert("Failed to start trial");
+    } finally { setBusy(null); }
+  };
+  // Ends a trial — cancel early OR acknowledge an expired one; both return it to Available.
+  const endTrial = async (a: Account) => {
+    setBusy(a.id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${a.id}/trial`, { method: "DELETE" });
+      if (res.ok) await load(); else alert("Failed to end trial");
+    } finally { setBusy(null); }
+  };
 
   const toggleForRent = async (a: Account) => {
     if (a.status === "rented") return;
@@ -209,6 +239,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       total: accounts.length, // "All" chip (everything)
       realTotal: real.length, // headline — sellable inventory, excludes dummies
       Available: real.filter((a) => displayStatus(a.status) === "Available").length,
+      Trial: real.filter((a) => displayStatus(a.status) === "Trial").length,
       Rented: real.filter((a) => displayStatus(a.status) === "Rented").length,
       Offline: real.filter((a) => displayStatus(a.status) === "Offline").length,
       Removed: real.filter((a) => displayStatus(a.status) === "Removed").length,
@@ -245,7 +276,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Offline", "Offline", counts.Offline, "var(--neutral-chip-text)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Offline", "Offline", counts.Offline, "var(--neutral-chip-text)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
@@ -316,6 +347,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 {rows.map((a) => {
                   const open = expanded.has(a.id);
                   const h = healthOf(a);
+                  const ti = trialInfo(a);
                   const rented = a.status === "rented" && a.rentals?.[0];
                   const locked = rented && a.rentals[0].lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0;
                   const priceVal = locked ? Number(a.rentals[0].lockedPrice) : Number(a.monthlyPrice);
@@ -350,16 +382,27 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           <span style={{ font: `500 10px ${F_SANS}`, color: locked ? "var(--warn-badge-text)" : "var(--label)" }}>{locked ? "🔒 locked rate" : "/mo"}</span>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-                          <span style={{ font: `500 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rented ? a.rentals[0].user.fullName : "No renter"}</span>
-                          <span style={{ font: `500 11px ${F_SANS}`, color: rented && a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{rented ? `${fmtS(a.rentals[0].currentPeriodEnd)} · ${a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}` : "available"}</span>
+                          <span style={{ font: `500 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rented ? a.rentals[0].user.fullName : ti ? "On trial" : "No renter"}</span>
+                          {ti ? (
+                            <span style={{ font: `600 11px ${F_SANS}`, color: ti.expired ? "var(--st-cancel-fg)" : "var(--warn-badge-text)" }}>{ti.expired ? "⏱ Trial expired" : `⏱ ${ti.label}`}</span>
+                          ) : (
+                            <span style={{ font: `500 11px ${F_SANS}`, color: rented && a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{rented ? `${fmtS(a.rentals[0].currentPeriodEnd)} · ${a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}` : "available"}</span>
+                          )}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }} onClick={(e) => e.stopPropagation()}>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                            <button onClick={() => toggleForRent(a)} disabled={a.status === "rented"} style={{ position: "relative", width: 38, height: 22, borderRadius: 999, border: "none", cursor: a.status === "rented" ? "not-allowed" : "pointer", padding: 0, background: forRentOn ? "var(--sheets-btn-bg)" : "var(--toggle-off)", opacity: a.status === "rented" ? 0.6 : 1 }}>
+                            <button onClick={() => toggleForRent(a)} disabled={a.status === "rented" || a.status === "trial"} title={a.status === "trial" ? "On trial — cancel the trial to change availability" : undefined} style={{ position: "relative", width: 38, height: 22, borderRadius: 999, border: "none", cursor: a.status === "rented" || a.status === "trial" ? "not-allowed" : "pointer", padding: 0, background: forRentOn ? "var(--sheets-btn-bg)" : "var(--toggle-off)", opacity: a.status === "rented" || a.status === "trial" ? 0.6 : 1 }}>
                               <span style={{ position: "absolute", top: 3, left: forRentOn ? 19 : 3, width: 16, height: 16, borderRadius: 999, background: "#fff", transition: "left .15s", display: "block" }} />
                             </button>
                             <span style={{ font: `500 9.5px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--muted2)" }}>For rent</span>
                           </div>
+                          {a.status === "available" && !isDummy(a) && (
+                            <button onClick={() => markForTrial(a)} disabled={busy === a.id} title="Put this account on a 3-day trial hold (removes it from Available)" style={secBtn}>⏱ Trial</button>
+                          )}
+                          {ti && (ti.expired
+                            ? <button onClick={() => endTrial(a)} disabled={busy === a.id} title="Trial has ended — return the account to Available" style={outBtn("var(--st-active-fg)")}>Mark available</button>
+                            : <button onClick={() => endTrial(a)} disabled={busy === a.id} title="End this trial early and return to Available" style={secBtn}>Cancel trial</button>
+                          )}
                           <Link href={`/admin/accounts/${a.id}`} style={secBtn}>Edit</Link>
                         </div>
                       </div>
