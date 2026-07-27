@@ -186,6 +186,7 @@ const disabledBtn: React.CSSProperties = { font: `600 12.5px ${F_SANS}`, color: 
 const activeOkStyle: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "var(--st-active-bg)", color: "var(--st-active-fg)", whiteSpace: "nowrap" };
 const confirmActiveStyle: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)", border: "none", cursor: "pointer", whiteSpace: "nowrap" };
 const issueStyle: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)", border: "none", cursor: "pointer", whiteSpace: "nowrap" };
+const flagBtnStyle: React.CSSProperties = { font: `600 11px ${F_SANS}`, padding: "5px 9px", borderRadius: 8, background: "transparent", color: "var(--muted)", border: "1px solid var(--divider)", cursor: "pointer", whiteSpace: "nowrap" };
 
 // Uncontrolled save-on-blur field. Module scope so it never remounts mid-edit.
 function Editable({
@@ -409,16 +410,23 @@ export default function AdminOwnersPage() {
             const hasSetupRecord = owner.monthlyPayouts.some((p) => p.kind === "setup");
             const totalPaid = owner.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) + (owner.setupFeePaidAt && !hasSetupRecord ? SETUP_FEE : 0);
 
-            const active = resolveStatus(owner) === "active";
+            // "Ok to pay" is a manual check you toggle after verifying the account
+            // logs in (stored in verifiedAt); a flagged login issue overrides it.
             const issue = owner.accountIssue;
-            const canPay = active && !issue;
+            const okToPay = !!owner.verifiedAt;
+            const canPay = okToPay && !issue;
             const flagIssue = () => { const r = prompt("What's wrong with the account? (e.g. restricted, wrong password, other) — this blocks payouts until resolved."); if (r && r.trim()) patchOwner(owner.applicationId, { accountIssue: r.trim() }); };
             const activeNote = issue ? (
               <button type="button" onClick={() => patchOwner(owner.applicationId, { accountIssue: null })} title="Clear once the account logs in again" style={issueStyle}>⚠ Can&apos;t log in: {issue} · resolve</button>
-            ) : active ? (
-              <button type="button" onClick={flagIssue} title="Account can't log in? Click to flag a problem (restricted / wrong password / etc.) — it blocks payout until resolved." style={{ ...activeOkStyle, border: "none", cursor: "pointer" }}>● Active — ok to pay ⚑</button>
             ) : (
-              <button type="button" onClick={() => patchOwner(owner.applicationId, { ownerStatus: "active" })} title="Confirm the account is active/working, then you can pay" style={confirmActiveStyle}>○ Confirm active to pay</button>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                {okToPay ? (
+                  <button type="button" onClick={() => patchOwner(owner.applicationId, { verifiedAt: null })} title="Checked & ok to pay — click to un-confirm" style={{ ...activeOkStyle, border: "none", cursor: "pointer" }}>● Ok to pay</button>
+                ) : (
+                  <button type="button" onClick={() => patchOwner(owner.applicationId, { verifiedAt: new Date().toISOString() })} title="Check the account logs in, then click to confirm it's ok to pay" style={confirmActiveStyle}>○ Confirm ok to pay</button>
+                )}
+                <button type="button" onClick={flagIssue} title="Flag a login problem (restricted / wrong password / etc.) — blocks payout" style={flagBtnStyle}>⚑ Issue</button>
+              </span>
             );
             const markSetupPaid = () => patchOwner(owner.applicationId, { paidAt: new Date().toISOString(), ...(hasSetupRecord ? {} : { addMonthlyPayout: { amount: SETUP_FEE, kind: "setup" } }) });
             const attachProof = (index: number) => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) patchOwner(owner.applicationId, { updateMonthlyPayout: { index, proofUrl: url.trim() } }); };
