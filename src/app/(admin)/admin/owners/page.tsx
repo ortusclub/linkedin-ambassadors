@@ -242,6 +242,9 @@ export default function AdminOwnersPage() {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  // "Ok to pay" is a check-right-before-you-pay confirmation, independent per row
+  // (setup vs monthly). Session-only — you re-verify the account before each payout.
+  const [okToPay, setOkToPay] = useState<Set<string>>(new Set());
   const [due, setDue] = useState<PaymentsDue | null>(null);
   const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
@@ -276,6 +279,7 @@ export default function AdminOwnersPage() {
 
   const toggle = (email: string) => setExpanded((p) => { const n = new Set(p); if (n.has(email)) n.delete(email); else n.add(email); return n; });
   const toggleReveal = (key: string) => setRevealed((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  const toggleOkToPay = (key: string) => setOkToPay((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
   const patchAccount = async (accountId: string, data: Record<string, unknown>) => {
     await fetch(`/api/admin/accounts/${accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
@@ -410,24 +414,25 @@ export default function AdminOwnersPage() {
             const hasSetupRecord = owner.monthlyPayouts.some((p) => p.kind === "setup");
             const totalPaid = owner.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) + (owner.setupFeePaidAt && !hasSetupRecord ? SETUP_FEE : 0);
 
-            // "Ok to pay" is a manual check you toggle after verifying the account
-            // logs in (stored in verifiedAt); a flagged login issue overrides it.
+            // A login problem (persisted) blocks payout on all rows; otherwise each
+            // row has its own "ok to pay" confirm that you tick right before paying.
             const issue = owner.accountIssue;
-            const okToPay = !!owner.verifiedAt;
-            const canPay = okToPay && !issue;
             const flagIssue = () => { const r = prompt("What's wrong with the account? (e.g. restricted, wrong password, other) — this blocks payouts until resolved."); if (r && r.trim()) patchOwner(owner.applicationId, { accountIssue: r.trim() }); };
-            const activeNote = issue ? (
-              <button type="button" onClick={() => patchOwner(owner.applicationId, { accountIssue: null })} title="Clear once the account logs in again" style={issueStyle}>⚠ Can&apos;t log in: {issue} · resolve</button>
-            ) : (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                {okToPay ? (
-                  <button type="button" onClick={() => patchOwner(owner.applicationId, { verifiedAt: null })} title="Checked & ok to pay — click to un-confirm" style={{ ...activeOkStyle, border: "none", cursor: "pointer" }}>● Ok to pay</button>
-                ) : (
-                  <button type="button" onClick={() => patchOwner(owner.applicationId, { verifiedAt: new Date().toISOString() })} title="Check the account logs in, then click to confirm it's ok to pay" style={confirmActiveStyle}>○ Confirm ok to pay</button>
-                )}
-                <button type="button" onClick={flagIssue} title="Flag a login problem (restricted / wrong password / etc.) — blocks payout" style={flagBtnStyle}>⚑ Issue</button>
-              </span>
-            );
+            const canPay = (row: "setup" | "monthly") => okToPay.has(`${owner.email}:${row}`) && !issue;
+            const payNote = (row: "setup" | "monthly") => {
+              const key = `${owner.email}:${row}`;
+              if (issue) return <button type="button" onClick={() => patchOwner(owner.applicationId, { accountIssue: null })} title="Clear once the account logs in again" style={issueStyle}>⚠ Can&apos;t log in: {issue} · resolve</button>;
+              return (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  {okToPay.has(key) ? (
+                    <button type="button" onClick={() => toggleOkToPay(key)} title="Checked & ok to pay — click to un-confirm" style={{ ...activeOkStyle, border: "none", cursor: "pointer" }}>● Ok to pay</button>
+                  ) : (
+                    <button type="button" onClick={() => toggleOkToPay(key)} title="Check the account logs in, then click to confirm it's ok to pay" style={confirmActiveStyle}>○ Confirm ok to pay</button>
+                  )}
+                  <button type="button" onClick={flagIssue} title="Flag a login problem (restricted / wrong password / etc.) — blocks payout" style={flagBtnStyle}>⚑ Issue</button>
+                </span>
+              );
+            };
             const markSetupPaid = () => patchOwner(owner.applicationId, { paidAt: new Date().toISOString(), ...(hasSetupRecord ? {} : { addMonthlyPayout: { amount: SETUP_FEE, kind: "setup" } }) });
             const attachProof = (index: number) => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) patchOwner(owner.applicationId, { updateMonthlyPayout: { index, proofUrl: url.trim() } }); };
 
@@ -525,8 +530,8 @@ export default function AdminOwnersPage() {
                           <button type="button" onClick={() => patchOwner(owner.applicationId, { paidAt: null })} style={{ font: `600 12.5px ${F_SANS}`, color: "var(--muted)", background: "transparent", border: "1px solid var(--btn-secondary-border)", padding: "9px 14px", borderRadius: 9, cursor: "pointer" }}>Clear</button>
                         ) : (
                           <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
-                            {activeNote}
-                            <button type="button" onClick={canPay ? markSetupPaid : undefined} disabled={!canPay} style={canPay ? darkBtn : disabledBtn}>Mark paid</button>
+                            {payNote("setup")}
+                            <button type="button" onClick={canPay("setup") ? markSetupPaid : undefined} disabled={!canPay("setup")} style={canPay("setup") ? darkBtn : disabledBtn}>Mark paid</button>
                           </div>
                         )}
                       </div>
@@ -539,8 +544,8 @@ export default function AdminOwnersPage() {
                           <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", marginTop: 2 }}>On the 1st, after one full month of service</div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
-                          {activeNote}
-                          <button type="button" onClick={canPay ? () => patchOwner(owner.applicationId, { addMonthlyPayout: { amount: monthlyAmt, kind: "monthly", method: owner.paymentMethod } }) : undefined} disabled={!canPay} style={canPay ? darkBtn : disabledBtn}>+ Log {peso(monthlyAmt)}</button>
+                          {payNote("monthly")}
+                          <button type="button" onClick={canPay("monthly") ? () => patchOwner(owner.applicationId, { addMonthlyPayout: { amount: monthlyAmt, kind: "monthly", method: owner.paymentMethod } }) : undefined} disabled={!canPay("monthly")} style={canPay("monthly") ? darkBtn : disabledBtn}>+ Log {peso(monthlyAmt)}</button>
                         </div>
                       </div>
                     </div>
