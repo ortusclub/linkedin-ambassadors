@@ -22,6 +22,7 @@ enum AccountStatus {
   under_review
   available
   rented
+  trial
   maintenance
   unavailable
   retired
@@ -132,6 +133,7 @@ model LinkedInAccount {
   linkedinAccountHealth String?       @default("unchecked") @map("linkedin_account_health")
   healthCheckedAt       DateTime?     @map("health_checked_at")
   restrictedAt          DateTime?     @map("restricted_at")  // admin-set: account restricted by LinkedIn, recovering
+  trialEndsAt           DateTime?     @map("trial_ends_at")   // set when status=trial: a 3-day inventory hold; past this = "trial expired", awaiting admin mark-back
   // Internal proof the account is real (email-exchange screenshot links / notes).
   // Never shown publicly — shared with a renter per-case.
   verificationProof     String?       @map("verification_proof")

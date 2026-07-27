@@ -27,6 +27,7 @@ function fmtDate(d: Date | null): string {
 function displayStatus(s: string): string {
   if (s === "available") return "Available";
   if (s === "rented") return "Rented";
+  if (s === "trial") return "Trial";
   if (s === "removed") return "Removed";
   return "Offline";
 }
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
   const showCreds = credKey.length > 0 && ckey === credKey;
 
   const accounts = await prisma.linkedInAccount.findMany({
-    where: { status: { in: ["under_review", "available", "rented", "maintenance", "unavailable", "retired"] } },
+    where: { status: { in: ["under_review", "available", "rented", "trial", "maintenance", "unavailable", "retired"] } },
     include: {
       rentals: {
         where: { status: "active" },
