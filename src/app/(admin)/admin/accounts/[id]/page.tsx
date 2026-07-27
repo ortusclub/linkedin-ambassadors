@@ -70,6 +70,10 @@ export default function EditAccountPage() {
       if (form.status) payload.status = form.status;
       if (form.gologinProfileId !== undefined) payload.gologinProfileId = form.gologinProfileId || null;
       if (form.gologinShareLink !== undefined) payload.gologinShareLink = form.gologinShareLink || null;
+      if (form.loginEmail !== undefined) payload.loginEmail = form.loginEmail || null;
+      if (form.accountPassword !== undefined) payload.accountPassword = form.accountPassword || null;
+      if (form.twoFactor !== undefined) payload.twoFactor = form.twoFactor || null;
+      if (form.workEmail !== undefined) payload.workEmail = form.workEmail || null;
 
       const res = await fetch(`/api/admin/accounts/${params.id}`, {
         method: "PATCH",
@@ -199,6 +203,25 @@ export default function EditAccountPage() {
               username={(form.proxyUsername as string) || ""}
               password={(form.proxyPassword as string) || ""}
             />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h3 className="font-semibold text-gray-900">
+              Login Credentials{" "}
+              <span className="text-xs font-normal text-gray-500">— admin only, never shown to renters</span>
+            </h3>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input id="loginEmail" label="Login Email" value={(form.loginEmail as string) || ""} onChange={(e) => update("loginEmail", e.target.value)} placeholder="Email the account signs in with" />
+              <Input id="workEmail" label="Work / Recovery Email" value={(form.workEmail as string) || ""} onChange={(e) => update("workEmail", e.target.value)} placeholder="e.g. klabber.co address" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input id="accountPassword" label="Account Password" value={(form.accountPassword as string) || ""} onChange={(e) => update("accountPassword", e.target.value)} placeholder="LinkedIn password" />
+              <Input id="twoFactor" label="2FA Secret / Key" value={(form.twoFactor as string) || ""} onChange={(e) => update("twoFactor", e.target.value)} placeholder="TOTP seed (Base32)" />
+            </div>
           </CardContent>
         </Card>
 
