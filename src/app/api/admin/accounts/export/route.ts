@@ -39,9 +39,10 @@ export async function GET(req: NextRequest) {
   }
 
   // Credential columns are gated behind a second, separately-rotatable key.
-  const ckey = req.nextUrl.searchParams.get("ckey");
-  const credKey = process.env.CREDENTIALS_EXPORT_KEY;
-  const showCreds = !!credKey && ckey === credKey;
+  // Trim both sides so a stray space/newline in the env var can't break the match.
+  const ckey = (req.nextUrl.searchParams.get("ckey") || "").trim();
+  const credKey = (process.env.CREDENTIALS_EXPORT_KEY || "").trim();
+  const showCreds = credKey.length > 0 && ckey === credKey;
 
   const accounts = await prisma.linkedInAccount.findMany({
     where: { status: { in: ["under_review", "available", "rented", "maintenance", "unavailable", "retired"] } },
