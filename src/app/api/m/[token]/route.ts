@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isReferralEarned } from "@/lib/referrals";
 
 export const dynamic = "force-dynamic";
 
 const RATE = 500;
-// A signup only counts (and pays) once the account is actually onboarded onto
-// inventory — matches the admin referrals tab. "approved/agreed" is not enough.
-const isConverted = (s: string) => s === "onboarded";
+// A signup only counts (and pays) once the referred account is onboarded AND confirmed
+// "ok to pay" (verifiedAt) with no login issue — see lib/referrals. Being merely
+// accepted/onboarded is NOT enough; we confirm the account is good first.
 
 // Public marketer portal data, keyed by the secret token in the URL. Returns the
 // referrer's own figures, a PII-free competitive board (counts only), and the
@@ -20,7 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      select: { fullName: true, referredBy: true, status: true, createdAt: true },
+      select: { fullName: true, referredBy: true, status: true, verifiedAt: true, accountIssue: true, createdAt: true },
     }),
     prisma.payout.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" } }),
   ]);
@@ -32,7 +33,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     if (!slug) continue;
     const c = counts.get(slug) || { signups: 0, converted: 0 };
     c.signups++;
-    if (isConverted(a.status)) c.converted++;
+    if (isReferralEarned(a)) c.converted++;
     counts.set(slug, c);
   }
 
@@ -52,7 +53,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     .filter((a) => (a.referredBy || "").trim() === me.slug)
     .slice(0, 15)
     .map((a) => ({
-      kind: isConverted(a.status) ? "converted" : "signup",
+      kind: isReferralEarned(a) ? "converted" : "signup",
       name: a.fullName,
       referrer: null,
       mine: true,

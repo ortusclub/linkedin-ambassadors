@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { isReferralEarned } from "@/lib/referrals";
 
 // A single ambassador application, reduced to what the referral roll-up needs.
 interface App {
   referredBy: string | null;
   status: string;
   verifiedAt?: string | null;
+  accountIssue?: string | null;
 }
 
 interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; }
@@ -158,7 +160,7 @@ export default function AdminReferralsPage() {
       if (!name) continue;
       const r = m.get(name) || { name, signups: 0, converted: 0, ready: 0, held: 0 };
       r.signups++;
-      if (isConverted(a.status)) { r.converted++; if (a.verifiedAt) r.ready++; else r.held++; }
+      if (isConverted(a.status)) { r.converted++; if (isReferralEarned(a)) r.ready++; else r.held++; }
       m.set(name, r);
     }
     return [...m.values()]

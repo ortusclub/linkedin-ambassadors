@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isReferralEarned } from "@/lib/referrals";
 
 // Ambassador payout schedule + "who's due to be paid" computation, shared by the
 // admin Owners panel and the weekly digest email so both agree exactly.
@@ -67,6 +68,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
       fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
       paymentMethod: true, paymentDetails: true, referredBy: true, verifiedAt: true,
+      status: true, accountIssue: true,
     },
   });
 
@@ -118,11 +120,12 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     }
   }
 
-  // Marketer commissions ready to pay: onboarded signups whose stability hold cleared.
+  // Marketer commissions ready to pay: onboarded signups confirmed ok-to-pay (verified)
+  // with no unresolved login issue — see lib/referrals.isReferralEarned.
   const marketerMap = new Map<string, number>();
   for (const a of apps) {
     const ref = (a.referredBy || "").trim();
-    if (!ref || !a.verifiedAt) continue; // onboarded (query) + verified = ready
+    if (!ref || !isReferralEarned(a)) continue;
     marketerMap.set(ref, (marketerMap.get(ref) || 0) + 1);
   }
   const marketers: MarketerDue[] = [...marketerMap.entries()]
