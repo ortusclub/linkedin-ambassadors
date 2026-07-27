@@ -38,6 +38,7 @@ function ageLabel(m: number | null | undefined) { if (!m || m <= 0) return ""; c
 const SORTS: Record<string, (a: Account, b: Account) => number> = {
   "conn-desc": (a, b) => b.connectionCount - a.connectionCount,
   "conn-asc": (a, b) => a.connectionCount - b.connectionCount,
+  "age-desc": (a, b) => (b.accountAgeMonths || 0) - (a.accountAgeMonths || 0),
   "price-asc": (a, b) => Number(a.monthlyPrice) - Number(b.monthlyPrice),
   "price-desc": (a, b) => Number(b.monthlyPrice) - Number(a.monthlyPrice),
 };
@@ -54,9 +55,13 @@ export default function CataloguePage() {
   const [view, setView] = useState<"list" | "grid">("list");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<{ id: string } | null>(null);
+  // Public share variant: /catalogue?pricing=off hides all prices (for sharing the
+  // inventory with prospects/partners without revealing rates). Default = pricing on.
+  const [showPricing, setShowPricing] = useState(true);
 
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.user) setUser(d.user); }).catch(() => {});
+    if (typeof window !== "undefined") setShowPricing(new URLSearchParams(window.location.search).get("pricing") !== "off");
   }, []);
 
   const fetchAccounts = async () => {
@@ -132,8 +137,9 @@ export default function CataloguePage() {
               <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ appearance: "none", WebkitAppearance: "none", background: "#FFFFFF", border: "1px solid #E0E3E9", borderRadius: 10, padding: "10px 38px 10px 14px", font: `500 13.5px ${INT}`, color: "#3F4856", cursor: "pointer" }}>
                 <option value="conn-desc">Most Connections</option>
                 <option value="conn-asc">Fewest Connections</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
+                <option value="age-desc">Oldest Accounts</option>
+                {showPricing && <option value="price-asc">Price: Low to High</option>}
+                {showPricing && <option value="price-desc">Price: High to Low</option>}
               </select>
               <span style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#8A93A2", fontSize: 11 }}>▼</span>
             </div>
@@ -157,7 +163,7 @@ export default function CataloguePage() {
           <div style={{ background: "#0A66C2", borderRadius: 12, padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff", flexWrap: "wrap", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ fontWeight: 600, fontSize: 14 }}>{selected.size} account{selected.size > 1 ? "s" : ""} selected</span>
-              <span style={{ fontSize: 13, opacity: 0.85 }}>Total: {formatCurrency(selectedTotal)}/mo</span>
+              {showPricing && <span style={{ fontSize: 13, opacity: 0.85 }}>Total: {formatCurrency(selectedTotal)}/mo</span>}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button onClick={() => setSelected(new Set())} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.3)", background: "transparent", color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: INT }}>Clear</button>
@@ -178,15 +184,15 @@ export default function CataloguePage() {
           </div>
         ) : view === "grid" ? (
           <div className="cat2-grid">
-            {visible.map((a) => <GridCard key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} />)}
+            {visible.map((a) => <GridCard key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} showPricing={showPricing} />)}
           </div>
         ) : (
           <div style={{ background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
             <div className="cat2-listhead" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,0.8fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "14px 22px", background: "#F8FAFC", borderBottom: "1px solid #EDEFF2", font: `500 11px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A93A2" }}>
               <input type="checkbox" checked={selected.size > 0 && selected.size === rentable.length} onChange={toggleSelectAll} style={{ accentColor: "#0A66C2", cursor: "pointer" }} />
-              <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span className="cat2-hide">Sales Nav</span><span>Price</span><span></span>
+              <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span className="cat2-hide">Sales Nav</span><span>{showPricing ? "Price" : ""}</span><span></span>
             </div>
-            {visible.map((a) => <ListRow key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} />)}
+            {visible.map((a) => <ListRow key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} showPricing={showPricing} />)}
           </div>
         )}
       </div>
@@ -274,7 +280,7 @@ function Avatar({ a, rented }: { a: Account; rented: boolean }) {
   );
 }
 
-function GridCard({ a, selected, onToggle }: { a: Account; selected: boolean; onToggle: (id: string) => void }) {
+function GridCard({ a, selected, onToggle, showPricing }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean }) {
   const rented = a.status !== "available";
   const rentable = a.status === "available" && !a.showcase;
   const displayName = shortName(a.linkedinName);
@@ -296,7 +302,7 @@ function GridCard({ a, selected, onToggle }: { a: Account; selected: boolean; on
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         {a.industry && <IndustryTag industry={a.industry} />}
         {a.location && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#5A6473" }}><span style={{ color: "#B0B7C2" }}>◍</span>{a.location}</span>}
-        {ageLabel(a.accountAgeMonths) && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#5A6473" }}><span style={{ color: "#B0B7C2" }}>⏳</span>{ageLabel(a.accountAgeMonths)} old</span>}
+        {ageLabel(a.accountAgeMonths) && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `700 12.5px ${POP}`, color: "#0A66C2", background: "#EAF3FF", border: "1px solid #CFE4FB", borderRadius: 999, padding: "3px 10px" }}>⏳ {ageLabel(a.accountAgeMonths)} old</span>}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 18 }}>
         <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}>
@@ -310,14 +316,14 @@ function GridCard({ a, selected, onToggle }: { a: Account; selected: boolean; on
       </div>
       <div style={{ height: 1, background: "#EDEFF2", marginBottom: 14 }} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div><span style={{ font: `700 19px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 13, color: "#96A0AD" }}>/mo</span></div>
+        <div>{showPricing ? <><span style={{ font: `700 19px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 13, color: "#96A0AD" }}>/mo</span></> : <span style={{ font: `600 14px ${POP}`, color: "#5A6473" }}>Price on request</span>}</div>
         <div style={{ display: "flex", gap: 8 }}><Actions a={a} /></div>
       </div>
     </div>
   );
 }
 
-function ListRow({ a, selected, onToggle }: { a: Account; selected: boolean; onToggle: (id: string) => void }) {
+function ListRow({ a, selected, onToggle, showPricing }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean }) {
   const rented = a.status !== "available";
   const rentable = a.status === "available" && !a.showcase;
   const displayName = shortName(a.linkedinName);
@@ -332,14 +338,14 @@ function ListRow({ a, selected, onToggle }: { a: Account; selected: boolean; onT
             {a.linkedinVerified && <Verified />}
           </div>
           {a.linkedinHeadline && <div style={{ fontSize: 12.5, color: "#8A93A2", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline}</div>}
-          {ageLabel(a.accountAgeMonths) && <div style={{ fontSize: 12, color: "#96A0AD", marginTop: 1 }}>⏳ {ageLabel(a.accountAgeMonths)} old</div>}
+          {ageLabel(a.accountAgeMonths) && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `700 11.5px ${POP}`, color: "#0A66C2", background: "#EAF3FF", border: "1px solid #CFE4FB", borderRadius: 999, padding: "2px 9px", marginTop: 4 }}>⏳ {ageLabel(a.accountAgeMonths)} old</span>}
         </div>
       </div>
       <span className="cat2-hide" style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</span>
       <span className="cat2-hide">{a.industry ? <IndustryTag industry={a.industry} /> : "—"}</span>
       <span className="cat2-hide" style={{ fontSize: 13, color: "#5A6473", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.location || "—"}</span>
       <span className="cat2-hide" style={{ width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: a.hasSalesNav ? "#067A45" : "#C23150", background: a.hasSalesNav ? "#E4F6EC" : "#FBE7EB" }}>{a.hasSalesNav ? "✓" : "✕"}</span>
-      <span><span style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span></span>
+      <span>{showPricing ? <><span style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span></> : <span style={{ fontSize: 12.5, color: "#96A0AD" }}>On request</span>}</span>
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} /><Actions a={a} /></div>
     </div>
   );
