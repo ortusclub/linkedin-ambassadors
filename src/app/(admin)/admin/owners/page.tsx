@@ -94,6 +94,7 @@ const missingFields = (o: Owner): string[] => {
   const m: string[] = [];
   if (!o.paymentMethod) m.push("Payout method");
   if (!o.paymentDetails) m.push("Payout details");
+  if (!o.payoutName) m.push("Registered name");
   if (!o.contactNumber) m.push("Best contact");
   o.accounts.forEach((a) => {
     const who = o.accounts.length > 1 ? `${a.linkedinName}: ` : "";
@@ -166,6 +167,7 @@ interface Owner {
   accountIssue: string | null;
   paymentMethod: string | null;
   paymentDetails: string | null;
+  payoutName: string | null;
   setupFeePaidAt: string | null;
   monthlyPayouts: MonthlyPayout[];
   onboardedAt: string | null;
@@ -292,7 +294,7 @@ export default function AdminOwnersPage() {
   };
 
   const q = query.trim().toLowerCase();
-  const shown = owners.filter((o) => !q || `${o.fullName} ${o.email} ${o.paymentMethod || ""} ${o.accounts.map((a) => a.linkedinName).join(" ")} ${resolveStatus(o)}`.toLowerCase().includes(q));
+  const shown = owners.filter((o) => !q || `${o.fullName} ${o.email} ${o.payoutName || ""} ${o.paymentMethod || ""} ${o.accounts.map((a) => a.linkedinName).join(" ")} ${resolveStatus(o)}`.toLowerCase().includes(q));
   const totalMonthly = owners.reduce((s, o) => s + o.monthlyPayout, 0);
   const allOpen = shown.length > 0 && shown.every((o) => expanded.has(o.email));
   const toggleAll = () => setExpanded(allOpen ? new Set() : new Set(shown.map((o) => o.email)));
@@ -493,6 +495,10 @@ export default function AdminOwnersPage() {
                     {/* PAYOUT */}
                     <div style={{ ...labelCss, marginBottom: 12 }}>Payout</div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 20px", marginBottom: 26 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, gridColumn: "1 / -1" }}>
+                        <span style={labelCss}>Registered name (exact name on the GCash / bank account)</span>
+                        <Editable initial={owner.payoutName} placeholder="e.g. Juan D. Dela Cruz" onSave={(v) => patchOwner(owner.applicationId, { payoutName: v })} />
+                      </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                         <span style={labelCss}>Method (GCash / bank / etc.)</span>
                         <Editable initial={owner.paymentMethod} placeholder="e.g. GCash" onSave={(v) => patchOwner(owner.applicationId, { paymentMethod: v })} />

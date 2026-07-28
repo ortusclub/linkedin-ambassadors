@@ -71,6 +71,7 @@ function missingFields(o: Owner): string[] {
   const m: string[] = [];
   if (!o.paymentMethod) m.push("Payout method");
   if (!o.paymentDetails) m.push("Payout details");
+  if (!o.payoutName) m.push("Registered name");
   if (!o.contactNumber) m.push("Best contact");
   o.accounts.forEach((a) => {
     if (!a.linkedinUrl) m.push(`${o.accounts.length > 1 ? `${a.linkedinName}: ` : ""}LinkedIn URL`);
@@ -124,7 +125,7 @@ export async function GET(req: NextRequest) {
     "# Profiles", "Profiles", "LinkedIn URLs",
     "Account email (login)", "Work email (klabber.co)", "Password", "2FA / recovery",
     // Payout
-    "Monthly payout", "Payout method", "Payout details",
+    "Registered name", "Monthly payout", "Payout method", "Payout details",
     // Payment status
     "Setup fee", "Monthly payments paid", "Total paid", "Missing fields",
   ];
@@ -153,6 +154,7 @@ export async function GET(req: NextRequest) {
       credCell(o, (a) => a.accountPassword),
       credCell(o, (a) => a.twoFactor),
       // Payout
+      o.payoutName || "",
       o.monthlyPayout > 0 ? `${peso(o.monthlyPayout)}/mo` : "TBC",
       o.paymentMethod || "",
       o.paymentDetails || "",

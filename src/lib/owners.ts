@@ -38,6 +38,7 @@ export interface Owner {
   applicationId: string | null;
   paymentMethod: string | null;
   paymentDetails: string | null;
+  payoutName: string | null;
   ownerStatus: string | null;
   contactChannel: string | null;
   accountIssue: string | null;
@@ -104,6 +105,7 @@ export async function getOwners(): Promise<Owner[]> {
       status: true,
       paymentMethod: true,
       paymentDetails: true,
+      payoutName: true,
       ownerStatus: true,
       contactChannel: true,
       accountIssue: true,
@@ -211,6 +213,7 @@ export async function getOwners(): Promise<Owner[]> {
       applicationId: app?.id || null,
       paymentMethod: app?.paymentMethod || null,
       paymentDetails: app?.paymentDetails || null,
+      payoutName: app?.payoutName || null,
       ownerStatus: app?.ownerStatus || null,
       contactChannel: app?.contactChannel || null,
       accountIssue: app?.accountIssue || null,
