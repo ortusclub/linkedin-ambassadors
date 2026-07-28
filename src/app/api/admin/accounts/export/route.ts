@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
     return [
       profileEmail || a.linkedinName,
       a.linkedinHeadline || "",
-      displayStatus(a.status),
+      a.restrictedAt ? "Recovering" : displayStatus(a.status),
       a.linkedinVerified ? "Yes" : "No",
       rental ? rental.user.fullName : "",
       rental ? fmtDate(rental.currentPeriodEnd) : "",
