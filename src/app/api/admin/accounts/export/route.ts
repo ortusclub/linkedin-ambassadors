@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   const credKey = (process.env.CREDENTIALS_EXPORT_KEY || "").trim();
   const showCreds = credKey.length > 0 && ckey === credKey;
 
-  const accounts = await prisma.linkedInAccount.findMany({
+  const allAccounts = await prisma.linkedInAccount.findMany({
     where: { status: { in: ["under_review", "available", "rented", "trial", "maintenance", "unavailable", "retired"] } },
     include: {
       rentals: {
@@ -56,6 +56,8 @@ export async function GET(req: NextRequest) {
     },
     orderBy: { createdAt: "desc" },
   });
+  // Exclude showcase/demo ("Dummy") accounts — they're public-catalogue props, not real inventory.
+  const accounts = allAccounts.filter((a) => !(a.notes || "").includes("[SHOWCASE]"));
 
   // Resolve owner (ambassador) names from the "Owner: email" tag in notes.
   const ownerEmails = accounts
