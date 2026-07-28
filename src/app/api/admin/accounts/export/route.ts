@@ -67,8 +67,10 @@ export async function GET(req: NextRequest) {
   const ownerMap = new Map(ownerUsers.map((u) => [u.email, u.fullName]));
 
   // Group by status so available / rented / offline sit together (matches the admin view).
-  const rank: Record<string, number> = { available: 0, rented: 1, unavailable: 2, maintenance: 2, retired: 2, under_review: 3 };
-  const sorted = [...accounts].sort((a, b) => (rank[a.status] ?? 5) - (rank[b.status] ?? 5));
+  // Order: Available, then Recovering (restricted), then Trial, Rented, Offline, Under review.
+  const rank: Record<string, number> = { available: 0, trial: 1.5, rented: 2, unavailable: 3, maintenance: 3, retired: 3, under_review: 4 };
+  const rankOf = (a: (typeof accounts)[number]) => (a.restrictedAt ? 1 : (rank[a.status] ?? 5));
+  const sorted = [...accounts].sort((a, b) => rankOf(a) - rankOf(b));
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.
   const headers = [
