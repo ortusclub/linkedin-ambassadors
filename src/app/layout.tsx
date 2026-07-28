@@ -44,10 +44,10 @@ export const metadata: Metadata = {
       "Rent pre-warmed, verified LinkedIn accounts for outreach and lead generation. Instant access, cancel anytime. From $10/month.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image.png?v=2",
         width: 1200,
         height: 630,
-        alt: "LinkedVelocity - Rent Premium LinkedIn Accounts",
+        alt: "LinkedVelocity — Scale LinkedIn outreach without the limits",
       },
     ],
   },
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     title: "LinkedVelocity — Rent Premium LinkedIn Accounts",
     description:
       "Rent pre-warmed LinkedIn accounts for outreach and lead gen. Instant access, cancel anytime.",
-    images: ["/og-image.png"],
+    images: ["/og-image.png?v=2"],
   },
   icons: {
     icon: "/favicon.svg",
