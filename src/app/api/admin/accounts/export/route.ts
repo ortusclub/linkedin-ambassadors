@@ -76,12 +76,13 @@ export async function GET(req: NextRequest) {
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.
   const headers = [
+    ...(showCreds ? ["Login Email"] : []),
     "LinkedIn Account", "Headline / Title", "Status", "Verified",
     "Renter", "Rented Until", "Auto Renew",
     "Monthly Price", "Ambassador Payout", "Owner",
     "Location", "Number of Connections", "Account Age", "Sales Navigator", "LinkedIn URL",
     "GoLogin Profile ID", "Shareable Link",
-    ...(showCreds ? ["Login Email", "Password", "2FA Key", "Work Email"] : []),
+    ...(showCreds ? ["Password", "2FA Key", "Work Email"] : []),
   ];
 
   const rows = sorted.map((a) => {
@@ -98,6 +99,7 @@ export async function GET(req: NextRequest) {
     const isOrtus = [profileEmail, ownerEmail].some((e) => isCompanyEmail(e));
     const ownerDisplay = isShowcase ? "Dummy" : isOrtus ? "Ortus" : (ownerMap.get(ownerEmail) || ownerEmail || "");
     return [
+      ...(showCreds ? [a.loginEmail || ""] : []),
       profileEmail || a.linkedinName,
       a.linkedinHeadline || "",
       a.restrictedAt ? "Recovering" : displayStatus(a.status),
@@ -116,7 +118,7 @@ export async function GET(req: NextRequest) {
       a.gologinProfileId || "",
       a.gologinShareLink || "",
       ...(showCreds
-        ? [a.loginEmail || "", a.accountPassword || "", a.twoFactor || "", a.workEmail || ""]
+        ? [a.accountPassword || "", a.twoFactor || "", a.workEmail || ""]
         : []),
     ];
   });
