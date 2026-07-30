@@ -46,6 +46,7 @@ export interface DueItem {
   amount: number;
   dueDate: string; // ISO
   overdue: boolean;
+  blocked: string | null; // login issue reason — due but can't be paid until resolved
 }
 export interface MarketerDue { name: string; count: number; amount: number; }
 export interface PaymentsDue {
@@ -98,7 +99,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   for (const a of apps) {
     if (!hasAccount.has(a.email)) continue; // real owners only (matches Owners page)
     const monthlyAmount = monthlyByEmail.get(a.email) || MARKETER_RATE;
-    const base = { name: a.fullName || a.email, email: a.email, method: a.paymentMethod, details: a.paymentDetails };
+    const base = { name: a.fullName || a.email, email: a.email, method: a.paymentMethod, details: a.paymentDetails, blocked: a.accountIssue || null };
 
     // Setup fee — only if not yet marked paid
     if (!a.paidAt) {

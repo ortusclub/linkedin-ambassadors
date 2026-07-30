@@ -918,8 +918,8 @@ export async function sendFastTrackInvite(email: string | string[], firstName: s
 export async function sendPaymentsDueDigest(
   to: string | string[],
   data: {
-    setup: { name: string; email: string; amount: number; dueDate: string; overdue: boolean; method: string | null; details: string | null }[];
-    monthly: { name: string; email: string; amount: number; dueDate: string; overdue: boolean; method: string | null; details: string | null }[];
+    setup: { name: string; email: string; amount: number; dueDate: string; overdue: boolean; method: string | null; details: string | null; blocked?: string | null }[];
+    monthly: { name: string; email: string; amount: number; dueDate: string; overdue: boolean; method: string | null; details: string | null; blocked?: string | null }[];
     marketers: { name: string; count: number; amount: number }[];
     upcoming: { kind: string; name: string; amount: number; dueDate: string }[];
     totalDueNow: number;
@@ -937,8 +937,8 @@ export async function sendPaymentsDueDigest(
         ${items.map((i) => `<tr style="border-top:1px solid #EEF0F2;">
           <td style="padding:8px;color:#0F1419;">${i.name}<br><span style="color:#8899A6;font-size:11px;">${i.email}</span></td>
           <td style="padding:8px;color:#536471;">${pay(i.method, i.details)}</td>
-          <td style="padding:8px;color:${i.overdue ? "#C0392B" : "#536471"};">${day(i.dueDate)}${i.overdue ? " · overdue" : ""}</td>
-          <td style="padding:8px;text-align:right;color:#0F1419;font-weight:600;">${peso(i.amount)}</td>
+          <td style="padding:8px;color:${i.overdue ? "#C0392B" : "#536471"};">${day(i.dueDate)}${i.overdue ? " · overdue" : ""}${i.blocked ? ` · <span style="color:#C0392B;font-weight:600;">⚠ can't log in (${i.blocked})</span>` : ""}</td>
+          <td style="padding:8px;text-align:right;color:${i.blocked ? "#8899A6" : "#0F1419"};font-weight:600;${i.blocked ? "text-decoration:line-through;" : ""}">${peso(i.amount)}</td>
         </tr>`).join("")}
       </table>`;
 
