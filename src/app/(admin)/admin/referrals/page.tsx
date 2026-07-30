@@ -137,6 +137,8 @@ export default function AdminReferralsPage() {
   const [pBusy, setPBusy] = useState("");
   const [paidDates, setPaidDates] = useState<Record<string, string>>({});
   const [today, setToday] = useState("");
+  const [expandedRef, setExpandedRef] = useState<Set<string>>(new Set());
+  const toggleRef = (name: string) => setExpandedRef((p) => { const n = new Set(p); if (n.has(name)) n.delete(name); else n.add(name); return n; });
 
   const reloadPayouts = () => fetch("/api/admin/payouts").then((r) => r.json()).then((d) => setPayouts(d.payouts || [])).catch(() => {});
 
@@ -212,6 +214,35 @@ export default function AdminReferralsPage() {
     ready: rows.reduce((s, r) => s + r.readyOwed, 0),
     held: rows.reduce((s, r) => s + r.heldOwed, 0),
   }), [rows]);
+
+  // referredBy is the slug (e.g. "sheila-24"); map rows to their Referrer + payouts.
+  const refBySlug = useMemo(() => {
+    const m = new Map<string, Referrer>();
+    for (const rf of referrers) { m.set(rf.slug.toLowerCase(), rf); m.set(rf.name.toLowerCase(), rf); }
+    return m;
+  }, [referrers]);
+  const payoutsByRef = useMemo(() => {
+    const m = new Map<string, Payout[]>();
+    for (const p of payouts) { const a = m.get(p.referrerId) || []; a.push(p); m.set(p.referrerId, a); }
+    return m;
+  }, [payouts]);
+  // Ready commission not yet covered by logged commission payments.
+  const refInfo = (rowName: string, readyOwed: number) => {
+    const ref = refBySlug.get(rowName.toLowerCase()) || null;
+    const pays = ref ? (payoutsByRef.get(ref.id) || []).slice().sort((a, b) => (b.paidAt || b.id).localeCompare(a.paidAt || a.id)) : [];
+    const commissionPaid = pays.filter((p) => p.type === "commission" && p.paidAt).reduce((s, p) => s + p.amount, 0);
+    const outstanding = Math.max(0, readyOwed - commissionPaid);
+    return { ref, pays, commissionPaid, outstanding };
+  };
+
+  const logCommission = async (referrerId: string, amount: number) => {
+    if (!referrerId || amount <= 0) return;
+    setPBusy(referrerId);
+    try {
+      await fetch("/api/admin/payouts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ referrerId, type: "commission", amount, description: "Signup commission" }) });
+      await reloadPayouts();
+    } finally { setPBusy(""); }
+  };
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const refLink = (r: Referrer) => `${origin}/become-ambassador?ref=${r.slug}`;
@@ -527,31 +558,85 @@ export default function AdminReferralsPage() {
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: 44, textAlign: "center", font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No referrers match.</div>
-        ) : filtered.map((r) => (
-          <div key={r.name} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 100px 120px 110px 140px 120px", gap: 14, alignItems: "center", padding: "15px 22px", borderBottom: "1px solid var(--divider)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `600 14px ${F_GRO}`, background: "var(--avatar-bg)", color: "var(--avatar-fg)" }}>{r.initials}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <span style={{ font: `600 14px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
-                {r.isTop && <span style={{ font: `700 9.5px ${F_SANS}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", background: "var(--st-active-bg)", color: "var(--st-active-fg)" }}>★ Top</span>}
-                {!r.active && <span style={{ font: `600 9.5px ${F_SANS}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }}>Inactive</span>}
+        ) : filtered.map((r) => {
+          const open = expandedRef.has(r.name);
+          const { ref, pays, commissionPaid, outstanding } = refInfo(r.name, r.readyOwed);
+          const busy = ref ? pBusy === ref.id : false;
+          return (
+            <div key={r.name} style={{ borderBottom: "1px solid var(--divider)" }}>
+              <div onClick={() => toggleRef(r.name)} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 100px 120px 110px 140px 120px", gap: 14, alignItems: "center", padding: "15px 22px", cursor: "pointer", userSelect: "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
+                  <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", width: 10, textAlign: "center", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `600 14px ${F_GRO}`, background: "var(--avatar-bg)", color: "var(--avatar-fg)" }}>{r.initials}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <span style={{ font: `600 14px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ref?.name || r.name}</span>
+                    {r.isTop && <span style={{ font: `700 9.5px ${F_SANS}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", background: "var(--st-active-bg)", color: "var(--st-active-fg)" }}>★ Top</span>}
+                    {!r.active && <span style={{ font: `600 9.5px ${F_SANS}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }}>Inactive</span>}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}><span style={{ font: `600 17px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{r.signups}</span></div>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ font: `600 17px ${F_GRO}`, color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>{r.converted}</span>
+                  <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)", display: "block" }}>{r.convRate}</span>
+                </div>
+                <div style={{ textAlign: "right" }}><span style={{ font: `600 14px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{peso(r.earned)}</span></div>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ font: `600 14px ${F_GRO}`, fontVariantNumeric: "tabular-nums", color: outstanding > 0 ? "var(--warn-num)" : "var(--muted2)" }}>{peso(outstanding)}</span>
+                  <span style={{ font: `500 10.5px ${F_SANS}`, display: "block", color: outstanding > 0 ? "var(--warn-num)" : r.heldOwed > 0 ? "var(--muted2)" : "var(--muted2)" }}>{outstanding > 0 ? "needs paying" : r.heldOwed > 0 ? "in hold" : "all settled"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <span style={{ font: `600 12px ${F_SANS}`, color: outstanding > 0 ? "var(--warn-num)" : "var(--muted)", border: "1px solid var(--btn-secondary-border)", padding: "7px 14px", borderRadius: 8, whiteSpace: "nowrap" }}>{outstanding > 0 ? `Pay ${peso(outstanding)}` : "History"}</span>
+                </div>
               </div>
+
+              {open && (
+                <div style={{ padding: "2px 22px 20px 63px", display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* commission + payout summary */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-end" }}>
+                    <div><div style={label}>Ready to pay</div><div style={{ font: `700 16px ${F_GRO}`, color: r.readyOwed > 0 ? "var(--green)" : "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{peso(r.readyOwed)} <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>· {r.readyOwed / RATE} onboarded</span></div></div>
+                    <div><div style={label}>In hold</div><div style={{ font: `700 16px ${F_GRO}`, color: "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{peso(r.heldOwed)} <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>· {r.heldOwed / RATE} verifying</span></div></div>
+                    <div><div style={label}>Paid (commission)</div><div style={{ font: `700 16px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{peso(commissionPaid)}</div></div>
+                    <div style={{ flex: 1 }} />
+                    <div style={{ textAlign: "right" }}>
+                      <div style={label}>Payout to</div>
+                      <div style={{ font: `600 13px ${F_SANS}`, color: ref?.paymentDetails ? "var(--text)" : "var(--warn-num)" }}>{ref?.paymentDetails ? `${ref.paymentMethod || "—"} · ${ref.paymentDetails}` : "No payout details set"}</div>
+                    </div>
+                    {ref && outstanding > 0 && (
+                      <button type="button" onClick={() => logCommission(ref.id, outstanding)} disabled={busy} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap", opacity: busy ? 0.6 : 1 }}>+ Log {peso(outstanding)} paid</button>
+                    )}
+                  </div>
+
+                  {/* payment history */}
+                  <div>
+                    <div style={{ ...label, marginBottom: 8 }}>Payment history</div>
+                    {pays.length === 0 ? (
+                      <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>No payments logged yet{ref ? "" : " — this referrer isn't in the registry"}.</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {pays.map((p) => {
+                          const stat = !p.paidAt ? { t: "Unpaid", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : !p.confirmedAt ? { t: "Paid · awaiting confirmation", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" } : { t: `Confirmed${p.confirmedBy ? ` · ${p.confirmedBy}` : ""}`, bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" };
+                          const typeLabel = (PAYOUT_TYPES.find((t) => t[0] === p.type) || [null, p.type])[1];
+                          return (
+                            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--card)", border: "1px solid var(--divider)", borderRadius: 10, padding: "10px 13px" }}>
+                              <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", width: 92, flex: "none" }}>{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <span style={{ font: `700 13px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{peso(p.amount)}</span>
+                                <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}> · {typeLabel}{p.method ? ` · ${p.method}` : ""}{p.reference ? ` · ${p.reference}` : ""}</span>
+                              </div>
+                              <span style={{ font: `600 10.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap", background: stat.bg, color: stat.fg }}>{stat.t}</span>
+                              {!p.paidAt && <button type="button" onClick={() => patchPayout(p.id, { paidAt: new Date().toISOString() })} disabled={pBusy === p.id} style={{ font: `600 11.5px ${F_SANS}`, color: "var(--text)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "5px 10px", borderRadius: 7, cursor: "pointer" }}>Mark paid</button>}
+                              <button type="button" onClick={() => deletePayout(p)} disabled={pBusy === p.id} title="Delete" style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", cursor: "pointer" }}>✕</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            <div style={{ textAlign: "right" }}><span style={{ font: `600 17px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{r.signups}</span></div>
-            <div style={{ textAlign: "right" }}>
-              <span style={{ font: `600 17px ${F_GRO}`, color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>{r.converted}</span>
-              <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)", display: "block" }}>{r.convRate}</span>
-            </div>
-            <div style={{ textAlign: "right" }}><span style={{ font: `600 14px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{peso(r.earned)}</span></div>
-            <div style={{ textAlign: "right" }}>
-              <span style={{ font: `600 14px ${F_GRO}`, fontVariantNumeric: "tabular-nums", color: r.owed > 0 ? "var(--warn-num)" : "var(--muted2)" }}>{peso(r.owed)}</span>
-              <span style={{ font: `500 10.5px ${F_SANS}`, display: "block", color: r.readyOwed > 0 ? "var(--green)" : r.heldOwed > 0 ? "var(--warn-num)" : "var(--muted2)" }}>{r.readyOwed > 0 ? "ready to pay" : r.heldOwed > 0 ? "in hold" : "all settled"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button disabled title="Payout tracking coming soon" style={{ font: `600 12px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "1px solid var(--btn-secondary-border)", padding: "7px 14px", borderRadius: 8, cursor: "default", whiteSpace: "nowrap", opacity: 0.85 }}>{r.readyOwed > 0 ? "Pay · soon" : r.heldOwed > 0 ? "In hold" : "Settled"}</button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
