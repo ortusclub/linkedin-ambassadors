@@ -142,6 +142,7 @@ interface DueItem {
   amount: number;
   dueDate: string;
   overdue: boolean;
+  blocked: string | null;
 }
 interface MarketerDue { name: string; count: number; amount: number; }
 interface PaymentsDue {
@@ -332,6 +333,7 @@ export default function AdminOwnersPage() {
         // sorted soonest-first, each with a relative "in N days" pill.
         const rows = [...due.setup, ...due.monthly, ...due.upcoming].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
         const overdueCount = rows.filter((r) => r.overdue).length;
+        const blockedCount = rows.filter((r) => r.blocked).length;
         const dueNowCount = due.setup.length + due.monthly.length + due.marketers.length;
         const upcomingCount = due.upcoming.length;
         const nothing = rows.length === 0 && due.marketers.length === 0;
@@ -343,7 +345,7 @@ export default function AdminOwnersPage() {
           const noun = kinds.size === 1 ? (kinds.has("setup") ? "setup fee" : "monthly payout") : "payment";
           subtitle = `Nothing overdue — ${upcomingCount} ${noun}${upcomingCount !== 1 ? "s" : ""} coming up this week.`;
         } else {
-          subtitle = <><strong style={{ color: "var(--text)" }}>{peso(due.totalDueNow)}</strong> due now across {dueNowCount} payout{dueNowCount !== 1 ? "s" : ""}{overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}{upcomingCount > 0 ? `, ${upcomingCount} coming up` : ""}.</>;
+          subtitle = <><strong style={{ color: "var(--text)" }}>{peso(due.totalDueNow)}</strong> due now across {dueNowCount} payout{dueNowCount !== 1 ? "s" : ""}{overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}{blockedCount > 0 ? ` · ${blockedCount} blocked (can't log in)` : ""}{upcomingCount > 0 ? `, ${upcomingCount} coming up` : ""}.</>;
         }
         return (
           <div style={{ background: "var(--warn-bg)", border: "1px solid var(--warn-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 22 }}>
@@ -361,13 +363,14 @@ export default function AdminOwnersPage() {
                 {rows.map((i, idx) => {
                   const w = relWhen(i.dueDate);
                   return (
-                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--card)", border: "1px solid var(--divider)", borderRadius: 11, padding: "11px 14px" }}>
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--card)", border: "1px solid var(--divider)", borderRadius: 11, padding: "11px 14px", opacity: i.blocked ? 0.75 : 1 }}>
                       <span style={{ font: `700 11px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, whiteSpace: "nowrap", flex: "none", textAlign: "center", minWidth: 74, background: WHEN_TONE[w.tone].bg, color: WHEN_TONE[w.tone].fg }}>{w.label}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{i.name}</div>
                         <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{i.kind === "setup" ? "Setup fee" : "Monthly"} · {fmtDate(i.dueDate)}</div>
                       </div>
-                      <span style={{ font: `700 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{peso(i.amount)}</span>
+                      {i.blocked && <span title={`Can't log in: ${i.blocked}`} style={{ font: `600 10.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap", flex: "none", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ can&apos;t pay · {i.blocked}</span>}
+                      <span style={{ font: `700 15px ${F_GRO}`, color: i.blocked ? "var(--muted2)" : "var(--text)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", textDecoration: i.blocked ? "line-through" : "none" }}>{peso(i.amount)}</span>
                     </div>
                   );
                 })}
