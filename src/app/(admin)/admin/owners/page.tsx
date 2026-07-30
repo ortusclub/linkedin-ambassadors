@@ -244,6 +244,7 @@ export default function AdminOwnersPage() {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
   // "Ok to pay" is a check-right-before-you-pay confirmation, independent per row
   // (setup vs monthly). Session-only — you re-verify the account before each payout.
   const [okToPay, setOkToPay] = useState<Set<string>>(new Set());
@@ -453,7 +454,7 @@ export default function AdminOwnersPage() {
                           <span title={`Missing: ${missing.join(", ")}`} style={{ font: `700 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Missing {missing.length} field{missing.length !== 1 ? "s" : ""}</span>
                         )}
                       </div>
-                      <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{owner.email}</span>
+                      <span onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(owner.email); setCopiedEmail(owner.email); setTimeout(() => setCopiedEmail((c) => (c === owner.email ? null : c)), 1400); }} title="Click to copy" style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)", cursor: "pointer", userSelect: "text" }}>{owner.email}{copiedEmail === owner.email && <span style={{ color: "var(--st-active-fg)", marginLeft: 6, fontWeight: 600 }}>· Copied ✓</span>}</span>
                     </div>
                   </div>
                   <div style={{ textAlign: "right", flex: "none" }}>
