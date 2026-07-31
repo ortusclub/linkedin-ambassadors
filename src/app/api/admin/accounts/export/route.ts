@@ -24,12 +24,16 @@ function fmtDate(d: Date | null): string {
   return d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-function displayStatus(s: string): string {
-  if (s === "available") return "Available";
-  if (s === "rented") return "Rented";
-  if (s === "trial") return "Trial";
-  if (s === "removed") return "Removed";
-  return "Offline";
+// ONE status per account — collapses the raw DB enum + the `restrictedAt` flag
+// into a single label, matching the admin inventory exactly. DB values untouched.
+function displayStatus(a: { status: string; restrictedAt: Date | null }): string {
+  if (a.status === "rented") return "Rented";
+  if (a.restrictedAt) return "Restricted";
+  if (a.status === "available") return "Available";
+  if (a.status === "trial") return "Trial";
+  if (a.status === "retired") return "Inaccessible";
+  if (a.status === "removed") return "Removed";
+  return "Maintenance"; // under_review / maintenance / unavailable / anything else
 }
 
 export async function GET(req: NextRequest) {
@@ -68,11 +72,11 @@ export async function GET(req: NextRequest) {
     : [];
   const ownerMap = new Map(ownerUsers.map((u) => [u.email, u.fullName]));
 
-  // Group by status so available / rented / offline sit together (matches the admin view).
-  // Order: Available, then Recovering (restricted), then Trial, Rented, Offline, Under review.
-  const rank: Record<string, number> = { available: 0, trial: 1.5, rented: 2, unavailable: 3, maintenance: 3, retired: 3, under_review: 4 };
-  const rankOf = (a: (typeof accounts)[number]) => (a.restrictedAt ? 1 : (rank[a.status] ?? 5));
-  const sorted = [...accounts].sort((a, b) => rankOf(a) - rankOf(b));
+  // Group by the single canonical status so it matches the admin view.
+  // Order: Available, then Restricted (just below available), Trial, Rented,
+  // Maintenance, Inaccessible, Removed.
+  const rankByLabel: Record<string, number> = { Available: 0, Restricted: 1, Trial: 2, Rented: 3, Maintenance: 4, Inaccessible: 5, Removed: 6 };
+  const sorted = [...accounts].sort((a, b) => (rankByLabel[displayStatus(a)] ?? 9) - (rankByLabel[displayStatus(b)] ?? 9));
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.
   const headers = [
@@ -102,7 +106,7 @@ export async function GET(req: NextRequest) {
       ...(showCreds ? [a.loginEmail || ""] : []),
       profileEmail || a.linkedinName,
       a.linkedinHeadline || "",
-      a.restrictedAt ? "Recovering" : displayStatus(a.status),
+      displayStatus(a),
       a.linkedinVerified ? "Yes" : "No",
       rental ? rental.user.fullName : "",
       rental ? fmtDate(rental.currentPeriodEnd) : "",

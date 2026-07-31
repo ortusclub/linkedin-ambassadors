@@ -115,17 +115,16 @@ export default function EditAccountPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
-                value={(form.status as string) || "under_review"}
+                value={((s) => (s === "available" ? "available" : s === "rented" ? "rented" : s === "retired" || s === "removed" ? "retired" : "maintenance"))((form.status as string) || "maintenance")}
                 onChange={(e) => update("status", e.target.value)}
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               >
-                <option value="under_review">Under Review</option>
                 <option value="available">Available</option>
-                <option value="unavailable">Unavailable</option>
                 <option value="rented">Rented</option>
                 <option value="maintenance">Maintenance</option>
-                <option value="retired">Retired</option>
+                <option value="retired">Inaccessible</option>
               </select>
+              <p className="mt-1 text-xs text-gray-500">One status per account. <b>Restricted</b> and <b>Trial</b> are set from the inventory list (Mark restricted / Trial buttons), not here.</p>
             </div>
             <Input id="linkedinName" label="LinkedIn Name" value={(form.linkedinName as string) || ""} onChange={(e) => update("linkedinName", e.target.value)} />
             <Input id="linkedinHeadline" label="Headline" value={(form.linkedinHeadline as string) || ""} onChange={(e) => update("linkedinHeadline", e.target.value)} />

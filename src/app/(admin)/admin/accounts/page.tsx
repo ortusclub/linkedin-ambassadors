@@ -43,18 +43,44 @@ const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct
 const fmt = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`; };
 const fmtS = (d: string | null) => { if (!d) return ""; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
 
-const displayStatus = (s: string) => (s === "available" ? "Available" : s === "rented" ? "Rented" : s === "trial" ? "Trial" : s === "removed" ? "Removed" : "Offline");
+// ── ONE status per account ───────────────────────────────────────────────
+// The DB keeps its raw enum (available / rented / trial / under_review /
+// maintenance / unavailable / retired / removed) PLUS a separate `restrictedAt`
+// flag. Historically those surfaced as two competing labels (e.g. status
+// "available" while the health pill said "Recovering"). canonicalStatus()
+// collapses them into ONE label, shown identically in the inventory, the CSV
+// export, and the filter chips. DB values are left untouched (billing reads
+// them) — this is display-only.
+const canonicalStatus = (a: { status: string; restrictedAt: string | null }): string => {
+  if (a.status === "rented") return "Rented";
+  if (a.restrictedAt) return "Restricted";
+  if (a.status === "available") return "Available";
+  if (a.status === "trial") return "Trial";
+  if (a.status === "retired") return "Inaccessible";
+  if (a.status === "removed") return "Removed";
+  return "Maintenance"; // under_review / maintenance / unavailable / anything else
+};
 const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
-  { key: "Offline", hint: "temporarily not rentable", dot: "var(--neutral-chip-text)" },
+  { key: "Restricted", hint: "LinkedIn-restricted — access paused while it recovers", dot: "var(--st-unreach-fg)" },
+  { key: "Maintenance", hint: "temporarily off — being set up, vetted, or paused", dot: "var(--neutral-chip-text)" },
+  { key: "Inaccessible", hint: "retired — can no longer be used", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
   { key: "Showcase", hint: "public-catalogue demo accounts — not real inventory", dot: "var(--warn-badge-text)" },
 ];
 const statusChip = (disp: string): React.CSSProperties => {
-  const m: Record<string, [string, string]> = { Available: ["var(--st-active-bg)", "var(--st-active-fg)"], Rented: ["var(--blue-chip-bg)", "var(--blue-chip-text)"], Trial: ["var(--warn-badge-bg)", "var(--warn-badge-text)"], Offline: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"], Removed: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"] };
-  const [bg, fg] = m[disp] || m.Offline;
+  const m: Record<string, [string, string]> = {
+    Available: ["var(--st-active-bg)", "var(--st-active-fg)"],
+    Trial: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
+    Rented: ["var(--blue-chip-bg)", "var(--blue-chip-text)"],
+    Restricted: ["var(--st-unreach-bg)", "var(--st-unreach-fg)"],
+    Maintenance: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"],
+    Inaccessible: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
+    Removed: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
+  };
+  const [bg, fg] = m[disp] || m.Maintenance;
   return { background: bg, color: fg };
 };
 // Trial state for a row: null unless status=trial. `expired` once trialEndsAt has passed.
@@ -85,7 +111,7 @@ const ownerOf = (a: Account) => { const notes = a.notes || ""; if (notes.include
 const isDummy = (a: Account) => (a.notes || "").includes("[SHOWCASE]");
 const checkDue = (a: Account) => !isDummy(a) && a.status === "rented" && !a.restrictedAt && (!a.healthCheckedAt || Date.now() - new Date(a.healthCheckedAt).getTime() > 7 * 86400000);
 // dummies (public-catalogue showcase accounts) get their own group, not mixed with real inventory
-const groupKey = (a: Account) => (isDummy(a) ? "Showcase" : displayStatus(a.status));
+const groupKey = (a: Account) => (isDummy(a) ? "Showcase" : canonicalStatus(a));
 
 const GRID = "minmax(0,1fr) 150px 100px 172px 250px";
 
@@ -235,16 +261,18 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   const counts = useMemo(() => {
     const real = accounts.filter((a) => !isDummy(a));
+    const c = (label: string) => real.filter((a) => canonicalStatus(a) === label).length;
     return {
       total: accounts.length, // "All" chip (everything)
       realTotal: real.length, // headline — sellable inventory, excludes dummies
-      Available: real.filter((a) => displayStatus(a.status) === "Available").length,
-      Trial: real.filter((a) => displayStatus(a.status) === "Trial").length,
-      Rented: real.filter((a) => displayStatus(a.status) === "Rented").length,
-      Offline: real.filter((a) => displayStatus(a.status) === "Offline").length,
-      Removed: real.filter((a) => displayStatus(a.status) === "Removed").length,
+      Available: c("Available"),
+      Trial: c("Trial"),
+      Rented: c("Rented"),
+      Restricted: c("Restricted"),
+      Maintenance: c("Maintenance"),
+      Inaccessible: c("Inaccessible"),
+      Removed: c("Removed"),
       Showcase: accounts.filter(isDummy).length,
-      recovering: real.filter((a) => a.restrictedAt).length,
       checksDue: accounts.filter(checkDue).length,
     };
   }, [accounts]);
@@ -276,7 +304,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Offline", "Offline", counts.Offline, "var(--neutral-chip-text)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Inaccessible", "Inaccessible", counts.Inaccessible, "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
@@ -307,7 +335,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
           <span style={{ font: `600 12px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--label)" }}>accounts</span>
         </div>
         <span style={{ width: 1, height: 20, background: "var(--divider)" }} />
-        {[["var(--st-active-fg)", `${counts.Available} available`], ["var(--blue-chip-text)", `${counts.Rented} rented`], ["var(--st-unreach-fg)", `${counts.recovering} recovering`], ["var(--warn-badge-text)", `${counts.checksDue} checks due`], ["var(--muted2)", `${counts.Showcase} showcase`]].map(([dot, txt]) => (
+        {[["var(--st-active-fg)", `${counts.Available} available`], ["var(--blue-chip-text)", `${counts.Rented} rented`], ["var(--st-unreach-fg)", `${counts.Restricted} restricted`], ["var(--warn-badge-text)", `${counts.checksDue} checks due`], ["var(--muted2)", `${counts.Showcase} showcase`]].map(([dot, txt]) => (
           <span key={txt} style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />{txt}</span>
         ))}
       </div>
@@ -346,6 +374,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {rows.map((a) => {
                   const open = expanded.has(a.id);
+                  const st = canonicalStatus(a);
                   const h = healthOf(a);
                   const ti = trialInfo(a);
                   const rented = a.status === "rented" && a.rentals?.[0];
@@ -374,7 +403,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           </div>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
-                          <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", background: h.bg, color: h.fg }}>{h.label}</span>
+                          <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{st}</span>
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
                         </div>
