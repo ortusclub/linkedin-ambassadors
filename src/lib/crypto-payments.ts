@@ -110,11 +110,18 @@ export async function fetchIncomingBscUsdt(wallet: string, sinceTs: number): Pro
 // paymentTelegramChatId can then simply be the renter's @username.
 // Fallback: the support bot (TELEGRAM_BOT_TOKEN) — but bots can only DM people
 // who have messaged them first, so that path needs a captured numeric chat id.
+// Why the last send failed — surfaced (secret-free) in the cron response so a
+// broken env var or bundling issue is diagnosable without log access.
+export let lastSendError: string | null = null;
+
 async function sendViaUserAccount(recipient: string, text: string): Promise<boolean> {
-  const session = process.env.TELEGRAM_USER_SESSION;
-  const apiId = Number(process.env.TELEGRAM_API_ID || 0);
-  const apiHash = process.env.TELEGRAM_API_HASH;
-  if (!session || !apiId || !apiHash) return false;
+  const session = (process.env.TELEGRAM_USER_SESSION || "").trim();
+  const apiId = Number((process.env.TELEGRAM_API_ID || "").trim() || 0);
+  const apiHash = (process.env.TELEGRAM_API_HASH || "").trim();
+  if (!session || !apiId || !apiHash) {
+    lastSendError = `user-session env missing: session=${session ? session.length + "ch" : "NOT SET"}, apiId=${apiId ? "set" : "NOT SET"}, apiHash=${apiHash ? "set" : "NOT SET"}`;
+    return false;
+  }
   try {
     // Lazy import — GramJS is heavy; only load it when actually sending.
     const { TelegramClient } = await import("telegram");
@@ -124,11 +131,13 @@ async function sendViaUserAccount(recipient: string, text: string): Promise<bool
     try {
       // Plain text (no HTML): this is a personal chat message, not bot markup.
       await client.sendMessage(recipient.replace(/^@/, ""), { message: text });
+      lastSendError = null;
       return true;
     } finally {
       await client.disconnect();
     }
   } catch (e) {
+    lastSendError = `user-session send failed: ${e instanceof Error ? e.message : String(e)}`;
     console.error("crypto-payments: user-account send failed:", e);
     return false;
   }
@@ -168,6 +177,7 @@ export interface WalletCheckResult {
   paidUntil: string | null;   // ISO — trackedFrom + totalPaid/dailyRate days
   overdue: boolean;
   nudgeSent: boolean;
+  sendError?: string | null;
 }
 
 export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
@@ -258,6 +268,7 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
       paidUntil: paidUntil ? paidUntil.toISOString() : null,
       overdue,
       nudgeSent,
+      sendError: overdue && a.paymentTelegramChatId && !nudgeSent ? lastSendError : null,
     });
   }
   return results;

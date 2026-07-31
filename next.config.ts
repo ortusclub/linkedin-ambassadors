@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["gologin", "puppeteer-core", "child_process"],
+  serverExternalPackages: ["gologin", "puppeteer-core", "child_process", "telegram"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
