@@ -34,6 +34,10 @@
     {
       "path": "/api/cron/fast-track-invites",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/crypto-payments",
+      "schedule": "20 9 * * *"
     }
   ]
 }

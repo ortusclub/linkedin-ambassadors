@@ -53,6 +53,11 @@ export async function GET(req: NextRequest) {
           include: { user: { select: { fullName: true, email: true } } },
           take: 1,
         },
+        cryptoPayments: {
+          select: { amount: true, paidAt: true },
+          orderBy: { paidAt: "desc" },
+          take: 100,
+        },
       },
       orderBy: { createdAt: "desc" },
     });

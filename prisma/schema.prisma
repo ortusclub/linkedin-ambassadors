@@ -141,13 +141,41 @@ model LinkedInAccount {
   notes                 String?
   removedAt             DateTime?     @map("removed_at")
   removedBy             String?       @map("removed_by")
+  // Off-platform crypto rent tracking: the renter pays a daily rate straight into
+  // this wallet. A daily cron scans the chain for new transfers, records them as
+  // CryptoPayment rows, and flags the account when payments fall behind the rate.
+  paymentWallet         String?       @map("payment_wallet")           // receiving address
+  paymentNetwork        String?       @map("payment_network")          // "bsc" | "tron" (add checkers as needed)
+  paymentToken          String?       @map("payment_token")            // e.g. "USDT"
+  paymentDailyRate      Decimal?      @map("payment_daily_rate") @db.Decimal(10, 2)
+  paymentTrackedFrom    DateTime?     @map("payment_tracked_from")     // rent accrues from here
+  paymentTelegramChatId String?       @map("payment_telegram_chat_id") // renter's TG chat id for overdue nudges
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 
   rentals               Rental[]
   waitlistEntries       Waitlist[]
+  cryptoPayments        CryptoPayment[]
 
   @@map("linkedin_accounts")
+}
+
+// One on-chain payment received for an account's off-platform rental.
+// txHash is unique so re-scans never double-count.
+model CryptoPayment {
+  id                String          @id @default(uuid()) @db.Uuid
+  linkedinAccountId String          @map("linkedin_account_id") @db.Uuid
+  txHash            String          @unique @map("tx_hash")
+  network           String                                          // "bsc" | "tron"
+  token             String                                          // e.g. "USDT"
+  amount            Decimal         @db.Decimal(18, 6)
+  fromAddress       String          @map("from_address")
+  paidAt            DateTime        @map("paid_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  account           LinkedInAccount @relation(fields: [linkedinAccountId], references: [id], onDelete: Cascade)
+
+  @@index([linkedinAccountId, paidAt])
+  @@map("crypto_payments")
 }
 
 model Rental {

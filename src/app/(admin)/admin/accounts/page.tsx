@@ -34,7 +34,12 @@ interface Account {
   verificationProof: string | null;
   linkedinVerified: boolean;
   removedAt: string | null;
+  paymentWallet: string | null;
+  paymentNetwork: string | null;
+  paymentDailyRate: string | number | null;
+  paymentTrackedFrom: string | null;
   rentals: Array<{ lockedPrice: string | number | null; currentPeriodEnd: string | null; autoRenew: boolean; user: { fullName: string; email: string } }>;
+  cryptoPayments?: Array<{ amount: string | number; paidAt: string }>;
 }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
@@ -104,6 +109,20 @@ function healthOf(a: Account): { label: string; bg: string; fg: string; note: st
   if (h === "restricted" || h === "not_found") return { label: h === "not_found" ? "Not found" : "Restricted", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)", note: a.healthCheckedAt ? `checked ${fmtS(a.healthCheckedAt)}` : "" };
   if (h === "unknown" || h === "rate_limited" || h === "error") return { label: "Unknown", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)", note: "" };
   return { label: "Unchecked", bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)", note: "not yet checked" };
+}
+// Off-platform crypto rent: paid-up state from recorded on-chain payments vs the
+// daily rate. Mirrors the maths in src/lib/crypto-payments.ts.
+function cryptoPayInfo(a: Account): { lastLabel: string; untilLabel: string; overdue: boolean } | null {
+  if (!a.paymentWallet) return null;
+  const rate = Number(a.paymentDailyRate || 0);
+  const payments = a.cryptoPayments || [];
+  const last = payments[0];
+  const lastLabel = last ? `$${Number(last.amount).toFixed(2)} · ${fmtS(last.paidAt)}` : "no payments yet";
+  if (!(rate > 0) || !a.paymentTrackedFrom) return { lastLabel, untilLabel: "", overdue: false };
+  const total = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const until = new Date(a.paymentTrackedFrom).getTime() + (total / rate) * 86400000;
+  const overdue = until < Date.now();
+  return { lastLabel, untilLabel: `paid until ${fmtS(new Date(until).toISOString())}`, overdue };
 }
 const profileEmailOf = (a: Account) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || null;
 const ownerOf = (a: Account) => { const notes = a.notes || ""; if (notes.includes("[SHOWCASE]")) return "Dummy"; if ([profileEmailOf(a), a.ownerEmail].some((e) => isCompanyEmail(e))) return "Ortus"; return a.ownerEmail || "—"; };
@@ -377,6 +396,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   const st = canonicalStatus(a);
                   const h = healthOf(a);
                   const ti = trialInfo(a);
+                  const cp = cryptoPayInfo(a);
                   const rented = a.status === "rented" && a.rentals?.[0];
                   const locked = rented && a.rentals[0].lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0;
                   const priceVal = locked ? Number(a.rentals[0].lockedPrice) : Number(a.monthlyPrice);
@@ -417,6 +437,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <span style={{ font: `600 11px ${F_SANS}`, color: ti.expired ? "var(--st-cancel-fg)" : "var(--warn-badge-text)" }}>{ti.expired ? "⏱ Trial expired" : `⏱ ${ti.label}`}</span>
                           ) : (
                             <span style={{ font: `500 11px ${F_SANS}`, color: rented && a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{rented ? `${fmtS(a.rentals[0].currentPeriodEnd)} · ${a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}` : "available"}</span>
+                          )}
+                          {cp && (
+                            <span title={`Crypto rent — last payment ${cp.lastLabel}. Wallet checked daily on-chain.`} style={{ font: `600 10.5px ${F_SANS}`, whiteSpace: "nowrap", color: cp.overdue ? "var(--st-cancel-fg)" : "var(--st-active-fg)" }}>
+                              💰 {cp.lastLabel}{cp.untilLabel ? ` · ${cp.overdue ? "OVERDUE" : cp.untilLabel}` : ""}
+                            </span>
                           )}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }} onClick={(e) => e.stopPropagation()}>
