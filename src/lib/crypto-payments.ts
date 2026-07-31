@@ -178,6 +178,10 @@ export interface WalletCheckResult {
   overdue: boolean;
   nudgeSent: boolean;
   sendError?: string | null;
+  // Pending WhatsApp reminder for the Mac-side agent to send (it polls this
+  // endpoint daily and delivers from the admin's personal WhatsApp). Only set
+  // when overdue, a WhatsApp number is configured, and dedup allows a nudge.
+  whatsapp?: { to: string; text: string } | null;
 }
 
 export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
@@ -244,18 +248,32 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
       overdue = paidUntil.getTime() < Date.now();
     }
 
-    // Overdue → nudge the renter on Telegram (once per cron run, i.e. daily).
+    // Overdue → nudge the renter, at most once per NUDGE_COOLDOWN_MS across all
+    // channels/triggers (the scheduled cron, manual runs, and the Mac WhatsApp
+    // agent all hit this same code — dedup lives here so nobody gets spammed).
+    const NUDGE_COOLDOWN_MS = 20 * 3600000; // 20h → once a day, tolerant of cron drift
+    const nudgeAllowed = !a.lastNudgeAt || Date.now() - a.lastNudgeAt.getTime() > NUDGE_COOLDOWN_MS;
     let nudgeSent = false;
-    if (overdue && a.paymentTelegramChatId) {
+    let whatsapp: { to: string; text: string } | null = null;
+    if (overdue && nudgeAllowed) {
       const behindDays = Math.ceil((Date.now() - paidUntil!.getTime()) / 86400000);
       // Plain text — sent as a personal chat message (bot fallback renders it fine too).
-      nudgeSent = await sendTelegramNudge(
-        a.paymentTelegramChatId,
+      const text =
         `👋 Hi! Quick reminder — the rental payment for ${a.linkedinName} has fallen behind.\n\n` +
         `Rate: $${rate.toFixed(2)}/day · paid up to ${paidUntil!.toISOString().slice(0, 10)} (~${behindDays} day${behindDays === 1 ? "" : "s"} behind).\n\n` +
         `Please send ${token} to:\n${wallet}\n(${network === "bsc" ? "BNB Chain / BEP-20" : network === "tron" ? "TRON / TRC-20" : network})\n\n` +
-        `Payments are picked up automatically — thank you! 🙏`
-      );
+        `Payments are picked up automatically — thank you! 🙏`;
+      if (a.paymentTelegramChatId) {
+        nudgeSent = await sendTelegramNudge(a.paymentTelegramChatId, text);
+      }
+      // WhatsApp is delivered by the Mac agent, which confirms via the
+      // /whatsapp-sent endpoint — that's what stamps lastNudgeAt for WA-only accounts.
+      if (a.paymentWhatsapp) {
+        whatsapp = { to: a.paymentWhatsapp, text };
+      }
+      if (nudgeSent) {
+        await prisma.linkedInAccount.update({ where: { id: a.id }, data: { lastNudgeAt: new Date() } });
+      }
     }
 
     results.push({
@@ -269,6 +287,7 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
       overdue,
       nudgeSent,
       sendError: overdue && a.paymentTelegramChatId && !nudgeSent ? lastSendError : null,
+      whatsapp,
     });
   }
   return results;

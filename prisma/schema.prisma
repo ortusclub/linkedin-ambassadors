@@ -149,7 +149,9 @@ model LinkedInAccount {
   paymentToken          String?       @map("payment_token")            // e.g. "USDT"
   paymentDailyRate      Decimal?      @map("payment_daily_rate") @db.Decimal(10, 2)
   paymentTrackedFrom    DateTime?     @map("payment_tracked_from")     // rent accrues from here
-  paymentTelegramChatId String?       @map("payment_telegram_chat_id") // renter's TG chat id for overdue nudges
+  paymentTelegramChatId String?       @map("payment_telegram_chat_id") // renter's TG @username/chat id for overdue nudges
+  paymentWhatsapp       String?       @map("payment_whatsapp")         // renter's WhatsApp number (E.164, e.g. +39351...) — sent by the Mac-side agent
+  lastNudgeAt           DateTime?     @map("last_nudge_at")            // last overdue nudge sent (any channel) — dedup so repeat scans never double-send
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 
