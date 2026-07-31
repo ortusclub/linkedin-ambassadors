@@ -104,9 +104,37 @@ export async function fetchIncomingBscUsdt(wallet: string, sinceTs: number): Pro
 }
 
 // ── Telegram nudge ───────────────────────────────────────────────────────────
-// Bots can only DM people who have messaged them first — so this only fires for
-// accounts whose paymentTelegramChatId has been captured (via the support bot).
-async function sendTelegramNudge(chatId: string, text: string): Promise<boolean> {
+// Preferred path: send from the admin's PERSONAL Telegram account (GramJS user
+// session) — lands in the existing chat with the renter, no bot restrictions.
+// Needs TELEGRAM_USER_SESSION + TELEGRAM_API_ID + TELEGRAM_API_HASH in env, and
+// paymentTelegramChatId can then simply be the renter's @username.
+// Fallback: the support bot (TELEGRAM_BOT_TOKEN) — but bots can only DM people
+// who have messaged them first, so that path needs a captured numeric chat id.
+async function sendViaUserAccount(recipient: string, text: string): Promise<boolean> {
+  const session = process.env.TELEGRAM_USER_SESSION;
+  const apiId = Number(process.env.TELEGRAM_API_ID || 0);
+  const apiHash = process.env.TELEGRAM_API_HASH;
+  if (!session || !apiId || !apiHash) return false;
+  try {
+    // Lazy import — GramJS is heavy; only load it when actually sending.
+    const { TelegramClient } = await import("telegram");
+    const { StringSession } = await import("telegram/sessions/index.js");
+    const client = new TelegramClient(new StringSession(session), apiId, apiHash, { connectionRetries: 3 });
+    await client.connect();
+    try {
+      // Plain text (no HTML): this is a personal chat message, not bot markup.
+      await client.sendMessage(recipient.replace(/^@/, ""), { message: text });
+      return true;
+    } finally {
+      await client.disconnect();
+    }
+  } catch (e) {
+    console.error("crypto-payments: user-account send failed:", e);
+    return false;
+  }
+}
+
+async function sendViaBot(chatId: string, text: string): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return false;
   try {
@@ -120,6 +148,13 @@ async function sendTelegramNudge(chatId: string, text: string): Promise<boolean>
     console.error("crypto-payments: telegram nudge failed:", e);
     return false;
   }
+}
+
+async function sendTelegramNudge(recipient: string, text: string): Promise<boolean> {
+  // @username → personal account; numeric chat id works for the bot fallback.
+  if (await sendViaUserAccount(recipient, text)) return true;
+  if (/^-?\d+$/.test(recipient)) return sendViaBot(recipient, text);
+  return false;
 }
 
 // ── Daily check ──────────────────────────────────────────────────────────────
@@ -203,11 +238,12 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
     let nudgeSent = false;
     if (overdue && a.paymentTelegramChatId) {
       const behindDays = Math.ceil((Date.now() - paidUntil!.getTime()) / 86400000);
+      // Plain text — sent as a personal chat message (bot fallback renders it fine too).
       nudgeSent = await sendTelegramNudge(
         a.paymentTelegramChatId,
-        `👋 Friendly reminder from <b>LinkedVelocity</b> — your rental payment for <b>${a.linkedinName}</b> has fallen behind.\n\n` +
-        `Rate: <b>$${rate.toFixed(2)}/day</b> · paid up to <b>${paidUntil!.toISOString().slice(0, 10)}</b> (~${behindDays} day${behindDays === 1 ? "" : "s"} behind).\n\n` +
-        `Please send ${token} to:\n<code>${wallet}</code>\n(${network === "bsc" ? "BNB Chain / BEP-20" : network === "tron" ? "TRON / TRC-20" : network})\n\n` +
+        `👋 Hi! Quick reminder — the rental payment for ${a.linkedinName} has fallen behind.\n\n` +
+        `Rate: $${rate.toFixed(2)}/day · paid up to ${paidUntil!.toISOString().slice(0, 10)} (~${behindDays} day${behindDays === 1 ? "" : "s"} behind).\n\n` +
+        `Please send ${token} to:\n${wallet}\n(${network === "bsc" ? "BNB Chain / BEP-20" : network === "tron" ? "TRON / TRC-20" : network})\n\n` +
         `Payments are picked up automatically — thank you! 🙏`
       );
     }
