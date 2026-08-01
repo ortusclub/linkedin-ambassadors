@@ -38,6 +38,7 @@ interface Account {
   paymentNetwork: string | null;
   paymentDailyRate: string | number | null;
   paymentTermsLabel: string | null;
+  manualPaidUntil: string | null;
   paymentTrackedFrom: string | null;
   paymentTelegramChatId: string | null;
   paymentWhatsapp: string | null;
@@ -119,9 +120,24 @@ function healthOf(a: Account): { label: string; bg: string; fg: string; note: st
 type PayState = "settled" | "overdue" | "awaiting";
 function cryptoPayInfo(a: Account): {
   state: PayState; statusLabel: string; terms: string;
-  dueLabel: string; lastLabel: string; network: string;
+  dueLabel: string; lastLabel: string; network: string; manual?: boolean;
 } | null {
-  if (!a.paymentWallet) return null;
+  // Manual-tracked rentals (terms set, no wallet): no on-chain scan — status is
+  // driven by the admin-set paid-through date, and defaults to Overdue until set.
+  if (!a.paymentWallet) {
+    if (!a.paymentTermsLabel) return null;
+    const paid = a.manualPaidUntil ? new Date(a.manualPaidUntil).getTime() : 0;
+    const settled = paid > Date.now();
+    return {
+      state: settled ? "settled" : "overdue",
+      statusLabel: settled ? "Settled" : "Overdue",
+      terms: `${a.paymentTermsLabel} · manual`,
+      dueLabel: settled ? `paid to ${fmtS(new Date(paid).toISOString())}` : "assume unpaid",
+      lastLabel: "you confirm manually",
+      network: "",
+      manual: true,
+    };
+  }
   const rate = Number(a.paymentDailyRate || 0);
   const terms = a.paymentTermsLabel || (rate > 0 ? `$${rate.toFixed(2)}/day` : "—");
   const network = a.paymentNetwork === "bsc" ? "BNB Chain" : a.paymentNetwork === "tron" ? "TRON" : (a.paymentNetwork || "");
@@ -488,7 +504,10 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
                           {cp ? (
                             <>
-                              <span title="Payment status — from on-chain payments checked daily" style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap", alignSelf: "flex-start", ...payChipCss(cp.state) }}>{cp.statusLabel}</span>
+                              <span style={{ display: "flex", alignItems: "center", gap: 5, alignSelf: "flex-start" }}>
+                                <span title={cp.manual ? "Manual — you confirm payments (assumed overdue until marked paid)" : "Payment status — from on-chain payments checked daily"} style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap", ...payChipCss(cp.state) }}>{cp.statusLabel}</span>
+                                {cp.manual && <span title="Manually tracked" style={{ font: `700 8.5px ${F_SANS}`, letterSpacing: ".06em", color: "var(--muted)", border: "1px solid var(--card-border)", borderRadius: 4, padding: "1px 5px", whiteSpace: "nowrap" }}>MANUAL</span>}
+                              </span>
                               <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cp.terms}{cp.network ? ` · ${cp.network}` : ""}</span>
                               {cp.dueLabel && <span style={{ font: `500 10.5px ${F_SANS}`, whiteSpace: "nowrap", color: cp.state === "overdue" ? "var(--st-cancel-fg)" : "var(--muted2)" }}>{cp.dueLabel}</span>}
                               <span style={{ font: `500 10px ${F_SANS}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cp.lastLabel}</span>

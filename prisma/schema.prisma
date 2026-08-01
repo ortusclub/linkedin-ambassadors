@@ -149,6 +149,7 @@ model LinkedInAccount {
   paymentToken          String?       @map("payment_token")            // e.g. "USDT"
   paymentDailyRate      Decimal?      @map("payment_daily_rate") @db.Decimal(10, 2)
   paymentTermsLabel     String?       @map("payment_terms_label")      // human terms, e.g. "$35/week" (display; dailyRate drives the maths)
+  manualPaidUntil       DateTime?     @map("manual_paid_until")         // manual-tracked rentals: paid-through date the admin sets; past this = assume overdue
   paymentTrackedFrom    DateTime?     @map("payment_tracked_from")     // rent accrues from here
   paymentTelegramChatId String?       @map("payment_telegram_chat_id") // renter's TG @username/chat id for overdue nudges
   paymentWhatsapp       String?       @map("payment_whatsapp")         // renter's WhatsApp number (E.164, e.g. +39351...) — sent by the Mac-side agent
