@@ -118,48 +118,47 @@ function healthOf(a: Account): { label: string; bg: string; fg: string; note: st
 // daily rate. Mirrors the maths in src/lib/crypto-payments.ts. Returns a single
 // clear payment status + the supporting detail, for the inventory's Payment column.
 type PayState = "settled" | "overdue" | "awaiting";
-function cryptoPayInfo(a: Account): {
-  state: PayState; statusLabel: string; terms: string;
-  dueLabel: string; lastLabel: string; network: string; manual?: boolean;
-} | null {
-  // Manual-tracked rentals (terms set, no wallet): no on-chain scan — status is
-  // driven by the admin-set paid-through date, and defaults to Overdue until set.
-  if (!a.paymentWallet) {
+type PayInfo = { state: PayState; statusLabel: string; terms: string; dueLabel: string; lastLabel: string; network: string; address: string; manual: boolean };
+function cryptoPayInfo(a: Account): PayInfo | null {
+  const rate = Number(a.paymentDailyRate || 0);
+  const auto = !!a.paymentWallet && rate > 0;     // on-chain scanned
+  const address = a.paymentWallet || "";
+  const network = a.paymentNetwork === "bsc" ? "BNB Chain" : a.paymentNetwork === "tron" ? "TRON" : (a.paymentNetwork || "");
+
+  // Manual rentals (terms set, no daily rate): status is the admin-set paid-through
+  // date — Unpaid until marked paid, no on-chain scan or auto-reminders.
+  if (!auto) {
     if (!a.paymentTermsLabel) return null;
     const paid = a.manualPaidUntil ? new Date(a.manualPaidUntil).getTime() : 0;
     const settled = paid > Date.now();
     return {
       state: settled ? "settled" : "overdue",
-      statusLabel: settled ? "Settled" : "Overdue",
+      statusLabel: settled ? "Paid" : "Unpaid",
       terms: `${a.paymentTermsLabel} · manual`,
-      dueLabel: settled ? `paid to ${fmtS(new Date(paid).toISOString())}` : "assume unpaid",
-      lastLabel: "you confirm manually",
-      network: "",
-      manual: true,
+      dueLabel: settled ? `paid to ${fmtS(new Date(paid).toISOString())}` : "",
+      lastLabel: "", network, address, manual: true,
     };
   }
-  const rate = Number(a.paymentDailyRate || 0);
-  const terms = a.paymentTermsLabel || (rate > 0 ? `$${rate.toFixed(2)}/day` : "—");
-  const network = a.paymentNetwork === "bsc" ? "BNB Chain" : a.paymentNetwork === "tron" ? "TRON" : (a.paymentNetwork || "");
+
+  const terms = a.paymentTermsLabel || `$${rate.toFixed(2)}/day`;
   const payments = a.cryptoPayments || [];
   const total = payments.reduce((s, p) => s + Number(p.amount), 0);
   const last = payments[0];
   const lastLabel = last ? `last $${Number(last.amount).toFixed(2)} · ${fmtS(last.paidAt)}` : "no payments yet";
 
-  if (!(rate > 0) || !a.paymentTrackedFrom) {
-    return { state: payments.length ? "settled" : "awaiting", statusLabel: payments.length ? "Settled" : "Awaiting payment", terms, dueLabel: "", lastLabel, network };
+  if (!a.paymentTrackedFrom) {
+    return { state: payments.length ? "settled" : "awaiting", statusLabel: payments.length ? "Settled" : "Awaiting payment", terms, dueLabel: "", lastLabel, network, address, manual: false };
   }
   const until = new Date(a.paymentTrackedFrom).getTime() + (total / rate) * 86400000;
   const overdue = until < Date.now();
   if (total === 0) {
-    // No payment yet — awaiting the first one (still inside the grace window if not overdue).
-    return { state: overdue ? "overdue" : "awaiting", statusLabel: overdue ? "Overdue" : "Awaiting 1st payment", terms, dueLabel: `due by ${fmtS(new Date(until).toISOString())}`, lastLabel, network };
+    return { state: overdue ? "overdue" : "awaiting", statusLabel: overdue ? "Overdue" : "Awaiting 1st payment", terms, dueLabel: `due by ${fmtS(new Date(until).toISOString())}`, lastLabel, network, address, manual: false };
   }
   if (overdue) {
     const daysLate = Math.max(1, Math.ceil((Date.now() - until) / 86400000));
-    return { state: "overdue", statusLabel: "Overdue", terms, dueLabel: `due ${fmtS(new Date(until).toISOString())} · ${daysLate}d late`, lastLabel, network };
+    return { state: "overdue", statusLabel: "Overdue", terms, dueLabel: `due ${fmtS(new Date(until).toISOString())} · ${daysLate}d late`, lastLabel, network, address, manual: false };
   }
-  return { state: "settled", statusLabel: "Settled", terms, dueLabel: `paid to ${fmtS(new Date(until).toISOString())}`, lastLabel, network };
+  return { state: "settled", statusLabel: "Settled", terms, dueLabel: `paid to ${fmtS(new Date(until).toISOString())}`, lastLabel, network, address, manual: false };
 }
 const payChipCss = (state: PayState): React.CSSProperties => {
   const m: Record<PayState, [string, string]> = {
@@ -170,6 +169,7 @@ const payChipCss = (state: PayState): React.CSSProperties => {
   const [bg, fg] = m[state];
   return { background: bg, color: fg };
 };
+const shortAddr = (s: string) => (s.length > 14 ? `${s.slice(0, 6)}…${s.slice(-5)}` : s);
 const profileEmailOf = (a: Account) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || null;
 const ownerOf = (a: Account) => { const notes = a.notes || ""; if (notes.includes("[SHOWCASE]")) return "Dummy"; if ([profileEmailOf(a), a.ownerEmail].some((e) => isCompanyEmail(e))) return "Ortus"; return a.ownerEmail || "—"; };
 // A rented account should be health-checked weekly — flag it if the last check is >7 days old (or never).
@@ -220,6 +220,15 @@ export default function AdminAccountsPage() {
     try {
       const res = await fetch(`/api/admin/accounts/${a.id}/trial`, { method: "DELETE" });
       if (res.ok) await load(); else alert("Failed to end trial");
+    } finally { setBusy(null); }
+  };
+
+  // Manual rentals: mark the current period paid (promotes trial → rented) or unpaid.
+  const markManualPaid = async (a: Account, paid: boolean) => {
+    setBusy(a.id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${a.id}/manual-paid`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paid }) });
+      if (res.ok) await load(); else alert("Failed to update payment");
     } finally { setBusy(null); }
   };
 
@@ -510,7 +519,13 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                               </span>
                               <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cp.terms}{cp.network ? ` · ${cp.network}` : ""}</span>
                               {cp.dueLabel && <span style={{ font: `500 10.5px ${F_SANS}`, whiteSpace: "nowrap", color: cp.state === "overdue" ? "var(--st-cancel-fg)" : "var(--muted2)" }}>{cp.dueLabel}</span>}
-                              <span style={{ font: `500 10px ${F_SANS}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cp.lastLabel}</span>
+                              {cp.address && <span title={`Expecting payment into ${cp.address}`} onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(cp.address); }} style={{ font: `500 10px ${F_GRO}`, color: "var(--muted2)", whiteSpace: "nowrap", cursor: "copy" }}>⌖ {shortAddr(cp.address)}</span>}
+                              {cp.lastLabel && <span style={{ font: `500 10px ${F_SANS}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cp.lastLabel}</span>}
+                              {cp.manual && (
+                                <button onClick={(e) => { e.stopPropagation(); markManualPaid(a, cp.state !== "settled"); }} disabled={busy === a.id} style={{ ...outBtn(cp.state === "settled" ? "var(--muted)" : "var(--st-active-fg)"), padding: "4px 9px", font: `600 10.5px ${F_SANS}`, marginTop: 2, alignSelf: "flex-start" }}>
+                                  {cp.state === "settled" ? "Mark unpaid" : "✓ Mark paid"}
+                                </button>
+                              )}
                             </>
                           ) : (
                             <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{rented ? "on-platform" : "—"}</span>

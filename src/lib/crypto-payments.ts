@@ -186,8 +186,11 @@ export interface WalletCheckResult {
 }
 
 export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
+  // Only AUTO-tracked accounts: a receiving wallet AND a daily rate. Manual
+  // rentals keep a wallet for display but have a null rate, so they're skipped
+  // here (no on-chain scan, no reminders) — the admin marks them paid by hand.
   const accounts = await prisma.linkedInAccount.findMany({
-    where: { paymentWallet: { not: null } },
+    where: { paymentWallet: { not: null }, paymentDailyRate: { not: null } },
     include: { cryptoPayments: { orderBy: { paidAt: "desc" } } },
   });
 
