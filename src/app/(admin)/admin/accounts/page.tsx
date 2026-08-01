@@ -448,7 +448,12 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                               {a.location && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }}>{a.location}</span></>}
                               {a.connectionCount > 0 && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }}>{formatNumber(a.connectionCount)}</span></>}
                             </div>
-                            {profileEmailOf(a) && <div style={{ marginTop: 3, font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✉ {profileEmailOf(a)}</div>}
+                            <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                              {profileEmailOf(a) && <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✉ {profileEmailOf(a)}</span>}
+                              {a.linkedinUrl && (
+                                <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title={a.linkedinUrl} style={{ font: `600 11px ${F_SANS}`, color: "var(--link)", textDecoration: "none", whiteSpace: "nowrap", flex: "none" }}>↗ LinkedIn</a>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
