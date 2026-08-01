@@ -36,19 +36,20 @@ function shortName(name: string) { const p = name.replace(/\s*\(.*\)\s*$/, "").t
 function ageLabel(m: number | null | undefined) { if (!m || m <= 0) return ""; const y = Math.floor(m / 12), mo = m % 12; return y > 0 ? `${y}y${mo ? ` ${mo}m` : ""}` : `${mo}m`; }
 
 // Tiered rental pricing by connection count + account age. Highest tier the
-// profile qualifies for wins (evaluated top-down). Returns weekly/monthly/daily,
-// or null when it fits no standard tier (then we fall back to the stored price).
-function tierPricing(conns: number, ageMonths: number | null | undefined): { weekly: number; monthly: number; daily: number } | null {
+// profile qualifies for wins (evaluated top-down). The last tier is the FLOOR —
+// every profile that doesn't reach a higher tier (incl. tiny/new ones, <30
+// connections) gets the bottom rate. Never returns null.
+function tierPricing(conns: number, ageMonths: number | null | undefined): { weekly: number; monthly: number; daily: number } {
   const age = ageMonths || 0;
   if (conns >= 2000) return { weekly: 40, monthly: 150, daily: 8 };
   if (conns >= 1000 && age >= 12) return { weekly: 30, monthly: 110, daily: 6 };
   if (conns >= 500 && age >= 12) return { weekly: 20, monthly: 75, daily: 4 };
   if (conns >= 100 && age >= 6) return { weekly: 15, monthly: 50, daily: 3 };
-  if (conns >= 50 && age >= 3) return { weekly: 13, monthly: 45, daily: 2.75 };
-  return null;
+  // Floor — 50+/3mo and everything below it (including <30 connections).
+  return { weekly: 13, monthly: 45, daily: 2.75 };
 }
 const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
-const monthlyOf = (a: Account) => { const t = tierPricing(a.connectionCount, a.accountAgeMonths); return t ? t.monthly : Number(a.monthlyPrice) || 0; };
+const monthlyOf = (a: Account) => tierPricing(a.connectionCount, a.accountAgeMonths).monthly;
 
 const SORTS: Record<string, (a: Account, b: Account) => number> = {
   "conn-desc": (a, b) => b.connectionCount - a.connectionCount,
@@ -289,12 +290,6 @@ function Actions({ a }: { a: Account }) {
 function PriceBlock({ a, showPricing, compact }: { a: Account; showPricing: boolean; compact?: boolean }) {
   if (!showPricing) return <span style={{ fontSize: compact ? 12.5 : 14, color: "#96A0AD", fontWeight: 600 }}>{compact ? "On request" : "Price on request"}</span>;
   const t = tierPricing(a.connectionCount, a.accountAgeMonths);
-  if (!t) {
-    const m = Number(a.monthlyPrice) || 0;
-    return m > 0
-      ? <span><span style={{ font: `700 ${compact ? 15 : 19}px ${POP}`, color: "#0B1220" }}>{money(m)}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span></span>
-      : <span style={{ fontSize: 12.5, color: "#96A0AD" }}>On request</span>;
-  }
   return (
     <div style={{ lineHeight: 1.25 }}>
       <div><span style={{ font: `700 ${compact ? 15 : 20}px ${POP}`, color: "#0B1220" }}>{money(t.monthly)}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span></div>
