@@ -40,6 +40,7 @@ interface Account {
   paymentTermsLabel: string | null;
   paymentTrackedFrom: string | null;
   paymentTelegramChatId: string | null;
+  paymentWhatsapp: string | null;
   rentals: Array<{ lockedPrice: string | number | null; currentPeriodEnd: string | null; autoRenew: boolean; user: { fullName: string; email: string } }>;
   cryptoPayments?: Array<{ amount: string | number; paidAt: string }>;
 }
