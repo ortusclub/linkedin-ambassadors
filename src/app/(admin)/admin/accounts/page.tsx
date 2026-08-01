@@ -426,6 +426,13 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   const h = healthOf(a);
                   const ti = trialInfo(a);
                   const cp = cryptoPayInfo(a);
+                  const activeRenter = a.rentals?.[0]?.user || null;
+                  const renterName = activeRenter ? activeRenter.fullName.replace(/\s*\((?:Telegram|WhatsApp)\)\s*$/i, "") : null;
+                  const channel = a.paymentTelegramChatId
+                    ? { icon: "✈", label: "Telegram", handle: a.paymentTelegramChatId }
+                    : a.paymentWhatsapp
+                    ? { icon: "💬", label: "WhatsApp", handle: a.paymentWhatsapp }
+                    : null;
                   const rented = a.status === "rented" && a.rentals?.[0];
                   const locked = rented && a.rentals[0].lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0;
                   const priceVal = locked ? Number(a.rentals[0].lockedPrice) : Number(a.monthlyPrice);
@@ -466,7 +473,10 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           <span style={{ font: `500 10px ${F_SANS}`, color: locked ? "var(--warn-badge-text)" : "var(--label)" }}>{locked ? "🔒 locked rate" : "/mo"}</span>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-                          <span style={{ font: `500 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rented ? a.rentals[0].user.fullName : ti ? "On trial" : "No renter"}</span>
+                          <span title={activeRenter?.email || undefined} style={{ font: `600 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{renterName || (ti ? "On trial" : "No renter")}</span>
+                          {channel && (
+                            <span title={`${channel.label}: ${channel.handle}`} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{channel.icon} {channel.label} · {channel.handle}</span>
+                          )}
                           {ti ? (
                             <span style={{ font: `600 11px ${F_SANS}`, color: ti.expired ? "var(--st-cancel-fg)" : "var(--warn-badge-text)" }}>{ti.expired ? "⏱ Trial expired" : `⏱ ${ti.label}`}</span>
                           ) : (
