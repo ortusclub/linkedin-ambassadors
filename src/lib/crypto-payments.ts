@@ -176,6 +176,7 @@ export interface WalletCheckResult {
   totalPaid: number;
   paidUntil: string | null;   // ISO — trackedFrom + totalPaid/dailyRate days
   overdue: boolean;
+  promoted?: boolean;   // trial → rented on first payment this run
   nudgeSent: boolean;
   sendError?: string | null;
   // Pending WhatsApp reminder for the Mac-side agent to send (it polls this
@@ -240,6 +241,17 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
     // Paid-up maths: total received / daily rate, counted from trackedFrom.
     const totalPaid = a.cryptoPayments.reduce((s, p) => s + Number(p.amount), 0)
       + inserted.reduce((s, t) => s + t.amount, 0);
+
+    // Off-platform rentals start as a Trial (renter has access but hasn't paid).
+    // First payment landing on-chain promotes them to a real Rented inventory item.
+    let promoted = false;
+    if (a.status === "trial" && totalPaid > 0) {
+      await prisma.linkedInAccount.update({
+        where: { id: a.id },
+        data: { status: "rented", trialEndsAt: null, listed: false },
+      });
+      promoted = true;
+    }
     const rate = Number(a.paymentDailyRate || 0);
     let paidUntil: Date | null = null;
     let overdue = false;
@@ -285,6 +297,7 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
       totalPaid: Math.round(totalPaid * 100) / 100,
       paidUntil: paidUntil ? paidUntil.toISOString() : null,
       overdue,
+      promoted,
       nudgeSent,
       sendError: overdue && a.paymentTelegramChatId && !nudgeSent ? lastSendError : null,
       whatsapp,
