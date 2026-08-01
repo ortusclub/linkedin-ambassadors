@@ -37,7 +37,9 @@ interface Account {
   paymentWallet: string | null;
   paymentNetwork: string | null;
   paymentDailyRate: string | number | null;
+  paymentTermsLabel: string | null;
   paymentTrackedFrom: string | null;
+  paymentTelegramChatId: string | null;
   rentals: Array<{ lockedPrice: string | number | null; currentPeriodEnd: string | null; autoRenew: boolean; user: { fullName: string; email: string } }>;
   cryptoPayments?: Array<{ amount: string | number; paidAt: string }>;
 }
@@ -111,19 +113,46 @@ function healthOf(a: Account): { label: string; bg: string; fg: string; note: st
   return { label: "Unchecked", bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)", note: "not yet checked" };
 }
 // Off-platform crypto rent: paid-up state from recorded on-chain payments vs the
-// daily rate. Mirrors the maths in src/lib/crypto-payments.ts.
-function cryptoPayInfo(a: Account): { lastLabel: string; untilLabel: string; overdue: boolean } | null {
+// daily rate. Mirrors the maths in src/lib/crypto-payments.ts. Returns a single
+// clear payment status + the supporting detail, for the inventory's Payment column.
+type PayState = "settled" | "overdue" | "awaiting";
+function cryptoPayInfo(a: Account): {
+  state: PayState; statusLabel: string; terms: string;
+  dueLabel: string; lastLabel: string; network: string;
+} | null {
   if (!a.paymentWallet) return null;
   const rate = Number(a.paymentDailyRate || 0);
+  const terms = a.paymentTermsLabel || (rate > 0 ? `$${rate.toFixed(2)}/day` : "—");
+  const network = a.paymentNetwork === "bsc" ? "BNB Chain" : a.paymentNetwork === "tron" ? "TRON" : (a.paymentNetwork || "");
   const payments = a.cryptoPayments || [];
-  const last = payments[0];
-  const lastLabel = last ? `$${Number(last.amount).toFixed(2)} · ${fmtS(last.paidAt)}` : "no payments yet";
-  if (!(rate > 0) || !a.paymentTrackedFrom) return { lastLabel, untilLabel: "", overdue: false };
   const total = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const last = payments[0];
+  const lastLabel = last ? `last $${Number(last.amount).toFixed(2)} · ${fmtS(last.paidAt)}` : "no payments yet";
+
+  if (!(rate > 0) || !a.paymentTrackedFrom) {
+    return { state: payments.length ? "settled" : "awaiting", statusLabel: payments.length ? "Settled" : "Awaiting payment", terms, dueLabel: "", lastLabel, network };
+  }
   const until = new Date(a.paymentTrackedFrom).getTime() + (total / rate) * 86400000;
   const overdue = until < Date.now();
-  return { lastLabel, untilLabel: `paid until ${fmtS(new Date(until).toISOString())}`, overdue };
+  if (total === 0) {
+    // No payment yet — awaiting the first one (still inside the grace window if not overdue).
+    return { state: overdue ? "overdue" : "awaiting", statusLabel: overdue ? "Overdue" : "Awaiting 1st payment", terms, dueLabel: `due by ${fmtS(new Date(until).toISOString())}`, lastLabel, network };
+  }
+  if (overdue) {
+    const daysLate = Math.max(1, Math.ceil((Date.now() - until) / 86400000));
+    return { state: "overdue", statusLabel: "Overdue", terms, dueLabel: `due ${fmtS(new Date(until).toISOString())} · ${daysLate}d late`, lastLabel, network };
+  }
+  return { state: "settled", statusLabel: "Settled", terms, dueLabel: `paid to ${fmtS(new Date(until).toISOString())}`, lastLabel, network };
 }
+const payChipCss = (state: PayState): React.CSSProperties => {
+  const m: Record<PayState, [string, string]> = {
+    settled: ["var(--st-active-bg)", "var(--st-active-fg)"],
+    overdue: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
+    awaiting: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
+  };
+  const [bg, fg] = m[state];
+  return { background: bg, color: fg };
+};
 const profileEmailOf = (a: Account) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || null;
 const ownerOf = (a: Account) => { const notes = a.notes || ""; if (notes.includes("[SHOWCASE]")) return "Dummy"; if ([profileEmailOf(a), a.ownerEmail].some((e) => isCompanyEmail(e))) return "Ortus"; return a.ownerEmail || "—"; };
 // A rented account should be health-checked weekly — flag it if the last check is >7 days old (or never).
@@ -132,7 +161,7 @@ const checkDue = (a: Account) => !isDummy(a) && a.status === "rented" && !a.rest
 // dummies (public-catalogue showcase accounts) get their own group, not mixed with real inventory
 const groupKey = (a: Account) => (isDummy(a) ? "Showcase" : canonicalStatus(a));
 
-const GRID = "minmax(0,1fr) 150px 100px 172px 250px";
+const GRID = "minmax(0,1fr) 132px 84px 150px 168px 214px";
 
 export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -438,10 +467,18 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           ) : (
                             <span style={{ font: `500 11px ${F_SANS}`, color: rented && a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{rented ? `${fmtS(a.rentals[0].currentPeriodEnd)} · ${a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}` : "available"}</span>
                           )}
-                          {cp && (
-                            <span title={`Crypto rent — last payment ${cp.lastLabel}. Wallet checked daily on-chain.`} style={{ font: `600 10.5px ${F_SANS}`, whiteSpace: "nowrap", color: cp.overdue ? "var(--st-cancel-fg)" : "var(--st-active-fg)" }}>
-                              💰 {cp.lastLabel}{cp.untilLabel ? ` · ${cp.overdue ? "OVERDUE" : cp.untilLabel}` : ""}
-                            </span>
+                        </div>
+                        {/* Payment column */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+                          {cp ? (
+                            <>
+                              <span title="Payment status — from on-chain payments checked daily" style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap", alignSelf: "flex-start", ...payChipCss(cp.state) }}>{cp.statusLabel}</span>
+                              <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cp.terms}{cp.network ? ` · ${cp.network}` : ""}</span>
+                              {cp.dueLabel && <span style={{ font: `500 10.5px ${F_SANS}`, whiteSpace: "nowrap", color: cp.state === "overdue" ? "var(--st-cancel-fg)" : "var(--muted2)" }}>{cp.dueLabel}</span>}
+                              <span style={{ font: `500 10px ${F_SANS}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cp.lastLabel}</span>
+                            </>
+                          ) : (
+                            <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{rented ? "on-platform" : "—"}</span>
                           )}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }} onClick={(e) => e.stopPropagation()}>
