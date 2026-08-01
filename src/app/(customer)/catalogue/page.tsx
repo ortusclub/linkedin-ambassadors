@@ -35,12 +35,27 @@ function shortName(name: string) { const p = name.replace(/\s*\(.*\)\s*$/, "").t
 // Account age in months -> compact label, e.g. 38 -> "3y 2m", 5 -> "5m".
 function ageLabel(m: number | null | undefined) { if (!m || m <= 0) return ""; const y = Math.floor(m / 12), mo = m % 12; return y > 0 ? `${y}y${mo ? ` ${mo}m` : ""}` : `${mo}m`; }
 
+// Tiered rental pricing by connection count + account age. Highest tier the
+// profile qualifies for wins (evaluated top-down). Returns weekly/monthly/daily,
+// or null when it fits no standard tier (then we fall back to the stored price).
+function tierPricing(conns: number, ageMonths: number | null | undefined): { weekly: number; monthly: number; daily: number } | null {
+  const age = ageMonths || 0;
+  if (conns >= 2000) return { weekly: 40, monthly: 150, daily: 8 };
+  if (conns >= 1000 && age >= 12) return { weekly: 30, monthly: 110, daily: 6 };
+  if (conns >= 500 && age >= 12) return { weekly: 20, monthly: 75, daily: 4 };
+  if (conns >= 100 && age >= 6) return { weekly: 15, monthly: 50, daily: 3 };
+  if (conns >= 50 && age >= 3) return { weekly: 13, monthly: 45, daily: 2.75 };
+  return null;
+}
+const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
+const monthlyOf = (a: Account) => { const t = tierPricing(a.connectionCount, a.accountAgeMonths); return t ? t.monthly : Number(a.monthlyPrice) || 0; };
+
 const SORTS: Record<string, (a: Account, b: Account) => number> = {
   "conn-desc": (a, b) => b.connectionCount - a.connectionCount,
   "conn-asc": (a, b) => a.connectionCount - b.connectionCount,
   "age-desc": (a, b) => (b.accountAgeMonths || 0) - (a.accountAgeMonths || 0),
-  "price-asc": (a, b) => Number(a.monthlyPrice) - Number(b.monthlyPrice),
-  "price-desc": (a, b) => Number(b.monthlyPrice) - Number(a.monthlyPrice),
+  "price-asc": (a, b) => monthlyOf(a) - monthlyOf(b),
+  "price-desc": (a, b) => monthlyOf(b) - monthlyOf(a),
 };
 
 export default function CataloguePage() {
@@ -90,7 +105,7 @@ export default function CataloguePage() {
     if (!user) { router.push("/login?message=You must sign in or sign up before you can rent accounts."); return; }
     router.push(`/checkout?accounts=${Array.from(selected).join(",")}`);
   };
-  const selectedTotal = accounts.filter((a) => selected.has(a.id)).reduce((s, a) => s + Number(a.monthlyPrice), 0);
+  const selectedTotal = accounts.filter((a) => selected.has(a.id)).reduce((s, a) => s + monthlyOf(a), 0);
 
   // rentable first, then showcase, then rented — chosen sort applied within each group
   const statusRank = (a: Account) => (a.status === "available" ? (a.showcase ? 1 : 0) : 2);
@@ -269,6 +284,25 @@ function Actions({ a }: { a: Account }) {
   );
 }
 
+// Shows the tiered weekly / monthly / daily price (monthly headline, wk + day
+// underneath). Falls back to the stored price when a profile fits no tier.
+function PriceBlock({ a, showPricing, compact }: { a: Account; showPricing: boolean; compact?: boolean }) {
+  if (!showPricing) return <span style={{ fontSize: compact ? 12.5 : 14, color: "#96A0AD", fontWeight: 600 }}>{compact ? "On request" : "Price on request"}</span>;
+  const t = tierPricing(a.connectionCount, a.accountAgeMonths);
+  if (!t) {
+    const m = Number(a.monthlyPrice) || 0;
+    return m > 0
+      ? <span><span style={{ font: `700 ${compact ? 15 : 19}px ${POP}`, color: "#0B1220" }}>{money(m)}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span></span>
+      : <span style={{ fontSize: 12.5, color: "#96A0AD" }}>On request</span>;
+  }
+  return (
+    <div style={{ lineHeight: 1.25 }}>
+      <div><span style={{ font: `700 ${compact ? 15 : 20}px ${POP}`, color: "#0B1220" }}>{money(t.monthly)}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span></div>
+      <div style={{ fontSize: compact ? 10.5 : 12, color: "#5A6473", marginTop: 2, whiteSpace: "nowrap" }}>{money(t.weekly)}/wk · {money(t.daily)}/day</div>
+    </div>
+  );
+}
+
 function Avatar({ a, rented }: { a: Account; rented: boolean }) {
   return (
     <div style={{ position: "relative", flexShrink: 0 }}>
@@ -316,7 +350,7 @@ function GridCard({ a, selected, onToggle, showPricing }: { a: Account; selected
       </div>
       <div style={{ height: 1, background: "#EDEFF2", marginBottom: 14 }} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div>{showPricing ? <><span style={{ font: `700 19px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 13, color: "#96A0AD" }}>/mo</span></> : <span style={{ font: `600 14px ${POP}`, color: "#5A6473" }}>Price on request</span>}</div>
+        <PriceBlock a={a} showPricing={showPricing} />
         <div style={{ display: "flex", gap: 8 }}><Actions a={a} /></div>
       </div>
     </div>
@@ -345,7 +379,7 @@ function ListRow({ a, selected, onToggle, showPricing }: { a: Account; selected:
       <span className="cat2-hide">{a.industry ? <IndustryTag industry={a.industry} /> : "—"}</span>
       <span className="cat2-hide" style={{ fontSize: 13, color: "#5A6473", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.location || "—"}</span>
       <span className="cat2-hide" style={{ width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: a.hasSalesNav ? "#067A45" : "#C23150", background: a.hasSalesNav ? "#E4F6EC" : "#FBE7EB" }}>{a.hasSalesNav ? "✓" : "✕"}</span>
-      <span>{showPricing ? <><span style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span></> : <span style={{ fontSize: 12.5, color: "#96A0AD" }}>On request</span>}</span>
+      <span><PriceBlock a={a} showPricing={showPricing} compact /></span>
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} /><Actions a={a} /></div>
     </div>
   );
