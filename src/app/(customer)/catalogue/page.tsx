@@ -66,7 +66,6 @@ export default function CataloguePage() {
   const [search, setSearch] = useState("");
   const [industry, setIndustry] = useState("");
   const [sort, setSort] = useState("conn-desc");
-  const [hasSalesNav, setHasSalesNav] = useState(false);
   const [activeFilter, setActiveFilter] = useState("All");
   const [view, setView] = useState<"list" | "grid">("list");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -85,14 +84,13 @@ export default function CataloguePage() {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
     if (industry) params.set("industry", industry);
-    if (hasSalesNav) params.set("hasSalesNav", "true");
     const res = await fetch(`/api/accounts?${params}`);
     const data = await res.json();
     setAccounts(data.accounts || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchAccounts(); }, [hasSalesNav, industry]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchAccounts(); }, [industry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); fetchAccounts(); };
   const handleFilterClick = (f: string) => { setActiveFilter(f); setIndustry(f === "All" ? "" : f); };
@@ -145,10 +143,6 @@ export default function CataloguePage() {
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <button onClick={() => setHasSalesNav((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", background: "#FFFFFF", border: "1px solid #E0E3E9", borderRadius: 10, padding: "9px 14px", font: `500 13.5px ${INT}`, color: "#3F4856" }}>
-              <span style={{ width: 17, height: 17, borderRadius: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", font: `700 11px ${INT}`, color: "#fff", border: "1.5px solid " + (hasSalesNav ? "#0A66C2" : "#CBD2DB"), background: hasSalesNav ? "#0A66C2" : "#fff" }}>{hasSalesNav ? "✓" : ""}</span>
-              Sales Navigator
-            </button>
             <div style={{ position: "relative" }}>
               <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ appearance: "none", WebkitAppearance: "none", background: "#FFFFFF", border: "1px solid #E0E3E9", borderRadius: 10, padding: "10px 38px 10px 14px", font: `500 13.5px ${INT}`, color: "#3F4856", cursor: "pointer" }}>
                 <option value="conn-desc">Most Connections</option>
@@ -204,9 +198,9 @@ export default function CataloguePage() {
           </div>
         ) : (
           <div style={{ background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
-            <div className="cat2-listhead" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,0.8fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "14px 22px", background: "#F8FAFC", borderBottom: "1px solid #EDEFF2", font: `500 11px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A93A2" }}>
+            <div className="cat2-listhead" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "14px 22px", background: "#F8FAFC", borderBottom: "1px solid #EDEFF2", font: `500 11px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A93A2" }}>
               <input type="checkbox" checked={selected.size > 0 && selected.size === rentable.length} onChange={toggleSelectAll} style={{ accentColor: "#0A66C2", cursor: "pointer" }} />
-              <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span className="cat2-hide">Sales Nav</span><span>Price</span><span></span>
+              <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span>Price</span><span></span>
             </div>
             {visible.map((a) => <ListRow key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} showPricing={showPricing} />)}
           </div>
@@ -333,14 +327,10 @@ function GridCard({ a, selected, onToggle, showPricing }: { a: Account; selected
         {a.location && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#5A6473" }}><span style={{ color: "#B0B7C2" }}>◍</span>{a.location}</span>}
         {ageLabel(a.accountAgeMonths) && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `700 12.5px ${POP}`, color: "#0A66C2", background: "#EAF3FF", border: "1px solid #CFE4FB", borderRadius: 999, padding: "3px 10px" }}>⏳ {ageLabel(a.accountAgeMonths)} old</span>}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 18 }}>
+      <div style={{ marginBottom: 18 }}>
         <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}>
           <div style={{ font: `700 16px ${POP}`, color: "#0B1220" }}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</div>
           <div style={{ fontSize: 11, color: "#96A0AD", marginTop: 2 }}>connections</div>
-        </div>
-        <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}>
-          <div style={{ font: `700 15px ${POP}`, color: a.hasSalesNav ? "#00A150" : "#C2C9D2" }}>{a.hasSalesNav ? "✓ Yes" : "— No"}</div>
-          <div style={{ fontSize: 11, color: "#96A0AD", marginTop: 2 }}>Sales Navigator</div>
         </div>
       </div>
       <div style={{ height: 1, background: "#EDEFF2", marginBottom: 14 }} />
@@ -357,7 +347,7 @@ function ListRow({ a, selected, onToggle, showPricing }: { a: Account; selected:
   const rentable = a.status === "available" && !a.showcase;
   const displayName = shortName(a.linkedinName);
   return (
-    <div className="cat2-row" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,0.8fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "15px 22px", borderBottom: "1px solid #F0F2F5", opacity: rented ? 0.66 : 1, background: selected ? "#F0F7FF" : "transparent", transition: "background .15s" }}>
+    <div className="cat2-row" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "15px 22px", borderBottom: "1px solid #F0F2F5", opacity: rented ? 0.66 : 1, background: selected ? "#F0F7FF" : "transparent", transition: "background .15s" }}>
       {rentable ? <input type="checkbox" checked={selected} onChange={() => onToggle(a.id)} style={{ accentColor: "#0A66C2", cursor: "pointer" }} /> : <input type="checkbox" disabled style={{ opacity: 0.3 }} />}
       <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
         <Avatar a={a} rented={rented} />
@@ -373,7 +363,6 @@ function ListRow({ a, selected, onToggle, showPricing }: { a: Account; selected:
       <span className="cat2-hide" style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</span>
       <span className="cat2-hide">{a.industry ? <IndustryTag industry={a.industry} /> : "—"}</span>
       <span className="cat2-hide" style={{ fontSize: 13, color: "#5A6473", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.location || "—"}</span>
-      <span className="cat2-hide" style={{ width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: a.hasSalesNav ? "#067A45" : "#C23150", background: a.hasSalesNav ? "#E4F6EC" : "#FBE7EB" }}>{a.hasSalesNav ? "✓" : "✕"}</span>
       <span><PriceBlock a={a} showPricing={showPricing} compact /></span>
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} /><Actions a={a} /></div>
     </div>

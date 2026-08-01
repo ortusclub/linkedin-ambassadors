@@ -14,13 +14,19 @@ export async function GET(req: NextRequest) {
 
   const statusFilter = searchParams.get("status");
   const where: Record<string, unknown> = {};
+  const and: Record<string, unknown>[] = [];
   if (statusFilter) {
     where.status = statusFilter;
+    where.listed = true;
   } else {
-    where.status = { in: ["available", "rented"] };
+    // Available accounts must be listed to appear; rented AND trial accounts show
+    // regardless of `listed` — displayed as "Rented" (social proof / real inventory,
+    // including off-platform rentals which are held unlisted).
+    and.push({ OR: [
+      { status: "available", listed: true },
+      { status: { in: ["rented", "trial"] } },
+    ] });
   }
-  // Only show listed accounts in browse
-  where.listed = true;
 
   if (industry) where.industry = industry;
   if (location) where.location = { contains: location, mode: "insensitive" };
@@ -28,12 +34,13 @@ export async function GET(req: NextRequest) {
   if (maxConnections) where.connectionCount = { ...((where.connectionCount as object) || {}), lte: parseInt(maxConnections) };
   if (hasSalesNav === "true") where.hasSalesNav = true;
   if (search) {
-    where.OR = [
+    and.push({ OR: [
       { linkedinName: { contains: search, mode: "insensitive" } },
       { linkedinHeadline: { contains: search, mode: "insensitive" } },
       { industry: { contains: search, mode: "insensitive" } },
-    ];
+    ] });
   }
+  if (and.length) where.AND = and;
 
   const orderBy: Record<string, string> = {};
   if (sort === "connectionCount") orderBy.connectionCount = "desc";
