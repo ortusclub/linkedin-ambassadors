@@ -103,6 +103,63 @@ export async function fetchIncomingBscUsdt(wallet: string, sinceTs: number): Pro
   return transfers;
 }
 
+// ── Ethereum (ERC-20) ────────────────────────────────────────────────────────
+// Same EVM approach as BSC, but Ethereum's USDT contract has 6 decimals (not 18).
+const ETH_RPC = process.env.ETH_RPC_URL || "https://eth.drpc.org";
+const ETH_USDT_CONTRACT = "0xdac17f958d2ee523a2206206994597c13d831ec7"; // Tether USDT on Ethereum
+
+async function ethRpc(method: string, params: unknown[]): Promise<unknown> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const res = await fetch(ETH_RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: controller.signal });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message || "RPC error");
+    return json.result;
+  } finally { clearTimeout(timeout); }
+}
+
+export async function fetchIncomingEthUsdt(wallet: string, sinceTs: number): Promise<IncomingTransfer[]> {
+  const latest = parseInt(String(await ethRpc("eth_blockNumber", [])), 16);
+  const blockTs = async (n: number) => {
+    const b = (await ethRpc("eth_getBlockByNumber", ["0x" + n.toString(16), false])) as { timestamp: string };
+    return parseInt(b.timestamp, 16) * 1000;
+  };
+  const latestTs = await blockTs(latest);
+  const probe = Math.max(latest - 100_000, 1);
+  const probeTs = await blockTs(probe);
+  const msPerBlock = (latestTs - probeTs) / (latest - probe);
+  const blocksBack = Math.ceil((latestTs - sinceTs) / msPerBlock) + Math.ceil(7_200_000 / msPerBlock);
+  const fromBlock = Math.max(latest - blocksBack, 0);
+
+  const toTopic = "0x000000000000000000000000" + wallet.toLowerCase().slice(2);
+  const logs: { data: string; topics: string[]; blockNumber: string; transactionHash: string }[] = [];
+  for (let from = fromBlock; from <= latest; from += 10_000) {
+    const to = Math.min(from + 9_999, latest);
+    let ok = false;
+    for (let attempt = 0; attempt < 5 && !ok; attempt++) {
+      try {
+        const res = (await ethRpc("eth_getLogs", [{ fromBlock: "0x" + from.toString(16), toBlock: "0x" + to.toString(16), address: ETH_USDT_CONTRACT, topics: [TOPIC_TRANSFER, null, toTopic] }])) as typeof logs;
+        logs.push(...res); ok = true;
+      } catch { await sleep(400 * (attempt + 1)); }
+    }
+    if (!ok) console.error(`crypto-payments: ETH chunk ${from}-${to} failed for ${wallet}`);
+    await sleep(120);
+  }
+
+  const transfers: IncomingTransfer[] = [];
+  for (const log of logs) {
+    let ts = 0;
+    try {
+      const b = (await ethRpc("eth_getBlockByNumber", [log.blockNumber, false])) as { timestamp: string };
+      ts = parseInt(b.timestamp, 16) * 1000;
+    } catch { /* keep 0 */ }
+    if (ts < sinceTs) continue;
+    transfers.push({ amount: Number(BigInt(log.data)) / 1e6, from: "0x" + log.topics[1].slice(26), ts, txHash: log.transactionHash });
+  }
+  return transfers;
+}
+
 // ── Telegram nudge ───────────────────────────────────────────────────────────
 // Preferred path: send from the admin's PERSONAL Telegram account (GramJS user
 // session) — lands in the existing chat with the renter, no bot restrictions.
@@ -208,6 +265,8 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
     try {
       if (network === "bsc") {
         transfers = await fetchIncomingBscUsdt(wallet, sinceTs);
+      } else if (network === "ethereum") {
+        transfers = await fetchIncomingEthUsdt(wallet, sinceTs);
       } else if (network === "tron") {
         transfers = (await fetchIncomingTronUsdt(wallet, { sinceTs })).map((t) => ({
           amount: t.amount, from: t.from, ts: t.ts, txHash: t.txId,
@@ -276,7 +335,7 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
       const text =
         `👋 Hi! Quick reminder — the rental payment for ${a.linkedinName} has fallen behind.\n\n` +
         `Rate: $${rate.toFixed(2)}/day · paid up to ${paidUntil!.toISOString().slice(0, 10)} (~${behindDays} day${behindDays === 1 ? "" : "s"} behind).\n\n` +
-        `Please send ${token} to:\n${wallet}\n(${network === "bsc" ? "BNB Chain / BEP-20" : network === "tron" ? "TRON / TRC-20" : network})\n\n` +
+        `Please send ${token} to:\n${wallet}\n(${network === "bsc" ? "BNB Chain / BEP-20" : network === "ethereum" ? "Ethereum / ERC-20" : network === "tron" ? "TRON / TRC-20" : network})\n\n` +
         `Payments are picked up automatically — thank you! 🙏`;
       if (a.paymentTelegramChatId) {
         nudgeSent = await sendTelegramNudge(a.paymentTelegramChatId, text);

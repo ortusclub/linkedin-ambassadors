@@ -123,7 +123,7 @@ function cryptoPayInfo(a: Account): PayInfo | null {
   const rate = Number(a.paymentDailyRate || 0);
   const auto = !!a.paymentWallet && rate > 0;     // on-chain scanned
   const address = a.paymentWallet || "";
-  const network = a.paymentNetwork === "bsc" ? "BNB Chain" : a.paymentNetwork === "tron" ? "TRON" : (a.paymentNetwork || "");
+  const network = a.paymentNetwork === "bsc" ? "BNB Chain" : a.paymentNetwork === "ethereum" ? "Ethereum" : a.paymentNetwork === "tron" ? "TRON" : (a.paymentNetwork || "");
 
   // Manual rentals (terms set, no daily rate): status is the admin-set paid-through
   // date — Unpaid until marked paid, no on-chain scan or auto-reminders.
