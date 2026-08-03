@@ -160,6 +160,39 @@ export async function fetchIncomingEthUsdt(wallet: string, sinceTs: number): Pro
   return transfers;
 }
 
+// ── EVM balance read (reliable) ──────────────────────────────────────────────
+// A single eth_call never times out, unlike scanning every Transfer log across
+// thousands of blocks. Our EVM deposit addresses are receive-only (no EVM
+// auto-sweep), so the on-chain USDT balance == total received. We credit any
+// amount above what the ledger already recorded — so a flaky log scan can't
+// cause a missed payment.
+const EVM_BAL: Record<string, { rpcs: string[]; contract: string; dec: number }> = {
+  bsc: { rpcs: ["https://bsc-dataseed1.bnbchain.org", "https://bsc-rpc.publicnode.com", "https://bsc.drpc.org"], contract: BSC_USDT_CONTRACT, dec: 18 },
+  ethereum: { rpcs: ["https://eth.drpc.org", "https://ethereum-rpc.publicnode.com", "https://rpc.ankr.com/eth"], contract: ETH_USDT_CONTRACT, dec: 6 },
+};
+async function evmCall(rpc: string, to: string, data: string): Promise<unknown> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const res = await fetch(rpc, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to, data }, "latest"] }), signal: controller.signal });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    return json.result;
+  } finally { clearTimeout(timeout); }
+}
+async function evmUsdtBalance(wallet: string, chainKey: string): Promise<number | null> {
+  const cfg = EVM_BAL[chainKey];
+  if (!cfg) return null;
+  const data = "0x70a08231000000000000000000000000" + wallet.toLowerCase().slice(2); // balanceOf(address)
+  for (const rpc of cfg.rpcs) {
+    try {
+      const res = await evmCall(rpc, cfg.contract, data);
+      if (typeof res === "string" && res.length > 2) return Number(BigInt(res)) / Math.pow(10, cfg.dec);
+    } catch { /* try next rpc */ }
+  }
+  return null;
+}
+
 // ── Telegram nudge ───────────────────────────────────────────────────────────
 // Preferred path: send from the admin's PERSONAL Telegram account (GramJS user
 // session) — lands in the existing chat with the renter, no bot restrictions.
@@ -263,10 +296,14 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
 
     let transfers: IncomingTransfer[] = [];
     try {
-      if (network === "bsc") {
-        transfers = await fetchIncomingBscUsdt(wallet, sinceTs);
-      } else if (network === "ethereum") {
-        transfers = await fetchIncomingEthUsdt(wallet, sinceTs);
+      if (network === "bsc" || network === "ethereum") {
+        // Balance-based reconciliation (reliable): credit any on-chain balance
+        // above what the ledger already has.
+        const bal = await evmUsdtBalance(wallet, network);
+        const ledgerTotal = a.cryptoPayments.reduce((s, p) => s + Number(p.amount), 0);
+        if (bal != null && bal > ledgerTotal + 0.01) {
+          transfers = [{ amount: Math.round((bal - ledgerTotal) * 1e6) / 1e6, from: "onchain-balance", ts: Date.now(), txHash: `bal-${a.id}-${bal.toFixed(2)}` }];
+        }
       } else if (network === "tron") {
         transfers = (await fetchIncomingTronUsdt(wallet, { sinceTs })).map((t) => ({
           amount: t.amount, from: t.from, ts: t.ts, txHash: t.txId,
