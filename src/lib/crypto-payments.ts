@@ -371,7 +371,7 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
       // Plain text — sent as a personal chat message (bot fallback renders it fine too).
       const text =
         `👋 Hi! Quick reminder — the rental payment for ${a.linkedinName} has fallen behind.\n\n` +
-        `Rate: $${rate.toFixed(2)}/day · paid up to ${paidUntil!.toISOString().slice(0, 10)} (~${behindDays} day${behindDays === 1 ? "" : "s"} behind).\n\n` +
+        `Rate: ${a.paymentTermsLabel || `$${rate.toFixed(2)}/day`} · paid up to ${paidUntil!.toISOString().slice(0, 10)} (~${behindDays} day${behindDays === 1 ? "" : "s"} behind).\n\n` +
         `Please send ${token} to:\n${wallet}\n(${network === "bsc" ? "BNB Chain / BEP-20" : network === "ethereum" ? "Ethereum / ERC-20" : network === "tron" ? "TRON / TRC-20" : network})\n\n` +
         `Payments are picked up automatically — thank you! 🙏`;
       if (a.paymentTelegramChatId) {
