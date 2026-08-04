@@ -5,6 +5,7 @@ import { isReferralEarned } from "@/lib/referrals";
 
 // A single ambassador application, reduced to what the referral roll-up needs.
 interface App {
+  fullName: string;
   referredBy: string | null;
   status: string;
   verifiedAt?: string | null;
@@ -235,11 +236,30 @@ export default function AdminReferralsPage() {
     return { ref, pays, commissionPaid, outstanding };
   };
 
-  const logCommission = async (referrerId: string, amount: number) => {
+  // The converted ambassadors behind a referrer's numbers — who they are and where each
+  // sits (payable now vs still in the hold, and why). Drives the expanded-panel list.
+  const convertedFor = (rowName: string) => {
+    const nm = (rowName || "").trim().toLowerCase();
+    return apps
+      .filter((a) => (a.referredBy || "").trim().toLowerCase() === nm && isConverted(a.status))
+      .map((a) => {
+        const earned = isReferralEarned(a);
+        const issueLabel = a.accountIssue ? (a.accountIssue === "restricted" ? "restricted" : "login issue") : null;
+        return {
+          name: a.fullName || "—",
+          state: earned ? "Ready to pay" : issueLabel ? `In hold · ${issueLabel}` : "In hold · verifying",
+          tone: earned ? "ready" : issueLabel ? "issue" : "hold",
+          title: a.accountIssue || "",
+        };
+      })
+      .sort((x, y) => (x.tone === "ready" ? -1 : y.tone === "ready" ? 1 : 0) || x.name.localeCompare(y.name));
+  };
+
+  const logCommission = async (referrerId: string, amount: number, description = "Signup commission") => {
     if (!referrerId || amount <= 0) return;
     setPBusy(referrerId);
     try {
-      await fetch("/api/admin/payouts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ referrerId, type: "commission", amount, description: "Signup commission" }) });
+      await fetch("/api/admin/payouts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ referrerId, type: "commission", amount, description }) });
       await reloadPayouts();
     } finally { setPBusy(""); }
   };
@@ -562,6 +582,8 @@ export default function AdminReferralsPage() {
           const open = expandedRef.has(r.name);
           const { ref, pays, commissionPaid, outstanding } = refInfo(r.name, r.readyOwed);
           const busy = ref ? pBusy === ref.id : false;
+          const converted = convertedFor(r.name);
+          const readyNames = converted.filter((c) => c.tone === "ready").map((c) => c.name);
           return (
             <div key={r.name} style={{ borderBottom: "1px solid var(--divider)" }}>
               <div onClick={() => toggleRef(r.name)} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 100px 120px 110px 140px 120px", gap: 14, alignItems: "center", padding: "15px 22px", cursor: "pointer", userSelect: "none" }}>
@@ -602,9 +624,28 @@ export default function AdminReferralsPage() {
                       <div style={{ font: `600 13px ${F_SANS}`, color: ref?.paymentDetails ? "var(--text)" : "var(--warn-num)" }}>{ref?.paymentDetails ? `${ref.paymentMethod || "—"} · ${ref.paymentDetails}` : "No payout details set"}</div>
                     </div>
                     {ref && outstanding > 0 && (
-                      <button type="button" onClick={() => logCommission(ref.id, outstanding)} disabled={busy} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap", opacity: busy ? 0.6 : 1 }}>+ Log {peso(outstanding)} paid</button>
+                      <button type="button" onClick={() => logCommission(ref.id, outstanding, readyNames.length ? readyNames.join(", ") : "Signup commission")} disabled={busy} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap", opacity: busy ? 0.6 : 1 }}>+ Log {peso(outstanding)} paid</button>
                     )}
                   </div>
+
+                  {/* who converted — the ambassadors behind the numbers */}
+                  {converted.length > 0 && (
+                    <div>
+                      <div style={{ ...label, marginBottom: 8 }}>Converted ambassadors · {converted.length}</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                        {converted.map((c, i) => {
+                          const tone = c.tone === "ready" ? "var(--green)" : c.tone === "issue" ? "var(--warn-num)" : "var(--muted2)";
+                          return (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }} title={c.title || undefined}>
+                              <span style={{ width: 7, height: 7, borderRadius: 999, background: tone, flex: "none" }} />
+                              <span style={{ font: `500 13px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{c.name}</span>
+                              <span style={{ font: `600 11px ${F_SANS}`, color: tone, whiteSpace: "nowrap" }}>{c.state}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* payment history */}
                   <div>
@@ -616,12 +657,13 @@ export default function AdminReferralsPage() {
                         {pays.map((p) => {
                           const stat = !p.paidAt ? { t: "Unpaid", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : !p.confirmedAt ? { t: "Paid · awaiting confirmation", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" } : { t: `Confirmed${p.confirmedBy ? ` · ${p.confirmedBy}` : ""}`, bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" };
                           const typeLabel = (PAYOUT_TYPES.find((t) => t[0] === p.type) || [null, p.type])[1];
+                          const showDesc = !!p.description && p.description !== typeLabel;
                           return (
                             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--card)", border: "1px solid var(--divider)", borderRadius: 10, padding: "10px 13px" }}>
                               <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", width: 92, flex: "none" }}>{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</span>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <span style={{ font: `700 13px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{peso(p.amount)}</span>
-                                <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}> · {typeLabel}{p.method ? ` · ${p.method}` : ""}{p.reference ? ` · ${p.reference}` : ""}</span>
+                                <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}> · {typeLabel}{showDesc ? ` · ${p.description}` : ""}{p.method ? ` · ${p.method}` : ""}{p.reference ? ` · ${p.reference}` : ""}</span>
                               </div>
                               <span style={{ font: `600 10.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap", background: stat.bg, color: stat.fg }}>{stat.t}</span>
                               {!p.paidAt && <button type="button" onClick={() => patchPayout(p.id, { paidAt: new Date().toISOString() })} disabled={pBusy === p.id} style={{ font: `600 11.5px ${F_SANS}`, color: "var(--text)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "5px 10px", borderRadius: 7, cursor: "pointer" }}>Mark paid</button>}
