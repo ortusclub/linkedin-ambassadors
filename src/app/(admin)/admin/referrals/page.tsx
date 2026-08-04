@@ -139,6 +139,7 @@ export default function AdminReferralsPage() {
   const [paidDates, setPaidDates] = useState<Record<string, string>>({});
   const [today, setToday] = useState("");
   const [expandedRef, setExpandedRef] = useState<Set<string>>(new Set());
+  const [refEdit, setRefEdit] = useState<string | null>(null);
   const toggleRef = (name: string) => setExpandedRef((p) => { const n = new Set(p); if (n.has(name)) n.delete(name); else n.add(name); return n; });
 
   const reloadPayouts = () => fetch("/api/admin/payouts").then((r) => r.json()).then((d) => setPayouts(d.payouts || [])).catch(() => {});
@@ -669,13 +670,23 @@ export default function AdminReferralsPage() {
                           const stat = !p.paidAt ? { t: "Unpaid", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : !p.confirmedAt ? { t: "Paid · awaiting confirmation", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" } : { t: `Confirmed${p.confirmedBy ? ` · ${p.confirmedBy}` : ""}`, bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" };
                           const typeLabel = (PAYOUT_TYPES.find((t) => t[0] === p.type) || [null, p.type])[1];
                           const showDesc = !!p.description && p.description !== typeLabel;
+                          const refIsUrl = !!p.reference && /^https?:\/\//i.test(p.reference);
+                          const editingRef = refEdit === p.id;
                           return (
                             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--card)", border: "1px solid var(--divider)", borderRadius: 10, padding: "10px 13px" }}>
                               <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", width: 92, flex: "none" }}>{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</span>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <span style={{ font: `700 13px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{peso(p.amount)}</span>
-                                <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}> · {typeLabel}{showDesc ? ` · ${p.description}` : ""}{p.method ? ` · ${p.method}` : ""}{p.reference ? ` · ${p.reference}` : ""}</span>
+                                <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}> · {typeLabel}{showDesc ? ` · ${p.description}` : ""}{p.method ? ` · ${p.method}` : ""}{p.reference && !refIsUrl ? ` · ${p.reference}` : ""}</span>
                               </div>
+                              {editingRef ? (
+                                <input autoFocus defaultValue={p.reference || ""} placeholder="Paste transfer link…" onKeyDown={(e) => { if (e.key === "Enter") { const v = (e.target as HTMLInputElement).value.trim(); if (v !== (p.reference || "")) patchPayout(p.id, { reference: v }); setRefEdit(null); } else if (e.key === "Escape") setRefEdit(null); }} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (p.reference || "")) patchPayout(p.id, { reference: v }); setRefEdit(null); }} style={{ ...inpStyle, width: 220 }} />
+                              ) : (
+                                <>
+                                  {refIsUrl && <a href={p.reference!} target="_blank" rel="noopener noreferrer" style={{ font: `600 11.5px ${F_SANS}`, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}>🔗 Receipt</a>}
+                                  <button type="button" onClick={() => setRefEdit(p.id)} title={refIsUrl ? "Edit transfer link" : "Attach a transfer link / reference"} style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>{refIsUrl ? "✎" : "+ link"}</button>
+                                </>
+                              )}
                               <span style={{ font: `600 10.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap", background: stat.bg, color: stat.fg }}>{stat.t}</span>
                               {!p.paidAt && <button type="button" onClick={() => patchPayout(p.id, { paidAt: new Date().toISOString() })} disabled={pBusy === p.id} style={{ font: `600 11.5px ${F_SANS}`, color: "var(--text)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "5px 10px", borderRadius: 7, cursor: "pointer" }}>Mark paid</button>}
                               <button type="button" onClick={() => deletePayout(p)} disabled={pBusy === p.id} title="Delete" style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", cursor: "pointer" }}>✕</button>
