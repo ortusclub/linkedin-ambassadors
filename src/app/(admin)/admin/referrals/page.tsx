@@ -582,7 +582,18 @@ export default function AdminReferralsPage() {
           const open = expandedRef.has(r.name);
           const { ref, pays, commissionPaid, outstanding } = refInfo(r.name, r.readyOwed);
           const busy = ref ? pBusy === ref.id : false;
-          const converted = convertedFor(r.name);
+          // Mark earned people as Paid once logged commission payments cover them
+          // (amount-based, matching the outstanding math). Confirmed payments settle
+          // first; paid-but-unconfirmed ones show as awaiting the marketer's confirmation.
+          const commissionConfirmed = pays.filter((p) => p.type === "commission" && p.paidAt && p.confirmedAt).reduce((s, p) => s + p.amount, 0);
+          let confSlots = Math.floor(commissionConfirmed / RATE);
+          let paidSlots = Math.floor(commissionPaid / RATE);
+          const converted = convertedFor(r.name).map((c) => {
+            if (c.tone !== "ready") return c;
+            if (confSlots > 0) { confSlots--; paidSlots--; return { ...c, state: "Paid", tone: "paid" }; }
+            if (paidSlots > 0) { paidSlots--; return { ...c, state: "Paid · awaiting confirmation", tone: "paidpending" }; }
+            return c;
+          });
           const readyNames = converted.filter((c) => c.tone === "ready").map((c) => c.name);
           return (
             <div key={r.name} style={{ borderBottom: "1px solid var(--divider)" }}>
@@ -615,7 +626,7 @@ export default function AdminReferralsPage() {
                 <div style={{ padding: "2px 22px 20px 63px", display: "flex", flexDirection: "column", gap: 16 }}>
                   {/* commission + payout summary */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-end" }}>
-                    <div><div style={label}>Ready to pay</div><div style={{ font: `700 16px ${F_GRO}`, color: r.readyOwed > 0 ? "var(--green)" : "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{peso(r.readyOwed)} <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>· {r.readyOwed / RATE} onboarded</span></div></div>
+                    <div><div style={label}>Ready to pay</div><div style={{ font: `700 16px ${F_GRO}`, color: outstanding > 0 ? "var(--green)" : "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{peso(outstanding)} <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>· {outstanding / RATE} onboarded</span></div></div>
                     <div><div style={label}>In hold</div><div style={{ font: `700 16px ${F_GRO}`, color: "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{peso(r.heldOwed)} <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>· {r.heldOwed / RATE} verifying</span></div></div>
                     <div><div style={label}>Paid (commission)</div><div style={{ font: `700 16px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{peso(commissionPaid)}</div></div>
                     <div style={{ flex: 1 }} />
@@ -634,7 +645,7 @@ export default function AdminReferralsPage() {
                       <div style={{ ...label, marginBottom: 8 }}>Converted ambassadors · {converted.length}</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                         {converted.map((c, i) => {
-                          const tone = c.tone === "ready" ? "var(--green)" : c.tone === "issue" ? "var(--warn-num)" : "var(--muted2)";
+                          const tone = c.tone === "ready" ? "var(--green)" : c.tone === "issue" ? "var(--warn-num)" : c.tone === "paidpending" ? "var(--blue-chip-text)" : "var(--muted2)";
                           return (
                             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }} title={c.title || undefined}>
                               <span style={{ width: 7, height: 7, borderRadius: 999, background: tone, flex: "none" }} />
