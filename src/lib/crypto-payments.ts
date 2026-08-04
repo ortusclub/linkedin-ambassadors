@@ -364,9 +364,12 @@ export async function checkCryptoPayments(): Promise<WalletCheckResult[]> {
     // agent all hit this same code — dedup lives here so nobody gets spammed).
     const NUDGE_COOLDOWN_MS = 20 * 3600000; // 20h → once a day, tolerant of cron drift
     const nudgeAllowed = !a.lastNudgeAt || Date.now() - a.lastNudgeAt.getTime() > NUDGE_COOLDOWN_MS;
+    // Only chase once they're more than 24h past their paid-through date — a day's grace.
+    const NUDGE_GRACE_MS = 24 * 3600000;
+    const pastGrace = !!paidUntil && Date.now() - paidUntil.getTime() > NUDGE_GRACE_MS;
     let nudgeSent = false;
     let whatsapp: { to: string; text: string } | null = null;
-    if (overdue && nudgeAllowed) {
+    if (overdue && pastGrace && nudgeAllowed) {
       const behindDays = Math.ceil((Date.now() - paidUntil!.getTime()) / 86400000);
       // Plain text — sent as a personal chat message (bot fallback renders it fine too).
       const text =
