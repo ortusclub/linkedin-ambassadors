@@ -39,17 +39,21 @@ function ageLabel(m: number | null | undefined) { if (!m || m <= 0) return ""; c
 // profile qualifies for wins (evaluated top-down). The last tier is the FLOOR —
 // every profile that doesn't reach a higher tier (incl. tiny/new ones, <30
 // connections) gets the bottom rate. Never returns null.
-function tierPricing(conns: number, ageMonths: number | null | undefined): { weekly: number; monthly: number; daily: number } {
+function tierPricing(conns: number, ageMonths: number | null | undefined, hasSalesNav?: boolean): { weekly: number; monthly: number; daily: number } {
   const age = ageMonths || 0;
-  if (conns >= 2000) return { weekly: 40, monthly: 150, daily: 8 };
-  if (conns >= 1000 && age >= 12) return { weekly: 30, monthly: 110, daily: 6 };
-  if (conns >= 500 && age >= 12) return { weekly: 20, monthly: 75, daily: 4 };
-  if (conns >= 100 && age >= 6) return { weekly: 15, monthly: 50, daily: 3 };
-  // Floor — 50+/3mo and everything below it (including <30 connections).
-  return { weekly: 13, monthly: 45, daily: 2.75 };
+  const base =
+    conns >= 2000 ? { weekly: 40, monthly: 150, daily: 8 }
+    : conns >= 1000 && age >= 12 ? { weekly: 30, monthly: 110, daily: 6 }
+    : conns >= 500 && age >= 12 ? { weekly: 20, monthly: 75, daily: 4 }
+    : conns >= 100 && age >= 6 ? { weekly: 15, monthly: 50, daily: 3 }
+    // Floor — 50+/3mo and everything below it (including <30 connections).
+    : { weekly: 13, monthly: 45, daily: 2.75 };
+  // Sales Navigator add-on: +$70/mo, +$20/wk, +$4/day on top of the tier.
+  if (hasSalesNav) return { weekly: base.weekly + 20, monthly: base.monthly + 70, daily: base.daily + 4 };
+  return base;
 }
 const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
-const monthlyOf = (a: Account) => tierPricing(a.connectionCount, a.accountAgeMonths).monthly;
+const monthlyOf = (a: Account) => tierPricing(a.connectionCount, a.accountAgeMonths, a.hasSalesNav).monthly;
 
 const SORTS: Record<string, (a: Account, b: Account) => number> = {
   "conn-desc": (a, b) => b.connectionCount - a.connectionCount,
@@ -132,6 +136,11 @@ export default function CataloguePage() {
         <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 14 }}>Marketplace</div>
         <h1 style={{ font: `700 clamp(30px,4vw,44px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Browse available accounts</h1>
         <p style={{ fontSize: 17, color: "#5A6473", margin: 0 }}>Verified, pre-warmed profiles — ready to rent right now.</p>
+        {showPricing && (
+          <p style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, padding: "7px 12px", background: "#EFF6FF", border: "1px solid #CFE2FA", borderRadius: 9, font: `500 13px ${INT}`, color: "#0A66C2" }}>
+            <span style={{ fontWeight: 700 }}>Sales Navigator (optional):</span> add <strong>+$70/mo</strong> · $20/wk · $4/day to any account.
+          </p>
+        )}
       </div>
 
       {/* controls */}
@@ -283,10 +292,10 @@ function Actions({ a }: { a: Account }) {
 // underneath). Falls back to the stored price when a profile fits no tier.
 function PriceBlock({ a, showPricing, compact }: { a: Account; showPricing: boolean; compact?: boolean }) {
   if (!showPricing) return <span style={{ fontSize: compact ? 12.5 : 14, color: "#96A0AD", fontWeight: 600 }}>{compact ? "On request" : "Price on request"}</span>;
-  const t = tierPricing(a.connectionCount, a.accountAgeMonths);
+  const t = tierPricing(a.connectionCount, a.accountAgeMonths, a.hasSalesNav);
   return (
     <div style={{ lineHeight: 1.25 }}>
-      <div><span style={{ font: `700 ${compact ? 15 : 20}px ${POP}`, color: "#0B1220" }}>{money(t.monthly)}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span></div>
+      <div><span style={{ font: `700 ${compact ? 15 : 20}px ${POP}`, color: "#0B1220" }}>{money(t.monthly)}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span>{a.hasSalesNav && <span style={{ fontSize: 10, color: "#0A66C2", fontWeight: 700, marginLeft: 5 }}>+SN</span>}</div>
       <div style={{ fontSize: compact ? 10.5 : 12, color: "#5A6473", marginTop: 2, whiteSpace: "nowrap" }}>{money(t.weekly)}/wk · {money(t.daily)}/day</div>
     </div>
   );

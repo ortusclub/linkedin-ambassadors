@@ -53,13 +53,17 @@ const fmt = (d: string | null) => { if (!d) return "—"; const x = new Date(d);
 const fmtS = (d: string | null) => { if (!d) return ""; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
 // Tiered rental pricing by connections + age (matches the public catalogue).
 // Highest qualifying tier wins; the last is the floor. Returns weekly/monthly/daily.
-const tierPricing = (conns: number, ageMonths: number | null): { weekly: number; monthly: number; daily: number } => {
+const tierPricing = (conns: number, ageMonths: number | null, hasSalesNav?: boolean): { weekly: number; monthly: number; daily: number } => {
   const age = ageMonths || 0;
-  if (conns >= 2000) return { weekly: 40, monthly: 150, daily: 8 };
-  if (conns >= 1000 && age >= 12) return { weekly: 30, monthly: 110, daily: 6 };
-  if (conns >= 500 && age >= 12) return { weekly: 20, monthly: 75, daily: 4 };
-  if (conns >= 100 && age >= 6) return { weekly: 15, monthly: 50, daily: 3 };
-  return { weekly: 13, monthly: 45, daily: 2.75 };
+  const base =
+    conns >= 2000 ? { weekly: 40, monthly: 150, daily: 8 }
+    : conns >= 1000 && age >= 12 ? { weekly: 30, monthly: 110, daily: 6 }
+    : conns >= 500 && age >= 12 ? { weekly: 20, monthly: 75, daily: 4 }
+    : conns >= 100 && age >= 6 ? { weekly: 15, monthly: 50, daily: 3 }
+    : { weekly: 13, monthly: 45, daily: 2.75 };
+  // Sales Navigator add-on: +$70/mo, +$20/wk, +$4/day on top of the tier.
+  if (hasSalesNav) return { weekly: base.weekly + 20, monthly: base.monthly + 70, daily: base.daily + 4 };
+  return base;
 };
 const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 
@@ -519,10 +523,10 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                               <span style={{ font: `500 10px ${F_SANS}`, color: "var(--warn-badge-text)" }}>🔒 locked rate</span>
                             </>
                           ) : (() => {
-                            const t = tierPricing(a.connectionCount, a.accountAgeMonths);
+                            const t = tierPricing(a.connectionCount, a.accountAgeMonths, a.hasSalesNav);
                             return (
                               <>
-                                <span style={{ font: `600 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{money(t.monthly)}<span style={{ font: `500 10px ${F_SANS}`, color: "var(--label)" }}>/mo</span></span>
+                                <span style={{ font: `600 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{money(t.monthly)}<span style={{ font: `500 10px ${F_SANS}`, color: "var(--label)" }}>/mo</span>{a.hasSalesNav && <span style={{ font: `700 9px ${F_SANS}`, color: "#0A66C2", marginLeft: 4 }}>+SN</span>}</span>
                                 <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)", whiteSpace: "nowrap" }}>{money(t.weekly)}/wk · {money(t.daily)}/day</span>
                               </>
                             );
