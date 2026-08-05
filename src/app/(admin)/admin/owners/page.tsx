@@ -243,7 +243,7 @@ export default function AdminOwnersPage() {
   const [owners, setOwners] = useState<Owner[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [stage, setStage] = useState<"all" | "onboarded" | "pending" | "inactive">("all");
+  const [stage, setStage] = useState<"all" | "onboarded" | "pending_us" | "pending_them" | "inactive">("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
@@ -300,16 +300,22 @@ export default function AdminOwnersPage() {
   const q = query.trim().toLowerCase();
   // Stage groups mirror the design's filter chips: Onboarded = Active owners,
   // Pending on us = still Onboarding, Paused/Lost = paused or lost.
-  const stageOf = (o: Owner): "onboarded" | "pending" | "inactive" => {
+  // An onboarding owner is "Pending on them" when they carry a login/account
+  // blocker (the ⚑ Issue flag → accountIssue) — we're waiting on the owner to
+  // send creds / a 2FA code / fix a restriction. Otherwise the ball's on us.
+  const stageOf = (o: Owner): "onboarded" | "pending_us" | "pending_them" | "inactive" => {
     const s = resolveStatus(o);
-    return s === "active" ? "onboarded" : s === "onboarding" ? "pending" : "inactive";
+    if (s === "active") return "onboarded";
+    if (s === "paused" || s === "lost") return "inactive";
+    return o.accountIssue ? "pending_them" : "pending_us";
   };
-  const stageCounts = { all: owners.length, onboarded: 0, pending: 0, inactive: 0 };
+  const stageCounts = { all: owners.length, onboarded: 0, pending_us: 0, pending_them: 0, inactive: 0 };
   for (const o of owners) stageCounts[stageOf(o)]++;
-  const STAGE_CHIPS: { key: "all" | "onboarded" | "pending" | "inactive"; label: string; dot: string | null }[] = [
+  const STAGE_CHIPS: { key: "all" | "onboarded" | "pending_us" | "pending_them" | "inactive"; label: string; dot: string | null }[] = [
     { key: "all", label: "All owners", dot: null },
     { key: "onboarded", label: "Onboarded", dot: "var(--st-active-fg)" },
-    { key: "pending", label: "Pending on us", dot: "var(--warn-badge-text)" },
+    { key: "pending_us", label: "Pending on us", dot: "var(--warn-badge-text)" },
+    { key: "pending_them", label: "Pending on them", dot: "var(--st-unreach-fg)" },
     { key: "inactive", label: "Paused / Lost", dot: "var(--st-cancel-fg)" },
   ];
   const shown = owners.filter(
