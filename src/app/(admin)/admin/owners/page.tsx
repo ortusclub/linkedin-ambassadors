@@ -320,7 +320,8 @@ export default function AdminOwnersPage() {
       (stage === "all" || stageOf(o) === stage) &&
       (!q || `${o.fullName} ${o.email} ${o.payoutName || ""} ${o.paymentMethod || ""} ${o.accounts.map((a) => a.linkedinName).join(" ")} ${resolveStatus(o)}`.toLowerCase().includes(q))
   );
-  const totalMonthly = owners.reduce((s, o) => s + o.monthlyPayout, 0);
+  // Only Active owners actually cost us monthly — Offline/Paused/Lost aren't being paid.
+  const totalMonthly = owners.reduce((s, o) => s + (resolveStatus(o) === "active" ? o.monthlyPayout : 0), 0);
   const allOpen = shown.length > 0 && shown.every((o) => expanded.has(o.email));
   const toggleAll = () => setExpanded(allOpen ? new Set() : new Set(shown.map((o) => o.email)));
 
@@ -345,7 +346,7 @@ export default function AdminOwnersPage() {
           )}
           <div style={{ textAlign: "right" }}>
             <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted)" }}>{owners.length} owner{owners.length !== 1 ? "s" : ""}</div>
-            {totalMonthly > 0 && <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{peso(totalMonthly)}/mo total</div>}
+            {totalMonthly > 0 && <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{peso(totalMonthly)}/mo · active</div>}
           </div>
         </div>
       </div>
