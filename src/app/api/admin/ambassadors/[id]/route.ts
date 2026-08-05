@@ -104,12 +104,13 @@ export async function PATCH(
         });
       }
       if (addMonthlyPayout) {
+        const payoutKind = addMonthlyPayout.kind || "monthly";
         payouts = [
           ...payouts,
           {
             paidAt: new Date().toISOString(),
             amount: addMonthlyPayout.amount,
-            kind: addMonthlyPayout.kind || "monthly",
+            kind: payoutKind,
             method: addMonthlyPayout.method?.trim() || null,
             proofUrl: addMonthlyPayout.proofUrl?.trim() || null,
             note: addMonthlyPayout.note?.trim() || null,
@@ -120,6 +121,15 @@ export async function PATCH(
             acknowledgedAt: null,
           },
         ];
+        // Paying the setup fee confirms a real conversion, so open the referrer's
+        // commission (ok-to-pay) if it isn't already — mirroring the manual
+        // verify toggle. The account_issue gate still independently holds
+        // restricted/blocked accounts, so a restricted person stays in hold
+        // until they're fixed, then opens automatically. Skip if this same
+        // request already sets verifiedAt explicitly.
+        if (payoutKind === "setup" && verifiedAt === undefined && !currentApp.verifiedAt) {
+          updateData.verifiedAt = new Date();
+        }
       }
       updateData.monthlyPayouts = payouts as Prisma.InputJsonValue;
     }
