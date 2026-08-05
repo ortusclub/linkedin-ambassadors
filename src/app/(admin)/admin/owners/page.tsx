@@ -243,6 +243,7 @@ export default function AdminOwnersPage() {
   const [owners, setOwners] = useState<Owner[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [stage, setStage] = useState<"all" | "onboarded" | "pending" | "inactive">("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
@@ -297,7 +298,25 @@ export default function AdminOwnersPage() {
   };
 
   const q = query.trim().toLowerCase();
-  const shown = owners.filter((o) => !q || `${o.fullName} ${o.email} ${o.payoutName || ""} ${o.paymentMethod || ""} ${o.accounts.map((a) => a.linkedinName).join(" ")} ${resolveStatus(o)}`.toLowerCase().includes(q));
+  // Stage groups mirror the design's filter chips: Onboarded = Active owners,
+  // Pending on us = still Onboarding, Paused/Lost = paused or lost.
+  const stageOf = (o: Owner): "onboarded" | "pending" | "inactive" => {
+    const s = resolveStatus(o);
+    return s === "active" ? "onboarded" : s === "onboarding" ? "pending" : "inactive";
+  };
+  const stageCounts = { all: owners.length, onboarded: 0, pending: 0, inactive: 0 };
+  for (const o of owners) stageCounts[stageOf(o)]++;
+  const STAGE_CHIPS: { key: "all" | "onboarded" | "pending" | "inactive"; label: string; dot: string | null }[] = [
+    { key: "all", label: "All owners", dot: null },
+    { key: "onboarded", label: "Onboarded", dot: "var(--st-active-fg)" },
+    { key: "pending", label: "Pending on us", dot: "var(--warn-badge-text)" },
+    { key: "inactive", label: "Paused / Lost", dot: "var(--st-cancel-fg)" },
+  ];
+  const shown = owners.filter(
+    (o) =>
+      (stage === "all" || stageOf(o) === stage) &&
+      (!q || `${o.fullName} ${o.email} ${o.payoutName || ""} ${o.paymentMethod || ""} ${o.accounts.map((a) => a.linkedinName).join(" ")} ${resolveStatus(o)}`.toLowerCase().includes(q))
+  );
   const totalMonthly = owners.reduce((s, o) => s + o.monthlyPayout, 0);
   const allOpen = shown.length > 0 && shown.every((o) => expanded.has(o.email));
   const toggleAll = () => setExpanded(allOpen ? new Set() : new Set(shown.map((o) => o.email)));
@@ -393,6 +412,21 @@ export default function AdminOwnersPage() {
           </div>
         );
       })()}
+
+      {/* stage filter chips */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        {STAGE_CHIPS.map((c) => {
+          const on = stage === c.key;
+          return (
+            <button key={c.key} type="button" onClick={() => setStage(c.key)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", font: `600 12.5px ${F_SANS}`, padding: "8px 14px", borderRadius: 999, border: "1px solid", background: on ? "var(--blue-chip-bg)" : "transparent", color: on ? "var(--blue-chip-text)" : "var(--muted)", borderColor: on ? "transparent" : "var(--btn-secondary-border)" }}>
+              {c.dot && <span style={{ width: 7, height: 7, borderRadius: 999, flex: "none", background: c.dot }} />}
+              {c.label}
+              <span style={{ font: `700 11px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 6px", borderRadius: 6, background: "var(--band)", color: "var(--muted)" }}>{stageCounts[c.key]}</span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* search + expand all */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
