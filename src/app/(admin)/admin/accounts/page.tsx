@@ -393,6 +393,13 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   return (
     <div>
+      {/* Security reminder — rotate credentials when a rental ends */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "var(--st-cancel-bg)", border: "1px solid var(--st-cancel-fg)", borderRadius: 12, padding: "12px 16px", marginBottom: 18 }}>
+        <span style={{ font: `600 15px ${F_SANS}`, flex: "none" }}>⚠️</span>
+        <span style={{ font: `600 13px/1.5 ${F_SANS}`, color: "var(--st-cancel-fg)" }}>
+          When a rental or trial ends, you MUST rotate BOTH the <b>2FA key</b> and the <b>GoLogin share link</b> before re-renting — the renter had both. Regenerate them (LinkedIn 2FA + a fresh GoLogin share link) and paste the new values so they can be updated.
+        </span>
+      </div>
       {/* title + actions */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 640 }}>
