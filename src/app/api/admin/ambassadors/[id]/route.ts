@@ -30,7 +30,7 @@ const updateSchema = z.object({
   paymentMethod: z.string().nullable().optional(),
   paymentDetails: z.string().nullable().optional(),
   payoutName: z.string().nullable().optional(),
-  ownerStatus: z.enum(["active", "onboarding", "paused", "lost"]).nullable().optional(),
+  ownerStatus: z.enum(["active", "offline", "onboarding", "paused", "lost"]).nullable().optional(),
   contactChannel: z.string().nullable().optional(),
   accountIssue: z.string().nullable().optional(),
   // Recurring ₱500/month payout: append a receipt, or remove one by index.
