@@ -646,7 +646,7 @@ export default function AdminReferralsPage() {
                       <div style={{ ...label, marginBottom: 8 }}>Converted ambassadors · {converted.length}</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                         {converted.map((c, i) => {
-                          const tone = c.tone === "ready" ? "var(--green)" : c.tone === "issue" ? "var(--warn-num)" : c.tone === "paidpending" ? "var(--blue-chip-text)" : "var(--muted2)";
+                          const tone = c.tone === "ready" ? "var(--green)" : c.tone === "paid" ? "var(--green)" : c.tone === "issue" ? "var(--warn-num)" : c.tone === "paidpending" ? "var(--blue-chip-text)" : "var(--muted2)";
                           return (
                             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }} title={c.title || undefined}>
                               <span style={{ width: 7, height: 7, borderRadius: 999, background: tone, flex: "none" }} />
