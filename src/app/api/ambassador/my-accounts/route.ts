@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { cookies, headers } from "next/headers";
 import { z } from "zod";
+import { persistImageUrl } from "@/lib/persist-image";
 
 async function getUser() {
   // First try Bearer token (from Electron app)
@@ -100,6 +101,10 @@ export async function PATCH(req: Request) {
     }
 
     const { id, ...updateData } = data;
+    // Re-host a pasted external photo URL (e.g. licdn) onto Blob so it can't expire.
+    if (updateData.profilePhotoUrl) {
+      updateData.profilePhotoUrl = await persistImageUrl(updateData.profilePhotoUrl) ?? undefined;
+    }
     const filtered = Object.fromEntries(
       Object.entries(updateData).filter(([, v]) => v !== undefined)
     );

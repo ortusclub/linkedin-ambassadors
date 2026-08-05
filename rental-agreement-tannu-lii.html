@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rental Agreement — Tannu Kumari</title>
+<style>
+  :root {
+    color-scheme: light;
+    --hero-1: #0d1b2e;
+    --hero-2: #18293f;
+    --brand-green: #2fd07a;
+    --paper: #ffffff;
+    --card: #ffffff;
+    --inset: #f4f6f9;
+    --ink: #1a2230;
+    --muted: #6b7480;
+    --faint: #949bab;
+    --hair: #e5e9ef;
+    --accent: #3b6fb5;
+    --accent-ink: #2f5e9e;
+    --tip-bg: #eef3fb;
+    --tip-hair: #d8e3f4;
+    --warn: #b45309;
+    --warn-bg: #fdf4e8;
+    --warn-hair: #efd9b6;
+    --shadow: 0 1px 2px rgba(16,26,44,.04), 0 10px 34px rgba(16,26,44,.07);
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    padding: clamp(16px, 4vw, 44px) 14px clamp(40px, 6vw, 72px);
+  }
+  .wrap { max-width: 640px; margin: 0 auto; display: grid; gap: clamp(16px, 3vw, 22px); }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+    text-transform: uppercase; font-weight: 600; color: var(--accent); margin: 0 0 16px;
+  }
+
+  .hero {
+    background: linear-gradient(150deg, var(--hero-1), var(--hero-2));
+    border-radius: 16px; padding: clamp(26px, 5vw, 44px);
+    color: #eaf0fa; box-shadow: var(--shadow);
+  }
+  .logo { font-size: 19px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 22px; color: #fff; }
+  .logo span { color: var(--brand-green); }
+  .hero .eyebrow { color: #6f9bd6; }
+  .hero h1 {
+    font-size: clamp(30px, 7vw, 44px); font-weight: 700; letter-spacing: -.02em;
+    line-height: 1.05; text-wrap: balance; margin: 0 0 14px; color: #fff;
+  }
+  .hero p { margin: 0; color: #a9b8cd; font-size: 15px; max-width: 44ch; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--hair); border-radius: 16px;
+    padding: clamp(22px, 4vw, 36px); box-shadow: var(--shadow);
+  }
+
+  .terms { display: grid; gap: 0; margin: 0; }
+  .row {
+    display: grid; grid-template-columns: 130px 1fr; gap: 10px 20px;
+    padding: 13px 0; border-top: 1px solid var(--hair); align-items: baseline;
+  }
+  .row:first-child { border-top: none; padding-top: 0; }
+  .row dt { color: var(--muted); font-size: 13.5px; }
+  .row dd { margin: 0; color: var(--ink); font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .row dd small { font-weight: 500; color: var(--muted); font-size: 13px; }
+  .row dd .note { display: block; font-weight: 400; color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+  .paybox { margin-top: 18px; border: 1px solid var(--hair); border-radius: 10px; background: var(--inset); padding: 13px 15px; }
+  .plabel {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--faint); font-weight: 600; margin: 0 0 8px;
+  }
+  .addr-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .addr { font-family: var(--mono); font-size: 12.5px; color: var(--ink); word-break: break-all; flex: 1 1 220px; line-height: 1.45; cursor: pointer; }
+  .addr::selection { background: var(--tip-hair); }
+
+  .btn {
+    font-family: var(--sans); font-size: 13px; font-weight: 600; color: #fff;
+    background: var(--accent-ink); border: none; border-radius: 8px; padding: 8px 14px;
+    cursor: pointer; white-space: nowrap; transition: opacity .15s ease, transform .05s ease;
+  }
+  .btn:hover { opacity: .92; }
+  .btn:active { transform: translateY(1px); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  ol.incl { list-style: none; counter-reset: n; margin: 0; padding: 0; display: grid; gap: 18px; }
+  ol.incl > li { counter-increment: n; display: grid; grid-template-columns: 26px 1fr; gap: 13px; align-items: start; }
+  ol.incl > li::before {
+    content: counter(n); font-family: var(--mono); font-size: 12px; font-weight: 600;
+    color: var(--accent); background: var(--tip-bg); border: 1px solid var(--tip-hair);
+    width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+  }
+  ol.incl p, .prose p { margin: 0; color: var(--muted); font-size: 14.5px; }
+  ol.incl b, .prose b { color: var(--ink); font-weight: 600; }
+  .prose p + p { margin-top: 12px; }
+
+  .rules { display: grid; gap: 18px; }
+  .rule { display: grid; grid-template-columns: 22px 1fr; gap: 13px; align-items: start; }
+  .rule .x {
+    width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
+    background: var(--warn-bg); border: 1px solid var(--warn-hair); color: var(--warn);
+    font-size: 13px; font-weight: 700; line-height: 1;
+  }
+  .rule .lead { color: var(--ink); font-weight: 600; }
+  .rule p { margin: 3px 0 0; color: var(--muted); font-size: 14.5px; }
+
+  .warnband {
+    border: 1px solid var(--warn-hair); background: var(--warn-bg);
+    border-radius: 12px; padding: 16px 18px; margin-top: 18px;
+  }
+  .warnband .wt { color: var(--warn); font-weight: 700; font-size: 14px; margin: 0 0 4px; }
+  .warnband p { margin: 0; color: var(--ink); opacity: .86; font-size: 14.5px; }
+
+  .confirm p { margin: 0 0 18px; color: var(--muted); font-size: 15px; max-width: 50ch; }
+  .confirm p b { color: var(--ink); font-weight: 600; }
+  .confirm .btn { font-size: 14px; padding: 11px 18px; }
+  .toast { display: inline-block; font-size: 13px; color: var(--accent-ink); font-weight: 600; margin-left: 12px; opacity: 0; transition: opacity .2s; }
+  .toast.show { opacity: 1; }
+  .sig {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--hair);
+    font-size: 13px; color: var(--faint);
+  }
+  .sig b { color: var(--muted); font-weight: 600; }
+
+  .foot {
+    text-align: center; font-family: var(--mono); font-size: 11px; letter-spacing: .16em;
+    color: var(--faint); text-transform: uppercase; padding-top: 6px;
+  }
+  .foot span { color: var(--accent); }
+
+  @media (max-width: 440px) { .row { grid-template-columns: 1fr; gap: 2px; padding: 11px 0; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  @media print {
+    :root { --paper: #fff; --card: #fff; --ink: #14181f; --muted: #444; }
+    body { padding: 0; }
+    .wrap { max-width: none; gap: 14px; }
+    .card, .hero { box-shadow: none; break-inside: avoid; }
+    .btn, .toast { display: none !important; }
+    .hero { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <p class="logo">Linked<span>Velocity</span></p>
+    <p class="eyebrow">Account Rental Agreement</p>
+    <h1>Rental agreement</h1>
+    <p>Between LinkedVelocity and Lii. Please review the terms and reply to confirm to get started.</p>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">The terms</p>
+    <dl class="terms">
+      <div class="row"><dt>Renter</dt><dd>Lii · +1 365 278 9710</dd></div>
+      <div class="row"><dt>Account</dt><dd>Tannu Kumari</dd></div>
+      <div class="row"><dt>Rate</dt><dd>$15 <small>/ week</small></dd></div>
+      <div class="row"><dt>Billing</dt><dd>Every Sunday <span class="note">Paid in advance for the week ahead</span></dd></div>
+      <div class="row"><dt>Payment</dt><dd>USDT · TRC-20 (Tron) <span class="note">Wallet address below</span></dd></div>
+      <div class="row"><dt>Term</dt><dd>Weekly, rolling <span class="note">Continues week to week — stop anytime</span></dd></div>
+      <div class="row"><dt>Start</dt><dd>Sunday, 12 July 2026</dd></div>
+    </dl>
+    <div class="paybox">
+      <p class="plabel">USDT · TRC-20 wallet</p>
+      <div class="addr-row">
+        <span class="addr" id="addr">TM54XeBh1Fz9q4MgQW5zyA8NeKQejgapYa</span>
+        <button class="btn" id="copyAddr" type="button">Copy address</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Payment</p>
+    <div class="prose">
+      <p><b>$15 is due every Sunday</b>, in advance for the week ahead, paid in USDT (TRC-20) to the wallet above. Access stays active as long as the weekly payment is made.</p>
+    </div>
+    <div class="warnband">
+      <p class="wt">If payment isn't made</p>
+      <p>If a payment is more than <b>24 hours late</b>, we reserve the right to take the account back and end the rental.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">What's included</p>
+    <ol class="incl">
+      <li><p><b>Established account, accessed securely via GoLogin</b> — a dedicated proxy and anti-detect browser. No passwords to manage.</p></li>
+      <li><p><b>We maintain the account</b> and work to keep it healthy and looking natural throughout the rental.</p></li>
+      <li><p><b>Fair, human-paced use.</b> Keep activity within safe limits and use the account for legitimate B2B outreach.</p></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">When restrictions happen</p>
+    <div class="prose">
+      <p>Restrictions are a normal part of this, and because these are real people's accounts, we handle them carefully. If an account gets restricted, we <b>pause the rental agreement until we've recovered it — you won't be charged for downtime</b>.</p>
+      <p>However, if an account sees an unusually high level of restrictions, we'd treat that as a sign to end the partnership.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">What we don't allow</p>
+    <div class="rules">
+      <div class="rule">
+        <span class="x" aria-hidden="true">✕</span>
+        <div>
+          <span class="lead">Changing the profile picture, location, or work experience without checking with us first.</span>
+          <p>We're open to these changes — we just need to be kept in the loop before you make them, so we can safeguard the account and keep restrictions to a minimum.</p>
+        </div>
+      </div>
+      <div class="rule">
+        <span class="x" aria-hidden="true">✕</span>
+        <div>
+          <span class="lead">Unsafe or heavy automation.</span>
+          <p>If an account is used purely as a burner for aggressive daily scraping, it will eventually be restricted. We can support you by running our own bots to keep the account looking natural and lower the risk of restrictions — but if we detect that an account is being abused, we'll end the partnership.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card confirm">
+    <p class="eyebrow">To confirm</p>
+    <p><b>Just reply to this message to accept these terms</b> — no signature needed.</p>
+    <div>
+      <button class="btn" id="copyAck" type="button">Copy confirmation message</button>
+      <span class="toast" id="toast">Copied — paste it back to us</span>
+    </div>
+    <div class="sig">
+      <span>Renter — <b>Lii</b></span>
+      <span><b>LinkedVelocity</b></span>
+    </div>
+  </div>
+
+  <p class="foot"><span>LinkedVelocity</span> · rental agreement · 13 July 2026</p>
+</div>
+
+<script>
+  (function () {
+    var ackText = "I, Lii, agree to rent the Tannu Kumari account from LinkedVelocity for $15/week, paid in USDT (TRC-20) every Sunday in advance, starting 12 July 2026. I understand that if a payment is more than 24 hours late, LinkedVelocity may take the account back.";
+
+    function flash(btn, label, ms) {
+      if (!btn.getAttribute("data-label")) btn.setAttribute("data-label", btn.textContent);
+      btn.textContent = label;
+      setTimeout(function () { btn.textContent = btn.getAttribute("data-label"); }, ms || 1700);
+    }
+    function copyEl(el, btn, okLabel) {
+      var text = el.textContent.trim();
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      var sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(range);
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) {}
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          function () { sel.removeAllRanges(); flash(btn, okLabel); },
+          function () { flash(btn, ok ? okLabel : "Highlighted — press ⌘C", 2600); }
+        );
+      } else {
+        if (ok) sel.removeAllRanges();
+        flash(btn, ok ? okLabel : "Highlighted — press ⌘C", ok ? 1700 : 2600);
+      }
+    }
+    function copyText(text, done, fail) {
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.top = "0"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+      if (ok) { done(); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fail);
+      } else { fail(); }
+    }
+
+    var addrEl = document.getElementById("addr"), a = document.getElementById("copyAddr");
+    function doAddr() { copyEl(addrEl, a, "Copied ✓"); }
+    a.addEventListener("click", doAddr);
+    addrEl.addEventListener("click", doAddr);
+
+    var b = document.getElementById("copyAck"), t = document.getElementById("toast");
+    b.addEventListener("click", function () {
+      copyText(ackText,
+        function () { t.textContent = "Copied — paste it back to us"; t.classList.add("show"); setTimeout(function () { t.classList.remove("show"); }, 2600); },
+        function () { t.textContent = "Couldn't copy — select the text manually"; t.classList.add("show"); setTimeout(function () { t.classList.remove("show"); }, 3000); }
+      );
+    });
+  })();
+</script>
+</body>
+</html>

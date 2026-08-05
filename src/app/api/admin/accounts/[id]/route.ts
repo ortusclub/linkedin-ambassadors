@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
+import { persistImageUrl } from "@/lib/persist-image";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -74,6 +75,12 @@ export async function PATCH(
     // A manual health mark stamps the check date server-side.
     if (data.linkedinAccountHealth !== undefined) {
       (data as Record<string, unknown>).healthCheckedAt = new Date();
+    }
+
+    // Re-host any newly-set external profile photo (e.g. a licdn URL) onto Blob
+    // so it doesn't expire. Leaves null (photo cleared) and unchanged URLs alone.
+    if (data.profilePhotoUrl) {
+      data.profilePhotoUrl = await persistImageUrl(data.profilePhotoUrl);
     }
 
     const account = await prisma.linkedInAccount.update({
