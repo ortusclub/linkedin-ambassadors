@@ -61,15 +61,18 @@ const WHEN_TONE: Record<"over" | "soon" | "later", { bg: string; fg: string }> =
 };
 
 // Owner relationship status, derived from the application's pipeline status. The four
-// Owner stage: Active (has a live account) / Offline (onboarded, nothing live
-// yet) / Paused / Lost. Active-vs-Offline auto-derives from account inventory
-// status (see resolveStatus); any of the four can be set manually to override.
-type OwnerStatus = "active" | "offline" | "paused" | "lost";
-const MANUAL_STATUSES: OwnerStatus[] = ["active", "offline", "paused", "lost"];
+// Owner stage: Active (live & working) / Waiting on us (our move to finish
+// setup) / Waiting on them (blocked on the owner — creds / 2FA / restriction) /
+// Paused / Lost. All five are set by hand via the Status dropdown; when none is
+// set we auto-suggest one (a blocker → Waiting on them, a live account →
+// Active, else Waiting on us), but a manual pick always wins.
+type OwnerStatus = "active" | "waiting_us" | "waiting_them" | "paused" | "lost";
+const MANUAL_STATUSES: OwnerStatus[] = ["active", "waiting_us", "waiting_them", "paused", "lost"];
 const STATUS_META: Record<OwnerStatus, { label: string; bg: string; fg: string }> = {
   active: { label: "Active", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" },
-  offline: { label: "Offline", bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)" },
-  paused: { label: "Paused", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" },
+  waiting_us: { label: "Waiting on us", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" },
+  waiting_them: { label: "Waiting on them", bg: "var(--st-unreach-bg)", fg: "var(--st-unreach-fg)" },
+  paused: { label: "Paused", bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)" },
   lost: { label: "Lost", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)" },
 };
 const CHANNEL_OPTIONS = ["", "WhatsApp", "Telegram", "Messenger", "Email", "Viber", "SMS"];
@@ -175,14 +178,12 @@ interface Owner {
 // Manually-set owner status wins; otherwise fall back to the pipeline-derived one.
 // A profile counts as live once its account is available or rented.
 const hasLiveAccount = (o: Owner): boolean => o.accounts.some((a) => a.status === "available" || a.status === "rented");
-// Manual status (if one of the four) wins; otherwise auto — a live account is
-// Active, everything else Offline. This is why an untouched owner no longer
-// defaults to "Active" just because their application says onboarded.
-const resolveStatus = (o: Owner): OwnerStatus =>
-  o.ownerStatus && (MANUAL_STATUSES as string[]).includes(o.ownerStatus)
-    ? (o.ownerStatus as OwnerStatus)
-    : hasLiveAccount(o) ? "active" : "offline";
+// Auto-suggested stage when nothing is set by hand: a login/account blocker →
+// waiting on the owner, a live account → Active, otherwise the ball's on us.
+const autoStatus = (o: Owner): OwnerStatus => (o.accountIssue ? "waiting_them" : hasLiveAccount(o) ? "active" : "waiting_us");
 const isManualStatus = (o: Owner): boolean => !!o.ownerStatus && (MANUAL_STATUSES as string[]).includes(o.ownerStatus);
+// Manual status always wins over the auto suggestion.
+const resolveStatus = (o: Owner): OwnerStatus => (isManualStatus(o) ? (o.ownerStatus as OwnerStatus) : autoStatus(o));
 
 const labelCss: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
 const inputCss: React.CSSProperties = { width: "100%", minWidth: 0, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 11px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" };
@@ -246,7 +247,7 @@ export default function AdminOwnersPage() {
   const [owners, setOwners] = useState<Owner[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [stage, setStage] = useState<"all" | "active" | "offline" | "inactive">("all");
+  const [stage, setStage] = useState<"all" | "active" | "waiting_us" | "waiting_them" | "inactive">("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
@@ -303,16 +304,17 @@ export default function AdminOwnersPage() {
   const q = query.trim().toLowerCase();
   // Stage groups mirror the design's filter chips: Onboarded = Active owners,
   // Pending on us = still Onboarding, Paused/Lost = paused or lost.
-  const stageOf = (o: Owner): "active" | "offline" | "inactive" => {
+  const stageOf = (o: Owner): "active" | "waiting_us" | "waiting_them" | "inactive" => {
     const s = resolveStatus(o);
-    return s === "active" ? "active" : s === "offline" ? "offline" : "inactive";
+    return s === "active" ? "active" : s === "waiting_us" ? "waiting_us" : s === "waiting_them" ? "waiting_them" : "inactive";
   };
-  const stageCounts = { all: owners.length, active: 0, offline: 0, inactive: 0 };
+  const stageCounts = { all: owners.length, active: 0, waiting_us: 0, waiting_them: 0, inactive: 0 };
   for (const o of owners) stageCounts[stageOf(o)]++;
-  const STAGE_CHIPS: { key: "all" | "active" | "offline" | "inactive"; label: string; dot: string | null }[] = [
+  const STAGE_CHIPS: { key: "all" | "active" | "waiting_us" | "waiting_them" | "inactive"; label: string; dot: string | null }[] = [
     { key: "all", label: "All owners", dot: null },
     { key: "active", label: "Active", dot: "var(--st-active-fg)" },
-    { key: "offline", label: "Offline", dot: "var(--muted)" },
+    { key: "waiting_us", label: "Waiting on us", dot: "var(--warn-badge-text)" },
+    { key: "waiting_them", label: "Waiting on them", dot: "var(--st-unreach-fg)" },
     { key: "inactive", label: "Paused / Lost", dot: "var(--st-cancel-fg)" },
   ];
   const shown = owners.filter(
@@ -517,7 +519,7 @@ export default function AdminOwnersPage() {
                         <span style={labelCss}>Owner status</span>
                         <select value={isManualStatus(owner) ? (owner.ownerStatus as string) : "auto"} onClick={(e) => e.stopPropagation()} onChange={(e) => patchOwner(owner.applicationId, { ownerStatus: e.target.value === "auto" ? null : e.target.value })}
                           style={{ ...inputCss, cursor: "pointer", fontWeight: 600 }}>
-                          <option value="auto">Auto · {STATUS_META[hasLiveAccount(owner) ? "active" : "offline"].label}</option>
+                          <option value="auto">Auto · {STATUS_META[autoStatus(owner)].label}</option>
                           {MANUAL_STATUSES.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
                         </select>
                       </div>
