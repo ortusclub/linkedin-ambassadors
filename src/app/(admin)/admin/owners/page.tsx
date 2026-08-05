@@ -250,6 +250,7 @@ export default function AdminOwnersPage() {
   // (setup vs monthly). Session-only — you re-verify the account before each payout.
   const [okToPay, setOkToPay] = useState<Set<string>>(new Set());
   const [due, setDue] = useState<PaymentsDue | null>(null);
+  const [dueOpen, setDueOpen] = useState(false);
   const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [sheetCopied, setSheetCopied] = useState(false);
@@ -349,16 +350,19 @@ export default function AdminOwnersPage() {
         }
         return (
           <div style={{ background: "var(--warn-bg)", border: "1px solid var(--warn-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 22 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: nothing ? 0 : 14 }}>
-              <div>
-                <div style={{ font: `600 15px ${F_GRO}`, color: "var(--text)", marginBottom: 3 }}>Payments due</div>
-                <div style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{subtitle}</div>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: nothing || !dueOpen ? 0 : 14 }}>
+              <div onClick={() => !nothing && setDueOpen((o) => !o)} style={{ flex: 1, minWidth: 0, cursor: nothing ? "default" : "pointer", userSelect: "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                  {!nothing && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", width: 10, textAlign: "center", transform: dueOpen ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>}
+                  <span style={{ font: `600 15px ${F_GRO}`, color: "var(--text)" }}>Payments due</span>
+                </div>
+                <div style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)", paddingLeft: nothing ? 0 : 18 }}>{subtitle}</div>
               </div>
               <button type="button" onClick={emailMilee} disabled={emailState === "sending"} style={{ ...darkBtn, flex: "none", opacity: emailState === "sending" ? 0.6 : 1 }}>
                 {emailState === "sending" ? "Sending…" : emailState === "sent" ? "✓ Sent to Milee" : emailState === "error" ? "Failed — retry" : "✉ Email Milee"}
               </button>
             </div>
-            {!nothing && (
+            {!nothing && dueOpen && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {rows.map((i, idx) => {
                   const w = relWhen(i.dueDate);
