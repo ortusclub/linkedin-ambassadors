@@ -586,11 +586,39 @@ export default function AdminReferralsPage() {
           // Mark earned people as Paid once logged commission payments cover them
           // (amount-based, matching the outstanding math). Confirmed payments settle
           // first; paid-but-unconfirmed ones show as awaiting the marketer's confirmation.
-          const commissionConfirmed = pays.filter((p) => p.type === "commission" && p.paidAt && p.confirmedAt).reduce((s, p) => s + p.amount, 0);
-          let confSlots = Math.floor(commissionConfirmed / RATE);
-          let paidSlots = Math.floor(commissionPaid / RATE);
+          // Match "Paid" to the actual person a commission payout names (its
+          // description carries the credited ambassador name, comma-joined when
+          // one payout covers several). Only generic, un-named payments fall back
+          // to amount-based slots — so the badge lands on the right person rather
+          // than whoever happens to sort first alphabetically.
+          const normName = (s: string) => (s || "").trim().toLowerCase();
+          const confirmedNames = new Set<string>();
+          const paidNames = new Set<string>();
+          let unnamedConfirmed = 0;
+          let unnamedPaid = 0;
+          for (const p of pays) {
+            if (p.type !== "commission" || !p.paidAt) continue;
+            const desc = (p.description || "").trim();
+            const named = desc && desc !== "Signup commission";
+            if (named) {
+              for (const part of desc.split(/,\s*/)) {
+                const n = normName(part);
+                if (!n) continue;
+                paidNames.add(n);
+                if (p.confirmedAt) confirmedNames.add(n);
+              }
+            } else {
+              unnamedPaid += p.amount;
+              if (p.confirmedAt) unnamedConfirmed += p.amount;
+            }
+          }
+          let confSlots = Math.floor(unnamedConfirmed / RATE);
+          let paidSlots = Math.floor(unnamedPaid / RATE);
           const converted = convertedFor(r.name).map((c) => {
             if (c.tone !== "ready") return c;
+            const n = normName(c.name);
+            if (confirmedNames.has(n)) return { ...c, state: "Paid", tone: "paid" };
+            if (paidNames.has(n)) return { ...c, state: "Paid · awaiting confirmation", tone: "paidpending" };
             if (confSlots > 0) { confSlots--; paidSlots--; return { ...c, state: "Paid", tone: "paid" }; }
             if (paidSlots > 0) { paidSlots--; return { ...c, state: "Paid · awaiting confirmation", tone: "paidpending" }; }
             return c;
