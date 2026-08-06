@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { formatNumber, formatCurrency } from "@/lib/utils";
+import { formatNumber, formatCurrency, SALES_NAV_MONTHLY } from "@/lib/utils";
 import { blogFontVars } from "@/lib/blog-fonts";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
@@ -48,6 +48,16 @@ function CheckoutContent() {
   const [vetError, setVetError] = useState("");
 
   const accountIds = searchParams.get("accounts")?.split(",").filter(Boolean) || [];
+  const [salesNavIds, setSalesNavIds] = useState<Set<string>>(
+    () => new Set(searchParams.get("salesNav")?.split(",").filter(Boolean) || [])
+  );
+  const toggleSalesNav = (id: string) =>
+    setSalesNavIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const salesNavFor = (a: Account) => salesNavIds.has(a.id) && !a.hasSalesNav;
 
   useEffect(() => {
     if (accountIds.length === 0) { router.push("/catalogue"); return; }
@@ -63,14 +73,14 @@ function CheckoutContent() {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const total = accounts.reduce((sum, a) => sum + Number(a.monthlyPrice), 0);
+  const total = accounts.reduce((sum, a) => sum + Number(a.monthlyPrice) + (salesNavFor(a) ? SALES_NAV_MONTHLY : 0), 0);
   const hasSufficientBalance = usdcBalance !== null && usdcBalance >= total;
 
   const handleCheckout = async () => {
     setCheckingOut(true);
     setCheckoutError("");
     try {
-      const res = await fetch("/api/rentals/checkout-usdc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew }) });
+      const res = await fetch("/api/rentals/checkout-usdc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew, salesNavAccountIds: accounts.filter(salesNavFor).map((a) => a.id) }) });
       const data = await res.json();
       if (res.status === 401) { router.push("/login?message=You must sign in or sign up before you can rent accounts."); return; }
       if (!res.ok) { setCheckoutError(data.error || "Payment failed"); return; }
@@ -103,7 +113,10 @@ function CheckoutContent() {
     const remaining = accounts.filter((a) => a.id !== id);
     if (remaining.length === 0) { router.push("/catalogue"); return; }
     setAccounts(remaining);
+    setSalesNavIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     const p = new URLSearchParams(); p.set("accounts", remaining.map((a) => a.id).join(","));
+    const sn = remaining.filter((a) => salesNavIds.has(a.id)).map((a) => a.id);
+    if (sn.length) p.set("salesNav", sn.join(","));
     router.replace(`/checkout?${p.toString()}`);
   };
 
@@ -147,7 +160,8 @@ function CheckoutContent() {
               const name = shortName(a.linkedinName);
               const ic = a.industry ? (INDUSTRY_COLORS[a.industry] || "#0A66C2") : "#0A66C2";
               return (
-                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", borderTop: "1px solid #F1F3F6" }}>
+                <div key={a.id} style={{ padding: "14px 18px", borderTop: "1px solid #F1F3F6" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   {a.profilePhotoUrl ? (
                     <img src={a.profilePhotoUrl} alt="" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
                   ) : (
@@ -168,6 +182,14 @@ function CheckoutContent() {
                     <span style={{ font: `700 16px ${POP}`, color: "#0B1220" }}>{formatCurrency(price)}</span><span style={{ fontSize: 12.5, color: "#96A0AD" }}>/mo</span>
                   </div>
                   <button onClick={() => removeAccount(a.id)} title="Remove" style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 9, border: "1px solid #EAECEF", background: "#fff", color: "#96A0AD", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                </div>
+                {!a.hasSalesNav && (
+                  <button onClick={() => toggleSalesNav(a.id)} style={{ display: "flex", gap: 10, alignItems: "center", width: "100%", textAlign: "left", background: salesNavIds.has(a.id) ? "#F1EFFB" : "#F8FAFC", border: "1px solid " + (salesNavIds.has(a.id) ? "#D9D2F5" : "#EDEFF2"), borderRadius: 10, padding: "10px 12px", marginTop: 10, cursor: "pointer" }}>
+                    <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: 700, border: "1.5px solid " + (salesNavIds.has(a.id) ? "#5747C9" : "#CBD2DB"), background: salesNavIds.has(a.id) ? "#5747C9" : "#fff" }}>{salesNavIds.has(a.id) ? "✓" : ""}</span>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#0B1220" }}>Add Sales Navigator</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#5747C9" }}>+{formatCurrency(SALES_NAV_MONTHLY)}/mo</span>
+                  </button>
+                )}
                 </div>
               );
             })}
@@ -197,9 +219,17 @@ function CheckoutContent() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
               {accounts.map((a) => (
-                <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 14 }}>
-                  <span style={{ color: "#5A6473" }}>{shortName(a.linkedinName)}</span>
-                  <span style={{ color: "#0B1220", fontWeight: 600 }}>{formatCurrency(Number(a.monthlyPrice))}</span>
+                <div key={a.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 14 }}>
+                    <span style={{ color: "#5A6473" }}>{shortName(a.linkedinName)}</span>
+                    <span style={{ color: "#0B1220", fontWeight: 600 }}>{formatCurrency(Number(a.monthlyPrice))}</span>
+                  </div>
+                  {salesNavFor(a) && (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12.5 }}>
+                      <span style={{ color: "#5747C9" }}>+ Sales Navigator</span>
+                      <span style={{ color: "#5747C9", fontWeight: 600 }}>{formatCurrency(SALES_NAV_MONTHLY)}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

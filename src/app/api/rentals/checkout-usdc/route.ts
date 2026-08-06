@@ -4,15 +4,22 @@ import { requireAuth } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
 import { sendRentalReadyEmail, sendRentalNotification } from "@/services/email";
 import { grantRentalAccess } from "@/lib/rental-access";
+import { SALES_NAV_MONTHLY } from "@/lib/utils";
 
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    const { accountIds, autoRenew = true } = await req.json();
+    const { accountIds, autoRenew = true, salesNavAccountIds } = await req.json();
 
     if (!accountIds || !Array.isArray(accountIds) || accountIds.length === 0) {
       return NextResponse.json({ error: "No accounts selected" }, { status: 400 });
     }
+
+    // Accounts the renter chose to add Sales Navigator to (+$70/mo each). Only
+    // honoured for accounts that don't already include it.
+    const salesNavSet = new Set<string>(
+      Array.isArray(salesNavAccountIds) ? salesNavAccountIds : []
+    );
 
     const accounts = await prisma.linkedInAccount.findMany({
       where: { id: { in: accountIds }, status: "available" },
@@ -22,8 +29,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No selected accounts are available" }, { status: 400 });
     }
 
+    // Effective monthly charge per account = base price + Sales Nav add-on (if chosen
+    // and not already included). This is the amount we bill now AND lock in for renewals.
+    const addonFor = (a: (typeof accounts)[number]) =>
+      salesNavSet.has(a.id) && !a.hasSalesNav ? SALES_NAV_MONTHLY : 0;
+    const priceFor = (a: (typeof accounts)[number]) =>
+      a.monthlyPrice.add(addonFor(a));
+
     const totalPrice = accounts.reduce(
-      (sum, a) => sum.add(a.monthlyPrice),
+      (sum, a) => sum.add(priceFor(a)),
       new Prisma.Decimal(0)
     );
 
@@ -56,6 +70,8 @@ export async function POST(req: Request) {
         const arr: { rentalId: string; accountId: string }[] = [];
 
         for (const account of accounts) {
+          const withSalesNav = addonFor(account) > 0;
+          const effectivePrice = priceFor(account);
           // Create as pending_access; we attempt the actual grant right after commit.
           const rental = await tx.rental.create({
             data: {
@@ -65,6 +81,10 @@ export async function POST(req: Request) {
               autoRenew: !!autoRenew,
               status: "pending_access",
               accessGrantedAt: null,
+              // Lock the base+add-on rate so every renewal bills the Sales Nav add-on
+              // too (all billing paths read lockedPrice ?? monthlyPrice).
+              lockedPrice: withSalesNav ? effectivePrice : null,
+              notes: withSalesNav ? "Sales Navigator add-on (+$70/mo)" : null,
               currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
             },
           });
@@ -78,9 +98,9 @@ export async function POST(req: Request) {
             data: {
               userId: user.id,
               type: "rental_payment",
-              amount: account.monthlyPrice.negated(),
+              amount: effectivePrice.negated(),
               rentalId: rental.id,
-              description: `Rental payment for ${account.linkedinName}`,
+              description: `Rental payment for ${account.linkedinName}${withSalesNav ? " (+ Sales Navigator)" : ""}`,
             },
           });
 

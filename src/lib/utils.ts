@@ -5,6 +5,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Sales Navigator add-on: a flat +$70/mo layered on top of an account's base rate.
+// Matches the catalogue banner ("add +$70/mo"). When a renter selects it, billing
+// charges base + this amount and stores it as the rental's lockedPrice, so every
+// renewal path (cron, webhook, exports, MRR) bills the add-on automatically.
+export const SALES_NAV_MONTHLY = 70;
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

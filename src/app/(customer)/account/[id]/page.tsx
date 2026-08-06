@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { formatNumber, formatCurrency } from "@/lib/utils";
+import { formatNumber, formatCurrency, SALES_NAV_MONTHLY } from "@/lib/utils";
 import { blogFontVars } from "@/lib/blog-fonts";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
@@ -57,6 +57,7 @@ export default function AccountDetailPage() {
   const [browserOpen, setBrowserOpen] = useState(false);
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [insufficientInfo, setInsufficientInfo] = useState<{ balance: number; price: number } | null>(null);
+  const [addSalesNav, setAddSalesNav] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -91,9 +92,11 @@ export default function AccountDetailPage() {
       const balRes = await fetch("/api/wallet/balance");
       const balData = await balRes.json();
       const balance = parseFloat(balData.balance || "0");
-      const price = typeof account.monthlyPrice === "string" ? parseFloat(account.monthlyPrice) : Number(account.monthlyPrice);
+      const base = typeof account.monthlyPrice === "string" ? parseFloat(account.monthlyPrice) : Number(account.monthlyPrice);
+      const salesNav = addSalesNav && !account.hasSalesNav;
+      const price = base + (salesNav ? SALES_NAV_MONTHLY : 0);
       if (balance < price) { setInsufficientInfo({ balance, price }); setShowInsufficientModal(true); return; }
-      router.push(`/checkout?accounts=${params.id}`);
+      router.push(`/checkout?accounts=${params.id}${salesNav ? `&salesNav=${params.id}` : ""}`);
     } catch { alert("Something went wrong. Please try again."); } finally { setActionLoading(false); }
   };
 
@@ -103,6 +106,8 @@ export default function AccountDetailPage() {
   const price = typeof account.monthlyPrice === "string" ? parseFloat(account.monthlyPrice) : account.monthlyPrice;
   const name = shortName(account.linkedinName);
   const rentable = account.status === "available" && !account.showcase;
+  const salesNavEligible = rentable && !account.hasSalesNav;
+  const displayPrice = price + (addSalesNav && salesNavEligible ? SALES_NAV_MONTHLY : 0);
   const initial = account.linkedinName.replace(/\s*\(.*\)\s*$/, "").charAt(0).toUpperCase();
   const detailVal = (v: string, c?: string) => ({ font: `600 14px ${POP}`, color: c || "#0B1220" });
   const ageLabel = account.accountAgeMonths ? (account.accountAgeMonths >= 12 ? `${Math.floor(account.accountAgeMonths / 12)}+ years` : `${account.accountAgeMonths} months`) : null;
@@ -203,10 +208,17 @@ export default function AccountDetailPage() {
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                  <span style={{ font: `800 40px ${POP}`, letterSpacing: "-0.02em", color: "#0B1220" }}>{formatCurrency(price)}</span>
+                  <span style={{ font: `800 40px ${POP}`, letterSpacing: "-0.02em", color: "#0B1220" }}>{formatCurrency(displayPrice)}</span>
                   <span style={{ fontSize: 16, color: "#8A93A2", fontWeight: 500 }}>/month</span>
                 </div>
                 <div style={{ fontSize: 13.5, color: "#8A93A2", marginTop: 4 }}>Flat monthly rate · billed until you cancel</div>
+
+                {salesNavEligible && (
+                  <button onClick={() => setAddSalesNav((v) => !v)} style={{ display: "flex", gap: 11, alignItems: "flex-start", width: "100%", textAlign: "left", background: addSalesNav ? "#F1EFFB" : "#F8FAFC", border: "1px solid " + (addSalesNav ? "#D9D2F5" : "#EDEFF2"), borderRadius: 12, padding: 13, marginTop: 16, cursor: "pointer" }}>
+                    <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 700, marginTop: 1, border: "1.5px solid " + (addSalesNav ? "#5747C9" : "#CBD2DB"), background: addSalesNav ? "#5747C9" : "#fff" }}>{addSalesNav ? "✓" : ""}</span>
+                    <span><span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#0B1220", marginBottom: 2 }}>Add Sales Navigator <span style={{ color: "#5747C9" }}>+{formatCurrency(SALES_NAV_MONTHLY)}/mo</span></span><span style={{ fontSize: 12.5, lineHeight: 1.5, color: "#8A93A2" }}>Premium search &amp; outreach on this profile. Billed with your rental, cancel anytime.</span></span>
+                  </button>
+                )}
 
                 {account.showcase ? (
                   <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="ac-cta" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, borderRadius: 12, padding: 15, marginTop: 20, textDecoration: "none", boxShadow: "0 12px 28px rgba(10,102,194,0.28)" }}>Book a call →</a>
@@ -235,7 +247,7 @@ export default function AccountDetailPage() {
               ...(ageLabel ? [["Account age", ageLabel, undefined] as const] : []),
               ...(account.industry ? [["Industry", account.industry, undefined] as const] : []),
               ...(account.location ? [["Location", account.location, undefined] as const] : []),
-              ["Sales Navigator", account.hasSalesNav ? "Included" : "—", account.hasSalesNav ? "#00A150" : undefined],
+              ["Sales Navigator", account.hasSalesNav ? "Included" : (addSalesNav && salesNavEligible ? `Added (+${formatCurrency(SALES_NAV_MONTHLY)}/mo)` : "—"), account.hasSalesNav ? "#00A150" : (addSalesNav && salesNavEligible ? "#5747C9" : undefined)],
               ["Status", account.status.charAt(0).toUpperCase() + account.status.slice(1), account.status === "available" ? "#00A150" : undefined],
             ].map(([label, value, color]) => (
               <div key={label as string} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid #F1F3F6" }}>
