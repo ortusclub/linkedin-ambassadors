@@ -77,8 +77,11 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 // them) — this is display-only.
 const canonicalStatus = (a: { status: string; restrictedAt: string | null }): string => {
   if (a.status === "rented") return "Rented";
-  if (a.restrictedAt) return "Restricted";
-  if (a.status === "available") return "Available";
+  // A restricted account keeps its real lifecycle group (e.g. Maintenance) and just
+  // shows a "Restricted" badge on the row — so it can be visibly both at once. The one
+  // exception: an otherwise-"available" account gets pulled out of the rentable Available
+  // group into Restricted, so a restricted account never reads as live-and-rentable.
+  if (a.status === "available") return a.restrictedAt ? "Restricted" : "Available";
   if (a.status === "trial") return "Trial";
   if (a.status === "retired") return "Inaccessible";
   if (a.status === "removed") return "Removed";
@@ -514,6 +517,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
                           <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{st}</span>
+                          {a.restrictedAt && st !== "Restricted" && <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>}
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
                         </div>
