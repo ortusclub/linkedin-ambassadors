@@ -502,6 +502,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline || "—"}</span>
                               {a.location && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }}>{a.location}</span></>}
                               {a.connectionCount > 0 && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }}>{formatNumber(a.connectionCount)}</span></>}
+                              {a.accountAgeMonths != null && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }} title="Account age">⏳ {a.accountAgeMonths >= 12 ? `${Math.floor(a.accountAgeMonths / 12)}y${a.accountAgeMonths % 12 ? ` ${a.accountAgeMonths % 12}m` : ""}` : `${a.accountAgeMonths}m`}</span></>}
                             </div>
                             <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                               {profileEmailOf(a) && <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✉ {profileEmailOf(a)}</span>}
