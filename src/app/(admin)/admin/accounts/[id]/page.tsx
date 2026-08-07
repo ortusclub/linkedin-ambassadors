@@ -135,7 +135,16 @@ export default function EditAccountPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Account Opened</label>
                 <input
                   type="date"
-                  value={(form.accountOpenedDate as string) || ""}
+                  value={(form.accountOpenedDate as string) || (() => {
+                    // No explicit opened-date on the record — derive an approximate one
+                    // from the stored age so this field mirrors the inline "Account opened"
+                    // (both drive accountAgeMonths). Otherwise it always shows blank.
+                    const m = form.accountAgeMonths;
+                    if (m == null || m === "") return "";
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - Number(m));
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+                  })()}
                   onChange={(e) => {
                     update("accountOpenedDate", e.target.value);
                     if (e.target.value) {
