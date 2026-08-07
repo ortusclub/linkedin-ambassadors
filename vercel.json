@@ -28,6 +28,10 @@
       "schedule": "15 */6 * * *"
     },
     {
+      "path": "/api/cron/overdue-rentals-alert",
+      "schedule": "30 8 * * *"
+    },
+    {
       "path": "/api/cron/renewal-watchdog",
       "schedule": "40 9 * * *"
     },
