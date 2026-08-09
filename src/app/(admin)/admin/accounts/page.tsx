@@ -31,6 +31,7 @@ interface Account {
   healthCheckedAt: string | null;
   restrictedAt: string | null;
   twoFactorResetNeeded: boolean;
+  paymentLinkedAccountId: string | null;
   trialEndsAt: string | null;
   verificationProof: string | null;
   linkedinVerified: boolean;
@@ -140,12 +141,23 @@ function healthOf(a: Account): { label: string; bg: string; fg: string; note: st
 // clear payment status + the supporting detail, for the inventory's Payment column.
 type PayState = "settled" | "overdue" | "awaiting";
 type PayInfo = { state: PayState; statusLabel: string; terms: string; dueLabel: string; lastLabel: string; network: string; address: string; manual: boolean };
-function cryptoPayInfo(a: Account): PayInfo | null {
+function cryptoPayInfo(a: Account, all: Account[]): PayInfo | null {
   // paymentDailyRate/paymentTermsLabel double as the advertised rate on an
   // Available listing AND the terms of a live off-platform rental — only show
   // a payment chip for the latter, or an Available account with pricing set
   // reads as having an unpaid rental nobody actually owes.
   if (a.status !== "rented" && a.status !== "trial") return null;
+
+  // One renter, one combined payment across two accounts: the secondary has no
+  // wallet of its own (the cron skips it) — mirror the primary's already-computed
+  // paid/overdue state instead of trying to split one balance across two ledgers.
+  if (a.paymentLinkedAccountId) {
+    const primary = all.find((x) => x.id === a.paymentLinkedAccountId);
+    const base = primary ? cryptoPayInfo(primary, all) : null;
+    if (!base) return null;
+    return { ...base, terms: a.paymentTermsLabel ? `${a.paymentTermsLabel} — combined with ${primary!.linkedinName}` : `${base.terms} — combined with ${primary!.linkedinName}` };
+  }
+
   const rate = Number(a.paymentDailyRate || 0);
   const auto = !!a.paymentWallet && rate > 0;     // on-chain scanned
   const address = a.paymentWallet || "";
@@ -383,10 +395,19 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return accounts.filter((a) => {
+    const base = accounts.filter((a) => {
       if (filter !== "all" && groupKey(a) !== filter) return false;
       if (!q) return true;
       return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.ownerEmail || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
+    });
+    // Combined-billing pairs: keep a secondary right after its primary instead
+    // of wherever createdAt happens to place it, so they read as one unit.
+    const indexOf = new Map(accounts.map((a, i) => [a.id, i]));
+    const anchor = (a: Account) => (a.paymentLinkedAccountId ? indexOf.get(a.paymentLinkedAccountId) ?? indexOf.get(a.id)! : indexOf.get(a.id)!);
+    return [...base].sort((a, b) => {
+      const rankA = anchor(a) + (a.paymentLinkedAccountId ? 0.5 : 0);
+      const rankB = anchor(b) + (b.paymentLinkedAccountId ? 0.5 : 0);
+      return rankA - rankB;
     });
   }, [accounts, filter, search]);
 
@@ -488,7 +509,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   const st = canonicalStatus(a);
                   const h = healthOf(a);
                   const ti = trialInfo(a);
-                  const cp = cryptoPayInfo(a);
+                  const cp = cryptoPayInfo(a, accounts);
+                  const linkedPrimary = a.paymentLinkedAccountId ? accounts.find((x) => x.id === a.paymentLinkedAccountId) : null;
+                  const linkedSecondaries = accounts.filter((x) => x.paymentLinkedAccountId === a.id);
                   const activeRenter = a.rentals?.[0]?.user || null;
                   const renterName = activeRenter ? activeRenter.fullName.replace(/\s*\((?:Telegram|WhatsApp)\)\s*$/i, "") : null;
                   const channel = a.paymentTelegramChatId
@@ -533,6 +556,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
                           {a.twoFactorResetNeeded && <span title="The last renter had this account's 2FA code — rotate it before making this account available again" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>🔑 2FA reset needed</span>}
+                          {linkedPrimary && <span title={`This account's own payment status mirrors ${linkedPrimary.linkedinName} — same renter, one combined payment`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>🔗 combined with {linkedPrimary.linkedinName}</span>}
+                          {linkedSecondaries.length > 0 && <span title={`${linkedSecondaries.map((s) => s.linkedinName).join(", ")} pays together with this account — check them as one`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>🔗 combined with {linkedSecondaries.map((s) => s.linkedinName).join(", ")}</span>}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                           {locked ? (

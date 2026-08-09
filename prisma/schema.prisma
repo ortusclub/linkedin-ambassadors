@@ -158,6 +158,12 @@ model LinkedInAccount {
   paymentTelegramChatId String?       @map("payment_telegram_chat_id") // renter's TG @username/chat id for overdue nudges
   paymentWhatsapp       String?       @map("payment_whatsapp")         // renter's WhatsApp number (E.164, e.g. +39351...) — sent by the Mac-side agent
   lastNudgeAt           DateTime?     @map("last_nudge_at")            // last overdue nudge sent (any channel) — dedup so repeat scans never double-send
+  // One renter paying for multiple accounts with a single combined payment.
+  // The secondary account (this one) has no wallet of its own and is skipped by
+  // the payment cron entirely — its paid/overdue status is mirrored client-side
+  // from the primary account it points at, so both always agree without ever
+  // trying to split one on-chain balance across two independent ledgers.
+  paymentLinkedAccountId String?      @map("payment_linked_account_id") @db.Uuid
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 

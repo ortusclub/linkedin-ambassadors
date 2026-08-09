@@ -29,6 +29,7 @@ const updateSchema = z.object({
   notes: z.string().nullable().optional(),
   status: z.enum(["under_review", "available", "rented", "unavailable", "maintenance", "retired", "removed"]).optional(),
   twoFactorResetNeeded: z.boolean().optional(),
+  paymentLinkedAccountId: z.string().uuid().nullable().optional(),
   gologinProfileId: z.string().nullable().optional(),
   gologinShareLink: z.string().nullable().optional(),
   verificationProof: z.string().nullable().optional(),
