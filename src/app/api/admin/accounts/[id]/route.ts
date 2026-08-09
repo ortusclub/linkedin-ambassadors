@@ -28,6 +28,7 @@ const updateSchema = z.object({
   ambassadorPayment: z.number().optional(),
   notes: z.string().nullable().optional(),
   status: z.enum(["under_review", "available", "rented", "unavailable", "maintenance", "retired", "removed"]).optional(),
+  twoFactorResetNeeded: z.boolean().optional(),
   gologinProfileId: z.string().nullable().optional(),
   gologinShareLink: z.string().nullable().optional(),
   verificationProof: z.string().nullable().optional(),
@@ -75,6 +76,31 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
     const data = updateSchema.parse(body);
+
+    // 2FA-reset gate: a rental leaving "rented" auto-flags the account (the
+    // outgoing renter had the code), and it can't be set back to "available"
+    // until that flag is explicitly cleared — which only happens by passing
+    // twoFactorResetNeeded: false in the same request the code is rotated.
+    if (data.status !== undefined || data.twoFactorResetNeeded !== undefined) {
+      const current = await prisma.linkedInAccount.findUnique({
+        where: { id },
+        select: { status: true, twoFactorResetNeeded: true },
+      });
+      if (!current) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      if (data.status && data.status !== "rented" && current.status === "rented" && data.twoFactorResetNeeded === undefined) {
+        data.twoFactorResetNeeded = true;
+      }
+      const effectiveFlag = data.twoFactorResetNeeded !== undefined ? data.twoFactorResetNeeded : current.twoFactorResetNeeded;
+      const effectiveStatus = data.status ?? current.status;
+      if (effectiveStatus === "available" && effectiveFlag) {
+        return NextResponse.json(
+          { error: "This account's 2FA was exposed to the last renter and needs to be rotated before it can go back to Available." },
+          { status: 409 }
+        );
+      }
+    }
 
     // A manual health mark stamps the check date server-side.
     if (data.linkedinAccountHealth !== undefined) {

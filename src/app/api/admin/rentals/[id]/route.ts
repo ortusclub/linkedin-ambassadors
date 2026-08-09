@@ -32,7 +32,7 @@ export async function DELETE(
       if (stillRented === 0) {
         await tx.linkedInAccount.updateMany({
           where: { id: rental.linkedinAccountId, status: "rented" },
-          data: { status: "available" },
+          data: { status: "available", twoFactorResetNeeded: true },
         });
       }
     });

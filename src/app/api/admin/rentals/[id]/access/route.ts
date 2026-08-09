@@ -42,7 +42,7 @@ export async function POST(
     } else {
       // end: permanent — mark cancelled + free the account so it can be rented again
       const ended = await prisma.rental.update({ where: { id }, data: { paused: false, status: "cancelled" }, select: { linkedinAccountId: true } });
-      await prisma.linkedInAccount.update({ where: { id: ended.linkedinAccountId }, data: { status: "available" } });
+      await prisma.linkedInAccount.update({ where: { id: ended.linkedinAccountId }, data: { status: "available", twoFactorResetNeeded: true } });
     }
     return NextResponse.json({ ok: true, action, revoked });
   } catch (error) {

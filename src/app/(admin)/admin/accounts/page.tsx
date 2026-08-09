@@ -30,6 +30,7 @@ interface Account {
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
   restrictedAt: string | null;
+  twoFactorResetNeeded: boolean;
   trialEndsAt: string | null;
   verificationProof: string | null;
   linkedinVerified: boolean;
@@ -75,13 +76,15 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 // collapses them into ONE label, shown identically in the inventory, the CSV
 // export, and the filter chips. DB values are left untouched (billing reads
 // them) — this is display-only.
-const canonicalStatus = (a: { status: string; restrictedAt: string | null }): string => {
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean }): string => {
   if (a.status === "rented") return "Rented";
   // A restricted account keeps its real lifecycle group (e.g. Maintenance) and just
   // shows a "Restricted" badge on the row — so it can be visibly both at once. The one
   // exception: an otherwise-"available" account gets pulled out of the rentable Available
   // group into Restricted, so a restricted account never reads as live-and-rentable.
-  if (a.status === "available") return a.restrictedAt ? "Restricted" : "Available";
+  // Same idea for 2FA: an "available" account whose 2FA still needs rotating must
+  // never read as live-and-rentable either, so it's pulled into Maintenance instead.
+  if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : a.restrictedAt ? "Restricted" : "Available";
   if (a.status === "trial") return "Trial";
   if (a.status === "retired") return "Inaccessible";
   if (a.status === "removed") return "Removed";
@@ -253,6 +256,10 @@ export default function AdminAccountsPage() {
   const toggleForRent = async (a: Account) => {
     if (a.status === "rented") return;
     const next = a.status === "available" ? "unavailable" : "available";
+    if (next === "available" && a.twoFactorResetNeeded) {
+      alert("This account's 2FA was exposed to the last renter — rotate the code (Edit → 2FA Secret / Key) before making it available again.");
+      return;
+    }
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: next, listed: next === "available" } : x)));
     await patch(a.id, { status: next, listed: next === "available" });
   };
@@ -520,6 +527,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           {a.restrictedAt && st !== "Restricted" && <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>}
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
+                          {a.twoFactorResetNeeded && <span title="The last renter had this account's 2FA code — rotate it before making this account available again" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>🔑 2FA reset needed</span>}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                           {locked ? (
@@ -538,14 +546,18 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           })()}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-                          <span title={activeRenter?.email || undefined} style={{ font: `600 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{renterName || (ti ? "On trial" : "No renter")}</span>
+                          <span title={activeRenter?.email || undefined} style={{ font: `600 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {renterName || (ti ? "On trial" : channel ? "Off-platform renter" : (a.status === "rented" || a.status === "trial") ? "Rented — no renter on file" : "No renter")}
+                          </span>
                           {channel && (
                             <span title={`${channel.label}: ${channel.handle}`} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{channel.icon} {channel.label} · {channel.handle}</span>
                           )}
                           {ti ? (
                             <span style={{ font: `600 11px ${F_SANS}`, color: ti.expired ? "var(--st-cancel-fg)" : "var(--warn-badge-text)" }}>{ti.expired ? "⏱ Trial expired" : `⏱ ${ti.label}`}</span>
+                          ) : rented ? (
+                            <span style={{ font: `500 11px ${F_SANS}`, color: a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{fmtS(a.rentals[0].currentPeriodEnd)} · {a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}</span>
                           ) : (
-                            <span style={{ font: `500 11px ${F_SANS}`, color: rented && a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{rented ? `${fmtS(a.rentals[0].currentPeriodEnd)} · ${a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}` : "available"}</span>
+                            <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{a.status === "rented" ? "rented (off-platform)" : a.status}</span>
                           )}
                         </div>
                         {/* Payment column */}

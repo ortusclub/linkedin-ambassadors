@@ -122,6 +122,10 @@ model LinkedInAccount {
   loginEmail            String?       @map("login_email")
   accountPassword       String?       @map("account_password")
   twoFactor             String?       @map("two_factor")
+  // Set automatically whenever a rental ends (the outgoing renter had this code).
+  // While true, the account can't be set back to "available" — the 2FA must be
+  // rotated and this cleared first.
+  twoFactorResetNeeded  Boolean       @default(false) @map("two_factor_reset_needed")
   workEmail             String?       @map("work_email")
   status                AccountStatus @default(available)
   monthlyPrice          Decimal       @default(0) @map("monthly_price") @db.Decimal(10, 2)
