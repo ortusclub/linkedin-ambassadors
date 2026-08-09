@@ -141,6 +141,11 @@ function healthOf(a: Account): { label: string; bg: string; fg: string; note: st
 type PayState = "settled" | "overdue" | "awaiting";
 type PayInfo = { state: PayState; statusLabel: string; terms: string; dueLabel: string; lastLabel: string; network: string; address: string; manual: boolean };
 function cryptoPayInfo(a: Account): PayInfo | null {
+  // paymentDailyRate/paymentTermsLabel double as the advertised rate on an
+  // Available listing AND the terms of a live off-platform rental — only show
+  // a payment chip for the latter, or an Available account with pricing set
+  // reads as having an unpaid rental nobody actually owes.
+  if (a.status !== "rented" && a.status !== "trial") return null;
   const rate = Number(a.paymentDailyRate || 0);
   const auto = !!a.paymentWallet && rate > 0;     // on-chain scanned
   const address = a.paymentWallet || "";
