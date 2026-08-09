@@ -511,8 +511,13 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>{g.hint}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {rows.map((a) => {
+                {rows.map((a, idx) => {
                   const open = expanded.has(a.id);
+                  // Combined-billing pairs are pre-sorted adjacent (see `filtered`) —
+                  // fuse the two cards into one visual block instead of two separate
+                  // cards that merely mention each other.
+                  const fusedWithNext = rows[idx + 1]?.paymentLinkedAccountId === a.id;
+                  const fusedWithPrev = idx > 0 && a.paymentLinkedAccountId === rows[idx - 1].id;
                   const st = canonicalStatus(a);
                   const h = healthOf(a);
                   const ti = trialInfo(a);
@@ -530,8 +535,23 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   const locked = rented && a.rentals[0].lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0;
                   const priceVal = locked ? Number(a.rentals[0].lockedPrice) : Number(a.monthlyPrice);
                   const forRentOn = a.status === "available" || a.status === "rented";
+                  const fuseBorder = "1.5px solid var(--blue-chip-text)";
                   return (
-                    <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
+                    <div key={a.id} style={{
+                      background: fusedWithNext || fusedWithPrev ? "var(--blue-chip-bg)" : "var(--card)",
+                      border: fusedWithNext || fusedWithPrev ? fuseBorder : "1px solid var(--card-border)",
+                      borderTop: fusedWithPrev ? "none" : undefined,
+                      borderBottom: fusedWithNext ? "none" : undefined,
+                      borderTopLeftRadius: fusedWithPrev ? 0 : 14, borderTopRightRadius: fusedWithPrev ? 0 : 14,
+                      borderBottomLeftRadius: fusedWithNext ? 0 : 14, borderBottomRightRadius: fusedWithNext ? 0 : 14,
+                      marginTop: fusedWithPrev ? -10 : 0,
+                      overflow: "hidden", boxShadow: "var(--card-shadow)", position: "relative",
+                    }}>
+                      {fusedWithNext && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 18px", background: "var(--blue-chip-bg)", borderBottom: `1px dashed var(--blue-chip-text)`, font: `700 10.5px ${F_SANS}`, letterSpacing: ".03em", color: "var(--blue-chip-text)" }}>
+                          🔗 SAME RENTER — ONE COMBINED PAYMENT{a.paymentTelegramChatId ? ` · ✈ ${a.paymentTelegramChatId}` : a.paymentWhatsapp ? ` · 💬 ${a.paymentWhatsapp}` : ""}
+                        </div>
+                      )}
                       {/* primary row */}
                       <div onClick={() => toggle(a.id)} style={{ display: "grid", gridTemplateColumns: GRID, gap: 16, alignItems: "center", padding: "15px 18px", cursor: "pointer", userSelect: "none" }}>
                         <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
