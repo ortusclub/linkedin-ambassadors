@@ -493,7 +493,14 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         {filtered.length === 0 ? (
           <div style={{ padding: 44, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No accounts match.</div>
         ) : GROUPS.map((g) => {
-          const rows = filtered.filter((a) => groupKey(a) === g.key);
+          const groupRows = filtered.filter((a) => groupKey(a) === g.key);
+          // Within Maintenance: surface accounts that need a 2FA rotation first
+          // (they're the ones blocking a re-list), restricted ones last (they're
+          // not actionable until LinkedIn clears them) — everything else stays put.
+          const rows = g.key !== "Maintenance" ? groupRows : [...groupRows].sort((a, b) => {
+            const rank = (x: Account) => (x.twoFactorResetNeeded ? 0 : x.restrictedAt ? 2 : 1);
+            return rank(a) - rank(b);
+          });
           if (rows.length === 0) return null;
           return (
             <div key={g.key}>
