@@ -540,14 +540,18 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           })()}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-                          <span title={activeRenter?.email || undefined} style={{ font: `600 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{renterName || (ti ? "On trial" : "No renter")}</span>
+                          <span title={activeRenter?.email || undefined} style={{ font: `600 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {renterName || (ti ? "On trial" : channel ? "Off-platform renter" : (a.status === "rented" || a.status === "trial") ? "Rented — no renter on file" : "No renter")}
+                          </span>
                           {channel && (
                             <span title={`${channel.label}: ${channel.handle}`} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{channel.icon} {channel.label} · {channel.handle}</span>
                           )}
                           {ti ? (
                             <span style={{ font: `600 11px ${F_SANS}`, color: ti.expired ? "var(--st-cancel-fg)" : "var(--warn-badge-text)" }}>{ti.expired ? "⏱ Trial expired" : `⏱ ${ti.label}`}</span>
+                          ) : rented ? (
+                            <span style={{ font: `500 11px ${F_SANS}`, color: a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{fmtS(a.rentals[0].currentPeriodEnd)} · {a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}</span>
                           ) : (
-                            <span style={{ font: `500 11px ${F_SANS}`, color: rented && a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{rented ? `${fmtS(a.rentals[0].currentPeriodEnd)} · ${a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}` : "available"}</span>
+                            <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{a.status === "rented" ? "rented (off-platform)" : a.status}</span>
                           )}
                         </div>
                         {/* Payment column */}
