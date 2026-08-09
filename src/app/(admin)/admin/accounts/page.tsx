@@ -30,6 +30,7 @@ interface Account {
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
   restrictedAt: string | null;
+  twoFactorResetNeeded: boolean;
   trialEndsAt: string | null;
   verificationProof: string | null;
   linkedinVerified: boolean;
@@ -75,8 +76,9 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 // collapses them into ONE label, shown identically in the inventory, the CSV
 // export, and the filter chips. DB values are left untouched (billing reads
 // them) — this is display-only.
-const canonicalStatus = (a: { status: string; restrictedAt: string | null }): string => {
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean }): string => {
   if (a.status === "rented") return "Rented";
+  if (a.twoFactorResetNeeded) return "Maintenance"; // 2FA exposed to the last renter — held off-market until rotated
   if (a.restrictedAt) return "Restricted";
   if (a.status === "available") return "Available";
   if (a.status === "trial") return "Trial";
@@ -250,6 +252,10 @@ export default function AdminAccountsPage() {
   const toggleForRent = async (a: Account) => {
     if (a.status === "rented") return;
     const next = a.status === "available" ? "unavailable" : "available";
+    if (next === "available" && a.twoFactorResetNeeded) {
+      alert("This account's 2FA was exposed to the last renter — rotate the code (Edit → 2FA Secret / Key) before making it available again.");
+      return;
+    }
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: next, listed: next === "available" } : x)));
     await patch(a.id, { status: next, listed: next === "available" });
   };
@@ -515,6 +521,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{st}</span>
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
+                          {a.twoFactorResetNeeded && <span title="The last renter had this account's 2FA code — rotate it before making this account available again" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>🔑 2FA reset needed</span>}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                           {locked ? (

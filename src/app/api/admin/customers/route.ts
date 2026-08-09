@@ -114,7 +114,7 @@ export async function DELETE(req: Request) {
           where: { linkedinAccountId: aid, status: { in: ["active", "pending_access"] } },
         });
         if (stillRented === 0) {
-          await tx.linkedInAccount.updateMany({ where: { id: aid, status: "rented" }, data: { status: "available" } });
+          await tx.linkedInAccount.updateMany({ where: { id: aid, status: "rented" }, data: { status: "available", twoFactorResetNeeded: true } });
         }
       }
     });

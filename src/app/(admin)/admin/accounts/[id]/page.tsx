@@ -73,6 +73,7 @@ export default function EditAccountPage() {
       if (form.loginEmail !== undefined) payload.loginEmail = form.loginEmail || null;
       if (form.accountPassword !== undefined) payload.accountPassword = form.accountPassword || null;
       if (form.twoFactor !== undefined) payload.twoFactor = form.twoFactor || null;
+      if (form.twoFactorResetNeeded !== undefined) payload.twoFactorResetNeeded = !!form.twoFactorResetNeeded;
       if (form.workEmail !== undefined) payload.workEmail = form.workEmail || null;
 
       const res = await fetch(`/api/admin/accounts/${params.id}`, {
@@ -221,6 +222,29 @@ export default function EditAccountPage() {
               <Input id="accountPassword" label="Account Password" value={(form.accountPassword as string) || ""} onChange={(e) => update("accountPassword", e.target.value)} placeholder="LinkedIn password" />
               <Input id="twoFactor" label="2FA Secret / Key" value={(form.twoFactor as string) || ""} onChange={(e) => update("twoFactor", e.target.value)} placeholder="TOTP seed (Base32)" />
             </div>
+            {form.twoFactorResetNeeded ? (
+              <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-3 py-2">
+                <span className="text-sm text-red-800">
+                  🔑 The last renter had this code — account can&apos;t go back to Available until it&apos;s rotated above and this is cleared.
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => update("twoFactorResetNeeded", false)}
+                >
+                  I&apos;ve rotated it — clear flag
+                </Button>
+              </div>
+            ) : (
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={!!form.twoFactorResetNeeded}
+                  onChange={(e) => update("twoFactorResetNeeded", e.target.checked)}
+                />
+                Flag 2FA as exposed / needing reset
+              </label>
+            )}
           </CardContent>
         </Card>
 
