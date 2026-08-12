@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatNumber } from "@/lib/utils";
-import { isCompanyEmail } from "@/lib/company";
 
 interface Account {
   id: string;
@@ -18,6 +17,7 @@ interface Account {
   notes: string | null;
   ownerName: string | null;
   ownerEmail: string | null;
+  workEmail: string | null;
   monthlyPrice: string | number;
   ambassadorPayment: string | number;
   hasSalesNav: boolean;
@@ -30,8 +30,6 @@ interface Account {
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
   restrictedAt: string | null;
-  twoFactorResetNeeded: boolean;
-  paymentLinkedAccountId: string | null;
   trialEndsAt: string | null;
   verificationProof: string | null;
   linkedinVerified: boolean;
@@ -77,15 +75,13 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 // collapses them into ONE label, shown identically in the inventory, the CSV
 // export, and the filter chips. DB values are left untouched (billing reads
 // them) — this is display-only.
-const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean }): string => {
+const canonicalStatus = (a: { status: string; restrictedAt: string | null }): string => {
   if (a.status === "rented") return "Rented";
   // A restricted account keeps its real lifecycle group (e.g. Maintenance) and just
   // shows a "Restricted" badge on the row — so it can be visibly both at once. The one
   // exception: an otherwise-"available" account gets pulled out of the rentable Available
   // group into Restricted, so a restricted account never reads as live-and-rentable.
-  // Same idea for 2FA: an "available" account whose 2FA still needs rotating must
-  // never read as live-and-rentable either, so it's pulled into Maintenance instead.
-  if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : a.restrictedAt ? "Restricted" : "Available";
+  if (a.status === "available") return a.restrictedAt ? "Restricted" : "Available";
   if (a.status === "trial") return "Trial";
   if (a.status === "retired") return "Inaccessible";
   if (a.status === "removed") return "Removed";
@@ -141,23 +137,7 @@ function healthOf(a: Account): { label: string; bg: string; fg: string; note: st
 // clear payment status + the supporting detail, for the inventory's Payment column.
 type PayState = "settled" | "overdue" | "awaiting";
 type PayInfo = { state: PayState; statusLabel: string; terms: string; dueLabel: string; lastLabel: string; network: string; address: string; manual: boolean };
-function cryptoPayInfo(a: Account, all: Account[]): PayInfo | null {
-  // paymentDailyRate/paymentTermsLabel double as the advertised rate on an
-  // Available listing AND the terms of a live off-platform rental — only show
-  // a payment chip for the latter, or an Available account with pricing set
-  // reads as having an unpaid rental nobody actually owes.
-  if (a.status !== "rented" && a.status !== "trial") return null;
-
-  // One renter, one combined payment across two accounts: the secondary has no
-  // wallet of its own (the cron skips it) — mirror the primary's already-computed
-  // paid/overdue state instead of trying to split one balance across two ledgers.
-  if (a.paymentLinkedAccountId) {
-    const primary = all.find((x) => x.id === a.paymentLinkedAccountId);
-    const base = primary ? cryptoPayInfo(primary, all) : null;
-    if (!base) return null;
-    return { ...base, terms: a.paymentTermsLabel ? `${a.paymentTermsLabel} — combined with ${primary!.linkedinName}` : `${base.terms} — combined with ${primary!.linkedinName}` };
-  }
-
+function cryptoPayInfo(a: Account): PayInfo | null {
   const rate = Number(a.paymentDailyRate || 0);
   const auto = !!a.paymentWallet && rate > 0;     // on-chain scanned
   const address = a.paymentWallet || "";
@@ -209,7 +189,6 @@ const payChipCss = (state: PayState): React.CSSProperties => {
 };
 const shortAddr = (s: string) => (s.length > 14 ? `${s.slice(0, 6)}…${s.slice(-5)}` : s);
 const profileEmailOf = (a: Account) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || null;
-const ownerOf = (a: Account) => { const notes = a.notes || ""; if (notes.includes("[SHOWCASE]")) return "Dummy"; if ([profileEmailOf(a), a.ownerEmail].some((e) => isCompanyEmail(e))) return "Ortus"; return a.ownerEmail || "—"; };
 // A rented account should be health-checked weekly — flag it if the last check is >7 days old (or never).
 const isDummy = (a: Account) => (a.notes || "").includes("[SHOWCASE]");
 const checkDue = (a: Account) => !isDummy(a) && a.status === "rented" && !a.restrictedAt && (!a.healthCheckedAt || Date.now() - new Date(a.healthCheckedAt).getTime() > 7 * 86400000);
@@ -273,10 +252,6 @@ export default function AdminAccountsPage() {
   const toggleForRent = async (a: Account) => {
     if (a.status === "rented") return;
     const next = a.status === "available" ? "unavailable" : "available";
-    if (next === "available" && a.twoFactorResetNeeded) {
-      alert("This account's 2FA was exposed to the last renter — rotate the code (Edit → 2FA Secret / Key) before making it available again.");
-      return;
-    }
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: next, listed: next === "available" } : x)));
     await patch(a.id, { status: next, listed: next === "available" });
   };
@@ -395,19 +370,10 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = accounts.filter((a) => {
+    return accounts.filter((a) => {
       if (filter !== "all" && groupKey(a) !== filter) return false;
       if (!q) return true;
       return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.ownerEmail || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
-    });
-    // Combined-billing pairs: keep a secondary right after its primary instead
-    // of wherever createdAt happens to place it, so they read as one unit.
-    const indexOf = new Map(accounts.map((a, i) => [a.id, i]));
-    const anchor = (a: Account) => (a.paymentLinkedAccountId ? indexOf.get(a.paymentLinkedAccountId) ?? indexOf.get(a.id)! : indexOf.get(a.id)!);
-    return [...base].sort((a, b) => {
-      const rankA = anchor(a) + (a.paymentLinkedAccountId ? 0.5 : 0);
-      const rankB = anchor(b) + (b.paymentLinkedAccountId ? 0.5 : 0);
-      return rankA - rankB;
     });
   }, [accounts, filter, search]);
 
@@ -493,14 +459,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         {filtered.length === 0 ? (
           <div style={{ padding: 44, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No accounts match.</div>
         ) : GROUPS.map((g) => {
-          const groupRows = filtered.filter((a) => groupKey(a) === g.key);
-          // Within Maintenance: surface accounts that need a 2FA rotation first
-          // (they're the ones blocking a re-list), restricted ones last (they're
-          // not actionable until LinkedIn clears them) — everything else stays put.
-          const rows = g.key !== "Maintenance" ? groupRows : [...groupRows].sort((a, b) => {
-            const rank = (x: Account) => (x.twoFactorResetNeeded ? 0 : x.restrictedAt ? 2 : 1);
-            return rank(a) - rank(b);
-          });
+          const rows = filtered.filter((a) => groupKey(a) === g.key);
           if (rows.length === 0) return null;
           return (
             <div key={g.key}>
@@ -511,19 +470,12 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                 <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>{g.hint}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {rows.map((a, idx) => {
+                {rows.map((a) => {
                   const open = expanded.has(a.id);
-                  // Combined-billing pairs are pre-sorted adjacent (see `filtered`) —
-                  // fuse the two cards into one visual block instead of two separate
-                  // cards that merely mention each other.
-                  const fusedWithNext = rows[idx + 1]?.paymentLinkedAccountId === a.id;
-                  const fusedWithPrev = idx > 0 && a.paymentLinkedAccountId === rows[idx - 1].id;
                   const st = canonicalStatus(a);
                   const h = healthOf(a);
                   const ti = trialInfo(a);
-                  const cp = cryptoPayInfo(a, accounts);
-                  const linkedPrimary = a.paymentLinkedAccountId ? accounts.find((x) => x.id === a.paymentLinkedAccountId) : null;
-                  const linkedSecondaries = accounts.filter((x) => x.paymentLinkedAccountId === a.id);
+                  const cp = cryptoPayInfo(a);
                   const activeRenter = a.rentals?.[0]?.user || null;
                   const renterName = activeRenter ? activeRenter.fullName.replace(/\s*\((?:Telegram|WhatsApp)\)\s*$/i, "") : null;
                   const channel = a.paymentTelegramChatId
@@ -535,23 +487,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   const locked = rented && a.rentals[0].lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0;
                   const priceVal = locked ? Number(a.rentals[0].lockedPrice) : Number(a.monthlyPrice);
                   const forRentOn = a.status === "available" || a.status === "rented";
-                  const fuseBorder = "1.5px solid var(--blue-chip-text)";
                   return (
-                    <div key={a.id} style={{
-                      background: fusedWithNext || fusedWithPrev ? "var(--blue-chip-bg)" : "var(--card)",
-                      border: fusedWithNext || fusedWithPrev ? fuseBorder : "1px solid var(--card-border)",
-                      borderTop: fusedWithPrev ? "none" : undefined,
-                      borderBottom: fusedWithNext ? "none" : undefined,
-                      borderTopLeftRadius: fusedWithPrev ? 0 : 14, borderTopRightRadius: fusedWithPrev ? 0 : 14,
-                      borderBottomLeftRadius: fusedWithNext ? 0 : 14, borderBottomRightRadius: fusedWithNext ? 0 : 14,
-                      marginTop: fusedWithPrev ? -10 : 0,
-                      overflow: "hidden", boxShadow: "var(--card-shadow)", position: "relative",
-                    }}>
-                      {fusedWithNext && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 18px", background: "var(--blue-chip-bg)", borderBottom: `1px dashed var(--blue-chip-text)`, font: `700 10.5px ${F_SANS}`, letterSpacing: ".03em", color: "var(--blue-chip-text)" }}>
-                          🔗 SAME RENTER — ONE COMBINED PAYMENT{a.paymentTelegramChatId ? ` · ✈ ${a.paymentTelegramChatId}` : a.paymentWhatsapp ? ` · 💬 ${a.paymentWhatsapp}` : ""}
-                        </div>
-                      )}
+                    <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
                       {/* primary row */}
                       <div onClick={() => toggle(a.id)} style={{ display: "grid", gridTemplateColumns: GRID, gap: 16, alignItems: "center", padding: "15px 18px", cursor: "pointer", userSelect: "none" }}>
                         <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
@@ -582,9 +519,6 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           {a.restrictedAt && st !== "Restricted" && <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>}
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
-                          {a.twoFactorResetNeeded && <span title="The last renter had this account's 2FA code — rotate it before making this account available again" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>🔑 2FA reset needed</span>}
-                          {linkedPrimary && <span title={`This account's own payment status mirrors ${linkedPrimary.linkedinName} — same renter, one combined payment`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>🔗 combined with {linkedPrimary.linkedinName}</span>}
-                          {linkedSecondaries.length > 0 && <span title={`${linkedSecondaries.map((s) => s.linkedinName).join(", ")} pays together with this account — check them as one`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>🔗 combined with {linkedSecondaries.map((s) => s.linkedinName).join(", ")}</span>}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                           {locked ? (
@@ -603,18 +537,14 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           })()}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-                          <span title={activeRenter?.email || undefined} style={{ font: `600 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {renterName || (ti ? "On trial" : channel ? "Off-platform renter" : (a.status === "rented" || a.status === "trial") ? "Rented — no renter on file" : "No renter")}
-                          </span>
+                          <span title={activeRenter?.email || undefined} style={{ font: `600 13px ${F_SANS}`, color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{renterName || (ti ? "On trial" : "No renter")}</span>
                           {channel && (
                             <span title={`${channel.label}: ${channel.handle}`} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{channel.icon} {channel.label} · {channel.handle}</span>
                           )}
                           {ti ? (
                             <span style={{ font: `600 11px ${F_SANS}`, color: ti.expired ? "var(--st-cancel-fg)" : "var(--warn-badge-text)" }}>{ti.expired ? "⏱ Trial expired" : `⏱ ${ti.label}`}</span>
-                          ) : rented ? (
-                            <span style={{ font: `500 11px ${F_SANS}`, color: a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{fmtS(a.rentals[0].currentPeriodEnd)} · {a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}</span>
                           ) : (
-                            <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{a.status === "rented" ? "rented (off-platform)" : a.status}</span>
+                            <span style={{ font: `500 11px ${F_SANS}`, color: rented && a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{rented ? `${fmtS(a.rentals[0].currentPeriodEnd)} · ${a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}` : "available"}</span>
                           )}
                         </div>
                         {/* Payment column */}
@@ -668,7 +598,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                               {a.gologinProfileId && <span style={{ display: "block", font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis" }}>ID {a.gologinProfileId}</span>}
                             </DField>
                             <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}` : "None"}</DField>
-                            <DField label="Owner">{ownerOf(a)}</DField>
+                            <DField label="Work email (klabber)">{a.workEmail || "—"}</DField>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                               <span style={labelCss}>Account opened (sets age)</span>
                               <input type="month" defaultValue={a.accountAgeMonths != null ? (() => { const d = new Date(); d.setMonth(d.getMonth() - a.accountAgeMonths); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })() : ""} onBlur={(e) => saveAge(a, e.target.value)} style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
