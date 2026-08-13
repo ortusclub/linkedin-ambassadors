@@ -106,7 +106,10 @@ export async function GET(req: NextRequest) {
     // Owner: showcase/demo accounts => "Dummy"; our own Ortus accounts => "ORTUS";
     // otherwise the ambassador who supplied it.
     const isShowcase = (a.notes || "").includes("[SHOWCASE]");
-    const isOrtus = [profileEmail, ownerEmail].some((e) => isCompanyEmail(e));
+    // Company-owned when the OWNER is one of us — or, if no owner is tagged, when
+    // the profile itself is on a company domain. A profile with a company *work*
+    // email but an external (e.g. gmail) owner is a real ambassador, not ours.
+    const isOrtus = isCompanyEmail(ownerEmail) || (!ownerEmail && isCompanyEmail(profileEmail));
     const ownerDisplay = isShowcase ? "Dummy" : isOrtus ? "Ortus" : (ownerMap.get(ownerEmail) || ownerAppMap.get(ownerEmail) || ownerEmail || "");
     return [
       a.linkedinName || profileEmail || "",
