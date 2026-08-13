@@ -19,6 +19,7 @@ interface EmailOptions {
   html: string;
   bcc?: string | string[];
   replyTo?: string;
+  from?: string; // override the default sender (e.g. force noreply@ for one-way marketing)
 }
 
 // BCC the team inbox on billing/renewal emails so there's visibility of what went out to renters
@@ -42,7 +43,7 @@ export async function renderEmail(
   }
 }
 
-async function sendEmail({ to, subject, html, bcc, replyTo }: EmailOptions) {
+async function sendEmail({ to, subject, html, bcc, replyTo, from: fromOverride }: EmailOptions) {
   if (_capture) { _capture.push({ to, subject, html, bcc }); return; }
   let status: "sent" | "failed" | "skipped" = "sent";
   let errorMsg: string | null = null;
@@ -51,7 +52,7 @@ async function sendEmail({ to, subject, html, bcc, replyTo }: EmailOptions) {
       console.log(`[Email] Would send to ${to}${bcc ? ` (bcc ${bcc})` : ""}: ${subject}`);
       status = "skipped";
     } else {
-      await getResend().emails.send({ from, to, subject, html, ...(bcc ? { bcc } : {}), ...(replyTo ? { replyTo } : {}) });
+      await getResend().emails.send({ from: fromOverride || from, to, subject, html, ...(bcc ? { bcc } : {}), ...(replyTo ? { replyTo } : {}) });
     }
   } catch (e) {
     status = "failed";
@@ -915,6 +916,59 @@ export async function sendFastTrackInvite(email: string | string[], firstName: s
 
 // Internal "who's due to be paid" digest — ambassador setup fees + monthly payouts
 // that have come due, plus marketer commissions cleared for payout. Sent to Milee.
+// Dormant-signup re-engagement — ONE-WAY (no-reply). Sent from noreply@ so replies don't pile up in
+// an unmonitored inbox; replyTo points at info@ so anyone who does reply still reaches the team.
+const REENGAGE_FROM = "LinkedVelocity <noreply@linkedvelocity.com>";
+const REENGAGE_REPLY_TO = "info@linkedvelocity.com";
+const CATALOGUE_URL = "https://linkedvelocity.com/rent-linkedin-accounts";
+
+export async function sendReengageNudge(email: string, firstName: string) {
+  const hi = firstName ? `Hi ${firstName},` : "Hi,";
+  const p = "margin:0 0 14px;color:#0F1419;font-size:14.5px;line-height:1.6;";
+  return sendEmail({
+    to: email,
+    from: REENGAGE_FROM,
+    replyTo: REENGAGE_REPLY_TO,
+    subject: firstName ? `Want a hand getting started, ${firstName}?` : "Want a hand getting started?",
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:30px 22px;">
+        <p style="${p}">${hi}</p>
+        <p style="${p}">You created a LinkedVelocity account a little while back but haven't rented a profile yet — just a nudge in case it slipped off your radar.</p>
+        <p style="${p}">What's waiting for you:</p>
+        <ul style="margin:0 0 14px;padding-left:20px;color:#0F1419;font-size:14.5px;line-height:1.6;">
+          <li>A catalogue of <strong>aged, verified LinkedIn accounts</strong> — some with Sales Navigator included</li>
+          <li>Rent one in a couple of minutes; secure access via GoLogin, and you keep full control of the profile</li>
+          <li>Plans <strong>from $45/month</strong>, no long lock-in</li>
+        </ul>
+        <p style="margin:0 0 18px;"><a href="${CATALOGUE_URL}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14.5px;padding:11px 20px;border-radius:8px;">Browse available accounts →</a></p>
+        <p style="${p}">Questions? Email <strong>info@linkedvelocity.com</strong> or message us on Telegram <strong>@linkedvelocity_support_bot</strong> — happy to help you pick the right one.</p>
+        <p style="margin:22px 0 0;color:#536471;font-size:13px;">— The LinkedVelocity Team</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendReengageFollowup(email: string, firstName: string) {
+  const hi = firstName ? `Hi ${firstName},` : "Hi,";
+  const p = "margin:0 0 14px;color:#0F1419;font-size:14.5px;line-height:1.6;";
+  return sendEmail({
+    to: email,
+    from: REENGAGE_FROM,
+    replyTo: REENGAGE_REPLY_TO,
+    subject: firstName ? `Still here whenever you're ready, ${firstName}` : "Still here whenever you're ready",
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:30px 22px;">
+        <p style="${p}">${hi}</p>
+        <p style="${p}">Following up on my last note — no pressure at all.</p>
+        <p style="${p}">Most people who sign up but don't rent straight away just aren't sure which account fits, or want to know it's safe first. Totally fair. The short version: you keep full control, we handle secure access through GoLogin, accounts are aged and verified <strong>from $45/month</strong>, and there's no long lock-in.</p>
+        <p style="margin:0 0 18px;"><a href="${CATALOGUE_URL}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14.5px;padding:11px 20px;border-radius:8px;">Browse available accounts →</a></p>
+        <p style="${p}">Questions? <strong>info@linkedvelocity.com</strong> or Telegram <strong>@linkedvelocity_support_bot</strong>.</p>
+        <p style="margin:22px 0 0;color:#536471;font-size:13px;">— The LinkedVelocity Team</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendPaymentsDueDigest(
   to: string | string[],
   data: {

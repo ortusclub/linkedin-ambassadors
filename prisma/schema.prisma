@@ -62,6 +62,8 @@ model User {
   cardBrand         String?    @map("card_brand")
   cardLast4         String?    @map("card_last4")
   isTest            Boolean    @default(false) @map("is_test")
+  reengageNudgeAt    DateTime? @map("reengage_nudge_at")    // dormant-signup re-engagement email 1 sent
+  reengageFollowupAt DateTime? @map("reengage_followup_at") // dormant-signup re-engagement email 2 sent
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 

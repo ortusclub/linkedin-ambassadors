@@ -38,6 +38,10 @@
     {
       "path": "/api/cron/crypto-payments",
       "schedule": "20 9 * * *"
+    },
+    {
+      "path": "/api/cron/reengage-signups",
+      "schedule": "0 8 * * *"
     }
   ]
 }
