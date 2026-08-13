@@ -19,7 +19,7 @@ const comparison = [
   { feature: "LinkedIn TOS compliance", linkedvelocity: "Compliant — account is never transferred", alt: "Violates LinkedIn TOS (account sales prohibited)" },
   { feature: "Risk of permanent ban", linkedvelocity: "0% restriction rate to date", alt: "High — flagged accounts get permanently banned" },
   { feature: "Recovery if account dies", linkedvelocity: "Swap to another account in your dashboard", alt: "You lose the full purchase price" },
-  { feature: "Upfront cost", linkedvelocity: "$10-500/month, cancel anytime", alt: "$100-2,000+ per account, non-refundable" },
+  { feature: "Upfront cost", linkedvelocity: "$45-110/month, cancel anytime", alt: "$100-2,000+ per account, non-refundable" },
   { feature: "Account warming period", linkedvelocity: "None — accounts are pre-warmed and active", alt: "1-3 months before safe for outreach" },
   { feature: "Verification & 2FA", linkedvelocity: "Already verified, 2FA handled in GoLogin session", alt: "Often unverified, 2FA disputes common" },
   { feature: "Profile content control", linkedvelocity: "Original owner curates profile (looks real)", alt: "You inherit a fake or abandoned profile" },
@@ -37,7 +37,7 @@ const faqs = [
   },
   {
     q: "Aren't rented accounts more expensive than bought ones?",
-    a: "Only if you measure single-month cost. A bought account typically costs $200-2,000 upfront and may die before you recoup the value. Renting at $10-500/month means you only pay while the account is producing results, and you can cancel anytime.",
+    a: "Only if you measure single-month cost. A bought account typically costs $200-2,000 upfront and may die before you recoup the value. Renting at $45-110/month means you only pay while the account is producing results, and you can cancel anytime.",
   },
   {
     q: "Can I run automation tools on a rented account?",
@@ -94,7 +94,7 @@ export default function BuyingVsRentPage() {
             <strong>Rent, don&apos;t buy.</strong> Buying violates LinkedIn&apos;s terms and
             usually ends in a permanent restriction within weeks. Renting through LinkedVelocity
             keeps the account with its original owner, runs in an isolated browser session,
-            and costs $10-500/month with no upfront risk.
+            and costs $45-110/month with no upfront risk.
           </p>
         </div>
 

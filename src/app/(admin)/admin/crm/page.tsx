@@ -279,7 +279,9 @@ export default function CrmPage() {
           ) : (() => {
             const sc = stageColor(cur.stage || "new", dark);
             const cc = chanColor(cur.channel, dark);
-            const log = Array.isArray(cur.commsLog) ? cur.commsLog : [];
+            // Newest first — entries are appended to the array so raw order isn't reliably
+            // chronological; sort by ts descending (ISO strings sort chronologically).
+            const log = (Array.isArray(cur.commsLog) ? [...cur.commsLog] : []).sort((a, b) => String(b.ts || "").localeCompare(String(a.ts || "")));
             const d = draft[cur.id] || { channel: "email", body: "" };
             const metaCell = { background: V.surface, padding: "16px 26px" } as const;
             return (

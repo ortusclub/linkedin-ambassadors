@@ -20,7 +20,7 @@ const comparison = [
   { feature: "Account origin", linkedvelocity: "Real professionals who voluntarily share access", alt: "Often stolen, hacked, or abandoned accounts" },
   { feature: "Seller accountability", linkedvelocity: "LinkedVelocity manages the relationship, support, and refunds", alt: "Anonymous sellers on forums — no recourse after payment" },
   { feature: "Account survival", linkedvelocity: "0% restriction rate across all rentals", alt: "Most bought accounts get flagged within 2-6 weeks" },
-  { feature: "Price", linkedvelocity: "$10-500/month, cancel anytime", alt: "$200-2,000+ one-time, non-refundable" },
+  { feature: "Price", linkedvelocity: "$45-110/month, cancel anytime", alt: "$200-2,000+ one-time, non-refundable" },
   { feature: "If the account dies", linkedvelocity: "Swap to another account from your dashboard", alt: "Total loss — seller won't refund" },
   { feature: "Profile authenticity", linkedvelocity: "Original owner maintains the profile (real photo, real history)", alt: "Abandoned profile with stale content, mismatched industry" },
   { feature: "Account credentials", linkedvelocity: "Owner keeps credentials — renter gets managed browser session", alt: "Buyer gets password — but seller may still have access" },
@@ -42,7 +42,7 @@ const faqs = [
   },
   {
     q: "I found aged accounts for $50 — isn't that cheaper than renting?",
-    a: "Only if the account survives. At a 70%+ ban rate within 6 weeks, a $50 account costs ~$8/week for 6 weeks of use. A comparable LinkedVelocity rental at $25/month costs ~$6/week with no expiry risk and instant replacement if anything goes wrong. The rental is both cheaper per week and risk-free.",
+    a: "Only if the account survives. At a 70%+ ban rate within 6 weeks, a $50 account costs ~$8/week for 6 weeks of use — and then it's gone. A comparable LinkedVelocity rental at $45/month is ~$11/week, with no expiry risk and instant replacement if anything goes wrong. You pay slightly more per week for an account that won't vanish and take your campaigns down with it.",
   },
   {
     q: "Can the original owner reclaim a bought account?",
@@ -98,7 +98,7 @@ export default function BuyingAgedVsRentPage() {
           <p>
             <strong>Buying aged accounts is gambling with bad odds.</strong> Most get
             banned within 6 weeks, sellers are anonymous, and refunds don&apos;t exist.
-            LinkedVelocity rents real accounts from willing owners for $10-500/month with a
+            LinkedVelocity rents real accounts from willing owners for $45-110/month with a
             0% restriction rate and instant swaps if anything goes wrong.
           </p>
         </div>

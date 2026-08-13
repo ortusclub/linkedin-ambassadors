@@ -23,7 +23,7 @@ const comparison = [
   { feature: "LinkedIn multi-account", linkedvelocity: "Core feature — rent as many as needed", alt: "Not supported — Smartlead is email-focused" },
   { feature: "Warming", linkedvelocity: "None needed — accounts have real years-long history", alt: "Automated email warmup included" },
   { feature: "Best for", linkedvelocity: "LinkedIn outreach at scale across multiple accounts", alt: "High-volume cold email campaigns" },
-  { feature: "Pricing", linkedvelocity: "$10-500/mo per LinkedIn account", alt: "$39-94/mo for email platform" },
+  { feature: "Pricing", linkedvelocity: "$45-110/mo per LinkedIn account", alt: "$39-94/mo for email platform" },
 ];
 
 const faqs = [

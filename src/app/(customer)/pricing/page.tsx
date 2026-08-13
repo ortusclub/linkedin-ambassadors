@@ -24,21 +24,21 @@ const TIERS: Tier[] = [
     person: "Jordan T.", role: "Sales Associate", initials: "JT", avatarBg: "#4B9BEA",
     connections: "<500", verified: "No", verifiedOn: false, nav: "—", navOn: false,
     desc: "Newer profiles with under 500 connections and no Sales Navigator. Great for testing or higher-volume, lower-stakes outreach.",
-    price: "$75",
+    price: "$45",
   },
   {
     eyebrow: "Sweet spot", eyebrowBg: "#0A66C2", eyebrowFg: "#FFFFFF", name: "Established", topColor: "#0A66C2", dots: ["#0A66C2", "#0A66C2", "#D3DAE3"],
     person: "Anna K.", role: "Marketing Manager", initials: "AK", avatarBg: "#0A66C2",
-    connections: "500+", verified: "Yes", verifiedOn: true, nav: "✓", navOn: true,
-    desc: "Verified profiles with 500+ connections and Sales Navigator included. The reliable middle ground most renters choose.",
-    price: "$125", featured: true, ribbon: "Most popular",
+    connections: "500+", verified: "Yes", verifiedOn: true, nav: "—", navOn: false,
+    desc: "Verified profiles with 500+ connections. The reliable middle ground most renters choose. Sales Navigator available as a +$70/mo add-on.",
+    price: "$75", featured: true, ribbon: "Most popular",
   },
   {
     eyebrow: "Top tier", eyebrowBg: "#0D1B2A", eyebrowFg: "#FFFFFF", name: "Premium", topColor: "#0D1B2A", dots: ["#0A66C2", "#0A66C2", "#0A66C2"],
     person: "Marcus L.", role: "VP of Sales", initials: "ML", avatarBg: "#0D1B2A",
-    connections: "5k+", verified: "Yes", verifiedOn: true, nav: "✓", navOn: true,
-    desc: "Senior, large networks with Sales Navigator. Maximum reach and credibility for serious outreach.",
-    price: "$150+",
+    connections: "1,000+", verified: "Yes", verifiedOn: true, nav: "✓", navOn: true,
+    desc: "Senior, large networks with Sales Navigator available. Maximum reach and credibility for serious outreach.",
+    price: "$110+",
   },
 ];
 

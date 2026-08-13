@@ -2,21 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Rent LinkedIn Accounts for Outreach — From $10/Month",
+  title: "Rent LinkedIn Accounts for Outreach — From $45/Month",
   description:
     "Rent pre-warmed, verified LinkedIn accounts for B2B outreach and lead generation. 847+ accounts, 0% restriction rate, instant GoLogin browser access. Browse the catalogue and start sending messages today.",
   alternates: { canonical: "/rent-linkedin-accounts" },
   openGraph: {
     title: "Rent LinkedIn Accounts — LinkedVelocity Marketplace",
     description:
-      "The marketplace for renting LinkedIn accounts. Pre-warmed profiles, GoLogin browser access, dedicated proxies. From $10/month, cancel anytime.",
+      "The marketplace for renting LinkedIn accounts. Pre-warmed profiles, GoLogin browser access, dedicated proxies. From $45/month, cancel anytime.",
     url: "https://linkedvelocity.com/rent-linkedin-accounts",
   },
   twitter: {
     card: "summary_large_image",
     title: "Rent LinkedIn Accounts — LinkedVelocity",
     description:
-      "Rent verified LinkedIn accounts for outreach. 847+ accounts, 0% restriction rate. From $10/mo.",
+      "Rent verified LinkedIn accounts for outreach. 847+ accounts, 0% restriction rate. From $45/mo.",
   },
 };
 
@@ -69,7 +69,7 @@ const useCases = [
 const faqs = [
   {
     q: "How much does it cost to rent a LinkedIn account?",
-    a: "Rental prices range from $10 to $500 per month, depending on the account's connection count, industry, age, and whether it includes Sales Navigator. Basic accounts with 500-1,000 connections start at $10/month. Premium accounts with 5,000+ connections and Sales Navigator can reach $500/month.",
+    a: "Rental prices range from $45 to $110 per month, depending on the account's connection count, industry, age, and whether it includes Sales Navigator. Basic accounts start at $45/month. Premium accounts with larger networks can reach $110/month, and Sales Navigator can be added to any account for +$70/month.",
   },
   {
     q: "Is it safe to rent a LinkedIn account?",
@@ -122,7 +122,7 @@ export default function RentLinkedInAccountsPage() {
       url: "https://linkedvelocity.com",
     },
     description:
-      "Rent pre-warmed, verified LinkedIn accounts for B2B outreach and lead generation. Includes GoLogin anti-detect browser access and dedicated residential proxy. From $10/month, cancel anytime.",
+      "Rent pre-warmed, verified LinkedIn accounts for B2B outreach and lead generation. Includes GoLogin anti-detect browser access and dedicated residential proxy. From $45/month, cancel anytime.",
     areaServed: { "@type": "Place", name: "Worldwide" },
     hasOfferCatalog: {
       "@type": "OfferCatalog",
@@ -131,23 +131,23 @@ export default function RentLinkedInAccountsPage() {
         {
           "@type": "Offer",
           name: "Basic LinkedIn Account Rental",
-          description: "500-1,000 connections, GoLogin browser, dedicated proxy",
-          price: "10",
+          description: "Under 500 connections, GoLogin browser, dedicated proxy",
+          price: "45",
           priceCurrency: "USD",
-          priceSpecification: { "@type": "UnitPriceSpecification", price: "10", priceCurrency: "USD", billingDuration: "P1M" },
+          priceSpecification: { "@type": "UnitPriceSpecification", price: "45", priceCurrency: "USD", billingDuration: "P1M" },
         },
         {
           "@type": "Offer",
           name: "Standard LinkedIn Account Rental",
-          description: "1,000-5,000 connections, GoLogin browser, dedicated proxy",
-          price: "25",
+          description: "500-1,000 connections, GoLogin browser, dedicated proxy",
+          price: "50",
           priceCurrency: "USD",
-          priceSpecification: { "@type": "UnitPriceSpecification", price: "25", priceCurrency: "USD", billingDuration: "P1M" },
+          priceSpecification: { "@type": "UnitPriceSpecification", price: "50", priceCurrency: "USD", billingDuration: "P1M" },
         },
         {
           "@type": "Offer",
           name: "Premium LinkedIn Account Rental",
-          description: "5,000+ connections, Sales Navigator, GoLogin browser, dedicated proxy, priority support",
+          description: "1,000+ connections or Sales Navigator, GoLogin browser, dedicated proxy, priority support",
           price: "75",
           priceCurrency: "USD",
           priceSpecification: { "@type": "UnitPriceSpecification", price: "75", priceCurrency: "USD", billingDuration: "P1M" },
@@ -257,7 +257,7 @@ export default function RentLinkedInAccountsPage() {
           <p className="rent-subtitle">
             LinkedVelocity is the marketplace for renting pre-warmed, verified LinkedIn accounts.
             Growth teams, agencies, and SDRs use LinkedVelocity to scale LinkedIn outreach without
-            getting their primary accounts restricted. Plans start at $10/month with instant
+            getting their primary accounts restricted. Plans start at $45/month with instant
             access via GoLogin anti-detect browser.
           </p>
 
@@ -320,20 +320,20 @@ export default function RentLinkedInAccountsPage() {
               <tbody>
                 <tr>
                   <td><strong>Basic</strong></td>
-                  <td>500 – 1,000</td>
-                  <td>$10 – 25/mo</td>
+                  <td>Under 500</td>
+                  <td>$45 – 50/mo</td>
                   <td>GoLogin browser, residential proxy, support</td>
                 </tr>
                 <tr>
                   <td><strong>Standard</strong></td>
-                  <td>1,000 – 5,000</td>
-                  <td>$25 – 75/mo</td>
+                  <td>500 – 1,000</td>
+                  <td>$50 – 75/mo</td>
                   <td>GoLogin browser, residential proxy, support</td>
                 </tr>
                 <tr>
                   <td><strong>Premium</strong></td>
-                  <td>5,000+ or Sales Nav</td>
-                  <td>$75 – 500/mo</td>
+                  <td>1,000+ or Sales Nav</td>
+                  <td>$75 – 110/mo</td>
                   <td>GoLogin browser, residential proxy, priority support</td>
                 </tr>
               </tbody>

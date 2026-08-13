@@ -6,7 +6,7 @@ import { blogFontVars } from "@/lib/blog-fonts";
 export const metadata: Metadata = {
   title: "Browse LinkedIn Accounts for Rent",
   description:
-    "Browse our catalogue of pre-warmed, verified LinkedIn accounts available for rent. Filter by industry, connections, Sales Navigator status. From $10/month.",
+    "Browse our catalogue of pre-warmed, verified LinkedIn accounts available for rent. Filter by industry, connections, Sales Navigator status. From $45/month.",
   alternates: { canonical: "/catalogue" },
   openGraph: {
     title: "Browse LinkedIn Accounts for Rent | LinkedVelocity",
@@ -142,7 +142,7 @@ export default async function CatalogueLayout({
           <li>Account ages from 1 to 15+ years</li>
           <li>Sales Navigator enabled accounts available</li>
           <li>Verified and pre-warmed for immediate use</li>
-          <li>Monthly pricing from $10 to $500</li>
+          <li>Monthly pricing from $45 to $110</li>
         </ul>
         <h3>Why Rent LinkedIn Accounts?</h3>
         <p>

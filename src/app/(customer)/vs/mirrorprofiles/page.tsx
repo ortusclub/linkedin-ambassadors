@@ -21,7 +21,7 @@ const comparison = [
   { feature: "Connection quality", linkedvelocity: "Organic networks built over years (500-10,000+)", alt: "500+ connections built during 3-4 month warming period" },
   { feature: "LinkedIn TOS", linkedvelocity: "No ownership transfer — original owner keeps the account", alt: "Fake identity accounts violate LinkedIn's real-name policy" },
   { feature: "Sales Navigator", linkedvelocity: "Available on selected accounts", alt: "Not included" },
-  { feature: "Pricing", linkedvelocity: "$10-500/mo depending on account quality", alt: "~€100/mo (EU) or ~$150/mo (US) per account" },
+  { feature: "Pricing", linkedvelocity: "$45-110/mo depending on account quality", alt: "~€100/mo (EU) or ~$150/mo (US) per account" },
   { feature: "Anti-detect browser", linkedvelocity: "GoLogin included with dedicated residential proxy", alt: "Dedicated IP and digital fingerprint (details not disclosed)" },
   { feature: "Prospect perception", linkedvelocity: "Prospects see a real professional with a genuine background", alt: "Prospects may notice a thin or inconsistent profile" },
   { feature: "Profile editing", linkedvelocity: "Profile locked — original owner maintains it", alt: "Max one edit per day; cannot delete prior work history" },
@@ -43,7 +43,7 @@ const faqs = [
   },
   {
     q: "Is LinkedVelocity cheaper than MirrorProfiles?",
-    a: "It depends on the account. LinkedVelocity's range is $10-500/month based on connection count, industry, and Sales Navigator. Basic accounts start at $10/month — significantly cheaper than MirrorProfiles' ~€100/month (EU) or ~$150/month (US). Premium LinkedVelocity accounts with 5,000+ connections and Sales Navigator can cost more, but they come with a genuine profile that outperforms a synthetic one.",
+    a: "It depends on the account. LinkedVelocity's range is $45-110/month based on connection count, industry, and Sales Navigator. Basic accounts start at $45/month — significantly cheaper than MirrorProfiles' ~€100/month (EU) or ~$150/month (US). Premium LinkedVelocity accounts with larger networks and Sales Navigator can cost more, but they come with a genuine profile that outperforms a synthetic one.",
   },
   {
     q: "Can I use MirrorProfiles and LinkedVelocity together?",
@@ -101,7 +101,7 @@ export default function MirrorProfilesVsLinkedVelocityPage() {
             synthetic profiles with invented identities. LinkedVelocity rents access to real
             accounts from real professionals — better acceptance rates, better prospect
             trust, and no LinkedIn TOS risk from fake identities. LinkedVelocity starts at
-            $10/mo vs MirrorProfiles&apos; ~$100-150/mo.
+            $45/mo vs MirrorProfiles&apos; ~$100-150/mo.
           </p>
         </div>
 
@@ -157,8 +157,8 @@ export default function MirrorProfilesVsLinkedVelocityPage() {
           <p>
             MirrorProfiles charges ~{"€"}100/month for European accounts and ~$150/month
             for North American accounts, with no Sales Navigator option. LinkedVelocity&apos;s
-            range starts at $10/month for basic accounts and goes up to $500/month for
-            premium accounts with Sales Navigator and 5,000+ connections. For most use
+            range starts at $45/month for basic accounts and goes up to $110/month for
+            premium accounts, with Sales Navigator available as a +$70/month add-on. For most use
             cases, LinkedVelocity is both cheaper and higher quality.
           </p>
         </section>
