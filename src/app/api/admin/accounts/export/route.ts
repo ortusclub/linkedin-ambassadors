@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
       rental ? fmtDate(rental.currentPeriodEnd) : "",
       rental ? (rental.autoRenew ? "Yes" : "No") : "",
       price > 0 ? `$${price.toFixed(0)}` : "",
-      payout > 0 ? `$${payout.toFixed(0)}` : "",
+      payout > 0 ? `₱${payout.toFixed(0)}` : "",
       ownerDisplay,
       a.location || "",
       a.connectionCount > 0 ? String(a.connectionCount) : "",
