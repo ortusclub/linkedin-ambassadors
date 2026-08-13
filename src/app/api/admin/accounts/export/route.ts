@@ -71,6 +71,11 @@ export async function GET(req: NextRequest) {
     ? await prisma.user.findMany({ where: { email: { in: ownerEmails } }, select: { email: true, fullName: true } })
     : [];
   const ownerMap = new Map(ownerUsers.map((u) => [u.email, u.fullName]));
+  // Fallback owner names for people who signed up via an application (no User row).
+  const ownerApps = ownerEmails.length
+    ? await prisma.ambassadorApplication.findMany({ where: { email: { in: ownerEmails } }, select: { email: true, fullName: true } })
+    : [];
+  const ownerAppMap = new Map(ownerApps.map((a) => [a.email, a.fullName]));
 
   // Group by the single canonical status so it matches the admin view.
   // Order: Available, then Restricted (just below available), Trial, Rented,
@@ -101,10 +106,10 @@ export async function GET(req: NextRequest) {
     // otherwise the ambassador who supplied it.
     const isShowcase = (a.notes || "").includes("[SHOWCASE]");
     const isOrtus = [profileEmail, ownerEmail].some((e) => isCompanyEmail(e));
-    const ownerDisplay = isShowcase ? "Dummy" : isOrtus ? "Ortus" : (ownerMap.get(ownerEmail) || ownerEmail || "");
+    const ownerDisplay = isShowcase ? "Dummy" : isOrtus ? "Ortus" : (ownerMap.get(ownerEmail) || ownerAppMap.get(ownerEmail) || ownerEmail || "");
     return [
       ...(showCreds ? [a.loginEmail || ""] : []),
-      profileEmail || a.linkedinName,
+      a.linkedinName || profileEmail || "",
       a.linkedinHeadline || "",
       displayStatus(a),
       a.linkedinVerified ? "Yes" : "No",
