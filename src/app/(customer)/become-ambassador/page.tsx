@@ -896,7 +896,7 @@ export default function BecomeAmbassadorPage() {
                         return <button key={m} type="button" onClick={() => update("contactMethod", m)} style={{ flex: 1, cursor: "pointer", fontFamily: "'Inter',sans-serif", fontSize: 14, fontWeight: 600, borderRadius: 10, padding: 11, transition: "all .15s", color: on ? "#067A45" : "#5A6473", background: on ? "#EAF7F0" : "#fff", border: "1.5px solid " + (on ? "#00A150" : "#DCE3DE") }}>{m === "whatsapp" ? "WhatsApp" : m === "telegram" ? "Telegram" : "Viber"}</button>;
                       })}
                     </div>
-                    <input className="ambf-in" type="text" value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder={form.contactMethod === "whatsapp" ? "+44 7700 000000" : "@yourhandle"} required />
+                    <input className="ambf-in" type="text" value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder={form.contactMethod === "telegram" ? "@yourhandle" : "+63 917 000 0000"} required />
                     <p style={{ fontSize: 12, lineHeight: 1.55, color: "#5A6473", margin: "9px 0 0" }}>Include your country code. We&apos;ll only contact you about your ambassador accounts or billing — never marketing or spam.</p>
                   </div>
 
