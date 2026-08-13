@@ -478,7 +478,7 @@ export default function BecomeAmbassadorPage() {
             <button onClick={() => setCurrency("PHP")} style={pill(currency === "PHP")}>PHP</button>
             <button onClick={() => setCurrency("USD")} style={pill(currency === "USD")}>USD</button>
           </div>
-          <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Payouts are made in PHP{currency === "USD" ? " — USD shown for reference." : "."}</div>
+          <div style={{ fontSize: 12.5, color: "#5A6473", marginTop: 12 }}>Payouts are made in PHP{currency === "USD" ? " — USD shown for reference." : "."}</div>
         </div>
 
         <div style={{ maxWidth: 820, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, alignItems: "stretch" }} className="a-earn-grid">
@@ -875,8 +875,8 @@ export default function BecomeAmbassadorPage() {
                 {/* FORM */}
                 <form onSubmit={handleSubmit} style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 20, padding: "30px 32px", boxShadow: "0 6px 20px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.04)" }}>
                   <div style={{ marginBottom: 18 }}>
-                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2" }}>Your details</div>
-                    <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 4 }}>Who we&apos;ll pay and contact.</div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#66707C" }}>Your details</div>
+                    <div style={{ fontSize: 12.5, color: "#5A6473", marginTop: 4 }}>Who we&apos;ll pay and contact.</div>
                   </div>
 
                   <div style={{ marginBottom: 18 }}>
@@ -889,28 +889,28 @@ export default function BecomeAmbassadorPage() {
                   </div>
 
                   <div style={{ marginBottom: 6 }}>
-                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>WhatsApp, Telegram or Viber <span style={{ color: "#00A150" }}>*</span></label>
+                    <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Viber, Telegram or WhatsApp <span style={{ color: "#00A150" }}>*</span></label>
                     <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                      {(["whatsapp", "telegram", "viber"] as const).map((m) => {
+                      {(["viber", "telegram", "whatsapp"] as const).map((m) => {
                         const on = form.contactMethod === m;
                         return <button key={m} type="button" onClick={() => update("contactMethod", m)} style={{ flex: 1, cursor: "pointer", fontFamily: "'Inter',sans-serif", fontSize: 14, fontWeight: 600, borderRadius: 10, padding: 11, transition: "all .15s", color: on ? "#067A45" : "#5A6473", background: on ? "#EAF7F0" : "#fff", border: "1.5px solid " + (on ? "#00A150" : "#DCE3DE") }}>{m === "whatsapp" ? "WhatsApp" : m === "telegram" ? "Telegram" : "Viber"}</button>;
                       })}
                     </div>
                     <input className="ambf-in" type="text" value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder={form.contactMethod === "whatsapp" ? "+44 7700 000000" : "@yourhandle"} required />
-                    <p style={{ fontSize: 12, lineHeight: 1.55, color: "#96A0AD", margin: "9px 0 0" }}>Include your country code. We&apos;ll only contact you about your ambassador accounts or billing — never marketing or spam.</p>
+                    <p style={{ fontSize: 12, lineHeight: 1.55, color: "#5A6473", margin: "9px 0 0" }}>Include your country code. We&apos;ll only contact you about your ambassador accounts or billing — never marketing or spam.</p>
                   </div>
 
                   <div style={{ height: 1, background: "#EEF0F3", margin: "24px 0" }} />
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2" }}>Your LinkedIn account <span style={{ textTransform: "none", letterSpacing: 0, color: "#A6B0AA" }}>(optional)</span></div>
-                    <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 4 }}>The profile you&apos;re offering.</div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#66707C" }}>Your LinkedIn account <span style={{ textTransform: "none", letterSpacing: 0, color: "#A6B0AA" }}>(optional)</span></div>
+                    <div style={{ fontSize: 12.5, color: "#5A6473", marginTop: 4 }}>The profile you&apos;re offering.</div>
                   </div>
 
                   <div style={{ marginBottom: form.linkedinUrl.trim() ? 16 : 6 }}>
                     <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>LinkedIn profile URL <span style={{ fontWeight: 400, color: "#96A0AD" }}>(optional)</span></label>
                     <input className="ambf-in" type="text" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} />
-                    <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 6 }}>Have your profile link? Add it for an instant valuation. No account yet? Leave it blank — we&apos;ll help you get set up.</div>
-                    <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 6 }}>Have more than one account? All payments still go to you — just add the rest after signup.</div>
+                    <div style={{ fontSize: 12.5, color: "#5A6473", marginTop: 6 }}>Have your profile link? Add it for an instant valuation. No account yet? Leave it blank — we&apos;ll help you get set up.</div>
+                    <div style={{ fontSize: 12.5, color: "#5A6473", marginTop: 6 }}>Have more than one account? All payments still go to you — just add the rest after signup.</div>
                   </div>
 
                   {form.linkedinUrl.trim() && (
@@ -953,7 +953,7 @@ export default function BecomeAmbassadorPage() {
                   </div>
 
                   <button type="submit" disabled={submitting} style={{ width: "100%", background: submitting ? "#8FD9B4" : "#00B85C", color: "#fff", fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: submitting ? "not-allowed" : "pointer", boxShadow: submitting ? "none" : "0 12px 28px rgba(0,184,92,0.28)" }}>{submitting ? "Sending — one moment…" : form.linkedinUrl.trim() ? "Get my profile valuation →" : "Sign me up →"}</button>
-                  <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>{form.linkedinUrl.trim() ? "Free · instant · no account required" : "No account needed · we'll set you up"}</div>
+                  <div style={{ textAlign: "center", fontSize: 12.5, color: "#5A6473", marginTop: 12 }}>{form.linkedinUrl.trim() ? "Free · instant · no account required" : "No account needed · we'll set you up"}</div>
                 </form>
 
                 {/* SIDEBAR */}
@@ -980,7 +980,7 @@ export default function BecomeAmbassadorPage() {
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 9, justifyContent: "center", fontSize: 12.5, color: "#96A0AD" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, justifyContent: "center", fontSize: 12.5, color: "#5A6473" }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                     Your details are kept private
                   </div>
