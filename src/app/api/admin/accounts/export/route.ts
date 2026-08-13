@@ -85,13 +85,14 @@ export async function GET(req: NextRequest) {
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.
   const headers = [
-    ...(showCreds ? ["Login Email"] : []),
     "LinkedIn Account", "Headline / Title", "Status", "Verified",
     "Renter", "Rented Until", "Auto Renew",
     "Monthly Price", "Ambassador Payout", "Owner",
     "Location", "Number of Connections", "Account Age", "Sales Navigator", "LinkedIn URL",
     "GoLogin Profile ID", "Shareable Link",
-    ...(showCreds ? ["Password", "2FA Key", "Work Email"] : []),
+    // Access block, grouped together: their own login email, our klabber work
+    // email, then the secrets.
+    ...(showCreds ? ["Login Email", "Work Email", "Password", "2FA Key"] : []),
   ];
 
   const rows = sorted.map((a) => {
@@ -108,7 +109,6 @@ export async function GET(req: NextRequest) {
     const isOrtus = [profileEmail, ownerEmail].some((e) => isCompanyEmail(e));
     const ownerDisplay = isShowcase ? "Dummy" : isOrtus ? "Ortus" : (ownerMap.get(ownerEmail) || ownerAppMap.get(ownerEmail) || ownerEmail || "");
     return [
-      ...(showCreds ? [a.loginEmail || ""] : []),
       a.linkedinName || profileEmail || "",
       a.linkedinHeadline || "",
       displayStatus(a),
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
       a.gologinProfileId || "",
       a.gologinShareLink || "",
       ...(showCreds
-        ? [a.accountPassword || "", a.twoFactor || "", a.workEmail || ""]
+        ? [a.loginEmail || "", a.workEmail || "", a.accountPassword || "", a.twoFactor || ""]
         : []),
     ];
   });
