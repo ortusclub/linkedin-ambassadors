@@ -874,7 +874,10 @@ export default function BecomeAmbassadorPage() {
               <div className="ambf-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px", gap: 34, alignItems: "start", marginTop: 34 }}>
                 {/* FORM */}
                 <form onSubmit={handleSubmit} style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 20, padding: "30px 32px", boxShadow: "0 6px 20px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.04)" }}>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2", marginBottom: 18 }}>Your details</div>
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2" }}>Your details</div>
+                    <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 4 }}>Who we&apos;ll pay and contact.</div>
+                  </div>
 
                   <div style={{ marginBottom: 18 }}>
                     <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>Your full name <span style={{ color: "#00A150" }}>*</span></label>
@@ -898,12 +901,16 @@ export default function BecomeAmbassadorPage() {
                   </div>
 
                   <div style={{ height: 1, background: "#EEF0F3", margin: "24px 0" }} />
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2", marginBottom: 16 }}>Your LinkedIn account <span style={{ textTransform: "none", letterSpacing: 0, color: "#A6B0AA" }}>(optional)</span></div>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A93A2" }}>Your LinkedIn account <span style={{ textTransform: "none", letterSpacing: 0, color: "#A6B0AA" }}>(optional)</span></div>
+                    <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 4 }}>The profile you&apos;re offering.</div>
+                  </div>
 
                   <div style={{ marginBottom: form.linkedinUrl.trim() ? 16 : 6 }}>
                     <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#37424F", marginBottom: 7 }}>LinkedIn profile URL <span style={{ fontWeight: 400, color: "#96A0AD" }}>(optional)</span></label>
                     <input className="ambf-in" type="text" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="linkedin.com/in/yourprofile" value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} />
                     <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 6 }}>Have your profile link? Add it for an instant valuation. No account yet? Leave it blank — we&apos;ll help you get set up.</div>
+                    <div style={{ fontSize: 12.5, color: "#96A0AD", marginTop: 6 }}>Have more than one account? All payments still go to you — just add the rest after signup.</div>
                   </div>
 
                   {form.linkedinUrl.trim() && (
