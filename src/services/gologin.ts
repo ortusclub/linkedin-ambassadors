@@ -11,6 +11,24 @@ export function tokenForAccount(gologinAccount?: string | null): string | undefi
   return undefined; // undefined -> gologinFetch falls back to GOLOGIN_API_TOKEN (master)
 }
 
+// Pick the GoLogin workspace for an account's shares. This MUST match the token:
+// sharing with the klabber token but the master workspace id (or vice-versa) fails.
+// "klabber" inventory lives in the shared klabber workspace (GOLOGIN_WORKSPACE_ID).
+// "master"/ortus (legacy) profiles are personal — no workspace — so we send NO
+// currentWorkspace param, unless a master workspace id is explicitly configured.
+// Returns null to mean "omit currentWorkspace"; undefined callers keep the default.
+export function workspaceForAccount(gologinAccount?: string | null): string | null {
+  if (gologinAccount === "klabber") return GOLOGIN_WORKSPACE_ID;
+  return process.env.GOLOGIN_WORKSPACE_ID_MASTER ?? null;
+}
+
+// Build the ?currentWorkspace= query for share calls. `undefined` (no arg) keeps the
+// legacy default workspace; `null` omits it; a string uses that workspace.
+function workspaceQuery(workspace: string | null | undefined): string {
+  const ws = workspace === undefined ? GOLOGIN_WORKSPACE_ID : workspace;
+  return ws ? `?currentWorkspace=${ws}` : "";
+}
+
 function headers(token?: string) {
   return {
     Authorization: `Bearer ${token || process.env.GOLOGIN_API_TOKEN}`,
@@ -94,8 +112,8 @@ export async function addCookies(profileId: string, cookies: object[]) {
 }
 
 // Grant a renter access to a profile (role "guest" = can run/view, not edit).
-export async function shareProfile(profileId: string, email: string, token?: string) {
-  return gologinFetch(`/share/multi?currentWorkspace=${GOLOGIN_WORKSPACE_ID}`, {
+export async function shareProfile(profileId: string, email: string, token?: string, workspace?: string | null) {
+  return gologinFetch(`/share/multi${workspaceQuery(workspace)}`, {
     method: "POST",
     body: JSON.stringify({
       type: "browser", // GoLogin uses "browser" here, not "profile"
@@ -108,8 +126,8 @@ export async function shareProfile(profileId: string, email: string, token?: str
 
 // Revoke a renter's access by the SHARE id (returned when the share was created
 // via shareProfile). GoLogin exposes an (undocumented) DELETE /share/{shareId}.
-export async function unshareProfile(shareId: string, token?: string) {
-  return gologinFetch(`/share/${shareId}?currentWorkspace=${GOLOGIN_WORKSPACE_ID}`, { method: "DELETE" }, token);
+export async function unshareProfile(shareId: string, token?: string, workspace?: string | null) {
+  return gologinFetch(`/share/${shareId}${workspaceQuery(workspace)}`, { method: "DELETE" }, token);
 }
 
 export async function getProfile(profileId: string) {
