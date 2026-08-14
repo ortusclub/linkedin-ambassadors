@@ -17,6 +17,7 @@ const updateSchema = z.object({
   proxyPort: z.number().int().nullable().optional(),
   proxyUsername: z.string().nullable().optional(),
   proxyPassword: z.string().nullable().optional(),
+  proxyLocation: z.string().nullable().optional(),
   loginEmail: z.string().nullable().optional(),
   accountPassword: z.string().nullable().optional(),
   twoFactor: z.string().nullable().optional(),

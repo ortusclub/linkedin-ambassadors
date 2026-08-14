@@ -61,6 +61,7 @@ export default function EditAccountPage() {
       if (form.proxyPort !== undefined && form.proxyPort !== "" && form.proxyPort !== null) payload.proxyPort = Number(form.proxyPort);
       if (form.proxyUsername !== undefined) payload.proxyUsername = form.proxyUsername || null;
       if (form.proxyPassword !== undefined) payload.proxyPassword = form.proxyPassword || null;
+      if (form.proxyLocation !== undefined) payload.proxyLocation = form.proxyLocation || null;
       if (form.accountAgeMonths !== undefined && form.accountAgeMonths !== "" && form.accountAgeMonths !== null) payload.accountAgeMonths = Number(form.accountAgeMonths);
       if (form.hasSalesNav !== undefined) payload.hasSalesNav = !!form.hasSalesNav;
       if (form.listed !== undefined) payload.listed = !!form.listed;
@@ -206,6 +207,7 @@ export default function EditAccountPage() {
               <Input id="proxyUsername" label="Username" value={(form.proxyUsername as string) || ""} onChange={(e) => update("proxyUsername", e.target.value)} />
               <Input id="proxyPassword" label="Password" type="password" value={(form.proxyPassword as string) || ""} onChange={(e) => update("proxyPassword", e.target.value)} />
             </div>
+            <Input id="proxyLocation" label="Location" placeholder="e.g. US · New York" value={(form.proxyLocation as string) || ""} onChange={(e) => update("proxyLocation", e.target.value)} />
             <ProxyTestButton
               host={(form.proxyHost as string) || ""}
               port={(form.proxyPort as string | number) || ""}
