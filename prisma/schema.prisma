@@ -118,6 +118,7 @@ model LinkedInAccount {
   proxyPort             Int?          @map("proxy_port")
   proxyUsername         String?       @map("proxy_username")
   proxyPassword         String?       @map("proxy_password")
+  proxyLocation         String?       @map("proxy_location")  // geo of the proxy egress (e.g. "US", "United States · New York") — for verifying geo-match to the account
   // Login credentials for the ambassador's LinkedIn account (we hold the login).
   // Admin-only, never exposed to renters. loginEmail = the email the account signs
   // in with; workEmail = the klabber.co address we added as recovery/secondary.
