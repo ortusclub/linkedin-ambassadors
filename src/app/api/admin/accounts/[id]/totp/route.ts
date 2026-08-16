@@ -27,10 +27,12 @@ export async function GET(
     }
     try {
       const { code, period, expiresIn } = generateTotp(secret);
-      return NextResponse.json({ configured: true, code, period, expiresIn });
+      // Admin-only: also return the raw secret key so the admin can copy it into
+      // an authenticator app if needed, alongside the live code.
+      return NextResponse.json({ configured: true, secret, code, period, expiresIn });
     } catch {
       // Secret present but not valid base32 — likely a note/URI, not a raw key.
-      return NextResponse.json({ configured: true, invalid: true });
+      return NextResponse.json({ configured: true, invalid: true, secret });
     }
   } catch (error) {
     if (error instanceof Error && error.message === "Forbidden") {

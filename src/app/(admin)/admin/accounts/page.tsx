@@ -4,15 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatNumber } from "@/lib/utils";
 
-// Live LinkedIn 2FA (TOTP) code for an account. Fetches the current code from
-// the server (the secret never reaches the browser), shows a countdown, and
-// auto-refreshes when the 30s window rolls over. Mounts when a card expands.
+// LinkedIn 2FA for an account: shows the secret KEY plus the live TOTP code.
+// The server computes the current code (so clock skew can't break it) and, on
+// this admin-only page, also returns the raw key for copying into an app. The
+// code counts down and auto-refreshes each 30s window. Mounts on card expand.
 function TwoFactorCode({ accountId }: { accountId: string }) {
   type S =
-    | { status: "loading" | "none" | "invalid" | "error" }
-    | { status: "ok"; code: string; expiresIn: number; period: number };
+    | { status: "loading" | "none" | "error" }
+    | { status: "invalid"; secret: string }
+    | { status: "ok"; secret: string; code: string; expiresIn: number; period: number };
   const [state, setState] = useState<S>({ status: "loading" });
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"key" | "code" | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -24,8 +26,8 @@ function TwoFactorCode({ accountId }: { accountId: string }) {
         if (!res.ok) { setState({ status: "error" }); return; }
         const d = await res.json();
         if (d.configured === false) setState({ status: "none" });
-        else if (d.invalid) setState({ status: "invalid" });
-        else setState({ status: "ok", code: d.code, expiresIn: d.expiresIn, period: d.period });
+        else if (d.invalid) setState({ status: "invalid", secret: d.secret || "" });
+        else setState({ status: "ok", secret: d.secret || "", code: d.code, expiresIn: d.expiresIn, period: d.period });
       } catch { if (alive) setState({ status: "error" }); }
     };
     load();
@@ -40,23 +42,35 @@ function TwoFactorCode({ accountId }: { accountId: string }) {
     return () => { alive = false; if (timer) clearInterval(timer); };
   }, [accountId]);
 
+  const copy = (text: string, which: "key" | "code") => { navigator.clipboard?.writeText(text); setCopied(which); setTimeout(() => setCopied(null), 1200); };
+  const keyBtnStyle = { font: `600 12px ui-monospace, SFMono-Regular, Menlo, monospace`, letterSpacing: ".02em", color: "var(--text2)", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" as const, wordBreak: "break-all" as const, whiteSpace: "normal" as const };
+
   if (state.status !== "ok") {
-    const label = state.status === "loading" ? "…" : state.status === "none" ? "Not set" : state.status === "invalid" ? "Invalid key" : "Unavailable";
-    const title = state.status === "invalid" ? "Stored 2FA value isn't a valid authenticator key" : undefined;
-    return <span style={{ color: "var(--muted2)" }} title={title}>{label}</span>;
+    if (state.status === "invalid") {
+      return (
+        <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+          <button onClick={() => copy(state.secret, "key")} title="Stored value — not a valid authenticator key. Click to copy." style={keyBtnStyle}>{state.secret || "—"}</button>
+          <span style={{ font: `600 10px sans-serif`, color: "var(--st-cancel-fg)" }}>⚠ not a valid key{copied === "key" ? " · copied" : ""}</span>
+        </span>
+      );
+    }
+    const label = state.status === "loading" ? "…" : state.status === "none" ? "Not set" : "Unavailable";
+    return <span style={{ color: "var(--muted2)" }}>{label}</span>;
   }
 
   const pretty = `${state.code.slice(0, 3)} ${state.code.slice(3)}`;
   const low = state.expiresIn <= 5;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-      <button
-        onClick={() => { navigator.clipboard?.writeText(state.code); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
-        title="Click to copy"
-        style={{ font: `700 16px ui-monospace, SFMono-Regular, Menlo, monospace`, letterSpacing: ".08em", color: "var(--text)", background: "none", border: "none", padding: 0, cursor: "pointer", fontVariantNumeric: "tabular-nums" }}
-      >{pretty}</button>
-      <span title={`Refreshes in ${state.expiresIn}s`} style={{ font: `600 11px ui-monospace, monospace`, color: low ? "var(--st-cancel-fg)" : "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{state.expiresIn}s</span>
-      {copied && <span style={{ font: `600 11px sans-serif`, color: "var(--st-active-fg)" }}>copied</span>}
+    <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+      {/* secret key */}
+      <button onClick={() => copy(state.secret, "key")} title="Secret key — click to copy" style={keyBtnStyle}>{state.secret}</button>
+      <span style={{ font: `500 9.5px sans-serif`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--muted2)" }}>key{copied === "key" ? " · copied" : ""}</span>
+      {/* live code + countdown */}
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 10, marginTop: 2 }}>
+        <button onClick={() => copy(state.code, "code")} title="Current code — click to copy" style={{ font: `700 16px ui-monospace, SFMono-Regular, Menlo, monospace`, letterSpacing: ".08em", color: "var(--text)", background: "none", border: "none", padding: 0, cursor: "pointer", fontVariantNumeric: "tabular-nums" }}>{pretty}</button>
+        <span title={`Refreshes in ${state.expiresIn}s`} style={{ font: `600 11px ui-monospace, monospace`, color: low ? "var(--st-cancel-fg)" : "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{state.expiresIn}s</span>
+        {copied === "code" && <span style={{ font: `600 11px sans-serif`, color: "var(--st-active-fg)" }}>copied</span>}
+      </span>
     </span>
   );
 }
@@ -734,7 +748,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             </DField>
                             <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}` : "None"}</DField>
                             <DField label="Work email (klabber)">{a.workEmail || "—"}</DField>
-                            <DField label="2FA code"><TwoFactorCode accountId={a.id} /></DField>
+                            <DField label="2FA (key + code)"><TwoFactorCode accountId={a.id} /></DField>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                               <span style={labelCss}>Account opened (sets age)</span>
                               <input type="month" defaultValue={a.accountAgeMonths != null ? (() => { const d = new Date(); d.setMonth(d.getMonth() - a.accountAgeMonths); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })() : ""} onBlur={(e) => saveAge(a, e.target.value)} style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
