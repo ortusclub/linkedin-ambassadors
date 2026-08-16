@@ -22,7 +22,7 @@ const comparison = [
   { feature: "Profile edits by third parties", linkedvelocity: "Not possible — profile is locked", alt: "VA can change name, photo, headline, connections" },
   { feature: "Data exposure", linkedvelocity: "VA has no access to inbox, account settings, or recovery options", alt: "VA sees all messages, connections, and account settings" },
   { feature: "Revoking access", linkedvelocity: "Cancel rental — instant offboarding", alt: "Change password — but VA may already have changed recovery info" },
-  { feature: "Cost", linkedvelocity: "$10-500/month per account, transparent", alt: "$400-2,000/month for VA + risk of account loss" },
+  { feature: "Cost", linkedvelocity: "$45-110/month per account, transparent", alt: "$400-2,000/month for VA + risk of account loss" },
   { feature: "Simultaneous access by owner", linkedvelocity: "Yes — owner can use the account at the same time", alt: "Only one device at a time without conflict" },
 ];
 

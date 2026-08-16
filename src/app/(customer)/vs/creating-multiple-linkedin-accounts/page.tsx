@@ -21,7 +21,7 @@ const comparison = [
   { feature: "Warming required", linkedvelocity: "None — accounts are already pre-warmed", alt: "Daily profile views, post engagement, slow connection growth" },
   { feature: "Connection-request acceptance rate", linkedvelocity: "Normal (15-30% on quality lists)", alt: "Very low — new accounts get ignored or flagged as spam" },
   { feature: "Account survival rate", linkedvelocity: "0% restriction across all rentals to date", alt: "70%+ of self-created multi-accounts get restricted within 90 days" },
-  { feature: "Cost per usable account/month", linkedvelocity: "$10-500/month, pay only while rented", alt: "Phone numbers, proxies, browsers, time — $200+/month all-in even before bans" },
+  { feature: "Cost per usable account/month", linkedvelocity: "$45-110/month, pay only while rented", alt: "Phone numbers, proxies, browsers, time — $200+/month all-in even before bans" },
   { feature: "Phone verification", linkedvelocity: "Already handled — owner's phone, not yours", alt: "Need a new SIM per account; LinkedIn detects VoIP" },
   { feature: "Sales Navigator access", linkedvelocity: "Available on selected listings", alt: "Each new account needs its own Sales Nav subscription" },
 ];
@@ -93,7 +93,7 @@ export default function CreatingMultiVsRentPage() {
           <p>
             <strong>DIY multi-account is the slowest, riskiest, and most expensive option.</strong>{" "}
             70%+ of self-created accounts get restricted within 90 days. LinkedVelocity rents real,
-            established profiles for $10-500/month with same-day access and a 0% restriction
+            established profiles for $45-110/month with same-day access and a 0% restriction
             rate to date.
           </p>
         </div>

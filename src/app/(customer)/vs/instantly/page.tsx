@@ -23,7 +23,7 @@ const comparison = [
   { feature: "Anti-detect browser", linkedvelocity: "GoLogin included with every rental, dedicated residential proxy", alt: "Not included — need separate browser tool for LinkedIn" },
   { feature: "Email outreach", linkedvelocity: "Not included — LinkedIn only", alt: "Core feature — email warmup, rotation, sequences" },
   { feature: "Best for", linkedvelocity: "Teams who need more LinkedIn accounts for outreach", alt: "Teams who need a cold email engine with optional LinkedIn" },
-  { feature: "Pricing", linkedvelocity: "$10-500/mo per LinkedIn account", alt: "$30-97/mo for email platform; LinkedIn accounts extra" },
+  { feature: "Pricing", linkedvelocity: "$45-110/mo per LinkedIn account", alt: "$30-97/mo for email platform; LinkedIn accounts extra" },
 ];
 
 const faqs = [

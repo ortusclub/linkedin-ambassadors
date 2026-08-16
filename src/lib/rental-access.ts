@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { shareProfile, unshareProfile, tokenForAccount } from "@/services/gologin";
+import { shareProfile, unshareProfile, tokenForAccount, workspaceForAccount } from "@/services/gologin";
 import { Prisma } from "@/generated/prisma/client";
 
 export type ShareRef = { email: string; shareId: string };
@@ -20,9 +20,11 @@ export async function grantRentalAccess(rentalId: string): Promise<{ shareId: st
     throw new Error("This account has no GoLogin profile ID, so access can't be managed automatically.");
   }
   const email = rental.user.email;
-  // Use the token for whichever GoLogin account hosts this profile (master vs klabber).
+  // Use the token AND workspace for whichever GoLogin account hosts this profile
+  // (master vs klabber) — they must match, or the share silently returns no id.
   const token = tokenForAccount(rental.linkedinAccount.gologinAccount);
-  const result = await shareProfile(profileId, email, token);
+  const workspace = workspaceForAccount(rental.linkedinAccount.gologinAccount);
+  const result = await shareProfile(profileId, email, token, workspace);
   const shareId = Array.isArray(result) ? result[0]?.id : (result as { id?: string } | null)?.id;
   if (!shareId) {
     throw new Error("GoLogin did not return a share id (the renter may already be shared on this profile — clear it first).");
@@ -52,11 +54,12 @@ export async function revokeRentalAccess(rentalId: string): Promise<{ shareId: s
   });
   if (!rental) throw new Error("Rental not found");
   const token = tokenForAccount(rental.linkedinAccount.gologinAccount);
+  const workspace = workspaceForAccount(rental.linkedinAccount.gologinAccount);
   const current = (rental.gologinShareIds as unknown as ShareRef[] | null) || [];
   const results: { shareId: string; ok: boolean; error?: string }[] = [];
   for (const s of current) {
     try {
-      await unshareProfile(s.shareId, token);
+      await unshareProfile(s.shareId, token, workspace);
       results.push({ shareId: s.shareId, ok: true });
     } catch (e) {
       results.push({ shareId: s.shareId, ok: false, error: e instanceof Error ? e.message : "failed" });

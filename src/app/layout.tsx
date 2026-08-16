@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: "%s | LinkedVelocity",
   },
   description:
-    "Rent pre-warmed, verified LinkedIn accounts for outreach, lead generation, and networking. Instant access via GoLogin browser. Cancel anytime. From $10/month.",
+    "Rent pre-warmed, verified LinkedIn accounts for outreach, lead generation, and networking. Instant access via GoLogin browser. Cancel anytime. From $45/month.",
   keywords: [
     "rent LinkedIn account",
     "LinkedIn account rental",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     siteName: "LinkedVelocity",
     title: "LinkedVelocity — Rent Premium LinkedIn Accounts for Outreach",
     description:
-      "Rent pre-warmed, verified LinkedIn accounts for outreach and lead generation. Instant access, cancel anytime. From $10/month.",
+      "Rent pre-warmed, verified LinkedIn accounts for outreach and lead generation. Instant access, cancel anytime. From $45/month.",
     images: [
       {
         url: "/og-image.png?v=2",

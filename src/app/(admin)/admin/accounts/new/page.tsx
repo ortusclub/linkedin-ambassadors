@@ -23,6 +23,7 @@ export default function NewAccountPage() {
     proxyPort: "",
     proxyUsername: "",
     proxyPassword: "",
+    proxyLocation: "",
   });
 
   const [form, setForm] = useState({
@@ -183,6 +184,13 @@ export default function NewAccountPage() {
                   onChange={(e) => updateProxy("proxyPassword", e.target.value)}
                 />
               </div>
+              <Input
+                id="proxyLocation"
+                label="Proxy Location"
+                placeholder="e.g. US · New York"
+                value={proxy.proxyLocation}
+                onChange={(e) => updateProxy("proxyLocation", e.target.value)}
+              />
               <ProxyTestButton
                 host={proxy.proxyHost}
                 port={proxy.proxyPort}

@@ -641,10 +641,10 @@ Sales Nav accounts cost more but give you significantly more outreach capabiliti
 
 | Account Type | Connections | Features | Monthly Price |
 |---|---|---|---|
-| Basic | 500-1,000 | Standard account | $10-30 |
-| Standard | 1,000-5,000 | Aged 2+ years | $30-100 |
-| Premium | 5,000-10,000 | Aged 5+ years, verified | $100-250 |
-| Ultra-Premium | 10,000+ | Sales Navigator, 5+ years | $250-500 |
+| Basic | Under 500 | Newer profile | $45 |
+| Standard | 500-1,000 | Aged 1-2 years | $50-75 |
+| Premium | 1,000+ | Aged, verified | $75-110 |
+| + Sales Navigator | Any account | Add-on | +$70/mo |
 
 Compare this to the alternative: hiring an SDR ($4,000-6,000/month + tools) or building accounts from scratch (3-6 months of zero output).
 
@@ -987,7 +987,7 @@ Compare that to paid ads ($200-500 per meeting) or hiring 3 more SDRs ($15,000-2
 
 ---
 
-*Ready to scale your SDR team's outreach? [Browse pre-warmed accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — from $10/month per account.*
+*Ready to scale your SDR team's outreach? [Browse pre-warmed accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — from $45/month per account.*
 `,
   },
   {
@@ -1066,7 +1066,7 @@ Sales Navigator shows "buyer intent" signals:
 
 Here's something most people don't consider: instead of paying $100/month for Sales Navigator on your own account, you can rent a LinkedIn account that **already has Sales Navigator** included.
 
-On [LinkedVelocity](https://linkedvelocity.com/catalogue), accounts with Sales Navigator typically cost $150-300/month — but you get both the account (with its established connections and history) and Sales Navigator in one package. For teams running multiple accounts, this is often more cost-effective than adding Sales Nav to each of your own accounts.
+On [LinkedVelocity](https://linkedvelocity.com/catalogue), accounts with Sales Navigator typically cost $145-180/month — but you get both the account (with its established connections and history) and Sales Navigator in one package. For teams running multiple accounts, this is often more cost-effective than adding Sales Nav to each of your own accounts.
 
 ## Sales Navigator ROI Calculator
 
@@ -1074,7 +1074,7 @@ On [LinkedVelocity](https://linkedvelocity.com/catalogue), accounts with Sales N
 |---|---|---|
 | $100/month (own account) | 1 meeting | Any deal >$1,200/year |
 | $150/month (rented account + Sales Nav) | 1 meeting | Any deal >$1,800/year |
-| $500/month (5 accounts with Sales Nav) | 2-3 meetings | Any deal >$2,000/year |
+| $750/month (5 accounts with Sales Nav) | 2-3 meetings | Any deal >$2,000/year |
 
 For B2B sales with average deal sizes of $10,000+, the ROI is almost always positive.
 
@@ -1205,7 +1205,7 @@ Multi-channel with multiple LinkedIn accounts delivers the best cost per meeting
 
 ---
 
-*Scale your LinkedIn outreach to match your email volume. [Browse pre-warmed accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — from $10/month.*
+*Scale your LinkedIn outreach to match your email volume. [Browse pre-warmed accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — from $45/month.*
 `,
   },
   {
@@ -1641,7 +1641,7 @@ These aren't just different products — they're different philosophies about ho
 | Who controls outreach | You | You | The account owner + AI |
 | Browser/tech included | GoLogin + residential proxy | Dedicated IP + fingerprint | Not needed (owner's device) |
 | Sales Navigator | Available on select accounts | Not included | Not specified |
-| Pricing per account | $10-500/mo | ~€100/mo (EU), ~$150/mo (US) | From $35/mo + $99-189/mo platform fee |
+| Pricing per account | $45-110/mo | ~€100/mo (EU), ~$150/mo (US) | From $35/mo + $99-189/mo platform fee |
 | Automation tools | Any Chrome extension | One tool per account | SBL's built-in AI only |
 | Profile authenticity | Real name, real photo, real history | Fake name, AI photo, invented history | Real name, real photo, real history |
 | LinkedIn TOS risk | Low — no fake identities, no ownership transfer | High — fabricated identities violate real-name policy | Low — real accounts, real devices |
@@ -1656,7 +1656,7 @@ These aren't just different products — they're different philosophies about ho
 
 **Strengths:**
 - Genuine profiles that prospects trust (real name, real connections, real history)
-- Widest price range ($10-500/mo) — basic accounts are significantly cheaper than competitors
+- Widest price range ($45-110/mo) — basic accounts are significantly cheaper than competitors
 - Sales Navigator available on select listings
 - Any automation tool works (Dripify, Expandi, Linked Helper, etc.)
 - GoLogin browser and residential proxy included with every rental
@@ -1666,7 +1666,7 @@ These aren't just different products — they're different philosophies about ho
 - Account selection depends on what Ambassadors have listed
 - Premium accounts (5,000+ connections, Sales Nav) cost more than competitors' standard tier
 
-**Pricing:** $10-500/month per account. No platform fee. Cancel anytime.
+**Pricing:** $45-110/month per account. No platform fee. Cancel anytime.
 
 **Best for:** Teams who already know how to run LinkedIn outreach and want authentic, high-quality accounts at a flexible price point.
 
@@ -1728,7 +1728,7 @@ These aren't just different products — they're different philosophies about ho
 - You want real, authentic profiles that prospects trust
 - You already know how to run LinkedIn outreach
 - You want full control over messaging and tools
-- You need flexible pricing (from $10/mo for basic accounts)
+- You need flexible pricing (from $45/mo for basic accounts)
 - Sales Navigator is important to your strategy
 
 ### Choose MirrorProfiles if:
@@ -1751,7 +1751,7 @@ MirrorProfiles works for teams that need quantity over quality. SBL works for te
 
 ---
 
-*Ready to compare for yourself? [Browse real accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — filter by industry, connections, and Sales Navigator. From $10/month, cancel anytime.*
+*Ready to compare for yourself? [Browse real accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — filter by industry, connections, and Sales Navigator. From $45/month, cancel anytime.*
 `,
   },
   {
@@ -1962,7 +1962,7 @@ For 50+ accounts:
 
 ---
 
-*Scale your agency's LinkedIn offering. [Browse accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — rent by industry, cancel when client engagements end. From $10/month per account.*
+*Scale your agency's LinkedIn offering. [Browse accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — rent by industry, cancel when client engagements end. From $45/month per account.*
 `,
   },
   {
@@ -2165,7 +2165,7 @@ Here's what a high-performing outreach operation looks like in 2026:
 
 ---
 
-*Build your 2026 outreach stack on real accounts. [Browse pre-warmed LinkedIn accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — GoLogin browser and residential proxy included. From $10/month, cancel anytime.*
+*Build your 2026 outreach stack on real accounts. [Browse pre-warmed LinkedIn accounts on LinkedVelocity](https://linkedvelocity.com/catalogue) — GoLogin browser and residential proxy included. From $45/month, cancel anytime.*
 `,
   },
 ];

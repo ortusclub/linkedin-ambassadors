@@ -111,8 +111,12 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
       }
     }
 
-    // Monthly — the next unpaid month
-    const paidCount = Array.isArray(a.monthlyPayouts) ? a.monthlyPayouts.length : 0;
+    // Monthly — the next unpaid month. Count only real monthly payouts, never the
+    // one-time setup fee (which is stored in the same array with kind "setup"),
+    // so the next-due month matches the per-owner card on the Owners page.
+    const paidCount = Array.isArray(a.monthlyPayouts)
+      ? (a.monthlyPayouts as Array<{ kind?: string }>).filter((p) => p?.kind !== "setup").length
+      : 0;
     const nextDue = monthlyDueDate(a.onboardedAt, paidCount);
     if (nextDue) {
       const item: DueItem = { ...base, kind: "monthly", amount: monthlyAmount, dueDate: nextDue.toISOString(), overdue: nextDue < startOfToday };

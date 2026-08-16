@@ -34,9 +34,9 @@ const STEPS = [
 ];
 
 const TIERS = [
-  { eyebrow: "ENTRY", bg: "#EAF2FC", fg: "#0A66C2", name: "New / Basic", person: "Jordan T.", role: "Sales Associate", initials: "JT", avatarBg: "#4B9BEA", conn: "<500", ver: "No", verOn: false, nav: "—", navOn: false, desc: "Newer profiles for testing and higher-volume outreach.", price: "$75" },
-  { eyebrow: "SWEET SPOT", bg: "#0A66C2", fg: "#FFFFFF", name: "Established", person: "Anna K.", role: "Marketing Manager", initials: "AK", avatarBg: "#0A66C2", conn: "500+", ver: "Yes", verOn: true, nav: "✓", navOn: true, desc: "Verified profiles with Sales Navigator — the reliable middle ground.", price: "$125", featured: true, ribbon: "Most popular" },
-  { eyebrow: "TOP TIER", bg: "#0D1B2A", fg: "#FFFFFF", name: "Premium", person: "Marcus L.", role: "VP of Sales", initials: "ML", avatarBg: "#0D1B2A", conn: "5k+", ver: "Yes", verOn: true, nav: "✓", navOn: true, desc: "Senior, large networks with Sales Navigator. Maximum reach.", price: "$150+" },
+  { eyebrow: "ENTRY", bg: "#EAF2FC", fg: "#0A66C2", name: "New / Basic", person: "Jordan T.", role: "Sales Associate", initials: "JT", avatarBg: "#4B9BEA", conn: "<500", ver: "No", verOn: false, nav: "—", navOn: false, desc: "Newer profiles for testing and higher-volume outreach.", price: "$45" },
+  { eyebrow: "SWEET SPOT", bg: "#0A66C2", fg: "#FFFFFF", name: "Established", person: "Anna K.", role: "Marketing Manager", initials: "AK", avatarBg: "#0A66C2", conn: "500+", ver: "Yes", verOn: true, nav: "—", navOn: false, desc: "Verified, established profiles — the reliable middle ground.", price: "$75", featured: true, ribbon: "Most popular" },
+  { eyebrow: "TOP TIER", bg: "#0D1B2A", fg: "#FFFFFF", name: "Premium", person: "Marcus L.", role: "VP of Sales", initials: "ML", avatarBg: "#0D1B2A", conn: "1,000+", ver: "Yes", verOn: true, nav: "✓", navOn: true, desc: "Large networks, Sales Navigator available. Maximum reach.", price: "$110+" },
 ];
 
 const GO_FEATURES = [
@@ -173,7 +173,8 @@ export default async function HomePage() {
               </div>
             ))}
           </div>
-          <div style={{ textAlign: "center", marginTop: 36 }}>
+          <p style={{ textAlign: "center", fontSize: 13.5, color: "#96A0AD", margin: "28px auto 0", maxWidth: 620 }}>Every account includes GoLogin browser access and a dedicated residential proxy. Sales Navigator available on any account for +$70/mo.</p>
+          <div style={{ textAlign: "center", marginTop: 20 }}>
             <Link href="/pricing" className="lvh-cta" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #DFE3E9", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 4px 14px rgba(16,24,40,0.06)" }}>See full pricing details →</Link>
           </div>
         </div>

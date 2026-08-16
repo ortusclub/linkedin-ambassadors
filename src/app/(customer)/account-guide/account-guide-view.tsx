@@ -23,6 +23,7 @@ const GETTING_IN = [
 ];
 
 const LIMITS: [string, string][] = [
+  ["Total actions per day", "Under ~150–200 — every click counts: views, requests, messages, reactions"],
   ["Connection requests", "15–20 per day · keep under ~100 per week"],
   ["Messages to connections", "50–80 per day"],
   ["Profile views / scraping", "Keep it modest — steady pace, not hundreds in a burst"],
@@ -175,7 +176,7 @@ export default function AccountGuideView() {
           {/* limits */}
           <section id="sec-limits">
             <SecHead id="sec-limits" title="Your daily limits" />
-            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 20px" }}>Staying inside these keeps your account healthy and well under LinkedIn&apos;s radar.</p>
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 20px" }}>Staying inside these keeps your account healthy and well under LinkedIn&apos;s radar. And <strong style={{ color: "#0B1220" }}>pace matters as much as the totals</strong> — spread activity across the working day. 20 requests trickled out over the day reads as human; 20 in five minutes doesn&apos;t.</p>
             <div style={{ ...card, overflow: "hidden" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", background: "#0F2439", color: "#fff" }}>
                 <div style={{ padding: "14px 24px", fontFamily: MONO, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>Activity</div>

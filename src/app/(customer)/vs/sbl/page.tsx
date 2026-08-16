@@ -21,7 +21,7 @@ const comparison = [
   { feature: "Who sends messages", linkedvelocity: "You (or your team) — full control over messaging", alt: "The account owner, guided by AI + your campaign brief" },
   { feature: "Automation tools", linkedvelocity: "Any Chrome tool — Dripify, Expandi, Linked Helper, etc.", alt: "SBL's built-in AI platform handles messaging" },
   { feature: "Message customisation", linkedvelocity: "Full control — write and edit every message yourself", alt: "AI-generated with 95-99% automation; limited manual control" },
-  { feature: "Pricing (per account)", linkedvelocity: "$10-500/mo — account rental only", alt: "From $35/mo per profile + $99-189/mo platform fee" },
+  { feature: "Pricing (per account)", linkedvelocity: "$45-110/mo — account rental only", alt: "From $35/mo per profile + $99-189/mo platform fee" },
   { feature: "Sales Navigator", linkedvelocity: "Available on selected accounts", alt: "Not specified" },
   { feature: "Anti-detect browser", linkedvelocity: "GoLogin with dedicated residential proxy", alt: "Not needed — owner uses their own device" },
   { feature: "Ramp-up time", linkedvelocity: "Instant — accounts are pre-warmed and ready", alt: "3-week warm-up ramp (20 → 50 → full capacity)" },
@@ -35,7 +35,7 @@ const faqs = [
   },
   {
     q: "Which is cheaper?",
-    a: "LinkedVelocity is cheaper per account. A basic LinkedVelocity rental starts at $10/month with no platform fee. SBL.so charges $35+/month per profile plus a $99-189/month platform fee. For a 5-account setup, LinkedVelocity could cost as little as $50-250/month total, while SBL would cost $275-364/month minimum.",
+    a: "LinkedVelocity has no platform fee — you pay only for the accounts, from $45/month each. SBL.so charges $35+/month per profile plus a $99-189/month platform fee. For a 5-account setup, LinkedVelocity runs $225-550/month total with no platform fee, while SBL adds its $99-189/month platform fee on top of $175+/month in profile fees. LinkedVelocity keeps pricing predictable and lets you use any automation tool you like.",
   },
   {
     q: "Which gives me more control over messaging?",
@@ -100,7 +100,7 @@ export default function SblVsLinkedVelocityPage() {
             <strong>Control vs convenience.</strong> LinkedVelocity gives you direct access to
             LinkedIn accounts — you run your own campaigns with your own tools. SBL.so
             manages the outreach for you via AI and the account owner. LinkedVelocity is cheaper
-            (from $10/mo, no platform fee) and gives full control. SBL is more hands-off
+            (from $45/mo, no platform fee) and gives full control. SBL is more hands-off
             but costs more and limits your customisation.
           </p>
         </div>
@@ -153,10 +153,10 @@ export default function SblVsLinkedVelocityPage() {
           </p>
           <h2>Cost comparison</h2>
           <p>
-            For 5 LinkedIn accounts, LinkedVelocity costs $50-250/month total (just account
+            For 5 LinkedIn accounts, LinkedVelocity costs $225-550/month total (just account
             rentals, no platform fee). SBL costs $175-250/month in profile fees plus
-            a $99-189/month platform fee — $274-439/month total. LinkedVelocity is 40-60%
-            cheaper at the same scale, and you can use any automation tool you already
+            a $99-189/month platform fee — $274-439/month total. With LinkedVelocity there&apos;s
+            no platform fee, pricing is predictable, and you can use any automation tool you already
             pay for.
           </p>
         </section>
@@ -173,7 +173,7 @@ export default function SblVsLinkedVelocityPage() {
 
         <section className="vs-cta">
           <h2>Want control over your LinkedIn outreach?</h2>
-          <p>Rent accounts directly. Use your own tools. Write your own messages. From $10/month.</p>
+          <p>Rent accounts directly. Use your own tools. Write your own messages. From $45/month.</p>
           <div className="vs-cta-row">
             <Link href="/catalogue" className="vs-btn-primary">Browse Accounts →</Link>
             <Link href="/how-it-works" className="vs-btn-secondary">How LinkedVelocity Works</Link>
