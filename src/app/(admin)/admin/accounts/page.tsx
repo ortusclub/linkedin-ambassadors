@@ -4,6 +4,63 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatNumber } from "@/lib/utils";
 
+// Live LinkedIn 2FA (TOTP) code for an account. Fetches the current code from
+// the server (the secret never reaches the browser), shows a countdown, and
+// auto-refreshes when the 30s window rolls over. Mounts when a card expands.
+function TwoFactorCode({ accountId }: { accountId: string }) {
+  type S =
+    | { status: "loading" | "none" | "invalid" | "error" }
+    | { status: "ok"; code: string; expiresIn: number; period: number };
+  const [state, setState] = useState<S>({ status: "loading" });
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/admin/accounts/${accountId}/totp`, { cache: "no-store" });
+        if (!alive) return;
+        if (!res.ok) { setState({ status: "error" }); return; }
+        const d = await res.json();
+        if (d.configured === false) setState({ status: "none" });
+        else if (d.invalid) setState({ status: "invalid" });
+        else setState({ status: "ok", code: d.code, expiresIn: d.expiresIn, period: d.period });
+      } catch { if (alive) setState({ status: "error" }); }
+    };
+    load();
+    timer = setInterval(() => {
+      setState((s) => {
+        if (s.status !== "ok") return s;
+        const next = s.expiresIn - 1;
+        if (next <= 0) { load(); return { ...s, expiresIn: 0 }; }
+        return { ...s, expiresIn: next };
+      });
+    }, 1000);
+    return () => { alive = false; if (timer) clearInterval(timer); };
+  }, [accountId]);
+
+  if (state.status !== "ok") {
+    const label = state.status === "loading" ? "…" : state.status === "none" ? "Not set" : state.status === "invalid" ? "Invalid key" : "Unavailable";
+    const title = state.status === "invalid" ? "Stored 2FA value isn't a valid authenticator key" : undefined;
+    return <span style={{ color: "var(--muted2)" }} title={title}>{label}</span>;
+  }
+
+  const pretty = `${state.code.slice(0, 3)} ${state.code.slice(3)}`;
+  const low = state.expiresIn <= 5;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+      <button
+        onClick={() => { navigator.clipboard?.writeText(state.code); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
+        title="Click to copy"
+        style={{ font: `700 16px ui-monospace, SFMono-Regular, Menlo, monospace`, letterSpacing: ".08em", color: "var(--text)", background: "none", border: "none", padding: 0, cursor: "pointer", fontVariantNumeric: "tabular-nums" }}
+      >{pretty}</button>
+      <span title={`Refreshes in ${state.expiresIn}s`} style={{ font: `600 11px ui-monospace, monospace`, color: low ? "var(--st-cancel-fg)" : "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{state.expiresIn}s</span>
+      {copied && <span style={{ font: `600 11px sans-serif`, color: "var(--st-active-fg)" }}>copied</span>}
+    </span>
+  );
+}
+
 interface Account {
   id: string;
   linkedinName: string;
@@ -677,6 +734,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             </DField>
                             <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}` : "None"}</DField>
                             <DField label="Work email (klabber)">{a.workEmail || "—"}</DField>
+                            <DField label="2FA code"><TwoFactorCode accountId={a.id} /></DField>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                               <span style={labelCss}>Account opened (sets age)</span>
                               <input type="month" defaultValue={a.accountAgeMonths != null ? (() => { const d = new Date(); d.setMonth(d.getMonth() - a.accountAgeMonths); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })() : ""} onBlur={(e) => saveAge(a, e.target.value)} style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
