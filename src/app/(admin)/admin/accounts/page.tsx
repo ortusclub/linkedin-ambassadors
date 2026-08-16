@@ -44,7 +44,7 @@ interface Account {
   paymentTrackedFrom: string | null;
   paymentTelegramChatId: string | null;
   paymentWhatsapp: string | null;
-  rentals: Array<{ lockedPrice: string | number | null; currentPeriodEnd: string | null; autoRenew: boolean; user: { fullName: string; email: string } }>;
+  rentals: Array<{ lockedPrice: string | number | null; currentPeriodEnd: string | null; autoRenew: boolean; status: string; updatedAt: string | null; user: { fullName: string; email: string } }>;
   cryptoPayments?: Array<{ amount: string | number; paidAt: string }>;
 }
 
@@ -532,6 +532,12 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                     ? { icon: "💬", label: "WhatsApp", handle: a.paymentWhatsapp }
                     : null;
                   const rented = a.status === "rented" && a.rentals?.[0];
+                  // Stripe rental whose charge failed: still "rented", but the
+                  // renter owes the (flat monthly) locked price. Show who + how much.
+                  const rentalRow = a.rentals?.[0];
+                  const overdue = !!rentalRow && rentalRow.status === "payment_failed";
+                  const overdueAmt = overdue ? (rentalRow!.lockedPrice != null && Number(rentalRow!.lockedPrice) > 0 ? Number(rentalRow!.lockedPrice) : Number(a.monthlyPrice)) : 0;
+                  const overdueDays = overdue && rentalRow!.updatedAt ? Math.max(0, Math.floor((Date.now() - new Date(rentalRow!.updatedAt).getTime()) / 86400000)) : 0;
                   const locked = rented && a.rentals[0].lockedPrice != null && Number(a.rentals[0].lockedPrice) > 0;
                   const priceVal = locked ? Number(a.rentals[0].lockedPrice) : Number(a.monthlyPrice);
                   const forRentOn = a.status === "available" || a.status === "rented";
@@ -615,6 +621,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <span style={{ font: `500 11px ${F_SANS}`, color: a.rentals[0].autoRenew ? "var(--st-active-fg)" : "var(--muted2)" }}>{fmtS(a.rentals[0].currentPeriodEnd)} · {a.rentals[0].autoRenew ? "auto-renews" : "no auto-renew"}</span>
                           ) : (
                             <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{a.status === "rented" ? "rented (off-platform)" : a.status}</span>
+                          )}
+                          {overdue && (
+                            <span title={`Stripe charge failed${rentalRow!.updatedAt ? ` on ${fmtS(rentalRow!.updatedAt)}` : ""} — renter owes the locked monthly price`} style={{ font: `700 11px ${F_SANS}`, color: "var(--st-cancel-fg)", whiteSpace: "nowrap" }}>⚠ Overdue ${overdueAmt.toFixed(0)}{overdueDays > 0 ? ` · ${overdueDays}d late` : " · just failed"}</span>
                           )}
                         </div>
                         {/* Payment column */}

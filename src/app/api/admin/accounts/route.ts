@@ -49,8 +49,12 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         rentals: {
-          where: { status: "active" },
+          // "active" = healthy renter; also surface a renter whose charge just
+          // failed (payment_failed) so the inventory can show WHO is overdue
+          // rather than "no renter on file". Newest first.
+          where: { status: { in: ["active", "payment_failed"] } },
           include: { user: { select: { fullName: true, email: true } } },
+          orderBy: { createdAt: "desc" },
           take: 1,
         },
         cryptoPayments: {
