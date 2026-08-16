@@ -75,6 +75,22 @@ function TwoFactorCode({ accountId }: { accountId: string }) {
   );
 }
 
+// Account password: masked by default, click the eye to reveal, click the value
+// to copy. Admin-only inventory detail.
+function PasswordField({ password }: { password: string | null }) {
+  const [shown, setShown] = useState(false);
+  const [copied, setCopied] = useState(false);
+  if (!password) return <span style={{ color: "var(--muted2)" }}>—</span>;
+  const copy = () => { navigator.clipboard?.writeText(password); setCopied(true); setTimeout(() => setCopied(false), 1200); };
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+      <button onClick={copy} title="Click to copy" style={{ font: `600 13px ui-monospace, SFMono-Regular, Menlo, monospace`, color: "var(--text2)", background: "none", border: "none", padding: 0, cursor: "pointer", wordBreak: "break-all", whiteSpace: "normal", textAlign: "left" }}>{shown ? password : "•".repeat(Math.min(password.length, 12))}</button>
+      <button onClick={() => setShown((s) => !s)} title={shown ? "Hide" : "Reveal"} style={{ font: `500 12px sans-serif`, color: "var(--link)", background: "none", border: "none", padding: 0, cursor: "pointer", flex: "none" }}>{shown ? "🙈" : "👁"}</button>
+      {copied && <span style={{ font: `600 11px sans-serif`, color: "var(--st-active-fg)", flex: "none" }}>copied</span>}
+    </span>
+  );
+}
+
 interface Account {
   id: string;
   linkedinName: string;
@@ -89,6 +105,7 @@ interface Account {
   ownerName: string | null;
   ownerEmail: string | null;
   workEmail: string | null;
+  accountPassword: string | null;
   monthlyPrice: string | number;
   ambassadorPayment: string | number;
   hasSalesNav: boolean;
@@ -748,6 +765,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             </DField>
                             <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}` : "None"}</DField>
                             <DField label="Work email (klabber)">{a.workEmail || "—"}</DField>
+                            <DField label="Password"><PasswordField password={a.accountPassword} /></DField>
                             <DField label="2FA (key + code)"><TwoFactorCode accountId={a.id} /></DField>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                               <span style={labelCss}>Account opened (sets age)</span>
