@@ -301,6 +301,19 @@ const profileEmailOf = (a: Account) => (a.notes || "").match(/Profile email:\s*(
 // A rented account should be health-checked weekly — flag it if the last check is >7 days old (or never).
 const isDummy = (a: Account) => (a.notes || "").includes("[SHOWCASE]");
 const checkDue = (a: Account) => !isDummy(a) && a.status === "rented" && !a.restrictedAt && (!a.healthCheckedAt || Date.now() - new Date(a.healthCheckedAt).getTime() > 7 * 86400000);
+// "Handle with care" marker: was restricted at least once, and the most recent
+// restriction was within the last RECENT_RESTRICT_DAYS. Persists AFTER recovery
+// (unlike restrictedAt) so a freshly-recovered, still-fragile account stays flagged.
+const RECENT_RESTRICT_DAYS = 45;
+const recentRestrict = (a: Account): { times: number; daysAgo: number } | null => {
+  const log = Array.isArray(a.restrictionLog) ? a.restrictionLog : [];
+  const restricts = log.filter((e) => e.event === "restricted");
+  if (!restricts.length) return null;
+  const last = restricts.reduce((m, e) => (e.at > m ? e.at : m), restricts[0].at);
+  const daysAgo = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+  if (daysAgo > RECENT_RESTRICT_DAYS) return null;
+  return { times: restricts.length, daysAgo };
+};
 // dummies (public-catalogue showcase accounts) get their own group, not mixed with real inventory
 const groupKey = (a: Account) => (isDummy(a) ? "Showcase" : canonicalStatus(a));
 
@@ -676,6 +689,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
                           <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{st}</span>
                           {a.restrictedAt && st !== "Restricted" && <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>}
+                          {!a.restrictedAt && (() => { const rr = recentRestrict(a); return rr ? <span title={`Restricted ${rr.times}× — most recent ${rr.daysAgo === 0 ? "today" : `${rr.daysAgo}d ago`}. Recovered but still fragile — go easy: no activity bursts, verify the proxy is clean PH residential.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Recently restricted{rr.times > 1 ? ` ${rr.times}×` : ""}</span> : null; })()}
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
                           {a.twoFactorResetNeeded && <span title="The last renter had this account's 2FA code — rotate it before making this account available again" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>🔑 2FA reset needed</span>}
