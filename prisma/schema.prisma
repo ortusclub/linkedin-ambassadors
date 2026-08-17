@@ -140,6 +140,10 @@ model LinkedInAccount {
   linkedinAccountHealth String?       @default("unchecked") @map("linkedin_account_health")
   healthCheckedAt       DateTime?     @map("health_checked_at")
   restrictedAt          DateTime?     @map("restricted_at")  // admin-set: account restricted by LinkedIn, recovering
+  // Append-only history of restriction/recovery events so repeat restrictions are
+  // visible (restrictedAt only holds the CURRENT open one and is wiped on recover).
+  // Array of { at: ISO, event: "restricted" | "recovered", note?, creditedDays? }.
+  restrictionLog        Json?         @map("restriction_log")
   trialEndsAt           DateTime?     @map("trial_ends_at")   // set when status=trial: a 3-day inventory hold; past this = "trial expired", awaiting admin mark-back
   // Internal proof the account is real (email-exchange screenshot links / notes).
   // Never shown publicly — shared with a renter per-case.

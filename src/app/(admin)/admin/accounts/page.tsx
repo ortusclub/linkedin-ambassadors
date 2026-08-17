@@ -118,6 +118,7 @@ interface Account {
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
   restrictedAt: string | null;
+  restrictionLog: Array<{ at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }> | null;
   twoFactorResetNeeded: boolean;
   paymentLinkedAccountId: string | null;
   trialEndsAt: string | null;
@@ -403,10 +404,12 @@ export default function AdminAccountsPage() {
   const setRestricted = async (a: Account, restricted: boolean) => {
     if (restricted && !confirm("Mark this account as restricted? The renter will see 'Restricted — recovering it' and access is paused.")) return;
     if (!restricted && !confirm("Mark this account as recovered? The renter's downtime will be credited and access restored.")) return;
+    // Optional note captured into the restriction history (e.g. what triggered it / how it was recovered).
+    const note = (prompt(restricted ? "Optional: what triggered the restriction? (e.g. logged in + approved connections, geo mismatch)" : "Optional: how was it recovered? (e.g. ID verified via passport, new PH proxy)") || "").trim();
     setBusy(a.id);
     try {
-      const res = await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted }) });
-      if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, restrictedAt: restricted ? (d.restrictedAt || new Date().toISOString()) : null } : x))); if (!restricted && d.creditedDays) alert(`Recovered. Credited ~${d.creditedDays} day(s) of downtime to the renter.`); }
+      const res = await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted, note }) });
+      if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, restrictedAt: restricted ? (d.restrictedAt || new Date().toISOString()) : null, restrictionLog: (d.restrictionLog as Account["restrictionLog"]) ?? x.restrictionLog } : x))); if (!restricted && d.creditedDays) alert(`Recovered. Credited ~${d.creditedDays} day(s) of downtime to the renter.`); }
     } finally { setBusy(null); }
   };
   const handleDelete = async (a: Account) => {
@@ -790,6 +793,26 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                                 <button onClick={() => checkHealth(a.id)} title="Best-effort automated public check. LinkedIn blocks logged-out checks, so this is usually 'Unknown' — verify in GoLogin and use Mark active / Mark restricted instead." style={secBtn}>↻ Re-check (auto)</button>
                                 <button onClick={() => handleDelete(a)} disabled={busy === a.id} style={{ ...outBtn("var(--danger)"), marginLeft: "auto" }}>🗑 Delete</button>
                               </div>
+                              {Array.isArray(a.restrictionLog) && a.restrictionLog.length > 0 && (() => {
+                                const log = [...a.restrictionLog].sort((x, y) => y.at.localeCompare(x.at));
+                                const times = log.filter((e) => e.event === "restricted").length;
+                                return (
+                                  <div style={{ marginTop: 4, border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", background: "var(--card2, var(--bg2))" }}>
+                                    <div style={{ font: `700 11px ${F_GRO}`, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 6 }}>
+                                      Restriction history{times > 1 ? ` · restricted ${times}×` : ""}
+                                    </div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                                      {log.map((e, i) => (
+                                        <div key={i} style={{ display: "flex", gap: 8, alignItems: "baseline", font: `500 12px ${F_SANS}` }}>
+                                          <span title={new Date(e.at).toLocaleString()} style={{ color: "var(--muted2)", whiteSpace: "nowrap", minWidth: 52 }}>{fmtS(e.at)}</span>
+                                          <span style={{ color: e.event === "restricted" ? "var(--st-cancel-fg)" : "var(--st-active-fg)", fontWeight: 700, whiteSpace: "nowrap" }}>{e.event === "restricted" ? "⚠ Restricted" : "✓ Recovered"}</span>
+                                          <span style={{ color: "var(--fg)", minWidth: 0 }}>{e.note || ""}{e.creditedDays ? `${e.note ? " · " : ""}credited ${e.creditedDays}d` : ""}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
