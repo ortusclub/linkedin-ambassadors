@@ -80,16 +80,31 @@ const CALL_BUCKET: Record<string, { label: string; bg: string; fg: string }> = {
   done: { label: "Call done", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" },
   no_show: { label: "No-show", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)" },
 };
-const CALL_CHIPS: [string, string, string | null][] = [
-  ["all", "All", null], ["none", "No call yet", "var(--neutral-chip-text)"],
-  ["booked", "Call booked", "var(--blue-chip-text)"], ["done", "Call done", "var(--st-active-fg)"],
-  ["no_show", "No-show", "var(--st-cancel-fg)"],
-];
 // call outcome (manual no-show) overrides the calendar-derived stage
 const callBucketOf = (a: Application): string => a.callOutcome === "no_show" ? "no_show" : (a.call?.stage || "none");
 // Display bucket for the status tabs: onboarded people get their own bucket (so
 // "Accepted" = agreed but not yet onboarded, "Onboarded" = handed over).
 const displayBucket = (a: Application): string => a.onboardedAt ? "onboarded" : bucketOf(a.status);
+
+// Action buckets — the top-level grouping, ordered by "what needs doing next".
+// A settled outcome wins; otherwise the call stage decides where they sit.
+type ActionKey = "contact" | "booked" | "noshow" | "decide" | "settled";
+const ACTION_BUCKETS: { key: ActionKey; label: string; dot: string; note: string }[] = [
+  { key: "contact", label: "Needs first contact", dot: "var(--st-unreach-fg)", note: "no call booked yet — reach out" },
+  { key: "booked", label: "Call booked", dot: "var(--st-replied-fg)", note: "upcoming — show up and run it" },
+  { key: "noshow", label: "No-show — chase", dot: "var(--st-cancel-fg)", note: "missed the call, needs rebooking" },
+  { key: "decide", label: "Call done — decide", dot: "var(--blue-chip-text)", note: "ready to accept or reject" },
+  { key: "settled", label: "Settled", dot: "var(--st-active-fg)", note: "accepted, onboarded or rejected" },
+];
+const bucketAction = (a: Application): ActionKey => {
+  const db = bucketOf(a.status);
+  if (a.onboardedAt || db === "accepted" || db === "rejected") return "settled";
+  const cs = callBucketOf(a);
+  if (cs === "no_show") return "noshow";
+  if (cs === "done") return "decide";
+  if (cs === "booked") return "booked";
+  return "contact";
+};
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const fmtDateTime = (iso: string | null) => iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
@@ -134,10 +149,10 @@ export default function AdminAmbassadorsPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
-  const [callFilter, setCallFilter] = useState("all");
   const [marketer, setMarketer] = useState("all");
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
   const [byDraft, setByDraft] = useState<Record<string, string>>({});
@@ -224,12 +239,6 @@ export default function AdminAmbassadorsPage() {
     return c;
   }, [apps]);
 
-  const callCounts = useMemo(() => {
-    const c: Record<string, number> = { all: apps.length };
-    for (const a of apps) { const b = callBucketOf(a); c[b] = (c[b] || 0) + 1; }
-    return c;
-  }, [apps]);
-
   // Distinct marketers (from the referral tag) with their submission counts, busiest first.
   const marketers = useMemo(() => {
     const m = new Map<string, number>();
@@ -242,7 +251,6 @@ export default function AdminAmbassadorsPage() {
     // group a person's submissions together, newest owner first
     const rows = apps.filter((a) => {
       if (filter !== "all" && displayBucket(a) !== filter) return false;
-      if (callFilter !== "all" && callBucketOf(a) !== callFilter) return false;
       if (marketer !== "all" && (a.referredBy || "").trim() !== marketer) return false;
       if (!q) return true;
       return `${a.fullName} ${a.email} ${a.contactNumber || ""} ${a.linkedinUrl} ${a.referredBy || ""}`.toLowerCase().includes(q);
@@ -250,9 +258,16 @@ export default function AdminAmbassadorsPage() {
     const lastSeen = new Map<string, number>();
     rows.forEach((a) => { const t = new Date(a.createdAt).getTime(); lastSeen.set(a.email, Math.max(lastSeen.get(a.email) ?? 0, t)); });
     return [...rows].sort((a, b) => (a.email !== b.email ? lastSeen.get(b.email)! - lastSeen.get(a.email)! : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-  }, [apps, filter, callFilter, marketer, query]);
+  }, [apps, filter, marketer, query]);
+
+  // Split the filtered rows into the action buckets, keeping the sort within each.
+  const grouped = useMemo(
+    () => ACTION_BUCKETS.map((g) => ({ ...g, items: filtered.filter((a) => bucketAction(a) === g.key) })).filter((g) => g.items.length > 0),
+    [filtered]
+  );
 
   const toggle = (id: string) => setCollapsed((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleGroup = (key: string) => setCollapsedGroups((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
   const allCollapsed = filtered.length > 0 && filtered.every((a) => collapsed.has(a.id));
   const collapseAll = () => setCollapsed(allCollapsed ? new Set() : new Set(filtered.map((a) => a.id)));
 
@@ -299,30 +314,14 @@ export default function AdminAmbassadorsPage() {
         )}
       </div>
 
-      {/* filter chips: status + call stage */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ ...labelCss, width: 48, flex: "none" }}>Status</span>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {CHIPS.map(([key, lbl, dot]) => (
-              <button key={key} onClick={() => setFilter(key)} style={chipStyle(filter === key)}>
-                {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
-                {lbl}<span style={{ color: "var(--muted)" }}>{counts[key] || 0}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ ...labelCss, width: 48, flex: "none" }}>Call</span>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {CALL_CHIPS.map(([key, lbl, dot]) => (
-              <button key={key} onClick={() => setCallFilter(key)} style={chipStyle(callFilter === key)}>
-                {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
-                {lbl}<span style={{ color: "var(--muted)" }}>{callCounts[key] || 0}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* status filter chips (call stage is conveyed by the action groups below) */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+        {CHIPS.map(([key, lbl, dot]) => (
+          <button key={key} onClick={() => setFilter(key)} style={chipStyle(filter === key)}>
+            {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
+            {lbl}<span style={{ color: "var(--muted)" }}>{counts[key] || 0}</span>
+          </button>
+        ))}
       </div>
 
       {/* search + collapse */}
@@ -337,11 +336,26 @@ export default function AdminAmbassadorsPage() {
         <button onClick={collapseAll} style={{ ...secBtn, whiteSpace: "nowrap", padding: "10px 15px" }}>{allCollapsed ? "Expand all" : "Collapse all"}</button>
       </div>
 
-      {/* cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {filtered.length === 0 ? (
-          <div style={{ padding: 48, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No applications in this status.</div>
-        ) : filtered.map((a) => {
+      {/* grouped cards */}
+      {filtered.length === 0 ? (
+        <div style={{ padding: 48, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No submissions match these filters.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {grouped.map((g) => {
+            const gcol = collapsedGroups.has(g.key);
+            return (
+              <div key={g.key}>
+                {/* group header */}
+                <div onClick={() => toggleGroup(g.key)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "0 4px 10px", cursor: "pointer", userSelect: "none", borderBottom: "1px solid var(--divider)", marginBottom: 12 }}>
+                  <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)", width: 11, flex: "none", transition: "transform .18s ease", transform: gcol ? "none" : "rotate(90deg)" }}>▸</span>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, flex: "none", background: g.dot }} />
+                  <span style={{ font: `600 15px ${F_GRO}`, color: "var(--text)" }}>{g.label}</span>
+                  <span style={{ font: `700 11px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "2px 8px", borderRadius: 7, background: "var(--band)", color: "var(--muted)" }}>{g.items.length}</span>
+                  <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>{g.note}</span>
+                </div>
+                {!gcol && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {g.items.map((a) => {
           // Once they've handed over the account, show a distinct "Onboarded" chip
           // rather than leaving them on "Accepted".
           const b = a.onboardedAt
@@ -359,7 +373,7 @@ export default function AdminAmbassadorsPage() {
           const payPill = !onboarded ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : (fullyPaid || checked) ? { bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" } : holdOver ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" };
           const open = !collapsed.has(a.id);
           return (
-            <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
+            <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderLeft: `3px solid ${g.dot}`, borderRadius: 14, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
               {/* header */}
               <div onClick={() => toggle(a.id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "18px 22px", borderBottom: open ? "1px solid var(--divider)" : "none", cursor: "pointer", userSelect: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
@@ -536,8 +550,14 @@ export default function AdminAmbassadorsPage() {
               )}
             </div>
           );
-        })}
-      </div>
+                })}
+                </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
