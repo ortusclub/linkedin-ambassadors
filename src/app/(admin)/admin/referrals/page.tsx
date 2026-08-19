@@ -162,10 +162,15 @@ export default function AdminReferralsPage() {
     for (const a of apps) {
       const name = (a.referredBy || "").trim();
       if (!name) continue;
-      const r = m.get(name) || { name, signups: 0, converted: 0, ready: 0, held: 0 };
+      // Group case-insensitively so "Franceliorah" and "franceliorah" (free-text
+      // from the signup form) are one referrer, not two. Keep the nicest-cased
+      // spelling for display (prefer one that isn't all-lowercase).
+      const key = name.toLowerCase();
+      const r = m.get(key) || { name, signups: 0, converted: 0, ready: 0, held: 0 };
+      if (r.name === r.name.toLowerCase() && name !== name.toLowerCase()) r.name = name;
       r.signups++;
       if (isConverted(a.status)) { r.converted++; if (isReferralEarned(a)) r.ready++; else r.held++; }
-      m.set(name, r);
+      m.set(key, r);
     }
     return [...m.values()]
       .map((r) => ({
