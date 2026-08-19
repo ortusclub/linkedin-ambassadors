@@ -105,6 +105,7 @@ interface Account {
   ownerName: string | null;
   ownerEmail: string | null;
   workEmail: string | null;
+  loginEmail: string | null;
   accountPassword: string | null;
   monthlyPrice: string | number;
   ambassadorPayment: string | number;
@@ -296,7 +297,6 @@ const payChipCss = (state: PayState): React.CSSProperties => {
   return { background: bg, color: fg };
 };
 const shortAddr = (s: string) => (s.length > 14 ? `${s.slice(0, 6)}…${s.slice(-5)}` : s);
-const profileEmailOf = (a: Account) => (a.notes || "").match(/Profile email:\s*(\S+@\S+?\.\S+?)[\s.]/)?.[1] || null;
 // A rented account should be health-checked weekly — flag it if the last check is >7 days old (or never).
 const isDummy = (a: Account) => (a.notes || "").includes("[SHOWCASE]");
 const checkDue = (a: Account) => !isDummy(a) && a.status === "rented" && !a.restrictedAt && (!a.healthCheckedAt || Date.now() - new Date(a.healthCheckedAt).getTime() > 7 * 86400000);
@@ -663,7 +663,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                               {a.accountAgeMonths != null && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }} title="Account age">⏳ {a.accountAgeMonths >= 12 ? `${Math.floor(a.accountAgeMonths / 12)}y${a.accountAgeMonths % 12 ? ` ${a.accountAgeMonths % 12}m` : ""}` : `${a.accountAgeMonths}m`}</span></>}
                             </div>
                             <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                              {profileEmailOf(a) && <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✉ {profileEmailOf(a)}</span>}
+                              {a.loginEmail && <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✉ {a.loginEmail}</span>}
                               {a.linkedinUrl && (
                                 <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title={a.linkedinUrl} style={{ font: `600 11px ${F_SANS}`, color: "var(--link)", textDecoration: "none", whiteSpace: "nowrap", flex: "none" }}>↗ LinkedIn</a>
                               )}
@@ -757,14 +757,13 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       {open && (
                         <div style={{ padding: "4px 18px 18px 42px", borderTop: "1px solid var(--divider)" }}>
                           <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 1fr", gap: "16px 22px", paddingTop: 16 }}>
-                            <DField label="Account email">{profileEmailOf(a) || "—"}</DField>
+                            <DField label="Login email">{a.loginEmail || "—"}</DField>
                             <DField label="LinkedIn profile">{a.linkedinUrl ? <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open profile</a> : "—"}</DField>
                             <DField label="GoLogin share">
                               {a.gologinShareLink ? <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open link</a> : <span style={{ color: "var(--muted2)" }}>—</span>}
                               {a.gologinProfileId && <span style={{ display: "block", font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis" }}>ID {a.gologinProfileId}</span>}
                             </DField>
                             <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}` : "None"}</DField>
-                            <DField label="Work email (klabber)">{a.workEmail || "—"}</DField>
                             <DField label="Password"><PasswordField password={a.accountPassword} /></DField>
                             <DField label="2FA (key + code)"><TwoFactorCode accountId={a.id} /></DField>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
