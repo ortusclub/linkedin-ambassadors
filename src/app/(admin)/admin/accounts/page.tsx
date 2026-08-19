@@ -328,13 +328,13 @@ const groupKey = (a: Account) => (isDummy(a) ? "Showcase" : canonicalStatus(a));
 // Connection-size buckets for the inventory filter (LinkedIn caps the display at
 // "500+", but we store the real count from imports, so higher tiers are meaningful).
 const CONN_BUCKETS: { key: string; label: string; test: (n: number) => boolean }[] = [
-  { key: "lt500", label: "< 500", test: (n) => n < 500 },
+  { key: "lt50", label: "< 50", test: (n) => n < 50 },
+  { key: "50", label: "50–100", test: (n) => n >= 50 && n < 100 },
+  { key: "100", label: "100–500", test: (n) => n >= 100 && n < 500 },
   { key: "500", label: "500–999", test: (n) => n >= 500 && n < 1000 },
-  { key: "1k", label: "1k–2.9k", test: (n) => n >= 1000 && n < 3000 },
-  { key: "3k", label: "3k–4.9k", test: (n) => n >= 3000 && n < 5000 },
-  { key: "5k", label: "5k+", test: (n) => n >= 5000 },
+  { key: "1k", label: "1k+", test: (n) => n >= 1000 },
 ];
-const connBucketOf = (n: number | null | undefined) => CONN_BUCKETS.find((b) => b.test(n ?? 0))?.key || "lt500";
+const connBucketOf = (n: number | null | undefined) => CONN_BUCKETS.find((b) => b.test(n ?? 0))?.key || "lt50";
 
 const GRID = "minmax(0,1fr) 132px 84px 150px 168px 214px";
 
