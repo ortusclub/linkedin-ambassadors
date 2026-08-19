@@ -317,12 +317,25 @@ const recentRestrict = (a: Account): { times: number; daysAgo: number } | null =
 // dummies (public-catalogue showcase accounts) get their own group, not mixed with real inventory
 const groupKey = (a: Account) => (isDummy(a) ? "Showcase" : canonicalStatus(a));
 
+// Connection-size buckets for the inventory filter (LinkedIn caps the display at
+// "500+", but we store the real count from imports, so higher tiers are meaningful).
+const CONN_BUCKETS: { key: string; label: string; test: (n: number) => boolean }[] = [
+  { key: "lt500", label: "< 500", test: (n) => n < 500 },
+  { key: "500", label: "500–999", test: (n) => n >= 500 && n < 1000 },
+  { key: "1k", label: "1k–2.9k", test: (n) => n >= 1000 && n < 3000 },
+  { key: "3k", label: "3k–4.9k", test: (n) => n >= 3000 && n < 5000 },
+  { key: "5k", label: "5k+", test: (n) => n >= 5000 },
+];
+const connBucketOf = (n: number | null | undefined) => CONN_BUCKETS.find((b) => b.test(n ?? 0))?.key || "lt500";
+
 const GRID = "minmax(0,1fr) 132px 84px 150px 168px 214px";
 
 export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [verifiedFilter, setVerifiedFilter] = useState<"all" | "yes" | "no">("all");
+  const [connFilter, setConnFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [savingProof, setSavingProof] = useState<string | null>(null);
@@ -493,6 +506,10 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       Removed: c("Removed"),
       Showcase: accounts.filter(isDummy).length,
       checksDue: accounts.filter(checkDue).length,
+      verified: real.filter((a) => a.linkedinVerified).length,
+      unverified: real.filter((a) => !a.linkedinVerified).length,
+      // per-connection-bucket counts over real (non-showcase) inventory
+      conn: Object.fromEntries(CONN_BUCKETS.map((b) => [b.key, real.filter((a) => b.test(a.connectionCount ?? 0)).length])) as Record<string, number>,
     };
   }, [accounts]);
 
@@ -500,6 +517,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     const q = search.trim().toLowerCase();
     const base = accounts.filter((a) => {
       if (filter !== "all" && groupKey(a) !== filter) return false;
+      if (verifiedFilter === "yes" && !a.linkedinVerified) return false;
+      if (verifiedFilter === "no" && a.linkedinVerified) return false;
+      if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
       if (!q) return true;
       return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.ownerEmail || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
     });
@@ -512,7 +532,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       const rankB = anchor(b) + (b.paymentLinkedAccountId ? 0.5 : 0);
       return rankA - rankB;
     });
-  }, [accounts, filter, search]);
+  }, [accounts, filter, verifiedFilter, connFilter, search]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allExpanded = filtered.length > 0 && filtered.every((a) => expanded.has(a.id));
@@ -570,7 +590,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
           <span style={{ font: `600 12px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--label)" }}>accounts</span>
         </div>
         <span style={{ width: 1, height: 20, background: "var(--divider)" }} />
-        {[["var(--st-active-fg)", `${counts.Available} available`], ["var(--blue-chip-text)", `${counts.Rented} rented`], ["var(--st-unreach-fg)", `${counts.Restricted} restricted`], ["var(--warn-badge-text)", `${counts.checksDue} checks due`], ["var(--muted2)", `${counts.Showcase} showcase`]].map(([dot, txt]) => (
+        {[["var(--st-active-fg)", `${counts.Available} available`], ["var(--blue-chip-text)", `${counts.Rented} rented`], ["var(--st-unreach-fg)", `${counts.Restricted} restricted`], ["var(--warn-badge-text)", `${counts.checksDue} checks due`], ["var(--blue-chip-text)", `${counts.verified} verified`], ["var(--muted2)", `${counts.Showcase} showcase`]].map(([dot, txt]) => (
           <span key={txt} style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />{txt}</span>
         ))}
       </div>
@@ -588,6 +608,28 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, role, location, industry…" style={{ width: 280, maxWidth: "50vw", ...modalInput }} />
           <button onClick={expandAll} style={{ ...secBtn, padding: "9px 14px", borderRadius: 9 }}>{allExpanded ? "Collapse all" : "Expand all"}</button>
+        </div>
+      </div>
+
+      {/* verified + connections filters (compose with the status chips + search) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ ...labelCss, marginRight: 2 }}>Verified</span>
+          {([["all", "All", counts.realTotal, null], ["yes", "Verified", counts.verified, "var(--st-active-fg)"], ["no", "Unverified", counts.unverified, "var(--st-unreach-fg)"]] as ["all" | "yes" | "no", string, number, string | null][]).map(([key, lbl, n, dot]) => (
+            <button key={key} onClick={() => setVerifiedFilter(key)} style={chip(verifiedFilter === key)}>
+              {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}{lbl}<span style={{ color: "var(--muted)" }}>{n}</span>
+            </button>
+          ))}
+        </div>
+        <span style={{ width: 1, height: 22, background: "var(--divider)" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ ...labelCss, marginRight: 2 }}>Connections</span>
+          <button onClick={() => setConnFilter("all")} style={chip(connFilter === "all")}>All<span style={{ color: "var(--muted)" }}>{counts.realTotal}</span></button>
+          {CONN_BUCKETS.map((b) => (
+            <button key={b.key} onClick={() => setConnFilter(b.key)} style={chip(connFilter === b.key)}>
+              {b.label}<span style={{ color: "var(--muted)" }}>{counts.conn[b.key] || 0}</span>
+            </button>
+          ))}
         </div>
       </div>
 
