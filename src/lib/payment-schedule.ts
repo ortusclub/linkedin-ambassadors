@@ -49,11 +49,13 @@ export interface DueItem {
   blocked: string | null; // login issue reason — due but can't be paid until resolved
 }
 export interface MarketerDue { name: string; count: number; amount: number; }
+export interface MarketerPayment { name: string; amount: number; paidAt: string; }
 export interface PaymentsDue {
   setup: DueItem[];        // setup fees due now / overdue (unpaid)
   monthly: DueItem[];      // monthly ₱500 due now / overdue
   upcoming: DueItem[];     // due within the horizon (not yet due)
   marketers: MarketerDue[];// commissions ready to pay (onboarded + verified)
+  marketerPayments: MarketerPayment[]; // referral commissions actually paid (drives ✓ Paid rows)
   totalDueNow: number;     // setup + monthly + marketer, due now
   horizonDays: number;
 }
@@ -134,17 +136,23 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     earnedByRef.set(ref, (earnedByRef.get(ref) || 0) + 1);
   }
   const refSlugs = [...earnedByRef.keys()];
-  const referrers = refSlugs.length
-    ? await prisma.referrer.findMany({ where: { slug: { in: refSlugs } }, select: { id: true, name: true, slug: true } })
+  // Every actually-paid commission payout (any referrer) — drives both the net-owed maths
+  // and the "✓ Paid" referral rows on the payouts page.
+  const commPayouts = await prisma.payout.findMany({
+    where: { type: "commission", paidAt: { not: null } },
+    select: { referrerId: true, amount: true, paidAt: true },
+  });
+  const paidRefIds = [...new Set(commPayouts.map((p) => p.referrerId))];
+  const referrers = (refSlugs.length || paidRefIds.length)
+    ? await prisma.referrer.findMany({ where: { OR: [{ slug: { in: refSlugs } }, { id: { in: paidRefIds } }] }, select: { id: true, name: true, slug: true } })
     : [];
   const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
+  const refById = new Map(referrers.map((r) => [r.id, r]));
   const paidByRefId = new Map<string, number>();
-  if (referrers.length) {
-    const commPayouts = await prisma.payout.findMany({
-      where: { referrerId: { in: referrers.map((r) => r.id) }, type: "commission", paidAt: { not: null } },
-      select: { referrerId: true, amount: true },
-    });
-    for (const p of commPayouts) paidByRefId.set(p.referrerId, (paidByRefId.get(p.referrerId) || 0) + Number(p.amount));
+  const marketerPayments: MarketerPayment[] = [];
+  for (const p of commPayouts) {
+    paidByRefId.set(p.referrerId, (paidByRefId.get(p.referrerId) || 0) + Number(p.amount));
+    marketerPayments.push({ name: refById.get(p.referrerId)?.name || p.referrerId, amount: Number(p.amount), paidAt: (p.paidAt as Date).toISOString() });
   }
   const marketers: MarketerDue[] = [];
   for (const [slug, earnedCount] of earnedByRef) {
@@ -164,5 +172,5 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     monthly.reduce((s, i) => s + i.amount, 0) +
     marketers.reduce((s, m) => s + m.amount, 0);
 
-  return { setup, monthly, upcoming, marketers, totalDueNow, horizonDays };
+  return { setup, monthly, upcoming, marketers, marketerPayments, totalDueNow, horizonDays };
 }
