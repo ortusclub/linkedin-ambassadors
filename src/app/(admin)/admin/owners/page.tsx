@@ -464,6 +464,18 @@ export default function AdminOwnersPage() {
             const hasSetupRecord = owner.monthlyPayouts.some((p) => p.kind === "setup");
             const totalPaid = owner.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) + (owner.setupFeePaidAt && !hasSetupRecord ? SETUP_FEE : 0);
 
+            // Setup fees: one ₱1,000 per account under this owner. A grouped POC brings
+            // several accounts, each earning its own setup, so we track them as
+            // "setup"-kind entries in the payout record and let each be logged on the
+            // day it's actually paid — all on the one payee's card. Single-account
+            // owners are unaffected (setupsOwed = 1 → the original single-setup UI).
+            const setupEntryCount = owner.monthlyPayouts.filter((p) => p.kind === "setup").length;
+            const setupsPaidCount = setupEntryCount + (owner.setupFeePaidAt && setupEntryCount === 0 ? 1 : 0);
+            const setupsOwed = Math.max(owner.accounts.length, 1);
+            const setupsRemaining = Math.max(0, setupsOwed - setupsPaidCount);
+            const nextSetupName = owner.accounts[setupsPaidCount]?.linkedinName || null;
+            const multiSetup = setupsOwed > 1;
+
             // A login problem (persisted) blocks payout on all rows; otherwise each
             // row has its own "ok to pay" confirm that you tick right before paying.
             const issue = owner.accountIssue;
@@ -484,6 +496,12 @@ export default function AdminOwnersPage() {
               );
             };
             const markSetupPaid = () => patchOwner(owner.applicationId, { paidAt: new Date().toISOString(), ...(hasSetupRecord ? {} : { addMonthlyPayout: { amount: SETUP_FEE, kind: "setup" } }) });
+            // Log the next unpaid setup fee (multi-account owners) — dated now, tagged
+            // with the account it covers. Stamp paidAt on the first so the digest agrees.
+            const logSetup = () => patchOwner(owner.applicationId, {
+              addMonthlyPayout: { amount: SETUP_FEE, kind: "setup", method: owner.paymentMethod, note: nextSetupName ? `Setup — ${nextSetupName}` : "Setup fee" },
+              ...(setupsPaidCount === 0 ? { paidAt: new Date().toISOString() } : {}),
+            });
             const attachProof = (index: number) => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) patchOwner(owner.applicationId, { updateMonthlyPayout: { index, proofUrl: url.trim() } }); };
 
             return (
@@ -506,7 +524,7 @@ export default function AdminOwnersPage() {
                   </div>
                   <div style={{ textAlign: "right", flex: "none" }}>
                     <div style={{ font: `600 16px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{owner.monthlyPayout > 0 ? `${peso(owner.monthlyPayout)}/mo` : "TBC"}</div>
-                    <div style={{ font: `500 12px ${F_SANS}`, marginTop: 2, color: setupPaid ? "var(--muted2)" : "var(--warn-badge-text)" }}>{setupPaid ? `Setup paid${monthlyCount > 0 ? ` · ${monthlyCount} mo paid` : ""}` : "Setup due"}</div>
+                    <div style={{ font: `500 12px ${F_SANS}`, marginTop: 2, color: setupsRemaining === 0 ? "var(--muted2)" : "var(--warn-badge-text)" }}>{setupsRemaining === 0 ? `Setup${multiSetup ? "s" : ""} paid${monthlyCount > 0 ? ` · ${monthlyCount} mo paid` : ""}` : multiSetup ? `${setupsPaidCount}/${setupsOwed} setups paid` : "Setup due"}</div>
                   </div>
                 </div>
 
@@ -561,6 +579,25 @@ export default function AdminOwnersPage() {
                     {/* PAYMENT SCHEDULE */}
                     <div style={{ ...labelCss, marginBottom: 12 }}>Payment schedule</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 26 }}>
+                      {multiSetup ? (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, padding: "14px 16px" }}>
+                          <div>
+                            <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Setup fees · {peso(SETUP_FEE)} × {setupsOwed}</div>
+                            <div style={{ font: `500 12.5px ${F_SANS}`, color: setupsRemaining > 0 ? "var(--muted)" : "var(--muted2)", marginTop: 2 }}>
+                              {setupsPaidCount} of {setupsOwed} paid{setupsRemaining > 0 && nextSetupName ? ` · next: ${nextSetupName}` : setupsRemaining === 0 ? " · all done" : ""}
+                            </div>
+                            <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", marginTop: 2 }}>One {peso(SETUP_FEE)} per account — log each on the day you pay it</div>
+                          </div>
+                          {setupsRemaining > 0 ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
+                              {payNote("setup")}
+                              <button type="button" onClick={canPay("setup") ? logSetup : undefined} disabled={!canPay("setup")} style={canPay("setup") ? darkBtn : disabledBtn}>+ Log {peso(SETUP_FEE)}</button>
+                            </div>
+                          ) : (
+                            <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--st-active-fg)", flex: "none" }}>All setups paid ✓</span>
+                          )}
+                        </div>
+                      ) : (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, padding: "14px 16px" }}>
                         <div>
                           <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Setup fee · {peso(SETUP_FEE)}</div>
@@ -590,6 +627,7 @@ export default function AdminOwnersPage() {
                           </div>
                         )}
                       </div>
+                      )}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, padding: "14px 16px" }}>
                         <div>
                           <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Monthly · {peso(monthlyAmt)}/mo</div>
