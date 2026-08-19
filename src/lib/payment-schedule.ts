@@ -125,17 +125,36 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     }
   }
 
-  // Marketer commissions ready to pay: onboarded signups confirmed ok-to-pay (verified)
-  // with no unresolved login issue — see lib/referrals.isReferralEarned.
-  const marketerMap = new Map<string, number>();
+  // Marketer commissions ready to pay — NET of commission already paid, keyed to the
+  // referrer's display name (not the slug). Mirrors /admin/referrals so both agree.
+  const earnedByRef = new Map<string, number>();
   for (const a of apps) {
-    const ref = (a.referredBy || "").trim();
+    const ref = (a.referredBy || "").trim().toLowerCase();
     if (!ref || !isReferralEarned(a)) continue;
-    marketerMap.set(ref, (marketerMap.get(ref) || 0) + 1);
+    earnedByRef.set(ref, (earnedByRef.get(ref) || 0) + 1);
   }
-  const marketers: MarketerDue[] = [...marketerMap.entries()]
-    .map(([name, count]) => ({ name, count, amount: count * MARKETER_RATE }))
-    .sort((a, b) => b.amount - a.amount);
+  const refSlugs = [...earnedByRef.keys()];
+  const referrers = refSlugs.length
+    ? await prisma.referrer.findMany({ where: { slug: { in: refSlugs } }, select: { id: true, name: true, slug: true } })
+    : [];
+  const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
+  const paidByRefId = new Map<string, number>();
+  if (referrers.length) {
+    const commPayouts = await prisma.payout.findMany({
+      where: { referrerId: { in: referrers.map((r) => r.id) }, type: "commission", paidAt: { not: null } },
+      select: { referrerId: true, amount: true },
+    });
+    for (const p of commPayouts) paidByRefId.set(p.referrerId, (paidByRefId.get(p.referrerId) || 0) + Number(p.amount));
+  }
+  const marketers: MarketerDue[] = [];
+  for (const [slug, earnedCount] of earnedByRef) {
+    const r = refBySlug.get(slug);
+    const paid = r ? paidByRefId.get(r.id) || 0 : 0;
+    const outstanding = Math.max(0, earnedCount * MARKETER_RATE - paid);
+    if (outstanding <= 0) continue;
+    marketers.push({ name: r?.name || slug, count: Math.round(outstanding / MARKETER_RATE), amount: outstanding });
+  }
+  marketers.sort((a, b) => b.amount - a.amount);
 
   const sortByDue = (arr: DueItem[]) => arr.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   sortByDue(setup); sortByDue(monthly); sortByDue(upcoming);
