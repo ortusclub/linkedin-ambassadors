@@ -185,6 +185,30 @@ const isManualStatus = (o: Owner): boolean => !!o.ownerStatus && (MANUAL_STATUSE
 // Manual status always wins over the auto suggestion.
 const resolveStatus = (o: Owner): OwnerStatus => (isManualStatus(o) ? (o.ownerStatus as OwnerStatus) : autoStatus(o));
 
+// Setup fees are owed one ₱1,000 per account under an owner. We count how many
+// setup-kind payouts have been logged (falling back to the legacy paidAt flag when
+// there's no structured record) against how many accounts the owner supplies.
+const ownerSetupInfo = (o: Owner) => {
+  const setupEntryCount = o.monthlyPayouts.filter((p) => p.kind === "setup").length;
+  const setupsPaidCount = setupEntryCount + (o.setupFeePaidAt && setupEntryCount === 0 ? 1 : 0);
+  const setupsOwed = Math.max(o.accounts.length, 1);
+  return { setupEntryCount, setupsPaidCount, setupsOwed, setupsRemaining: Math.max(0, setupsOwed - setupsPaidCount) };
+};
+
+// The stage the owner rolls up under. Four buckets, ordered action-first so the
+// people who need something from us surface at the top of the page.
+type Stage = "waiting_us" | "waiting_them" | "active" | "inactive";
+const stageOf = (o: Owner): Stage => {
+  const s = resolveStatus(o);
+  return s === "active" ? "active" : s === "waiting_us" ? "waiting_us" : s === "waiting_them" ? "waiting_them" : "inactive";
+};
+const GROUP_DEFS: { key: Stage; label: string; dot: string; note: string }[] = [
+  { key: "waiting_us", label: "Waiting on us", dot: "var(--warn-badge-text)", note: "we owe them an action" },
+  { key: "waiting_them", label: "Waiting on them", dot: "var(--st-unreach-fg)", note: "chased, no reply yet" },
+  { key: "active", label: "Active", dot: "var(--st-active-fg)", note: "onboarded and earning" },
+  { key: "inactive", label: "Paused / Lost", dot: "var(--st-cancel-fg)", note: "no longer active" },
+];
+
 const labelCss: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
 const inputCss: React.CSSProperties = { width: "100%", minWidth: 0, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 11px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" };
 const darkBtn: React.CSSProperties = { font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap" };
@@ -254,6 +278,10 @@ export default function AdminOwnersPage() {
   // "Ok to pay" is a check-right-before-you-pay confirmation, independent per row
   // (setup vs monthly). Session-only — you re-verify the account before each payout.
   const [okToPay, setOkToPay] = useState<Set<string>>(new Set());
+  // Per-profile credential rows and per-stage group sections are independently
+  // collapsible. Groups default open; profile credential drawers default closed.
+  const [profileOpen, setProfileOpen] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [due, setDue] = useState<PaymentsDue | null>(null);
   const [dueOpen, setDueOpen] = useState(false);
   const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -290,6 +318,8 @@ export default function AdminOwnersPage() {
   const toggle = (email: string) => setExpanded((p) => { const n = new Set(p); if (n.has(email)) n.delete(email); else n.add(email); return n; });
   const toggleReveal = (key: string) => setRevealed((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const toggleOkToPay = (key: string) => setOkToPay((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  const toggleProfile = (key: string) => setProfileOpen((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  const toggleGroup = (key: string) => setCollapsedGroups((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
   const patchAccount = async (accountId: string, data: Record<string, unknown>) => {
     await fetch(`/api/admin/accounts/${accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
@@ -302,28 +332,26 @@ export default function AdminOwnersPage() {
   };
 
   const q = query.trim().toLowerCase();
-  // Stage groups mirror the design's filter chips: Onboarded = Active owners,
-  // Pending on us = still Onboarding, Paused/Lost = paused or lost.
-  const stageOf = (o: Owner): "active" | "waiting_us" | "waiting_them" | "inactive" => {
-    const s = resolveStatus(o);
-    return s === "active" ? "active" : s === "waiting_us" ? "waiting_us" : s === "waiting_them" ? "waiting_them" : "inactive";
-  };
   const stageCounts = { all: owners.length, active: 0, waiting_us: 0, waiting_them: 0, inactive: 0 };
   for (const o of owners) stageCounts[stageOf(o)]++;
-  const STAGE_CHIPS: { key: "all" | "active" | "waiting_us" | "waiting_them" | "inactive"; label: string; dot: string | null }[] = [
+  const STAGE_CHIPS: { key: "all" | Stage; label: string; dot: string | null }[] = [
     { key: "all", label: "All owners", dot: null },
-    { key: "active", label: "Active", dot: "var(--st-active-fg)" },
-    { key: "waiting_us", label: "Waiting on us", dot: "var(--warn-badge-text)" },
-    { key: "waiting_them", label: "Waiting on them", dot: "var(--st-unreach-fg)" },
-    { key: "inactive", label: "Paused / Lost", dot: "var(--st-cancel-fg)" },
+    ...GROUP_DEFS.map((g) => ({ key: g.key, label: g.label, dot: g.dot })),
   ];
   const shown = owners.filter(
     (o) =>
       (stage === "all" || stageOf(o) === stage) &&
       (!q || `${o.fullName} ${o.email} ${o.payoutName || ""} ${o.paymentMethod || ""} ${o.accounts.map((a) => a.linkedinName).join(" ")} ${resolveStatus(o)}`.toLowerCase().includes(q))
   );
+  // Group the visible owners under their stage, following the action-first order.
+  const groups = GROUP_DEFS.map((g) => ({ ...g, owners: shown.filter((o) => stageOf(o) === g.key) })).filter((g) => g.owners.length > 0);
   // Only Active owners actually cost us monthly — Offline/Paused/Lost aren't being paid.
   const totalMonthly = owners.reduce((s, o) => s + (resolveStatus(o) === "active" ? o.monthlyPayout : 0), 0);
+  // Compact money-strip figures: outstanding setup fees (₱1,000 each) and owners we
+  // can't currently pay because the account won't log in.
+  const setupsOutstanding = owners.reduce((s, o) => s + ownerSetupInfo(o).setupsRemaining, 0);
+  const blockedCount = owners.filter((o) => o.accountIssue).length;
+  const profileCount = owners.reduce((s, o) => s + o.accounts.length, 0);
   const allOpen = shown.length > 0 && shown.every((o) => expanded.has(o.email));
   const toggleAll = () => setExpanded(allOpen ? new Set() : new Set(shown.map((o) => o.email)));
 
@@ -347,48 +375,57 @@ export default function AdminOwnersPage() {
             </button>
           )}
           <div style={{ textAlign: "right" }}>
-            <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted)" }}>{owners.length} owner{owners.length !== 1 ? "s" : ""}</div>
+            <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted)" }}>{owners.length} owner{owners.length !== 1 ? "s" : ""} · {profileCount} profile{profileCount !== 1 ? "s" : ""}</div>
             {totalMonthly > 0 && <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{peso(totalMonthly)}/mo · active</div>}
           </div>
         </div>
       </div>
 
-      {/* payments due */}
+      {/* money strip + payments-due detail */}
       {due && (() => {
         // Every dated payout — due now AND coming up within the horizon — as a row,
         // sorted soonest-first, each with a relative "in N days" pill.
         const rows = [...due.setup, ...due.monthly, ...due.upcoming].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
         const overdueCount = rows.filter((r) => r.overdue).length;
-        const blockedCount = rows.filter((r) => r.blocked).length;
+        const blockedDueCount = rows.filter((r) => r.blocked).length;
         const dueNowCount = due.setup.length + due.monthly.length + due.marketers.length;
         const upcomingCount = due.upcoming.length;
         const nothing = rows.length === 0 && due.marketers.length === 0;
-        // Subtitle mirrors the design: call out overdue/ due-now money, else the upcoming count.
-        let subtitle: React.ReactNode;
-        if (nothing) subtitle = "Nothing due right now.";
-        else if (dueNowCount === 0 && upcomingCount > 0) {
-          const kinds = new Set(due.upcoming.map((u) => u.kind));
-          const noun = kinds.size === 1 ? (kinds.has("setup") ? "setup fee" : "monthly payout") : "payment";
-          subtitle = `Nothing overdue — ${upcomingCount} ${noun}${upcomingCount !== 1 ? "s" : ""} coming up this week.`;
-        } else {
-          subtitle = <><strong style={{ color: "var(--text)" }}>{peso(due.totalDueNow)}</strong> due now across {dueNowCount} payout{dueNowCount !== 1 ? "s" : ""}{overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}{blockedCount > 0 ? ` · ${blockedCount} blocked (can't log in)` : ""}{upcomingCount > 0 ? `, ${upcomingCount} coming up` : ""}.</>;
-        }
+        // Three compact figures across the top, mirroring the design's money strip.
+        const strip = [
+          { label: "Setup fees outstanding", value: peso(setupsOutstanding * SETUP_FEE), hint: `${setupsOutstanding} unpaid`, color: setupsOutstanding ? "var(--warn-badge-text)" : "var(--text)" },
+          { label: "Monthly commitment", value: `${peso(totalMonthly)}/mo`, hint: "active owners only", color: "var(--text)" },
+          { label: "Blocked — can't pay", value: String(blockedCount), hint: "login / restriction issues", color: blockedCount ? "var(--st-cancel-fg)" : "var(--text)" },
+        ];
+        let dueLine: React.ReactNode;
+        if (nothing) dueLine = "Nothing due right now";
+        else if (dueNowCount === 0 && upcomingCount > 0) dueLine = `${upcomingCount} coming up this week`;
+        else dueLine = <><strong style={{ color: "var(--text)" }}>{peso(due.totalDueNow)}</strong> due now · {dueNowCount} payout{dueNowCount !== 1 ? "s" : ""}{overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}{blockedDueCount > 0 ? ` · ${blockedDueCount} blocked` : ""}</>;
         return (
-          <div style={{ background: "var(--warn-bg)", border: "1px solid var(--warn-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 22 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: nothing || !dueOpen ? 0 : 14 }}>
-              <div onClick={() => !nothing && setDueOpen((o) => !o)} style={{ flex: 1, minWidth: 0, cursor: nothing ? "default" : "pointer", userSelect: "none" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                  {!nothing && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", width: 10, textAlign: "center", transform: dueOpen ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>}
-                  <span style={{ font: `600 15px ${F_GRO}`, color: "var(--text)" }}>Payments due</span>
+          <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, overflow: "hidden", marginBottom: 20, boxShadow: "var(--card-shadow)" }}>
+            <div style={{ display: "flex", alignItems: "stretch", flexWrap: "wrap" }}>
+              {strip.map((s, i) => (
+                <div key={i} style={{ flex: "1 1 180px", padding: "14px 18px", borderRight: "1px solid var(--divider)" }}>
+                  <div style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--label)", marginBottom: 5 }}>{s.label}</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ font: `600 19px/1 ${F_GRO}`, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</span>
+                    <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>{s.hint}</span>
+                  </div>
                 </div>
-                <div style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)", paddingLeft: nothing ? 0 : 18 }}>{subtitle}</div>
+              ))}
+              <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 18px", flex: "none" }}>
+                {!nothing && (
+                  <button type="button" onClick={() => setDueOpen((o) => !o)} title="Show what's due now" style={{ display: "inline-flex", alignItems: "center", gap: 7, font: `600 12.5px ${F_SANS}`, color: "var(--link)", background: "transparent", border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>
+                    <span style={{ font: `600 10px ${F_SANS}`, transform: dueOpen ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>{dueLine}
+                  </button>
+                )}
+                <button type="button" onClick={emailMilee} disabled={emailState === "sending"} style={{ ...darkBtn, flex: "none", opacity: emailState === "sending" ? 0.6 : 1 }}>
+                  {emailState === "sending" ? "Sending…" : emailState === "sent" ? "✓ Sent to Milee" : emailState === "error" ? "Failed — retry" : "✉ Email Milee"}
+                </button>
               </div>
-              <button type="button" onClick={emailMilee} disabled={emailState === "sending"} style={{ ...darkBtn, flex: "none", opacity: emailState === "sending" ? 0.6 : 1 }}>
-                {emailState === "sending" ? "Sending…" : emailState === "sent" ? "✓ Sent to Milee" : emailState === "error" ? "Failed — retry" : "✉ Email Milee"}
-              </button>
             </div>
             {!nothing && dueOpen && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 16px 16px", borderTop: "1px solid var(--divider)" }}>
                 {rows.map((i, idx) => {
                   const w = relWhen(i.dueDate);
                   return (
@@ -450,10 +487,25 @@ export default function AdminOwnersPage() {
           {owners.length === 0 ? "No onboarded account owners yet." : "No owners match your search."}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {shown.map((owner) => {
+        <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
+          {groups.map((g) => {
+            const gCollapsed = collapsedGroups.has(g.key);
+            const subtotal = g.owners.reduce((s, o) => s + o.monthlyPayout, 0);
+            return (
+              <div key={g.key}>
+                {/* group header */}
+                <div onClick={() => toggleGroup(g.key)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "0 4px 11px", cursor: "pointer", userSelect: "none", borderBottom: "1px solid var(--divider)", marginBottom: 14 }}>
+                  <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)", width: 11, transition: "transform .18s ease", transform: gCollapsed ? "none" : "rotate(90deg)" }}>▸</span>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, flex: "none", background: g.dot }} />
+                  <span style={{ font: `600 15px ${F_GRO}`, color: "var(--text)" }}>{g.label}</span>
+                  <span style={{ font: `700 11px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "2px 8px", borderRadius: 7, background: "var(--band)", color: "var(--muted)" }}>{g.owners.length}</span>
+                  <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", flex: 1 }}>{g.note}</span>
+                  <span style={{ font: `600 13px ${F_GRO}`, color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{subtotal > 0 ? `${peso(subtotal)}/mo` : "—"}</span>
+                </div>
+                {!gCollapsed && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {g.owners.map((owner) => {
             const open = expanded.has(owner.email);
-            const st = STATUS_META[resolveStatus(owner)];
             const missing = missingFields(owner);
             const setupPaid = fmtDate(owner.setupFeePaidAt);
             const monthlyOnly = owner.monthlyPayouts.filter((p) => p.kind !== "setup");
@@ -505,18 +557,20 @@ export default function AdminOwnersPage() {
             const attachProof = (index: number) => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) patchOwner(owner.applicationId, { updateMonthlyPayout: { index, proofUrl: url.trim() } }); };
 
             return (
-              <div key={owner.email} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
+              <div key={owner.email} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderLeft: `3px solid ${g.dot}`, borderRadius: 14, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
                 {/* header */}
-                <div onClick={() => toggle(owner.email)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "18px 22px", cursor: "pointer", userSelect: "none" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
-                    <span style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", width: 12, textAlign: "center", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s ease" }}>▸</span>
+                <div onClick={() => toggle(owner.email)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "15px 18px", cursor: "pointer", userSelect: "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                    <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)", width: 11, flex: "none", textAlign: "center", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s ease" }}>▸</span>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap", marginBottom: 3 }}>
-                        <span style={{ font: `600 19px ${F_GRO}`, color: "var(--text)", letterSpacing: "-.01em" }}>{owner.fullName}</span>
-                        <span style={{ font: `700 11px ${F_SANS}`, padding: "4px 11px", borderRadius: 999, whiteSpace: "nowrap", background: st.bg, color: st.fg }}>{st.label}</span>
-                        <span style={{ font: `700 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-active-bg)", color: "var(--st-active-fg)" }}>Has account · {owner.accountCount}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 2 }}>
+                        <span style={{ font: `600 16px ${F_GRO}`, color: "var(--text)", letterSpacing: "-.01em" }}>{owner.fullName}</span>
+                        <span style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--st-active-bg)", color: "var(--st-active-fg)" }}>{owner.accountCount} profile{owner.accountCount !== 1 ? "s" : ""}</span>
                         {missing.length > 0 && (
-                          <span title={`Missing: ${missing.join(", ")}`} style={{ font: `700 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Missing {missing.length} field{missing.length !== 1 ? "s" : ""}</span>
+                          <span title={`Missing: ${missing.join(", ")}`} style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ {missing.length} missing</span>
+                        )}
+                        {owner.accountIssue && (
+                          <span title={`Can't log in: ${owner.accountIssue}`} style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ {owner.accountIssue}</span>
                         )}
                       </div>
                       <span onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(owner.email); setCopiedEmail(owner.email); setTimeout(() => setCopiedEmail((c) => (c === owner.email ? null : c)), 1400); }} title="Click to copy" style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)", cursor: "pointer", userSelect: "text" }}>{owner.email}{copiedEmail === owner.email && <span style={{ color: "var(--st-active-fg)", marginLeft: 6, fontWeight: 600 }}>· Copied ✓</span>}</span>
@@ -529,10 +583,9 @@ export default function AdminOwnersPage() {
                 </div>
 
                 {open && (
-                  <div style={{ borderTop: "1px solid var(--divider)", padding: "20px 22px" }}>
-                    {/* ACCOUNT */}
-                    <div style={{ ...labelCss, marginBottom: 12 }}>Account</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "16px 20px", marginBottom: 26 }}>
+                  <div style={{ borderTop: "1px solid var(--divider)", padding: "18px" }}>
+                    {/* account + payout, one grid */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "14px 18px", marginBottom: 22 }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                         <span style={labelCss}>Owner status</span>
                         <select value={isManualStatus(owner) ? (owner.ownerStatus as string) : "auto"} onClick={(e) => e.stopPropagation()} onChange={(e) => patchOwner(owner.applicationId, { ownerStatus: e.target.value === "auto" ? null : e.target.value })}
@@ -551,27 +604,22 @@ export default function AdminOwnersPage() {
                         <span style={labelCss}>Best contact</span>
                         <div style={{ display: "flex", gap: 8 }}>
                           <select defaultValue={owner.contactChannel || ""} onClick={(e) => e.stopPropagation()} onChange={(e) => patchOwner(owner.applicationId, { contactChannel: e.target.value || null })}
-                            style={{ ...inputCss, width: 130, flex: "none", cursor: "pointer", fontWeight: 600 }}>
+                            style={{ ...inputCss, width: 118, flex: "none", cursor: "pointer", fontWeight: 600 }}>
                             {CHANNEL_OPTIONS.map((c) => <option key={c} value={c}>{c || "— channel —"}</option>)}
                           </select>
                           <Editable initial={owner.contactNumber} placeholder="handle / number" onSave={(v) => patchOwner(owner.applicationId, { contactNumber: v })} />
                         </div>
                       </div>
-                    </div>
-
-                    {/* PAYOUT */}
-                    <div style={{ ...labelCss, marginBottom: 12 }}>Payout</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 20px", marginBottom: 26 }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, gridColumn: "1 / -1" }}>
-                        <span style={labelCss}>Registered name (exact name on the GCash / bank account)</span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                        <span style={labelCss}>Registered name (on the account)</span>
                         <Editable initial={owner.payoutName} placeholder="e.g. Juan D. Dela Cruz" onSave={(v) => patchOwner(owner.applicationId, { payoutName: v })} />
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                        <span style={labelCss}>Method (GCash / bank / etc.)</span>
+                        <span style={labelCss}>Payout method</span>
                         <Editable initial={owner.paymentMethod} placeholder="e.g. GCash" onSave={(v) => patchOwner(owner.applicationId, { paymentMethod: v })} />
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                        <span style={labelCss}>Account number / details</span>
+                        <span style={labelCss}>Account number</span>
                         <Editable initial={owner.paymentDetails} placeholder="e.g. 0917 123 4567" mono onSave={(v) => patchOwner(owner.applicationId, { paymentDetails: v })} />
                       </div>
                     </div>
@@ -690,68 +738,89 @@ export default function AdminOwnersPage() {
                       )}
                     </div>
 
-                    {/* PROFILE & CREDENTIALS */}
-                    <div style={{ ...labelCss, marginBottom: 12 }}>Profile{owner.accounts.length !== 1 ? "s" : ""} &amp; credentials</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {owner.accounts.map((acc) => {
+                    {/* PROFILES & CREDENTIALS — one collapsible row per account */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <span style={labelCss}>Profile{owner.accounts.length !== 1 ? "s" : ""} &amp; credentials</span>
+                      <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>{owner.accounts.length > 1 ? `${owner.accounts.length} accounts under this owner · open one for credentials` : "open for credentials"}</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {owner.accounts.map((acc, idx) => {
                         const pwKey = `${acc.id}:pw`, tfKey = `${acc.id}:tf`;
+                        const pOpen = profileOpen.has(acc.id);
+                        const setupOk = idx < setupsPaidCount;
                         return (
-                          <div key={acc.id} style={{ background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, padding: 18 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 16, flexWrap: "wrap" }}>
-                              <span style={{ font: `600 16px ${F_GRO}`, color: "var(--text)" }}>{acc.linkedinName}</span>
-                              <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 7, background: acctStyle(acc.status).bg, color: acctStyle(acc.status).fg }}>{acc.status}</span>
-                              {Number(acc.ambassadorPayment) > 0 && <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{peso(Number(acc.ambassadorPayment))}/mo</span>}
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-                              <span style={labelCss}>LinkedIn URL</span>
-                              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <Editable initial={acc.linkedinUrl} placeholder="https://linkedin.com/in/…" mono onSave={(v) => patchAccount(acc.id, { linkedinUrl: v })} />
-                                {acc.linkedinUrl && <a href={acc.linkedinUrl} target="_blank" rel="noreferrer" style={{ flex: "none", font: `600 13px ${F_SANS}`, color: "var(--link)" }}>Open</a>}
+                          <div key={acc.id} style={{ background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, overflow: "hidden" }}>
+                            <div onClick={() => toggleProfile(acc.id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", cursor: "pointer", userSelect: "none" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                                <span style={{ font: `600 10px ${F_SANS}`, color: "var(--muted2)", width: 10, flex: "none", transition: "transform .18s ease", transform: pOpen ? "rotate(90deg)" : "none" }}>▸</span>
+                                <span style={{ font: `600 14px ${F_GRO}`, color: "var(--text)" }}>{acc.linkedinName}</span>
+                                <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 7, whiteSpace: "nowrap", background: acctStyle(acc.status).bg, color: acctStyle(acc.status).fg }}>{acc.status}</span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
+                                {acc.loginEmail && <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{acc.loginEmail}</span>}
+                                {Number(acc.ambassadorPayment) > 0 && <span style={{ font: `600 13px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{peso(Number(acc.ambassadorPayment))}/mo</span>}
+                                <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 7, whiteSpace: "nowrap", background: setupOk ? "var(--st-active-bg)" : "var(--warn-badge-bg)", color: setupOk ? "var(--st-active-fg)" : "var(--warn-badge-text)" }}>{setupOk ? "✓ setup paid" : "setup due"}</span>
                               </div>
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 20px" }}>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                                <span style={labelCss}>Monthly payout (₱)</span>
-                                <input type="number" defaultValue={Number(acc.ambassadorPayment) || ""} placeholder="500"
-                                  onBlur={(e) => { const n = e.target.value === "" ? 0 : Number(e.target.value); if (!Number.isNaN(n) && n !== Number(acc.ambassadorPayment)) patchAccount(acc.id, { ambassadorPayment: n }); }}
-                                  style={inputCss} />
-                              </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                                <span style={labelCss}>Account email (their login)</span>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                  <Editable initial={acc.loginEmail} placeholder="account@email.com" mono onSave={(v) => patchAccount(acc.id, { loginEmail: v })} />
-                                  <CopyBtn value={acc.loginEmail} />
+                            {pOpen && (
+                              <div style={{ padding: "0 14px 14px" }}>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                                  <span style={labelCss}>LinkedIn URL</span>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                    <Editable initial={acc.linkedinUrl} placeholder="https://linkedin.com/in/…" mono onSave={(v) => patchAccount(acc.id, { linkedinUrl: v })} />
+                                    {acc.linkedinUrl && <a href={acc.linkedinUrl} target="_blank" rel="noreferrer" style={{ flex: "none", font: `600 13px ${F_SANS}`, color: "var(--link)" }}>Open</a>}
+                                  </div>
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 18px" }}>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                                    <span style={labelCss}>Monthly payout (₱)</span>
+                                    <input type="number" defaultValue={Number(acc.ambassadorPayment) || ""} placeholder="500"
+                                      onBlur={(e) => { const n = e.target.value === "" ? 0 : Number(e.target.value); if (!Number.isNaN(n) && n !== Number(acc.ambassadorPayment)) patchAccount(acc.id, { ambassadorPayment: n }); }}
+                                      style={inputCss} />
+                                  </div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                                    <span style={labelCss}>Account email (their login)</span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                      <Editable initial={acc.loginEmail} placeholder="account@email.com" mono onSave={(v) => patchAccount(acc.id, { loginEmail: v })} />
+                                      <CopyBtn value={acc.loginEmail} />
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                                    <span style={labelCss}>Work email (klabber.co we added)</span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                      <Editable initial={acc.workEmail} placeholder="name@klabber.co" mono onSave={(v) => patchAccount(acc.id, { workEmail: v })} />
+                                      <CopyBtn value={acc.workEmail} />
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                                    <span style={labelCss}>Password</span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                      <Editable initial={acc.accountPassword} placeholder="•••••••" mono type={revealed.has(pwKey) ? "text" : "password"} onSave={(v) => patchAccount(acc.id, { accountPassword: v })} />
+                                      <button type="button" onClick={() => toggleReveal(pwKey)} style={{ flex: "none", font: `600 12px ${F_SANS}`, color: "var(--muted)", background: "transparent", border: "none", cursor: "pointer", padding: "0 4px" }}>{revealed.has(pwKey) ? "Hide" : "Show"}</button>
+                                      <CopyBtn value={acc.accountPassword} />
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, gridColumn: "1 / -1" }}>
+                                    <span style={labelCss}>2FA (backup code / secret)</span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                      <Editable initial={acc.twoFactor} placeholder="2FA / recovery" mono type={revealed.has(tfKey) ? "text" : "password"} onSave={(v) => patchAccount(acc.id, { twoFactor: v })} />
+                                      <button type="button" onClick={() => toggleReveal(tfKey)} style={{ flex: "none", font: `600 12px ${F_SANS}`, color: "var(--muted)", background: "transparent", border: "none", cursor: "pointer", padding: "0 4px" }}>{revealed.has(tfKey) ? "Hide" : "Show"}</button>
+                                      <CopyBtn value={acc.twoFactor} />
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                                <span style={labelCss}>Work email (klabber.co we added)</span>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                  <Editable initial={acc.workEmail} placeholder="name@klabber.co" mono onSave={(v) => patchAccount(acc.id, { workEmail: v })} />
-                                  <CopyBtn value={acc.workEmail} />
-                                </div>
-                              </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                                <span style={labelCss}>Password</span>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                  <Editable initial={acc.accountPassword} placeholder="•••••••" mono type={revealed.has(pwKey) ? "text" : "password"} onSave={(v) => patchAccount(acc.id, { accountPassword: v })} />
-                                  <button type="button" onClick={() => toggleReveal(pwKey)} style={{ flex: "none", font: `600 12px ${F_SANS}`, color: "var(--muted)", background: "transparent", border: "none", cursor: "pointer", padding: "0 4px" }}>{revealed.has(pwKey) ? "Hide" : "Show"}</button>
-                                  <CopyBtn value={acc.accountPassword} />
-                                </div>
-                              </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, gridColumn: "1 / -1" }}>
-                                <span style={labelCss}>2FA (backup code / secret)</span>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                  <Editable initial={acc.twoFactor} placeholder="2FA / recovery" mono type={revealed.has(tfKey) ? "text" : "password"} onSave={(v) => patchAccount(acc.id, { twoFactor: v })} />
-                                  <button type="button" onClick={() => toggleReveal(tfKey)} style={{ flex: "none", font: `600 12px ${F_SANS}`, color: "var(--muted)", background: "transparent", border: "none", cursor: "pointer", padding: "0 4px" }}>{revealed.has(tfKey) ? "Hide" : "Show"}</button>
-                                  <CopyBtn value={acc.twoFactor} />
-                                </div>
-                              </div>
-                            </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
                   </div>
+                )}
+              </div>
+            );
+                })}
+                </div>
                 )}
               </div>
             );
