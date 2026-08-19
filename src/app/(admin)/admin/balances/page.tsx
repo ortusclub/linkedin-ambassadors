@@ -253,7 +253,7 @@ export default function AdminPayoutsPage() {
         <div style={{ maxWidth: 660 }}>
           <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Ambassador payouts</h1>
           <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>
-            Who&apos;s due and who&apos;s been paid this cycle. Logging payments, receipts and acknowledgements happens in <a href="/admin/owners" style={{ color: "var(--link)", fontWeight: 600 }}>Account owners</a>.
+            Who&apos;s due and who&apos;s been paid this cycle. Ambassador payments are logged in <a href="/admin/owners" style={{ color: "var(--link)", fontWeight: 600 }}>Account owners</a>; referral fees in <a href="/admin/referrals" style={{ color: "var(--link)", fontWeight: 600 }}>Referrals</a>.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
@@ -347,7 +347,7 @@ export default function AdminPayoutsPage() {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                       <span style={pill(STATE_META[r.state].bg, STATE_META[r.state].fg, { font: `700 11px ${F_SANS}`, borderRadius: 999, padding: "5px 11px" })}>{STATE_META[r.state].label}</span>
-                      <a href="/admin/owners" style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted)", whiteSpace: "nowrap" }}>Record →</a>
+                      <a href={r.fee === "referral" ? "/admin/referrals" : "/admin/owners"} style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted)", whiteSpace: "nowrap" }}>Record →</a>
                     </div>
                   </div>
                 ))}
