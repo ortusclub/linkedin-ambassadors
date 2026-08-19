@@ -153,15 +153,22 @@ export default function AdminPayoutsPage() {
         const paidThis = monthlyEntries.some((p) => sameMonth(p.paidAt));
         out.push({ ...base, key: `${o.email}:m`, fee: "monthly", owedNum: o.monthlyPayout, dueISO: new Date(CY, CM, 1).toISOString(), state: blocked || missing ? "hold" : paidThis ? "paid" : "unpaid" });
       }
-      // Outstanding setup fees — surface in their due month, and (if overdue) in the current cycle.
+      // Setup fee(s): one-time per account. Each shows in exactly ONE cycle — the month it
+      // was PAID (✓ Paid, so you can see who's already been settled), or, while still unpaid,
+      // the current cycle if it's overdue, else its due month. This stops a setup fee from
+      // repeating in every later cycle (why July's fees were reappearing in August).
+      const setupPaidDates = o.monthlyPayouts.filter((p) => p.kind === "setup").map((p) => p.paidAt);
+      if (setupPaidDates.length === 0 && o.setupFeePaidAt) setupPaidDates.push(o.setupFeePaidAt);
+      setupPaidDates.forEach((pd, i) => {
+        if (sameMonth(pd)) out.push({ ...base, key: `${o.email}:sp${i}`, fee: "setup", owedNum: SETUP_FEE, dueISO: pd, state: "paid", lastPaid: fmtDate(pd), lastPaidAgo: agoLabel(pd) });
+      });
       if (info.setupsRemaining > 0) {
         const sd = setupDueDate(o.onboardedAt, o.accountFreshness);
         if (sd) {
-          const dueThisMonth = sd.getFullYear() === CY && sd.getMonth() === CM;
-          const overdueNow = isCurrentCycle && new Date(sd.getFullYear(), sd.getMonth(), 1) <= new Date(CY, CM, 1);
-          if (dueThisMonth || overdueNow) {
-            out.push({ ...base, key: `${o.email}:s`, fee: "setup", owedNum: info.setupsRemaining * SETUP_FEE, dueISO: sd.toISOString(), state: blocked || missing ? "hold" : "unpaid" });
-          }
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const overdue = sd < today;
+          const showHere = overdue ? isCurrentCycle : (sd.getFullYear() === CY && sd.getMonth() === CM);
+          if (showHere) out.push({ ...base, key: `${o.email}:s`, fee: "setup", owedNum: info.setupsRemaining * SETUP_FEE, dueISO: sd.toISOString(), state: blocked || missing ? "hold" : "unpaid" });
         }
       }
     }
@@ -308,13 +315,14 @@ export default function AdminPayoutsPage() {
         ) : (
           groups.map(([k, list]) => {
             const ready = k === "ready";
-            const w = ready ? { label: "ready", soon: false } : relWhen(list[0].dueISO!);
+            const allPaid = !ready && list.every((r) => r.state === "paid");
+            const w = ready ? { label: "ready", soon: false } : allPaid ? { label: "paid", soon: false } : relWhen(list[0].dueISO!);
             const gSum = list.reduce((s, r) => s + r.owedNum, 0);
             return (
               <div key={k}>
                 <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 18px", background: "var(--band)", borderBottom: "1px solid var(--divider)", flexWrap: "wrap" }}>
                   <span style={pill(w.soon ? "var(--warn-badge-bg)" : "var(--neutral-chip-bg)", w.soon ? "var(--warn-badge-text)" : "var(--neutral-chip-text)", { font: `700 10px ${F_SANS}`, borderRadius: 999, padding: "4px 10px" })}>{w.label}</span>
-                  <span style={{ font: `700 11px ${F_SANS}`, color: "var(--text2)" }}>{ready ? "Ready to pay" : `Due ${fmtDate(list[0].dueISO!)}`}</span>
+                  <span style={{ font: `700 11px ${F_SANS}`, color: "var(--text2)" }}>{ready ? "Ready to pay" : allPaid ? `Paid ${fmtDate(list[0].dueISO!)}` : `Due ${fmtDate(list[0].dueISO!)}`}</span>
                   <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted)" }}>{list.length} ambassador{list.length !== 1 ? "s" : ""} · {peso(gSum)}</span>
                 </div>
                 {list.map((r) => (
