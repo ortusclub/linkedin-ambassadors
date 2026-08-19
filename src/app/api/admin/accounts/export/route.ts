@@ -26,14 +26,18 @@ function fmtDate(d: Date | null): string {
 
 // ONE status per account — collapses the raw DB enum + the `restrictedAt` flag
 // into a single label, matching the admin inventory exactly. DB values untouched.
-function displayStatus(a: { status: string; restrictedAt: Date | null }): string {
+// Newer accounts still warming up (< 100 connections) read as "Construction";
+// stable-but-paused ones read as "Maintenance". Matches the admin inventory split.
+const CONSTRUCTION_MAX = 100;
+function displayStatus(a: { status: string; restrictedAt: Date | null; connectionCount?: number | null }): string {
   if (a.status === "rented") return "Rented";
   if (a.restrictedAt) return "Restricted";
   if (a.status === "available") return "Available";
   if (a.status === "trial") return "Trial";
   if (a.status === "retired") return "Inaccessible";
   if (a.status === "removed") return "Removed";
-  return "Maintenance"; // under_review / maintenance / unavailable / anything else
+  // under_review / maintenance / unavailable / anything else → split by size
+  return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Construction" : "Maintenance";
 }
 
 export async function GET(req: NextRequest) {
@@ -80,7 +84,7 @@ export async function GET(req: NextRequest) {
   // Group by the single canonical status so it matches the admin view.
   // Order: Available, then Restricted (just below available), Trial, Rented,
   // Maintenance, Inaccessible, Removed.
-  const rankByLabel: Record<string, number> = { Available: 0, Restricted: 1, Trial: 2, Rented: 3, Maintenance: 4, Inaccessible: 5, Removed: 6 };
+  const rankByLabel: Record<string, number> = { Available: 0, Restricted: 1, Trial: 2, Rented: 3, Construction: 4, Maintenance: 5, Inaccessible: 6, Removed: 7 };
   const sorted = [...accounts].sort((a, b) => (rankByLabel[displayStatus(a)] ?? 9) - (rankByLabel[displayStatus(b)] ?? 9));
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.
