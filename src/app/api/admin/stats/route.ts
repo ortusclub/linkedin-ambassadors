@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { isCompanyEmail } from "@/lib/company";
+import { phpToUsd } from "@/lib/utils";
 
 // A real (sellable) inventory account: not a showcase/dummy, not a leftover test account.
 function isRealAccount(a: { notes: string | null; linkedinName: string }) {
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
       // Real inventory — exclude removed/retired; showcase + test filtered in JS.
       prisma.linkedInAccount.findMany({
         where: { status: { notIn: ["removed", "retired"] } },
-        select: { status: true, notes: true, linkedinName: true, restrictedAt: true },
+        select: { status: true, notes: true, linkedinName: true, restrictedAt: true, ambassadorPayment: true },
       }),
       // Customers who have actually rented (a signup with zero rentals isn't a customer yet).
       prisma.user.count({ where: { role: "customer", status: "active", ...liveUser, rentals: { some: {} } } }),
@@ -80,15 +81,20 @@ export async function GET(req: NextRequest) {
     const activeRentals = activeRentalsList.length;
     const rentedAccounts = activeRentals; // a test-held account doesn't inflate this
     const mrr = activeRentalsList.reduce((s, r) => s + Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice ?? 0), 0);
-    // Only REAL (external) ambassadors get paid — company/Ortus-owned accounts don't.
-    // The account's owner is its profile email (in notes); internal domains = company-owned.
-    const profileEmailOf = (notes: string | null) =>
-      (notes || "").match(/Profile email:\s*(\S+@\S+\.\S+)/i)?.[1]?.replace(/[.\s]+$/, "") || null;
-    const payouts = activeRentalsList.reduce((s, r) => {
-      const email = profileEmailOf(r.linkedinAccount.notes);
+    // Ambassador payouts (money out): we pay every EXTERNAL ambassador ₱500/mo for as long
+    // as their account is live — whether or not it's currently rented — so this is summed
+    // across ALL onboarded ambassador accounts, not just active rentals. Company/Ortus-owned
+    // accounts don't get paid. Ownership = the "Owner:" (payee) email in notes; a company
+    // domain there = company-owned. ambassadorPayment is stored in PHP, so convert to USD to
+    // combine with the USD-denominated mrr into a meaningful net profit.
+    const ownerEmailOf = (notes: string | null) =>
+      (notes || "").match(/Owner:\s*(\S+@\S+)/i)?.[1]?.replace(/[.\s]+$/, "") || null;
+    const payoutsPhp = realAccounts.reduce((s, a) => {
+      const email = ownerEmailOf(a.notes);
       const isExternalAmbassador = email ? !isCompanyEmail(email) : false;
-      return s + (isExternalAmbassador ? Number(r.linkedinAccount.ambassadorPayment ?? 0) : 0);
+      return s + (isExternalAmbassador ? Number(a.ambassadorPayment ?? 0) : 0);
     }, 0);
+    const payouts = phpToUsd(payoutsPhp); // USD-equivalent for the profit maths
     const netProfit = mrr - payouts;
     const utilization = totalAccounts > 0 ? Math.round((rentedAccounts / totalAccounts) * 100) : 0;
 
@@ -166,6 +172,7 @@ export async function GET(req: NextRequest) {
       stats: {
         // money (live for the current month, snapshot for a past month)
         netProfit: disp.netProfit, mrr: disp.mrr, payouts: disp.payouts, activeRentals: disp.activeRentals,
+        payoutsPhp: isCurrentMonth ? payoutsPhp : null, // native ₱ figure (current month only)
         collected, collectedCount,
         // demand
         totalCustomers: disp.totalCustomers, newCustomers30d, renewalsDue30d, atRisk,

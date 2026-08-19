@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isCompanyEmail } from "@/lib/company";
+import { phpToUsd } from "@/lib/utils";
 
 // The headline run-rate metrics, the same way the dashboard shows them. Kept here so the
 // daily snapshot (/api/cron/snapshot-metrics) and the live dashboard compute them
@@ -15,20 +16,21 @@ export type CoreMetrics = {
 function isRealAccount(a: { notes: string | null; linkedinName: string }) {
   return !(a.notes || "").includes("[SHOWCASE]") && !a.linkedinName.toUpperCase().includes("(TEST)");
 }
-const profileEmailOf = (notes: string | null) =>
-  (notes || "").match(/Profile email:\s*(\S+@\S+\.\S+)/i)?.[1]?.replace(/[.\s]+$/, "") || null;
+// Ownership = the "Owner:" (payee) email in notes; a company domain there = company-owned.
+const ownerEmailOf = (notes: string | null) =>
+  (notes || "").match(/Owner:\s*(\S+@\S+)/i)?.[1]?.replace(/[.\s]+$/, "") || null;
 
 // Live (non-test) figures — what "Live" mode on the dashboard shows.
 export async function computeCoreMetrics(): Promise<CoreMetrics> {
   const [inventoryAccounts, totalCustomers, activeRentalsList] = await Promise.all([
     prisma.linkedInAccount.findMany({
       where: { status: { notIn: ["removed", "retired"] } },
-      select: { status: true, notes: true, linkedinName: true, restrictedAt: true },
+      select: { status: true, notes: true, linkedinName: true, restrictedAt: true, ambassadorPayment: true },
     }),
     prisma.user.count({ where: { role: "customer", status: "active", isTest: false, rentals: { some: {} } } }),
     prisma.rental.findMany({
       where: { status: "active", user: { isTest: false } },
-      select: { lockedPrice: true, linkedinAccount: { select: { monthlyPrice: true, ambassadorPayment: true, notes: true } } },
+      select: { lockedPrice: true, linkedinAccount: { select: { monthlyPrice: true } } },
     }),
   ]);
 
@@ -41,11 +43,15 @@ export async function computeCoreMetrics(): Promise<CoreMetrics> {
   const activeRentals = activeRentalsList.length;
   const rentedAccounts = activeRentals;
   const mrr = activeRentalsList.reduce((s, r) => s + Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice ?? 0), 0);
-  const payouts = activeRentalsList.reduce((s, r) => {
-    const email = profileEmailOf(r.linkedinAccount.notes);
+  // Money out: every external ambassador is paid ₱500/mo for as long as their account is
+  // live (rented or not), so sum across ALL onboarded ambassador accounts. Stored in PHP →
+  // convert to USD to net against the USD mrr.
+  const payoutsPhp = realAccounts.reduce((s, a) => {
+    const email = ownerEmailOf(a.notes);
     const isExternalAmbassador = email ? !isCompanyEmail(email) : false;
-    return s + (isExternalAmbassador ? Number(r.linkedinAccount.ambassadorPayment ?? 0) : 0);
+    return s + (isExternalAmbassador ? Number(a.ambassadorPayment ?? 0) : 0);
   }, 0);
+  const payouts = phpToUsd(payoutsPhp);
   const netProfit = mrr - payouts;
   const utilization = totalAccounts > 0 ? Math.round((rentedAccounts / totalAccounts) * 100) : 0;
 

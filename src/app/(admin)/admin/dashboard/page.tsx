@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatPeso } from "@/lib/utils";
 
 interface Stats {
   netProfit: number; mrr: number; payouts: number; activeRentals: number;
+  payoutsPhp?: number | null;
   collected: number; collectedCount: number;
   totalCustomers: number; newCustomers30d: number; renewalsDue30d: number;
   vettingStarted: number; vettingDropped: number; atRisk: number;
@@ -162,7 +163,7 @@ export default function AdminDashboardPage() {
           </div>
           <MoneyCard label="Monthly rev." value={formatCurrency(stats.mrr)} sub="recurring · money in" stroke="var(--accent)" fill="var(--blue-spark-fill)" num={num} cardSub={cardSub} Spark={Spark} path={upPath} pts={upPts} trendEl={<Trend v={stats.mrrTrend} />} />
           <MoneyCard label="Collected / mo" value={formatCurrency(stats.collected)} sub={`${stats.collectedCount} payment${stats.collectedCount === 1 ? "" : "s"} · received`} stroke="var(--green)" fill="var(--blue-spark-fill)" num={num} cardSub={cardSub} Spark={Spark} path={upPath} pts={upPts} />
-          <MoneyCard label="Amb. payouts" value={formatCurrency(stats.payouts)} sub="money out" stroke="var(--gray-spark-stroke)" fill="var(--gray-spark-fill)" num={num} cardSub={cardSub} Spark={Spark} path="M0,25 L13,25 L26,24 L39,25 L52,25 L65,24 L78,25 L91,25 L100,25 L100,34 L0,34 Z" pts="0,25 13,25 26,24 39,25 52,25 65,24 78,25 91,25 100,25" />
+          <MoneyCard label="Amb. payouts" value={formatCurrency(stats.payouts)} sub={stats.payoutsPhp != null ? `${formatPeso(stats.payoutsPhp)}/mo · money out` : "money out"} stroke="var(--gray-spark-stroke)" fill="var(--gray-spark-fill)" num={num} cardSub={cardSub} Spark={Spark} path="M0,25 L13,25 L26,24 L39,25 L52,25 L65,24 L78,25 L91,25 L100,25 L100,34 L0,34 Z" pts="0,25 13,25 26,24 39,25 52,25 65,24 78,25 91,25 100,25" />
           <div onClick={() => router.push("/admin/rentals")} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "17px 18px 14px", boxShadow: "var(--card-shadow)", cursor: "pointer" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ font: `700 11px ${F_SANS}`, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--muted)" }}>Active rentals</span>
