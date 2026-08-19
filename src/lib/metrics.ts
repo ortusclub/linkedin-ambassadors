@@ -1,6 +1,29 @@
 import { prisma } from "@/lib/prisma";
-import { isCompanyEmail } from "@/lib/company";
 import { phpToUsd } from "@/lib/utils";
+
+// Money ACTUALLY paid out (in ₱) within [start, end): the ambassador payment log
+// (monthlyPayouts jsonb — every disbursement with its amount + kind: setup ₱1,000 /
+// monthly ₱500) plus referral/marketer payouts (payouts table: commission, day-rate…).
+// Real cash out — only people actually paid — not a run-rate over every onboarded
+// ambassador. Both sources are dated records, so it's exact for any month. NB: the app's
+// `paidAt` flag mirrors the same setup payment that's already in monthlyPayouts, so it's
+// deliberately NOT added here (would double-count the setup fee).
+export async function computeMonthlyPayoutsPhp(start: Date, end: Date): Promise<number> {
+  const [apps, refAgg] = await Promise.all([
+    prisma.ambassadorApplication.findMany({ where: { monthlyPayouts: { not: null } }, select: { monthlyPayouts: true } }),
+    prisma.payout.aggregate({ _sum: { amount: true }, where: { paidAt: { gte: start, lt: end } } }),
+  ]);
+  let php = 0;
+  for (const a of apps) {
+    if (!Array.isArray(a.monthlyPayouts)) continue;
+    for (const p of a.monthlyPayouts as Array<{ paidAt?: string; amount?: number }>) {
+      const at = p?.paidAt ? new Date(p.paidAt) : null;
+      if (at && at >= start && at < end) php += Number(p.amount || 0);
+    }
+  }
+  php += Number(refAgg._sum.amount || 0); // referral + marketer payouts
+  return php;
+}
 
 // The headline run-rate metrics, the same way the dashboard shows them. Kept here so the
 // daily snapshot (/api/cron/snapshot-metrics) and the live dashboard compute them
@@ -16,16 +39,13 @@ export type CoreMetrics = {
 function isRealAccount(a: { notes: string | null; linkedinName: string }) {
   return !(a.notes || "").includes("[SHOWCASE]") && !a.linkedinName.toUpperCase().includes("(TEST)");
 }
-// Ownership = the "Owner:" (payee) email in notes; a company domain there = company-owned.
-const ownerEmailOf = (notes: string | null) =>
-  (notes || "").match(/Owner:\s*(\S+@\S+)/i)?.[1]?.replace(/[.\s]+$/, "") || null;
 
 // Live (non-test) figures — what "Live" mode on the dashboard shows.
 export async function computeCoreMetrics(): Promise<CoreMetrics> {
   const [inventoryAccounts, totalCustomers, activeRentalsList] = await Promise.all([
     prisma.linkedInAccount.findMany({
       where: { status: { notIn: ["removed", "retired"] } },
-      select: { status: true, notes: true, linkedinName: true, restrictedAt: true, ambassadorPayment: true },
+      select: { status: true, notes: true, linkedinName: true, restrictedAt: true },
     }),
     prisma.user.count({ where: { role: "customer", status: "active", isTest: false, rentals: { some: {} } } }),
     prisma.rental.findMany({
@@ -43,14 +63,13 @@ export async function computeCoreMetrics(): Promise<CoreMetrics> {
   const activeRentals = activeRentalsList.length;
   const rentedAccounts = activeRentals;
   const mrr = activeRentalsList.reduce((s, r) => s + Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice ?? 0), 0);
-  // Money out: every external ambassador is paid ₱500/mo for as long as their account is
-  // live (rented or not), so sum across ALL onboarded ambassador accounts. Stored in PHP →
+  // Money out = what we ACTUALLY paid out this calendar month (ambassador setup + monthly +
+  // referral/marketer fees), not a run-rate over all onboarded ambassadors. Stored in PHP →
   // convert to USD to net against the USD mrr.
-  const payoutsPhp = realAccounts.reduce((s, a) => {
-    const email = ownerEmailOf(a.notes);
-    const isExternalAmbassador = email ? !isCompanyEmail(email) : false;
-    return s + (isExternalAmbassador ? Number(a.ambassadorPayment ?? 0) : 0);
-  }, 0);
+  const now = new Date();
+  const mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const mEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const payoutsPhp = await computeMonthlyPayoutsPhp(mStart, mEnd);
   const payouts = phpToUsd(payoutsPhp);
   const netProfit = mrr - payouts;
   const utilization = totalAccounts > 0 ? Math.round((rentedAccounts / totalAccounts) * 100) : 0;
