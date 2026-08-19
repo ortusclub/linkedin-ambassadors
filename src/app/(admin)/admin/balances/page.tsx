@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatPeso } from "@/lib/utils";
 
 interface Ambassador {
   id: string | null;
@@ -47,7 +48,7 @@ export default function AdminPayoutsPage() {
         </div>
         <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-2 flex-shrink-0">
           <span className="text-sm text-green-700">Owed / month: </span>
-          <span className="text-lg font-bold text-green-800">${totalOwed.toFixed(2)}</span>
+          <span className="text-lg font-bold text-green-800">{formatPeso(totalOwed)}</span>
         </div>
       </div>
 
@@ -92,7 +93,7 @@ export default function AdminPayoutsPage() {
                     <div className="text-xs text-gray-500">{a.email}</div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{a.accountCount}</td>
-                  <td className="px-4 py-3 font-semibold text-sm text-gray-900">{a.owedMonthly > 0 ? `$${a.owedMonthly.toFixed(2)}` : <span className="font-normal text-gray-400">TBC</span>}</td>
+                  <td className="px-4 py-3 font-semibold text-sm text-gray-900">{a.owedMonthly > 0 ? formatPeso(a.owedMonthly) : <span className="font-normal text-gray-400">TBC</span>}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{a.paymentMethod || <span className="text-gray-400">Not set</span>}</td>
                 </tr>
               ))}

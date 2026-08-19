@@ -11,6 +11,17 @@ export function cn(...inputs: ClassValue[]) {
 // renewal path (cron, webhook, exports, MRR) bills the add-on automatically.
 export const SALES_NAV_MONTHLY = 70;
 
+// Ambassador payouts are paid in Philippine pesos (₱500/mo, ₱1,000 setup) while rental
+// revenue and everything else in the dashboard is USD. To combine them in a single USD
+// figure (e.g. net profit) we convert PHP→USD at this rate. Update if the rate drifts.
+export const PHP_PER_USD = 58;
+export const phpToUsd = (php: number) => php / PHP_PER_USD;
+
+// Ambassador payouts shown in their native pesos (₱1,234 — no cents; they're whole ₱).
+export function formatPeso(amount: number): string {
+  return `₱${Math.round(amount).toLocaleString("en-US")}`;
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

@@ -327,14 +327,41 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   const subscriptionId = getSubscriptionIdFromInvoice(invoice);
   if (!subscriptionId) return;
 
-  // Skip the first invoice (handled by checkout.session.completed)
-  if (invoice.billing_reason === "subscription_create") return;
-
   const rental = await prisma.rental.findFirst({
     where: { stripeSubscriptionId: subscriptionId },
     include: { user: true, linkedinAccount: true },
   });
   if (!rental) return;
+
+  // Record the collected payment on /admin/transactions. Stripe fires this event for EVERY
+  // subscription charge — the first invoice AND every monthly renewal — so subscription
+  // revenue is now captured automatically instead of being logged by hand. Idempotent on the
+  // Stripe invoice id: a re-delivered webhook can never double-log. Positive amount = external
+  // revenue collected on the card rail (the transactions page counts amount > 0 as revenue;
+  // wallet-funded renewals stay negative). NOTE: one subscription can cover multiple accounts —
+  // this attributes the whole invoice to the first matching rental; split per-account if that
+  // multi-account case ever appears in practice.
+  const amountPaid = (invoice.amount_paid ?? 0) / 100;
+  if (amountPaid > 0) {
+    const already = await prisma.transaction.findFirst({
+      where: { description: `stripe_sub_payment:${invoice.id}` },
+    });
+    if (!already) {
+      await prisma.transaction.create({
+        data: {
+          userId: rental.userId,
+          type: "rental_payment",
+          amount: amountPaid,
+          rentalId: rental.id,
+          description: `stripe_sub_payment:${invoice.id}`,
+        },
+      });
+    }
+  }
+
+  // First invoice: checkout.session.completed / auto-renew setup already set the initial period
+  // — don't extend it again (the payment above is still recorded).
+  if (invoice.billing_reason === "subscription_create") return;
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
