@@ -75,7 +75,10 @@ const resolveStatus = (o: Owner): string => {
 const ownerSetupInfo = (o: Owner) => {
   const setupEntryCount = o.monthlyPayouts.filter((p) => p.kind === "setup").length;
   const setupsPaidCount = setupEntryCount + (o.setupFeePaidAt && setupEntryCount === 0 ? 1 : 0);
-  const setupsOwed = Math.max(o.accounts.length, 1);
+  // Setup fee is one-time per ambassador (per application), NOT per account — a
+  // multi-account POC still owes a single ₱1,000 auto setup; any extra per-account
+  // setups are logged manually (they then show as their own paid rows).
+  const setupsOwed = 1;
   return { setupsPaidCount, setupsOwed, setupsRemaining: Math.max(0, setupsOwed - setupsPaidCount) };
 };
 
