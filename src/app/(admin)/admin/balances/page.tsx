@@ -64,7 +64,8 @@ interface Owner {
   onboardedAt: string | null; accountFreshness: string | null; accounts: OwnerAccount[];
 }
 interface MarketerDue { name: string; count: number; amount: number; }
-interface PaymentsDue { marketers: MarketerDue[] }
+interface MarketerPayment { name: string; amount: number; paidAt: string }
+interface PaymentsDue { marketers: MarketerDue[]; marketerPayments: MarketerPayment[] }
 
 const hasLive = (o: Owner) => o.accounts.some((a) => a.status === "available" || a.status === "rented");
 const resolveStatus = (o: Owner): string => {
@@ -108,6 +109,7 @@ const labelHead: React.CSSProperties = { font: `700 9.5px ${F_SANS}`, letterSpac
 export default function AdminPayoutsPage() {
   const [owners, setOwners] = useState<Owner[]>([]);
   const [marketers, setMarketers] = useState<MarketerDue[]>([]);
+  const [marketerPayments, setMarketerPayments] = useState<MarketerPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [stateFilter, setStateFilter] = useState<"all" | StateKey>("all");
@@ -122,6 +124,7 @@ export default function AdminPayoutsPage() {
     ]).then(([o, d]: [{ owners: Owner[] }, PaymentsDue]) => {
       setOwners(o.owners || []);
       setMarketers(d?.marketers || []);
+      setMarketerPayments(d?.marketerPayments || []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -175,14 +178,18 @@ export default function AdminPayoutsPage() {
         }
       }
     }
-    // Referral commissions ready to pay (current cycle only).
+    // Referral commissions PAID in this cycle → ✓ Paid rows (see who's been paid, per cycle).
+    marketerPayments.forEach((p, i) => {
+      if (sameMonth(p.paidAt)) out.push({ key: `refp:${p.name}:${i}`, name: p.name, email: "referral · paid", accounts: "—", fee: "referral", owedNum: p.amount, method: "Referral", methodDetail: "", lastPaid: fmtDate(p.paidAt), lastPaidAgo: agoLabel(p.paidAt), state: "paid", dueISO: p.paidAt });
+    });
+    // Referral commissions still owed (net of what's been paid) — surfaced in the current cycle.
     if (isCurrentCycle) {
       for (const m of marketers) {
         out.push({ key: `ref:${m.name}`, name: m.name, email: `${m.count} signup${m.count !== 1 ? "s" : ""} · referral`, accounts: "—", fee: "referral", owedNum: m.amount, method: "Referral", methodDetail: "", lastPaid: "—", lastPaidAgo: "ready", state: "unpaid", dueISO: null });
       }
     }
     return out;
-  }, [owners, marketers, CY, CM, isCurrentCycle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [owners, marketers, marketerPayments, CY, CM, isCurrentCycle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Summary + chip counts are over the whole cycle (before search/chip filters).
   const totalOwed = rows.reduce((s, r) => s + r.owedNum, 0);
