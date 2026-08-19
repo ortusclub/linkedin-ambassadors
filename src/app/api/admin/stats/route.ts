@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { isCompanyEmail } from "@/lib/company";
 import { phpToUsd } from "@/lib/utils";
+import { computeMonthlyPayoutsPhp } from "@/lib/metrics";
 
 // A real (sellable) inventory account: not a showcase/dummy, not a leftover test account.
 function isRealAccount(a: { notes: string | null; linkedinName: string }) {
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       // Real inventory — exclude removed/retired; showcase + test filtered in JS.
       prisma.linkedInAccount.findMany({
         where: { status: { notIn: ["removed", "retired"] } },
-        select: { status: true, notes: true, linkedinName: true, restrictedAt: true, ambassadorPayment: true },
+        select: { status: true, notes: true, linkedinName: true, restrictedAt: true },
       }),
       // Customers who have actually rented (a signup with zero rentals isn't a customer yet).
       prisma.user.count({ where: { role: "customer", status: "active", ...liveUser, rentals: { some: {} } } }),
@@ -81,20 +81,13 @@ export async function GET(req: NextRequest) {
     const activeRentals = activeRentalsList.length;
     const rentedAccounts = activeRentals; // a test-held account doesn't inflate this
     const mrr = activeRentalsList.reduce((s, r) => s + Number(r.lockedPrice ?? r.linkedinAccount.monthlyPrice ?? 0), 0);
-    // Ambassador payouts (money out): we pay every EXTERNAL ambassador ₱500/mo for as long
-    // as their account is live — whether or not it's currently rented — so this is summed
-    // across ALL onboarded ambassador accounts, not just active rentals. Company/Ortus-owned
-    // accounts don't get paid. Ownership = the "Owner:" (payee) email in notes; a company
-    // domain there = company-owned. ambassadorPayment is stored in PHP, so convert to USD to
-    // combine with the USD-denominated mrr into a meaningful net profit.
-    const ownerEmailOf = (notes: string | null) =>
-      (notes || "").match(/Owner:\s*(\S+@\S+)/i)?.[1]?.replace(/[.\s]+$/, "") || null;
-    const payoutsPhp = realAccounts.reduce((s, a) => {
-      const email = ownerEmailOf(a.notes);
-      const isExternalAmbassador = email ? !isCompanyEmail(email) : false;
-      return s + (isExternalAmbassador ? Number(a.ambassadorPayment ?? 0) : 0);
-    }, 0);
-    const payouts = phpToUsd(payoutsPhp); // USD-equivalent for the profit maths
+    // Payouts (money out) = what we ACTUALLY paid out in the selected month — ambassador
+    // setup fees + logged monthly payouts + referral/marketer fees. Real cash out (only
+    // people actually paid), not a run-rate over every onboarded ambassador. Computed from
+    // dated records so it's exact for any month. Stored in PHP → convert to USD to net
+    // against the USD mrr.
+    const payoutsPhp = await computeMonthlyPayoutsPhp(mStart, mEnd);
+    const payouts = phpToUsd(payoutsPhp);
     const netProfit = mrr - payouts;
     const utilization = totalAccounts > 0 ? Math.round((rentedAccounts / totalAccounts) * 100) : 0;
 
@@ -139,6 +132,10 @@ export async function GET(req: NextRequest) {
         hasMonthData = false;
       }
     }
+    // Payouts + netProfit always come from live, per-month ACTUAL payment records (dated and
+    // immutable), not the snapshot — old snapshots stored a different, run-rate payouts value.
+    disp.payouts = payouts;
+    disp.netProfit = disp.mrr - payouts;
 
     // trend = % change vs the baseline snapshot. undefined => no prior snapshot yet (no chip);
     // null => baseline was 0 but there's a value now ("new").
@@ -172,7 +169,7 @@ export async function GET(req: NextRequest) {
       stats: {
         // money (live for the current month, snapshot for a past month)
         netProfit: disp.netProfit, mrr: disp.mrr, payouts: disp.payouts, activeRentals: disp.activeRentals,
-        payoutsPhp: isCurrentMonth ? payoutsPhp : null, // native ₱ figure (current month only)
+        payoutsPhp, // native ₱ figure of actual payouts in the selected month
         collected, collectedCount,
         // demand
         totalCustomers: disp.totalCustomers, newCustomers30d, renewalsDue30d, atRisk,
