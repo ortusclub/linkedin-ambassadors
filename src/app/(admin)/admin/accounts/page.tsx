@@ -166,7 +166,12 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 // collapses them into ONE label, shown identically in the inventory, the CSV
 // export, and the filter chips. DB values are left untouched (billing reads
 // them) — this is display-only.
-const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean }): string => {
+// "Construction" vs "Maintenance" both live in the catch-all bucket below, split by
+// size: newer accounts still being warmed up (< CONSTRUCTION_MAX connections) read as
+// Construction; stable accounts that were paused / had something happen read as
+// Maintenance. Display-only, derived from connectionCount — the DB enum is untouched.
+const CONSTRUCTION_MAX = 100;
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null }): string => {
   if (a.status === "rented") return "Rented";
   // A restricted account keeps its real lifecycle group (e.g. Maintenance) and just
   // shows a "Restricted" badge on the row — so it can be visibly both at once. The one
@@ -178,14 +183,16 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   if (a.status === "trial") return "Trial";
   if (a.status === "retired") return "Inaccessible";
   if (a.status === "removed") return "Removed";
-  return "Maintenance"; // under_review / maintenance / unavailable / anything else
+  // under_review / maintenance / unavailable / anything else → split by size
+  return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Construction" : "Maintenance";
 };
 const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
   { key: "Restricted", hint: "LinkedIn-restricted — access paused while it recovers", dot: "var(--st-unreach-fg)" },
-  { key: "Maintenance", hint: "temporarily off — being set up, vetted, or paused", dot: "var(--neutral-chip-text)" },
+  { key: "Construction", hint: `newer account still warming up — under ${CONSTRUCTION_MAX} connections`, dot: "var(--st-construct-fg)" },
+  { key: "Maintenance", hint: "stable account temporarily off — paused, vetting, or 2FA/setup", dot: "var(--neutral-chip-text)" },
   { key: "Inaccessible", hint: "retired — can no longer be used", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
   { key: "Showcase", hint: "public-catalogue demo accounts — not real inventory", dot: "var(--warn-badge-text)" },
@@ -196,6 +203,7 @@ const statusChip = (disp: string): React.CSSProperties => {
     Trial: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
     Rented: ["var(--blue-chip-bg)", "var(--blue-chip-text)"],
     Restricted: ["var(--st-unreach-bg)", "var(--st-unreach-fg)"],
+    Construction: ["var(--st-construct-bg)", "var(--st-construct-fg)"],
     Maintenance: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"],
     Inaccessible: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
     Removed: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
@@ -501,6 +509,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       Trial: c("Trial"),
       Rented: c("Rented"),
       Restricted: c("Restricted"),
+      Construction: c("Construction"),
       Maintenance: c("Maintenance"),
       Inaccessible: c("Inaccessible"),
       Removed: c("Removed"),
@@ -552,7 +561,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Inaccessible", "Inaccessible", counts.Inaccessible, "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Inaccessible", "Inaccessible", counts.Inaccessible, "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
