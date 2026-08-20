@@ -508,7 +508,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       Available: c("Available"),
       Trial: c("Trial"),
       Rented: c("Rented"),
-      Restricted: c("Restricted"),
+      // Restricted is orthogonal to the lifecycle group — a restricted account can
+      // sit in Construction/Maintenance and still needs to be findable here, so count
+      // EVERY account with restrictedAt set, not just the ones canonicalStatus pulls
+      // out into the "Restricted" group.
+      Restricted: real.filter((a) => a.restrictedAt).length,
       Construction: c("Construction"),
       Maintenance: c("Maintenance"),
       Inaccessible: c("Inaccessible"),
@@ -525,7 +529,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const base = accounts.filter((a) => {
-      if (filter !== "all" && groupKey(a) !== filter) return false;
+      // "Restricted" filters orthogonally by the restrictedAt flag so it catches
+      // restricted accounts in ANY group (incl. Construction / Maintenance). Every
+      // other chip filters by the mutually-exclusive lifecycle group.
+      if (filter === "Restricted") { if (!a.restrictedAt || isDummy(a)) return false; }
+      else if (filter !== "all" && groupKey(a) !== filter) return false;
       if (verifiedFilter === "yes" && !a.linkedinVerified) return false;
       if (verifiedFilter === "no" && a.linkedinVerified) return false;
       if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
