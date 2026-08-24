@@ -29,6 +29,10 @@ const updateSchema = z.object({
   ambassadorPayment: z.number().optional(),
   notes: z.string().nullable().optional(),
   status: z.enum(["under_review", "available", "rented", "unavailable", "maintenance", "retired", "removed"]).optional(),
+  // Per-account restriction flag (LinkedIn restricted this profile). Pass an ISO
+  // string to mark it, or null to clear. Held accounts are excluded from the
+  // owner's setup/monthly payouts on the Account Owners view.
+  restrictedAt: z.string().nullable().optional(),
   twoFactorResetNeeded: z.boolean().optional(),
   paymentLinkedAccountId: z.string().uuid().nullable().optional(),
   gologinProfileId: z.string().nullable().optional(),
@@ -107,6 +111,11 @@ export async function PATCH(
     // A manual health mark stamps the check date server-side.
     if (data.linkedinAccountHealth !== undefined) {
       (data as Record<string, unknown>).healthCheckedAt = new Date();
+    }
+
+    // restrictedAt comes in as an ISO string (or null) — coerce to a Date column.
+    if (data.restrictedAt !== undefined) {
+      (data as Record<string, unknown>).restrictedAt = data.restrictedAt ? new Date(data.restrictedAt) : null;
     }
 
     // Re-host any newly-set external profile photo (e.g. a licdn URL) onto Blob

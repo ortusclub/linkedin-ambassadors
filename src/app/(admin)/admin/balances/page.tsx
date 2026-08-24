@@ -54,7 +54,7 @@ const firstMonthlyDue = (onboardedAt: string | null): Date | null => {
   return new Date(anchor.getFullYear(), firstMonth, 1);
 };
 
-interface OwnerAccount { status: string; ambassadorPayment: string | number; }
+interface OwnerAccount { status: string; ambassadorPayment: string | number; restrictedAt?: string | null; }
 interface MonthlyPayout { paidAt: string; amount: number; kind?: "setup" | "monthly" | null; }
 interface Owner {
   email: string; fullName: string; accountCount: number; monthlyPayout: number;
@@ -68,6 +68,10 @@ interface MarketerPayment { name: string; amount: number; paidAt: string }
 interface PaymentsDue { marketers: MarketerDue[]; marketerPayments: MarketerPayment[] }
 
 const hasLive = (o: Owner) => o.accounts.some((a) => a.status === "available" || a.status === "rented");
+// A restricted account is on hold — not paid until it recovers. Monthly owed counts
+// only the live (non-held) accounts; an owner with every account held owes nothing.
+const isRestricted = (a: { restrictedAt?: string | null }) => !!a.restrictedAt;
+const payableMonthly = (o: Owner) => o.accounts.reduce((s, a) => s + (isRestricted(a) ? 0 : Number(a.ambassadorPayment || 0)), 0);
 const resolveStatus = (o: Owner): string => {
   const manual = o.ownerStatus && ["active", "waiting_us", "waiting_them", "paused", "lost"].includes(o.ownerStatus);
   if (manual) return o.ownerStatus as string;
@@ -147,7 +151,10 @@ export default function AdminPayoutsPage() {
       const monthlyEntries = o.monthlyPayouts.filter((p) => p.kind !== "setup");
       const lastPay = o.monthlyPayouts.reduce<MonthlyPayout | null>((a, p) => (!a || new Date(p.paidAt) > new Date(a.paidAt) ? p : a), null);
       const missing = !o.paymentMethod || !o.paymentDetails;
-      const blocked = !!o.accountIssue;
+      const restrictedCount = o.accounts.filter(isRestricted).length;
+      const allHeld = o.accounts.length > 0 && restrictedCount === o.accounts.length;
+      const monthlyOwed = payableMonthly(o);
+      const blocked = !!o.accountIssue || allHeld;
       const base = {
         name: o.fullName, email: o.email, accounts: o.accountCount,
         method: o.paymentMethod || "—", methodDetail: o.paymentDetails || "",
@@ -155,9 +162,9 @@ export default function AdminPayoutsPage() {
       };
       // Monthly obligation for this cycle (once they're past their first due month).
       const fd = firstMonthlyDue(o.onboardedAt);
-      if (o.monthlyPayout > 0 && fd && new Date(CY, CM, 1) >= fd) {
+      if (monthlyOwed > 0 && fd && new Date(CY, CM, 1) >= fd) {
         const paidThis = monthlyEntries.some((p) => sameMonth(p.paidAt));
-        out.push({ ...base, key: `${o.email}:m`, fee: "monthly", owedNum: o.monthlyPayout, dueISO: new Date(CY, CM, 1).toISOString(), state: blocked || missing ? "hold" : paidThis ? "paid" : "unpaid" });
+        out.push({ ...base, key: `${o.email}:m`, fee: "monthly", owedNum: monthlyOwed, dueISO: new Date(CY, CM, 1).toISOString(), state: blocked || missing ? "hold" : paidThis ? "paid" : "unpaid" });
       }
       // Setup fee(s): one-time per account. Each shows in exactly ONE cycle — the month it
       // was PAID (✓ Paid, so you can see who's already been settled), or, while still unpaid,

@@ -78,7 +78,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   // Live inventory → which onboarded owners actually have an account, and their ₱/mo.
   const accounts = await prisma.linkedInAccount.findMany({
     where: { status: { notIn: ["removed", "retired", "under_review"] } },
-    select: { linkedinUrl: true, ambassadorPayment: true, notes: true },
+    select: { linkedinUrl: true, ambassadorPayment: true, notes: true, restrictedAt: true },
   });
   const urlToEmail = new Map<string, string>();
   for (const a of apps) {
@@ -86,11 +86,18 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   }
   const monthlyByEmail = new Map<string, number>();
   const hasAccount = new Set<string>();
+  // Restricted (on-hold) accounts don't get paid — track held vs total per owner so a
+  // fully-held owner drops out of "due" entirely and a partly-held owner's monthly
+  // sum only counts their live accounts. Mirrors the Account Owners view.
+  const totalByEmail = new Map<string, number>();
+  const heldByEmail = new Map<string, number>();
   for (const acc of accounts) {
     let email = (acc.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || "";
     if (!email && acc.linkedinUrl) email = urlToEmail.get(acc.linkedinUrl) || urlToEmail.get(acc.linkedinUrl.replace(/\/$/, "")) || "";
     if (!email) continue;
     hasAccount.add(email);
+    totalByEmail.set(email, (totalByEmail.get(email) || 0) + 1);
+    if (acc.restrictedAt) { heldByEmail.set(email, (heldByEmail.get(email) || 0) + 1); continue; }
     monthlyByEmail.set(email, (monthlyByEmail.get(email) || 0) + Number(acc.ambassadorPayment || 0));
   }
 
@@ -100,6 +107,9 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
 
   for (const a of apps) {
     if (!hasAccount.has(a.email)) continue; // real owners only (matches Owners page)
+    // Every account this owner supplies is restricted → nothing owed while on hold.
+    const total = totalByEmail.get(a.email) || 0;
+    if (total > 0 && (heldByEmail.get(a.email) || 0) >= total) continue;
     const monthlyAmount = monthlyByEmail.get(a.email) || MARKETER_RATE;
     const base = { name: a.fullName || a.email, email: a.email, method: a.paymentMethod, details: a.paymentDetails, blocked: a.accountIssue || null };
 
