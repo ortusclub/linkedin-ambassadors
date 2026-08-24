@@ -41,6 +41,8 @@ const updateSchema = z.object({
     kind: z.enum(["setup", "monthly"]).optional(),
     method: z.string().nullable().optional(),
     proofUrl: z.string().nullable().optional(),
+    // Which account this payout was for (setup fees are one-off per account).
+    accountId: z.string().optional(),
   }).optional(),
   removeMonthlyPayout: z.number().int().optional(),
   // Patch one existing receipt by index: attach proof, or flip notified / acknowledged.
@@ -114,6 +116,7 @@ export async function PATCH(
             method: addMonthlyPayout.method?.trim() || null,
             proofUrl: addMonthlyPayout.proofUrl?.trim() || null,
             note: addMonthlyPayout.note?.trim() || null,
+            accountId: addMonthlyPayout.accountId || null,
             by: admin.fullName || admin.email,
             notified: false,
             notifiedAt: null,
