@@ -16,6 +16,7 @@ export interface OwnerAccount {
   accountPassword: string | null;
   twoFactor: string | null;
   workEmail: string | null;
+  restrictedAt: Date | string | null;
 }
 
 export interface MonthlyPayout {
@@ -61,12 +62,14 @@ const ACCOUNT_SELECT = {
   accountPassword: true,
   twoFactor: true,
   workEmail: true,
+  restrictedAt: true,
 } as const;
 
 function toAccount(a: {
   id: string; linkedinName: string; status: string; linkedinUrl: string | null;
   monthlyPrice: unknown; ambassadorPayment: unknown;
   loginEmail: string | null; accountPassword: string | null; twoFactor: string | null; workEmail: string | null;
+  restrictedAt: Date | null;
 }): OwnerAccount {
   return {
     id: a.id,
@@ -79,6 +82,7 @@ function toAccount(a: {
     accountPassword: a.accountPassword,
     twoFactor: a.twoFactor,
     workEmail: a.workEmail,
+    restrictedAt: a.restrictedAt,
   };
 }
 
