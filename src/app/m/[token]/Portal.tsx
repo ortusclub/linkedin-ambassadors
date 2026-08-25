@@ -48,6 +48,19 @@ const TIPS = [
   "They can test it with just one account first to see how it works.",
 ];
 
+const GOOD_ACCOUNT = [
+  "A fresh account is fine. What matters is that it looks like a real person's.",
+  "Connections matter. Aim for 50–100, and the more the better. Accounts with very few connections are the most likely to get restricted.",
+  "Verified is best, and a passport is the only way to verify. Verifying makes it far less likely to get restricted early on.",
+  "If it's fresh, connect with people you actually know who'll accept, and use it (like, comment) so it looks real.",
+];
+const WARMUP: { t: string; items: string[] }[] = [
+  { t: "Complete your profile (the most important one)", items: ["Clear profile photo (a normal headshot)", "Headline, About section and location", "School / education and any work experience (even part-time or internships)", "A few skills"] },
+  { t: "Connect with real people you know", items: ["Classmates, former coworkers, friends, people in your field", "Aim for at least 30–50 connections, around five a day, and don't over-add", "Only add people likely to accept, real connections, not random strangers"] },
+  { t: "Be active a little each day", items: ["Like a few posts", "Leave one or two genuine comments", "Follow a few companies or pages you're interested in", "Spread it across several days, don't do it all at once"] },
+  { t: "Just use it normally for a week", items: [] },
+];
+
 const MARKETER_FAQ = [
   { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up onboarded onto our inventory. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday." },
   { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your ₱500 is triggered." },
@@ -351,6 +364,45 @@ export default function Portal({ token }: { token: string }) {
                 <div style={{ font: `700 11px ${JAK}`, color: "#dc2626", marginBottom: 9 }}>DON&apos;T</div>
                 {DONTS.map((d, i) => <div key={i} style={{ font: `500 12px/1.4 ${JAK}`, color: "#8a4a4a", marginBottom: 7 }}>{d}</div>)}
               </div>
+            </div>
+          </div>
+
+          {/* what makes a good linkedin account + warm-up */}
+          <div style={card}>
+            <div style={{ ...secLbl, marginBottom: 4 }}>What makes a good LinkedIn account</div>
+            <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Share this with anyone you sign up, or use it yourself if you&apos;re listing your own account.</p>
+            {GOOD_ACCOUNT.map((g, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
+                <span style={{ color: C.green, font: `700 13px ${JAK}`, flex: "none", lineHeight: 1.45 }}>✓</span>
+                <span style={{ font: `500 13px/1.45 ${JAK}`, color: C.slate }}>{g}</span>
+              </div>
+            ))}
+
+            <div style={{ ...sub, margin: "16px 0 4px" }}>Warm it up first</div>
+            <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.muted, margin: "0 0 14px" }}>Spend a little time making the account look complete and active. This protects it from getting locked later. Do it on your own phone or laptop, the normal way you&apos;d use LinkedIn.</p>
+            {WARMUP.map((w, i) => (
+              <div key={i} style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: w.items.length ? 8 : 0 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11px ${GRO}`, background: C.green, color: "#fff" }}>{i + 1}</span>
+                  <span style={{ font: `700 13px/1.35 ${JAK}`, color: C.ink }}>{w.t}</span>
+                </div>
+                {w.items.map((it, j) => (
+                  <div key={j} style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "0 0 6px 33px" }}>
+                    <span style={{ color: C.muted2, flex: "none", lineHeight: 1.45 }}>•</span>
+                    <span style={{ font: `500 12.5px/1.45 ${JAK}`, color: C.slate }}>{it}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 12, padding: "12px 14px", marginTop: 4 }}>
+              <div style={{ font: `700 12.5px ${JAK}`, color: C.greenDk, marginBottom: 5 }}>The goal</div>
+              <div style={{ font: `500 12.5px/1.5 ${JAK}`, color: "#3f5c4a" }}>It should look like a real person has been quietly using LinkedIn, because you have. That history is what keeps it safe. Please avoid mass-adding strangers, posting spammy links, or any automation. Slow and natural means safe.</div>
+            </div>
+
+            <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "12px 14px", marginTop: 10 }}>
+              <div style={{ font: `700 12.5px ${JAK}`, color: C.warn, marginBottom: 5 }}>Expect some restrictions early on</div>
+              <div style={{ font: `500 12.5px/1.5 ${JAK}`, color: "#7c4a26" }}>Restrictions are common. LinkedIn flags unusual activity, so there may be restrictions early on during the transfer or while the account is warming up. That&apos;s normal, and the steps above are exactly what makes it less likely and easier to recover from.</div>
             </div>
           </div>
 
