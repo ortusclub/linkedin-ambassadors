@@ -49,8 +49,8 @@ const TIPS = [
 ];
 
 const MARKETER_FAQ = [
-  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up onboarded onto our inventory. Commissions release about 3 days after a sign-up is onboarded and are paid the following Monday." },
-  { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding. That's when your ₱500 is triggered." },
+  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up onboarded onto our inventory. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday." },
+  { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your ₱500 is triggered." },
   { q: "What if someone doesn't qualify?", a: "Just thank them and move on — they only need to be 18 or older." },
   { q: "How do I update my payout details?", a: "Right here — scroll down to \"Your payout details\" and save your GCash / bank info so we can pay you." },
   { q: "How do I get invited back?", a: "We track sign-ups per person — strong performers get first pick for the next field days." },
@@ -221,7 +221,7 @@ export default function Portal({ token }: { token: string }) {
           {/* how you get paid */}
           <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 16, padding: "17px 18px", marginBottom: 18 }}>
             <div style={{ font: `700 13.5px ${JAK}`, color: C.greenDk, marginBottom: 8 }}>How &amp; when you get paid</div>
-            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{peso(stats.rate)}</b> for every signup onboarded onto our inventory. It releases <b>~3 days after</b> onboarding and pays out the <b>following Monday</b>.</p>
+            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{peso(stats.rate)}</b> for every signup onboarded onto our inventory. It releases <b>~3 days after</b> onboarding (about <b>a week</b> for a brand-new account) and pays out the <b>following Monday</b>.</p>
             <p style={{ font: `500 11.5px/1.5 ${JAK}`, color: "#6b8a77", margin: 0 }}>The figure above is an estimate — the exact payable amount is confirmed at payout.</p>
           </div>
 
