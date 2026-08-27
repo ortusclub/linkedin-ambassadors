@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { formatNumber } from "@/lib/utils";
 
 // LinkedIn 2FA for an account: shows the secret KEY plus the live TOTP code.
 // The server computes the current code (so clock skew can't break it) and, on
@@ -734,7 +733,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>
                               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline || "—"}</span>
                               {a.location && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }}>{a.location}</span></>}
-                              {a.connectionCount > 0 && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }}>{formatNumber(a.connectionCount)}</span></>}
+                              {a.connectionCount > 0 && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }} title="Connections">{a.connectionCount.toLocaleString()}</span></>}
                               {a.accountAgeMonths != null && <><span style={{ color: "var(--muted2)" }}>·</span><span style={{ whiteSpace: "nowrap" }} title="Account age">⏳ {a.accountAgeMonths >= 12 ? `${Math.floor(a.accountAgeMonths / 12)}y${a.accountAgeMonths % 12 ? ` ${a.accountAgeMonths % 12}m` : ""}` : `${a.accountAgeMonths}m`}</span></>}
                             </div>
                             <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
