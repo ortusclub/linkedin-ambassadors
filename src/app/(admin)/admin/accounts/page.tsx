@@ -658,7 +658,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
           // Within Maintenance: surface accounts that need a 2FA rotation first
           // (they're the ones blocking a re-list), restricted ones last (they're
           // not actionable until LinkedIn clears them) — everything else stays put.
-          const rows = g.key !== "Maintenance" ? groupRows : [...groupRows].sort((a, b) => {
+          const rows = (g.key !== "Maintenance" && g.key !== "Construction") ? groupRows : [...groupRows].sort((a, b) => {
             const rank = (x: Account) => (x.twoFactorResetNeeded ? 0 : x.restrictedAt ? 2 : 1);
             return rank(a) - rank(b);
           });
