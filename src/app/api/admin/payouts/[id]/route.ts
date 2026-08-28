@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { sendReferralPayoutEmail } from "@/services/email";
 
 function authError(error: unknown) {
   if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
@@ -49,7 +50,24 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       data.amount = amount;
     }
 
-    const payout = await prisma.payout.update({ where: { id }, data });
+    let payout = await prisma.payout.update({ where: { id }, data, include: { referrer: true } });
+
+    // Auto-notify the referrer once the payout is both marked paid AND carries a receipt
+    // link (their Wise transfer). Fires once; a failed send leaves notifiedAt null to retry.
+    const receipt = (payout.reference || "").trim();
+    const isReceiptLink = /^https?:\/\//i.test(receipt);
+    if (payout.paidAt && isReceiptLink && !payout.notifiedAt && payout.referrer?.email) {
+      try {
+        // Commission payouts are ₱500 per converted signup — show the count when it divides evenly.
+        const amt = Number(payout.amount);
+        const count = payout.type === "commission" && amt % 500 === 0 ? amt / 500 : undefined;
+        await sendReferralPayoutEmail(payout.referrer.email, payout.referrer.name, amt, receipt, count);
+        payout = await prisma.payout.update({ where: { id }, data: { notifiedAt: new Date() }, include: { referrer: true } });
+      } catch (e) {
+        console.error("[payout-notify] referral email failed:", e);
+      }
+    }
+
     return NextResponse.json({ payout: { ...payout, amount: Number(payout.amount) } });
   } catch (error) {
     return authError(error) ?? NextResponse.json({ error: "Internal server error" }, { status: 500 });
