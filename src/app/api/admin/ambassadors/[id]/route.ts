@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
+import { sendSetupFeePaidEmail, sendMonthlyPayoutEmail } from "@/services/email";
 
 const updateSchema = z.object({
   status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
@@ -88,6 +89,10 @@ export async function PATCH(
         { ch: addTouch.ch, text: addTouch.text, by: addTouch.by?.trim() || admin.fullName || admin.email, at: new Date().toISOString() },
       ] as Prisma.InputJsonValue;
     }
+    // When a Wise receipt is attached to a payout, we auto-email the payee and flip
+    // "notified". This captures which entry to notify (set below), so the email is
+    // sent AFTER the DB write succeeds — and "notified" is only set once it actually sends.
+    let notifyEntry: { index: number; kind: string; amount: number; paidAt: string; receiptUrl: string } | null = null;
     if (addMonthlyPayout || removeMonthlyPayout !== undefined || updateMonthlyPayout) {
       let payouts = Array.isArray(currentApp.monthlyPayouts) ? (currentApp.monthlyPayouts as Record<string, unknown>[]) : [];
       if (removeMonthlyPayout !== undefined) {
@@ -104,17 +109,26 @@ export async function PATCH(
           if (acknowledged !== undefined) { next.acknowledged = acknowledged; next.acknowledgedAt = acknowledged ? now : null; }
           return next;
         });
+        // Attaching a receipt (proofUrl) to an entry that hasn't been notified yet, and
+        // without an explicit notified toggle in this same request, triggers the email.
+        const cleanUrl = proofUrl?.trim();
+        const original = payouts[index] as Record<string, unknown> | undefined;
+        if (cleanUrl && notified === undefined && original && !original.notified) {
+          notifyEntry = { index, kind: String(original.kind || "monthly"), amount: Number(original.amount) || 0, paidAt: String(original.paidAt || new Date().toISOString()), receiptUrl: cleanUrl };
+        }
       }
       if (addMonthlyPayout) {
         const payoutKind = addMonthlyPayout.kind || "monthly";
+        const nowIso = new Date().toISOString();
+        const cleanProof = addMonthlyPayout.proofUrl?.trim() || null;
         payouts = [
           ...payouts,
           {
-            paidAt: new Date().toISOString(),
+            paidAt: nowIso,
             amount: addMonthlyPayout.amount,
             kind: payoutKind,
             method: addMonthlyPayout.method?.trim() || null,
-            proofUrl: addMonthlyPayout.proofUrl?.trim() || null,
+            proofUrl: cleanProof,
             note: addMonthlyPayout.note?.trim() || null,
             accountId: addMonthlyPayout.accountId || null,
             by: admin.fullName || admin.email,
@@ -124,6 +138,10 @@ export async function PATCH(
             acknowledgedAt: null,
           },
         ];
+        // Logged with a receipt already attached → notify the payee for this new entry.
+        if (cleanProof) {
+          notifyEntry = { index: payouts.length - 1, kind: payoutKind, amount: Number(addMonthlyPayout.amount) || 0, paidAt: nowIso, receiptUrl: cleanProof };
+        }
         // Paying the setup fee confirms a real conversion, so open the referrer's
         // commission (ok-to-pay) if it isn't already — mirroring the manual
         // verify toggle. The account_issue gate still independently holds
@@ -141,6 +159,26 @@ export async function PATCH(
       where: { id },
       data: updateData,
     });
+
+    // Auto-notify the payee now that the receipt is saved. Only mark "notified" if the
+    // email actually sends — a failed send stays un-notified so it can be retried.
+    if (notifyEntry && application.email) {
+      try {
+        if (notifyEntry.kind === "setup") {
+          await sendSetupFeePaidEmail(application.email, application.fullName, notifyEntry.amount, notifyEntry.receiptUrl, new Date(notifyEntry.paidAt));
+        } else {
+          const monthLabel = new Date(notifyEntry.paidAt).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "Asia/Manila" });
+          await sendMonthlyPayoutEmail(application.email, application.fullName, notifyEntry.amount, notifyEntry.receiptUrl, monthLabel);
+        }
+        const fresh = Array.isArray(application.monthlyPayouts) ? (application.monthlyPayouts as Record<string, unknown>[]) : [];
+        const now = new Date().toISOString();
+        const marked = fresh.map((p, i) => (i === notifyEntry!.index ? { ...p, notified: true, notifiedAt: now } : p));
+        await prisma.ambassadorApplication.update({ where: { id }, data: { monthlyPayouts: marked as Prisma.InputJsonValue } });
+        application.monthlyPayouts = marked as Prisma.JsonValue;
+      } catch (e) {
+        console.error("[payout-notify] owner email failed:", e);
+      }
+    }
 
     // A person becomes an owner the moment they're onboarded — whether that's via
     // the status dropdown OR the "mark onboarded" button (which only sets

@@ -504,6 +504,75 @@ export async function sendAccessRevokedEmail(
   });
 }
 
+// ── Payout notifications ──
+// Fired when a payment is logged WITH a Wise receipt link (setup / monthly / referral).
+// Warm, celebratory tone — matches how the team actually messages people. The caller
+// flips the payment's "notified" flag only once the send succeeds, and every send is
+// captured in email_log like the rest.
+
+// Monthly ₱500 starts the FIRST FULL MONTH after the setup fee is paid, on a 15th
+// cut-off: setup paid 1st–15th → next month; paid 16th–end → the month after.
+// Computed in Manila time so the cut-off matches the team's wall clock.
+export function firstMonthlyPayoutLabel(setupPaidAt: Date): string {
+  const manila = new Date(setupPaidAt.getTime() + 8 * 3600 * 1000);
+  const day = manila.getUTCDate();
+  const start = new Date(Date.UTC(manila.getUTCFullYear(), manila.getUTCMonth() + (day <= 15 ? 1 : 2), 1));
+  return start.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" });
+}
+
+const receiptBlock = (receiptUrl: string) => `
+  <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 6px;">Here's your transfer link:</p>
+  <p style="margin:0 0 16px;word-break:break-all;"><a href="${receiptUrl}" style="color:#0A66C2;font-weight:600;">${receiptUrl}</a></p>
+  <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">You should see a notification from Wise shortly. 😊</p>`;
+
+// Setup fee paid — mirrors the team's real setup-fee email (monthly-start date + referral ask + don't-log-in reminder).
+export async function sendSetupFeePaidEmail(email: string, fullName: string, amount: number, receiptUrl: string, setupPaidAt: Date) {
+  const firstName = (fullName || "").trim().split(" ")[0] || "there";
+  return sendEmail({
+    to: email,
+    subject: "Your setup fee is on its way! 🎉",
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>₱${amount.toLocaleString()} setup fee</strong> via Wise. ✅</p>
+      ${receiptBlock(receiptUrl)}
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your <strong>₱500 monthly payout</strong> will start from your first full month — that's <strong>${firstMonthlyPayoutLabel(setupPaidAt)}</strong>, and then the first of each month after, for as long as the account stays active.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Also — if you know anyone else who'd like to join, please send them our way! You'll earn a <strong>₱500 referral fee</strong> for each one that comes on board. Ideally people who can get their account verified like yours (with a passport for the blue checkmark) — those accounts are much more stable and easier to work with. 🙌</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Thanks so much for partnering with us! And a small reminder — please try not to log into the account yourself so it stays nice and stable on our end. Let us know if you have any questions! 🙏</p>
+    `),
+  });
+}
+
+// Monthly ₱500 payout paid.
+export async function sendMonthlyPayoutEmail(email: string, fullName: string, amount: number, receiptUrl: string, monthLabel: string) {
+  const firstName = (fullName || "").trim().split(" ")[0] || "there";
+  return sendEmail({
+    to: email,
+    subject: `Your ₱${amount.toLocaleString()} monthly payout is on its way! 🎉`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>₱${amount.toLocaleString()} payout for ${monthLabel}</strong> via Wise. ✅</p>
+      ${receiptBlock(receiptUrl)}
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Thanks so much for partnering with us — and the same small reminder, please try not to log into the account yourself so it stays nice and stable on our end. Let us know if you have any questions! 🙏</p>
+    `),
+  });
+}
+
+// Referral fee paid to a marketer/ambassador.
+export async function sendReferralPayoutEmail(email: string, fullName: string, amount: number, receiptUrl: string, count?: number) {
+  const firstName = (fullName || "").trim().split(" ")[0] || "there";
+  const forWhat = count && count > 0 ? `, for the ${count} signup${count === 1 ? "" : "s"} you brought on board` : "";
+  return sendEmail({
+    to: email,
+    subject: "Your referral reward is on its way! 🎉",
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>₱${amount.toLocaleString()} referral fee</strong> via Wise${forWhat}. ✅ 🙌</p>
+      ${receiptBlock(receiptUrl)}
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Keep them coming — you earn ₱500 for every new person who joins through you! Thank you so much. 🙏</p>
+    `),
+  });
+}
+
 // Shared account-table rows for the consolidated (batch) renewal emails.
 type AcctItem = { account: string; date?: string; amount?: string };
 function acctRows(items: AcctItem[]) {

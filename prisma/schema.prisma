@@ -339,6 +339,7 @@ model Referrer {
   channel          String?
   contactMethod    String?  @map("contact_method")
   contactHandle    String?  @map("contact_handle")
+  email            String?
   paymentMethod    String?  @map("payment_method")
   paymentDetails   String?  @map("payment_details")
   assignedDay      String?  @map("assigned_day")
@@ -365,6 +366,7 @@ model Payout {
   reference   String?   // GCash reference no. / receipt
   paidAt      DateTime? @map("paid_at")
   paidBy      String?   @map("paid_by")
+  notifiedAt  DateTime? @map("notified_at") // when the payee was auto-emailed the receipt
   confirmedAt DateTime? @map("confirmed_at")
   confirmedBy String?   @map("confirmed_by") // name the marketer typed when confirming
   note        String?

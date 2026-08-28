@@ -99,6 +99,7 @@ interface Row {
 interface Payout {
   id: string; referrerId: string; type: string; description: string | null; amount: number;
   method: string | null; reference: string | null; paidAt: string | null; paidBy: string | null;
+  notifiedAt: string | null;
   confirmedAt: string | null; confirmedBy: string | null;
   referrer: { id: string; name: string; slug: string; paymentMethod: string | null; paymentDetails: string | null };
 }
@@ -515,6 +516,9 @@ export default function AdminReferralsPage() {
                     <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--warn-num)", whiteSpace: "nowrap" }}>Sent {new Date(p.paidAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{p.method ? ` · ${p.method}` : ""} — awaiting confirmation</span>
                   )}
 
+                  {p.paidAt && p.notifiedAt && (
+                    <span title={`Receipt auto-emailed to the referrer ${new Date(p.notifiedAt).toLocaleString()}`} style={{ font: `600 10px ${F_SANS}`, color: "var(--muted)", whiteSpace: "nowrap" }}>✉ emailed</span>
+                  )}
                   {p.paidAt && !p.confirmedAt && (
                     <button onClick={() => patchPayout(p.id, { markPaid: false })} disabled={busy} title="Undo — marks this as not sent" style={{ ...copyBtn, padding: "6px 9px" }}>Undo</button>
                   )}
