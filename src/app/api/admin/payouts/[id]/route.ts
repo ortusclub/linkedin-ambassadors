@@ -61,7 +61,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         // Commission payouts are ₱500 per converted signup — show the count when it divides evenly.
         const amt = Number(payout.amount);
         const count = payout.type === "commission" && amt % 500 === 0 ? amt / 500 : undefined;
-        await sendReferralPayoutEmail(payout.referrer.email, payout.referrer.name, amt, receipt, count);
+        // description names who they referred (e.g. "Erika S. Danila") — used in the email.
+        await sendReferralPayoutEmail(payout.referrer.email, payout.referrer.name, amt, receipt, payout.description, count);
         payout = await prisma.payout.update({ where: { id }, data: { notifiedAt: new Date() }, include: { referrer: true } });
       } catch (e) {
         console.error("[payout-notify] referral email failed:", e);

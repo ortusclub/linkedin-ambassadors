@@ -557,10 +557,16 @@ export async function sendMonthlyPayoutEmail(email: string, fullName: string, am
   });
 }
 
-// Referral fee paid to a marketer/ambassador.
-export async function sendReferralPayoutEmail(email: string, fullName: string, amount: number, receiptUrl: string, count?: number) {
+// Referral fee paid to a marketer/ambassador. `forNames` = who they referred
+// (the payout's description, comma-separated); falls back to a plain signup count.
+export async function sendReferralPayoutEmail(email: string, fullName: string, amount: number, receiptUrl: string, forNames?: string | null, count?: number) {
   const firstName = (fullName || "").trim().split(" ")[0] || "there";
-  const forWhat = count && count > 0 ? `, for the ${count} signup${count === 1 ? "" : "s"} you brought on board` : "";
+  const names = (forNames || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const forWhat = names.length
+    ? `, for referring ${names.join(", ")}`
+    : count && count > 0
+      ? `, for the ${count} signup${count === 1 ? "" : "s"} you brought on board`
+      : "";
   return sendEmail({
     to: email,
     subject: "Your referral reward is on its way! 🎉",
