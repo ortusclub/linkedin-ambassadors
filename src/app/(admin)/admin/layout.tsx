@@ -29,6 +29,7 @@ const sections = [
     { href: "/admin/owners", label: "Ambassadors" },
     { href: "/admin/accounts", label: "Inventory" },
     { href: "/admin/balances", label: "Payouts" },
+    { href: "/admin/payouts-ii", label: "Payouts II" },
   ] },
 ];
 
