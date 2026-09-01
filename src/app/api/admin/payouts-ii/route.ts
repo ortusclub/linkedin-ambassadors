@@ -38,6 +38,7 @@ export async function GET() {
     const apps = await prisma.ambassadorApplication.findMany({
       select: {
         email: true, fullName: true, linkedinUrl: true, onboardedAt: true,
+        contactNumber: true, contactChannel: true,
         accountFreshness: true, paidAt: true,
         monthlyPayouts: true, paymentMethod: true, paypalEmail: true, wiseEmail: true,
         paymentDetails: true, accountIssue: true, status: true,
@@ -141,6 +142,8 @@ export async function GET() {
         daysLate,
         ownerName,
         ownerEmail: ownerEmail || null,
+        ownerPhone: app?.contactNumber || null,
+        contactChannel: app?.contactChannel || null,
         paymentMethod: method,
         paymentDetail: methodDetail,
         monthlyAmount,

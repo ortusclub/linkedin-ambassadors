@@ -50,6 +50,8 @@ interface Row {
   daysLate: number;
   ownerName: string | null;
   ownerEmail: string | null;
+  ownerPhone: string | null;
+  contactChannel: string | null;
   paymentMethod: string | null;
   paymentDetail: string | null;
   monthlyAmount: number;
@@ -205,6 +207,9 @@ function AccountRow({ r, onMarkPaid }: { r: Row; onMarkPaid: (r: Row) => Promise
           <D label="Last payment">{r.lastPaidAt ? `${r.lastPaidAmount != null ? peso(r.lastPaidAmount) + " · " : ""}${fmtDate(r.lastPaidAt)}` : "none yet"}</D>
           <D label="Next payment due">{r.nextDueISO ? <span style={{ color: r.overdue ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" }}>{dueLabel}</span> : "—"}</D>
           <D label="Total paid (to owner)">{peso(r.totalPaid)}</D>
+          {/* Ambassador contact details (personal — not the account login) */}
+          <D label="Contact email">{r.ownerEmail || <span style={{ color: "var(--st-cancel-fg,#c0392b)" }}>not set</span>}</D>
+          <D label="Contact number">{r.ownerPhone ? `${r.ownerPhone}${r.contactChannel ? ` · ${r.contactChannel}` : ""}` : <span style={{ color: "var(--st-cancel-fg,#c0392b)" }}>not set</span>}</D>
           {/* Credentials (admin only) */}
           <D label="Login email">{r.loginEmail || "—"}</D>
           <D label="Password"><PasswordField password={r.accountPassword} /></D>
