@@ -39,21 +39,23 @@ function ageLabel(m: number | null | undefined) { if (!m || m <= 0) return ""; c
 // profile qualifies for wins (evaluated top-down). The last tier is the FLOOR —
 // every profile that doesn't reach a higher tier (incl. tiny/new ones, <30
 // connections) gets the bottom rate. Never returns null.
-function tierPricing(conns: number, ageMonths: number | null | undefined, hasSalesNav?: boolean): { weekly: number; monthly: number; daily: number } {
+function tierPricing(conns: number, ageMonths: number | null | undefined, hasSalesNav?: boolean, verified?: boolean): { weekly: number; monthly: number; daily: number } {
   const age = ageMonths || 0;
-  const base =
+  let base =
     conns >= 2000 ? { weekly: 40, monthly: 150, daily: 8 }
     : conns >= 1000 && age >= 12 ? { weekly: 30, monthly: 110, daily: 6 }
     : conns >= 500 && age >= 12 ? { weekly: 20, monthly: 75, daily: 4 }
     : conns >= 100 && age >= 6 ? { weekly: 15, monthly: 50, daily: 3 }
     // Floor — 50+/3mo and everything below it (including <30 connections).
     : { weekly: 13, monthly: 45, daily: 2.75 };
+  // Verified (blue-check) premium: +$25/mo, +$7/wk, +$1.25/day on top of any tier.
+  if (verified) base = { weekly: base.weekly + 7, monthly: base.monthly + 25, daily: base.daily + 1.25 };
   // Sales Navigator add-on: +$70/mo, +$20/wk, +$4/day on top of the tier.
   if (hasSalesNav) return { weekly: base.weekly + 20, monthly: base.monthly + 70, daily: base.daily + 4 };
   return base;
 }
 const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
-const monthlyOf = (a: Account) => tierPricing(a.connectionCount, a.accountAgeMonths, a.hasSalesNav).monthly;
+const monthlyOf = (a: Account) => tierPricing(a.connectionCount, a.accountAgeMonths, a.hasSalesNav, a.linkedinVerified).monthly;
 
 const SORTS: Record<string, (a: Account, b: Account) => number> = {
   "conn-desc": (a, b) => b.connectionCount - a.connectionCount,
@@ -292,7 +294,7 @@ function Actions({ a }: { a: Account }) {
 // underneath). Falls back to the stored price when a profile fits no tier.
 function PriceBlock({ a, showPricing, compact }: { a: Account; showPricing: boolean; compact?: boolean }) {
   if (!showPricing) return <span style={{ fontSize: compact ? 12.5 : 14, color: "#96A0AD", fontWeight: 600 }}>{compact ? "On request" : "Price on request"}</span>;
-  const t = tierPricing(a.connectionCount, a.accountAgeMonths, a.hasSalesNav);
+  const t = tierPricing(a.connectionCount, a.accountAgeMonths, a.hasSalesNav, a.linkedinVerified);
   return (
     <div style={{ lineHeight: 1.25 }}>
       <div><span style={{ font: `700 ${compact ? 15 : 20}px ${POP}`, color: "#0B1220" }}>{money(t.monthly)}</span><span style={{ fontSize: 12, color: "#96A0AD" }}>/mo</span>{a.hasSalesNav && <span style={{ fontSize: 10, color: "#0A66C2", fontWeight: 700, marginLeft: 5 }}>+SN</span>}</div>
