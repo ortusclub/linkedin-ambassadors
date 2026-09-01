@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { isCompanyEmail } from "@/lib/company";
-import { monthlyDueDate, setupDueDate, SETUP_FEE } from "@/lib/payment-schedule";
+import { monthlyDueDate, setupPaidDate, setupDueDate, SETUP_FEE } from "@/lib/payment-schedule";
 
 // Payouts II data — money we pay OUT to the ambassador who supplies each account,
 // per account, regardless of whether the account is currently rented. Payout
@@ -74,8 +74,10 @@ export async function GET() {
       const monthlyAmount = Number(a.ambassadorPayment || 0);
       const onboardedAt = app?.onboardedAt ? new Date(app.onboardedAt).toISOString() : null;
       const paidCount = monthlyEntries.length;
-      const nextDue = onboardedAt ? monthlyDueDate(onboardedAt, paidCount) : null;
-      const firstDue = onboardedAt ? monthlyDueDate(onboardedAt, 0) : null;
+      // Monthly schedule anchors on when the setup fee was PAID (15th cutoff), not onboarding.
+      const setupPaidAt = setupPaidDate(app?.paidAt || null, payouts);
+      const nextDue = monthlyDueDate(setupPaidAt, paidCount);
+      const firstDue = monthlyDueDate(setupPaidAt, 0);
 
       // One-time ₱1,000 setup fee (per ambassador). Paid if the application's
       // paidAt is set OR a "setup" payout entry was logged.

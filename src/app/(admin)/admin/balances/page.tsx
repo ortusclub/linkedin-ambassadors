@@ -46,12 +46,13 @@ const setupDueDate = (onboardedAt: string | null, freshness: string | null): Dat
   d.setDate(d.getDate() + (freshness === "fresh" ? 7 : 3));
   return nextBusinessDay(d);
 };
-const firstMonthlyDue = (onboardedAt: string | null): Date | null => {
-  if (!onboardedAt) return null;
-  const o = new Date(onboardedAt);
-  const anchor = new Date(o.getFullYear(), o.getMonth() + 1, o.getDate());
-  const firstMonth = anchor.getDate() === 1 ? anchor.getMonth() : anchor.getMonth() + 1;
-  return new Date(anchor.getFullYear(), firstMonth, 1);
+// First monthly ₱500: the first FULL month after the setup fee is PAID, on a 15th-of-
+// month cutoff (paid 1st–15th → next month; 16th–end → the month after). Manila time.
+const firstMonthlyDue = (setupPaidAt: string | null): Date | null => {
+  if (!setupPaidAt) return null;
+  const m = new Date(new Date(setupPaidAt).getTime() + 8 * 3600 * 1000);
+  const add = m.getUTCDate() <= 15 ? 1 : 2;
+  return new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + add, 1, 12));
 };
 
 interface OwnerAccount { status: string; ambassadorPayment: string | number; restrictedAt?: string | null; }
@@ -161,7 +162,9 @@ export default function AdminPayoutsPage() {
         lastPaid: lastPay ? fmtDate(lastPay.paidAt) : "—", lastPaidAgo: agoLabel(lastPay?.paidAt || null),
       };
       // Monthly obligation for this cycle (once they're past their first due month).
-      const fd = firstMonthlyDue(o.onboardedAt);
+      // Anchored to when the setup fee was PAID (setup entry, else legacy), not onboarding.
+      const setupPaidAt = o.monthlyPayouts.find((p) => p.kind === "setup" && p.paidAt)?.paidAt || o.setupFeePaidAt || null;
+      const fd = firstMonthlyDue(setupPaidAt);
       if (monthlyOwed > 0 && fd && new Date(CY, CM, 1) >= fd) {
         const paidThis = monthlyEntries.some((p) => sameMonth(p.paidAt));
         out.push({ ...base, key: `${o.email}:m`, fee: "monthly", owedNum: monthlyOwed, dueISO: nextBusinessDay(new Date(CY, CM, 1)).toISOString(), state: blocked || missing ? "hold" : paidThis ? "paid" : "unpaid" });

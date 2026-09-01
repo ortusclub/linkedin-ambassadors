@@ -30,14 +30,20 @@ const setupDueDate = (onboardedAt: string | null, freshness: string | null): Dat
   return nextBusinessDay(d);
 };
 
-// Monthly ₱500 is paid on the 1st, after one full month of service. The first payment is
-// the 1st on/after the one-month anniversary; each later payment (idx, 0-based) +1 month.
-const monthlyDueDate = (onboardedAt: string | null, idx: number): Date | null => {
-  if (!onboardedAt) return null;
-  const o = new Date(onboardedAt);
-  const anchor = new Date(o.getFullYear(), o.getMonth() + 1, o.getDate());
-  const firstMonth = anchor.getDate() === 1 ? anchor.getMonth() : anchor.getMonth() + 1;
-  return new Date(anchor.getFullYear(), firstMonth + idx, 1);
+// Monthly ₱500 begins the first FULL month after the setup fee is PAID, on a 15th-of-
+// month cutoff (paid 1st–15th → next month; 16th–end → the month after), then the 1st
+// of every month (next business day). idx (0-based) advances by a month. Manila time
+// so the cutoff matches the team's wall clock. Null until the setup fee is paid.
+const monthlyDueDate = (setupPaidAt: string | null, idx: number): Date | null => {
+  if (!setupPaidAt) return null;
+  const m = new Date(new Date(setupPaidAt).getTime() + 8 * 3600 * 1000);
+  const add = m.getUTCDate() <= 15 ? 1 : 2;
+  return nextBusinessDay(new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + add + idx, 1, 12)));
+};
+// The setup-paid date that anchors the monthly schedule: the "setup" payout entry, else legacy.
+const setupPaidAtOf = (o: { monthlyPayouts: MonthlyPayout[]; setupFeePaidAt: string | null }): string | null => {
+  const s = o.monthlyPayouts.find((p) => p.kind === "setup" && p.paidAt);
+  return s?.paidAt || o.setupFeePaidAt || null;
 };
 
 const isOverdue = (d: Date | null) => !!d && d.getTime() < Date.now();
@@ -544,7 +550,7 @@ export default function AdminOwnersPage() {
             const monthlyOnly = owner.monthlyPayouts.filter((p) => p.kind !== "setup");
             const monthlyCount = monthlyOnly.length;
             const setupDue = setupDueDate(owner.onboardedAt, owner.accountFreshness);
-            const nextMonthlyDue = monthlyDueDate(owner.onboardedAt, monthlyCount);
+            const nextMonthlyDue = monthlyDueDate(setupPaidAtOf(owner), monthlyCount);
             const ownerMonthly = payableMonthly(owner);
             const monthlyAmt = ownerMonthly || 500;
             const hasSetupRecord = owner.monthlyPayouts.some((p) => p.kind === "setup");

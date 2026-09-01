@@ -27,14 +27,26 @@ export function setupDueDate(onboardedAt: Date | string | null, freshness: strin
   return nextBusinessDay(d);
 }
 
-// Monthly ₱500 is paid on the 1st, after one full month of service. The Nth
-// payment (idx, 0-based) advances by a month from the first.
-export function monthlyDueDate(onboardedAt: Date | string | null, idx: number): Date | null {
-  if (!onboardedAt) return null;
-  const o = new Date(onboardedAt);
-  const anchor = new Date(o.getFullYear(), o.getMonth() + 1, o.getDate());
-  const firstMonth = anchor.getDate() === 1 ? anchor.getMonth() : anchor.getMonth() + 1;
-  return new Date(anchor.getFullYear(), firstMonth + idx, 1);
+// The date the setup fee was PAID drives the monthly schedule (not the onboard date).
+// Prefer the "setup" payout entry's paidAt; fall back to the legacy paidAt timestamp.
+export function setupPaidDate(paidAt: Date | string | null, monthlyPayouts: unknown): Date | null {
+  const arr = Array.isArray(monthlyPayouts) ? (monthlyPayouts as Array<{ kind?: string; paidAt?: string }>) : [];
+  const s = arr.find((p) => p?.kind === "setup" && p.paidAt);
+  if (s?.paidAt) return new Date(s.paidAt);
+  return paidAt ? new Date(paidAt) : null;
+}
+
+// Monthly ₱500 begins the first FULL month after the setup fee is PAID, on a 15th-of-
+// month cutoff (paid 1st–15th → the 1st of next month; paid 16th–end → the 1st of the
+// month after), then the 1st of every month, rolled to the next business day. The Nth
+// payment (idx, 0-based) advances by a month. Computed in Manila time so the cutoff
+// matches the team's wall clock. Returns null until the setup fee is actually paid.
+export function monthlyDueDate(setupPaidAt: Date | string | null, idx: number): Date | null {
+  if (!setupPaidAt) return null;
+  const m = new Date(new Date(setupPaidAt).getTime() + 8 * 3600 * 1000); // shift to Manila wall clock
+  const add = m.getUTCDate() <= 15 ? 1 : 2;
+  const base = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + add + idx, 1, 12));
+  return nextBusinessDay(base);
 }
 
 export interface DueItem {
@@ -129,7 +141,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     const paidCount = Array.isArray(a.monthlyPayouts)
       ? (a.monthlyPayouts as Array<{ kind?: string }>).filter((p) => p?.kind !== "setup").length
       : 0;
-    const nextDue = monthlyDueDate(a.onboardedAt, paidCount);
+    const nextDue = monthlyDueDate(setupPaidDate(a.paidAt, a.monthlyPayouts), paidCount);
     if (nextDue) {
       const item: DueItem = { ...base, kind: "monthly", amount: monthlyAmount, dueDate: nextDue.toISOString(), overdue: nextDue < startOfToday };
       if (nextDue.getTime() <= now) monthly.push(item);
