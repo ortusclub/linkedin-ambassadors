@@ -144,14 +144,17 @@ const fmt = (d: string | null) => { if (!d) return "—"; const x = new Date(d);
 const fmtS = (d: string | null) => { if (!d) return ""; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
 // Tiered rental pricing by connections + age (matches the public catalogue).
 // Highest qualifying tier wins; the last is the floor. Returns weekly/monthly/daily.
-const tierPricing = (conns: number, ageMonths: number | null, hasSalesNav?: boolean): { weekly: number; monthly: number; daily: number } => {
+const tierPricing = (conns: number, ageMonths: number | null, hasSalesNav?: boolean, verified?: boolean): { weekly: number; monthly: number; daily: number } => {
   const age = ageMonths || 0;
-  const base =
+  let base =
     conns >= 2000 ? { weekly: 40, monthly: 150, daily: 8 }
     : conns >= 1000 && age >= 12 ? { weekly: 30, monthly: 110, daily: 6 }
     : conns >= 500 && age >= 12 ? { weekly: 20, monthly: 75, daily: 4 }
     : conns >= 100 && age >= 6 ? { weekly: 15, monthly: 50, daily: 3 }
     : { weekly: 13, monthly: 45, daily: 2.75 };
+  // Verified (blue-check) premium — +$25/mo, +$7/wk, +$1.25/day. A verified profile
+  // gets far higher accept/reply rates, so it commands a premium on top of any tier.
+  if (verified) base = { weekly: base.weekly + 7, monthly: base.monthly + 25, daily: base.daily + 1.25 };
   // Sales Navigator add-on: +$70/mo, +$20/wk, +$4/day on top of the tier.
   if (hasSalesNav) return { weekly: base.weekly + 20, monthly: base.monthly + 70, daily: base.daily + 4 };
   return base;
@@ -761,7 +764,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                               <span style={{ font: `500 10px ${F_SANS}`, color: "var(--warn-badge-text)" }}>🔒 locked rate</span>
                             </>
                           ) : (() => {
-                            const t = tierPricing(a.connectionCount, a.accountAgeMonths, a.hasSalesNav);
+                            const t = tierPricing(a.connectionCount, a.accountAgeMonths, a.hasSalesNav, a.linkedinVerified);
                             return (
                               <>
                                 <span style={{ font: `600 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{money(t.monthly)}<span style={{ font: `500 10px ${F_SANS}`, color: "var(--label)" }}>/mo</span>{a.hasSalesNav && <span style={{ font: `700 9px ${F_SANS}`, color: "#0A66C2", marginLeft: 4 }}>+SN</span>}</span>
