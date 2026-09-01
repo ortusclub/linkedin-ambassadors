@@ -164,7 +164,7 @@ export default function AdminPayoutsPage() {
       const fd = firstMonthlyDue(o.onboardedAt);
       if (monthlyOwed > 0 && fd && new Date(CY, CM, 1) >= fd) {
         const paidThis = monthlyEntries.some((p) => sameMonth(p.paidAt));
-        out.push({ ...base, key: `${o.email}:m`, fee: "monthly", owedNum: monthlyOwed, dueISO: new Date(CY, CM, 1).toISOString(), state: blocked || missing ? "hold" : paidThis ? "paid" : "unpaid" });
+        out.push({ ...base, key: `${o.email}:m`, fee: "monthly", owedNum: monthlyOwed, dueISO: nextBusinessDay(new Date(CY, CM, 1)).toISOString(), state: blocked || missing ? "hold" : paidThis ? "paid" : "unpaid" });
       }
       // Setup fee(s): one-time per account. Each shows in exactly ONE cycle — the month it
       // was PAID (✓ Paid, so you can see who's already been settled), or, while still unpaid,
@@ -356,8 +356,19 @@ export default function AdminPayoutsPage() {
                       {r.methodDetail && <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.methodDetail}</div>}
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--text2)" }}>{r.lastPaid}</div>
-                      <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{r.lastPaidAgo}</div>
+                      {r.state === "paid" || !r.dueISO ? (
+                        <>
+                          <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--text2)" }}>{r.lastPaid}</div>
+                          <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>{r.lastPaidAgo}</div>
+                        </>
+                      ) : (
+                        // Unpaid/hold: show when it's SCHEDULED (the pay-run date), not the
+                        // last setup payment — otherwise a monthly due today looks weeks overdue.
+                        <>
+                          <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--text2)" }}>Due {fmtDate(r.dueISO)}</div>
+                          <div style={{ font: `500 11px ${F_SANS}`, color: relWhen(r.dueISO).soon ? "var(--warn-badge-text)" : "var(--muted2)" }}>{relWhen(r.dueISO).label}</div>
+                        </>
+                      )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                       <span style={pill(STATE_META[r.state].bg, STATE_META[r.state].fg, { font: `700 11px ${F_SANS}`, borderRadius: 999, padding: "5px 11px" })}>{STATE_META[r.state].label}</span>
