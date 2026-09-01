@@ -107,7 +107,9 @@ export async function GET() {
         reason = overdue ? "Initial ₱1,000 overdue" : "Initial ₱1,000 due";
       }
       else if (monthlyAmount <= 0) { bucket = "na"; reason = "No monthly rate set"; }
-      else if (firstDue && cyStart >= firstDue) {
+      // Year-month comparison (not raw timestamps) — firstDue is anchored at noon UTC
+      // on the 1st, so a same-day timezone offset must not hide a monthly due this cycle.
+      else if (firstDue && (CY * 12 + CM) >= (firstDue.getUTCFullYear() * 12 + firstDue.getUTCMonth())) {
         const paidThisCycle = monthlyEntries.some((p) => p.paidAt && sameMonth(p.paidAt, CY, CM));
         if (paidThisCycle) { bucket = "paid"; reason = "Paid this cycle"; }
         else if (app?.accountIssue || (!method)) { bucket = "overdue"; reason = app?.accountIssue ? "On hold · login issue" : "On hold · no payment method"; overdue = true; }

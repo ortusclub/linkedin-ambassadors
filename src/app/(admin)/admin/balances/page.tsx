@@ -165,7 +165,9 @@ export default function AdminPayoutsPage() {
       // Anchored to when the setup fee was PAID (setup entry, else legacy), not onboarding.
       const setupPaidAt = o.monthlyPayouts.find((p) => p.kind === "setup" && p.paidAt)?.paidAt || o.setupFeePaidAt || null;
       const fd = firstMonthlyDue(setupPaidAt);
-      if (monthlyOwed > 0 && fd && new Date(CY, CM, 1) >= fd) {
+      // Compare by year-month (not raw timestamps) so time-of-day / timezone never
+      // hides a monthly that's due this cycle — fd is anchored at noon UTC on the 1st.
+      if (monthlyOwed > 0 && fd && (CY * 12 + CM) >= (fd.getUTCFullYear() * 12 + fd.getUTCMonth())) {
         const paidThis = monthlyEntries.some((p) => sameMonth(p.paidAt));
         out.push({ ...base, key: `${o.email}:m`, fee: "monthly", owedNum: monthlyOwed, dueISO: nextBusinessDay(new Date(CY, CM, 1)).toISOString(), state: blocked || missing ? "hold" : paidThis ? "paid" : "unpaid" });
       }
