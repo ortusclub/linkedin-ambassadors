@@ -81,12 +81,25 @@ export async function GET(req: NextRequest) {
 
     const ownerMap = new Map(ownerUsers.map((u) => [u.email, u.fullName]));
 
+    // The ambassador's own contact details live on their application, not on the
+    // account — pull them so the inventory row can show who to actually contact.
+    const ownerApps = ownerEmails.length > 0
+      ? await prisma.ambassadorApplication.findMany({
+          where: { email: { in: ownerEmails } },
+          select: { email: true, fullName: true, contactNumber: true, contactChannel: true },
+        })
+      : [];
+    const appMap = new Map(ownerApps.map((x) => [x.email.toLowerCase(), x]));
+
     const accountsWithOwner = accounts.map((a) => {
       const ownerEmail = (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || "";
+      const app = ownerEmail ? appMap.get(ownerEmail.toLowerCase()) : undefined;
       return {
         ...a,
-        ownerName: ownerMap.get(ownerEmail) || ownerEmail || null,
+        ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
         ownerEmail: ownerEmail || null,
+        ownerPhone: app?.contactNumber || null,
+        contactChannel: app?.contactChannel || null,
       };
     });
 

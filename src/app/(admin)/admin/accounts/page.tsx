@@ -105,6 +105,8 @@ interface Account {
   notes: string | null;
   ownerName: string | null;
   ownerEmail: string | null;
+  ownerPhone: string | null;
+  contactChannel: string | null;
   workEmail: string | null;
   loginEmail: string | null;
   accountPassword: string | null;
@@ -864,6 +866,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         <div style={{ padding: "4px 18px 18px 42px", borderTop: "1px solid var(--divider)" }}>
                           <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 1fr", gap: "16px 22px", paddingTop: 16 }}>
                             <DField label="Login email">{a.loginEmail || "—"}</DField>
+                            <DField label="Contact email">{a.ownerEmail ? <a href={`mailto:${a.ownerEmail}`} style={{ color: "var(--link)" }}>{a.ownerEmail}</a> : <span style={{ color: "var(--muted2)" }}>—</span>}</DField>
+                            <DField label="Contact number">{a.ownerPhone ? `${a.ownerPhone}${a.contactChannel ? ` · ${a.contactChannel}` : ""}` : <span style={{ color: "var(--muted2)" }}>—</span>}</DField>
                             <DField label="LinkedIn profile">{a.linkedinUrl ? <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open profile</a> : "—"}</DField>
                             <DField label="GoLogin share">
                               {a.gologinShareLink ? <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open link</a> : <span style={{ color: "var(--muted2)" }}>—</span>}
