@@ -68,8 +68,11 @@ export async function GET() {
       if (app.status === "rejected") { bucket = "rejected"; reason = "Rejected"; }
       else if (app.status === "pending") { bucket = "initial"; reason = "New application"; }
       else if (app.status === "onboarded") {
-        if (hasGologin) { bucket = "onboarded"; reason = "Onboarded"; }
-        else { bucket = "processing"; reason = acct ? "Marked onboarded · no GoLogin yet" : "Marked onboarded · no account yet"; }
+        // Onboarded rows stay in the Onboarded section even without a GoLogin — they
+        // sort to the bottom of it and carry a "No GoLogin found" badge, so the gap is
+        // visible without hiding someone who has otherwise been onboarded.
+        bucket = "onboarded";
+        reason = hasGologin ? "Onboarded" : acct ? "Onboarded · no GoLogin found" : "Onboarded · no account linked";
       }
       else if (app.status === "unreachable") { bucket = "unreachable"; reason = "Unreachable"; }
       else {

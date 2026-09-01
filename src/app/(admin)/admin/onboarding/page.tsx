@@ -81,7 +81,7 @@ const SECTIONS: { key: Bucket; title: string; tone: string; note: string }[] = [
   { key: "initial", title: "Initial", tone: "var(--blue-chip-text,#2b5fd0)", note: "brand-new applications — nobody has picked these up yet" },
   { key: "processing", title: "Processing", tone: "var(--warn-badge-text,#b7791f)", note: "in flight — being reviewed, chased, approved or waiting on a GoLogin" },
   { key: "rejected", title: "Rejected", tone: "var(--st-cancel-fg,#c0392b)", note: "turned down — kept for the record" },
-  { key: "onboarded", title: "Onboarded", tone: "var(--st-active-fg,#1a8a4a)", note: "fully set up — account exists and has a GoLogin we can run" },
+  { key: "onboarded", title: "Onboarded", tone: "var(--st-active-fg,#1a8a4a)", note: "set up — any without a GoLogin sit at the bottom, badged" },
   { key: "unreachable", title: "Unreachable", tone: "var(--muted2,#9aa0a6)", note: "never got a reply — parked out of the way, not part of the working pipeline" },
 ];
 
@@ -122,7 +122,7 @@ function StatusPicker({ r, onChange, busy }: { r: Row; onChange: (s: Status) => 
 }
 
 function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange: (s: Status) => void; busy: boolean; open: boolean; onToggle: () => void }) {
-  const blocked = r.bucket === "processing" && r.status === "onboarded";
+  const blocked = r.status === "onboarded" && !r.hasGologin;
   return (
     <div style={{ border: `1px solid ${blocked ? "var(--warn-badge-text,#b7791f)" : "var(--border,#e3e3e6)"}`, borderRadius: 12, background: "var(--card,#fff)", overflow: "hidden" }}>
     <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -134,7 +134,7 @@ function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange:
           <span style={{ font: `700 14.5px ${F_GRO}`, color: "var(--fg,#111)" }}>{r.fullName?.trim() || "—"}</span>
           {r.connectionCount != null && <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>{r.connectionCount}+</span>}
           {r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" style={{ font: `600 11.5px ${F_SANS}`, color: "var(--link,#0a66c2)" }}>profile ↗</a>}
-          {!r.hasGologin && <span title="No GoLogin profile or share link — the account can't be run, so onboarding isn't finished" style={{ font: `800 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", whiteSpace: "nowrap" }}>⚠ needs GoLogin</span>}
+          {!r.hasGologin && <span title="No GoLogin profile or share link on the linked account — it can't be run until one is added" style={{ font: `800 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", whiteSpace: "nowrap" }}>⚠ No GoLogin found</span>}
           {r.accountIssue && <span title={r.accountIssue} style={{ font: `800 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)", whiteSpace: "nowrap" }}>⚠ login issue</span>}
         </div>
         <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -264,25 +264,26 @@ export default function OnboardingPage() {
     m.initial.sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt));
     m.processing.sort((a, b) => Number(a.hasGologin) - Number(b.hasGologin) || +new Date(a.createdAt) - +new Date(b.createdAt));
     m.rejected.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
-    m.onboarded.sort((a, b) => +new Date(b.onboardedAt || b.createdAt) - +new Date(a.onboardedAt || a.createdAt));
+    m.onboarded.sort((a, b) => Number(b.hasGologin) - Number(a.hasGologin) || +new Date(b.onboardedAt || b.createdAt) - +new Date(a.onboardedAt || a.createdAt));
     m.unreachable.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     return m;
   }, [filtered]);
 
-  const needsGologin = useMemo(() => bucketed.processing.filter((r) => r.status === "onboarded").length, [bucketed]);
+  const needsGologin = useMemo(() => bucketed.onboarded.filter((r) => !r.hasGologin).length, [bucketed]);
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "8px 4px 60px" }}>
       <h1 style={{ font: `800 28px ${F_GRO}`, margin: "0 0 6px", color: "var(--fg,#111)" }}>Onboarding</h1>
       <p style={{ font: `500 14px ${F_SANS}`, color: "var(--muted,#777)", margin: "0 0 4px", maxWidth: 720 }}>
-        Every ambassador application, from signup to a working account. An application only counts as
-        <strong> onboarded once its account has a GoLogin</strong> — without one the account can&apos;t be run,
-        so it stays in Processing. Use each row&apos;s dropdown to move someone to the next stage.
+        Every ambassador application, from signup to a working account. Click any row for the full record —
+        contact details, referrer, login email, GoLogin and payout info. Use the dropdown to move someone to
+        the next stage. An account <strong>can&apos;t be run without a GoLogin</strong>, so onboarded rows
+        missing one are badged and sorted to the bottom.
       </p>
 
       {needsGologin > 0 && (
         <div style={{ marginTop: 14, padding: "11px 14px", borderRadius: 12, background: "var(--warn-badge-bg,#fef3e2)", border: "1px solid var(--warn-badge-text,#b7791f)", font: `600 13px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>
-          ⚠ {needsGologin} application{needsGologin === 1 ? " is" : "s are"} marked onboarded but {needsGologin === 1 ? "has" : "have"} no GoLogin — shown in Processing until one is added.
+          ⚠ {needsGologin} onboarded application{needsGologin === 1 ? " has" : "s have"} no GoLogin — sorted to the bottom of Onboarded and badged, since the account can&apos;t be run without one.
         </div>
       )}
 
