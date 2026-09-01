@@ -64,6 +64,7 @@ export default function EditAccountPage() {
       if (form.proxyLocation !== undefined) payload.proxyLocation = form.proxyLocation || null;
       if (form.accountAgeMonths !== undefined && form.accountAgeMonths !== "" && form.accountAgeMonths !== null) payload.accountAgeMonths = Number(form.accountAgeMonths);
       if (form.hasSalesNav !== undefined) payload.hasSalesNav = !!form.hasSalesNav;
+      if (form.linkedinVerified !== undefined) payload.linkedinVerified = !!form.linkedinVerified;
       if (form.listed !== undefined) payload.listed = !!form.listed;
       if (form.notes !== undefined) payload.notes = form.notes || null;
       if (form.monthlyPrice !== undefined && form.monthlyPrice !== "") payload.monthlyPrice = Number(form.monthlyPrice) || 0;
@@ -173,6 +174,13 @@ export default function EditAccountPage() {
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={(form.listed as boolean) ?? true} onChange={(e) => update("listed", e.target.checked)} className="rounded border-gray-300" />
                 Listed (visible on Browse Accounts)
+              </label>
+              {/* Verified moved here from the inventory row: it changes the price tier
+                  (+$10/mo) and what renters are promised, so it shouldn't be a one-click
+                  toggle in a long list. */}
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={(form.linkedinVerified as boolean) || false} onChange={(e) => update("linkedinVerified", e.target.checked)} className="rounded border-gray-300" />
+                LinkedIn verified (blue check) — adds $10/mo
               </label>
             </div>
             <Input id="gologinShareLink" label="GoLogin Share Profile Link" value={(form.gologinShareLink as string) || ""} onChange={(e) => update("gologinShareLink", e.target.value)} placeholder="https://app.gologin.com/..." />

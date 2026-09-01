@@ -86,7 +86,12 @@ export async function GET(req: NextRequest) {
     const ownerApps = ownerEmails.length > 0
       ? await prisma.ambassadorApplication.findMany({
           where: { email: { in: ownerEmails } },
-          select: { email: true, fullName: true, contactNumber: true, contactChannel: true },
+          select: {
+            email: true, fullName: true, contactNumber: true, contactChannel: true,
+            referredBy: true, referralSource: true, poc: true, ownerStatus: true,
+            paymentMethod: true, paymentDetails: true, payoutName: true,
+            paypalEmail: true, wiseEmail: true, onboardedAt: true, paidAt: true,
+          },
         })
       : [];
     const appMap = new Map(ownerApps.map((x) => [x.email.toLowerCase(), x]));
@@ -100,6 +105,15 @@ export async function GET(req: NextRequest) {
         ownerEmail: ownerEmail || null,
         ownerPhone: app?.contactNumber || null,
         contactChannel: app?.contactChannel || null,
+        ownerReferredBy: app?.referredBy || null,
+        ownerReferralSource: app?.referralSource || null,
+        ownerPoc: app?.poc || null,
+        ownerStatus: app?.ownerStatus || null,
+        ownerPaymentMethod: app?.paymentMethod || (app?.paypalEmail ? `PayPal: ${app.paypalEmail}` : app?.wiseEmail ? `Wise: ${app.wiseEmail}` : null),
+        ownerPaymentDetails: app?.paymentDetails || null,
+        ownerPayoutName: app?.payoutName || null,
+        ownerOnboardedAt: app?.onboardedAt || null,
+        ownerSetupPaidAt: app?.paidAt || null,
       };
     });
 

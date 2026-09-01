@@ -107,6 +107,17 @@ interface Account {
   ownerEmail: string | null;
   ownerPhone: string | null;
   contactChannel: string | null;
+  ownerReferredBy: string | null;
+  ownerReferralSource: string | null;
+  ownerPoc: string | null;
+  ownerStatus: string | null;
+  ownerPaymentMethod: string | null;
+  ownerPaymentDetails: string | null;
+  ownerPayoutName: string | null;
+  ownerOnboardedAt: string | null;
+  ownerSetupPaidAt: string | null;
+  personalEmail: string | null;
+  proxyLocation: string | null;
   workEmail: string | null;
   loginEmail: string | null;
   accountPassword: string | null;
@@ -428,11 +439,6 @@ export default function AdminAccountsPage() {
     }
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: next, listed: next === "available" } : x)));
     await patch(a.id, { status: next, listed: next === "available" });
-  };
-  const toggleVerified = async (a: Account) => {
-    setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, linkedinVerified: !a.linkedinVerified } : x)));
-    const res = await patch(a.id, { linkedinVerified: !a.linkedinVerified });
-    if (!res.ok) setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, linkedinVerified: a.linkedinVerified } : x)));
   };
   const saveProof = async (a: Account, value: string) => {
     if (value === (a.verificationProof || "")) return;
@@ -760,8 +766,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
                               <span style={{ font: `600 14px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formatName(a.linkedinName)}</span>
                               {isDummy(a) && <span title="Showcase / demo account — not real inventory" style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".06em", padding: "2px 7px", borderRadius: 5, flex: "none", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>DUMMY</span>}
-                              <button onClick={(e) => { e.stopPropagation(); toggleVerified(a); }} title="LinkedIn verified — click to toggle"
-                                style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap", border: "none", cursor: "pointer", ...(a.linkedinVerified ? { background: "var(--verified-bg, var(--blue-chip-bg))", color: "var(--verified-fg, var(--blue-chip-text))" } : { background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }) }}>{a.linkedinVerified ? "✓ Verified" : "Verify"}</button>
+                              {/* Read-only: verified drives the price tier and what we promise
+                                  renters, so it's changed deliberately on the Edit page, not by
+                                  a stray click in the list. */}
+                              <span title={a.linkedinVerified ? "LinkedIn verified (blue check) — change on the account's Edit page" : "Not verified — change on the account's Edit page"}
+                                style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap", ...(a.linkedinVerified ? { background: "var(--verified-bg, var(--blue-chip-bg))", color: "var(--verified-fg, var(--blue-chip-text))" } : { background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }) }}>{a.linkedinVerified ? "✓ Verified" : "Unverified"}</span>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>
                               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline || "—"}</span>
@@ -875,7 +884,23 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                               {a.gologinShareLink ? <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open link</a> : <span style={{ color: "var(--muted2)" }}>—</span>}
                               {a.gologinProfileId && <span style={{ display: "block", font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis" }}>ID {a.gologinProfileId}</span>}
                             </DField>
-                            <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}` : "None"}</DField>
+                            <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}${a.proxyLocation ? ` · ${a.proxyLocation}` : ""}` : "None"}</DField>
+                            {/* Everything the Onboarding page shows about the person behind
+                                the account, so you don't have to switch pages to see it. */}
+                            <DField label="Owner (ambassador)">{a.ownerName || "—"}</DField>
+                            <DField label="Personal email (on account)">{a.personalEmail || "—"}</DField>
+                            <DField label="Work / recovery email">{a.workEmail || "—"}</DField>
+                            <DField label="Referred by">{a.ownerReferredBy || a.ownerReferralSource || "—"}</DField>
+                            <DField label="Point of contact">{a.ownerPoc || "—"}</DField>
+                            <DField label="Owner status">{a.ownerStatus || "—"}</DField>
+                            <DField label="Industry">{a.industry || "—"}</DField>
+                            <DField label="Location">{a.location || "—"}</DField>
+                            <DField label="Ambassador payout">{Number(a.ambassadorPayment) > 0 ? `₱${Number(a.ambassadorPayment)}/mo` : "—"}</DField>
+                            <DField label="Payment method">{a.ownerPaymentMethod || "—"}</DField>
+                            <DField label="Payout handle">{a.ownerPaymentDetails || "—"}</DField>
+                            <DField label="Payout name">{a.ownerPayoutName || "—"}</DField>
+                            <DField label="Onboarded">{a.ownerOnboardedAt ? fmt(a.ownerOnboardedAt) : "—"}</DField>
+                            <DField label="Setup fee paid">{a.ownerSetupPaidAt ? fmt(a.ownerSetupPaidAt) : "—"}</DField>
                             <DField label="Password"><PasswordField password={a.accountPassword} /></DField>
                             <DField label="2FA (key + code)"><TwoFactorCode accountId={a.id} /></DField>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
