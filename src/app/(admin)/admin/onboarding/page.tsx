@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
-type Bucket = "initial" | "processing" | "rejected" | "onboarded";
+type Bucket = "initial" | "processing" | "rejected" | "onboarded" | "unreachable";
 type Status = "pending" | "reviewing" | "approved" | "rejected" | "onboarded" | "unreachable" | "contacted" | "on_hold";
 
 interface Row {
@@ -40,6 +40,29 @@ interface Row {
   loginEmail: string | null;
   gologinShareLink: string | null;
   connectionCount: number | null;
+  adminNotes: string | null;
+  applicationNotes: string | null;
+  referredBy: string | null;
+  referralSource: string | null;
+  industry: string | null;
+  poc: string | null;
+  linkedinEmail: string | null;
+  bookingEmail: string | null;
+  accountFreshness: string | null;
+  ownerStatus: string | null;
+  paymentMethod: string | null;
+  paymentDetails: string | null;
+  payoutName: string | null;
+  verifiedAt: string | null;
+  setupPaidAt: string | null;
+  personalEmail: string | null;
+  hasPassword: boolean;
+  has2fa: boolean;
+  gologinProfileId: string | null;
+  accountRestrictedAt: string | null;
+  monthlyPrice: number | null;
+  ambassadorPayment: number | null;
+  accountNotes: string | null;
 }
 
 // The dropdown offers every real status, grouped so the common next step is obvious.
@@ -59,11 +82,24 @@ const SECTIONS: { key: Bucket; title: string; tone: string; note: string }[] = [
   { key: "processing", title: "Processing", tone: "var(--warn-badge-text,#b7791f)", note: "in flight — being reviewed, chased, approved or waiting on a GoLogin" },
   { key: "rejected", title: "Rejected", tone: "var(--st-cancel-fg,#c0392b)", note: "turned down — kept for the record" },
   { key: "onboarded", title: "Onboarded", tone: "var(--st-active-fg,#1a8a4a)", note: "fully set up — account exists and has a GoLogin we can run" },
+  { key: "unreachable", title: "Unreachable", tone: "var(--muted2,#9aa0a6)", note: "never got a reply — parked out of the way, not part of the working pipeline" },
 ];
 
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
 const ageDays = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+
+// One labelled detail cell. Anything missing shows a muted dash rather than being
+// hidden, so a blank field reads as "we don't have this" instead of vanishing.
+function D({ label, children }: { label: string; children?: React.ReactNode }) {
+  const empty = children === null || children === undefined || children === "" || children === false;
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)", marginBottom: 3 }}>{label}</div>
+      <div style={{ font: `600 13px ${F_SANS}`, color: empty ? "var(--muted2,#b6bbc2)" : "var(--fg,#111)", wordBreak: "break-word" }}>{empty ? "—" : children}</div>
+    </div>
+  );
+}
 
 function StatusPicker({ r, onChange, busy }: { r: Row; onChange: (s: Status) => void; busy: boolean }) {
   return (
@@ -85,11 +121,15 @@ function StatusPicker({ r, onChange, busy }: { r: Row; onChange: (s: Status) => 
   );
 }
 
-function ApplicantRow({ r, onChange, busy }: { r: Row; onChange: (s: Status) => void; busy: boolean }) {
+function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange: (s: Status) => void; busy: boolean; open: boolean; onToggle: () => void }) {
   const blocked = r.bucket === "processing" && r.status === "onboarded";
   return (
-    <div style={{ border: `1px solid ${blocked ? "var(--warn-badge-text,#b7791f)" : "var(--border,#e3e3e6)"}`, borderRadius: 12, background: "var(--card,#fff)", padding: "12px 14px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-      <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+    <div style={{ border: `1px solid ${blocked ? "var(--warn-badge-text,#b7791f)" : "var(--border,#e3e3e6)"}`, borderRadius: 12, background: "var(--card,#fff)", overflow: "hidden" }}>
+    <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+      {/* Clicking the body opens the full detail; the dropdown sits outside it so
+          changing status never toggles the row. */}
+      <div onClick={onToggle} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} style={{ flex: "1 1 260px", minWidth: 0, cursor: "pointer" }}>
+        <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", marginRight: 6 }}>{open ? "▾" : "▸"}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ font: `700 14.5px ${F_GRO}`, color: "var(--fg,#111)" }}>{r.fullName?.trim() || "—"}</span>
           {r.connectionCount != null && <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>{r.connectionCount}+</span>}
@@ -110,6 +150,64 @@ function ApplicantRow({ r, onChange, busy }: { r: Row; onChange: (s: Status) => 
       <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--tag-bg,#f1f1f2)", color: "var(--muted,#6b7280)" }}>{r.reason}</span>
       <StatusPicker r={r} onChange={onChange} busy={busy} />
     </div>
+    {open && (
+      <div style={{ borderTop: "1px solid var(--border,#eee)", background: "var(--panel,#fafafa)", padding: "16px 16px 18px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 16 }}>
+          {/* Who they are + how to reach them */}
+          <D label="Full name">{r.fullName?.trim()}</D>
+          <D label="Contact email">{r.email ? <a href={`mailto:${r.email}`} style={{ color: "var(--link,#0a66c2)" }}>{r.email}</a> : null}</D>
+          <D label="Contact number">{r.contactNumber}</D>
+          <D label="Contact channel">{r.contactChannel}</D>
+          <D label="Location">{r.location}</D>
+          <D label="Industry">{r.industry}</D>
+          <D label="Referred by">{r.referredBy}</D>
+          <D label="Referral source">{r.referralSource}</D>
+          <D label="Point of contact">{r.poc}</D>
+          <D label="Booking email">{r.bookingEmail}</D>
+          {/* The account we hold for them */}
+          <D label="Account">{r.accountName}</D>
+          <D label="Account status">{r.accountRestrictedAt ? `${r.accountStatus || "—"} · restricted` : r.accountStatus}</D>
+          <D label="Login email">{r.loginEmail}</D>
+          <D label="Personal email (on account)">{r.personalEmail}</D>
+          <D label="LinkedIn email (applied with)">{r.linkedinEmail}</D>
+          <D label="Password stored">{r.hasPassword ? "Yes" : null}</D>
+          <D label="2FA stored">{r.has2fa ? "Yes" : null}</D>
+          <D label="GoLogin">{r.gologinShareLink ? <a href={r.gologinShareLink} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)" }}>share link ↗</a> : r.gologinProfileId ? `profile ${r.gologinProfileId.slice(0, 8)}…` : null}</D>
+          <D label="LinkedIn profile">{r.linkedinUrl ? <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)" }}>profile ↗</a> : null}</D>
+          <D label="Connections">{r.connectionCount != null ? r.connectionCount : null}</D>
+          <D label="Account freshness">{r.accountFreshness}</D>
+          {/* Money + dates */}
+          <D label="Rent price">{r.monthlyPrice ? `$${r.monthlyPrice}/mo` : null}</D>
+          <D label="Ambassador payout">{r.ambassadorPayment ? `₱${r.ambassadorPayment}/mo` : null}</D>
+          <D label="Payment method">{r.paymentMethod}</D>
+          <D label="Payout handle">{r.paymentDetails}</D>
+          <D label="Payout name">{r.payoutName}</D>
+          <D label="Applied">{fmtDate(r.createdAt)}</D>
+          <D label="Verified">{r.verifiedAt ? fmtDate(r.verifiedAt) : null}</D>
+          <D label="Onboarded">{r.onboardedAt ? fmtDate(r.onboardedAt) : null}</D>
+          <D label="Setup fee paid">{r.setupPaidAt ? fmtDate(r.setupPaidAt) : null}</D>
+          <D label="Owner status">{r.ownerStatus}</D>
+        </div>
+        {(r.accountIssue || r.adminNotes || r.applicationNotes || r.accountNotes) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--border,#eee)" }}>
+            {r.accountIssue && <Note label="Login issue" tone="var(--st-cancel-fg,#c0392b)">{r.accountIssue}</Note>}
+            {r.adminNotes && <Note label="Admin notes">{r.adminNotes}</Note>}
+            {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
+            {r.accountNotes && <Note label="Account notes">{r.accountNotes}</Note>}
+          </div>
+        )}
+      </div>
+    )}
+    </div>
+  );
+}
+
+function Note({ label, tone, children }: { label: string; tone?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: tone || "var(--muted2,#9aa0a6)", marginBottom: 3 }}>{label}</div>
+      <div style={{ font: `500 12.5px/1.55 ${F_SANS}`, color: tone || "var(--fg,#444)", whiteSpace: "pre-wrap" }}>{children}</div>
+    </div>
   );
 }
 
@@ -118,6 +216,8 @@ export default function OnboardingPage() {
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setExpanded((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
 
   const load = async () => {
     try {
@@ -157,7 +257,7 @@ export default function OnboardingPage() {
   }, [rows, query]);
 
   const bucketed = useMemo(() => {
-    const m: Record<Bucket, Row[]> = { initial: [], processing: [], rejected: [], onboarded: [] };
+    const m: Record<Bucket, Row[]> = { initial: [], processing: [], rejected: [], onboarded: [], unreachable: [] };
     for (const r of filtered) m[r.bucket].push(r);
     // Oldest application first in the working sections — the ones waiting longest
     // need attention first. Onboarded reads newest-first, most recent wins on top.
@@ -165,6 +265,7 @@ export default function OnboardingPage() {
     m.processing.sort((a, b) => Number(a.hasGologin) - Number(b.hasGologin) || +new Date(a.createdAt) - +new Date(b.createdAt));
     m.rejected.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     m.onboarded.sort((a, b) => +new Date(b.onboardedAt || b.createdAt) - +new Date(a.onboardedAt || a.createdAt));
+    m.unreachable.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     return m;
   }, [filtered]);
 
@@ -209,7 +310,7 @@ export default function OnboardingPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
               {bucketed[s.key].map((r) => (
-                <ApplicantRow key={r.id} r={r} busy={busy === r.id} onChange={(st) => setStatus(r, st)} />
+                <ApplicantRow key={r.id} r={r} busy={busy === r.id} open={expanded.has(r.id)} onToggle={() => toggle(r.id)} onChange={(st) => setStatus(r, st)} />
               ))}
             </div>
           )}

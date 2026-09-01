@@ -8,7 +8,7 @@ import { requireAdmin } from "@/lib/auth";
 // the account can't be run, so onboarding isn't finished no matter what the status
 // column says — those rows stay in Processing, flagged.
 
-type Bucket = "initial" | "processing" | "rejected" | "onboarded";
+type Bucket = "initial" | "processing" | "rejected" | "onboarded" | "unreachable";
 
 export async function GET() {
   try {
@@ -20,7 +20,11 @@ export async function GET() {
         id: true, fullName: true, email: true, contactNumber: true, contactChannel: true,
         linkedinUrl: true, connectionCount: true, location: true, status: true,
         createdAt: true, onboardedAt: true, verifiedAt: true, paidAt: true,
-        accountIssue: true, adminNotes: true,
+        accountIssue: true, adminNotes: true, notes: true,
+        referredBy: true, referralSource: true, industry: true, poc: true,
+        linkedinEmail: true, bookingEmail: true, accountFreshness: true,
+        paymentMethod: true, paymentDetails: true, payoutName: true,
+        paypalEmail: true, wiseEmail: true, ownerStatus: true,
       },
     });
 
@@ -28,8 +32,10 @@ export async function GET() {
       where: { status: { notIn: ["removed"] } },
       select: {
         id: true, linkedinName: true, linkedinUrl: true, loginEmail: true,
-        accountPassword: true, gologinProfileId: true, gologinShareLink: true,
-        connectionCount: true, status: true, notes: true,
+        personalEmail: true, accountPassword: true, twoFactor: true,
+        gologinProfileId: true, gologinShareLink: true, monthlyPrice: true,
+        ambassadorPayment: true, connectionCount: true, status: true,
+        restrictedAt: true, notes: true,
       },
     });
 
@@ -64,9 +70,11 @@ export async function GET() {
       else if (app.status === "onboarded") {
         if (hasGologin) { bucket = "onboarded"; reason = "Onboarded"; }
         else { bucket = "processing"; reason = acct ? "Marked onboarded · no GoLogin yet" : "Marked onboarded · no account yet"; }
-      } else {
+      }
+      else if (app.status === "unreachable") { bucket = "unreachable"; reason = "Unreachable"; }
+      else {
         bucket = "processing";
-        reason = app.status === "unreachable" ? "Unreachable" : app.status === "approved" ? "Approved · awaiting onboarding" : app.status === "on_hold" ? "On hold" : app.status === "contacted" ? "Contacted" : "In review";
+        reason = app.status === "approved" ? "Approved · awaiting onboarding" : app.status === "on_hold" ? "On hold" : app.status === "contacted" ? "Contacted" : "In review";
       }
 
       return {
@@ -81,6 +89,21 @@ export async function GET() {
         createdAt: app.createdAt,
         onboardedAt: app.onboardedAt,
         accountIssue: app.accountIssue,
+        adminNotes: app.adminNotes,
+        applicationNotes: app.notes,
+        referredBy: app.referredBy,
+        referralSource: app.referralSource,
+        industry: app.industry,
+        poc: app.poc,
+        linkedinEmail: app.linkedinEmail,
+        bookingEmail: app.bookingEmail,
+        accountFreshness: app.accountFreshness,
+        ownerStatus: app.ownerStatus,
+        paymentMethod: app.paymentMethod || (app.paypalEmail ? `PayPal: ${app.paypalEmail}` : app.wiseEmail ? `Wise: ${app.wiseEmail}` : null),
+        paymentDetails: app.paymentDetails,
+        payoutName: app.payoutName,
+        verifiedAt: app.verifiedAt,
+        setupPaidAt: app.paidAt,
         bucket,
         reason,
         hasGologin,
@@ -89,7 +112,15 @@ export async function GET() {
         accountName: acct?.linkedinName || null,
         accountStatus: acct?.status || null,
         loginEmail: acct?.loginEmail || null,
+        personalEmail: acct?.personalEmail || null,
+        hasPassword: !!acct?.accountPassword,
+        has2fa: !!acct?.twoFactor,
+        gologinProfileId: acct?.gologinProfileId || null,
         gologinShareLink: acct?.gologinShareLink || null,
+        accountRestrictedAt: acct?.restrictedAt || null,
+        monthlyPrice: acct?.monthlyPrice != null ? Number(acct.monthlyPrice) : null,
+        ambassadorPayment: acct?.ambassadorPayment != null ? Number(acct.ambassadorPayment) : null,
+        accountNotes: acct?.notes || null,
         connectionCount: acct?.connectionCount ?? app.connectionCount ?? null,
       };
     });
