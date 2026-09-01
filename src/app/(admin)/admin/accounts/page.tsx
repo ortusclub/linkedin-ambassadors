@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatName } from "@/lib/utils";
+import { isCompanyEmail } from "@/lib/company";
 
 // LinkedIn 2FA for an account: shows the secret KEY plus the live TOTP code.
 // The server computes the current code (so clock skew can't break it) and, on
@@ -175,7 +176,7 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 // Construction; stable accounts that were paused / had something happen read as
 // Maintenance. Display-only, derived from connectionCount — the DB enum is untouched.
 const CONSTRUCTION_MAX = 100;
-const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null }): string => {
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null }): string => {
   if (a.status === "rented") return "Rented";
   // A restricted account keeps its real lifecycle group (e.g. Maintenance) and just
   // shows a "Restricted" badge on the row — so it can be visibly both at once. The one
@@ -187,10 +188,16 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   if (a.status === "trial") return "Trial";
   if (a.status === "retired") return "Inaccessible";
   if (a.status === "removed") return "Removed";
-  // Initial — the stage BEFORE Construction: we hold no login email for the account
-  // yet, so there's nothing to build on. Terminal states (removed / retired) and
-  // showcase dummies are already handled above and keep their own group.
-  if (!a.loginEmail) return "Initial";
+  // Initial — the stage before an account can be built on: we don't yet hold a
+  // usable company login for it. That's any of: no login email at all; a login
+  // that's still the ambassador's own address rather than one we issued; or an
+  // issued address we hold no password for. Restricted accounts are excluded —
+  // they're a lost login, not an unstarted one — and terminal states (removed /
+  // retired) plus showcase dummies are already handled above.
+  if (!a.restrictedAt && (!a.loginEmail || !isCompanyEmail(a.loginEmail) || !a.accountPassword)) return "Initial";
+  // A restricted account is never "under construction" — it isn't warming up, it's
+  // waiting on LinkedIn — so it goes to Maintenance regardless of how small it is.
+  if (a.restrictedAt) return "Maintenance";
   // under_review / maintenance / unavailable / anything else → split by size
   return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Construction" : "Maintenance";
 };
@@ -199,8 +206,8 @@ const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
   { key: "Restricted", hint: "LinkedIn-restricted — access paused while it recovers", dot: "var(--st-unreach-fg)" },
-  { key: "Initial", hint: "no login email yet — nothing to build on until we hold the credentials", dot: "var(--warn-badge-text)" },
   { key: "Construction", hint: `newer account still warming up — under ${CONSTRUCTION_MAX} connections`, dot: "var(--st-construct-fg)" },
+  { key: "Initial", hint: "not started — no company login we can actually sign in with yet", dot: "var(--warn-badge-text)" },
   { key: "Maintenance", hint: "stable account temporarily off — paused, vetting, or 2FA/setup", dot: "var(--neutral-chip-text)" },
   { key: "Inaccessible", hint: "retired — can no longer be used", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
@@ -579,7 +586,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Initial", "Initial", counts.Initial, "var(--warn-badge-text)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Inaccessible", "Inaccessible", counts.Inaccessible, "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Initial", "Initial", counts.Initial, "var(--warn-badge-text)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Inaccessible", "Inaccessible", counts.Inaccessible, "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
