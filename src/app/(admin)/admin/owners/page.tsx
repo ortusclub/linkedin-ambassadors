@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatName } from "@/lib/utils";
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
@@ -613,7 +614,7 @@ export default function AdminOwnersPage() {
                     <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2)", width: 11, flex: "none", textAlign: "center", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s ease" }}>▸</span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 2 }}>
-                        <span style={{ font: `600 16px ${F_GRO}`, color: "var(--text)", letterSpacing: "-.01em" }}>{owner.fullName}</span>
+                        <span style={{ font: `600 16px ${F_GRO}`, color: "var(--text)", letterSpacing: "-.01em" }}>{formatName(owner.fullName)}</span>
                         <span style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--st-active-bg)", color: "var(--st-active-fg)" }}>{owner.accountCount} profile{owner.accountCount !== 1 ? "s" : ""}</span>
                         {missing.length > 0 && (
                           <span title={`Missing: ${missing.join(", ")}`} style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ {missing.length} missing</span>

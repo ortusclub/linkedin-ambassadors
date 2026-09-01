@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { formatName } from "@/lib/utils";
 
 // LinkedIn 2FA for an account: shows the secret KEY plus the live TOTP code.
 // The server computes the current code (so clock skew can't break it) and, on
@@ -728,7 +729,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           <span style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", width: 12, textAlign: "center", flex: "none", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
-                              <span style={{ font: `600 14px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinName}</span>
+                              <span style={{ font: `600 14px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formatName(a.linkedinName)}</span>
                               {isDummy(a) && <span title="Showcase / demo account — not real inventory" style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".06em", padding: "2px 7px", borderRadius: 5, flex: "none", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>DUMMY</span>}
                               <button onClick={(e) => { e.stopPropagation(); toggleVerified(a); }} title="LinkedIn verified — click to toggle"
                                 style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap", border: "none", cursor: "pointer", ...(a.linkedinVerified ? { background: "var(--verified-bg, var(--blue-chip-bg))", color: "var(--verified-fg, var(--blue-chip-text))" } : { background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }) }}>{a.linkedinVerified ? "✓ Verified" : "Verify"}</button>

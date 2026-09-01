@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatNumber, formatCurrency } from "@/lib/utils";
+import { formatNumber, formatCurrency, formatName } from "@/lib/utils";
 
 interface Account {
   id: string;
@@ -31,7 +31,7 @@ const INDUSTRY_COLORS: Record<string, string> = { Sales: "#5747C9", Marketing: "
 function getAvatarColor(name: string) { return AVATAR_COLORS[(name.charCodeAt(0) + name.length) % AVATAR_COLORS.length]; }
 function getInitials(name: string) { return name.replace(/\s*\(.*\)\s*$/, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(); }
 // Compact, uniform display name: "Tony Otto" -> "Tony O." (View Profile still links the full identity)
-function shortName(name: string) { const p = name.replace(/\s*\(.*\)\s*$/, "").trim().split(/\s+/).filter(Boolean); return p.length < 2 ? (p[0] || "") : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`; }
+function shortName(name: string) { const p = formatName(name.replace(/\s*\(.*\)\s*$/, "")).trim().split(/\s+/).filter(Boolean); return p.length < 2 ? (p[0] || "") : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`; }
 // Account age in months -> compact label, e.g. 38 -> "3y 2m", 5 -> "5m".
 function ageLabel(m: number | null | undefined) { if (!m || m <= 0) return ""; const y = Math.floor(m / 12), mo = m % 12; return y > 0 ? `${y}y${mo ? ` ${mo}m` : ""}` : `${mo}m`; }
 

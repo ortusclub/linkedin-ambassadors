@@ -5,6 +5,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Display a person's name tidily even when it was entered in ALL CAPS
+// (e.g. "AIZA MAE PULAO BARIATA" → "Aiza Mae Pulao Bariata"). Only fully-uppercase
+// words are title-cased; already-mixed-case names are left alone so "McKay",
+// "De Leon", "Hanna-Jen", and initials like "N." survive untouched.
+export function formatName(name: string | null | undefined): string {
+  if (!name) return "";
+  return name.trim().split(/\s+/).map((word) =>
+    word.split("-").map((part) =>
+      part.length > 1 && /[A-Z]/.test(part) && part === part.toUpperCase()
+        ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        : part
+    ).join("-")
+  ).join(" ");
+}
+
 // Sales Navigator add-on: a flat +$70/mo layered on top of an account's base rate.
 // Matches the catalogue banner ("add +$70/mo"). When a renter selects it, billing
 // charges base + this amount and stores it as the rental's lockedPrice, so every
