@@ -19,6 +19,7 @@ const updateSchema = z.object({
   proxyPassword: z.string().nullable().optional(),
   proxyLocation: z.string().nullable().optional(),
   loginEmail: z.string().nullable().optional(),
+  personalEmail: z.string().nullable().optional(),
   accountPassword: z.string().nullable().optional(),
   twoFactor: z.string().nullable().optional(),
   workEmail: z.string().nullable().optional(),

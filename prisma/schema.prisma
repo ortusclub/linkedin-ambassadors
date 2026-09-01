@@ -120,9 +120,11 @@ model LinkedInAccount {
   proxyPassword         String?       @map("proxy_password")
   proxyLocation         String?       @map("proxy_location")  // geo of the proxy egress (e.g. "US", "United States · New York") — for verifying geo-match to the account
   // Login credentials for the ambassador's LinkedIn account (we hold the login).
-  // Admin-only, never exposed to renters. loginEmail = the email the account signs
-  // in with; workEmail = the klabber.co address we added as recovery/secondary.
+  // Admin-only, never exposed to renters. loginEmail = the email WE sign in with
+  // (our klabber.co / ortus.solutions address, added at onboarding); personalEmail =
+  // the ambassador's own original email on the account; workEmail = recovery/secondary.
   loginEmail            String?       @map("login_email")
+  personalEmail         String?       @map("personal_email")
   accountPassword       String?       @map("account_password")
   twoFactor             String?       @map("two_factor")
   // Set automatically whenever a rental ends (the outgoing renter had this code).

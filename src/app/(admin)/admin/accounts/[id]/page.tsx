@@ -72,6 +72,7 @@ export default function EditAccountPage() {
       if (form.gologinProfileId !== undefined) payload.gologinProfileId = form.gologinProfileId || null;
       if (form.gologinShareLink !== undefined) payload.gologinShareLink = form.gologinShareLink || null;
       if (form.loginEmail !== undefined) payload.loginEmail = form.loginEmail || null;
+      if (form.personalEmail !== undefined) payload.personalEmail = form.personalEmail || null;
       if (form.accountPassword !== undefined) payload.accountPassword = form.accountPassword || null;
       if (form.twoFactor !== undefined) payload.twoFactor = form.twoFactor || null;
       if (form.twoFactorResetNeeded !== undefined) payload.twoFactorResetNeeded = !!form.twoFactorResetNeeded;
@@ -226,8 +227,11 @@ export default function EditAccountPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <Input id="loginEmail" label="Login Email" value={(form.loginEmail as string) || ""} onChange={(e) => update("loginEmail", e.target.value)} placeholder="Email the account signs in with" />
-              <Input id="workEmail" label="Work / Recovery Email" value={(form.workEmail as string) || ""} onChange={(e) => update("workEmail", e.target.value)} placeholder="e.g. klabber.co address" />
+              <Input id="loginEmail" label="Login Email — we sign in with this" value={(form.loginEmail as string) || ""} onChange={(e) => update("loginEmail", e.target.value)} placeholder="our klabber.co / ortus.solutions address" />
+              <Input id="personalEmail" label="Personal Email — their own" value={(form.personalEmail as string) || ""} onChange={(e) => update("personalEmail", e.target.value)} placeholder="the ambassador's own gmail, etc." />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input id="workEmail" label="Work / Recovery Email" value={(form.workEmail as string) || ""} onChange={(e) => update("workEmail", e.target.value)} placeholder="secondary / recovery address" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Input id="accountPassword" label="Account Password" value={(form.accountPassword as string) || ""} onChange={(e) => update("accountPassword", e.target.value)} placeholder="LinkedIn password" />
