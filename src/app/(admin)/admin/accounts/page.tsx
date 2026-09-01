@@ -176,7 +176,13 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 // Construction; stable accounts that were paused / had something happen read as
 // Maintenance. Display-only, derived from connectionCount — the DB enum is untouched.
 const CONSTRUCTION_MAX = 100;
-const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null }): string => {
+// How many times LinkedIn has restricted this account, per its restriction log.
+// A currently-restricted account with no prior entries is on its FIRST restriction —
+// an early stumble while warming up, not an account with a pattern of trouble.
+type RestrictLog = Array<{ at: string; event: string }> | null | undefined;
+const restrictCount = (log: RestrictLog) => (Array.isArray(log) ? log.filter((e) => e?.event === "restricted").length : 0);
+const isFirstRestriction = (a: { restrictedAt: string | null; restrictionLog?: RestrictLog }) => !!a.restrictedAt && restrictCount(a.restrictionLog) <= 1;
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; restrictionLog?: RestrictLog }): string => {
   if (a.status === "rented") return "Rented";
   // A restricted account keeps its real lifecycle group (e.g. Maintenance) and just
   // shows a "Restricted" badge on the row — so it can be visibly both at once. The one
@@ -195,9 +201,12 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   // they're a lost login, not an unstarted one — and terminal states (removed /
   // retired) plus showcase dummies are already handled above.
   if (!a.restrictedAt && (!a.loginEmail || !isCompanyEmail(a.loginEmail) || !a.accountPassword)) return "Initial";
-  // A restricted account is never "under construction" — it isn't warming up, it's
-  // waiting on LinkedIn — so it goes to Maintenance regardless of how small it is.
-  if (a.restrictedAt) return "Maintenance";
+  // A restricted account is normally not "under construction" — it isn't warming up,
+  // it's waiting on LinkedIn — so it goes to Maintenance regardless of how small it
+  // is. The exception: a small account on its FIRST restriction is still an account
+  // being built, so it stays in Construction (badged "Initial restriction", and sorted
+  // to the bottom of the section). A repeat offender always drops to Maintenance.
+  if (a.restrictedAt && !(isFirstRestriction(a) && (a.connectionCount ?? 0) < CONSTRUCTION_MAX)) return "Maintenance";
   // under_review / maintenance / unavailable / anything else → split by size
   return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Construction" : "Maintenance";
 };
@@ -766,7 +775,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
                           <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{st}</span>
-                          {a.restrictedAt && st !== "Restricted" && <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>}
+                          {a.restrictedAt && st !== "Restricted" && (st === "Construction" && isFirstRestriction(a)
+                            ? <span title={`First LinkedIn restriction — ${fmtS(a.restrictedAt)}. Still an account under construction; kept here but sorted to the bottom.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Initial restriction</span>
+                            : <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>)}
                           {!a.restrictedAt && (() => { const rr = recentRestrict(a); return rr ? <span title={`Restricted ${rr.times}× — most recent ${rr.daysAgo === 0 ? "today" : `${rr.daysAgo}d ago`}. Recovered but still fragile — go easy: no activity bursts, verify the proxy is clean PH residential.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Recently restricted{rr.times > 1 ? ` ${rr.times}×` : ""}</span> : null; })()}
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
