@@ -248,7 +248,7 @@ function groupByOwner(rows: Row[], byDue: boolean): OwnerGroup[] {
 }
 
 // Order for the "not applicable" reason sub-groups.
-const REASON_ORDER = ["Restricted", "Inaccessible", "Company-owned · no ambassador", "No monthly rate set", "No onboarding date"];
+const REASON_ORDER = ["Restricted", "Inaccessible", "Company-owned · no ambassador", "No monthly rate set"];
 function groupByReason(rows: Row[]): { reason: string; rows: Row[] }[] {
   const map = new Map<string, Row[]>();
   for (const r of rows) { if (!map.has(r.reason)) map.set(r.reason, []); map.get(r.reason)!.push(r); }
@@ -320,6 +320,7 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
 
 export default function PayoutsIIPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [onboarding, setOnboarding] = useState<{ count: number; names: string[] }>({ count: 0, names: [] });
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -329,6 +330,7 @@ export default function PayoutsIIPage() {
       if (!res.ok) { setError(true); return; }
       const d = await res.json();
       setRows(d.rows || []);
+      setOnboarding(d.onboarding || { count: 0, names: [] });
     } catch { setError(true); }
   };
   useEffect(() => { load(); }, []);
@@ -373,6 +375,12 @@ export default function PayoutsIIPage() {
         the account is rented. (Renter payments coming <em>in</em> are separate; they live on Inventory.)
         Click any row for last paid, next due, method, total paid, and the login credentials.
       </p>
+      {onboarding.count > 0 && (
+        <p style={{ font: `500 13px ${F_SANS}`, color: "var(--muted,#777)", margin: "10px 0 0" }}>
+          {onboarding.count} account{onboarding.count === 1 ? " is" : "s are"} still being onboarded, so nothing is owed yet
+          — {onboarding.names.join(", ")}. They live on <a href="/admin/onboarding" style={{ color: "var(--link,#0a66c2)" }}>Onboarding</a>.
+        </p>
+      )}
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}

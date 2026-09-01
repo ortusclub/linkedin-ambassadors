@@ -99,7 +99,10 @@ export async function GET() {
       if (a.restrictedAt) { bucket = "na"; reason = "Restricted"; }
       else if (a.status === "retired") { bucket = "na"; reason = "Inaccessible"; }
       else if (!ownerEmail || isCompanyEmail(ownerEmail)) { bucket = "na"; reason = "Company-owned · no ambassador"; }
-      else if (!onboardedAt) { bucket = "na"; reason = "No onboarding date"; }
+      // Still in the onboarding pipeline — no onboarding date means nothing is owed
+      // yet and no schedule exists. These belong on the Onboarding page, not here, so
+      // they're filtered out below rather than shown as an unpayable "na" row.
+      else if (!onboardedAt) { bucket = "na"; reason = "Still onboarding"; }
       else if (!setupPaid) {
         // Initial ₱1,000 not yet settled → its own section, regardless of monthly.
         bucket = "setup";
@@ -155,7 +158,13 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ rows });
+    // Accounts still being onboarded are tracked on /admin/onboarding — surface only a
+    // count here so this page stays a list of things that can actually be paid.
+    const stillOnboarding = rows.filter((r) => r.reason === "Still onboarding");
+    return NextResponse.json({
+      rows: rows.filter((r) => r.reason !== "Still onboarding"),
+      onboarding: { count: stillOnboarding.length, names: stillOnboarding.map((r) => r.linkedinName) },
+    });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
       return NextResponse.json({ error: error.message }, { status: 403 });
