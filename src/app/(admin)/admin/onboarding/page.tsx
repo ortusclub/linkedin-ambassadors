@@ -65,17 +65,25 @@ interface Row {
   accountNotes: string | null;
 }
 
-// The dropdown offers every real status, grouped so the common next step is obvious.
+// The dropdown offers the four stages only — the finer sub-statuses (contacted /
+// approved / on hold / unreachable) still exist in the data and still drive the
+// section a row lands in, but they can't be picked by hand. "Processing" writes
+// `reviewing`, the neutral in-flight status.
 const STATUS_OPTIONS: { value: Status; label: string }[] = [
-  { value: "pending", label: "Initial · new application" },
-  { value: "reviewing", label: "Processing · in review" },
-  { value: "contacted", label: "Processing · contacted" },
-  { value: "approved", label: "Processing · approved" },
-  { value: "on_hold", label: "Processing · on hold" },
-  { value: "unreachable", label: "Processing · unreachable" },
-  { value: "onboarded", label: "Onboarded · done" },
+  { value: "pending", label: "Initial" },
+  { value: "reviewing", label: "Processing" },
   { value: "rejected", label: "Rejected" },
+  { value: "onboarded", label: "Onboarded" },
 ];
+
+// A row already sitting on one of the retired sub-statuses gets a read-only entry
+// showing where it actually is, so the select never renders blank.
+const LEGACY_LABEL: Partial<Record<Status, string>> = {
+  contacted: "Processing · contacted",
+  approved: "Processing · approved",
+  on_hold: "Processing · on hold",
+  unreachable: "Unreachable",
+};
 
 const SECTIONS: { key: Bucket; title: string; tone: string; note: string }[] = [
   { key: "initial", title: "Initial", tone: "var(--blue-chip-text,#2b5fd0)", note: "brand-new applications — nobody has picked these up yet" },
@@ -114,6 +122,9 @@ function StatusPicker({ r, onChange, busy }: { r: Row; onChange: (s: Status) => 
         color: "var(--fg,#111)", cursor: busy ? "wait" : "pointer", maxWidth: 210,
       }}
     >
+      {!STATUS_OPTIONS.some((o) => o.value === r.status) && (
+        <option value={r.status} disabled>{LEGACY_LABEL[r.status] || r.status}</option>
+      )}
       {STATUS_OPTIONS.map((o) => (
         <option key={o.value} value={o.value}>{o.label}</option>
       ))}
