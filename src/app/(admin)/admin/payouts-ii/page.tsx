@@ -353,7 +353,7 @@ export default function PayoutsIIPage() {
     const q = query.trim().toLowerCase();
     if (!q) return rows || [];
     return (rows || []).filter((r) =>
-      [r.linkedinName, r.ownerName, r.ownerEmail, r.loginEmail].some((v) => (v || "").toLowerCase().includes(q))
+      [r.linkedinName, r.ownerName, r.ownerEmail, r.loginEmail, r.ownerPhone].some((v) => (v || "").toLowerCase().includes(q))
     );
   }, [rows, query]);
   const hasCreds = (r: Row) => !!r.loginEmail && !!r.accountPassword;
@@ -384,7 +384,7 @@ export default function PayoutsIIPage() {
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search account name, owner or email…"
+        placeholder="Search account name, owner, email or number…"
         style={{ width: "100%", boxSizing: "border-box", marginTop: 14, padding: "11px 14px", borderRadius: 10, border: "1px solid var(--border,#dcdce0)", background: "var(--card,#fff)", color: "var(--fg,#111)", font: `500 14px ${F_SANS}`, outline: "none" }}
       />
       {query && rows && <p style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#888)", margin: "8px 2px 0" }}>{filtered.length} of {rows.length} accounts match “{query}”.</p>}

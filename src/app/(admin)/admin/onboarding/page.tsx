@@ -252,7 +252,7 @@ export default function OnboardingPage() {
     const q = query.trim().toLowerCase();
     if (!q) return rows || [];
     return (rows || []).filter((r) =>
-      [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail].some((v) => (v || "").toLowerCase().includes(q))
+      [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail].some((v) => (v || "").toLowerCase().includes(q))
     );
   }, [rows, query]);
 

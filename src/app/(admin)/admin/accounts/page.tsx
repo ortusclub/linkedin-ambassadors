@@ -566,7 +566,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       if (verifiedFilter === "no" && a.linkedinVerified) return false;
       if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
       if (!q) return true;
-      return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.ownerEmail || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
+      // Every identifier someone might paste in: the login email we issued, the
+      // ambassador's contact email and number, the owner name, plus the profile fields.
+      return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.loginEmail || ""} ${a.ownerEmail || ""} ${a.ownerName || ""} ${a.ownerPhone || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
     });
     // Combined-billing pairs: keep a secondary right after its primary instead
     // of wherever createdAt happens to place it, so they read as one unit.
@@ -651,7 +653,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
           ))}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, role, location, industry…" style={{ width: 280, maxWidth: "50vw", ...modalInput }} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, owner, location, industry…" style={{ width: 280, maxWidth: "50vw", ...modalInput }} />
           <button onClick={expandAll} style={{ ...secBtn, padding: "9px 14px", borderRadius: 9 }}>{allExpanded ? "Collapse all" : "Expand all"}</button>
         </div>
       </div>
