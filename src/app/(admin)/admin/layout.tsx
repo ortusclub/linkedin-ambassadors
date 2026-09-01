@@ -27,9 +27,11 @@ const sections = [
     { href: "/admin/ambassadors", label: "Applications" },
     { href: "/admin/referrals", label: "Referrals" },
     { href: "/admin/owners", label: "Ambassadors" },
+    { href: "/admin/balances", label: "Payouts" },
+    // Onboarding → Inventory → Payouts II sit together at the end: the account
+    // lifecycle, in the order you actually walk it.
     { href: "/admin/onboarding", label: "Onboarding" },
     { href: "/admin/accounts", label: "Inventory" },
-    { href: "/admin/balances", label: "Payouts" },
     { href: "/admin/payouts-ii", label: "Payouts II" },
   ] },
 ];
