@@ -182,16 +182,17 @@ export async function PATCH(
       }
     }
 
-    // A person becomes an owner the moment they're onboarded — whether that's via
-    // the status dropdown OR the "mark onboarded" button (which only sets
-    // onboarded_at and can leave status at "approved"). In either case, make sure an
-    // account exists so they show on the owners page. It starts OFFLINE (unavailable),
-    // not rentable — a fresh account is warming up and isn't inventory yet. Flip it to
-    // "available" from the inventory view once it's ready to rent.
-    const justOnboarded =
+    // Surface the offline profile the moment onboarding STARTS (so credentials/GoLogin
+    // can be filled in during warm-up) — and again at onboarded, as a safety net. Make
+    // sure an account exists and isn't hidden under_review, so it shows on the owners +
+    // inventory views. It sits OFFLINE (unavailable) — warming up, not rentable — until
+    // it's flipped to "available" from the inventory view once ready.
+    const enteringPipeline =
+      (rest.status === "onboarding" && currentApp.status !== "onboarding") ||
+      (!!application.onboardingStartedAt && !currentApp.onboardingStartedAt) ||
       (rest.status === "onboarded" && currentApp.status !== "onboarded") ||
       (!!application.onboardedAt && !currentApp.onboardedAt);
-    if (justOnboarded) {
+    if (enteringPipeline) {
       const existing = await prisma.linkedInAccount.findFirst({
         where: {
           status: { notIn: ["removed", "retired"] },
