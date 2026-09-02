@@ -117,7 +117,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const owners = await getOwners();
+  // getOwners() now also returns pre-onboarded pipeline people (accepted / warming up)
+  // so the admin page can show them; the Sheet stays a record of real supplied inventory,
+  // so keep only owners who actually have a live account.
+  const owners = (await getOwners()).filter((o) => o.accountCount > 0);
 
   const headers = [
     // Owner
