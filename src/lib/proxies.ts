@@ -140,7 +140,9 @@ export async function getProxies(): Promise<ProxyRow[]> {
     });
   }
 
-  // Sort by country (Unassigned last), then by label, then host:port.
+  // Sort by country (Unassigned last), then provider (untagged last), then label,
+  // then host:port — so both the page and the sheet cluster same-provider proxies
+  // together within each country.
   rows.sort((a, b) => {
     const ca = a.country || NA_COUNTRY;
     const cb = b.country || NA_COUNTRY;
@@ -149,6 +151,10 @@ export async function getProxies(): Promise<ProxyRow[]> {
       if (cb === NA_COUNTRY) return -1;
       return ca.localeCompare(cb);
     }
+    // Provider sub-order; blank/untagged sinks to the bottom of the country.
+    const pa = a.provider || "￿";
+    const pb = b.provider || "￿";
+    if (pa !== pb) return pa.localeCompare(pb, undefined, { sensitivity: "base" });
     const la = a.label || "";
     const lb = b.label || "";
     if (la !== lb) return la.localeCompare(lb, undefined, { numeric: true });

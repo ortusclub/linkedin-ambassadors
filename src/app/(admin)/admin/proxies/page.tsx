@@ -114,7 +114,8 @@ export default function AdminProxiesPage() {
     !q || `${p.proxyString} ${p.country || ""} ${p.label || ""} ${p.provider || ""} ${p.type || ""} ${p.accounts.join(" ")}`.toLowerCase().includes(q)
   ), [proxies, q]);
 
-  // Group by country, preserving the server's sort (Unassigned last).
+  // Group by country, then sub-group by provider within each country — preserving
+  // the server's sort (Unassigned country / Untagged provider sink to the bottom).
   const groups = useMemo(() => {
     const order: string[] = [];
     const byCountry = new Map<string, ProxyRow[]>();
@@ -123,7 +124,24 @@ export default function AdminProxiesPage() {
       if (!byCountry.has(c)) { byCountry.set(c, []); order.push(c); }
       byCountry.get(c)!.push(p);
     }
-    return order.map((c) => ({ country: c, rows: byCountry.get(c)! }));
+    return order.map((c) => {
+      const rows = byCountry.get(c)!;
+      const pOrder: string[] = [];
+      const byProvider = new Map<string, ProxyRow[]>();
+      for (const p of rows) {
+        const key = p.provider || "Untagged";
+        if (!byProvider.has(key)) { byProvider.set(key, []); pOrder.push(key); }
+        byProvider.get(key)!.push(p);
+      }
+      const providers = pOrder.map((pv) => {
+        const pr = byProvider.get(pv)!;
+        // Type shown on the sub-band only when the whole provider group agrees.
+        const types = new Set(pr.map((x) => x.type).filter(Boolean));
+        const type = types.size === 1 ? [...types][0]! : null;
+        return { provider: pv, tagged: pv !== "Untagged", type, rows: pr };
+      });
+      return { country: c, rows, providers };
+    });
   }, [shown]);
 
   const totalLinked = proxies.reduce((s, p) => s + p.accountCount, 0);
@@ -183,46 +201,63 @@ export default function AdminProxiesPage() {
                 <span>Proxy</span><span>Name</span><span>Provider</span><span>Type</span><span>LinkedIn accounts</span><span style={{ textAlign: "center" }}>#</span><span>Status</span>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {g.rows.map((p) => {
-                  const key = `${p.host}:${p.port}`;
-                  const tMeta = p.type ? TYPE_META[p.type] : null;
-                  const dead = p.status === "error" || p.status === "retired";
-                  return (
-                    <div key={key} style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, alignItems: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "10px 14px", boxShadow: "var(--card-shadow)", opacity: dead ? 0.72 : 1 }}>
-                      {/* proxy string */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
-                        <span title={p.proxyString} style={{ font: `500 12px ${MONO}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.proxyString}</span>
-                        <CopyBtn value={p.proxyString} small />
-                      </div>
-                      {/* label */}
-                      <Editable initial={p.label} placeholder="e.g. Germany 01" onSave={(v) => patchProxy(p.host, p.port, { label: v })} />
-                      {/* provider (free text w/ suggestions) */}
-                      <Editable initial={p.provider} placeholder="Provider" list="proxy-providers" onSave={(v) => patchProxy(p.host, p.port, { provider: v })} />
-                      {/* type */}
-                      <select value={p.type || ""} onChange={(e) => patchProxy(p.host, p.port, { type: e.target.value })}
-                        style={{ ...inputCss, cursor: "pointer", fontWeight: 600, color: tMeta ? tMeta.fg : "var(--muted)" }}>
-                        {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                      {/* accounts */}
-                      <div style={{ minWidth: 0 }}>
-                        {p.accountCount === 0 ? (
-                          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", fontStyle: "italic" }}>no accounts</span>
-                        ) : (
-                          <span title={p.accounts.join(", ")} style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.accounts.join(", ")}</span>
-                        )}
-                      </div>
-                      {/* count */}
-                      <span style={{ textAlign: "center", font: `700 13px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{p.accountCount}</span>
-                      {/* status */}
-                      <select value={p.status || ""} onChange={(e) => patchProxy(p.host, p.port, { status: e.target.value })}
-                        style={{ ...inputCss, cursor: "pointer", fontWeight: 600, color: dead ? "var(--st-cancel-fg)" : "var(--muted)" }}>
-                        {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
+              {g.providers.map((pv) => {
+                const pvTypeMeta = pv.type ? TYPE_META[pv.type] : null;
+                return (
+                  <div key={pv.provider} style={{ marginBottom: 14 }}>
+                    {/* provider sub-band */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 14px 7px" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 999, flex: "none", background: pvTypeMeta ? pvTypeMeta.fg : "var(--muted2)" }} />
+                      <span style={{ font: `600 12.5px ${F_SANS}`, color: pv.tagged ? "var(--text)" : "var(--muted)" }}>{pv.provider}</span>
+                      {pvTypeMeta && (
+                        <span style={{ font: `600 10px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 6, background: pvTypeMeta.bg, color: pvTypeMeta.fg }}>{pvTypeMeta.label}</span>
+                      )}
+                      <span style={{ font: `700 10.5px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 7px", borderRadius: 6, background: "var(--band)", color: "var(--muted)" }}>{pv.rows.length}</span>
                     </div>
-                  );
-                })}
-              </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {pv.rows.map((p) => {
+                        const key = `${p.host}:${p.port}`;
+                        const tMeta = p.type ? TYPE_META[p.type] : null;
+                        const dead = p.status === "error" || p.status === "retired";
+                        return (
+                          <div key={key} style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, alignItems: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "10px 14px", boxShadow: "var(--card-shadow)", opacity: dead ? 0.72 : 1 }}>
+                            {/* proxy string */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
+                              <span title={p.proxyString} style={{ font: `500 12px ${MONO}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.proxyString}</span>
+                              <CopyBtn value={p.proxyString} small />
+                            </div>
+                            {/* label */}
+                            <Editable initial={p.label} placeholder="e.g. Germany 01" onSave={(v) => patchProxy(p.host, p.port, { label: v })} />
+                            {/* provider (free text w/ suggestions) */}
+                            <Editable initial={p.provider} placeholder="Provider" list="proxy-providers" onSave={(v) => patchProxy(p.host, p.port, { provider: v })} />
+                            {/* type */}
+                            <select value={p.type || ""} onChange={(e) => patchProxy(p.host, p.port, { type: e.target.value })}
+                              style={{ ...inputCss, cursor: "pointer", fontWeight: 600, color: tMeta ? tMeta.fg : "var(--muted)" }}>
+                              {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                            {/* accounts */}
+                            <div style={{ minWidth: 0 }}>
+                              {p.accountCount === 0 ? (
+                                <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", fontStyle: "italic" }}>no accounts</span>
+                              ) : (
+                                <span title={p.accounts.join(", ")} style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.accounts.join(", ")}</span>
+                              )}
+                            </div>
+                            {/* count */}
+                            <span style={{ textAlign: "center", font: `700 13px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{p.accountCount}</span>
+                            {/* status */}
+                            <select value={p.status || ""} onChange={(e) => patchProxy(p.host, p.port, { status: e.target.value })}
+                              style={{ ...inputCss, cursor: "pointer", fontWeight: 600, color: dead ? "var(--st-cancel-fg)" : "var(--muted)" }}>
+                              {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
