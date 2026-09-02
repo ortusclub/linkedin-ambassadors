@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isReferralEarned } from "@/lib/referrals";
+import { currencyConfig } from "@/lib/referral-currency";
 
 export const dynamic = "force-dynamic";
 
-const RATE = 500;
-// A signup only counts (and pays) once the referred account is onboarded AND confirmed
-// "ok to pay" (verifiedAt) with no login issue — see lib/referrals. Being merely
-// accepted/onboarded is NOT enough; we confirm the account is good first.
+// The commission rate + currency are per-referrer (PH = ₱500, non-PH = USD) — see
+// lib/referral-currency. A signup only counts (and pays) once the referred account
+// is onboarded AND confirmed "ok to pay" (verifiedAt) with no login issue — see
+// lib/referrals. Being merely accepted/onboarded is NOT enough; we confirm the
+// account is good first.
 
 // Public marketer portal data, keyed by the secret token in the URL. Returns the
 // referrer's own figures, a PII-free competitive board (counts only), and the
@@ -47,6 +49,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   if (!board.some((b) => b.isMe)) board.push({ name: me.name, signups: 0, converted: 0, isMe: true });
 
   const mine = counts.get(me.slug) || { signups: 0, converted: 0 };
+  const cfg = currencyConfig(me.slug);
 
   // Activity feed — this marketer's own signups only, names only (no email/number).
   const activity = apps
@@ -71,7 +74,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       assignedDay: me.assignedDay,
       assignedLocation: me.assignedLocation,
     },
-    stats: { signups: mine.signups, converted: mine.converted, commission: mine.converted * RATE, rate: RATE },
+    stats: { signups: mine.signups, converted: mine.converted, commission: mine.converted * cfg.rate, rate: cfg.rate },
+    config: {
+      currency: cfg.currency,
+      symbol: cfg.symbol,
+      offer: cfg.offer,
+      payoutMethods: cfg.payoutMethods,
+      defaultPayoutMethod: cfg.defaultPayoutMethod,
+    },
     board,
     activity,
     payouts: payouts.map((p) => ({
