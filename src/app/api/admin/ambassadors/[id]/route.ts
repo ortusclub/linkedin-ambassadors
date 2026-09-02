@@ -6,7 +6,7 @@ import { z } from "zod";
 import { sendSetupFeePaidEmail, sendMonthlyPayoutEmail } from "@/services/email";
 
 const updateSchema = z.object({
-  status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
+  status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarding", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
   offeredAmount: z.number().optional(),
   adminNotes: z.string().optional(),
   // editable applicant details (filled in as info comes in)
@@ -23,6 +23,7 @@ const updateSchema = z.object({
   nextFollowUp: z.string().datetime().nullable().optional(),
   callOutcome: z.enum(["no_show", "completed"]).nullable().optional(),
   accountFreshness: z.enum(["established", "fresh"]).nullable().optional(),
+  onboardingStartedAt: z.string().datetime().nullable().optional(),
   onboardedAt: z.string().datetime().nullable().optional(),
   verifiedAt: z.string().datetime().nullable().optional(),
   paidAt: z.string().datetime().nullable().optional(),
@@ -68,7 +69,7 @@ export async function PATCH(
     const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
-    const { addTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardedAt, verifiedAt, paidAt, marketerPaidAt, ...rest } = updateSchema.parse(body);
+    const { addTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, paidAt, marketerPaidAt, ...rest } = updateSchema.parse(body);
 
     // Get the current application before updating
     const currentApp = await prisma.ambassadorApplication.findUnique({ where: { id } });
@@ -78,6 +79,7 @@ export async function PATCH(
 
     const updateData: Prisma.AmbassadorApplicationUpdateInput = { ...rest };
     if (nextFollowUp !== undefined) updateData.nextFollowUp = nextFollowUp ? new Date(nextFollowUp) : null;
+    if (onboardingStartedAt !== undefined) updateData.onboardingStartedAt = onboardingStartedAt ? new Date(onboardingStartedAt) : null;
     if (onboardedAt !== undefined) updateData.onboardedAt = onboardedAt ? new Date(onboardedAt) : null;
     if (verifiedAt !== undefined) updateData.verifiedAt = verifiedAt ? new Date(verifiedAt) : null;
     if (paidAt !== undefined) updateData.paidAt = paidAt ? new Date(paidAt) : null;

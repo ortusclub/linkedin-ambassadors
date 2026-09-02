@@ -36,9 +36,10 @@ async function run(req: NextRequest) {
   const now = Date.now();
   const eligible = await prisma.ambassadorApplication.findMany({
     where: {
-      status: { notIn: ["onboarded", "rejected"] },
-      // Already accepted = they've transferred their account (onboarded_at set),
-      // even if their status field still lags at "approved". Never re-nudge those.
+      status: { notIn: ["onboarding", "onboarded", "rejected"] },
+      // Already in onboarding / logged in = they've handed over their account. Never
+      // re-nudge those, even if their status field still lags at "approved".
+      onboardingStartedAt: null,
       onboardedAt: null,
       fastTrackSentAt: null,
       createdAt: { gte: new Date(now - WINDOW_DAYS * 24 * HOUR), lte: new Date(now - DELAY_HOURS * HOUR) },

@@ -16,7 +16,7 @@ const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
 type Bucket = "initial" | "processing" | "rejected" | "onboarded" | "unreachable";
-type Status = "pending" | "reviewing" | "approved" | "rejected" | "onboarded" | "unreachable" | "contacted" | "on_hold";
+type Status = "pending" | "reviewing" | "approved" | "rejected" | "onboarding" | "onboarded" | "unreachable" | "contacted" | "on_hold";
 
 interface Row {
   id: string;
@@ -73,6 +73,7 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "pending", label: "Initial" },
   { value: "reviewing", label: "Processing" },
   { value: "rejected", label: "Rejected" },
+  { value: "onboarding", label: "Onboarding" },
   { value: "onboarded", label: "Onboarded" },
 ];
 

@@ -22,12 +22,13 @@ const nextBusinessDay = (d: Date): Date => {
   return r;
 };
 
-// Setup fee is due N days after onboarding: 3 for an established account, 1 week for a
-// fresh one — rolled to the next business day so it always lands on a weekday.
-const setupDueDate = (onboardedAt: string | null, freshness: string | null): Date | null => {
+// Setup fee is due 24h after we log into the account (onboardedAt = the login moment),
+// rolled to the next business day. The 3-day/1-week warm-up happens before login, so it
+// no longer factors into the setup date.
+const setupDueDate = (onboardedAt: string | null): Date | null => {
   if (!onboardedAt) return null;
   const d = new Date(onboardedAt);
-  d.setDate(d.getDate() + (freshness === "fresh" ? 7 : 3));
+  d.setDate(d.getDate() + 1);
   return nextBusinessDay(d);
 };
 
@@ -550,7 +551,7 @@ export default function AdminOwnersPage() {
             const setupPaid = fmtDate(owner.setupFeePaidAt);
             const monthlyOnly = owner.monthlyPayouts.filter((p) => p.kind !== "setup");
             const monthlyCount = monthlyOnly.length;
-            const setupDue = setupDueDate(owner.onboardedAt, owner.accountFreshness);
+            const setupDue = setupDueDate(owner.onboardedAt);
             const nextMonthlyDue = monthlyDueDate(setupPaidAtOf(owner), monthlyCount);
             const ownerMonthly = payableMonthly(owner);
             const monthlyAmt = ownerMonthly || 500;

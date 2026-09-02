@@ -41,10 +41,11 @@ function nextBusinessDay(d: Date): Date {
   else if (day === 0) r.setUTCDate(r.getUTCDate() + 1);
   return r;
 }
-function setupDueDate(onboardedAt: Date | null, freshness: string | null): Date | null {
+// Setup fee is due 24h after login (onboardedAt); warm-up (3/7 days) is before login.
+function setupDueDate(onboardedAt: Date | null): Date | null {
   if (!onboardedAt) return null;
   const d = new Date(onboardedAt);
-  d.setUTCDate(d.getUTCDate() + (freshness === "fresh" ? 7 : 3));
+  d.setUTCDate(d.getUTCDate() + 1);
   return nextBusinessDay(d);
 }
 
@@ -81,7 +82,7 @@ function missingFields(o: Owner): string[] {
 
 function setupStatus(o: Owner): string {
   if (o.setupFeePaidAt) return `Paid ${fmtDate(o.setupFeePaidAt)}`;
-  const due = setupDueDate(o.onboardedAt, o.accountFreshness);
+  const due = setupDueDate(o.onboardedAt);
   if (!due) return "Not scheduled";
   const overdue = due.getTime() < Date.now();
   return `Due ${fmtDate(due)}${overdue ? " · overdue" : ""}`;

@@ -265,6 +265,7 @@ enum AmbassadorStatus {
   reviewing
   approved
   rejected
+  onboarding
   onboarded
   unreachable
   contacted
@@ -318,6 +319,7 @@ model AmbassadorApplication {
   callOutcome       String?          @map("call_outcome")
   bookingEmail      String?          @map("booking_email")
   verifiedAt        DateTime?         @map("verified_at")
+  onboardingStartedAt DateTime?       @map("onboarding_started_at")
   onboardedAt       DateTime?         @map("onboarded_at")
   accountFreshness  String?          @map("account_freshness")
   paidAt            DateTime?         @map("paid_at")

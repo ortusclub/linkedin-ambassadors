@@ -77,7 +77,7 @@ export async function GET() {
       else if (app.status === "unreachable") { bucket = "unreachable"; reason = "Unreachable"; }
       else {
         bucket = "processing";
-        reason = app.status === "approved" ? "Approved · awaiting onboarding" : app.status === "on_hold" ? "On hold" : app.status === "contacted" ? "Contacted" : "In review";
+        reason = app.status === "onboarding" ? "Onboarding · warming up" : app.status === "approved" ? "Approved · awaiting onboarding" : app.status === "on_hold" ? "On hold" : app.status === "contacted" ? "Contacted" : "In review";
       }
 
       return {

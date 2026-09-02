@@ -22,7 +22,7 @@ export async function GET() {
 
     // For onboarded submissions, find the matching LinkedIn account's GoLogin share link
     const linkedinUrls = submissions
-      .filter((s) => s.status === "onboarded" || s.status === "approved")
+      .filter((s) => s.status === "onboarded" || s.status === "onboarding" || s.status === "approved")
       .map((s) => s.linkedinUrl);
 
     let gologinLinks: Record<string, string> = {};
