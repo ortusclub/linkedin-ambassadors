@@ -35,7 +35,7 @@ const shortName = (n: string) => { const p = n.replace(/\s*\(.*\)\s*$/, "").trim
 
 const STEPS = [
   { n: "1", title: "Rent the account", body: "Subscribe monthly — access is set up instantly. No passwords to manage, no setup." },
-  { n: "2", title: "Open it in the LinkedVelocity browser", body: "The account is pre-warmed and already logged in. You and the owner can both be online at the same time." },
+  { n: "2", title: "Open it in the GoLogin browser", body: "The account is pre-warmed and already logged in, ready to use right away." },
   { n: "3", title: "Run your outreach", body: "Send connection requests and messages from an established, real profile. The owner's name and photo stay as-is. Cancel anytime." },
 ];
 const PERKS = [

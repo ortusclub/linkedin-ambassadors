@@ -670,7 +670,7 @@ Key safety practices:
 2. Filter by your target industry
 3. Select an account within your budget
 4. Complete checkout (credit card or USDC)
-5. Launch the account in the LinkedVelocity browser app
+5. Launch the account in the GoLogin browser
 6. Start your first campaign
 
 That's it. No warm-up period, no profile building, no waiting.
