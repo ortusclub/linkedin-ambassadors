@@ -182,12 +182,13 @@ export async function PATCH(
       }
     }
 
-    // Surface the offline profile the moment onboarding STARTS (so credentials/GoLogin
-    // can be filled in during warm-up) — and again at onboarded, as a safety net. Make
-    // sure an account exists and isn't hidden under_review, so it shows on the owners +
-    // inventory views. It sits OFFLINE (unavailable) — warming up, not rentable — until
-    // it's flipped to "available" from the inventory view once ready.
+    // Surface the offline profile as soon as someone is ACCEPTED (approved) — so their
+    // credentials/GoLogin can be filled in straight away — and again when onboarding
+    // starts / they're onboarded, as a safety net. Make sure an account exists and isn't
+    // hidden under_review, so it shows on the owners + inventory views. It sits OFFLINE
+    // (unavailable) — not rentable — until flipped to "available" from the inventory view.
     const enteringPipeline =
+      (rest.status === "approved" && currentApp.status !== "approved") ||
       (rest.status === "onboarding" && currentApp.status !== "onboarding") ||
       (!!application.onboardingStartedAt && !currentApp.onboardingStartedAt) ||
       (rest.status === "onboarded" && currentApp.status !== "onboarded") ||
@@ -207,6 +208,11 @@ export async function PATCH(
           await prisma.linkedInAccount.update({ where: { id: existing.id }, data: { status: "unavailable" } });
         }
       } else {
+        // Monthly rate: the field-day standard is ₱500. offered_amount is unreliable (it
+        // sometimes holds a bogus small value like 16), so only trust it as the monthly
+        // when it's a plausible figure; otherwise default to 500.
+        const offered = Number(application.offeredAmount) || 0;
+        const monthly = offered >= 100 ? offered : 500;
         await prisma.linkedInAccount.create({
           data: {
             linkedinName: application.fullName,
@@ -215,32 +221,9 @@ export async function PATCH(
             industry: application.industry || null,
             location: application.location || null,
             status: "unavailable",
-            ambassadorPayment: Number(application.offeredAmount) || 500,
+            ambassadorPayment: monthly,
             gologinAccount: "klabber",
             listed: false,
-            notes: `Owner: ${application.email}. Profile email: ${application.linkedinEmail || application.email}.`,
-          },
-        });
-      }
-    }
-
-    // When status changes to "approved", automatically create a LinkedInAccount
-    if (rest.status === "approved" && currentApp.status !== "approved") {
-      // Check if a LinkedInAccount already exists for this LinkedIn URL
-      const existingAccount = await prisma.linkedInAccount.findFirst({
-        where: { linkedinUrl: application.linkedinUrl },
-      });
-
-      if (!existingAccount) {
-        await prisma.linkedInAccount.create({
-          data: {
-            linkedinName: application.fullName,
-            linkedinUrl: application.linkedinUrl,
-            connectionCount: application.connectionCount || 0,
-            industry: application.industry || null,
-            location: application.location || null,
-            status: "under_review",
-            ambassadorPayment: application.offeredAmount || 0,
             notes: `Owner: ${application.email}. Profile email: ${application.linkedinEmail || application.email}.`,
           },
         });

@@ -655,9 +655,9 @@ export default function AdminOwnersPage() {
                   </div>
                   <div style={{ textAlign: "right", flex: "none" }}>
                     <div style={{ font: `600 16px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{ownerMonthly > 0 ? `${peso(ownerMonthly)}/mo` : allHeld ? "On hold" : "TBC"}</div>
-                    <div style={{ font: `500 12px ${F_SANS}`, marginTop: 2, color: setupsRemaining > 0 ? "var(--warn-badge-text)" : "var(--muted2)" }}>{(multiSetup
+                    <div style={{ font: `500 12px ${F_SANS}`, marginTop: 2, color: (setupsRemaining > 0 && owner.onboardedAt) ? "var(--warn-badge-text)" : "var(--muted2)" }}>{(multiSetup
                       ? `${setupsPaidCount}/${setup.total} setups paid`
-                      : setupsPaidCount > 0 ? "Setup paid" : heldAcctCount > 0 ? "Setup on hold" : "Setup due")
+                      : setupsPaidCount > 0 ? "Setup paid" : heldAcctCount > 0 ? "Setup on hold" : owner.onboardedAt ? "Setup due" : "Setup pending")
                       + (setupsPaidCount > 0 && monthlyCount > 0 && !multiSetup ? ` · ${monthlyCount} mo paid` : "")
                       + (setupHoldN > 0 ? ` · ${setupHoldN} on hold` : "")}</div>
                   </div>
@@ -745,16 +745,17 @@ export default function AdminOwnersPage() {
                             <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)", marginTop: 2 }}>Paid {setupPaid}</div>
                           ) : setupDue ? (
                             <div style={{ font: `500 12.5px ${F_SANS}`, color: isOverdue(setupDue) ? "var(--st-cancel-fg)" : "var(--muted)", marginTop: 2 }}>
-                              Due {fmtDate(setupDue)}{isOverdue(setupDue) ? " · overdue" : ""} <span style={{ color: "var(--muted2)" }}>· {owner.accountFreshness === "fresh" ? "fresh, +1 week" : "established, +3 days"}</span>
+                              Due {fmtDate(setupDue)}{isOverdue(setupDue) ? " · overdue" : ""} <span style={{ color: "var(--muted2)" }}>· 24h after login</span>
                             </div>
                           ) : (
-                            <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted2)", marginTop: 2 }}>Set an onboarding date to schedule this</div>
+                            <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted2)", marginTop: 2 }}>Scheduled 24h after login — mark logged in first</div>
                           )}
                           {!setupPaid && (
                             <select value={owner.accountFreshness || "established"} onClick={(e) => e.stopPropagation()} onChange={(e) => patchOwner(owner.applicationId, { accountFreshness: e.target.value })}
-                              style={{ marginTop: 6, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 7, padding: "5px 8px", font: `500 12px ${F_SANS}`, color: "var(--text)", cursor: "pointer", outline: "none" }}>
-                              <option value="established">Established (setup +3 days)</option>
-                              <option value="fresh">Fresh / new (setup +1 week)</option>
+                              style={{ marginTop: 6, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 7, padding: "5px 8px", font: `500 12px ${F_SANS}`, color: "var(--text)", cursor: "pointer", outline: "none" }}
+                              title="Warm-up track before we log in — drives the log-in-due date, not the setup fee">
+                              <option value="established">Established · 3-day warm-up</option>
+                              <option value="fresh">Fresh / new · 1-week warm-up</option>
                             </select>
                           )}
                         </div>

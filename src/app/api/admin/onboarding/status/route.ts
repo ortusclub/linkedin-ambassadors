@@ -59,9 +59,9 @@ export async function POST(req: Request) {
       select: { id: true, fullName: true, status: true, onboardedAt: true },
     });
 
-    // Entering onboarding surfaces the offline profile so credentials can be added during
-    // warm-up: flip any hidden under_review account for this owner to unavailable.
-    if (status === "onboarding") {
+    // Being accepted / entering onboarding surfaces the offline profile so credentials can
+    // be added: flip any hidden under_review account for this owner to unavailable.
+    if (status === "approved" || status === "onboarding") {
       await prisma.linkedInAccount.updateMany({
         where: {
           status: "under_review",
