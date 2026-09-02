@@ -5,9 +5,11 @@ import { useEffect, useState } from "react";
 interface BoardRow { name: string; signups: number; converted: number; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
+interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; payoutMethods: string[]; defaultPayoutMethod: string; }
 interface Data {
   me: { name: string; slug: string; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; assignedDay: string | null; assignedLocation: string | null; };
   stats: { signups: number; converted: number; commission: number; rate: number; };
+  config: Config;
   board: BoardRow[];
   activity: Activity[];
   payouts: Payout[];
@@ -22,7 +24,6 @@ const PAYOUT_LABEL: Record<string, string> = {
 
 const JAK = "var(--font-jak), system-ui, sans-serif";
 const GRO = "var(--font-gro), system-ui, sans-serif";
-const peso = (n: number) => "₱" + n.toLocaleString("en-US");
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 const STEPS = [
@@ -33,11 +34,7 @@ const STEPS = [
   "Most important: stay with them until they pick a slot on the \"Book your onboarding call\" screen at the end. Don't let them leave on \"I'll do it later\" — they won't.",
   "Done — our team takes it from there on the call, then setup and payment.",
 ];
-const OFFER: { w: string; a: string; d: string }[] = [
-  { w: "Set-up", a: "₱1,000", d: "to their bank, ~3 days after setup" },
-  { w: "Monthly", a: "₱500", d: "on the 1st of every month" },
-];
-const DOS = ["Be friendly, casual and quick", "Get them to complete the form", "Watch them book a call slot before they walk away", "Be honest that payment comes after setup", "Check they're 18 or older"];
+const DOS =["Be friendly, casual and quick", "Get them to complete the form", "Watch them book a call slot before they walk away", "Be honest that payment comes after setup", "Check they're 18 or older"];
 const DONTS = ["Pressure anyone — encourage, never force", "Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up anyone under 18"];
 
 const TIPS = [
@@ -113,7 +110,9 @@ export default function Portal({ token }: { token: string }) {
         setForm({
           contactMethod: d.me.contactMethod || "WhatsApp",
           contactHandle: d.me.contactHandle || "",
-          paymentMethod: d.me.paymentMethod || "GCash",
+          paymentMethod: d.me.paymentMethod && d.config.payoutMethods.includes(d.me.paymentMethod)
+            ? d.me.paymentMethod
+            : d.config.defaultPayoutMethod,
           paymentDetails: d.me.paymentDetails || "",
         });
         setState("ok");
@@ -161,7 +160,27 @@ export default function Portal({ token }: { token: string }) {
     </div>
   );
 
-  const { me, stats, board, activity, payouts } = data;
+  const { me, stats, board, activity, payouts, config } = data;
+  const money = (n: number) => config.symbol + n.toLocaleString("en-US");
+  const isUSD = config.currency !== "PHP";
+
+  // The ambassador offer amounts shown on the "The offer you share" card.
+  const offer: { w: string; a: string; d: string }[] = [
+    { w: "Set-up", a: config.offer.setup, d: "to their bank, ~3 days after setup" },
+    { w: "Monthly", a: config.offer.monthly, d: "on the 1st of every month" },
+  ];
+
+  // For non-PH (USD) referrers, rewrite the money/method-bearing FAQ answers — no
+  // field-day rate (online only), USD amounts, and the referrer's own payout method.
+  // PH referrers keep the original copy verbatim.
+  const faqOverrides: Record<string, string> = isUSD ? {
+    "When do I get paid?": `You get ${money(stats.rate)} for every sign-up onboarded onto our inventory. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday.`,
+    "What counts as a successful sign-up?": `The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your ${money(stats.rate)} is triggered.`,
+    "How do I update my payout details?": `Right here — scroll down to "Your payout details" and save your ${config.defaultPayoutMethod} / bank info so we can pay you.`,
+    "How much will I earn?": `${config.offer.setup} to start — paid to your account about 3 days after setup (or a week if it's a brand-new account). Then ${config.offer.monthly} every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ${config.offer.setup} covers your first partial month, so you're never short-changed.`,
+  } : {};
+  const applyFaq = (items: { q: string; a: string }[]) => items.map((f) => faqOverrides[f.q] ? { ...f, a: faqOverrides[f.q] } : f);
+
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const myLink = `${origin}/r/${me.slug}`;
   const myLinkShort = myLink.replace(/^https?:\/\//, "");
@@ -223,7 +242,7 @@ export default function Portal({ token }: { token: string }) {
 
           {/* stats */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 }}>
-            {[{ v: String(stats.signups), l: "Signups", c: C.ink }, { v: String(stats.converted), l: "Onboarded", c: C.greenDk }, { v: peso(stats.commission), l: "Est. earned", c: C.ink }].map((t) => (
+            {[{ v: String(stats.signups), l: "Signups", c: C.ink }, { v: String(stats.converted), l: "Onboarded", c: C.greenDk }, { v: money(stats.commission), l: "Est. earned", c: C.ink }].map((t) => (
               <div key={t.l} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: "15px 10px", textAlign: "center" }}>
                 <div style={{ font: `600 24px/1 ${GRO}`, color: t.c, fontVariantNumeric: "tabular-nums" }}>{t.v}</div>
                 <div style={{ font: `600 11px ${JAK}`, color: C.muted, marginTop: 5 }}>{t.l}</div>
@@ -234,7 +253,7 @@ export default function Portal({ token }: { token: string }) {
           {/* how you get paid */}
           <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 16, padding: "17px 18px", marginBottom: 18 }}>
             <div style={{ font: `700 13.5px ${JAK}`, color: C.greenDk, marginBottom: 8 }}>How &amp; when you get paid</div>
-            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{peso(stats.rate)}</b> for every signup onboarded onto our inventory. It releases <b>~3 days after</b> onboarding (about <b>a week</b> for a brand-new account) and pays out the <b>following Monday</b>.</p>
+            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{money(stats.rate)}</b> for every signup onboarded onto our inventory. It releases <b>~3 days after</b> onboarding (about <b>a week</b> for a brand-new account) and pays out the <b>following Monday</b>.</p>
             <p style={{ font: `500 11.5px/1.5 ${JAK}`, color: "#6b8a77", margin: 0 }}>The figure above is an estimate — the exact payable amount is confirmed at payout.</p>
           </div>
 
@@ -265,7 +284,7 @@ export default function Portal({ token }: { token: string }) {
                 return (
                   <div key={p.id} style={{ borderTop: `1px solid ${C.line2}`, padding: "12px 0" }}>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                      <span style={{ font: `700 15px ${GRO}`, color: C.ink }}>{peso(p.amount)}</span>
+                      <span style={{ font: `700 15px ${GRO}`, color: C.ink }}>{money(p.amount)}</span>
                       <span style={{ font: `500 12.5px ${JAK}`, color: C.slate, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description || label}</span>
                       <span style={{ marginLeft: "auto", font: `600 9.5px ${JAK}`, padding: "3px 8px", borderRadius: 5, whiteSpace: "nowrap", flex: "none", background: p.confirmedAt ? C.accBg : C.pendBg, color: p.confirmedAt ? C.accFg : C.pendFg }}>
                         {p.confirmedAt ? "Confirmed" : p.paidAt ? "Awaiting your confirmation" : "Not sent yet"}
@@ -287,7 +306,7 @@ export default function Portal({ token }: { token: string }) {
                     {confirming_ && (
                       <div style={{ marginTop: 9, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 10, padding: 12 }}>
                         <div style={{ font: `500 12px/1.5 ${JAK}`, color: C.slate, marginBottom: 8 }}>
-                          Type your full name to confirm you received {peso(p.amount)}{p.method ? ` by ${p.method}` : ""}. This is your receipt — it&apos;s recorded with today&apos;s date and can&apos;t be undone.
+                          Type your full name to confirm you received {money(p.amount)}{p.method ? ` by ${p.method}` : ""}. This is your receipt — it&apos;s recorded with today&apos;s date and can&apos;t be undone.
                         </div>
                         <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Your full name" style={{ ...inp, width: "100%", marginBottom: 8 }} />
                         {confirmErr && <div style={{ font: `500 12px ${JAK}`, color: C.warn, marginBottom: 8 }}>{confirmErr}</div>}
@@ -346,7 +365,7 @@ export default function Portal({ token }: { token: string }) {
 
             <div style={{ ...sub, margin: "16px 0 10px" }}>The offer you share</div>
             <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", marginBottom: 10 }}>
-              {OFFER.map((o, i) => (
+              {offer.map((o, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: i === 0 ? `1px solid ${C.line2}` : "none" }}>
                   <span style={{ font: `600 13px ${JAK}`, color: C.ink, width: 66, flex: "none" }}>{o.w}</span>
                   <span style={{ font: `700 14px ${GRO}`, color: C.greenDk }}>{o.a}</span>
@@ -422,14 +441,14 @@ export default function Portal({ token }: { token: string }) {
           <div style={card}>
             <div style={{ ...secLbl, marginBottom: 4 }}>Questions people will ask you</div>
             <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 8px" }}>Use these to answer anyone you sign up.</p>
-            {faqBlock(AMBASSADOR_FAQ, "a")}
+            {faqBlock(applyFaq(AMBASSADOR_FAQ), "a")}
           </div>
 
           {/* marketer faqs */}
           <div style={card}>
             <div style={{ ...secLbl, marginBottom: 4 }}>Your FAQs</div>
             <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 8px" }}>About your pay, payouts and getting re-invited.</p>
-            {faqBlock(MARKETER_FAQ, "m")}
+            {faqBlock(applyFaq(MARKETER_FAQ), "m")}
           </div>
 
           {/* payout details */}
@@ -443,7 +462,7 @@ export default function Portal({ token }: { token: string }) {
             </div>
             <div style={{ font: `600 11px ${JAK}`, color: C.muted, marginBottom: 6 }}>Pay me via</div>
             <div style={{ display: "flex", gap: 9, marginBottom: 16 }}>
-              <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} style={sel}><option>GCash</option><option>Maya</option><option>Bank transfer</option></select>
+              <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} style={sel}>{config.payoutMethods.map((m) => <option key={m}>{m}</option>)}</select>
               <input value={form.paymentDetails} onChange={(e) => setForm({ ...form, paymentDetails: e.target.value })} placeholder="account number / details" style={inp} />
             </div>
             <button onClick={save} disabled={saving} style={{ width: "100%", font: `700 14px ${JAK}`, color: "#fff", background: saved ? C.greenDk : C.green, border: "none", padding: 14, borderRadius: 12, cursor: "pointer" }}>{saving ? "Saving…" : saved ? "Saved ✓" : "Save details"}</button>
