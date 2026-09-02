@@ -148,7 +148,7 @@ export async function getOwners(): Promise<Owner[]> {
     }
     const entry = ownerMap.get(app.email)!;
     entry.applicationCount++;
-    if (!entry.applicationStatus || app.status === "onboarded" || app.status === "approved") {
+    if (!entry.applicationStatus || app.status === "onboarded" || app.status === "onboarding" || app.status === "approved") {
       entry.applicationStatus = app.status;
     }
   }
@@ -158,7 +158,7 @@ export async function getOwners(): Promise<Owner[]> {
   for (const app of allApplications) {
     const cur = appByEmail.get(app.email);
     if (!cur) { appByEmail.set(app.email, app); continue; }
-    const rank = (s: string) => (s === "onboarded" ? 2 : s === "approved" ? 1 : 0);
+    const rank = (s: string) => (s === "onboarded" ? 3 : s === "onboarding" ? 2 : s === "approved" ? 1 : 0);
     if (rank(app.status) > rank(cur.status)) appByEmail.set(app.email, app);
   }
 

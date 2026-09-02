@@ -18,11 +18,21 @@ export function nextBusinessDay(d: Date): Date {
   return r;
 }
 
-// Setup fee is due N days after onboarding: 3 for an established account, 1 week for
-// fresh — rolled to the next business day so it always falls on a weekday.
-export function setupDueDate(onboardedAt: Date | string | null, freshness: string | null): Date | null {
+// Setup fee is due 24h after we log into the account. onboardedAt = the login / in-hand
+// moment; the 3-day/1-week warm-up happens BEFORE login (tracked by onboardingStartedAt),
+// so it no longer factors into the setup date. Rolled to the next business day.
+export function setupDueDate(onboardedAt: Date | string | null): Date | null {
   if (!onboardedAt) return null;
   const d = new Date(onboardedAt);
+  d.setDate(d.getDate() + 1);
+  return nextBusinessDay(d);
+}
+
+// Warm-up window before we log in: 3 days for an established account, 1 week for fresh,
+// anchored on when onboarding started. Drives the "log in due" nudge, not a payment.
+export function loginDueDate(onboardingStartedAt: Date | string | null, freshness: string | null): Date | null {
+  if (!onboardingStartedAt) return null;
+  const d = new Date(onboardingStartedAt);
   d.setDate(d.getDate() + (freshness === "fresh" ? 7 : 3));
   return nextBusinessDay(d);
 }
@@ -127,7 +137,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
 
     // Setup fee — only if not yet marked paid
     if (!a.paidAt) {
-      const due = setupDueDate(a.onboardedAt, a.accountFreshness);
+      const due = setupDueDate(a.onboardedAt);
       if (due) {
         const item: DueItem = { ...base, kind: "setup", amount: SETUP_FEE, dueDate: due.toISOString(), overdue: due < startOfToday };
         if (due.getTime() <= now) setup.push(item);

@@ -40,10 +40,11 @@ const nextBusinessDay = (d: Date): Date => {
   else if (day === 0) r.setDate(r.getDate() + 1);
   return r;
 };
-const setupDueDate = (onboardedAt: string | null, freshness: string | null): Date | null => {
+// Setup fee is due 24h after login (onboardedAt); warm-up (3/7 days) is before login.
+const setupDueDate = (onboardedAt: string | null): Date | null => {
   if (!onboardedAt) return null;
   const d = new Date(onboardedAt);
-  d.setDate(d.getDate() + (freshness === "fresh" ? 7 : 3));
+  d.setDate(d.getDate() + 1);
   return nextBusinessDay(d);
 };
 // First monthly ₱500: the first FULL month after the setup fee is PAID, on a 15th-of-
@@ -181,7 +182,7 @@ export default function AdminPayoutsPage() {
         if (sameMonth(pd)) out.push({ ...base, key: `${o.email}:sp${i}`, fee: "setup", owedNum: SETUP_FEE, dueISO: pd, state: "paid", lastPaid: fmtDate(pd), lastPaidAgo: agoLabel(pd) });
       });
       if (info.setupsRemaining > 0) {
-        const sd = setupDueDate(o.onboardedAt, o.accountFreshness);
+        const sd = setupDueDate(o.onboardedAt);
         if (sd) {
           const today = new Date(); today.setHours(0, 0, 0, 0);
           const overdue = sd < today;

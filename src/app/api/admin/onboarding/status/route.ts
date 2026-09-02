@@ -13,7 +13,7 @@ import { z } from "zod";
 
 const schema = z.object({
   id: z.string().uuid(),
-  status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarded", "unreachable", "contacted", "on_hold"]),
+  status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarding", "onboarded", "unreachable", "contacted", "on_hold"]),
 });
 
 export async function POST(req: Request) {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     const app = await prisma.ambassadorApplication.findUnique({
       where: { id },
-      select: { id: true, email: true, fullName: true, linkedinUrl: true, status: true, onboardedAt: true },
+      select: { id: true, email: true, fullName: true, linkedinUrl: true, status: true, onboardingStartedAt: true, onboardedAt: true },
     });
     if (!app) return NextResponse.json({ error: "Application not found" }, { status: 404 });
 
@@ -50,8 +50,10 @@ export async function POST(req: Request) {
       where: { id },
       data: {
         status,
-        // Stamp the onboarding date the first time it reaches onboarded — the payout
-        // schedule is anchored on it, so it must not be left null.
+        // Stamp when the onboarding (warm-up) process starts — drives the "log in due" nudge.
+        ...(status === "onboarding" && !app.onboardingStartedAt ? { onboardingStartedAt: new Date() } : {}),
+        // Stamp the login/in-hand date the first time it reaches onboarded — the payout
+        // schedule (setup fee = login + 24h) is anchored on it, so it must not be left null.
         ...(status === "onboarded" && !app.onboardedAt ? { onboardedAt: new Date() } : {}),
       },
       select: { id: true, fullName: true, status: true, onboardedAt: true },

@@ -83,7 +83,7 @@ export async function GET() {
       // One-time ₱1,000 setup fee (per ambassador). Paid if the application's
       // paidAt is set OR a "setup" payout entry was logged.
       const setupPaid = !!app?.paidAt || payouts.some((p) => p?.kind === "setup");
-      const setupDue = onboardedAt ? setupDueDate(onboardedAt, app?.accountFreshness || null) : null;
+      const setupDue = onboardedAt ? setupDueDate(onboardedAt) : null;
 
       // Categorise. Bucket meaning:
       //  setup   → one-time ₱1,000 initial payment still outstanding

@@ -33,6 +33,7 @@ interface Application {
   outreachLog?: { ch: string; text: string; by?: string; at: string }[] | null;
   nextFollowUp?: string | null;
   callOutcome?: string | null;
+  onboardingStartedAt?: string | null;
   onboardedAt?: string | null;
   accountFreshness?: string | null;
   verifiedAt?: string | null;
@@ -48,7 +49,7 @@ const bucketOf = (s: string): string => {
   if (["pending", "reviewing", "contacted"].includes(s)) return "in_progress";
   if (s === "unreachable") return "no_response";
   if (s === "on_hold") return "on_hold";
-  if (s === "approved" || s === "onboarded") return "accepted";
+  if (s === "approved" || s === "onboarding" || s === "onboarded") return "accepted";
   if (s === "rejected") return "rejected";
   return "in_progress";
 };
@@ -57,12 +58,13 @@ const BUCKET: Record<string, { label: string; bg: string; fg: string }> = {
   no_response: { label: "No response", bg: "var(--st-unreach-bg)", fg: "var(--st-unreach-fg)" },
   on_hold: { label: "On hold", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" },
   accepted: { label: "Accepted", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" },
+  onboarding: { label: "Onboarding", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" },
   rejected: { label: "Rejected", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)" },
 };
 // filter chips (order + dot colour)
 const CHIPS: [string, string, string | null][] = [
   ["all", "All", null], ["in_progress", "In progress", "var(--blue-chip-text)"], ["no_response", "No response", "var(--st-unreach-fg)"],
-  ["on_hold", "On hold", "var(--warn-badge-text)"], ["accepted", "Accepted", "var(--blue-chip-text)"], ["onboarded", "Onboarded", "var(--st-active-fg)"], ["rejected", "Rejected", "var(--st-cancel-fg)"],
+  ["on_hold", "On hold", "var(--warn-badge-text)"], ["accepted", "Accepted", "var(--blue-chip-text)"], ["onboarding", "Onboarding", "var(--blue-chip-text)"], ["onboarded", "Onboarded", "var(--st-active-fg)"], ["rejected", "Rejected", "var(--st-cancel-fg)"],
 ];
 // action buttons -> DB status to set
 const ACTIONS: { db: string; label: string; kind: "accept" | "reject" | "secondary" }[] = [
@@ -82,9 +84,9 @@ const CALL_BUCKET: Record<string, { label: string; bg: string; fg: string }> = {
 };
 // call outcome (manual no-show) overrides the calendar-derived stage
 const callBucketOf = (a: Application): string => a.callOutcome === "no_show" ? "no_show" : (a.call?.stage || "none");
-// Display bucket for the status tabs: onboarded people get their own bucket (so
-// "Accepted" = agreed but not yet onboarded, "Onboarded" = handed over).
-const displayBucket = (a: Application): string => a.onboardedAt ? "onboarded" : bucketOf(a.status);
+// Display bucket for the status tabs: "Accepted" = agreed but not started, "Onboarding"
+// = warm-up in progress (not yet logged in), "Onboarded" = logged in / in hand.
+const displayBucket = (a: Application): string => a.onboardedAt ? "onboarded" : a.onboardingStartedAt ? "onboarding" : bucketOf(a.status);
 
 // Action buckets — the top-level grouping, ordered by "what needs doing next".
 // A settled outcome wins; otherwise the call stage decides where they sit.
@@ -141,9 +143,12 @@ const lastTouchAt = (a: Application): string => {
 };
 // a "touch" is an actual outreach contact — notes are annotations, not touches
 const touchCount = (a: Application): number => (a.outreachLog || []).filter((t) => t.ch !== "note").length;
-// stability-check hold: 3 days for established accounts, 1 week for fresh ones
+// Warm-up window before we log in: 3 days for established accounts, 1 week for fresh ones.
 const holdDays = (a: Application): number => (a.accountFreshness === "fresh" ? 7 : 3);
-const eligibleMs = (a: Application): number | null => a.onboardedAt ? new Date(a.onboardedAt).getTime() + holdDays(a) * 86400000 : null;
+// When the warm-up is done and we should log in (onboarding start + 3/7 days).
+const loginDueMs = (a: Application): number | null => a.onboardingStartedAt ? new Date(a.onboardingStartedAt).getTime() + holdDays(a) * 86400000 : null;
+// Setup fee becomes payable 24h after we log in (onboardedAt = the login moment).
+const eligibleMs = (a: Application): number | null => a.onboardedAt ? new Date(a.onboardedAt).getTime() + 86400000 : null;
 
 export default function AdminAmbassadorsPage() {
   const [apps, setApps] = useState<Application[]>([]);
@@ -209,17 +214,35 @@ export default function AdminAmbassadorsPage() {
     try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ callOutcome: outcome }) }); } catch {}
   };
 
-  const markOnboarded = async (id: string, freshness: string) => {
-    const onboardedAt = new Date().toISOString();
-    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status: "onboarded", onboardedAt, accountFreshness: freshness } : a)));
+  // Step 1: move Accepted -> Onboarding. Picks the warm-up track and stamps when the
+  // onboarding process started (drives the "log in due" nudge). We haven't logged in yet.
+  const startOnboarding = async (id: string, freshness: string) => {
+    const onboardingStartedAt = new Date().toISOString();
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status: "onboarding", onboardingStartedAt, accountFreshness: freshness } : a)));
     try {
-      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "onboarded", onboardedAt, accountFreshness: freshness }) });
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "onboarding", onboardingStartedAt, accountFreshness: freshness }) });
       if (res.ok) { const d = await res.json(); if (d.application) setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...d.application } : a))); }
     } catch {}
   };
+  // Step 2: warm-up done, we've logged in / the account is in hand. Stamps the onboarded
+  // (login) moment — the setup fee then falls due 24h later.
+  const markLoggedIn = async (id: string) => {
+    const onboardedAt = new Date().toISOString();
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status: "onboarded", onboardedAt } : a)));
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "onboarded", onboardedAt }) });
+      if (res.ok) { const d = await res.json(); if (d.application) setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...d.application } : a))); }
+    } catch {}
+  };
+  // Undo login: back to Onboarding (keeps the warm-up track + start date).
+  const undoLoggedIn = async (id: string) => {
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status: "onboarding", onboardedAt: null } : a)));
+    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "onboarding", onboardedAt: null }) }); } catch {}
+  };
+  // Undo onboarding entirely: back to Accepted (clears warm-up track + both timestamps).
   const clearOnboarded = async (id: string) => {
-    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, onboardedAt: null, accountFreshness: null } : a)));
-    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ onboardedAt: null, accountFreshness: null }) }); } catch {}
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status: "approved", onboardingStartedAt: null, onboardedAt: null, accountFreshness: null } : a)));
+    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "approved", onboardingStartedAt: null, onboardedAt: null, accountFreshness: null }) }); } catch {}
   };
   // They've agreed to hand over their account — flip to "approved" (accepted), which
   // reveals the onboarding/transfer panel. Works regardless of whether a call happened.
@@ -356,21 +379,27 @@ export default function AdminAmbassadorsPage() {
                 {!gcol && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {g.items.map((a) => {
-          // Once they've handed over the account, show a distinct "Onboarded" chip
-          // rather than leaving them on "Accepted".
-          const b = a.onboardedAt
+          // Distinct chips per stage: Onboarding (warming up) vs Onboarded (logged in).
+          // onboarded implies started, so legacy rows (onboarded before this field existed)
+          // still land in the onboarded branch rather than the "start onboarding" buttons.
+          const onboarded = !!a.onboardedAt;
+          const started = !!a.onboardingStartedAt || onboarded;
+          const b = onboarded
             ? { label: "✓ Onboarded", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" }
+            : started
+            ? { label: "Onboarding", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" }
             : BUCKET[bucketOf(a.status)];
           const cs = callBucketOf(a);
-          const onboarded = !!a.onboardedAt;
-          const accepted = a.status === "approved" || a.status === "onboarded";
+          const accepted = a.status === "approved" || a.status === "onboarding" || a.status === "onboarded";
+          const loginDue = loginDueMs(a);
+          const loginOver = loginDue !== null && Date.now() >= loginDue; // warm-up done, time to log in
           const elig = eligibleMs(a);
-          const holdOver = elig !== null && Date.now() >= elig;
+          const holdOver = elig !== null && Date.now() >= elig; // 24h post-login wait cleared
           const checked = !!a.verifiedAt;
           const ready = checked; // payable only after the "good to go" stability check
           const fullyPaid = !!a.paidAt;
-          const payStage = !onboarded ? "Agreed · awaiting transfer" : fullyPaid ? "Paid" : checked ? "Ready to pay" : holdOver ? "Check due" : "In hold";
-          const payPill = !onboarded ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : (fullyPaid || checked) ? { bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" } : holdOver ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" };
+          const payStage = !started ? "Agreed · awaiting onboarding" : !onboarded ? (loginOver ? "Log in due" : "Warming up") : fullyPaid ? "Paid" : checked ? "Ready to pay" : holdOver ? "Check due" : "In hold";
+          const payPill = !onboarded ? (loginOver ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" }) : (fullyPaid || checked) ? { bg: "var(--st-active-bg)", fg: "var(--st-active-fg)" } : holdOver ? { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" } : { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)" };
           const open = !collapsed.has(a.id);
           return (
             <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderLeft: `3px solid ${g.dot}`, borderRadius: 14, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
@@ -477,18 +506,31 @@ export default function AdminAmbassadorsPage() {
                           <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" }}>Onboarding &amp; payout</span>
                           <span style={{ font: `600 11.5px ${F_SANS}`, padding: "3px 11px", borderRadius: 999, whiteSpace: "nowrap", background: payPill.bg, color: payPill.fg }}>{payStage}</span>
                         </div>
-                        {!onboarded ? (
+                        {!started ? (
                           <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                            <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>Agreed — waiting on the account transfer (login / 2FA). Once it&apos;s in hand, mark it onboarded to start the hold:</span>
-                            <button onClick={() => markOnboarded(a.id, "established")} disabled={busy === a.id} style={{ ...secBtn, padding: "8px 13px", font: `600 12px ${F_SANS}` }}>Onboarded · established (3-day)</button>
-                            <button onClick={() => markOnboarded(a.id, "fresh")} disabled={busy === a.id} style={{ ...secBtn, padding: "8px 13px", font: `600 12px ${F_SANS}` }}>Onboarded · fresh (1-week)</button>
+                            <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>Agreed — start the onboarding process (they add our klabber email / warm the account up):</span>
+                            <button onClick={() => startOnboarding(a.id, "established")} disabled={busy === a.id} style={{ ...secBtn, padding: "8px 13px", font: `600 12px ${F_SANS}` }}>Start onboarding · established (3-day)</button>
+                            <button onClick={() => startOnboarding(a.id, "fresh")} disabled={busy === a.id} style={{ ...secBtn, padding: "8px 13px", font: `600 12px ${F_SANS}` }}>Start onboarding · fresh (1-week)</button>
+                          </div>
+                        ) : !onboarded ? (
+                          <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "14px 20px" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Onboarding started</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{fmtDate(a.onboardingStartedAt!)}</span></div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Warm-up</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{holdDays(a)}-day · {a.accountFreshness || "established"}</span></div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Log in due</span><span style={{ font: `600 13.5px ${F_SANS}`, color: loginOver ? "var(--warn-badge-text)" : "var(--text)" }}>{loginDue ? fmtDate(new Date(loginDue).toISOString()) : "—"}</span></div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                              <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{loginOver ? "Warm-up done — log into the account, then the setup fee falls due 24h later." : "Warming up — log in once the warm-up window is up (or sooner if it's ready)."}</span>
+                              <button onClick={() => markLoggedIn(a.id)} disabled={busy === a.id} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "8px 13px", borderRadius: 8, cursor: "pointer" }}>✓ Mark logged in</button>
+                              <button onClick={() => clearOnboarded(a.id)} style={{ ...secBtn, padding: "8px 12px", font: `600 11.5px ${F_SANS}` }}>Undo</button>
+                            </div>
                           </div>
                         ) : (
                           <>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px 20px", padding: "14px 16px", borderBottom: "1px solid var(--divider)" }}>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Onboarded</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{fmtDate(a.onboardedAt!)}</span></div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Hold</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{holdDays(a)}-day · {a.accountFreshness || "established"}</span></div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Pay-eligible</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{elig ? fmtDate(new Date(elig).toISOString()) : "—"}</span></div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Logged in</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{fmtDate(a.onboardedAt!)}</span></div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Warm-up</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{holdDays(a)}-day · {a.accountFreshness || "established"}</span></div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Pay due</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--text)" }}>{elig ? fmtDate(new Date(elig).toISOString()) : "—"}</span></div>
                               <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Check</span><span style={{ font: `600 13.5px ${F_SANS}`, color: checked ? "var(--st-active-fg)" : holdOver ? "var(--warn-badge-text)" : "var(--muted)" }}>{checked ? "Cleared ✓" : holdOver ? "Check due" : "In hold"}</span></div>
                             </div>
                             <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -522,7 +564,7 @@ export default function AdminAmbassadorsPage() {
                               {a.referredBy && (
                                 <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)" }}>Marketer commission for {a.referredBy} is tracked on the Referrals page.</span>
                               )}
-                              <button onClick={() => clearOnboarded(a.id)} style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", padding: "2px 0", cursor: "pointer", textDecoration: "underline", alignSelf: "flex-start" }}>Undo onboarded</button>
+                              <button onClick={() => undoLoggedIn(a.id)} style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)", background: "transparent", border: "none", padding: "2px 0", cursor: "pointer", textDecoration: "underline", alignSelf: "flex-start" }}>Undo login (back to onboarding)</button>
                             </div>
                           </>
                         )}
