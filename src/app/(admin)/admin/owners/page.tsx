@@ -31,6 +31,13 @@ const setupDueDate = (onboardedAt: string | null): Date | null => {
   d.setDate(d.getDate() + 1);
   return nextBusinessDay(d);
 };
+// Warm-up window before we log in: 3 days established, 1 week fresh, from onboarding start.
+const loginDueDate = (onboardingStartedAt: string | null, freshness: string | null): Date | null => {
+  if (!onboardingStartedAt) return null;
+  const d = new Date(onboardingStartedAt);
+  d.setDate(d.getDate() + (freshness === "fresh" ? 7 : 3));
+  return nextBusinessDay(d);
+};
 
 // Monthly ₱500 begins the first FULL month after the setup fee is PAID, on a 15th-of-
 // month cutoff (paid 1st–15th → next month; 16th–end → the month after), then the 1st
@@ -179,6 +186,7 @@ interface Owner {
   payoutName: string | null;
   setupFeePaidAt: string | null;
   monthlyPayouts: MonthlyPayout[];
+  onboardingStartedAt: string | null;
   onboardedAt: string | null;
   verifiedAt: string | null;
   accountFreshness: string | null;
@@ -234,16 +242,20 @@ const setupBreakdown = (o: Owner) => {
   return { state, paidN, dueN, holdN, total: o.accounts.length, restrictedCount: holdN, nextDueName: nextDue?.linkedinName || null, nextDueId: nextDue?.id || null };
 };
 
-// The stage the owner rolls up under. Four buckets, ordered action-first so the
-// people who need something from us surface at the top of the page.
-type Stage = "waiting_us" | "waiting_them" | "active" | "inactive";
+// The stage the owner rolls up under — the onboarding pipeline, so pre-onboarded
+// accounts (accepted / warming up) are visible before they go live, and finished ones
+// land in Active. Paused/Lost is the terminal bucket (manual override wins).
+type Stage = "accepted" | "onboarding" | "active" | "inactive";
 const stageOf = (o: Owner): Stage => {
-  const s = resolveStatus(o);
-  return s === "active" ? "active" : s === "waiting_us" ? "waiting_us" : s === "waiting_them" ? "waiting_them" : "inactive";
+  const m = o.ownerStatus; // manual override
+  if (m === "paused" || m === "lost") return "inactive";
+  if (o.onboardedAt || m === "active") return "active";       // logged in / in hand → earning
+  if (o.applicationStatus === "onboarding" || o.onboardingStartedAt) return "onboarding"; // warming up
+  return "accepted";                                          // agreed, not started
 };
 const GROUP_DEFS: { key: Stage; label: string; dot: string; note: string }[] = [
-  { key: "waiting_us", label: "Waiting on us", dot: "var(--warn-badge-text)", note: "we owe them an action" },
-  { key: "waiting_them", label: "Waiting on them", dot: "var(--st-unreach-fg)", note: "chased, no reply yet" },
+  { key: "accepted", label: "Accepted", dot: "var(--warn-badge-text)", note: "agreed — not started" },
+  { key: "onboarding", label: "Onboarding", dot: "var(--st-replied-fg)", note: "warming up / log-in due" },
   { key: "active", label: "Active", dot: "var(--st-active-fg)", note: "onboarded and earning" },
   { key: "inactive", label: "Paused / Lost", dot: "var(--st-cancel-fg)", note: "no longer active" },
 ];
@@ -310,7 +322,7 @@ export default function AdminOwnersPage() {
   const [owners, setOwners] = useState<Owner[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [stage, setStage] = useState<"all" | "active" | "waiting_us" | "waiting_them" | "inactive">("all");
+  const [stage, setStage] = useState<"all" | Stage>("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
@@ -371,7 +383,7 @@ export default function AdminOwnersPage() {
   };
 
   const q = query.trim().toLowerCase();
-  const stageCounts = { all: owners.length, active: 0, waiting_us: 0, waiting_them: 0, inactive: 0 };
+  const stageCounts: Record<"all" | Stage, number> = { all: owners.length, accepted: 0, onboarding: 0, active: 0, inactive: 0 };
   for (const o of owners) stageCounts[stageOf(o)]++;
   const STAGE_CHIPS: { key: "all" | Stage; label: string; dot: string | null }[] = [
     { key: "all", label: "All owners", dot: null },
@@ -403,7 +415,7 @@ export default function AdminOwnersPage() {
         <div style={{ maxWidth: 720 }}>
           <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Account owners</h1>
           <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>
-            Onboarded ambassadors who supply profiles. Expand an owner for their status, credentials, payout method, and the full payment record — proof of each payout and whether they&apos;ve acknowledged it.
+            Ambassadors who supply profiles, grouped by onboarding stage — Accepted and Onboarding (warming up) sit above Active so you can see accounts before they go live. Expand an owner for their status, credentials, payout method, and the full payment record — proof of each payout and whether they&apos;ve acknowledged it.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flex: "none" }}>
@@ -617,6 +629,17 @@ export default function AdminOwnersPage() {
                       <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 2 }}>
                         <span style={{ font: `600 16px ${F_GRO}`, color: "var(--text)", letterSpacing: "-.01em" }}>{formatName(owner.fullName)}</span>
                         <span style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--st-active-bg)", color: "var(--st-active-fg)" }}>{owner.accountCount} profile{owner.accountCount !== 1 ? "s" : ""}</span>
+                        {/* Pre-onboarded stage: show where the account sits before it goes live. */}
+                        {(() => {
+                          const st = stageOf(owner);
+                          if (st === "accepted") return <span style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>Accepted · not started</span>;
+                          if (st === "onboarding") {
+                            const ld = loginDueDate(owner.onboardingStartedAt, owner.accountFreshness);
+                            const over = ld ? isOverdue(ld) : false;
+                            return <span style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: over ? "var(--warn-badge-bg)" : "var(--blue-chip-bg)", color: over ? "var(--warn-badge-text)" : "var(--blue-chip-text)" }}>{over ? "Log-in due" : `Warming up · ${owner.accountFreshness || "established"}`}{ld ? ` · ${fmtDate(ld)}` : ""}</span>;
+                          }
+                          return null;
+                        })()}
                         {missing.length > 0 && (
                           <span title={`Missing: ${missing.join(", ")}`} style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ {missing.length} missing</span>
                         )}

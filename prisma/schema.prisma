@@ -495,3 +495,28 @@ model MetricsSnapshot {
 
   @@map("metrics_snapshots")
 }
+
+// Per-proxy metadata lookup, keyed by host:port. The account→proxy mapping itself
+// lives on LinkedInAccount (proxyHost/Port/Username/Password); this table only holds
+// the things that AREN'T derivable from an account — the friendly label ("Germany 01"),
+// which provider it came from (Proxy 6 / proxy-cheap), whether it's residential or
+// datacenter, and a manual status flag (e.g. a dead "Error Proxy"). The admin Proxies
+// page and its Google-Sheets CSV export join this onto the live account data so the
+// proxy tab is one source of truth, never a hand-kept copy. A row may exist with no
+// linked accounts (a spare/dead proxy Sam is tracking).
+model Proxy {
+  id        String   @id @default(uuid()) @db.Uuid
+  host      String
+  port      Int
+  label     String?                                  // friendly name, e.g. "Germany 01"
+  provider  String?                                  // "Proxy 6" | "proxy-cheap" | ...
+  type      String?                                  // "residential" | "datacenter"
+  country   String?                                  // manual override; else derived from linked accounts
+  status    String?                                  // "active" | "error" | "retired" (manual flag)
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([host, port])
+  @@map("proxies")
+}

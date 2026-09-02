@@ -45,6 +45,7 @@ export interface Owner {
   accountIssue: string | null;
   setupFeePaidAt: Date | null;
   monthlyPayouts: MonthlyPayout[];
+  onboardingStartedAt: Date | null;
   onboardedAt: Date | null;
   verifiedAt: Date | null;
   accountFreshness: string | null;
@@ -115,6 +116,7 @@ export async function getOwners(): Promise<Owner[]> {
       accountIssue: true,
       paidAt: true,
       monthlyPayouts: true,
+      onboardingStartedAt: true,
       onboardedAt: true,
       verifiedAt: true,
       accountFreshness: true,
@@ -223,6 +225,7 @@ export async function getOwners(): Promise<Owner[]> {
       accountIssue: app?.accountIssue || null,
       setupFeePaidAt: app?.paidAt || null,
       monthlyPayouts: Array.isArray(app?.monthlyPayouts) ? (app!.monthlyPayouts as MonthlyPayout[]) : [],
+      onboardingStartedAt: app?.onboardingStartedAt || null,
       onboardedAt: app?.onboardedAt || null,
       verifiedAt: app?.verifiedAt || null,
       accountFreshness: app?.accountFreshness || null,
@@ -230,9 +233,14 @@ export async function getOwners(): Promise<Owner[]> {
     };
   });
 
-  // Only converted + onboarded owners: those with at least one live inventory account.
-  const onboardedOwners = owners.filter((o) => o.accountCount > 0);
-  onboardedOwners.sort((a, b) => b.accountCount - a.accountCount || b.applicationCount - a.applicationCount);
+  // Owners in the supply pipeline: anyone with a live inventory account, PLUS people who
+  // are accepted or mid-onboarding (warming up) even before an account exists — so the
+  // page can show their pre-onboarded stage. Leads still in pending/reviewing/rejected/
+  // unreachable (and no account) are not owners yet, so they stay out.
+  const pipelineOwners = owners.filter(
+    (o) => o.accountCount > 0 || o.applicationStatus === "approved" || o.applicationStatus === "onboarding",
+  );
+  pipelineOwners.sort((a, b) => b.accountCount - a.accountCount || b.applicationCount - a.applicationCount);
 
-  return onboardedOwners;
+  return pipelineOwners;
 }

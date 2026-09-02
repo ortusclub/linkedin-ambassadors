@@ -32,6 +32,7 @@ const sections = [
     // lifecycle, in the order you actually walk it.
     { href: "/admin/onboarding", label: "Onboarding" },
     { href: "/admin/accounts", label: "Inventory" },
+    { href: "/admin/proxies", label: "Proxies" },
     { href: "/admin/payouts-ii", label: "Payouts II" },
   ] },
 ];
