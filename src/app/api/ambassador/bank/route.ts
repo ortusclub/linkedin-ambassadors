@@ -57,7 +57,9 @@ export async function POST(req: Request) {
         usdcNetwork: data.usdcNetwork,
         paypalEmail: data.paypalEmail,
         wiseEmail: data.wiseEmail,
-        status: "onboarded",
+        // Saving payout details does NOT change the onboarding stage — that only moves
+        // when the team moves it on the board (Accepted -> Onboarding -> Onboarded, where
+        // Onboarded means we've logged in). Leave status untouched.
       },
     });
 
