@@ -79,10 +79,14 @@ const RATE = 500;
 // A referrer is "top" once this many of their signups convert.
 const TOP_THRESHOLD = 5;
 
-// DB status -> "converted" means the account made it onto inventory.
-// "Converted" = the account was actually onboarded/transferred (not just accepted/agreed).
-// The marketer's commission is earned only once the account is in hand.
-const isConverted = (s: string) => s === "onboarded";
+// "Onboarded" = the referred account made it onto inventory (accepted + transferred).
+const isOnboarded = (s: string) => s === "onboarded";
+// "Converted" = a SUCCESSFUL onboarding. An account that's onboarded but currently
+// sidelined by an account issue (restricted / can't log in) is NOT a real conversion, so
+// it doesn't inflate the count, the % or what's owed. Exception: if the referrer was
+// already confirmed-to-pay on it (earned), it stays counted so the total never drops below
+// what's already been paid out — mirrors the "earned is permanent" rule in isReferralEarned.
+const isConverted = (a: App) => isOnboarded(a.status) && (!a.accountIssue || isReferralEarned(a));
 
 // A commission is "ready" only once the account passes its stability check
 // (marked good-to-go on the ambassador card, after the 3-day / 1-week hold).
@@ -170,7 +174,7 @@ export default function AdminReferralsPage() {
       const r = m.get(key) || { name, signups: 0, converted: 0, ready: 0, held: 0 };
       if (r.name === r.name.toLowerCase() && name !== name.toLowerCase()) r.name = name;
       r.signups++;
-      if (isConverted(a.status)) { r.converted++; if (isReferralEarned(a)) r.ready++; else r.held++; }
+      if (isConverted(a)) { r.converted++; if (isReferralEarned(a)) r.ready++; else r.held++; }
       m.set(key, r);
     }
     return [...m.values()]
@@ -248,18 +252,20 @@ export default function AdminReferralsPage() {
   const convertedFor = (rowName: string) => {
     const nm = (rowName || "").trim().toLowerCase();
     return apps
-      .filter((a) => (a.referredBy || "").trim().toLowerCase() === nm && isConverted(a.status))
+      .filter((a) => (a.referredBy || "").trim().toLowerCase() === nm && isOnboarded(a.status))
       .map((a) => {
         const earned = isReferralEarned(a);
         const issueLabel = a.accountIssue ? (a.accountIssue === "restricted" ? "restricted" : "login issue") : null;
         return {
           name: a.fullName || "—",
+          counts: isConverted(a), // false = restricted/held-back, shown but not counted
           state: earned ? "Ready to pay" : issueLabel ? `In hold · ${issueLabel}` : "In hold · verifying",
           tone: earned ? "ready" : issueLabel ? "issue" : "hold",
           title: a.accountIssue || "",
         };
       })
-      .sort((x, y) => (x.tone === "ready" ? -1 : y.tone === "ready" ? 1 : 0) || x.name.localeCompare(y.name));
+      // ready first, then counted (verifying) above not-counted (restricted), then name
+      .sort((x, y) => (x.tone === "ready" ? -1 : y.tone === "ready" ? 1 : 0) || (Number(y.counts) - Number(x.counts)) || x.name.localeCompare(y.name));
   };
 
   const logCommission = async (referrerId: string, amount: number, description = "Signup commission") => {
@@ -632,6 +638,8 @@ export default function AdminReferralsPage() {
             return c;
           });
           const readyNames = converted.filter((c) => c.tone === "ready").map((c) => c.name);
+          const countedConverted = converted.filter((c) => c.counts).length;
+          const notCounted = converted.length - countedConverted;
           return (
             <div key={r.name} style={{ borderBottom: "1px solid var(--divider)" }}>
               <div onClick={() => toggleRef(r.name)} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 100px 120px 110px 140px 120px", gap: 14, alignItems: "center", padding: "15px 22px", cursor: "pointer", userSelect: "none" }}>
@@ -679,7 +687,7 @@ export default function AdminReferralsPage() {
                   {/* who converted — the ambassadors behind the numbers */}
                   {converted.length > 0 && (
                     <div>
-                      <div style={{ ...label, marginBottom: 8 }}>Converted ambassadors · {converted.length}</div>
+                      <div style={{ ...label, marginBottom: 8 }}>Converted ambassadors · {countedConverted}{notCounted ? ` · ${notCounted} restricted (not counted)` : ""}</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                         {converted.map((c, i) => {
                           const tone = c.tone === "ready" ? "var(--green)" : c.tone === "paid" ? "var(--green)" : c.tone === "issue" ? "var(--warn-num)" : c.tone === "paidpending" ? "var(--blue-chip-text)" : "var(--muted2)";
