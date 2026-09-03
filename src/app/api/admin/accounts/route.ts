@@ -87,6 +87,7 @@ export async function GET(req: NextRequest) {
       ? await prisma.ambassadorApplication.findMany({
           where: { email: { in: ownerEmails } },
           select: {
+            id: true,
             email: true, fullName: true, contactNumber: true, contactChannel: true,
             referredBy: true, referralSource: true, poc: true, ownerStatus: true,
             paymentMethod: true, paymentDetails: true, payoutName: true,
@@ -103,6 +104,7 @@ export async function GET(req: NextRequest) {
         ...a,
         ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
         ownerEmail: ownerEmail || null,
+        ownerApplicationId: app?.id || null,
         ownerPhone: app?.contactNumber || null,
         contactChannel: app?.contactChannel || null,
         ownerReferredBy: app?.referredBy || null,

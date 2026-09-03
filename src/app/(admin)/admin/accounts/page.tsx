@@ -110,6 +110,7 @@ interface Account {
   ownerReferredBy: string | null;
   ownerReferralSource: string | null;
   ownerPoc: string | null;
+  ownerApplicationId: string | null;
   ownerStatus: string | null;
   ownerPaymentMethod: string | null;
   ownerPaymentDetails: string | null;
@@ -469,6 +470,15 @@ export default function AdminAccountsPage() {
     if (isNaN(n) || n < 0 || n === a.connectionCount) return;
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, connectionCount: n } : x)));
     await patch(a.id, { connectionCount: n });
+  };
+
+  // Point of contact lives on the owner's application, so it's saved via the ambassadors
+  // PATCH (keyed by the linked application id) rather than the account PATCH.
+  const savePoc = async (a: Account, value: string) => {
+    const v = value.trim();
+    if (!a.ownerApplicationId || v === (a.ownerPoc || "")) return;
+    setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, ownerPoc: v || null } : x)));
+    await fetch(`/api/admin/ambassadors/${a.ownerApplicationId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc: v }) });
   };
   // Manual health mark — for when you've verified the account yourself (in GoLogin).
   const markHealth = async (a: Account, health: string) => {
@@ -914,7 +924,12 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <DField label="Personal email (on account)">{a.personalEmail || "—"}</DField>
                             <DField label="Work / recovery email">{a.workEmail || "—"}</DField>
                             <DField label="Referred by">{a.ownerReferredBy || a.ownerReferralSource || "—"}</DField>
-                            <DField label="Point of contact">{a.ownerPoc || "—"}</DField>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                              <span style={labelCss}>Point of contact</span>
+                              {a.ownerApplicationId
+                                ? <input type="text" defaultValue={a.ownerPoc || ""} key={`poc-${a.id}-${a.ownerPoc || ""}`} placeholder="—" onBlur={(e) => savePoc(a, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} title="Point of contact — saves on blur / Enter, no need to open Edit" style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
+                                : <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted2)" }}>{a.ownerPoc || "—"}</span>}
+                            </div>
                             <DField label="Owner status">{a.ownerStatus || "—"}</DField>
                             <DField label="Industry">{a.industry || "—"}</DField>
                             <DField label="Location">{a.location || "—"}</DField>
