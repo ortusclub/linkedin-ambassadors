@@ -36,18 +36,18 @@ export async function POST(req: Request) {
     }
 
     if (!b.agreed) {
-      return NextResponse.json({ error: "Please agree to the use policy to continue." }, { status: 400 });
-    }
-    if (!String(b.company || "").trim() || !String(b.website || "").trim() || !String(b.role || "").trim() || !String(b.useCase || "").trim()) {
-      return NextResponse.json({ error: "Please fill in your company, website/LinkedIn, role, and what you'll use the account for." }, { status: 400 });
+      return NextResponse.json({ error: "Please agree to the rules to continue." }, { status: 400 });
     }
 
+    // Renter now just confirms the ground rules (no company/role form). Keep any
+    // optional fields if a client still sends them, but they are not required.
     const info = {
       company: String(b.company || "").trim(),
       website: String(b.website || "").trim(),
       role: String(b.role || "").trim(),
       useCase: String(b.useCase || "").trim(),
       tools: String(b.tools || "").trim(),
+      agreedToRules: true,
       agreedToUsePolicy: true,
     };
 
