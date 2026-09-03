@@ -40,22 +40,31 @@ export async function GET() {
     });
 
     // Match an application to its account the same way the rest of the admin does:
-    // the "Owner: <email>" line in the account notes first, then the LinkedIn URL.
+    // Match an application to its account by the UNIQUE LinkedIn URL first, then fall
+    // back to the "Owner: <email>" line in the account notes — but ONLY when that email
+    // maps to a single account. A shared owner email (e.g. a POC/referrer inbox used by
+    // several applicants, like najendeleon@gmail.com) can't disambiguate, so email-only
+    // matching there would wrongly hand every applicant the same first account.
+    const normUrl = (u?: string | null) => (u || "").split("?")[0].replace(/\/+$/, "").toLowerCase().trim();
     const byOwner = new Map<string, (typeof accounts)[number]>();
+    const ownerCount = new Map<string, number>();
     const byUrl = new Map<string, (typeof accounts)[number]>();
     for (const a of accounts) {
-      const owner = (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "");
-      if (owner && !byOwner.has(owner.toLowerCase())) byOwner.set(owner.toLowerCase(), a);
-      if (a.linkedinUrl) {
-        const u = a.linkedinUrl.replace(/\/$/, "");
-        if (!byUrl.has(u)) byUrl.set(u, a);
+      const owner = (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "")?.toLowerCase();
+      if (owner) {
+        ownerCount.set(owner, (ownerCount.get(owner) || 0) + 1);
+        if (!byOwner.has(owner)) byOwner.set(owner, a);
       }
+      const u = normUrl(a.linkedinUrl);
+      if (u && !byUrl.has(u)) byUrl.set(u, a);
     }
 
     const rows = apps.map((app) => {
+      const appUrl = normUrl(app.linkedinUrl);
+      const email = app.email.toLowerCase();
       const acct =
-        byOwner.get(app.email.toLowerCase()) ||
-        (app.linkedinUrl ? byUrl.get(app.linkedinUrl.replace(/\/$/, "")) : undefined) ||
+        (appUrl ? byUrl.get(appUrl) : undefined) ||
+        (ownerCount.get(email) === 1 ? byOwner.get(email) : undefined) ||
         null;
 
       const hasGologin = !!(acct?.gologinProfileId || acct?.gologinShareLink);
