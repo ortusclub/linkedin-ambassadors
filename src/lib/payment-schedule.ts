@@ -1,11 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { isReferralEarned } from "@/lib/referrals";
+import { type Currency, currencyConfig, currencyForReferredBy } from "@/lib/referral-currency";
 
 // Ambassador payout schedule + "who's due to be paid" computation, shared by the
 // admin Owners panel and the weekly digest email so both agree exactly.
+//
+// Amounts are per-referrer currency: PH referrers (and the ambassadors they refer)
+// stay ₱ (₱1,000 setup / ₱500 monthly / ₱500 commission); non-PH referrers use USD
+// — see lib/referral-currency. SETUP_FEE stays the PH default for legacy callers.
 
-export const SETUP_FEE = 1000;       // one-time ₱ setup fee
-const MARKETER_RATE = 500;           // ₱ per onboarded signup
+export const SETUP_FEE = 1000;       // one-time ₱ setup fee (PH default)
 const DAY = 24 * 60 * 60 * 1000;
 
 // Roll a date forward to the next business day (Mon–Fri) when it lands on a weekend,
@@ -66,19 +70,21 @@ export interface DueItem {
   method: string | null;
   details: string | null;
   amount: number;
+  currency: Currency;
   dueDate: string; // ISO
   overdue: boolean;
   blocked: string | null; // login issue reason — due but can't be paid until resolved
 }
-export interface MarketerDue { name: string; count: number; amount: number; }
+export interface MarketerDue { name: string; count: number; amount: number; currency: Currency; }
 export interface MarketerPayment { name: string; amount: number; paidAt: string; }
 export interface PaymentsDue {
   setup: DueItem[];        // setup fees due now / overdue (unpaid)
-  monthly: DueItem[];      // monthly ₱500 due now / overdue
+  monthly: DueItem[];      // monthly due now / overdue
   upcoming: DueItem[];     // due within the horizon (not yet due)
   marketers: MarketerDue[];// commissions ready to pay (onboarded + verified)
   marketerPayments: MarketerPayment[]; // referral commissions actually paid (drives ✓ Paid rows)
-  totalDueNow: number;     // setup + monthly + marketer, due now
+  totalDueNow: number;     // setup + monthly + marketer, due now (PH ₱ only — legacy)
+  totalsByCurrency: Record<Currency, number>; // due-now totals split by currency
   horizonDays: number;
 }
 
@@ -132,14 +138,16 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     // Every account this owner supplies is restricted → nothing owed while on hold.
     const total = totalByEmail.get(a.email) || 0;
     if (total > 0 && (heldByEmail.get(a.email) || 0) >= total) continue;
-    const monthlyAmount = monthlyByEmail.get(a.email) || MARKETER_RATE;
-    const base = { name: a.fullName || a.email, email: a.email, method: a.paymentMethod, details: a.paymentDetails, blocked: a.accountIssue || null };
+    // Currency follows the referrer who signed this ambassador up (PH → ₱, else USD).
+    const cfg = currencyConfig(a.referredBy);
+    const monthlyAmount = monthlyByEmail.get(a.email) || cfg.monthlyAmount;
+    const base = { name: a.fullName || a.email, email: a.email, method: a.paymentMethod, details: a.paymentDetails, currency: cfg.currency, blocked: a.accountIssue || null };
 
     // Setup fee — only if not yet marked paid
     if (!a.paidAt) {
       const due = setupDueDate(a.onboardedAt);
       if (due) {
-        const item: DueItem = { ...base, kind: "setup", amount: SETUP_FEE, dueDate: due.toISOString(), overdue: due < startOfToday };
+        const item: DueItem = { ...base, kind: "setup", amount: cfg.setupAmount, dueDate: due.toISOString(), overdue: due < startOfToday };
         if (due.getTime() <= now) setup.push(item);
         else if (due.getTime() <= horizonEnd) upcoming.push(item);
       }
@@ -189,20 +197,24 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   const marketers: MarketerDue[] = [];
   for (const [slug, earnedCount] of earnedByRef) {
     const r = refBySlug.get(slug);
+    // Commission currency follows the referrer's own slug (r.slug when resolved, else
+    // the raw referredBy key — which is usually the slug anyway).
+    const cfg = currencyConfig(r?.slug || slug);
     const paid = r ? paidByRefId.get(r.id) || 0 : 0;
-    const outstanding = Math.max(0, earnedCount * MARKETER_RATE - paid);
+    const outstanding = Math.max(0, earnedCount * cfg.rate - paid);
     if (outstanding <= 0) continue;
-    marketers.push({ name: r?.name || slug, count: Math.round(outstanding / MARKETER_RATE), amount: outstanding });
+    marketers.push({ name: r?.name || slug, count: Math.round(outstanding / cfg.rate), amount: outstanding, currency: cfg.currency });
   }
   marketers.sort((a, b) => b.amount - a.amount);
 
   const sortByDue = (arr: DueItem[]) => arr.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   sortByDue(setup); sortByDue(monthly); sortByDue(upcoming);
 
-  const totalDueNow =
-    setup.reduce((s, i) => s + i.amount, 0) +
-    monthly.reduce((s, i) => s + i.amount, 0) +
-    marketers.reduce((s, m) => s + m.amount, 0);
+  // Totals split by currency — ₱ and $ can't be summed into one figure.
+  const totalsByCurrency: Record<Currency, number> = { PHP: 0, USD: 0 };
+  for (const i of setup) totalsByCurrency[i.currency] += i.amount;
+  for (const i of monthly) totalsByCurrency[i.currency] += i.amount;
+  for (const m of marketers) totalsByCurrency[m.currency] += m.amount;
 
-  return { setup, monthly, upcoming, marketers, marketerPayments, totalDueNow, horizonDays };
+  return { setup, monthly, upcoming, marketers, marketerPayments, totalDueNow: totalsByCurrency.PHP, totalsByCurrency, horizonDays };
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { sendReferralPayoutEmail } from "@/services/email";
+import { referralCurrency, CURRENCY_CONFIG } from "@/lib/referral-currency";
 
 function authError(error: unknown) {
   if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
@@ -58,11 +59,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const isReceiptLink = /^https?:\/\//i.test(receipt);
     if (payout.paidAt && isReceiptLink && !payout.notifiedAt && payout.referrer?.email) {
       try {
-        // Commission payouts are ₱500 per converted signup — show the count when it divides evenly.
+        // Commission is per-referrer currency (₱500 PH / $8 non-PH) per converted signup —
+        // show the count when the amount divides evenly by that rate.
+        const cur = referralCurrency(payout.referrer.slug);
+        const rate = CURRENCY_CONFIG[cur].rate;
         const amt = Number(payout.amount);
-        const count = payout.type === "commission" && amt % 500 === 0 ? amt / 500 : undefined;
+        const count = payout.type === "commission" && amt % rate === 0 ? amt / rate : undefined;
         // description names who they referred (e.g. "Erika S. Danila") — used in the email.
-        await sendReferralPayoutEmail(payout.referrer.email, payout.referrer.name, amt, receipt, payout.description, count);
+        await sendReferralPayoutEmail(payout.referrer.email, payout.referrer.name, amt, receipt, payout.description, count, cur);
         payout = await prisma.payout.update({ where: { id }, data: { notifiedAt: new Date() }, include: { referrer: true } });
       } catch (e) {
         console.error("[payout-notify] referral email failed:", e);

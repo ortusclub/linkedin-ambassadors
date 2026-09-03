@@ -11,6 +11,7 @@
 // Applications page always agree.
 
 import { useEffect, useMemo, useState } from "react";
+import { currencyConfig, formatMoney } from "@/lib/referral-currency";
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
@@ -190,7 +191,7 @@ function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange:
           <D label="Account freshness">{r.accountFreshness}</D>
           {/* Money + dates */}
           <D label="Rent price">{r.monthlyPrice ? `$${r.monthlyPrice}/mo` : null}</D>
-          <D label="Ambassador payout">{r.ambassadorPayment ? `₱${r.ambassadorPayment}/mo` : null}</D>
+          <D label="Ambassador payout">{r.ambassadorPayment ? `${formatMoney(r.ambassadorPayment, currencyConfig(r.referredBy).currency)}/mo` : null}</D>
           <D label="Payment method">{r.paymentMethod}</D>
           <D label="Payout handle">{r.paymentDetails}</D>
           <D label="Payout name">{r.payoutName}</D>

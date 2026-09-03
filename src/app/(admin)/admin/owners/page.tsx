@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { formatName } from "@/lib/utils";
+import { type Currency, currencyConfig, formatMoney } from "@/lib/referral-currency";
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
-// Ambassador payouts are in PHP. Setup fee is a one-time ₱1,000; recurring is ₱500/mo.
-const peso = (n: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(n);
-const SETUP_FEE = 1000;
+// Ambassador payouts follow the referrer's currency (PH ₱1,000 setup / ₱500 mo; non-PH
+// USD $16 / $8 — see lib/referral-currency). Per-owner amounts use the owner's own
+// currency (a per-owner `money()` helper); totals below are split by currency.
+// Totals span owners of different currencies, which can't be summed — render each present.
+const fmtByCur = (rec: Record<Currency, number>) =>
+  (["PHP", "USD"] as Currency[]).filter((c) => rec[c] > 0).map((c) => formatMoney(rec[c], c)).join(" · ") || formatMoney(0, "PHP");
 const fmtDate = (d: string | Date | null | undefined) =>
   d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
 
@@ -155,17 +159,19 @@ interface DueItem {
   method: string | null;
   details: string | null;
   amount: number;
+  currency: Currency;
   dueDate: string;
   overdue: boolean;
   blocked: string | null;
 }
-interface MarketerDue { name: string; count: number; amount: number; }
+interface MarketerDue { name: string; count: number; amount: number; currency: Currency; }
 interface PaymentsDue {
   setup: DueItem[];
   monthly: DueItem[];
   upcoming: DueItem[];
   marketers: MarketerDue[];
   totalDueNow: number;
+  totalsByCurrency: Record<Currency, number>;
   horizonDays: number;
 }
 
@@ -190,6 +196,7 @@ interface Owner {
   onboardedAt: string | null;
   verifiedAt: string | null;
   accountFreshness: string | null;
+  referredBy: string | null;
   accounts: OwnerAccount[];
 }
 
@@ -398,10 +405,17 @@ export default function AdminOwnersPage() {
   const groups = GROUP_DEFS.map((g) => ({ ...g, owners: shown.filter((o) => stageOf(o) === g.key) })).filter((g) => g.owners.length > 0);
   // Only Active owners actually cost us monthly — Offline/Paused/Lost aren't being
   // paid — and within an owner, restricted (on-hold) accounts drop out.
-  const totalMonthly = owners.reduce((s, o) => s + (resolveStatus(o) === "active" ? payableMonthly(o) : 0), 0);
-  // Compact money-strip figures: outstanding setup fees (₱1,000 each) and owners we
-  // can't currently pay because an account won't log in or is restricted (on hold).
-  const setupsOutstanding = owners.reduce((s, o) => s + setupBreakdown(o).dueN, 0);
+  // Monthly commitment + outstanding setup fees, split by owner currency (₱ can't be
+  // summed with $). setupsOutstanding is the plain unpaid COUNT (for the hint).
+  const totalMonthly: Record<Currency, number> = { PHP: 0, USD: 0 };
+  for (const o of owners) if (resolveStatus(o) === "active") totalMonthly[currencyConfig(o.referredBy).currency] += payableMonthly(o);
+  const totalMonthlySum = totalMonthly.PHP + totalMonthly.USD;
+  const setupOutAmt: Record<Currency, number> = { PHP: 0, USD: 0 };
+  let setupsOutstanding = 0;
+  for (const o of owners) {
+    const n = setupBreakdown(o).dueN;
+    if (n > 0) { setupsOutstanding += n; setupOutAmt[currencyConfig(o.referredBy).currency] += n * currencyConfig(o.referredBy).setupAmount; }
+  }
   const blockedCount = owners.filter((o) => o.accountIssue || o.accounts.some(isRestricted)).length;
   const heldAccountCount = owners.reduce((s, o) => s + o.accounts.filter(isRestricted).length, 0);
   const profileCount = owners.reduce((s, o) => s + o.accounts.length, 0);
@@ -429,7 +443,7 @@ export default function AdminOwnersPage() {
           )}
           <div style={{ textAlign: "right" }}>
             <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted)" }}>{owners.length} owner{owners.length !== 1 ? "s" : ""} · {profileCount} profile{profileCount !== 1 ? "s" : ""}</div>
-            {totalMonthly > 0 && <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{peso(totalMonthly)}/mo · active</div>}
+            {totalMonthlySum > 0 && <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{fmtByCur(totalMonthly)}/mo · active</div>}
           </div>
         </div>
       </div>
@@ -446,14 +460,14 @@ export default function AdminOwnersPage() {
         const nothing = rows.length === 0 && due.marketers.length === 0;
         // Three compact figures across the top, mirroring the design's money strip.
         const strip = [
-          { label: "Setup fees outstanding", value: peso(setupsOutstanding * SETUP_FEE), hint: `${setupsOutstanding} unpaid`, color: setupsOutstanding ? "var(--warn-badge-text)" : "var(--text)" },
-          { label: "Monthly commitment", value: `${peso(totalMonthly)}/mo`, hint: "active owners only", color: "var(--text)" },
+          { label: "Setup fees outstanding", value: fmtByCur(setupOutAmt), hint: `${setupsOutstanding} unpaid`, color: setupsOutstanding ? "var(--warn-badge-text)" : "var(--text)" },
+          { label: "Monthly commitment", value: `${fmtByCur(totalMonthly)}/mo`, hint: "active owners only", color: "var(--text)" },
           { label: "Blocked — can't pay", value: String(blockedCount), hint: heldAccountCount > 0 ? `${heldAccountCount} account${heldAccountCount !== 1 ? "s" : ""} on hold` : "login / restriction issues", color: blockedCount ? "var(--st-cancel-fg)" : "var(--text)" },
         ];
         let dueLine: React.ReactNode;
         if (nothing) dueLine = "Nothing due right now";
         else if (dueNowCount === 0 && upcomingCount > 0) dueLine = `${upcomingCount} coming up this week`;
-        else dueLine = <><strong style={{ color: "var(--text)" }}>{peso(due.totalDueNow)}</strong> due now · {dueNowCount} payout{dueNowCount !== 1 ? "s" : ""}{overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}{blockedDueCount > 0 ? ` · ${blockedDueCount} blocked` : ""}</>;
+        else dueLine = <><strong style={{ color: "var(--text)" }}>{fmtByCur(due.totalsByCurrency)}</strong> due now · {dueNowCount} payout{dueNowCount !== 1 ? "s" : ""}{overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}{blockedDueCount > 0 ? ` · ${blockedDueCount} blocked` : ""}</>;
         return (
           <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, overflow: "hidden", marginBottom: 20, boxShadow: "var(--card-shadow)" }}>
             <div style={{ display: "flex", alignItems: "stretch", flexWrap: "wrap" }}>
@@ -489,7 +503,7 @@ export default function AdminOwnersPage() {
                         <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{i.kind === "setup" ? "Setup fee" : "Monthly"} · {fmtDate(i.dueDate)}</div>
                       </div>
                       {i.blocked && <span title={`Can't log in: ${i.blocked}`} style={{ font: `600 10.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap", flex: "none", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ can&apos;t pay · {i.blocked}</span>}
-                      <span style={{ font: `700 15px ${F_GRO}`, color: i.blocked ? "var(--muted2)" : "var(--text)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", textDecoration: i.blocked ? "line-through" : "none" }}>{peso(i.amount)}</span>
+                      <span style={{ font: `700 15px ${F_GRO}`, color: i.blocked ? "var(--muted2)" : "var(--text)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", textDecoration: i.blocked ? "line-through" : "none" }}>{formatMoney(i.amount, i.currency)}</span>
                     </div>
                   );
                 })}
@@ -500,7 +514,7 @@ export default function AdminOwnersPage() {
                       <div style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)" }}>{m.name}</div>
                       <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>Marketer · {m.count} signup{m.count !== 1 ? "s" : ""}</div>
                     </div>
-                    <span style={{ font: `700 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{peso(m.amount)}</span>
+                    <span style={{ font: `700 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{formatMoney(m.amount, m.currency)}</span>
                   </div>
                 ))}
               </div>
@@ -543,7 +557,9 @@ export default function AdminOwnersPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
           {groups.map((g) => {
             const gCollapsed = collapsedGroups.has(g.key);
-            const subtotal = g.owners.reduce((s, o) => s + payableMonthly(o), 0);
+            const subtotalByCur: Record<Currency, number> = { PHP: 0, USD: 0 };
+            for (const o of g.owners) subtotalByCur[currencyConfig(o.referredBy).currency] += payableMonthly(o);
+            const subtotal = subtotalByCur.PHP + subtotalByCur.USD;
             return (
               <div key={g.key}>
                 {/* group header */}
@@ -553,7 +569,7 @@ export default function AdminOwnersPage() {
                   <span style={{ font: `600 15px ${F_GRO}`, color: "var(--text)" }}>{g.label}</span>
                   <span style={{ font: `700 11px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "2px 8px", borderRadius: 7, background: "var(--band)", color: "var(--muted)" }}>{g.owners.length}</span>
                   <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", flex: 1 }}>{g.note}</span>
-                  <span style={{ font: `600 13px ${F_GRO}`, color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{subtotal > 0 ? `${peso(subtotal)}/mo` : "—"}</span>
+                  <span style={{ font: `600 13px ${F_GRO}`, color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{subtotal > 0 ? `${fmtByCur(subtotalByCur)}/mo` : "—"}</span>
                 </div>
                 {!gCollapsed && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -565,10 +581,14 @@ export default function AdminOwnersPage() {
             const monthlyCount = monthlyOnly.length;
             const setupDue = setupDueDate(owner.onboardedAt);
             const nextMonthlyDue = monthlyDueDate(setupPaidAtOf(owner), monthlyCount);
+            // Payout currency follows the referrer who signed this owner up (PH ₱ / non-PH USD).
+            const cfg = currencyConfig(owner.referredBy);
+            const money = (n: number) => formatMoney(n, cfg.currency);
+            const setupFee = cfg.setupAmount;
             const ownerMonthly = payableMonthly(owner);
-            const monthlyAmt = ownerMonthly || 500;
+            const monthlyAmt = ownerMonthly || cfg.monthlyAmount;
             const hasSetupRecord = owner.monthlyPayouts.some((p) => p.kind === "setup");
-            const totalPaid = owner.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) + (owner.setupFeePaidAt && !hasSetupRecord ? SETUP_FEE : 0);
+            const totalPaid = owner.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) + (owner.setupFeePaidAt && !hasSetupRecord ? setupFee : 0);
 
             // Setup fees: one ₱1,000 per account under this owner. A grouped POC brings
             // several accounts, each earning its own setup, logged on the day it's paid.
@@ -610,11 +630,11 @@ export default function AdminOwnersPage() {
             };
             const singleAcctId = owner.accounts[0]?.id || null;
             const singleAcctName = owner.accounts[0]?.linkedinName || null;
-            const markSetupPaid = () => patchOwner(owner.applicationId, { paidAt: new Date().toISOString(), ...(hasSetupRecord ? {} : { addMonthlyPayout: { amount: SETUP_FEE, kind: "setup", ...(singleAcctId ? { accountId: singleAcctId, note: `Setup — ${singleAcctName}` } : {}) } }) });
+            const markSetupPaid = () => patchOwner(owner.applicationId, { paidAt: new Date().toISOString(), ...(hasSetupRecord ? {} : { addMonthlyPayout: { amount: setupFee, kind: "setup", ...(singleAcctId ? { accountId: singleAcctId, note: `Setup — ${singleAcctName}` } : {}) } }) });
             // Log the next unpaid setup fee (multi-account owners) — dated now, tagged
             // with the account it covers. Stamp paidAt on the first so the digest agrees.
             const logSetup = () => patchOwner(owner.applicationId, {
-              addMonthlyPayout: { amount: SETUP_FEE, kind: "setup", method: owner.paymentMethod, note: nextSetupName ? `Setup — ${nextSetupName}` : "Setup fee", ...(nextSetupId ? { accountId: nextSetupId } : {}) },
+              addMonthlyPayout: { amount: setupFee, kind: "setup", method: owner.paymentMethod, note: nextSetupName ? `Setup — ${nextSetupName}` : "Setup fee", ...(nextSetupId ? { accountId: nextSetupId } : {}) },
               ...(setupsPaidCount === 0 ? { paidAt: new Date().toISOString() } : {}),
             });
             const attachProof = (index: number) => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) patchOwner(owner.applicationId, { updateMonthlyPayout: { index, proofUrl: url.trim() } }); };
@@ -654,7 +674,7 @@ export default function AdminOwnersPage() {
                     </div>
                   </div>
                   <div style={{ textAlign: "right", flex: "none" }}>
-                    <div style={{ font: `600 16px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{ownerMonthly > 0 ? `${peso(ownerMonthly)}/mo` : allHeld ? "On hold" : "TBC"}</div>
+                    <div style={{ font: `600 16px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{ownerMonthly > 0 ? `${money(ownerMonthly)}/mo` : allHeld ? "On hold" : "TBC"}</div>
                     <div style={{ font: `500 12px ${F_SANS}`, marginTop: 2, color: (setupsRemaining > 0 && owner.onboardedAt) ? "var(--warn-badge-text)" : "var(--muted2)" }}>{(multiSetup
                       ? `${setupsPaidCount}/${setup.total} setups paid`
                       : setupsPaidCount > 0 ? "Setup paid" : heldAcctCount > 0 ? "Setup on hold" : owner.onboardedAt ? "Setup due" : "Setup pending")
@@ -711,16 +731,16 @@ export default function AdminOwnersPage() {
                       {multiSetup ? (
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, padding: "14px 16px" }}>
                           <div>
-                            <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Setup fees · {peso(SETUP_FEE)} × {setup.total}</div>
+                            <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Setup fees · {money(setupFee)} × {setup.total}</div>
                             <div style={{ font: `500 12.5px ${F_SANS}`, color: setupsRemaining > 0 ? "var(--muted)" : "var(--muted2)", marginTop: 2 }}>
                               {setupsPaidCount} of {setup.total} paid{setupsRemaining > 0 ? ` · ${setupsRemaining} due${nextSetupName ? ` (next: ${nextSetupName})` : ""}` : ""}{setupHoldN > 0 ? ` · ${setupHoldN} on hold` : ""}
                             </div>
-                            <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", marginTop: 2 }}>One {peso(SETUP_FEE)} per account — log each on the day you pay it{setupHoldN > 0 ? " · restricted accounts excluded until they recover" : ""}</div>
+                            <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", marginTop: 2 }}>One {money(setupFee)} per account — log each on the day you pay it{setupHoldN > 0 ? " · restricted accounts excluded until they recover" : ""}</div>
                           </div>
                           {setupsRemaining > 0 ? (
                             <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
                               {payNote("setup")}
-                              <button type="button" onClick={canPay("setup") ? logSetup : undefined} disabled={!canPay("setup")} style={canPay("setup") ? darkBtn : disabledBtn}>+ Log {peso(SETUP_FEE)}{nextSetupName ? ` · ${nextSetupName.split(" ")[0]}` : ""}</button>
+                              <button type="button" onClick={canPay("setup") ? logSetup : undefined} disabled={!canPay("setup")} style={canPay("setup") ? darkBtn : disabledBtn}>+ Log {money(setupFee)}{nextSetupName ? ` · ${nextSetupName.split(" ")[0]}` : ""}</button>
                             </div>
                           ) : setupHoldN > 0 ? (
                             <span style={{ font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "var(--st-unreach-bg)", color: "var(--st-unreach-fg)", flex: "none", whiteSpace: "nowrap" }}>⏸ {setupHoldN} on hold{setupsPaidCount > 0 ? `, ${setupsPaidCount} paid` : ""}</span>
@@ -731,7 +751,7 @@ export default function AdminOwnersPage() {
                       ) : singleHeld ? (
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, padding: "14px 16px" }}>
                           <div>
-                            <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Setup fee · {peso(SETUP_FEE)}</div>
+                            <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Setup fee · {money(setupFee)}</div>
                             <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--st-unreach-fg)", marginTop: 2 }}>On hold — account restricted, not being paid</div>
                             <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", marginTop: 2 }}>Clear the restriction below to resume</div>
                           </div>
@@ -740,7 +760,7 @@ export default function AdminOwnersPage() {
                       ) : (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, padding: "14px 16px" }}>
                         <div>
-                          <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Setup fee · {peso(SETUP_FEE)}</div>
+                          <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Setup fee · {money(setupFee)}</div>
                           {setupPaid ? (
                             <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)", marginTop: 2 }}>Paid {setupPaid}</div>
                           ) : setupDue ? (
@@ -771,7 +791,7 @@ export default function AdminOwnersPage() {
                       )}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--band)", border: "1px solid var(--divider)", borderRadius: 12, padding: "14px 16px" }}>
                         <div>
-                          <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Monthly · {allHeld ? peso(0) : peso(monthlyAmt)}/mo</div>
+                          <div style={{ font: `600 14.5px ${F_SANS}`, color: "var(--text)" }}>Monthly · {allHeld ? money(0) : money(monthlyAmt)}/mo</div>
                           {allHeld ? (
                             <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--st-unreach-fg)", marginTop: 2 }}>On hold — {owner.accounts.length === 1 ? "account restricted" : "all accounts restricted"}, not being paid</div>
                           ) : (
@@ -786,7 +806,7 @@ export default function AdminOwnersPage() {
                         ) : (
                           <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
                             {payNote("monthly")}
-                            <button type="button" onClick={canPay("monthly") ? () => patchOwner(owner.applicationId, { addMonthlyPayout: { amount: monthlyAmt, kind: "monthly", method: owner.paymentMethod } }) : undefined} disabled={!canPay("monthly")} style={canPay("monthly") ? darkBtn : disabledBtn}>+ Log {peso(monthlyAmt)}</button>
+                            <button type="button" onClick={canPay("monthly") ? () => patchOwner(owner.applicationId, { addMonthlyPayout: { amount: monthlyAmt, kind: "monthly", method: owner.paymentMethod } }) : undefined} disabled={!canPay("monthly")} style={canPay("monthly") ? darkBtn : disabledBtn}>+ Log {money(monthlyAmt)}</button>
                           </div>
                         )}
                       </div>
@@ -795,7 +815,7 @@ export default function AdminOwnersPage() {
                     {/* PAYMENT RECORD */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                       <span style={labelCss}>Payment record</span>
-                      <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>Total paid: <strong style={{ fontWeight: 700, color: "var(--st-active-fg)" }}>{peso(totalPaid)}</strong></span>
+                      <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>Total paid: <strong style={{ fontWeight: 700, color: "var(--st-active-fg)" }}>{money(totalPaid)}</strong></span>
                     </div>
                     <div style={{ border: "1px solid var(--divider)", borderRadius: 12, overflow: "hidden", marginBottom: 26 }}>
                       <div style={{ display: "grid", gridTemplateColumns: PAY_GRID, gap: 12, padding: "10px 16px", background: "var(--band)", borderBottom: "1px solid var(--divider)" }}>
@@ -812,7 +832,7 @@ export default function AdminOwnersPage() {
                             <div key={i} style={{ display: "grid", gridTemplateColumns: PAY_GRID, gap: 12, alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--divider)" }}>
                               <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--text2)", whiteSpace: "nowrap" }}>{fmtDate(p.paidAt)}</span>
                               <div style={{ minWidth: 0 }}>
-                                <div style={{ font: `600 13px ${F_SANS}`, color: "var(--text)" }}>{peso(Number(p.amount) || 0)} <span style={{ fontWeight: 500, color: "var(--muted)" }}>· {p.kind === "setup" ? "Setup fee" : "Monthly"}{forName ? ` · ${forName}` : ""}</span></div>
+                                <div style={{ font: `600 13px ${F_SANS}`, color: "var(--text)" }}>{money(Number(p.amount) || 0)} <span style={{ fontWeight: 500, color: "var(--muted)" }}>· {p.kind === "setup" ? "Setup fee" : "Monthly"}{forName ? ` · ${forName}` : ""}</span></div>
                                 <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)" }}>{p.method ? `via ${p.method}` : p.by ? `by ${p.by}` : "—"}</div>
                               </div>
                               {p.proofUrl ? (
@@ -830,7 +850,7 @@ export default function AdminOwnersPage() {
                             <div style={{ display: "grid", gridTemplateColumns: PAY_GRID, gap: 12, alignItems: "center", padding: "12px 16px" }}>
                               <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--text2)", whiteSpace: "nowrap" }}>{fmtDate(owner.setupFeePaidAt)}</span>
                               <div style={{ minWidth: 0 }}>
-                                <div style={{ font: `600 13px ${F_SANS}`, color: "var(--text)" }}>{peso(SETUP_FEE)} <span style={{ fontWeight: 500, color: "var(--muted)" }}>· Setup fee</span></div>
+                                <div style={{ font: `600 13px ${F_SANS}`, color: "var(--text)" }}>{money(setupFee)} <span style={{ fontWeight: 500, color: "var(--muted)" }}>· Setup fee</span></div>
                                 <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2)" }}>{owner.paymentMethod ? `via ${owner.paymentMethod}` : "—"}</div>
                               </div>
                               <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", textAlign: "center" }}>—</span>
@@ -873,7 +893,7 @@ export default function AdminOwnersPage() {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
                                 {acc.loginEmail && <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{acc.loginEmail}</span>}
-                                {Number(acc.ambassadorPayment) > 0 && <span style={{ font: `600 13px ${F_GRO}`, color: held ? "var(--muted2)" : "var(--text2)", fontVariantNumeric: "tabular-nums", textDecoration: held ? "line-through" : "none" }}>{peso(Number(acc.ambassadorPayment))}/mo</span>}
+                                {Number(acc.ambassadorPayment) > 0 && <span style={{ font: `600 13px ${F_GRO}`, color: held ? "var(--muted2)" : "var(--text2)", fontVariantNumeric: "tabular-nums", textDecoration: held ? "line-through" : "none" }}>{money(Number(acc.ambassadorPayment))}/mo</span>}
                                 <button type="button" onClick={(e) => { e.stopPropagation(); toggleRestricted(); }} title={held ? "Account recovered — clear the hold and resume paying" : "Restricted by LinkedIn — put this account on hold (stops its setup + monthly)"} style={{ font: `600 10.5px ${F_SANS}`, padding: "5px 9px", borderRadius: 8, whiteSpace: "nowrap", cursor: "pointer", border: "1px solid var(--divider)", background: "transparent", color: held ? "var(--st-active-fg)" : "var(--muted)" }}>{held ? "✓ Resume" : "⚑ Restrict"}</button>
                                 <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 7, whiteSpace: "nowrap", background: setupChip.bg, color: setupChip.fg }}>{setupChip.label}</span>
                               </div>
