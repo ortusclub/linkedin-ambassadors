@@ -678,9 +678,9 @@ export default function AdminOwnersPage() {
                   </div>
                   <div style={{ textAlign: "right", flex: "none" }}>
                     <div style={{ font: `600 16px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{ownerMonthly > 0 ? `${money(ownerMonthly)}/mo` : allHeld ? "On hold" : "TBC"}</div>
-                    <div style={{ font: `500 12px ${F_SANS}`, marginTop: 2, color: (setupsRemaining > 0 && owner.onboardedAt) ? "var(--warn-badge-text)" : "var(--muted2)" }}>{(multiSetup
+                    <div style={{ font: `500 12px ${F_SANS}`, marginTop: 2, color: (setupsRemaining > 0 && owner.onboardedAt && isOverdue(setupDue)) ? "var(--warn-badge-text)" : "var(--muted2)" }}>{(multiSetup
                       ? `${setupsPaidCount}/${setup.total} setups paid`
-                      : setupsPaidCount > 0 ? "Setup paid" : heldAcctCount > 0 ? "Setup on hold" : owner.onboardedAt ? "Setup due" : "Setup pending")
+                      : setupsPaidCount > 0 ? "Setup paid" : heldAcctCount > 0 ? "Setup on hold" : !owner.onboardedAt ? "Setup pending" : isOverdue(setupDue) ? "Setup due" : "Setup scheduled")
                       + (setupsPaidCount > 0 && monthlyCount > 0 && !multiSetup ? ` · ${monthlyCount} mo paid` : "")
                       + (setupHoldN > 0 ? ` · ${setupHoldN} on hold` : "")}</div>
                   </div>
@@ -891,11 +891,17 @@ export default function AdminOwnersPage() {
                         const held = isRestricted(acc);
                         const setupState = setupStateById.get(acc.id) || "due";
                         // Setup chip: paid wins (a paid setup stays paid even if the account
-                        // is later restricted); otherwise amber due / orange on-hold.
+                        // is later restricted); otherwise on-hold, then — for an unpaid account —
+                        // pending (not logged in yet) / scheduled (logged in, due date not reached)
+                        // / amber due (due date reached).
                         const setupChip = setupState === "paid"
                           ? { bg: "var(--st-active-bg)", fg: "var(--st-active-fg)", label: "✓ setup paid" }
                           : held
                           ? { bg: "var(--st-unreach-bg)", fg: "var(--st-unreach-fg)", label: "⏸ on hold" }
+                          : !owner.onboardedAt
+                          ? { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)", label: "setup pending" }
+                          : !isOverdue(setupDue)
+                          ? { bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)", label: "setup scheduled" }
                           : { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)", label: "setup due" };
                         const toggleRestricted = () => patchAccount(acc.id, { restrictedAt: held ? null : new Date().toISOString() });
                         return (
