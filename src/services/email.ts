@@ -796,12 +796,28 @@ export async function sendTelegramMessageNotification(opts: {
   username?: string | null;
   chatId: number | string;
   text: string;
+  recent?: { ts: string; body: string }[]; // newest first, incl. the current message
 }) {
   const userHandle = opts.username ? `@${opts.username}` : "(no username)";
   const replyLink = opts.username
     ? `https://t.me/${opts.username}`
     : `tg://user?id=${opts.chatId}`;
-  const escaped = opts.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc = (s: string) => s.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const escaped = esc(opts.text);
+  // Show up to two prior messages beneath the latest so the team has context.
+  const prior = (opts.recent || []).slice(1, 3);
+  const historyHtml = prior.length
+    ? `
+        <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;margin-bottom:16px;">
+          <p style="margin:0 0 6px;color:#536471;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Earlier messages</p>
+          ${prior
+            .map(
+              (m) =>
+                `<p style="margin:0 0 10px;color:#536471;font-size:14px;line-height:1.5;white-space:pre-wrap;border-left:2px solid #E1E1DC;padding-left:10px;">${esc(m.body)}</p>`,
+            )
+            .join("")}
+        </div>`
+    : "";
   return sendEmail({
     to: ["info@linkedvelocity.com", "sam@ortusclub.com", "ardi@linkedvelocity.com"],
     subject: `New Telegram message from ${opts.fromName}`,
@@ -810,9 +826,10 @@ export async function sendTelegramMessageNotification(opts: {
         <h2 style="color:#0F1419;margin-bottom:8px;">New Telegram Message</h2>
         <p style="color:#536471;font-size:14px;margin-bottom:20px;">${opts.fromName} ${userHandle} just messaged the LinkedVelocity support bot.</p>
         <div style="background:#F8F8F5;border-radius:12px;padding:18px 20px;margin-bottom:16px;">
-          <p style="margin:0 0 6px;color:#536471;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Message</p>
+          <p style="margin:0 0 6px;color:#536471;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">Latest message</p>
           <p style="margin:0;color:#0F1419;font-size:15px;line-height:1.5;white-space:pre-wrap;">${escaped}</p>
         </div>
+        ${historyHtml}
         <p style="margin:0;color:#536471;font-size:13px;">
           <a href="${replyLink}" style="color:#0A66C2;text-decoration:none;">Reply on Telegram →</a>
         </p>

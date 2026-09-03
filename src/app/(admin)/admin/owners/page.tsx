@@ -718,6 +718,10 @@ export default function AdminOwnersPage() {
                         </div>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                        <span style={labelCss}>Referred by</span>
+                        <span title="Referral code the signup came through" style={{ font: `600 13px ${F_SANS}`, color: owner.referredBy ? "var(--text)" : "var(--muted2)", padding: "8px 0" }}>{owner.referredBy || "—"}</span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                         <span style={labelCss}>Registered name (on the account)</span>
                         <Editable initial={owner.payoutName} placeholder="e.g. Juan D. Dela Cruz" onSave={(v) => patchOwner(owner.applicationId, { payoutName: v })} />
                       </div>
