@@ -256,14 +256,17 @@ type Stage = "accepted" | "onboarding" | "active" | "inactive";
 const stageOf = (o: Owner): Stage => {
   const m = o.ownerStatus; // manual override
   if (m === "paused" || m === "lost") return "inactive";
-  if (o.onboardedAt || m === "active") return "active";       // logged in / in hand → earning
-  if (o.applicationStatus === "onboarding" || o.onboardingStartedAt) return "onboarding"; // warming up
+  // Active = we've actually PAID (setup fee logged) — or the account is live/rented,
+  // or a manual "active" override. Logging in alone is NOT active: a logged-in owner
+  // we haven't paid yet stays under Onboarding until the setup fee is marked paid.
+  if (m === "active" || !!setupPaidAtOf(o) || hasLiveAccount(o)) return "active";
+  if (o.onboardedAt || o.applicationStatus === "onboarding" || o.onboardingStartedAt) return "onboarding"; // logged in / warming up, not yet paid
   return "accepted";                                          // agreed, not started
 };
 const GROUP_DEFS: { key: Stage; label: string; dot: string; note: string }[] = [
   { key: "accepted", label: "Accepted", dot: "var(--warn-badge-text)", note: "agreed — not started" },
-  { key: "onboarding", label: "Onboarding", dot: "var(--st-replied-fg)", note: "warming up / log-in due" },
-  { key: "active", label: "Active", dot: "var(--st-active-fg)", note: "onboarded and earning" },
+  { key: "onboarding", label: "Onboarding", dot: "var(--st-replied-fg)", note: "warming up / logged in · awaiting setup payment" },
+  { key: "active", label: "Active", dot: "var(--st-active-fg)", note: "paid — earning" },
   { key: "inactive", label: "Paused / Lost", dot: "var(--st-cancel-fg)", note: "no longer active" },
 ];
 
@@ -696,7 +699,7 @@ export default function AdminOwnersPage() {
                         </select>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                        <span style={labelCss}>Date acquired</span>
+                        <span style={labelCss}>Logged-in date</span>
                         <input type="date" defaultValue={toDateInput(owner.onboardedAt)} onClick={(e) => e.stopPropagation()}
                           onBlur={(e) => { const v = e.target.value; if (v && v !== toDateInput(owner.onboardedAt)) patchOwner(owner.applicationId, { onboardedAt: `${v}T00:00:00.000Z` }); }}
                           style={inputCss} />
@@ -770,7 +773,20 @@ export default function AdminOwnersPage() {
                           ) : (
                             <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted2)", marginTop: 2 }}>Scheduled 24h after login — mark logged in first</div>
                           )}
+                          {/* Log-in marker: recording a successful login schedules the setup fee 24h
+                              later. It does NOT make the owner active — that only happens once the
+                              setup fee is marked paid below. */}
                           {!setupPaid && (
+                            owner.onboardedAt ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7 }}>
+                                <span style={{ font: `600 11.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--st-active-bg)", color: "var(--st-active-fg)", whiteSpace: "nowrap" }}>✓ Logged in {fmtDate(owner.onboardedAt)}</span>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); patchOwner(owner.applicationId, { onboardedAt: null }); }} title="Undo — we haven't actually logged in yet" style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>undo</button>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={(e) => { e.stopPropagation(); patchOwner(owner.applicationId, { onboardedAt: new Date().toISOString() }); }} title="Record that we've logged into the account. Schedules the setup fee 24h later — does NOT mark them active/paid." style={{ font: `600 12px ${F_SANS}`, color: "var(--text)", background: "transparent", border: "1px solid var(--btn-secondary-border)", padding: "7px 12px", borderRadius: 9, cursor: "pointer", marginTop: 7 }}>✓ Mark logged in</button>
+                            )
+                          )}
+                          {!setupPaid && !owner.onboardedAt && (
                             <select value={owner.accountFreshness || "established"} onClick={(e) => e.stopPropagation()} onChange={(e) => patchOwner(owner.applicationId, { accountFreshness: e.target.value })}
                               style={{ marginTop: 6, background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 7, padding: "5px 8px", font: `500 12px ${F_SANS}`, color: "var(--text)", cursor: "pointer", outline: "none" }}
                               title="Warm-up track before we log in — drives the log-in-due date, not the setup fee">
