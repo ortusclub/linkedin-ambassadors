@@ -766,11 +766,21 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
                               <span style={{ font: `600 14px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formatName(a.linkedinName)}</span>
                               {isDummy(a) && <span title="Showcase / demo account — not real inventory" style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".06em", padding: "2px 7px", borderRadius: 5, flex: "none", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>DUMMY</span>}
-                              {/* Read-only: verified drives the price tier and what we promise
-                                  renters, so it's changed deliberately on the Edit page, not by
-                                  a stray click in the list. */}
-                              <span title={a.linkedinVerified ? "LinkedIn verified (blue check) — change on the account's Edit page" : "Not verified — change on the account's Edit page"}
-                                style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap", ...(a.linkedinVerified ? { background: "var(--verified-bg, var(--blue-chip-bg))", color: "var(--verified-fg, var(--blue-chip-text))" } : { background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }) }}>{a.linkedinVerified ? "✓ Verified" : "Unverified"}</span>
+                              {/* Quick toggle — verified drives the price tier (+$10/mo) and what
+                                  we promise renters, so it's guarded by a confirm rather than
+                                  flipping on a stray click. Also editable on the Edit page. */}
+                              <button type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const next = !a.linkedinVerified;
+                                  if (!confirm(next
+                                    ? `Mark ${formatName(a.linkedinName)} as LinkedIn verified (blue check)?\n\nThis adds $10/mo to the price tier.`
+                                    : `Remove verified from ${formatName(a.linkedinName)}?\n\nThis drops $10/mo from the price tier.`)) return;
+                                  setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, linkedinVerified: next } : x)));
+                                  patch(a.id, { linkedinVerified: next });
+                                }}
+                                title={a.linkedinVerified ? "LinkedIn verified (blue check) — click to remove (changes price)" : "Not verified — click to mark verified (+$10/mo)"}
+                                style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap", border: "none", cursor: "pointer", ...(a.linkedinVerified ? { background: "var(--verified-bg, var(--blue-chip-bg))", color: "var(--verified-fg, var(--blue-chip-text))" } : { background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }) }}>{a.linkedinVerified ? "✓ Verified" : "Unverified"}</button>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>
                               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline || "—"}</span>
