@@ -461,6 +461,15 @@ export default function AdminAccountsPage() {
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, accountAgeMonths: months } : x)));
     await patch(a.id, { accountAgeMonths: months });
   };
+
+  // Inline connection-count edit (no need to open the Edit page). Drives the size
+  // bucket (Construction/Maintenance) and price tier, so it re-groups on save.
+  const saveConn = async (a: Account, value: string) => {
+    const n = parseInt(value.replace(/[^0-9]/g, ""), 10);
+    if (isNaN(n) || n < 0 || n === a.connectionCount) return;
+    setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, connectionCount: n } : x)));
+    await patch(a.id, { connectionCount: n });
+  };
   // Manual health mark — for when you've verified the account yourself (in GoLogin).
   const markHealth = async (a: Account, health: string) => {
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, linkedinAccountHealth: health, healthCheckedAt: new Date().toISOString() } : x)));
@@ -917,6 +926,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <DField label="Setup fee paid">{a.ownerSetupPaidAt ? fmt(a.ownerSetupPaidAt) : "—"}</DField>
                             <DField label="Password"><PasswordField password={a.accountPassword} /></DField>
                             <DField label="2FA (key + code)"><TwoFactorCode accountId={a.id} /></DField>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                              <span style={labelCss}>Connections</span>
+                              <input type="number" min={0} step={1} defaultValue={a.connectionCount} key={`conn-${a.id}-${a.connectionCount}`} onBlur={(e) => saveConn(a, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} title="Update the connection count — saves on blur / Enter, no need to open Edit" style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
+                              <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)" }}>drives the size bucket & price · saves on blur</span>
+                            </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                               <span style={labelCss}>Account opened (sets age)</span>
                               <input type="month" defaultValue={a.accountAgeMonths != null ? (() => { const d = new Date(); d.setMonth(d.getMonth() - a.accountAgeMonths); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })() : ""} onBlur={(e) => saveAge(a, e.target.value)} style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
