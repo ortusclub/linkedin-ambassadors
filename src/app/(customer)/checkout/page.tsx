@@ -97,11 +97,10 @@ function CheckoutContent() {
   };
   const submitVetting = async () => {
     setVetError("");
-    if (!vetForm.company.trim() || !vetForm.website.trim() || !vetForm.role.trim() || !vetForm.useCase.trim()) { setVetError("Please fill in your company, website/LinkedIn, role, and what you'll use the account for."); return; }
-    if (!vetForm.agreed) { setVetError("Please agree to the use policy to continue."); return; }
+    if (!vetForm.agreed) { setVetError("Please agree to the rules to continue."); return; }
     setVetSaving(true);
     try {
-      const res = await fetch("/api/vetting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(vetForm) });
+      const res = await fetch("/api/vetting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agreed: true, agreedToRules: true }) });
       const d = await res.json();
       if (!res.ok) { setVetError(d.error || "Something went wrong"); return; }
       setVetted(true); setShowVetting(false); handleCheckout();
@@ -283,23 +282,24 @@ function CheckoutContent() {
       {showVetting && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,20,25,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }}>
           <div style={{ background: "#fff", borderRadius: 16, maxWidth: 460, width: "100%", padding: "26px 26px 22px", maxHeight: "90vh", overflowY: "auto", fontFamily: INT }}>
-            <h2 style={{ font: `700 20px ${POP}`, color: "#0B1220", marginBottom: 4 }}>Quick details before you rent</h2>
-            <p style={{ fontSize: 13, color: "#536471", marginBottom: 18, lineHeight: 1.5 }}>One-time only — helps us look after your accounts. Takes ~30 seconds.</p>
-            {([
-              { k: "company", label: "Company name", ph: "Acme Inc." },
-              { k: "website", label: "Company website or LinkedIn profile", ph: "acme.com or linkedin.com/in/you" },
-              { k: "role", label: "Your role", ph: "Head of Sales" },
-              { k: "useCase", label: "What will you use the account for?", ph: "B2B outreach / lead gen" },
-              { k: "tools", label: "Any tools you’ll connect? (optional)", ph: "e.g. none, Sales Navigator" },
-            ] as const).map((f) => (
-              <div key={f.k} style={{ marginBottom: 12 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>{f.label}</label>
-                <input value={(vetForm as Record<string, string | boolean>)[f.k] as string} onChange={(e) => setVetForm((v) => ({ ...v, [f.k]: e.target.value }))} placeholder={f.ph} style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid #E8E6E1", fontSize: 14, fontFamily: INT, outline: "none" }} />
-              </div>
-            ))}
+            <h2 style={{ font: `700 20px ${POP}`, color: "#0B1220", marginBottom: 4 }}>Before you rent — the ground rules</h2>
+            <p style={{ fontSize: 13, color: "#536471", marginBottom: 16, lineHeight: 1.5 }}>These accounts belong to real people. Please look after them — a quick confirmation and you&apos;re on to payment.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+              {[
+                { t: "No abuse, fraud or scams", d: "Use the account for legitimate outreach only — no fraudulent, deceptive or scam activity of any kind." },
+                { t: "Never change the account’s name", d: "The name stays exactly as it is. Renaming the profile is not allowed." },
+                { t: "Don’t replace the profile picture", d: "Never swap in a photo that bears no resemblance to the original. The person should still be recognisable." },
+                { t: "Any changes must be gradual", d: "If you update the photo, headline, experience or anything else, do it slowly — ideally change only one thing per day." },
+              ].map((r) => (
+                <div key={r.t} style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 12px" }}>
+                  <span style={{ flexShrink: 0, color: "#0A66C2", fontWeight: 700, fontSize: 14, marginTop: 1 }}>•</span>
+                  <span><span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: "#0B1220", marginBottom: 2 }}>{r.t}</span><span style={{ fontSize: 12.5, lineHeight: 1.5, color: "#536471" }}>{r.d}</span></span>
+                </div>
+              ))}
+            </div>
             <label style={{ display: "flex", gap: 9, alignItems: "flex-start", marginTop: 6, marginBottom: 14, cursor: "pointer" }}>
               <input type="checkbox" checked={vetForm.agreed} onChange={(e) => setVetForm((v) => ({ ...v, agreed: e.target.checked }))} style={{ marginTop: 2 }} />
-              <span style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.5 }}>I’ve read and agree to the <a href="/account-guide" target="_blank" style={{ color: "#0A66C2", fontWeight: 600 }}>use policy</a>, and I’m responsible for all use of these accounts — including my team.</span>
+              <span style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.5 }}>I’ve read and agree to these rules and the <a href="/account-guide" target="_blank" style={{ color: "#0A66C2", fontWeight: 600 }}>use policy</a>, and I’m responsible for all use of these accounts — including my team.</span>
             </label>
             {vetError && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 9, marginBottom: 12, fontSize: 12, color: "#991B1B" }}>{vetError}</div>}
             <button onClick={submitVetting} disabled={vetSaving} style={{ width: "100%", padding: 13, borderRadius: 10, background: "#0A66C2", color: "#fff", fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: INT, opacity: vetSaving ? 0.6 : 1 }}>{vetSaving ? "Saving…" : "Continue to payment →"}</button>

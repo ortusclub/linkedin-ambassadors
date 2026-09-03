@@ -227,7 +227,6 @@ export default function AccountDetailPage() {
                 ) : (
                   <div style={{ width: "100%", textAlign: "center", background: "#F2F4F7", color: "#96A0AD", fontSize: 15, fontWeight: 600, borderRadius: 12, padding: 15, marginTop: 20 }}>Currently unavailable</div>
                 )}
-                {rentable && <Link href="/catalogue" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#fff", color: "#0B1220", border: "1px solid #DFE3E9", fontSize: 14.5, fontWeight: 600, borderRadius: 12, padding: 12, marginTop: 10, textDecoration: "none" }}>Add to a multi-account campaign</Link>}
 
                 <div style={{ height: 1, background: "#EEF0F3", margin: "20px 0" }} />
                 <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
