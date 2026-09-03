@@ -31,6 +31,9 @@ interface TelegramUpdate {
   channel_post?: TelegramMessage;
 }
 
+// One entry in a lead's commsLog timeline (matches the admin Inbound tab shape).
+type Comm = { ts: string; channel: string; body: string };
+
 const CALENDAR_URL =
   "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
 
@@ -109,30 +112,39 @@ export async function POST(req: Request) {
     const isStart = text.trim().toLowerCase().startsWith("/start");
     await sendTelegramReply(message.chat.id, isStart ? WELCOME : ACK);
 
-    await sendTelegramMessageNotification({
-      fromName,
-      username: message.from?.username || null,
-      chatId: message.chat.id,
-      text,
-    });
-
     // Log to the inbound-leads tracker — one row per person (channel+contact),
     // updated on repeat messages. Feeds the admin Inbound tab + Google Sheet.
+    // Each message is appended to the commsLog timeline (newest first) so the
+    // full thread is visible, not just the latest message.
+    const contact = String(message.chat.id);
+    const handle = message.from?.username ? `@${message.from.username}` : null;
+    const body = text.slice(0, 1000);
+    const entry: Comm = { ts: new Date().toISOString(), channel: "telegram", body };
+    let recent: Comm[] = [entry];
     try {
+      const existing = await prisma.inboundLead.findUnique({
+        where: { channel_contact: { channel: "telegram", contact } },
+        select: { commsLog: true },
+      });
+      const prior = Array.isArray(existing?.commsLog) ? (existing!.commsLog as Comm[]) : [];
+      const log = [entry, ...prior].slice(0, 50); // newest first, cap stored history
+      recent = log.slice(0, 3);
       await prisma.inboundLead.upsert({
-        where: { channel_contact: { channel: "telegram", contact: String(message.chat.id) } },
+        where: { channel_contact: { channel: "telegram", contact } },
         create: {
           channel: "telegram",
           name: fromName,
-          handle: message.from?.username ? `@${message.from.username}` : null,
-          contact: String(message.chat.id),
-          message: text.slice(0, 1000),
+          handle,
+          contact,
+          message: body,
+          commsLog: log,
           status: "New",
         },
         update: {
           name: fromName,
-          handle: message.from?.username ? `@${message.from.username}` : null,
-          message: text.slice(0, 1000),
+          handle,
+          message: body,
+          commsLog: log,
           lastContactAt: new Date(),
           messageCount: { increment: 1 },
         },
@@ -140,6 +152,15 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("inbound lead log failed:", e);
     }
+
+    // Notify the team, including the last few messages for quick context.
+    await sendTelegramMessageNotification({
+      fromName,
+      username: message.from?.username || null,
+      chatId: message.chat.id,
+      text,
+      recent,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
