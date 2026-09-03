@@ -195,7 +195,7 @@ const CONSTRUCTION_MAX = 100;
 type RestrictLog = Array<{ at: string; event: string }> | null | undefined;
 const restrictCount = (log: RestrictLog) => (Array.isArray(log) ? log.filter((e) => e?.event === "restricted").length : 0);
 const isFirstRestriction = (a: { restrictedAt: string | null; restrictionLog?: RestrictLog }) => !!a.restrictedAt && restrictCount(a.restrictionLog) <= 1;
-const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; restrictionLog?: RestrictLog }): string => {
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; restrictionLog?: RestrictLog; ownerSetupPaidAt?: string | null }): string => {
   if (a.status === "rented") return "Rented";
   // A restricted account keeps its real lifecycle group (e.g. Maintenance) and just
   // shows a "Restricted" badge on the row — so it can be visibly both at once. The one
@@ -219,9 +219,13 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   // is. The exception: a small account on its FIRST restriction is still an account
   // being built, so it stays in Construction (badged "Initial restriction", and sorted
   // to the bottom of the section). A repeat offender always drops to Maintenance.
-  if (a.restrictedAt && !(isFirstRestriction(a) && (a.connectionCount ?? 0) < CONSTRUCTION_MAX)) return "Maintenance";
-  // under_review / maintenance / unavailable / anything else → split by size
-  return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Construction" : "Maintenance";
+  if (a.restrictedAt) return (isFirstRestriction(a) && (a.connectionCount ?? 0) < CONSTRUCTION_MAX) ? "Construction" : "Maintenance";
+  // Non-restricted catch-all (under_review / maintenance / unavailable / …) → split by
+  // size. A small account only counts as "Construction" (warming up) once we've paid the
+  // setup fee — i.e. it's fully onboarded and in-hand. An unpaid small account isn't
+  // inventory we're warming up yet, so it reads as "Initial" (not started) until payment.
+  if ((a.connectionCount ?? 0) < CONSTRUCTION_MAX) return a.ownerSetupPaidAt ? "Construction" : "Initial";
+  return "Maintenance";
 };
 const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
@@ -229,7 +233,7 @@ const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
   { key: "Restricted", hint: "LinkedIn-restricted — access paused while it recovers", dot: "var(--st-unreach-fg)" },
   { key: "Construction", hint: `newer account still warming up — under ${CONSTRUCTION_MAX} connections`, dot: "var(--st-construct-fg)" },
-  { key: "Initial", hint: "not started — no company login we can actually sign in with yet", dot: "var(--warn-badge-text)" },
+  { key: "Initial", hint: "not started — no usable company login yet, or setup fee not paid (not onboarded)", dot: "var(--warn-badge-text)" },
   { key: "Maintenance", hint: "stable account temporarily off — paused, vetting, or 2FA/setup", dot: "var(--neutral-chip-text)" },
   { key: "Inaccessible", hint: "retired — can no longer be used", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
@@ -909,7 +913,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <DField label="Payment method">{a.ownerPaymentMethod || "—"}</DField>
                             <DField label="Payout handle">{a.ownerPaymentDetails || "—"}</DField>
                             <DField label="Payout name">{a.ownerPayoutName || "—"}</DField>
-                            <DField label="Onboarded">{a.ownerOnboardedAt ? fmt(a.ownerOnboardedAt) : "—"}</DField>
+                            <DField label="Logged in">{a.ownerOnboardedAt ? fmt(a.ownerOnboardedAt) : "—"}</DField>
                             <DField label="Setup fee paid">{a.ownerSetupPaidAt ? fmt(a.ownerSetupPaidAt) : "—"}</DField>
                             <DField label="Password"><PasswordField password={a.accountPassword} /></DField>
                             <DField label="2FA (key + code)"><TwoFactorCode accountId={a.id} /></DField>
