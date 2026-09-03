@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { sendSetupFeePaidEmail, sendMonthlyPayoutEmail } from "@/services/email";
+import { currencyConfig } from "@/lib/referral-currency";
 
 const updateSchema = z.object({
   status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarding", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
@@ -166,11 +167,12 @@ export async function PATCH(
     // email actually sends — a failed send stays un-notified so it can be retried.
     if (notifyEntry && application.email) {
       try {
+        const payCurrency = currencyConfig(application.referredBy).currency;
         if (notifyEntry.kind === "setup") {
-          await sendSetupFeePaidEmail(application.email, application.fullName, notifyEntry.amount, notifyEntry.receiptUrl, new Date(notifyEntry.paidAt));
+          await sendSetupFeePaidEmail(application.email, application.fullName, notifyEntry.amount, notifyEntry.receiptUrl, new Date(notifyEntry.paidAt), payCurrency);
         } else {
           const monthLabel = new Date(notifyEntry.paidAt).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "Asia/Manila" });
-          await sendMonthlyPayoutEmail(application.email, application.fullName, notifyEntry.amount, notifyEntry.receiptUrl, monthLabel);
+          await sendMonthlyPayoutEmail(application.email, application.fullName, notifyEntry.amount, notifyEntry.receiptUrl, monthLabel, payCurrency);
         }
         const fresh = Array.isArray(application.monthlyPayouts) ? (application.monthlyPayouts as Record<string, unknown>[]) : [];
         const now = new Date().toISOString();
@@ -208,11 +210,13 @@ export async function PATCH(
           await prisma.linkedInAccount.update({ where: { id: existing.id }, data: { status: "unavailable" } });
         }
       } else {
-        // Monthly rate: the field-day standard is ₱500. offered_amount is unreliable (it
-        // sometimes holds a bogus small value like 16), so only trust it as the monthly
-        // when it's a plausible figure; otherwise default to 500.
+        // Monthly rate follows the referrer's currency (PH ₱500 / non-PH USD $8 — see
+        // lib/referral-currency). For PH, offered_amount is unreliable (it sometimes holds
+        // a bogus small value), so only trust it when it's a plausible ₱ figure; otherwise
+        // use the currency default. For USD the amounts are small by design, so default.
+        const cfg = currencyConfig(application.referredBy);
         const offered = Number(application.offeredAmount) || 0;
-        const monthly = offered >= 100 ? offered : 500;
+        const monthly = cfg.currency === "PHP" && offered >= 100 ? offered : cfg.monthlyAmount;
         await prisma.linkedInAccount.create({
           data: {
             linkedinName: application.fullName,

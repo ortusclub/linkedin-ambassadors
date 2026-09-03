@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOwners, type Owner } from "@/lib/owners";
+import { currencyConfig, formatMoney } from "@/lib/referral-currency";
 
 // CSV export of Account Owners for Google Sheets via
 // =IMPORTDATA("https://linkedvelocity.com/api/admin/owners/export?key=XXXX").
@@ -22,7 +23,7 @@ function csvCell(v: unknown): string {
   return s;
 }
 
-const peso = (n: number) => `₱${new Intl.NumberFormat("en-PH", { maximumFractionDigits: 0 }).format(n)}`;
+// Amounts follow the owner's referrer currency (PH ₱ / non-PH USD — see referral-currency).
 
 function fmtDate(d: Date | string | null | undefined): string {
   if (!d) return "";
@@ -30,8 +31,6 @@ function fmtDate(d: Date | string | null | undefined): string {
   if (isNaN(dt.getTime())) return "";
   return dt.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
-
-const SETUP_FEE = 1000;
 
 // Roll a date forward off weekends (mirrors lib/payment-schedule / the admin page).
 function nextBusinessDay(d: Date): Date {
@@ -136,11 +135,13 @@ export async function GET(req: NextRequest) {
   const width = headers.length;
 
   const rowFor = (o: Owner) => {
+    const cur = currencyConfig(o.referredBy).currency;
+    const money = (n: number) => formatMoney(n, cur);
     const monthlyOnly = o.monthlyPayouts.filter((p) => p.kind !== "setup");
     const hasSetupRecord = o.monthlyPayouts.some((p) => p.kind === "setup");
     const totalPaid =
       o.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) +
-      (o.setupFeePaidAt && !hasSetupRecord ? SETUP_FEE : 0);
+      (o.setupFeePaidAt && !hasSetupRecord ? currencyConfig(o.referredBy).setupAmount : 0);
     const missing = missingFields(o);
     return [
       // Owner
@@ -159,13 +160,13 @@ export async function GET(req: NextRequest) {
       credCell(o, (a) => a.twoFactor),
       // Payout
       o.payoutName || "",
-      o.monthlyPayout > 0 ? `${peso(o.monthlyPayout)}/mo` : "TBC",
+      o.monthlyPayout > 0 ? `${money(o.monthlyPayout)}/mo` : "TBC",
       o.paymentMethod || "",
       o.paymentDetails || "",
       // Payment status
       setupStatus(o),
       String(monthlyOnly.length),
-      totalPaid > 0 ? peso(totalPaid) : "",
+      totalPaid > 0 ? money(totalPaid) : "",
       missing.length ? missing.join("; ") : "—",
     ];
   };

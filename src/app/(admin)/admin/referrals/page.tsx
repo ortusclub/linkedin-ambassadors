@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { isReferralEarned } from "@/lib/referrals";
+import { type Currency, CURRENCY_CONFIG, formatMoney, referralCurrency } from "@/lib/referral-currency";
 
 // A single ambassador application, reduced to what the referral roll-up needs.
 interface App {
@@ -74,8 +75,11 @@ const cardMarkup = (origin: string, r: { slug: string; name: string }) => {
   </div>`;
 };
 
-// ₱ per converted signup.
-const RATE = 500;
+// Commission per converted signup follows the referrer's currency (₱500 PH / $8 non-PH)
+// — see lib/referral-currency. A referrer's currency is keyed off their slug (which is
+// what `referredBy` stores). rateFor/curFor resolve it from the row's referredBy key.
+const curFor = (referredBy: string) => referralCurrency(referredBy);
+const rateFor = (referredBy: string) => CURRENCY_CONFIG[curFor(referredBy)].rate;
 // A referrer is "top" once this many of their signups convert.
 const TOP_THRESHOLD = 5;
 
@@ -91,11 +95,14 @@ const isConverted = (a: App) => isOnboarded(a.status) && (!a.accountIssue || isR
 // A commission is "ready" only once the account passes its stability check
 // (marked good-to-go on the ambassador card, after the 3-day / 1-week hold).
 
-const peso = (n: number) => "₱" + n.toLocaleString("en-US");
 const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
+// Money totals span referrers of different currencies, which can't be summed — render
+// each currency present, joined by " · " (e.g. "₱2,500 · $16").
+const fmtByCur = (rec: Record<Currency, number>) =>
+  (["PHP", "USD"] as Currency[]).filter((c) => rec[c] > 0).map((c) => formatMoney(rec[c], c)).join(" · ") || formatMoney(0, "PHP");
 
 interface Row {
-  name: string; initials: string; signups: number; converted: number;
+  name: string; initials: string; signups: number; converted: number; currency: Currency;
   isTop: boolean; active: boolean; convRate: string; earned: number; owed: number;
   readyOwed: number; heldOwed: number;
 }
@@ -178,19 +185,23 @@ export default function AdminReferralsPage() {
       m.set(key, r);
     }
     return [...m.values()]
-      .map((r) => ({
-        name: r.name,
-        initials: initialsOf(r.name),
-        signups: r.signups,
-        converted: r.converted,
-        isTop: r.converted >= TOP_THRESHOLD,
-        active: r.converted > 0,
-        convRate: r.signups > 0 ? Math.round((r.converted / r.signups) * 100) + "%" : "—",
-        earned: r.converted * RATE,     // Phase 2 will split earned into paid vs owed
-        owed: r.converted * RATE,       // Phase 1: nothing paid yet, so all owed
-        readyOwed: r.ready * RATE,      // hold cleared — payable now
-        heldOwed: r.held * RATE,        // onboarded but still in the stability hold
-      }))
+      .map((r) => {
+        const rate = rateFor(r.name); // r.name is the referredBy key (usually the slug)
+        return {
+          name: r.name,
+          initials: initialsOf(r.name),
+          signups: r.signups,
+          converted: r.converted,
+          currency: curFor(r.name),
+          isTop: r.converted >= TOP_THRESHOLD,
+          active: r.converted > 0,
+          convRate: r.signups > 0 ? Math.round((r.converted / r.signups) * 100) + "%" : "—",
+          earned: r.converted * rate,     // Phase 2 will split earned into paid vs owed
+          owed: r.converted * rate,       // Phase 1: nothing paid yet, so all owed
+          readyOwed: r.ready * rate,      // hold cleared — payable now
+          heldOwed: r.held * rate,        // onboarded but still in the stability hold
+        };
+      })
       .sort((a, b) => b.signups - a.signups || b.converted - a.converted || a.name.localeCompare(b.name));
   }, [apps]);
 
@@ -218,14 +229,18 @@ export default function AdminReferralsPage() {
     return rows.filter((r) => (tier === "all" || tierOf(r).includes(tier)) && (!q || r.name.toLowerCase().includes(q)));
   }, [rows, tier, query]);
 
-  const totals = useMemo(() => ({
-    active: rows.filter((r) => r.signups > 0).length,
-    signups: rows.reduce((s, r) => s + r.signups, 0),
-    converted: rows.reduce((s, r) => s + r.converted, 0),
-    owed: rows.reduce((s, r) => s + r.owed, 0),
-    ready: rows.reduce((s, r) => s + r.readyOwed, 0),
-    held: rows.reduce((s, r) => s + r.heldOwed, 0),
-  }), [rows]);
+  const totals = useMemo(() => {
+    const owed: Record<Currency, number> = { PHP: 0, USD: 0 };
+    const ready: Record<Currency, number> = { PHP: 0, USD: 0 };
+    const held: Record<Currency, number> = { PHP: 0, USD: 0 };
+    for (const r of rows) { owed[r.currency] += r.owed; ready[r.currency] += r.readyOwed; held[r.currency] += r.heldOwed; }
+    return {
+      active: rows.filter((r) => r.signups > 0).length,
+      signups: rows.reduce((s, r) => s + r.signups, 0),
+      converted: rows.reduce((s, r) => s + r.converted, 0),
+      owed, ready, held,
+    };
+  }, [rows]);
 
   // referredBy is the slug (e.g. "sheila-24"); map rows to their Referrer + payouts.
   const refBySlug = useMemo(() => {
@@ -355,8 +370,12 @@ export default function AdminReferralsPage() {
     } finally { setPBusy(""); }
   };
 
+  // A payout's currency follows its referrer's slug.
+  const curOfPayout = (p: Payout) => referralCurrency(p.referrer.slug);
+  const moneyOfPayout = (p: Payout) => formatMoney(p.amount, curOfPayout(p));
+
   const deletePayout = async (p: Payout) => {
-    if (!confirm(`Delete the ${peso(p.amount)} payment for ${p.referrer.name}? This can't be undone.`)) return;
+    if (!confirm(`Delete the ${moneyOfPayout(p)} payment for ${p.referrer.name}? This can't be undone.`)) return;
     setPBusy(p.id);
     try {
       await fetch(`/api/admin/payouts/${p.id}`, { method: "DELETE" });
@@ -364,7 +383,11 @@ export default function AdminReferralsPage() {
     } finally { setPBusy(""); }
   };
 
-  const owedTotal = payouts.filter((p) => !p.paidAt).reduce((s, p) => s + p.amount, 0);
+  const owedTotal: Record<Currency, number> = { PHP: 0, USD: 0 };
+  for (const p of payouts) if (!p.paidAt) owedTotal[curOfPayout(p)] += p.amount;
+  const paidToDate: Record<Currency, number> = { PHP: 0, USD: 0 };
+  for (const p of payouts) if (p.paidAt) paidToDate[curOfPayout(p)] += p.amount;
+  const owedTotalSum = owedTotal.PHP + owedTotal.USD;
   const awaitingCount = payouts.filter((p) => p.paidAt && !p.confirmedAt).length;
 
   const label: React.CSSProperties = { font: `700 10.5px ${F_SANS}`, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--label)" };
@@ -388,7 +411,7 @@ export default function AdminReferralsPage() {
       {/* title */}
       <div style={{ marginBottom: 22, maxWidth: 660 }}>
         <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Referrals</h1>
-        <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Who&apos;s bringing in new ambassador signups. Track referral volume, see how many convert into inventory, spot your top performers to re-invite, and see commissions owed — ₱{RATE} per converted signup.</p>
+        <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Who&apos;s bringing in new ambassador signups. Track referral volume, see how many convert into inventory, spot your top performers to re-invite, and see commissions owed — {formatMoney(CURRENCY_CONFIG.PHP.rate, "PHP")} per converted signup ({formatMoney(CURRENCY_CONFIG.USD.rate, "USD")} for overseas referrers).</p>
       </div>
 
       {/* referral links (collapsible) */}
@@ -465,8 +488,8 @@ export default function AdminReferralsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 22 }}>
         {tile("Active referrers", String(totals.active), "var(--text)", "brought ≥1 signup")}
         {tile("Total signups", String(totals.signups), "var(--accent)", `${totals.converted} converted to inventory`)}
-        {tile("Commission owed", peso(totals.owed), "var(--warn-num)", `${peso(totals.ready)} ready · ${peso(totals.held)} held`)}
-        {tile("Paid to date", peso(payouts.filter((p) => p.paidAt).reduce((s, p) => s + p.amount, 0)), "var(--green)", awaitingCount ? `${awaitingCount} awaiting confirmation` : "all payments confirmed")}
+        {tile("Commission owed", fmtByCur(totals.owed), "var(--warn-num)", `${fmtByCur(totals.ready)} ready · ${fmtByCur(totals.held)} held`)}
+        {tile("Paid to date", fmtByCur(paidToDate), "var(--green)", awaitingCount ? `${awaitingCount} awaiting confirmation` : "all payments confirmed")}
       </div>
 
       {/* payments & receipts */}
@@ -474,7 +497,7 @@ export default function AdminReferralsPage() {
         <div onClick={() => setPayOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "15px 20px", cursor: "pointer", userSelect: "none", flexWrap: "wrap" }}>
           <span style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", width: 12, textAlign: "center", flex: "none", transition: "transform .18s ease", transform: payOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▸</span>
           <span style={{ font: `700 13.5px ${F_SANS}`, color: "var(--text)" }}>Payments &amp; receipts</span>
-          {owedTotal > 0 && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-num)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{peso(owedTotal)} to send</span>}
+          {owedTotalSum > 0 && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-num)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{fmtByCur(owedTotal)} to send</span>}
           {awaitingCount > 0 && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{awaitingCount} awaiting confirmation</span>}
           <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>cash &amp; GCash — the marketer confirms receipt in their own portal</span>
         </div>
@@ -490,7 +513,7 @@ export default function AdminReferralsPage() {
               <select value={pForm.type} onChange={(e) => setPForm({ ...pForm, type: e.target.value })} style={{ ...inpStyle, minWidth: 150 }}>
                 {PAYOUT_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
-              <input value={pForm.amount} onChange={(e) => setPForm({ ...pForm, amount: e.target.value })} placeholder="Amount ₱" inputMode="decimal" style={{ ...inpStyle, width: 110 }} />
+              <input value={pForm.amount} onChange={(e) => setPForm({ ...pForm, amount: e.target.value })} placeholder="Amount" inputMode="decimal" style={{ ...inpStyle, width: 110 }} />
               <input value={pForm.description} onChange={(e) => setPForm({ ...pForm, description: e.target.value })} placeholder="What it's for (e.g. Field day 1 — BGC)" style={{ ...inpStyle, flex: 1, minWidth: 200 }} />
               <button onClick={addPayout} disabled={!pForm.referrerId || !pForm.amount || pBusy === "new"} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 8, cursor: pForm.referrerId && pForm.amount ? "pointer" : "default", opacity: pForm.referrerId && pForm.amount ? 1 : 0.5 }}>
                 {pBusy === "new" ? "Adding…" : "+ Add payment"}
@@ -504,7 +527,7 @@ export default function AdminReferralsPage() {
               return (
                 <div key={p.id} style={{ borderTop: "1px solid var(--divider)", padding: "12px 0", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <span style={{ font: `600 13px ${F_SANS}`, color: "var(--text)", minWidth: 120 }}>{p.referrer.name}</span>
-                  <span style={{ font: `600 14px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums", minWidth: 70 }}>{peso(p.amount)}</span>
+                  <span style={{ font: `600 14px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums", minWidth: 70 }}>{moneyOfPayout(p)}</span>
                   <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", flex: 1, minWidth: 140 }}>{p.description || (PAYOUT_TYPES.find(([v]) => v === p.type)?.[1] ?? "Payment")}</span>
 
                   {!p.paidAt ? (
@@ -598,6 +621,8 @@ export default function AdminReferralsPage() {
           const open = expandedRef.has(r.name);
           const { ref, pays, commissionPaid, outstanding } = refInfo(r.name, r.readyOwed);
           const busy = ref ? pBusy === ref.id : false;
+          const rate = CURRENCY_CONFIG[r.currency].rate; // this referrer's commission rate
+          const money = (n: number) => formatMoney(n, r.currency);
           // Mark earned people as Paid once logged commission payments cover them
           // (amount-based, matching the outstanding math). Confirmed payments settle
           // first; paid-but-unconfirmed ones show as awaiting the marketer's confirmation.
@@ -626,8 +651,8 @@ export default function AdminReferralsPage() {
               if (p.confirmedAt) unnamedConfirmed += p.amount;
             }
           }
-          let confSlots = Math.floor(unnamedConfirmed / RATE);
-          let paidSlots = Math.floor(unnamedPaid / RATE);
+          let confSlots = Math.floor(unnamedConfirmed / rate);
+          let paidSlots = Math.floor(unnamedPaid / rate);
           const converted = convertedFor(r.name).map((c) => {
             if (c.tone !== "ready") return c;
             const n = normName(c.name);
@@ -657,13 +682,13 @@ export default function AdminReferralsPage() {
                   <span style={{ font: `600 17px ${F_GRO}`, color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>{r.converted}</span>
                   <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)", display: "block" }}>{r.convRate}</span>
                 </div>
-                <div style={{ textAlign: "right" }}><span style={{ font: `600 14px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{peso(r.earned)}</span></div>
+                <div style={{ textAlign: "right" }}><span style={{ font: `600 14px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{money(r.earned)}</span></div>
                 <div style={{ textAlign: "right" }}>
-                  <span style={{ font: `600 14px ${F_GRO}`, fontVariantNumeric: "tabular-nums", color: outstanding > 0 ? "var(--warn-num)" : "var(--muted2)" }}>{peso(outstanding)}</span>
+                  <span style={{ font: `600 14px ${F_GRO}`, fontVariantNumeric: "tabular-nums", color: outstanding > 0 ? "var(--warn-num)" : "var(--muted2)" }}>{money(outstanding)}</span>
                   <span style={{ font: `500 10.5px ${F_SANS}`, display: "block", color: outstanding > 0 ? "var(--warn-num)" : r.heldOwed > 0 ? "var(--muted2)" : "var(--muted2)" }}>{outstanding > 0 ? "needs paying" : r.heldOwed > 0 ? "in hold" : "all settled"}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <span style={{ font: `600 12px ${F_SANS}`, color: outstanding > 0 ? "var(--warn-num)" : "var(--muted)", border: "1px solid var(--btn-secondary-border)", padding: "7px 14px", borderRadius: 8, whiteSpace: "nowrap" }}>{outstanding > 0 ? `Pay ${peso(outstanding)}` : "History"}</span>
+                  <span style={{ font: `600 12px ${F_SANS}`, color: outstanding > 0 ? "var(--warn-num)" : "var(--muted)", border: "1px solid var(--btn-secondary-border)", padding: "7px 14px", borderRadius: 8, whiteSpace: "nowrap" }}>{outstanding > 0 ? `Pay ${money(outstanding)}` : "History"}</span>
                 </div>
               </div>
 
@@ -671,16 +696,16 @@ export default function AdminReferralsPage() {
                 <div style={{ padding: "2px 22px 20px 63px", display: "flex", flexDirection: "column", gap: 16 }}>
                   {/* commission + payout summary */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-end" }}>
-                    <div><div style={label}>Ready to pay</div><div style={{ font: `700 16px ${F_GRO}`, color: outstanding > 0 ? "var(--green)" : "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{peso(outstanding)} <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>· {outstanding / RATE} onboarded</span></div></div>
-                    <div><div style={label}>In hold</div><div style={{ font: `700 16px ${F_GRO}`, color: "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{peso(r.heldOwed)} <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>· {r.heldOwed / RATE} verifying</span></div></div>
-                    <div><div style={label}>Paid (commission)</div><div style={{ font: `700 16px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{peso(commissionPaid)}</div></div>
+                    <div><div style={label}>Ready to pay</div><div style={{ font: `700 16px ${F_GRO}`, color: outstanding > 0 ? "var(--green)" : "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{money(outstanding)} <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>· {Math.round(outstanding / rate)} onboarded</span></div></div>
+                    <div><div style={label}>In hold</div><div style={{ font: `700 16px ${F_GRO}`, color: "var(--muted2)", fontVariantNumeric: "tabular-nums" }}>{money(r.heldOwed)} <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)" }}>· {Math.round(r.heldOwed / rate)} verifying</span></div></div>
+                    <div><div style={label}>Paid (commission)</div><div style={{ font: `700 16px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{money(commissionPaid)}</div></div>
                     <div style={{ flex: 1 }} />
                     <div style={{ textAlign: "right" }}>
                       <div style={label}>Payout to</div>
                       <div style={{ font: `600 13px ${F_SANS}`, color: ref?.paymentDetails ? "var(--text)" : "var(--warn-num)" }}>{ref?.paymentDetails ? `${ref.paymentMethod || "—"} · ${ref.paymentDetails}` : "No payout details set"}</div>
                     </div>
                     {ref && outstanding > 0 && (
-                      <button type="button" onClick={() => logCommission(ref.id, outstanding, readyNames.length ? readyNames.join(", ") : "Signup commission")} disabled={busy} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap", opacity: busy ? 0.6 : 1 }}>+ Log {peso(outstanding)} paid</button>
+                      <button type="button" onClick={() => logCommission(ref.id, outstanding, readyNames.length ? readyNames.join(", ") : "Signup commission")} disabled={busy} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap", opacity: busy ? 0.6 : 1 }}>+ Log {money(outstanding)} paid</button>
                     )}
                   </div>
 
@@ -720,7 +745,7 @@ export default function AdminReferralsPage() {
                             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--card)", border: "1px solid var(--divider)", borderRadius: 10, padding: "10px 13px" }}>
                               <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", width: 92, flex: "none" }}>{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</span>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <span style={{ font: `700 13px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{peso(p.amount)}</span>
+                                <span style={{ font: `700 13px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{money(p.amount)}</span>
                                 <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}> · {typeLabel}{showDesc ? ` · ${p.description}` : ""}{p.method ? ` · ${p.method}` : ""}{p.reference && !refIsUrl ? ` · ${p.reference}` : ""}</span>
                               </div>
                               {editingRef ? (

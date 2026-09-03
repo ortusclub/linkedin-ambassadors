@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { type Currency, CURRENCY_CONFIG, formatMoney } from "@/lib/referral-currency";
 
 let _resend: Resend | null = null;
 function getResend(): Resend {
@@ -526,31 +527,32 @@ const receiptBlock = (receiptUrl: string) => `
   <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">You should see a notification from Wise shortly. 😊</p>`;
 
 // Setup fee paid — mirrors the team's real setup-fee email (monthly-start date + referral ask + don't-log-in reminder).
-export async function sendSetupFeePaidEmail(email: string, fullName: string, amount: number, receiptUrl: string, setupPaidAt: Date) {
+export async function sendSetupFeePaidEmail(email: string, fullName: string, amount: number, receiptUrl: string, setupPaidAt: Date, currency: Currency = "PHP") {
   const firstName = (fullName || "").trim().split(" ")[0] || "there";
+  const cfg = CURRENCY_CONFIG[currency];
   return sendEmail({
     to: email,
     subject: "Your setup fee is on its way! 🎉",
     html: brandWrap(`
       <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>₱${amount.toLocaleString()} setup fee</strong> via Wise. ✅</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>${formatMoney(amount, currency)} setup fee</strong> via Wise. ✅</p>
       ${receiptBlock(receiptUrl)}
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your <strong>₱500 monthly payout</strong> will start from your first full month — that's <strong>${firstMonthlyPayoutLabel(setupPaidAt)}</strong>, and then the first of each month after, for as long as the account stays active.</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Also — if you know anyone else who'd like to join, please send them our way! You'll earn a <strong>₱500 referral fee</strong> for each one that comes on board. Ideally people who can get their account verified like yours (with a passport for the blue checkmark) — those accounts are much more stable and easier to work with. 🙌</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your <strong>${formatMoney(cfg.monthlyAmount, currency)} monthly payout</strong> will start from your first full month — that's <strong>${firstMonthlyPayoutLabel(setupPaidAt)}</strong>, and then the first of each month after, for as long as the account stays active.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Also — if you know anyone else who'd like to join, please send them our way! You'll earn a <strong>${formatMoney(cfg.rate, currency)} referral fee</strong> for each one that comes on board. Ideally people who can get their account verified like yours (with a passport for the blue checkmark) — those accounts are much more stable and easier to work with. 🙌</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Thanks so much for partnering with us! And a small reminder — please try not to log into the account yourself so it stays nice and stable on our end. Let us know if you have any questions! 🙏</p>
     `),
   });
 }
 
-// Monthly ₱500 payout paid.
-export async function sendMonthlyPayoutEmail(email: string, fullName: string, amount: number, receiptUrl: string, monthLabel: string) {
+// Monthly payout paid.
+export async function sendMonthlyPayoutEmail(email: string, fullName: string, amount: number, receiptUrl: string, monthLabel: string, currency: Currency = "PHP") {
   const firstName = (fullName || "").trim().split(" ")[0] || "there";
   return sendEmail({
     to: email,
-    subject: `Your ₱${amount.toLocaleString()} monthly payout is on its way! 🎉`,
+    subject: `Your ${formatMoney(amount, currency)} monthly payout is on its way! 🎉`,
     html: brandWrap(`
       <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>₱${amount.toLocaleString()} payout for ${monthLabel}</strong> via Wise. ✅</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>${formatMoney(amount, currency)} payout for ${monthLabel}</strong> via Wise. ✅</p>
       ${receiptBlock(receiptUrl)}
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Thanks so much for partnering with us — and the same small reminder, please try not to log into the account yourself so it stays nice and stable on our end. Let us know if you have any questions! 🙏</p>
     `),
@@ -559,8 +561,9 @@ export async function sendMonthlyPayoutEmail(email: string, fullName: string, am
 
 // Referral fee paid to a marketer/ambassador. `forNames` = who they referred
 // (the payout's description, comma-separated); falls back to a plain signup count.
-export async function sendReferralPayoutEmail(email: string, fullName: string, amount: number, receiptUrl: string, forNames?: string | null, count?: number) {
+export async function sendReferralPayoutEmail(email: string, fullName: string, amount: number, receiptUrl: string, forNames?: string | null, count?: number, currency: Currency = "PHP") {
   const firstName = (fullName || "").trim().split(" ")[0] || "there";
+  const cfg = CURRENCY_CONFIG[currency];
   const names = (forNames || "").split(",").map((s) => s.trim()).filter(Boolean);
   const forWhat = names.length
     ? `, for referring ${names.join(", ")}`
@@ -572,9 +575,9 @@ export async function sendReferralPayoutEmail(email: string, fullName: string, a
     subject: "Your referral reward is on its way! 🎉",
     html: brandWrap(`
       <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>₱${amount.toLocaleString()} referral fee</strong> via Wise${forWhat}. ✅ 🙌</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>${formatMoney(amount, currency)} referral fee</strong> via Wise${forWhat}. ✅ 🙌</p>
       ${receiptBlock(receiptUrl)}
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Keep them coming — you earn ₱500 for every new person who joins through you! Thank you so much. 🙏</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Keep them coming — you earn ${formatMoney(cfg.rate, currency)} for every new person who joins through you! Thank you so much. 🙏</p>
     `),
   });
 }
@@ -1047,45 +1050,52 @@ export async function sendReengageFollowup(email: string, firstName: string) {
 export async function sendPaymentsDueDigest(
   to: string | string[],
   data: {
-    setup: { name: string; email: string; amount: number; dueDate: string; overdue: boolean; method: string | null; details: string | null; blocked?: string | null }[];
-    monthly: { name: string; email: string; amount: number; dueDate: string; overdue: boolean; method: string | null; details: string | null; blocked?: string | null }[];
-    marketers: { name: string; count: number; amount: number }[];
-    upcoming: { kind: string; name: string; amount: number; dueDate: string }[];
+    setup: { name: string; email: string; amount: number; currency: Currency; dueDate: string; overdue: boolean; method: string | null; details: string | null; blocked?: string | null }[];
+    monthly: { name: string; email: string; amount: number; currency: Currency; dueDate: string; overdue: boolean; method: string | null; details: string | null; blocked?: string | null }[];
+    marketers: { name: string; count: number; amount: number; currency: Currency }[];
+    upcoming: { kind: string; name: string; amount: number; currency: Currency; dueDate: string }[];
     totalDueNow: number;
+    totalsByCurrency: Record<Currency, number>;
   }
 ) {
-  const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
   const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const pay = (m: string | null, d: string | null) => (m || d) ? `${m || ""}${m && d ? " · " : ""}${d || ""}` : "—";
+  // ₱ and $ can't be summed — render each currency present, joined by " · ".
+  const sumByCur = (rows: { amount: number; currency: Currency }[]) => {
+    const t: Record<Currency, number> = { PHP: 0, USD: 0 };
+    for (const r of rows) t[r.currency] += r.amount;
+    return (["PHP", "USD"] as Currency[]).filter((c) => t[c] > 0).map((c) => formatMoney(t[c], c)).join(" · ") || formatMoney(0, "PHP");
+  };
+  const totalLabel = (["PHP", "USD"] as Currency[]).filter((c) => data.totalsByCurrency[c] > 0).map((c) => formatMoney(data.totalsByCurrency[c], c)).join(" · ") || formatMoney(0, "PHP");
 
   const dueRows = (items: typeof data.setup, label: string) =>
     items.length === 0 ? "" : `
-      <p style="margin:22px 0 8px;font:600 13px sans-serif;color:#0F1419;">${label} — ${items.length}, ${peso(items.reduce((s, i) => s + i.amount, 0))}</p>
+      <p style="margin:22px 0 8px;font:600 13px sans-serif;color:#0F1419;">${label} — ${items.length}, ${sumByCur(items)}</p>
       <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:13px;">
         <tr style="color:#8899A6;text-align:left;"><th style="padding:6px 8px;font-weight:600;">Who</th><th style="padding:6px 8px;font-weight:600;">Pay to</th><th style="padding:6px 8px;font-weight:600;">Due</th><th style="padding:6px 8px;font-weight:600;text-align:right;">Amount</th></tr>
         ${items.map((i) => `<tr style="border-top:1px solid #EEF0F2;">
           <td style="padding:8px;color:#0F1419;">${i.name}<br><span style="color:#8899A6;font-size:11px;">${i.email}</span></td>
           <td style="padding:8px;color:#536471;">${pay(i.method, i.details)}</td>
           <td style="padding:8px;color:${i.overdue ? "#C0392B" : "#536471"};">${day(i.dueDate)}${i.overdue ? " · overdue" : ""}${i.blocked ? ` · <span style="color:#C0392B;font-weight:600;">⚠ can't log in (${i.blocked})</span>` : ""}</td>
-          <td style="padding:8px;text-align:right;color:${i.blocked ? "#8899A6" : "#0F1419"};font-weight:600;${i.blocked ? "text-decoration:line-through;" : ""}">${peso(i.amount)}</td>
+          <td style="padding:8px;text-align:right;color:${i.blocked ? "#8899A6" : "#0F1419"};font-weight:600;${i.blocked ? "text-decoration:line-through;" : ""}">${formatMoney(i.amount, i.currency)}</td>
         </tr>`).join("")}
       </table>`;
 
   const marketerRows = data.marketers.length === 0 ? "" : `
-      <p style="margin:22px 0 8px;font:600 13px sans-serif;color:#0F1419;">Marketer commissions ready — ${peso(data.marketers.reduce((s, m) => s + m.amount, 0))}</p>
+      <p style="margin:22px 0 8px;font:600 13px sans-serif;color:#0F1419;">Marketer commissions ready — ${sumByCur(data.marketers)}</p>
       <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:13px;">
         <tr style="color:#8899A6;text-align:left;"><th style="padding:6px 8px;font-weight:600;">Marketer</th><th style="padding:6px 8px;font-weight:600;">Onboarded</th><th style="padding:6px 8px;font-weight:600;text-align:right;">Amount</th></tr>
         ${data.marketers.map((m) => `<tr style="border-top:1px solid #EEF0F2;">
           <td style="padding:8px;color:#0F1419;">${m.name}</td>
           <td style="padding:8px;color:#536471;">${m.count}</td>
-          <td style="padding:8px;text-align:right;color:#0F1419;font-weight:600;">${peso(m.amount)}</td>
+          <td style="padding:8px;text-align:right;color:#0F1419;font-weight:600;">${formatMoney(m.amount, m.currency)}</td>
         </tr>`).join("")}
       </table>`;
 
   const upcomingBlock = data.upcoming.length === 0 ? "" : `
       <p style="margin:22px 0 6px;font:600 12px sans-serif;color:#8899A6;">Coming up (next 7 days)</p>
       <ul style="margin:0;padding-left:18px;font-family:sans-serif;font-size:12.5px;color:#536471;">
-        ${data.upcoming.map((u) => `<li style="margin:0 0 3px;">${u.name} — ${u.kind === "setup" ? "setup fee" : "monthly"} ${peso(u.amount)}, due ${day(u.dueDate)}</li>`).join("")}
+        ${data.upcoming.map((u) => `<li style="margin:0 0 3px;">${u.name} — ${u.kind === "setup" ? "setup fee" : "monthly"} ${formatMoney(u.amount, u.currency)}, due ${day(u.dueDate)}</li>`).join("")}
       </ul>`;
 
   const nothing = data.setup.length === 0 && data.monthly.length === 0 && data.marketers.length === 0;
@@ -1095,11 +1105,11 @@ export async function sendPaymentsDueDigest(
     to,
     subject: nothing
       ? "Payments due — nothing due today"
-      : `Payments due — ${peso(data.totalDueNow)} across ${data.setup.length + data.monthly.length + data.marketers.length} payout${data.setup.length + data.monthly.length + data.marketers.length !== 1 ? "s" : ""}`,
+      : `Payments due — ${totalLabel} across ${data.setup.length + data.monthly.length + data.marketers.length} payout${data.setup.length + data.monthly.length + data.marketers.length !== 1 ? "s" : ""}`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;padding:28px 20px;">
         <h2 style="color:#0F1419;margin:0 0 4px;">Payments due</h2>
-        <p style="color:#536471;font-size:14px;margin:0 0 4px;">${nothing ? "No ambassador or marketer payouts are due right now." : `<strong style="color:#0F1419;">${peso(data.totalDueNow)}</strong> due now.`}</p>
+        <p style="color:#536471;font-size:14px;margin:0 0 4px;">${nothing ? "No ambassador or marketer payouts are due right now." : `<strong style="color:#0F1419;">${totalLabel}</strong> due now.`}</p>
         ${dueRows(data.setup, "Setup fees due")}
         ${dueRows(data.monthly, "Monthly payouts due")}
         ${marketerRows}
