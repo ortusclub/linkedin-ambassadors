@@ -73,6 +73,7 @@ interface Row {
 // `reviewing`, the neutral in-flight status.
 const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "pending", label: "Initial" },
+  { value: "contacted", label: "Awaiting reply" },
   { value: "reviewing", label: "Processing" },
   { value: "rejected", label: "Rejected" },
   { value: "onboarding", label: "Onboarding" },
@@ -82,14 +83,13 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
 // A row already sitting on one of the retired sub-statuses gets a read-only entry
 // showing where it actually is, so the select never renders blank.
 const LEGACY_LABEL: Partial<Record<Status, string>> = {
-  contacted: "Processing · contacted",
   approved: "Processing · approved",
   on_hold: "Processing · on hold",
   unreachable: "Unreachable",
 };
 
 const SECTIONS: { key: Bucket; title: string; tone: string; note: string }[] = [
-  { key: "initial", title: "Initial", tone: "var(--blue-chip-text,#2b5fd0)", note: "brand-new applications — nobody has picked these up yet" },
+  { key: "initial", title: "Initial", tone: "var(--blue-chip-text,#2b5fd0)", note: "new leads — brand-new applications, plus ones you've messaged and are awaiting a reply" },
   { key: "processing", title: "Processing", tone: "var(--warn-badge-text,#b7791f)", note: "in flight — being reviewed, chased, approved or waiting on a GoLogin" },
   { key: "rejected", title: "Rejected", tone: "var(--st-cancel-fg,#c0392b)", note: "turned down — kept for the record" },
   { key: "onboarded", title: "Onboarded", tone: "var(--st-active-fg,#1a8a4a)", note: "set up — any without a GoLogin sit at the bottom, badged" },
