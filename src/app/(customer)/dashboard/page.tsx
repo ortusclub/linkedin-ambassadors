@@ -11,6 +11,35 @@ import { formatDate, formatCurrency } from "@/lib/utils";
 import { CardTopUp } from "./card-topup";
 import { startDashboardTour } from "@/lib/dashboard-tour";
 
+// Renter action: reveal (rather than auto-open) the GoLogin share link currently
+// stored for a rented account. Click to show the link + a copy button.
+function RevealShareLink({ link }: { link: string | null }) {
+  const [shown, setShown] = useState(false);
+  const [copied, setCopied] = useState(false);
+  if (!link) return null;
+  if (!shown) {
+    return (
+      <button
+        onClick={() => setShown(true)}
+        className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
+      >
+        Reveal GoLogin share link
+      </button>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-2 max-w-[340px]">
+      <a href={link} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline break-all">{link}</a>
+      <button
+        onClick={() => { try { navigator.clipboard?.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch {} }}
+        className="shrink-0 rounded-md border border-gray-300 px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 cursor-pointer"
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </span>
+  );
+}
+
 interface Rental {
   id: string;
   status: string;
@@ -422,7 +451,7 @@ function DashboardContent() {
             <div className="flex-1">
               <p className="font-semibold text-green-900">Payment received — your account is ready! 🎉</p>
               <p className="mt-1 text-sm text-green-800 leading-relaxed">
-                Open it from your rentals below with <strong>&quot;Open in GoLogin.&quot;</strong> Just make sure GoLogin is installed and signed in with <strong>this same email</strong> — that&apos;s how your rented profile opens. New to GoLogin? Grab it free below and sign in with this email.
+                From your rentals below, click <strong>&quot;Reveal GoLogin share link&quot;</strong> to get your access link, then open it in GoLogin. Just make sure GoLogin is installed and signed in with <strong>this same email</strong> — that&apos;s how your rented profile opens. New to GoLogin? Grab it free below and sign in with this email.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <a href="https://gologin.com/download" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 transition-colors">
@@ -866,28 +895,7 @@ function DashboardContent() {
                           Access paused
                         </span>
                       ) : rental.linkedinAccount.gologinShareLink ? (
-                        <button
-                          onClick={async () => {
-                            const open = (link: string) => {
-                              try { const u = new URL(link); window.location.href = `gologin:/${u.pathname}`; }
-                              catch { window.open(link, "_blank"); }
-                            };
-                            // Fire the API share first (captures a share id so access is revocable),
-                            // then open the profile. Falls back to opening directly on any error.
-                            try {
-                              const res = await fetch(`/api/rentals/${rental.id}/access`, { method: "POST" });
-                              const data = await res.json().catch(() => ({}));
-                              if (res.status === 403) { alert(data.error || "Access to this account is paused."); return; }
-                              open(data.shareLink || rental.linkedinAccount.gologinShareLink!);
-                            } catch {
-                              open(rental.linkedinAccount.gologinShareLink!);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
-                        >
-                          Open in GoLogin
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
-                        </button>
+                        <RevealShareLink link={rental.linkedinAccount.gologinShareLink} />
                       ) : rental.status === "pending_access" ? (
                         <span className="text-[11px] text-gray-400 whitespace-nowrap">Preparing — ready soon. <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
                       ) : null}
