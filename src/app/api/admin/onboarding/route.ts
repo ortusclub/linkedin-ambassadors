@@ -35,7 +35,7 @@ export async function GET() {
         personalEmail: true, accountPassword: true, twoFactor: true,
         gologinProfileId: true, gologinShareLink: true, monthlyPrice: true,
         ambassadorPayment: true, connectionCount: true, status: true,
-        restrictedAt: true, notes: true,
+        restrictedAt: true, notes: true, linkedinVerified: true,
       },
     });
 
@@ -124,6 +124,7 @@ export async function GET() {
         monthlyPrice: acct?.monthlyPrice != null ? Number(acct.monthlyPrice) : null,
         ambassadorPayment: acct?.ambassadorPayment != null ? Number(acct.ambassadorPayment) : null,
         accountNotes: acct?.notes || null,
+        linkedinVerified: !!acct?.linkedinVerified,
         connectionCount: acct?.connectionCount ?? app.connectionCount ?? null,
       };
     });

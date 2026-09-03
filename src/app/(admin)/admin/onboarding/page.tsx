@@ -55,6 +55,7 @@ interface Row {
   paymentDetails: string | null;
   payoutName: string | null;
   verifiedAt: string | null;
+  linkedinVerified: boolean;
   setupPaidAt: string | null;
   personalEmail: string | null;
   hasPassword: boolean;
@@ -149,13 +150,15 @@ function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange:
           {r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" style={{ font: `600 11.5px ${F_SANS}`, color: "var(--link,#0a66c2)" }}>profile ↗</a>}
           {!r.hasGologin && <span title="No GoLogin profile or share link on the linked account — it can't be run until one is added" style={{ font: `800 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", whiteSpace: "nowrap" }}>⚠ No GoLogin found</span>}
           {r.accountIssue && <span title={r.accountIssue} style={{ font: `800 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)", whiteSpace: "nowrap" }}>⚠ login issue</span>}
+          {r.linkedinVerified && <span title="LinkedIn verified (blue check) — adds to the price tier" style={{ font: `800 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)", whiteSpace: "nowrap" }}>✓ Verified</span>}
         </div>
         <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {r.email}{r.contactNumber ? ` · ${r.contactNumber}${r.contactChannel ? ` (${r.contactChannel})` : ""}` : ""}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 14px", marginTop: 4, font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>
           <span>Applied: <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.createdAt)}</b> ({ageDays(r.createdAt)}d ago)</span>
-          {r.onboardedAt && <span>Onboarded: <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.onboardedAt)}</b></span>}
+          {r.onboardedAt && <span>Logged in: <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.onboardedAt)}</b></span>}
+          {r.setupPaidAt && <span>Onboarded: <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.setupPaidAt)}</b></span>}
           <span>Account: <b style={{ color: r.accountId ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{r.accountName || "none linked"}</b></span>
           {r.gologinShareLink && <a href={r.gologinShareLink} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)" }}>GoLogin ↗</a>}
         </div>
@@ -196,8 +199,8 @@ function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange:
           <D label="Payout handle">{r.paymentDetails}</D>
           <D label="Payout name">{r.payoutName}</D>
           <D label="Applied">{fmtDate(r.createdAt)}</D>
-          <D label="Verified">{r.verifiedAt ? fmtDate(r.verifiedAt) : null}</D>
-          <D label="Onboarded">{r.onboardedAt ? fmtDate(r.onboardedAt) : null}</D>
+          <D label="LinkedIn verified">{r.linkedinVerified ? "✓ Yes" : null}</D>
+          <D label="Logged in">{r.onboardedAt ? fmtDate(r.onboardedAt) : null}</D>
           <D label="Setup fee paid">{r.setupPaidAt ? fmtDate(r.setupPaidAt) : null}</D>
           <D label="Owner status">{r.ownerStatus}</D>
         </div>
