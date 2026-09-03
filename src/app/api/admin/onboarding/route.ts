@@ -67,6 +67,9 @@ export async function GET() {
       let reason = "";
       if (app.status === "rejected") { bucket = "rejected"; reason = "Rejected"; }
       else if (app.status === "pending") { bucket = "initial"; reason = "New application"; }
+      // Contacted = we've reached out and are waiting to hear back. Kept in the Initial
+      // section (still a lead you're chasing, not yet in the pipeline), badged apart.
+      else if (app.status === "contacted") { bucket = "initial"; reason = "Awaiting reply"; }
       else if (app.status === "onboarded") {
         // Onboarded rows stay in the Onboarded section even without a GoLogin — they
         // sort to the bottom of it and carry a "No GoLogin found" badge, so the gap is
@@ -77,7 +80,7 @@ export async function GET() {
       else if (app.status === "unreachable") { bucket = "unreachable"; reason = "Unreachable"; }
       else {
         bucket = "processing";
-        reason = app.status === "onboarding" ? "Onboarding · warming up" : app.status === "approved" ? "Approved · awaiting onboarding" : app.status === "on_hold" ? "On hold" : app.status === "contacted" ? "Contacted" : "In review";
+        reason = app.status === "onboarding" ? "Onboarding · warming up" : app.status === "approved" ? "Approved · awaiting onboarding" : app.status === "on_hold" ? "On hold" : "In review";
       }
 
       return {
