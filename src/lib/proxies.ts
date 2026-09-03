@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isCompanyEmail } from "@/lib/company";
 
 // ── Single source of truth for the Proxies view ──
 // Both the admin page (/api/admin/proxies) and the Google-Sheets CSV export
@@ -41,14 +42,19 @@ function headSegment(v: string | null | undefined): string | null {
   return seg || null;
 }
 
-// Human label for a linked account in the LinkedIn Account cell — the email we
-// log in with, else the ambassador's own email, else the profile name.
+// Human label for a linked account in the LinkedIn Account cell. Always prefer the
+// company (@klabber.co / @ortus.solutions / …) email — the address we log in with —
+// wherever it's stored, even if it ended up in the work/recovery field rather than
+// loginEmail. Never surface the ambassador's personal email when a company one exists.
+// Falls back to loginEmail, then personal, then the profile name.
 function accountLabel(a: {
   loginEmail: string | null;
+  workEmail: string | null;
   personalEmail: string | null;
   linkedinName: string | null;
 }): string {
-  return a.loginEmail || a.personalEmail || a.linkedinName || "(unnamed)";
+  const company = [a.loginEmail, a.workEmail, a.personalEmail].find((e) => isCompanyEmail(e));
+  return company || a.loginEmail || a.personalEmail || a.linkedinName || "(unnamed)";
 }
 
 const NA_COUNTRY = "Unassigned";
@@ -69,6 +75,7 @@ export async function getProxies(): Promise<ProxyRow[]> {
       proxyLocation: true,
       location: true,
       loginEmail: true,
+      workEmail: true,
       personalEmail: true,
       linkedinName: true,
       notes: true,
