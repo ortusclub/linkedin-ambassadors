@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { currencyConfig, formatMoney } from "@/lib/referral-currency";
+import { formatName } from "@/lib/utils";
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
@@ -145,7 +146,7 @@ function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange:
       <div onClick={onToggle} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} style={{ flex: "1 1 260px", minWidth: 0, cursor: "pointer" }}>
         <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", marginRight: 6 }}>{open ? "▾" : "▸"}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ font: `700 14.5px ${F_GRO}`, color: "var(--fg,#111)" }}>{r.fullName?.trim() || "—"}</span>
+          <span style={{ font: `700 14.5px ${F_GRO}`, color: "var(--fg,#111)" }}>{formatName(r.fullName) || "—"}</span>
           {r.connectionCount != null && <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>{r.connectionCount}+</span>}
           {r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" style={{ font: `600 11.5px ${F_SANS}`, color: "var(--link,#0a66c2)" }}>profile ↗</a>}
           {!r.hasGologin && <span title="No GoLogin profile or share link on the linked account — it can't be run until one is added" style={{ font: `800 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", whiteSpace: "nowrap" }}>⚠ No GoLogin found</span>}
@@ -159,7 +160,7 @@ function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange:
           <span>Applied: <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.createdAt)}</b> ({ageDays(r.createdAt)}d ago)</span>
           {r.onboardedAt && <span>Logged in: <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.onboardedAt)}</b></span>}
           {r.setupPaidAt && <span>Onboarded: <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.setupPaidAt)}</b></span>}
-          <span>Account: <b style={{ color: r.accountId ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{r.accountName || "none linked"}</b></span>
+          <span>Account: <b style={{ color: r.accountId ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{r.accountName ? formatName(r.accountName) : "none linked"}</b></span>
           {r.gologinShareLink && <a href={r.gologinShareLink} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)" }}>GoLogin ↗</a>}
         </div>
       </div>
@@ -170,7 +171,7 @@ function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange:
       <div style={{ borderTop: "1px solid var(--border,#eee)", background: "var(--panel,#fafafa)", padding: "16px 16px 18px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 16 }}>
           {/* Who they are + how to reach them */}
-          <D label="Full name">{r.fullName?.trim()}</D>
+          <D label="Full name">{formatName(r.fullName)}</D>
           <D label="Contact email">{r.email ? <a href={`mailto:${r.email}`} style={{ color: "var(--link,#0a66c2)" }}>{r.email}</a> : null}</D>
           <D label="Contact number">{r.contactNumber}</D>
           <D label="Contact channel">{r.contactChannel}</D>
@@ -181,7 +182,7 @@ function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange:
           <D label="Point of contact">{r.poc}</D>
           <D label="Booking email">{r.bookingEmail}</D>
           {/* The account we hold for them */}
-          <D label="Account">{r.accountName}</D>
+          <D label="Account">{r.accountName ? formatName(r.accountName) : null}</D>
           <D label="Account status">{r.accountRestrictedAt ? `${r.accountStatus || "—"} · restricted` : r.accountStatus}</D>
           <D label="Login email">{r.loginEmail}</D>
           <D label="Personal email (on account)">{r.personalEmail}</D>
