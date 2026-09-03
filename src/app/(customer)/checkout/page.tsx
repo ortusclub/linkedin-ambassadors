@@ -298,7 +298,7 @@ function CheckoutContent() {
               {[
                 { t: "No abuse, fraud or scams", d: "Use the account for legitimate outreach only — no fraudulent, deceptive or scam activity of any kind." },
                 { t: "Never change the account’s name", d: "The name stays exactly as it is. Renaming the profile is not allowed." },
-                { t: "Don’t replace the profile picture", d: "Never swap in a photo that bears no resemblance to the original. The person should still be recognisable." },
+                { t: "Keep the profile picture recognisable", d: "You can change the photo, but it must still resemble the original — the same person should be clearly recognisable." },
                 { t: "Any changes must be gradual", d: "If you update the photo, headline, experience or anything else, do it slowly — ideally change only one thing per day." },
               ].map((r) => (
                 <div key={r.t} style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 12px" }}>
