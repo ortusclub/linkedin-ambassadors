@@ -657,6 +657,9 @@ export default function AdminOwnersPage() {
                           const st = stageOf(owner);
                           if (st === "accepted") return <span style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>Accepted · not started</span>;
                           if (st === "onboarding") {
+                            // Already logged in (onboardedAt set) but not yet paid → the warm-up /
+                            // log-in-due window is behind us; show the login instead of "warming up".
+                            if (owner.onboardedAt) return <span style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>Logged in · {fmtDate(owner.onboardedAt)}</span>;
                             const ld = loginDueDate(owner.onboardingStartedAt, owner.accountFreshness);
                             const over = ld ? isOverdue(ld) : false;
                             return <span style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: over ? "var(--warn-badge-bg)" : "var(--blue-chip-bg)", color: over ? "var(--warn-badge-text)" : "var(--blue-chip-text)" }}>{over ? "Log-in due" : `Warming up · ${owner.accountFreshness || "established"}`}{ld ? ` · ${fmtDate(ld)}` : ""}</span>;
