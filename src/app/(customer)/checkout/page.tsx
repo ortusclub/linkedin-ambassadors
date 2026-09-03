@@ -91,19 +91,29 @@ function CheckoutContent() {
   };
 
   const startPayment = () => {
-    if (vetted) { handleCheckout(); return; }
+    // Always show the ground rules on every rent — the renter must re-agree each
+    // time before the rental goes through, whether or not they've rented before.
+    setVetForm((v) => ({ ...v, agreed: false }));
+    setVetError("");
     setShowVetting(true);
-    fetch("/api/vetting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "start" }) }).catch(() => {});
+    if (!vetted) {
+      fetch("/api/vetting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "start" }) }).catch(() => {});
+    }
   };
   const submitVetting = async () => {
     setVetError("");
     if (!vetForm.agreed) { setVetError("Please agree to the rules to continue."); return; }
     setVetSaving(true);
     try {
-      const res = await fetch("/api/vetting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agreed: true, agreedToRules: true }) });
-      const d = await res.json();
-      if (!res.ok) { setVetError(d.error || "Something went wrong"); return; }
-      setVetted(true); setShowVetting(false); handleCheckout();
+      // First-time renters get stamped as vetted; returning renters have just
+      // re-agreed to the rules, so go straight to payment.
+      if (!vetted) {
+        const res = await fetch("/api/vetting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agreed: true, agreedToRules: true }) });
+        const d = await res.json();
+        if (!res.ok) { setVetError(d.error || "Something went wrong"); return; }
+        setVetted(true);
+      }
+      setShowVetting(false); handleCheckout();
     } catch { setVetError("Something went wrong. Please try again."); }
     finally { setVetSaving(false); }
   };
