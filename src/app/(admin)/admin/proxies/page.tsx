@@ -241,7 +241,7 @@ export default function AdminProxiesPage() {
                               {p.accountCount === 0 ? (
                                 <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)", fontStyle: "italic" }}>no accounts</span>
                               ) : (
-                                <span title={p.accounts.join(", ")} style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.accounts.join(", ")}</span>
+                                <div title={p.accounts.join(", ")} style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", display: "flex", flexDirection: "column", gap: 1, wordBreak: "break-word" }}>{p.accounts.map((a) => <span key={a}>{a}</span>)}</div>
                               )}
                             </div>
                             {/* count */}
