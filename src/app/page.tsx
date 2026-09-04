@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { maskPublicAccount } from "@/lib/mask";
 import { formatNumber, formatCurrency } from "@/lib/utils";
 import { blogFontVars } from "@/lib/blog-fonts";
-import { TestAccountGate } from "@/components/test-account-gate";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
@@ -257,7 +256,6 @@ export default async function HomePage() {
           </div>
           <div style={{ textAlign: "center", marginTop: 36, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
             <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #DFE3E9", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 4px 14px rgba(16,24,40,0.06)" }}>View all accounts →</Link>
-            <TestAccountGate />
           </div>
         </div>
       </section>
