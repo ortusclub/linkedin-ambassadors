@@ -642,6 +642,13 @@ export default function AdminOwnersPage() {
             });
             const attachProof = (index: number) => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) patchOwner(owner.applicationId, { updateMonthlyPayout: { index, proofUrl: url.trim() } }); };
 
+            // Header email: prefer the klabber.co work email once we've added one,
+            // but only when it's unambiguous (a single distinct klabber address
+            // across the owner's accounts). Multi-account owners whose accounts
+            // have different klabber logins keep the contact email as the group id.
+            const klabberEmails = [...new Set(owner.accounts.map((a) => a.workEmail).filter((e): e is string => !!e && e.toLowerCase().includes("klabber")))];
+            const headerEmail = klabberEmails.length === 1 ? klabberEmails[0] : owner.email;
+
             return (
               <div key={owner.email} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderLeft: `3px solid ${g.dot}`, borderRadius: 14, overflow: "hidden", boxShadow: "var(--card-shadow)" }}>
                 {/* header */}
@@ -676,7 +683,7 @@ export default function AdminOwnersPage() {
                           <span title={`${heldAcctCount} account${heldAcctCount !== 1 ? "s" : ""} restricted — on hold, not being paid monthly`} style={{ font: `600 11px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, whiteSpace: "nowrap", background: "var(--st-unreach-bg)", color: "var(--st-unreach-fg)" }}>⏸ {heldAcctCount} on hold</span>
                         )}
                       </div>
-                      <span onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(owner.email); setCopiedEmail(owner.email); setTimeout(() => setCopiedEmail((c) => (c === owner.email ? null : c)), 1400); }} title="Click to copy" style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)", cursor: "pointer", userSelect: "text" }}>{owner.email}{copiedEmail === owner.email && <span style={{ color: "var(--st-active-fg)", marginLeft: 6, fontWeight: 600 }}>· Copied ✓</span>}</span>
+                      <span onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(headerEmail); setCopiedEmail(owner.email); setTimeout(() => setCopiedEmail((c) => (c === owner.email ? null : c)), 1400); }} title="Click to copy" style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)", cursor: "pointer", userSelect: "text" }}>{headerEmail}{copiedEmail === owner.email && <span style={{ color: "var(--st-active-fg)", marginLeft: 6, fontWeight: 600 }}>· Copied ✓</span>}</span>
                     </div>
                   </div>
                   <div style={{ textAlign: "right", flex: "none" }}>

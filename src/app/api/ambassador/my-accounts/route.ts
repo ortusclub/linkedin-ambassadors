@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { cookies, headers } from "next/headers";
 import { z } from "zod";
 import { persistImageUrl } from "@/lib/persist-image";
+import { referralCurrency } from "@/lib/referral-currency";
 
 async function getUser() {
   // First try Bearer token (from Electron app)
@@ -60,8 +61,19 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const active = accounts.filter((a) => a.status !== "removed");
-    const removed = accounts.filter((a) => a.status === "removed");
+    // Ambassador payouts are in the currency of whoever referred them (PH ₱ / non-PH USD).
+    // Their referrer is consistent across their accounts, so resolve it once here so the
+    // dashboard shows ₱500 (not $500) for PH ambassadors — and $ for non-PH ones.
+    const apps = await prisma.ambassadorApplication.findMany({
+      where: { email: user.email },
+      select: { referredBy: true },
+    });
+    const referredBy = apps.find((a) => a.referredBy)?.referredBy || null;
+    const currency = referralCurrency(referredBy);
+
+    const withCurrency = (a: (typeof accounts)[number]) => ({ ...a, currency });
+    const active = accounts.filter((a) => a.status !== "removed").map(withCurrency);
+    const removed = accounts.filter((a) => a.status === "removed").map(withCurrency);
 
     return NextResponse.json({ accounts: active, removedAccounts: removed });
   } catch (error) {

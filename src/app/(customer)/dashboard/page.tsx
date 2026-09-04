@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/referral-currency";
 import { CardTopUp } from "./card-topup";
 import { startDashboardTour } from "@/lib/dashboard-tour";
 
@@ -75,6 +76,7 @@ interface AmbassadorAccount {
   removedAt: string | null;
   removedBy: string | null;
   createdAt: string;
+  currency?: "PHP" | "USD"; // payout currency (follows the ambassador's referrer)
   rentals: Array<{ id: string; startDate: string; currentPeriodEnd: string | null }>;
 }
 
@@ -387,7 +389,7 @@ function DashboardContent() {
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Monthly earnings</p>
               <p className="mt-1 text-2xl font-bold text-gray-900">
-                {monthlyEarnings > 0 ? formatCurrency(monthlyEarnings) : <span className="text-gray-400">Being valued</span>}
+                {monthlyEarnings > 0 ? formatMoney(monthlyEarnings, ambassadorAccounts[0]?.currency ?? "PHP") : <span className="text-gray-400">Being valued</span>}
               </p>
               <p className="text-xs text-gray-500">{monthlyEarnings > 0 ? "from your live accounts" : "we'll confirm your rate shortly"}</p>
             </div>
@@ -674,7 +676,7 @@ function DashboardContent() {
                             {isRented ? "Rented" : account.status === "under_review" ? "Under Review" : account.status === "available" ? "Available" : "Not Available"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{price > 0 ? formatCurrency(price) : <span className="text-sm text-gray-400 font-normal">To be confirmed</span>}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{price > 0 ? formatMoney(price, account.currency ?? "PHP") : <span className="text-sm text-gray-400 font-normal">To be confirmed</span>}</td>
                         <td className="px-4 py-3 text-xs text-gray-500">{account.proxyHost ? <span className="text-green-600 font-medium">Assigned</span> : "None"}</td>
                         <td className="px-4 py-3 text-gray-500">{formatDate(account.createdAt)}</td>
                         <td className="px-4 py-3 text-right">
@@ -759,7 +761,7 @@ function DashboardContent() {
                             Removed
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-gray-400">{price > 0 ? formatCurrency(price) : "—"}</td>
+                        <td className="px-4 py-3 text-gray-400">{price > 0 ? formatMoney(price, account.currency ?? "PHP") : "—"}</td>
                         <td className="px-4 py-3 text-gray-400">{formatDate(account.createdAt)}</td>
                         <td className="px-4 py-3 text-gray-400">{account.removedAt ? formatDate(account.removedAt) : "—"}</td>
                       </tr>
