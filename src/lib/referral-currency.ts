@@ -13,7 +13,8 @@
 export type Currency = "PHP" | "USD";
 
 const USD_SLUGS = new Set<string>([
-  "aditya-39", // India — first non-PH referrer
+  "aditya-39",      // India — first non-PH referrer
+  "dharmendra-35",  // India
 ]);
 
 export function referralCurrency(slug: string | null | undefined): Currency {
