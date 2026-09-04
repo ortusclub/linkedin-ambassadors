@@ -820,7 +820,14 @@ export async function sendTelegramMessageNotification(opts: {
     : "";
   return sendEmail({
     to: ["info@linkedvelocity.com", "sam@ortusclub.com", "ardi@linkedvelocity.com"],
-    subject: `New Telegram message from ${opts.fromName}`,
+    // Include a snippet of the actual message so each email stands alone in the
+    // inbox instead of Gmail collapsing every message from one person into a
+    // single same-subject thread (which buries follow-ups under the /start).
+    subject: `New Telegram message from ${opts.fromName}${
+      opts.text.trim().toLowerCase().startsWith("/start")
+        ? ""
+        : `: ${opts.text.slice(0, 60)}`
+    }`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px 20px;">
         <h2 style="color:#0F1419;margin-bottom:8px;">New Telegram Message</h2>
