@@ -23,8 +23,10 @@ interface Account {
 }
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
+const TELEGRAM_URL = "https://t.me/linkedvelocity_support_bot";
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
 
+const MAX_PER_STATUS = 20;
 const AVATAR_COLORS = ["#0A66C2", "#0E7C74", "#5747C9", "#B23150", "#946011", "#067A45", "#0D1B2A", "#C2410C"];
 const INDUSTRY_COLORS: Record<string, string> = { Sales: "#5747C9", Marketing: "#B23150", Technology: "#0A66C2", Operations: "#0E7C74", Finance: "#946011" };
 
@@ -102,8 +104,6 @@ export default function CataloguePage() {
   const handleFilterClick = (f: string) => { setActiveFilter(f); setIndustry(f === "All" ? "" : f); };
 
   const toggleSelect = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const rentable = accounts.filter((a) => a.status === "available" && !a.showcase);
-  const toggleSelectAll = () => setSelected(selected.size === rentable.length && rentable.length > 0 ? new Set() : new Set(rentable.map((a) => a.id)));
 
   const handleBulkRent = () => {
     if (selected.size === 0) return;
@@ -114,8 +114,18 @@ export default function CataloguePage() {
 
   // rentable first, then showcase, then rented — chosen sort applied within each group
   const statusRank = (a: Account) => (a.status === "available" ? (a.showcase ? 1 : 0) : 2);
-  const visible = useMemo(() => [...accounts].sort((a, b) => statusRank(a) - statusRank(b) || SORTS[sort](a, b)), [accounts, sort]);
-  const availCount = rentable.length;
+  // Only a slice of the inventory is public: at most MAX_PER_STATUS available and
+  // MAX_PER_STATUS rented profiles. Everything beyond that is behind the agent CTA.
+  const visible = useMemo(() => {
+    const sorted = [...accounts].sort((a, b) => statusRank(a) - statusRank(b) || SORTS[sort](a, b));
+    const avail = sorted.filter((a) => a.status === "available").slice(0, MAX_PER_STATUS);
+    const rented = sorted.filter((a) => a.status !== "available").slice(0, MAX_PER_STATUS);
+    return [...avail, ...rented];
+  }, [accounts, sort]);
+  const hiddenCount = accounts.length - visible.length;
+  // Bulk-select only ever covers the rows actually on screen.
+  const rentable = visible.filter((a) => a.status === "available" && !a.showcase);
+  const toggleSelectAll = () => setSelected(selected.size === rentable.length && rentable.length > 0 ? new Set() : new Set(rentable.map((a) => a.id)));
 
   const chip = (on: boolean) => ({ cursor: "pointer", font: `${on ? 600 : 500} 13.5px ${INT}`, color: on ? "#FFFFFF" : "#3F4856", background: on ? "#0B1220" : "#FFFFFF", border: "1px solid " + (on ? "#0B1220" : "#E0E3E9"), borderRadius: 999, padding: "9px 18px", transition: "all .15s" } as const);
   const seg = (on: boolean) => ({ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 13px ${INT}`, color: on ? "#0B1220" : "#8A93A2", background: on ? "#FFFFFF" : "transparent", border: "none", borderRadius: 8, padding: "7px 14px", boxShadow: on ? "0 1px 2px rgba(16,24,40,0.12)" : "none" } as const);
@@ -217,6 +227,21 @@ export default function CataloguePage() {
           </div>
         )}
       </div>
+
+      {/* inventory gate — the catalogue only ever shows a slice of the roster */}
+      {!loading && accounts.length > 0 && (
+        <div className="cat2-wrap" style={{ marginTop: 18 }}>
+          <div style={{ background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, padding: "26px 32px", textAlign: "center" }}>
+            <h3 style={{ font: `700 19px ${POP}`, color: "#0B1220", margin: "0 0 6px" }}>{hiddenCount > 0 ? "There's more where these came from" : "Looking for something else?"}</h3>
+            <p style={{ fontSize: 14, color: "#5A6473", lineHeight: 1.5, maxWidth: 480, margin: "0 auto 18px" }}>
+              {hiddenCount > 0
+                ? "This is only part of our roster — message an agent and we'll send you profiles that match your industry, region and connection size."
+                : "Message an agent and we'll source a profile that matches your industry, region and connection size."}
+            </p>
+            <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 10, background: "#0A66C2", color: "#fff", fontSize: 14.5, fontWeight: 600, textDecoration: "none" }}>Get in touch with one of our agents →</a>
+          </div>
+        </div>
+      )}
 
       {/* logged-out gate */}
       {!loading && !user && (
