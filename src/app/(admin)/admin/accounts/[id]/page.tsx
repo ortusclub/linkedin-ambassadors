@@ -119,16 +119,28 @@ export default function EditAccountPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
-                value={((s) => (s === "available" ? "available" : s === "rented" ? "rented" : s === "retired" || s === "removed" ? "retired" : "maintenance"))((form.status as string) || "maintenance")}
+                value={((s) => (s === "available" ? "available" : s === "rented" ? "rented" : s === "under_construction" ? "under_construction" : s === "retired" || s === "removed" ? "retired" : "maintenance"))((form.status as string) || "maintenance")}
                 onChange={(e) => update("status", e.target.value)}
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               >
                 <option value="available">Available</option>
                 <option value="rented">Rented</option>
+                <option value="under_construction">Construction</option>
                 <option value="maintenance">Maintenance</option>
                 <option value="retired">Inaccessible</option>
               </select>
-              <p className="mt-1 text-xs text-gray-500">One status per account. <b>Restricted</b> and <b>Trial</b> are set from the inventory list (Mark restricted / Trial buttons), not here.</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => update("status", "under_construction")}
+                  disabled={form.status === "under_construction"}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  🚧 Mark under construction
+                </button>
+                {form.status === "under_construction" && <span className="text-xs font-medium text-amber-700">Set — click “Save” to apply.</span>}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">One status per account. <b>Construction</b> puts a warming-up account in the Construction group no matter its size. <b>Restricted</b> and <b>Trial</b> are set from the inventory list (Mark restricted / Trial buttons), not here.</p>
             </div>
             <Input id="linkedinName" label="LinkedIn Name" value={(form.linkedinName as string) || ""} onChange={(e) => update("linkedinName", e.target.value)} />
             <Input id="linkedinHeadline" label="Headline" value={(form.linkedinHeadline as string) || ""} onChange={(e) => update("linkedinHeadline", e.target.value)} />

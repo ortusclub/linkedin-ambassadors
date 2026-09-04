@@ -24,6 +24,7 @@ enum AccountStatus {
   rented
   trial
   maintenance
+  under_construction
   unavailable
   retired
   removed
