@@ -198,6 +198,9 @@ const restrictCount = (log: RestrictLog) => (Array.isArray(log) ? log.filter((e)
 const isFirstRestriction = (a: { restrictedAt: string | null; restrictionLog?: RestrictLog }) => !!a.restrictedAt && restrictCount(a.restrictionLog) <= 1;
 const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; restrictionLog?: RestrictLog; ownerSetupPaidAt?: string | null }): string => {
   if (a.status === "rented") return "Rented";
+  // Explicitly marked under construction (from the edit page) always reads as
+  // Construction, whatever the connection count — overrides the size-based split below.
+  if (a.status === "under_construction") return "Construction";
   // A restricted account keeps its real lifecycle group (e.g. Maintenance) and just
   // shows a "Restricted" badge on the row — so it can be visibly both at once. The one
   // exception: an otherwise-"available" account gets pulled out of the rentable Available

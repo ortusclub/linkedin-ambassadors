@@ -31,6 +31,7 @@ function fmtDate(d: Date | null): string {
 const CONSTRUCTION_MAX = 100;
 function displayStatus(a: { status: string; restrictedAt: Date | null; connectionCount?: number | null }): string {
   if (a.status === "rented") return "Rented";
+  if (a.status === "under_construction") return "Construction";
   if (a.restrictedAt) return "Restricted";
   if (a.status === "available") return "Available";
   if (a.status === "trial") return "Trial";
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
   const showCreds = credKey.length > 0 && ckey === credKey;
 
   const allAccounts = await prisma.linkedInAccount.findMany({
-    where: { status: { in: ["under_review", "available", "rented", "trial", "maintenance", "unavailable", "retired"] } },
+    where: { status: { in: ["under_review", "available", "rented", "trial", "maintenance", "under_construction", "unavailable", "retired"] } },
     include: {
       rentals: {
         where: { status: "active" },
