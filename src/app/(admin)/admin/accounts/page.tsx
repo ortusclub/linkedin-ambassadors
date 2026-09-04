@@ -237,7 +237,6 @@ const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
   { key: "Restricted", hint: "LinkedIn-restricted — access paused while it recovers", dot: "var(--st-unreach-fg)" },
   { key: "Construction", hint: `newer account still warming up — under ${CONSTRUCTION_MAX} connections`, dot: "var(--st-construct-fg)" },
-  { key: "Initial", hint: "not started — no usable company login yet, or setup fee not paid (not onboarded)", dot: "var(--warn-badge-text)" },
   { key: "Maintenance", hint: "stable account temporarily off — paused, vetting, or 2FA/setup", dot: "var(--neutral-chip-text)" },
   { key: "Inaccessible", hint: "retired — can no longer be used", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
@@ -558,11 +557,17 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     setImportResult({ success, failed }); setImporting(false); load();
   };
 
+  // Accounts that belong on the inventory. "Initial" ones (not yet onboarded — no
+  // company login yet, or setup fee unpaid) are excluded entirely: an account only
+  // appears here once we've paid it, which moves it into Construction. Until then it
+  // lives on the Onboarding tab.
+  const shown = useMemo(() => accounts.filter((a) => groupKey(a) !== "Initial"), [accounts]);
+
   const counts = useMemo(() => {
-    const real = accounts.filter((a) => !isDummy(a));
+    const real = shown.filter((a) => !isDummy(a));
     const c = (label: string) => real.filter((a) => canonicalStatus(a) === label).length;
     return {
-      total: accounts.length, // "All" chip (everything)
+      total: shown.length, // "All" chip (everything on the inventory, excl. Initial)
       realTotal: real.length, // headline — sellable inventory, excludes dummies
       Available: c("Available"),
       Trial: c("Trial"),
@@ -572,23 +577,22 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       // EVERY account with restrictedAt set, not just the ones canonicalStatus pulls
       // out into the "Restricted" group.
       Restricted: real.filter((a) => a.restrictedAt).length,
-      Initial: c("Initial"),
       Construction: c("Construction"),
       Maintenance: c("Maintenance"),
       Inaccessible: c("Inaccessible"),
       Removed: c("Removed"),
-      Showcase: accounts.filter(isDummy).length,
-      checksDue: accounts.filter(checkDue).length,
+      Showcase: shown.filter(isDummy).length,
+      checksDue: shown.filter(checkDue).length,
       verified: real.filter((a) => a.linkedinVerified).length,
       unverified: real.filter((a) => !a.linkedinVerified).length,
       // per-connection-bucket counts over real (non-showcase) inventory
       conn: Object.fromEntries(CONN_BUCKETS.map((b) => [b.key, real.filter((a) => b.test(a.connectionCount ?? 0)).length])) as Record<string, number>,
     };
-  }, [accounts]);
+  }, [shown]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = accounts.filter((a) => {
+    const base = shown.filter((a) => {
       // "Restricted" filters orthogonally by the restrictedAt flag so it catches
       // restricted accounts in ANY group (incl. Construction / Maintenance). Every
       // other chip filters by the mutually-exclusive lifecycle group.
@@ -604,14 +608,14 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     });
     // Combined-billing pairs: keep a secondary right after its primary instead
     // of wherever createdAt happens to place it, so they read as one unit.
-    const indexOf = new Map(accounts.map((a, i) => [a.id, i]));
+    const indexOf = new Map(shown.map((a, i) => [a.id, i]));
     const anchor = (a: Account) => (a.paymentLinkedAccountId ? indexOf.get(a.paymentLinkedAccountId) ?? indexOf.get(a.id)! : indexOf.get(a.id)!);
     return [...base].sort((a, b) => {
       const rankA = anchor(a) + (a.paymentLinkedAccountId ? 0.5 : 0);
       const rankB = anchor(b) + (b.paymentLinkedAccountId ? 0.5 : 0);
       return rankA - rankB;
     });
-  }, [accounts, filter, verifiedFilter, connFilter, search]);
+  }, [shown, filter, verifiedFilter, connFilter, search]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allExpanded = filtered.length > 0 && filtered.every((a) => expanded.has(a.id));
@@ -631,7 +635,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Initial", "Initial", counts.Initial, "var(--warn-badge-text)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Inaccessible", "Inaccessible", counts.Inaccessible, "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Inaccessible", "Inaccessible", counts.Inaccessible, "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
