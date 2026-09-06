@@ -16,14 +16,14 @@ const getInitials = (n: string) => n.replace(/\s*\(.*\)\s*$/, "").split(" ").fil
 const shortName = (n: string) => { const p = n.replace(/\s*\(.*\)\s*$/, "").trim().split(/\s+/).filter(Boolean); return p.length < 2 ? (p[0] || "") : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`; };
 
 const SAMPLE = [
-  { id: "1", linkedinName: "Alex Chen", linkedinHeadline: "VP of Engineering", connectionCount: 8500, industry: "Technology", location: "San Francisco, CA", monthlyPrice: 350, status: "available", profilePhotoUrl: null, hasSalesNav: false, showcase: false },
-  { id: "2", linkedinName: "Maria Santos", linkedinHeadline: "Head of Sales", connectionCount: 6200, industry: "Sales", location: "New York, NY", monthlyPrice: 275, status: "available", profilePhotoUrl: null, hasSalesNav: true, showcase: false },
-  { id: "3", linkedinName: "James Wright", linkedinHeadline: "Marketing Director", connectionCount: 5100, industry: "Marketing", location: "Chicago, IL", monthlyPrice: 220, status: "available", profilePhotoUrl: null, hasSalesNav: false, showcase: false },
+  { id: "1", linkedinName: "Alex Chen", linkedinHeadline: "VP of Engineering", connectionCount: 8500, industry: "Technology", location: "San Francisco, CA", monthlyPrice: 350, status: "available", profilePhotoUrl: null, hasSalesNav: false },
+  { id: "2", linkedinName: "Maria Santos", linkedinHeadline: "Head of Sales", connectionCount: 6200, industry: "Sales", location: "New York, NY", monthlyPrice: 275, status: "available", profilePhotoUrl: null, hasSalesNav: true },
+  { id: "3", linkedinName: "James Wright", linkedinHeadline: "Marketing Director", connectionCount: 5100, industry: "Marketing", location: "Chicago, IL", monthlyPrice: 220, status: "available", profilePhotoUrl: null, hasSalesNav: false },
 ];
 
 type PreviewAccount = {
   id: string; linkedinName: string; linkedinHeadline: string | null; connectionCount: number;
-  industry: string | null; location: string | null; monthlyPrice: number; status: string; hasSalesNav: boolean; showcase?: boolean;
+  industry: string | null; location: string | null; monthlyPrice: number; status: string; hasSalesNav: boolean;
 };
 
 const STEPS = [
@@ -63,14 +63,8 @@ export default async function HomePage() {
   } catch {
     raw = SAMPLE as unknown as PreviewAccount[];
   }
-  let accounts = raw.map((a) => maskPublicAccount(a)) as PreviewAccount[];
-  // Balance real + showcase so the preview isn't all showcase accounts.
-  const realA = accounts.filter((a) => !a.showcase);
-  const showA = accounts.filter((a) => a.showcase);
-  const mixed: PreviewAccount[] = [];
-  for (let i = 0; i < Math.max(realA.length, showA.length); i++) { if (realA[i]) mixed.push(realA[i]); if (showA[i]) mixed.push(showA[i]); }
-  accounts = mixed;
-  const availCount = accounts.filter((a) => a.status === "available" && !a.showcase).length;
+  const accounts = raw.map((a) => maskPublicAccount(a)) as PreviewAccount[];
+  const availCount = accounts.filter((a) => a.status === "available").length;
   const preview = accounts.slice(0, 6);
 
   return (

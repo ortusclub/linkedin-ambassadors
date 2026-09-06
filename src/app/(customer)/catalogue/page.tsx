@@ -19,7 +19,6 @@ interface Account {
   monthlyPrice: number;
   status: string;
   linkedinUrl: string | null;
-  showcase?: boolean;
 }
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
@@ -112,8 +111,8 @@ export default function CataloguePage() {
   };
   const selectedTotal = accounts.filter((a) => selected.has(a.id)).reduce((s, a) => s + monthlyOf(a), 0);
 
-  // rentable first, then showcase, then rented — chosen sort applied within each group
-  const statusRank = (a: Account) => (a.status === "available" ? (a.showcase ? 1 : 0) : 2);
+  // available first, then rented — chosen sort applied within each group
+  const statusRank = (a: Account) => (a.status === "available" ? 0 : 1);
   // Only a slice of the inventory is public: at most MAX_PER_STATUS available and
   // MAX_PER_STATUS rented profiles. Everything beyond that is behind the agent CTA.
   const visible = useMemo(() => {
@@ -124,7 +123,7 @@ export default function CataloguePage() {
   }, [accounts, sort]);
   const hiddenCount = accounts.length - visible.length;
   // Bulk-select only ever covers the rows actually on screen.
-  const rentable = visible.filter((a) => a.status === "available" && !a.showcase);
+  const rentable = visible.filter((a) => a.status === "available");
   const toggleSelectAll = () => setSelected(selected.size === rentable.length && rentable.length > 0 ? new Set() : new Set(rentable.map((a) => a.id)));
 
   const chip = (on: boolean) => ({ cursor: "pointer", font: `${on ? 600 : 500} 13.5px ${INT}`, color: on ? "#FFFFFF" : "#3F4856", background: on ? "#0B1220" : "#FFFFFF", border: "1px solid " + (on ? "#0B1220" : "#E0E3E9"), borderRadius: 999, padding: "9px 18px", transition: "all .15s" } as const);
@@ -299,15 +298,11 @@ function Actions({ a }: { a: Account }) {
     <>
       {a.linkedinUrl ? (
         <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={viewStyle}>View</a>
-      ) : !a.showcase ? (
+      ) : (
         <Link href={`/account/${a.id}`} style={viewStyle}>View</Link>
-      ) : null}
+      )}
       {isAvailable ? (
-        a.showcase ? (
-          <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#00A150", borderRadius: 9, padding: "9px 15px", textDecoration: "none", whiteSpace: "nowrap" }}>Book a call</a>
-        ) : (
-          <Link href={`/account/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#00A150", borderRadius: 9, padding: "9px 17px", textDecoration: "none", whiteSpace: "nowrap" }}>Rent</Link>
-        )
+        <Link href={`/account/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#00A150", borderRadius: 9, padding: "9px 17px", textDecoration: "none", whiteSpace: "nowrap" }}>Rent</Link>
       ) : (
         <span style={{ fontSize: 13, fontWeight: 600, color: "#96A0AD", background: "#F2F4F7", borderRadius: 9, padding: "9px 15px", whiteSpace: "nowrap" }}>Rented</span>
       )}
@@ -341,7 +336,7 @@ function Avatar({ a, rented }: { a: Account; rented: boolean }) {
 
 function GridCard({ a, selected, onToggle, showPricing }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean }) {
   const rented = a.status !== "available";
-  const rentable = a.status === "available" && !a.showcase;
+  const rentable = a.status === "available";
   const displayName = shortName(a.linkedinName);
   return (
     <div className="cat2-card" style={{ position: "relative", background: "#FFFFFF", border: "1px solid #DFE3E9", borderRadius: 16, padding: 20, boxShadow: "0 8px 24px rgba(16,24,40,0.07), 0 1px 3px rgba(16,24,40,0.05)", opacity: rented ? 0.72 : 1, display: "flex", flexDirection: "column" }}>
@@ -380,7 +375,7 @@ function GridCard({ a, selected, onToggle, showPricing }: { a: Account; selected
 
 function ListRow({ a, selected, onToggle, showPricing }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean }) {
   const rented = a.status !== "available";
-  const rentable = a.status === "available" && !a.showcase;
+  const rentable = a.status === "available";
   const displayName = shortName(a.linkedinName);
   return (
     <div className="cat2-row" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "15px 22px", borderBottom: "1px solid #F0F2F5", opacity: rented ? 0.66 : 1, background: selected ? "#F0F7FF" : "transparent", transition: "background .15s" }}>

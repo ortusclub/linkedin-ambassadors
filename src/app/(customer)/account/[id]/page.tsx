@@ -27,7 +27,6 @@ interface Account {
   status: string;
   notes: string | null;
   gologinProfileId: string | null;
-  showcase?: boolean;
 }
 interface User { id: string; role: string; }
 
@@ -105,7 +104,7 @@ export default function AccountDetailPage() {
 
   const price = typeof account.monthlyPrice === "string" ? parseFloat(account.monthlyPrice) : account.monthlyPrice;
   const name = shortName(account.linkedinName);
-  const rentable = account.status === "available" && !account.showcase;
+  const rentable = account.status === "available";
   const salesNavEligible = rentable && !account.hasSalesNav;
   const displayPrice = price + (addSalesNav && salesNavEligible ? SALES_NAV_MONTHLY : 0);
   const initial = account.linkedinName.replace(/\s*\(.*\)\s*$/, "").charAt(0).toUpperCase();
@@ -220,9 +219,7 @@ export default function AccountDetailPage() {
                   </button>
                 )}
 
-                {account.showcase ? (
-                  <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="ac-cta" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, borderRadius: 12, padding: 15, marginTop: 20, textDecoration: "none", boxShadow: "0 12px 28px rgba(10,102,194,0.28)" }}>Book a call →</a>
-                ) : rentable ? (
+                {rentable ? (
                   <button onClick={handleRent} disabled={actionLoading} className="ac-cta" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, marginTop: 20, cursor: "pointer", boxShadow: "0 12px 28px rgba(10,102,194,0.28)" }}>{actionLoading ? "Processing…" : "Rent this account →"}</button>
                 ) : (
                   <div style={{ width: "100%", textAlign: "center", background: "#F2F4F7", color: "#96A0AD", fontSize: 15, fontWeight: 600, borderRadius: 12, padding: 15, marginTop: 20 }}>Currently unavailable</div>
