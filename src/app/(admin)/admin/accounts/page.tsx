@@ -253,6 +253,7 @@ const statusChip = (disp: string): React.CSSProperties => {
     Maintenance: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"],
     Inaccessible: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
     Removed: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
+    Showcase: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
   };
   const [bg, fg] = m[disp] || m.Maintenance;
   return { background: bg, color: fg };
@@ -748,7 +749,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                   // cards that merely mention each other.
                   const fusedWithNext = rows[idx + 1]?.paymentLinkedAccountId === a.id;
                   const fusedWithPrev = idx > 0 && a.paymentLinkedAccountId === rows[idx - 1].id;
-                  const st = canonicalStatus(a);
+                  const st = groupKey(a);
                   const h = healthOf(a);
                   const ti = trialInfo(a);
                   const cp = cryptoPayInfo(a, accounts);
