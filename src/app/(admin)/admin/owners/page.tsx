@@ -971,9 +971,9 @@ export default function AdminOwnersPage() {
                                     </div>
                                   </div>
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                                    <span style={labelCss}>Personal email (their own)</span>
+                                    <span style={labelCss}>Contact email (their own, from the form)</span>
                                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                      <Editable initial={acc.personalEmail} placeholder="their personal email" mono onSave={(v) => patchAccount(acc.id, { personalEmail: v })} />
+                                      <Editable initial={acc.personalEmail} placeholder="their personal / form email" mono onSave={(v) => patchAccount(acc.id, { personalEmail: v })} />
                                       <CopyBtn value={acc.personalEmail} />
                                     </div>
                                   </div>
