@@ -76,7 +76,28 @@ function CheckoutContent() {
   const total = accounts.reduce((sum, a) => sum + Number(a.monthlyPrice) + (salesNavFor(a) ? SALES_NAV_MONTHLY : 0), 0);
   const hasSufficientBalance = usdcBalance !== null && usdcBalance >= total;
 
-  const handleCheckout = async () => {
+  // Which payment rail the renter picked before the ground-rules modal. Card sends them
+  // straight to Stripe (subscription + discount codes); crypto uses the wallet balance.
+  const [payMethod, setPayMethod] = useState<"card" | "crypto">("card");
+
+  // Pay by card: create a Stripe Checkout subscription and hand off to Stripe. Renewals
+  // and any promotion code are handled on Stripe's hosted page.
+  const handleCardCheckout = async () => {
+    setCheckingOut(true);
+    setCheckoutError("");
+    try {
+      const res = await fetch("/api/rentals/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew, salesNavAccountIds: accounts.filter(salesNavFor).map((a) => a.id) }) });
+      const data = await res.json();
+      if (res.status === 401) { router.push("/login?message=You must sign in or sign up before you can rent accounts."); return; }
+      if (!res.ok || !data.url) { setCheckoutError(data.error || "Could not start checkout. Please try again."); setCheckingOut(false); return; }
+      window.location.href = data.url;
+    } catch { setCheckoutError("Something went wrong. Please try again."); setCheckingOut(false); }
+  };
+
+  // Pay from crypto/wallet balance (the existing rail): if funded, rent now; otherwise
+  // send them to top up the exact amount, then come back.
+  const handleCryptoCheckout = async () => {
+    if (!hasSufficientBalance) { router.push("/dashboard?topup=1#wallet"); return; }
     setCheckingOut(true);
     setCheckoutError("");
     try {
@@ -90,7 +111,13 @@ function CheckoutContent() {
     finally { setCheckingOut(false); }
   };
 
-  const startPayment = () => {
+  const runPayment = () => (payMethod === "card" ? handleCardCheckout() : handleCryptoCheckout());
+
+  const startPayment = (method: "card" | "crypto") => {
+    setPayMethod(method);
+    // Crypto with no balance skips the rules modal — nothing is charged, we just route
+    // them to top up first; they'll re-agree back here once funded.
+    if (method === "crypto" && !hasSufficientBalance) { router.push("/dashboard?topup=1#wallet"); return; }
     // Always show the ground rules on every rent — the renter must re-agree each
     // time before the rental goes through, whether or not they've rented before.
     setVetForm((v) => ({ ...v, agreed: false }));
@@ -113,7 +140,7 @@ function CheckoutContent() {
         if (!res.ok) { setVetError(d.error || "Something went wrong"); return; }
         setVetted(true);
       }
-      setShowVetting(false); handleCheckout();
+      setShowVetting(false); runPayment();
     } catch { setVetError("Something went wrong. Please try again."); }
     finally { setVetSaving(false); }
   };
@@ -249,19 +276,10 @@ function CheckoutContent() {
               <div><span style={{ font: `800 28px ${POP}`, letterSpacing: "-0.02em", color: "#0B1220" }}>{formatCurrency(total)}</span><span style={{ fontSize: 14, color: "#8A93A2" }}>/mo</span></div>
             </div>
 
-            {/* balance */}
-            <div style={{ background: hasSufficientBalance ? "#EFFBF3" : "#FDF2F4", border: `1px solid ${hasSufficientBalance ? "#CDEBD9" : "#F6D7DE"}`, borderRadius: 12, padding: "13px 15px", marginTop: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ font: `500 11px ${MONO}`, letterSpacing: "0.1em", textTransform: "uppercase", color: hasSufficientBalance ? "#067A45" : "#B23150" }}>Balance</span>
-                <span style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>${usdcBalance !== null ? usdcBalance.toFixed(2) : "—"}</span>
-              </div>
-              {!hasSufficientBalance && <div style={{ fontSize: 12.5, color: "#B23150", marginTop: 6 }}>You need ${(total - (usdcBalance || 0)).toFixed(2)} more to complete this order.</div>}
-            </div>
-
             {/* auto-renew */}
-            <button onClick={() => setAutoRenew((v) => !v)} style={{ display: "flex", gap: 11, alignItems: "flex-start", width: "100%", textAlign: "left", background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 12, padding: 14, marginTop: 14, cursor: "pointer" }}>
+            <button onClick={() => setAutoRenew((v) => !v)} style={{ display: "flex", gap: 11, alignItems: "flex-start", width: "100%", textAlign: "left", background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 12, padding: 14, marginTop: 16, cursor: "pointer" }}>
               <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 700, marginTop: 1, border: "1.5px solid " + (autoRenew ? "#0A66C2" : "#CBD2DB"), background: autoRenew ? "#0A66C2" : "#fff" }}>{autoRenew ? "✓" : ""}</span>
-              <span><span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#0B1220", marginBottom: 2 }}>Auto-renew monthly</span><span style={{ fontSize: 12.5, lineHeight: 1.5, color: "#8A93A2" }}>Renews on the same date each month from your balance. Cancel anytime.</span></span>
+              <span><span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#0B1220", marginBottom: 2 }}>Auto-renew monthly</span><span style={{ fontSize: 12.5, lineHeight: 1.5, color: "#8A93A2" }}>Renews on the same date each month. Cancel anytime.</span></span>
             </button>
 
             {checkoutError && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 10, marginTop: 14, fontSize: 12, color: "#991B1B" }}>{checkoutError}</div>}
@@ -271,13 +289,22 @@ function CheckoutContent() {
                 <p style={{ fontSize: 15, fontWeight: 700, color: "#067A45" }}>Payment successful!</p>
                 <p style={{ fontSize: 12, color: "#067A45", marginTop: 4 }}>Redirecting to your dashboard…</p>
               </div>
-            ) : hasSufficientBalance ? (
-              <button onClick={startPayment} disabled={checkingOut} className="co-cta" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, marginTop: 16, cursor: "pointer", boxShadow: "0 12px 28px rgba(10,102,194,0.28)", opacity: checkingOut ? 0.6 : 1 }}>{checkingOut ? "Processing…" : `Rent ${accounts.length} account${accounts.length === 1 ? "" : "s"} · ${formatCurrency(total)} →`}</button>
             ) : (
-              <button onClick={() => router.push("/dashboard?topup=1#wallet")} className="co-cta" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, marginTop: 16, cursor: "pointer", boxShadow: "0 12px 28px rgba(10,102,194,0.28)" }}>Top up {formatCurrency(total)} &amp; rent →</button>
+              <>
+                {/* Primary: pay by card via Stripe (subscription + discount codes) */}
+                <button onClick={() => startPayment("card")} disabled={checkingOut} className="co-cta" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, marginTop: 16, cursor: "pointer", boxShadow: "0 12px 28px rgba(10,102,194,0.28)", opacity: checkingOut ? 0.6 : 1 }}>{checkingOut && payMethod === "card" ? "Redirecting…" : `Pay with card · ${formatCurrency(total)} →`}</button>
+
+                {/* Secondary: pay from crypto/wallet balance */}
+                <button onClick={() => startPayment("crypto")} disabled={checkingOut} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: "#fff", color: "#0B1220", fontSize: 14, fontWeight: 600, border: "1px solid #E1E5EA", borderRadius: 12, padding: 12, marginTop: 10, cursor: "pointer", opacity: checkingOut ? 0.6 : 1 }}>
+                  {checkingOut && payMethod === "crypto" ? "Processing…" : hasSufficientBalance ? `Pay with crypto balance · ${formatCurrency(total)}` : "Pay with crypto (top up first)"}
+                </button>
+                {usdcBalance !== null && usdcBalance > 0 && (
+                  <div style={{ textAlign: "center", fontSize: 12, color: "#96A0AD", marginTop: 8 }}>Crypto balance: ${usdcBalance.toFixed(2)}{!hasSufficientBalance && ` · ${formatCurrency(total - usdcBalance)} short`}</div>
+                )}
+              </>
             )}
 
-            <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Top up once, rent multiple accounts from your balance.</div>
+            <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Have a discount code? Enter it on the card payment page.</div>
             <Link href="/catalogue" style={{ display: "block", textAlign: "center", fontSize: 14, color: "#5A6473", textDecoration: "none", marginTop: 14, fontWeight: 500 }}>← Back to browse</Link>
           </div>
 
