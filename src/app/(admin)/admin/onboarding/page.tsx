@@ -423,6 +423,11 @@ export default function OnboardingPage() {
         missing one are badged and sorted to the bottom.
       </p>
 
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Onboarding PoC</span>
+        <span style={{ font: `700 12px ${F_SANS}`, padding: "3px 11px", borderRadius: 999, background: "var(--blue-chip-bg,#eaf1ff)", color: "var(--blue-chip-text,#2b5fd0)" }}>Sam</span>
+      </div>
+
       {needsGologin > 0 && (
         <div style={{ marginTop: 14, padding: "11px 14px", borderRadius: 12, background: "var(--warn-badge-bg,#fef3e2)", border: "1px solid var(--warn-badge-text,#b7791f)", font: `600 13px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>
           ⚠ {needsGologin} onboarded application{needsGologin === 1 ? " has" : "s have"} no GoLogin — sorted to the bottom of Onboarded and badged, since the account can&apos;t be run without one.
