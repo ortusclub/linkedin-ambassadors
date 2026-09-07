@@ -401,9 +401,9 @@ export default function OnboardingPage() {
   const bucketed = useMemo(() => {
     const m: Record<Bucket, Row[]> = { initial: [], processing: [], rejected: [], onboarded: [], unreachable: [] };
     for (const r of filtered) m[r.bucket].push(r);
-    // Oldest application first in the working sections — the ones waiting longest
-    // need attention first. Onboarded reads newest-first, most recent wins on top.
-    m.initial.sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt));
+    // Initial reads newest-first — the freshest applications sit on top. Onboarded
+    // reads newest-first too, most recent wins on top.
+    m.initial.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     m.processing.sort((a, b) => Number(a.hasGologin) - Number(b.hasGologin) || +new Date(a.createdAt) - +new Date(b.createdAt));
     m.rejected.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     m.onboarded.sort((a, b) => Number(b.hasGologin) - Number(a.hasGologin) || +new Date(b.onboardedAt || b.createdAt) - +new Date(a.onboardedAt || a.createdAt));
