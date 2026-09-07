@@ -137,7 +137,7 @@ function StatusPicker({ r, onChange, busy }: { r: Row; onChange: (s: Status) => 
   );
 }
 
-function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange: (s: Status) => void; busy: boolean; open: boolean; onToggle: () => void }) {
+function ApplicantRow({ r, onChange, busy, open, onToggle, onSaveNotes }: { r: Row; onChange: (s: Status) => void; busy: boolean; open: boolean; onToggle: () => void; onSaveNotes: (id: string, notes: string) => Promise<boolean> }) {
   const blocked = r.status === "onboarded" && !r.hasGologin;
   return (
     <div style={{ border: `1px solid ${blocked ? "var(--warn-badge-text,#b7791f)" : "var(--border,#e3e3e6)"}`, borderRadius: 12, background: "var(--card,#fff)", overflow: "hidden" }}>
@@ -206,14 +206,15 @@ function ApplicantRow({ r, onChange, busy, open, onToggle }: { r: Row; onChange:
           <D label="Setup fee paid">{r.setupPaidAt ? fmtDate(r.setupPaidAt) : null}</D>
           <D label="Owner status">{r.ownerStatus}</D>
         </div>
-        {(r.accountIssue || r.adminNotes || r.applicationNotes || r.accountNotes) && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--border,#eee)" }}>
-            {r.accountIssue && <Note label="Login issue" tone="var(--st-cancel-fg,#c0392b)">{r.accountIssue}</Note>}
-            {r.adminNotes && <Note label="Admin notes">{r.adminNotes}</Note>}
-            {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
-            {r.accountNotes && <Note label="Account notes">{r.accountNotes}</Note>}
-          </div>
-        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--border,#eee)" }}>
+          {/* Editable chasing log — what you've done to reach them and where things
+              stand. Writes adminNotes, so it persists and shows anywhere that field
+              is read. The remaining notes below stay read-only. */}
+          <NotesEditor r={r} onSave={onSaveNotes} />
+          {r.accountIssue && <Note label="Login issue" tone="var(--st-cancel-fg,#c0392b)">{r.accountIssue}</Note>}
+          {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
+          {r.accountNotes && <Note label="Account notes">{r.accountNotes}</Note>}
+        </div>
       </div>
     )}
     </div>
@@ -225,6 +226,59 @@ function Note({ label, tone, children }: { label: string; tone?: string; childre
     <div>
       <div style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: tone || "var(--muted2,#9aa0a6)", marginBottom: 3 }}>{label}</div>
       <div style={{ font: `500 12.5px/1.55 ${F_SANS}`, color: tone || "var(--fg,#444)", whiteSpace: "pre-wrap" }}>{children}</div>
+    </div>
+  );
+}
+
+// Editable chasing log for one applicant. Kept in local state so typing is instant;
+// the Save button writes adminNotes and only enables while there are unsaved edits.
+function NotesEditor({ r, onSave }: { r: Row; onSave: (id: string, notes: string) => Promise<boolean> }) {
+  const [val, setVal] = useState(r.adminNotes || "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  // Re-sync if the underlying note changes (e.g. after a reload or another save).
+  useEffect(() => { setVal(r.adminNotes || ""); }, [r.adminNotes]);
+  const dirty = val.trim() !== (r.adminNotes || "").trim();
+
+  const save = async () => {
+    setSaving(true);
+    const ok = await onSave(r.id, val);
+    setSaving(false);
+    if (ok) { setSaved(true); setTimeout(() => setSaved(false), 2000); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Chasing notes</span>
+        {saved && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--st-active-fg,#1a8a4a)" }}>Saved ✓</span>}
+        {dirty && !saved && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>Unsaved</span>}
+      </div>
+      <textarea
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="What you've done to reach them and where things stand — e.g. 'Sent Viber 3 Sep, no reply. Followed up email 4 Sep. Waiting on login.'"
+        rows={3}
+        style={{
+          width: "100%", boxSizing: "border-box", resize: "vertical", minHeight: 64,
+          padding: "9px 11px", borderRadius: 9, border: "1px solid var(--border,#dcdce0)",
+          background: "var(--card,#fff)", color: "var(--fg,#111)", font: `500 12.5px/1.55 ${F_SANS}`, outline: "none",
+        }}
+      />
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+        <button
+          onClick={save}
+          disabled={!dirty || saving}
+          style={{
+            font: `700 12px ${F_SANS}`, padding: "7px 16px", borderRadius: 9, border: "none",
+            background: !dirty || saving ? "var(--tag-bg,#e8e8ea)" : "var(--accent,#0a66c2)",
+            color: !dirty || saving ? "var(--muted,#8a9099)" : "#fff",
+            cursor: !dirty || saving ? "default" : "pointer",
+          }}
+        >
+          {saving ? "Saving…" : "Save notes"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -263,6 +317,28 @@ export default function OnboardingPage() {
       await load();
     } finally {
       setBusy(null);
+    }
+  };
+
+  const saveNotes = async (id: string, adminNotes: string): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/admin/onboarding/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, adminNotes }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(typeof d.error === "string" ? d.error : `Could not save notes (${res.status}).`);
+        return false;
+      }
+      const d = await res.json();
+      const savedNotes: string | null = d.application?.adminNotes ?? null;
+      setRows((prev) => (prev ? prev.map((x) => (x.id === id ? { ...x, adminNotes: savedNotes } : x)) : prev));
+      return true;
+    } catch {
+      alert("Could not save notes.");
+      return false;
     }
   };
 
@@ -329,7 +405,7 @@ export default function OnboardingPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
               {bucketed[s.key].map((r) => (
-                <ApplicantRow key={r.id} r={r} busy={busy === r.id} open={expanded.has(r.id)} onToggle={() => toggle(r.id)} onChange={(st) => setStatus(r, st)} />
+                <ApplicantRow key={r.id} r={r} busy={busy === r.id} open={expanded.has(r.id)} onToggle={() => toggle(r.id)} onChange={(st) => setStatus(r, st)} onSaveNotes={saveNotes} />
               ))}
             </div>
           )}
