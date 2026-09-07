@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
 import { persistImageUrl } from "@/lib/persist-image";
+import { markOwnerOnboardedIfReady } from "@/lib/onboarding";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -129,6 +130,14 @@ export async function PATCH(
       where: { id },
       data,
     });
+
+    // If this edit just made the account runnable (a GoLogin was set/changed), advance
+    // the owner's application to onboarded so a referred signup converts automatically on
+    // the Referrals page. Only makes the conversion visible — payment still needs the
+    // deliberate "ok to pay". Never blocks the edit.
+    if (data.gologinShareLink !== undefined || data.gologinProfileId !== undefined) {
+      try { await markOwnerOnboardedIfReady(account); } catch (e) { console.error("auto-onboard (update) failed:", e); }
+    }
 
     // Sync proxy to GoLogin profile if it has one
     if (account.gologinProfileId && (data.proxyHost || data.proxyPort || data.proxyUsername || data.proxyPassword)) {

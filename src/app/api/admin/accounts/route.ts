@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
 import * as gologin from "@/services/gologin";
 import { persistImageUrl } from "@/lib/persist-image";
+import { markOwnerOnboardedIfReady } from "@/lib/onboarding";
 
 const createAccountSchema = z.object({
   linkedinName: z.string().min(1),
@@ -190,6 +191,11 @@ export async function POST(req: Request) {
         status: data.status,
       },
     });
+
+    // If the account is already runnable (created with a GoLogin), mark its owner's
+    // application onboarded so a referred signup converts on the Referrals page without
+    // a manual status flip. Never blocks account creation.
+    try { await markOwnerOnboardedIfReady(account); } catch (e) { console.error("auto-onboard (create) failed:", e); }
 
     return NextResponse.json({ account }, { status: 201 });
   } catch (error) {
