@@ -72,30 +72,31 @@ interface Row {
   callOutcome: string | null;
 }
 
-// The dropdown offers the four stages only — the finer sub-statuses (contacted /
-// approved / on hold / unreachable) still exist in the data and still drive the
-// section a row lands in, but they can't be picked by hand. "Processing" writes
-// `reviewing`, the neutral in-flight status.
+// Onboarding is split into two levels within the Processing stage:
+//   Level 1 (onboarding) = still waiting — before a GoLogin exists / before we've logged in.
+//   Level 2 (approved)   = GoLogin created; we're verifying the account is OK before payout.
+// The legacy generic `reviewing` / `on_hold` / `unreachable` sub-statuses still exist in
+// the data and drive bucketing, but can't be picked by hand (see LEGACY_LABEL).
 const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "pending", label: "Initial" },
   { value: "contacted", label: "Awaiting reply" },
-  { value: "reviewing", label: "Processing" },
+  { value: "onboarding", label: "Level 1 onboarding" },
+  { value: "approved", label: "Level 2 onboarding" },
   { value: "rejected", label: "Rejected" },
-  { value: "onboarding", label: "Onboarding" },
   { value: "onboarded", label: "Onboarded" },
 ];
 
 // A row already sitting on one of the retired sub-statuses gets a read-only entry
 // showing where it actually is, so the select never renders blank.
 const LEGACY_LABEL: Partial<Record<Status, string>> = {
-  approved: "Processing · approved",
+  reviewing: "Processing · in review",
   on_hold: "Processing · on hold",
   unreachable: "Unreachable",
 };
 
 const SECTIONS: { key: Bucket; title: string; tone: string; note: string }[] = [
   { key: "initial", title: "Initial", tone: "var(--blue-chip-text,#2b5fd0)", note: "new leads — brand-new applications, plus ones you've messaged and are awaiting a reply" },
-  { key: "processing", title: "Processing", tone: "var(--warn-badge-text,#b7791f)", note: "in flight — being reviewed, chased, approved or waiting on a GoLogin" },
+  { key: "processing", title: "Processing", tone: "var(--warn-badge-text,#b7791f)", note: "in onboarding — Level 1 (waiting, before GoLogin/login) and Level 2 (GoLogin ready, verifying the account before payout)" },
   { key: "rejected", title: "Rejected", tone: "var(--st-cancel-fg,#c0392b)", note: "turned down — kept for the record" },
   { key: "onboarded", title: "Onboarded", tone: "var(--st-active-fg,#1a8a4a)", note: "set up — any without a GoLogin sit at the bottom, badged" },
   { key: "unreachable", title: "Unreachable", tone: "var(--muted2,#9aa0a6)", note: "never got a reply — parked out of the way, not part of the working pipeline" },

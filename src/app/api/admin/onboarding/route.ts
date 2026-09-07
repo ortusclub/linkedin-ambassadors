@@ -90,7 +90,7 @@ export async function GET() {
       else if (app.status === "unreachable") { bucket = "unreachable"; reason = "Unreachable"; }
       else {
         bucket = "processing";
-        reason = app.status === "onboarding" ? "Onboarding · warming up" : app.status === "approved" ? "Approved · awaiting onboarding" : app.status === "on_hold" ? "On hold" : "In review";
+        reason = app.status === "onboarding" ? "Level 1 · waiting (before GoLogin / login)" : app.status === "approved" ? "Level 2 · GoLogin ready, verifying before payout" : app.status === "on_hold" ? "On hold" : "In review";
       }
 
       return {
