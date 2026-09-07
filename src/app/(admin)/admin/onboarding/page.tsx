@@ -67,6 +67,9 @@ interface Row {
   monthlyPrice: number | null;
   ambassadorPayment: number | null;
   accountNotes: string | null;
+  outreachLog: { ch: string; text: string; by?: string; at: string }[] | null;
+  nextFollowUp: string | null;
+  callOutcome: string | null;
 }
 
 // The dropdown offers the four stages only — the finer sub-statuses (contacted /
@@ -101,6 +104,37 @@ const SECTIONS: { key: Bucket; title: string; tone: string; note: string }[] = [
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
 const ageDays = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+const fmtDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
+
+// Outreach touch channels: [label, bg var, fg var]. Mirrors the Submissions page,
+// plus Viber/Telegram so a touch can be logged on the channel the ambassador
+// actually uses. "note" is an annotation, not a real outreach touch.
+type Touch = { ch: string; text: string; by?: string; at: string };
+const TOUCH: Record<string, [string, string, string]> = {
+  whatsapp: ["WhatsApp", "--green-chip-bg,#e6f4ea", "--green-chip-text,#188038"],
+  viber: ["Viber", "--st-conv-bg,#efe8fd", "--st-conv-fg,#6d28d9"],
+  telegram: ["Telegram", "--blue-chip-bg,#e8f0fe", "--blue-chip-text,#1a56db"],
+  email: ["Email", "--blue-chip-bg,#e8f0fe", "--blue-chip-text,#1a56db"],
+  call: ["Call", "--st-unreach-bg,#fdecea", "--st-unreach-fg,#c0392b"],
+  text: ["Text", "--st-conv-bg,#efe8fd", "--st-conv-fg,#6d28d9"],
+  reply: ["Reply", "--st-replied-bg,#e6f4ea", "--st-replied-fg,#188038"],
+  note: ["Note", "--tag-bg,#f1f1f2", "--muted,#6b7280"],
+};
+const touchLabel = (ch: string) => (TOUCH[ch] || TOUCH.note)[0];
+const touchChipStyle = (ch: string): React.CSSProperties => {
+  const c = TOUCH[ch] || TOUCH.note;
+  return { font: `600 9.5px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", padding: "4px 0", borderRadius: 6, flex: "none", width: 72, textAlign: "center", background: `var(${c[1]})`, color: `var(${c[2]})` };
+};
+// The messaging channel the ambassador actually uses — drives the first log button
+// and its logged touch type. Falls back to WhatsApp when we don't know.
+const messagingChannel = (r: Row): "viber" | "telegram" | "whatsapp" => {
+  const c = `${r.contactChannel || ""} ${r.contactNumber || ""}`.toLowerCase();
+  if (c.includes("viber")) return "viber";
+  if (c.includes("telegram") || c.includes("tg")) return "telegram";
+  return "whatsapp";
+};
+const lastTouchAt = (log: Touch[] | null) => (log && log.length ? fmtDateTime(log[log.length - 1].at) : "");
+const touchCount = (log: Touch[] | null) => (log || []).filter((t) => t.ch !== "note").length;
 
 // One labelled detail cell. Anything missing shows a muted dash rather than being
 // hidden, so a blank field reads as "we don't have this" instead of vanishing.
@@ -137,7 +171,7 @@ function StatusPicker({ r, onChange, busy }: { r: Row; onChange: (s: Status) => 
   );
 }
 
-function ApplicantRow({ r, onChange, busy, open, onToggle, onSaveNotes }: { r: Row; onChange: (s: Status) => void; busy: boolean; open: boolean; onToggle: () => void; onSaveNotes: (id: string, notes: string) => Promise<boolean> }) {
+function ApplicantRow({ r, onChange, busy, open, onToggle, onLogTouch, onSetFollowUp }: { r: Row; onChange: (s: Status) => void; busy: boolean; open: boolean; onToggle: () => void; onLogTouch: (id: string, ch: string, text: string, by: string) => Promise<void>; onSetFollowUp: (id: string, iso: string | null) => void }) {
   const blocked = r.status === "onboarded" && !r.hasGologin;
   return (
     <div style={{ border: `1px solid ${blocked ? "var(--warn-badge-text,#b7791f)" : "var(--border,#e3e3e6)"}`, borderRadius: 12, background: "var(--card,#fff)", overflow: "hidden" }}>
@@ -207,11 +241,11 @@ function ApplicantRow({ r, onChange, busy, open, onToggle, onSaveNotes }: { r: R
           <D label="Owner status">{r.ownerStatus}</D>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--border,#eee)" }}>
-          {/* Editable chasing log — what you've done to reach them and where things
-              stand. Writes adminNotes, so it persists and shows anywhere that field
-              is read. The remaining notes below stay read-only. */}
-          <NotesEditor r={r} onSave={onSaveNotes} />
+          {/* The outreach log is the live chasing tool — every touch made to push them
+              to onboarding. The plain notes below stay read-only for context. */}
+          <OutreachLog r={r} busy={busy} onLog={onLogTouch} onSetFollowUp={onSetFollowUp} />
           {r.accountIssue && <Note label="Login issue" tone="var(--st-cancel-fg,#c0392b)">{r.accountIssue}</Note>}
+          {r.adminNotes && <Note label="Notes">{r.adminNotes}</Note>}
           {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
           {r.accountNotes && <Note label="Account notes">{r.accountNotes}</Note>}
         </div>
@@ -230,54 +264,62 @@ function Note({ label, tone, children }: { label: string; tone?: string; childre
   );
 }
 
-// Editable chasing log for one applicant. Kept in local state so typing is instant;
-// the Save button writes adminNotes and only enables while there are unsaved edits.
-function NotesEditor({ r, onSave }: { r: Row; onSave: (id: string, notes: string) => Promise<boolean> }) {
-  const [val, setVal] = useState(r.adminNotes || "");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  // Re-sync if the underlying note changes (e.g. after a reload or another save).
-  useEffect(() => { setVal(r.adminNotes || ""); }, [r.adminNotes]);
-  const dirty = val.trim() !== (r.adminNotes || "").trim();
+// Outreach log for one applicant — the running record of every touch made to push
+// them toward onboarding, on whichever channel they use (Viber / WhatsApp / Telegram),
+// plus email / call / text / note. Touches persist through the shared ambassadors
+// PATCH endpoint (addTouch), so this and the Submissions page share one history.
+function OutreachLog({ r, busy, onLog, onSetFollowUp }: {
+  r: Row;
+  busy: boolean;
+  onLog: (id: string, ch: string, text: string, by: string) => Promise<void>;
+  onSetFollowUp: (id: string, iso: string | null) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const [by, setBy] = useState("");
+  const log = r.outreachLog;
+  const chan = messagingChannel(r);
 
-  const save = async () => {
-    setSaving(true);
-    const ok = await onSave(r.id, val);
-    setSaving(false);
-    if (ok) { setSaved(true); setTimeout(() => setSaved(false), 2000); }
-  };
+  const labelCss: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" };
+  const inputCss: React.CSSProperties = { background: "var(--card,#fff)", border: "1px solid var(--border,#dcdce0)", borderRadius: 8, padding: "8px 11px", font: `500 12.5px ${F_SANS}`, color: "var(--fg,#111)", outline: "none" };
+  const btnCss: React.CSSProperties = { font: `600 12px ${F_SANS}`, color: "var(--fg,#333)", background: "var(--card,#fff)", border: "1px solid var(--border,#dcdce0)", padding: "7px 12px", borderRadius: 8, cursor: busy ? "wait" : "pointer" };
+
+  const send = async (ch: string) => { await onLog(r.id, ch, draft.trim(), by.trim()); setDraft(""); };
+  const followVal = r.nextFollowUp ? new Date(r.nextFollowUp).toISOString().slice(0, 10) : "";
 
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Chasing notes</span>
-        {saved && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--st-active-fg,#1a8a4a)" }}>Saved ✓</span>}
-        {dirty && !saved && <span style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>Unsaved</span>}
+    <div style={{ border: "1px solid var(--border,#e3e3e6)", borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", background: "var(--band,#f6f7f8)", borderBottom: "1px solid var(--border,#e3e3e6)" }}>
+        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Outreach — what we&apos;ve done to push them to onboarding</span>
+        <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#777)" }}>Handler: <strong style={{ fontWeight: 700, color: "var(--fg,#333)" }}>{r.poc || "—"}</strong></span>
       </div>
-      <textarea
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        placeholder="What you've done to reach them and where things stand — e.g. 'Sent Viber 3 Sep, no reply. Followed up email 4 Sep. Waiting on login.'"
-        rows={3}
-        style={{
-          width: "100%", boxSizing: "border-box", resize: "vertical", minHeight: 64,
-          padding: "9px 11px", borderRadius: 9, border: "1px solid var(--border,#dcdce0)",
-          background: "var(--card,#fff)", color: "var(--fg,#111)", font: `500 12.5px/1.55 ${F_SANS}`, outline: "none",
-        }}
-      />
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
-        <button
-          onClick={save}
-          disabled={!dirty || saving}
-          style={{
-            font: `700 12px ${F_SANS}`, padding: "7px 16px", borderRadius: 9, border: "none",
-            background: !dirty || saving ? "var(--tag-bg,#e8e8ea)" : "var(--accent,#0a66c2)",
-            color: !dirty || saving ? "var(--muted,#8a9099)" : "#fff",
-            cursor: !dirty || saving ? "default" : "pointer",
-          }}
-        >
-          {saving ? "Saving…" : "Save notes"}
-        </button>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "14px 20px", padding: "14px 16px", borderBottom: "1px solid var(--border,#e3e3e6)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Touches</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--fg,#111)" }}>{touchCount(log)} touch{touchCount(log) === 1 ? "" : "es"}</span></div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>Last contact</span><span style={{ font: `500 13.5px ${F_SANS}`, color: "var(--fg,#111)" }}>{lastTouchAt(log) || "—"}</span></div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+          <span style={labelCss}>Next follow-up</span>
+          <input type="date" value={followVal} onChange={(e) => onSetFollowUp(r.id, e.target.value ? new Date(e.target.value).toISOString() : null)} style={{ ...inputCss, padding: "5px 8px", cursor: "pointer" }} />
+        </div>
+      </div>
+      <div style={{ padding: "12px 16px" }}>
+        {log && log.length ? [...log].reverse().map((t, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "7px 0" }}>
+            <span style={touchChipStyle(t.ch)}>{touchLabel(t.ch)}</span>
+            <span style={{ flex: 1, font: `500 13px ${F_SANS}`, color: "var(--text2,#333)", lineHeight: 1.4 }}>{t.text}</span>
+            <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap" }}>{(t.by ? t.by + " · " : "") + fmtDateTime(t.at)}</span>
+          </div>
+        )) : <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted,#777)" }}>No outreach logged yet — reach out and log the first touch.</span>}
+      </div>
+      <div style={{ padding: "0 16px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="What did you say? — logged with the touch (optional)" style={{ ...inputCss, flex: 1, minWidth: 220 }} />
+          <input value={by} onChange={(e) => setBy(e.target.value)} placeholder="Who sent it?" style={{ ...inputCss, width: 150, flex: "none" }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Log:</span>
+          {[chan, "email", "call", "text", "note"].map((ch) => (
+            <button key={ch} onClick={() => send(ch)} disabled={busy} style={btnCss}>+ {touchLabel(ch)}</button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -320,26 +362,31 @@ export default function OnboardingPage() {
     }
   };
 
-  const saveNotes = async (id: string, adminNotes: string): Promise<boolean> => {
+  // Log an outreach touch. Reuses the shared ambassadors PATCH endpoint (addTouch),
+  // so the onboarding page and the Submissions page keep one shared history. Empty
+  // text falls back to a sensible default per channel.
+  const logTouch = async (id: string, ch: string, text: string, by: string) => {
+    const body = text || (({ whatsapp: "WhatsApp message sent", viber: "Viber message sent", telegram: "Telegram message sent", email: "Email sent", call: "Call attempted — no answer", text: "Text message sent", note: "Note added" } as Record<string, string>)[ch] || "Note added");
+    setBusy(id);
+    setRows((prev) => (prev ? prev.map((x) => (x.id === id ? { ...x, outreachLog: [...(x.outreachLog || []), { ch, text: body, by: by || "You", at: new Date().toISOString() }] } : x)) : prev));
     try {
-      const res = await fetch("/api/admin/onboarding/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, adminNotes }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        alert(typeof d.error === "string" ? d.error : `Could not save notes (${res.status}).`);
-        return false;
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ addTouch: { ch, text: body, by: by || undefined } }) });
+      if (res.ok) {
+        const d = await res.json();
+        if (d.application?.outreachLog) setRows((prev) => (prev ? prev.map((x) => (x.id === id ? { ...x, outreachLog: d.application.outreachLog } : x)) : prev));
       }
-      const d = await res.json();
-      const savedNotes: string | null = d.application?.adminNotes ?? null;
-      setRows((prev) => (prev ? prev.map((x) => (x.id === id ? { ...x, adminNotes: savedNotes } : x)) : prev));
-      return true;
     } catch {
-      alert("Could not save notes.");
-      return false;
+      alert("Could not log the touch.");
+    } finally {
+      setBusy(null);
     }
+  };
+
+  const setFollowUp = async (id: string, iso: string | null) => {
+    setRows((prev) => (prev ? prev.map((x) => (x.id === id ? { ...x, nextFollowUp: iso } : x)) : prev));
+    try {
+      await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nextFollowUp: iso }) });
+    } catch {}
   };
 
   const filtered = useMemo(() => {
@@ -405,7 +452,7 @@ export default function OnboardingPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
               {bucketed[s.key].map((r) => (
-                <ApplicantRow key={r.id} r={r} busy={busy === r.id} open={expanded.has(r.id)} onToggle={() => toggle(r.id)} onChange={(st) => setStatus(r, st)} onSaveNotes={saveNotes} />
+                <ApplicantRow key={r.id} r={r} busy={busy === r.id} open={expanded.has(r.id)} onToggle={() => toggle(r.id)} onChange={(st) => setStatus(r, st)} onLogTouch={logTouch} onSetFollowUp={setFollowUp} />
               ))}
             </div>
           )}
