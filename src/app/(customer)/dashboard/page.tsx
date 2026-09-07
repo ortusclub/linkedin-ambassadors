@@ -914,45 +914,6 @@ function DashboardContent() {
                 </tr>
               );
             })}
-                  {/* Demo test account — hidden for ambassadors */}
-                  {!isAmbassador && (
-                  <tr className="bg-amber-50/40">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-600">
-                          JL
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900">Jeremiah Lofranco</p>
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Demo</span>
-                          </div>
-                          <p className="text-xs text-gray-400">This is a test account to show how renting works</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                        Active
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400">Mar 24, 2026</td>
-                    <td className="px-4 py-3 text-gray-400">Apr 24, 2026</td>
-                    <td className="px-4 py-3 text-gray-400">—</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => {
-                          window.location.href = "gologin://share/jeremiah.lofranco%40klabber.co/MHsjRdOlhL";
-                        }}
-                        className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors whitespace-nowrap cursor-pointer border-none"
-                      >
-                        Try It
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                      </button>
-                    </td>
-                  </tr>
-                  )}
                 </tbody>
               </table>
             </CardContent>
