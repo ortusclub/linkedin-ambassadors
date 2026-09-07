@@ -238,7 +238,18 @@ export async function getOwners(): Promise<Owner[]> {
       accountFreshness: app?.accountFreshness || null,
       referredBy: app?.referredBy || null,
       payoutCurrency: app?.payoutCurrency || null,
-      accounts: data.accounts,
+      // Contact email always auto-populates from the application form when the account
+      // has none of its own: matched to THIS account by LinkedIn URL first (correct for
+      // POC-owned multi-account owners), then the owner's own application email. Keeps
+      // /admin/owners and the Sheets export filled without anyone typing it in.
+      accounts: data.accounts.map((a) => ({
+        ...a,
+        personalEmail:
+          a.personalEmail ||
+          (a.linkedinUrl ? appsByUrl.get(a.linkedinUrl) || appsByUrl.get(a.linkedinUrl.replace(/\/$/, "")) : null) ||
+          app?.email ||
+          null,
+      })),
     };
   });
 
