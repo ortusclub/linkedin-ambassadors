@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { sendSetupFeePaidEmail, sendMonthlyPayoutEmail } from "@/services/email";
-import { currencyConfig } from "@/lib/referral-currency";
+import { currencyConfigFor } from "@/lib/referral-currency";
 
 const updateSchema = z.object({
   status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarding", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
@@ -34,6 +34,7 @@ const updateSchema = z.object({
   paymentDetails: z.string().nullable().optional(),
   payoutName: z.string().nullable().optional(),
   ownerStatus: z.enum(["active", "waiting_us", "waiting_them", "offline", "onboarding", "paused", "lost"]).nullable().optional(),
+  payoutCurrency: z.enum(["PHP", "USD"]).nullable().optional(),
   contactChannel: z.string().nullable().optional(),
   accountIssue: z.string().nullable().optional(),
   // Recurring ₱500/month payout: append a receipt, or remove one by index.
@@ -167,7 +168,7 @@ export async function PATCH(
     // email actually sends — a failed send stays un-notified so it can be retried.
     if (notifyEntry && application.email) {
       try {
-        const payCurrency = currencyConfig(application.referredBy).currency;
+        const payCurrency = currencyConfigFor(application.payoutCurrency, application.referredBy).currency;
         if (notifyEntry.kind === "setup") {
           await sendSetupFeePaidEmail(application.email, application.fullName, notifyEntry.amount, notifyEntry.receiptUrl, new Date(notifyEntry.paidAt), payCurrency);
         } else {
@@ -214,7 +215,7 @@ export async function PATCH(
         // lib/referral-currency). For PH, offered_amount is unreliable (it sometimes holds
         // a bogus small value), so only trust it when it's a plausible ₱ figure; otherwise
         // use the currency default. For USD the amounts are small by design, so default.
-        const cfg = currencyConfig(application.referredBy);
+        const cfg = currencyConfigFor(application.payoutCurrency, application.referredBy);
         const offered = Number(application.offeredAmount) || 0;
         const monthly = cfg.currency === "PHP" && offered >= 100 ? offered : cfg.monthlyAmount;
         await prisma.linkedInAccount.create({

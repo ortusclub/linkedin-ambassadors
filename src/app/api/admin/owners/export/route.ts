@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOwners, type Owner } from "@/lib/owners";
-import { currencyConfig, formatMoney } from "@/lib/referral-currency";
+import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 
 // CSV export of Account Owners for Google Sheets via
 // =IMPORTDATA("https://linkedvelocity.com/api/admin/owners/export?key=XXXX").
@@ -135,13 +135,14 @@ export async function GET(req: NextRequest) {
   const width = headers.length;
 
   const rowFor = (o: Owner) => {
-    const cur = currencyConfig(o.referredBy).currency;
+    const ccfg = currencyConfigFor(o.payoutCurrency, o.referredBy);
+    const cur = ccfg.currency;
     const money = (n: number) => formatMoney(n, cur);
     const monthlyOnly = o.monthlyPayouts.filter((p) => p.kind !== "setup");
     const hasSetupRecord = o.monthlyPayouts.some((p) => p.kind === "setup");
     const totalPaid =
       o.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) +
-      (o.setupFeePaidAt && !hasSetupRecord ? currencyConfig(o.referredBy).setupAmount : 0);
+      (o.setupFeePaidAt && !hasSetupRecord ? ccfg.setupAmount : 0);
     const missing = missingFields(o);
     return [
       // Owner

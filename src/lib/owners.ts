@@ -50,6 +50,7 @@ export interface Owner {
   verifiedAt: Date | null;
   accountFreshness: string | null;
   referredBy: string | null; // referrer slug — drives payout currency (PH ₱ / non-PH USD)
+  payoutCurrency: string | null; // per-owner currency override ("PHP" | "USD"); null = inherit referrer
   accounts: OwnerAccount[];
 }
 
@@ -123,6 +124,7 @@ export async function getOwners(): Promise<Owner[]> {
       accountFreshness: true,
       offeredAmount: true,
       referredBy: true,
+      payoutCurrency: true,
       createdAt: true,
     },
     orderBy: { createdAt: "desc" },
@@ -232,6 +234,7 @@ export async function getOwners(): Promise<Owner[]> {
       verifiedAt: app?.verifiedAt || null,
       accountFreshness: app?.accountFreshness || null,
       referredBy: app?.referredBy || null,
+      payoutCurrency: app?.payoutCurrency || null,
       accounts: data.accounts,
     };
   });

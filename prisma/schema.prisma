@@ -301,6 +301,11 @@ model AmbassadorApplication {
   wiseEmail         String?          @map("wise_email")
   // Owner operational status on the Account Owners page: active/onboarding/paused/lost.
   ownerStatus       String?          @map("owner_status")
+  // Per-owner payout currency override ("PHP" | "USD"). Null = inherit from the
+  // referrer's currency (see referral-currency.ts). Lets an ambassador be pinned to
+  // a currency regardless of who referred them (e.g. an Indian ambassador on the USD
+  // offer who was signed up by a PH referrer).
+  payoutCurrency    String?          @map("payout_currency")
   // Preferred contact channel (WhatsApp/Telegram/Messenger/Email/Viber); handle = contactNumber.
   contactChannel    String?          @map("contact_channel")
   // Set when the account can't be logged into (restricted / wrong password / etc.) —
@@ -509,6 +514,8 @@ model Proxy {
   id        String   @id @default(uuid()) @db.Uuid
   host      String
   port      Int
+  username  String?                                  // proxy auth (for proxies with no linked account in our DB)
+  password  String?
   label     String?                                  // friendly name, e.g. "Germany 01"
   provider  String?                                  // "Proxy 6" | "proxy-cheap" | ...
   type      String?                                  // "residential" | "datacenter"
