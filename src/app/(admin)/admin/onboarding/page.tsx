@@ -63,6 +63,11 @@ interface Row {
   hasPassword: boolean;
   has2fa: boolean;
   gologinProfileId: string | null;
+  proxyHost: string | null;
+  proxyPort: number | null;
+  proxyUsername: string | null;
+  proxyPassword: string | null;
+  proxyLocation: string | null;
   accountRestrictedAt: string | null;
   monthlyPrice: number | null;
   ambassadorPayment: number | null;
@@ -227,6 +232,8 @@ function ApplicantRow({ r, onChange, busy, open, onToggle, onLogTouch, onSetFoll
           <D label="Password stored">{r.hasPassword ? "Yes" : null}</D>
           <D label="2FA stored">{r.has2fa ? "Yes" : null}</D>
           <D label="GoLogin">{r.gologinShareLink ? <a href={r.gologinShareLink} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)" }}>share link ↗</a> : r.gologinProfileId ? `profile ${r.gologinProfileId.slice(0, 8)}…` : null}</D>
+          <D label="Proxy">{r.proxyHost ? `${r.proxyHost}:${r.proxyPort ?? ""}${r.proxyLocation ? ` · ${r.proxyLocation}` : ""}` : null}</D>
+          <D label="Proxy auth">{r.proxyUsername ? `${r.proxyUsername} : ${r.proxyPassword ?? ""}` : null}</D>
           <D label="LinkedIn profile">{r.linkedinUrl ? <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)" }}>profile ↗</a> : null}</D>
           <D label="Connections">{r.connectionCount != null ? r.connectionCount : null}</D>
           <D label="Account freshness">{r.accountFreshness}</D>

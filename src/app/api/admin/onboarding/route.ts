@@ -37,6 +37,8 @@ export async function GET() {
         gologinProfileId: true, gologinShareLink: true, monthlyPrice: true,
         ambassadorPayment: true, connectionCount: true, status: true,
         restrictedAt: true, notes: true, linkedinVerified: true,
+        proxyHost: true, proxyPort: true, proxyUsername: true,
+        proxyPassword: true, proxyLocation: true,
       },
     });
 
@@ -137,6 +139,11 @@ export async function GET() {
         has2fa: !!acct?.twoFactor,
         gologinProfileId: acct?.gologinProfileId || null,
         gologinShareLink: acct?.gologinShareLink || null,
+        proxyHost: acct?.proxyHost || null,
+        proxyPort: acct?.proxyPort ?? null,
+        proxyUsername: acct?.proxyUsername || null,
+        proxyPassword: acct?.proxyPassword || null,
+        proxyLocation: acct?.proxyLocation || null,
         accountRestrictedAt: acct?.restrictedAt || null,
         monthlyPrice: acct?.monthlyPrice != null ? Number(acct.monthlyPrice) : null,
         ambassadorPayment: acct?.ambassadorPayment != null ? Number(acct.ambassadorPayment) : null,
