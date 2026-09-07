@@ -13,6 +13,7 @@ export interface OwnerAccount {
   monthlyPrice: unknown;
   ambassadorPayment: unknown;
   loginEmail: string | null;
+  personalEmail: string | null;
   accountPassword: string | null;
   twoFactor: string | null;
   workEmail: string | null;
@@ -62,6 +63,7 @@ const ACCOUNT_SELECT = {
   monthlyPrice: true,
   ambassadorPayment: true,
   loginEmail: true,
+  personalEmail: true,
   accountPassword: true,
   twoFactor: true,
   workEmail: true,
@@ -71,7 +73,7 @@ const ACCOUNT_SELECT = {
 function toAccount(a: {
   id: string; linkedinName: string; status: string; linkedinUrl: string | null;
   monthlyPrice: unknown; ambassadorPayment: unknown;
-  loginEmail: string | null; accountPassword: string | null; twoFactor: string | null; workEmail: string | null;
+  loginEmail: string | null; personalEmail: string | null; accountPassword: string | null; twoFactor: string | null; workEmail: string | null;
   restrictedAt: Date | null;
 }): OwnerAccount {
   return {
@@ -82,6 +84,7 @@ function toAccount(a: {
     monthlyPrice: a.monthlyPrice,
     ambassadorPayment: a.ambassadorPayment,
     loginEmail: a.loginEmail,
+    personalEmail: a.personalEmail,
     accountPassword: a.accountPassword,
     twoFactor: a.twoFactor,
     workEmail: a.workEmail,

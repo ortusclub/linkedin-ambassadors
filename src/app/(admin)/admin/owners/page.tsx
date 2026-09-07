@@ -131,6 +131,7 @@ interface OwnerAccount {
   monthlyPrice: string | number;
   ambassadorPayment: string | number;
   loginEmail: string | null;
+  personalEmail: string | null;
   accountPassword: string | null;
   twoFactor: string | null;
   workEmail: string | null;
@@ -967,6 +968,13 @@ export default function AdminOwnersPage() {
                                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                       <Editable initial={acc.loginEmail} placeholder="account@email.com" mono onSave={(v) => patchAccount(acc.id, { loginEmail: v })} />
                                       <CopyBtn value={acc.loginEmail} />
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                                    <span style={labelCss}>Personal email (their own)</span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                      <Editable initial={acc.personalEmail} placeholder="their personal email" mono onSave={(v) => patchAccount(acc.id, { personalEmail: v })} />
+                                      <CopyBtn value={acc.personalEmail} />
                                     </div>
                                   </div>
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
