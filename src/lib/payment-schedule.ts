@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isReferralEarned } from "@/lib/referrals";
-import { type Currency, currencyConfig, currencyForReferredBy } from "@/lib/referral-currency";
+import { type Currency, currencyConfig, currencyConfigFor, currencyForReferredBy } from "@/lib/referral-currency";
 
 // Ambassador payout schedule + "who's due to be paid" computation, shared by the
 // admin Owners panel and the weekly digest email so both agree exactly.
@@ -98,7 +98,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     select: {
       fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
-      paymentMethod: true, paymentDetails: true, referredBy: true, verifiedAt: true,
+      paymentMethod: true, paymentDetails: true, referredBy: true, payoutCurrency: true, verifiedAt: true,
       status: true, accountIssue: true,
     },
   });
@@ -138,8 +138,9 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     // Every account this owner supplies is restricted → nothing owed while on hold.
     const total = totalByEmail.get(a.email) || 0;
     if (total > 0 && (heldByEmail.get(a.email) || 0) >= total) continue;
-    // Currency follows the referrer who signed this ambassador up (PH → ₱, else USD).
-    const cfg = currencyConfig(a.referredBy);
+    // Currency: a per-owner override wins, else it follows the referrer who signed
+    // this ambassador up (PH → ₱, else USD).
+    const cfg = currencyConfigFor(a.payoutCurrency, a.referredBy);
     const monthlyAmount = monthlyByEmail.get(a.email) || cfg.monthlyAmount;
     const base = { name: a.fullName || a.email, email: a.email, method: a.paymentMethod, details: a.paymentDetails, currency: cfg.currency, blocked: a.accountIssue || null };
 

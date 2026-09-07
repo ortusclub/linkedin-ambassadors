@@ -13,6 +13,7 @@ export interface OwnerAccount {
   monthlyPrice: unknown;
   ambassadorPayment: unknown;
   loginEmail: string | null;
+  personalEmail: string | null;
   accountPassword: string | null;
   twoFactor: string | null;
   workEmail: string | null;
@@ -50,6 +51,7 @@ export interface Owner {
   verifiedAt: Date | null;
   accountFreshness: string | null;
   referredBy: string | null; // referrer slug — drives payout currency (PH ₱ / non-PH USD)
+  payoutCurrency: string | null; // per-owner currency override ("PHP" | "USD"); null = inherit referrer
   accounts: OwnerAccount[];
 }
 
@@ -61,6 +63,7 @@ const ACCOUNT_SELECT = {
   monthlyPrice: true,
   ambassadorPayment: true,
   loginEmail: true,
+  personalEmail: true,
   accountPassword: true,
   twoFactor: true,
   workEmail: true,
@@ -70,7 +73,7 @@ const ACCOUNT_SELECT = {
 function toAccount(a: {
   id: string; linkedinName: string; status: string; linkedinUrl: string | null;
   monthlyPrice: unknown; ambassadorPayment: unknown;
-  loginEmail: string | null; accountPassword: string | null; twoFactor: string | null; workEmail: string | null;
+  loginEmail: string | null; personalEmail: string | null; accountPassword: string | null; twoFactor: string | null; workEmail: string | null;
   restrictedAt: Date | null;
 }): OwnerAccount {
   return {
@@ -81,6 +84,7 @@ function toAccount(a: {
     monthlyPrice: a.monthlyPrice,
     ambassadorPayment: a.ambassadorPayment,
     loginEmail: a.loginEmail,
+    personalEmail: a.personalEmail,
     accountPassword: a.accountPassword,
     twoFactor: a.twoFactor,
     workEmail: a.workEmail,
@@ -123,6 +127,7 @@ export async function getOwners(): Promise<Owner[]> {
       accountFreshness: true,
       offeredAmount: true,
       referredBy: true,
+      payoutCurrency: true,
       createdAt: true,
     },
     orderBy: { createdAt: "desc" },
@@ -232,6 +237,7 @@ export async function getOwners(): Promise<Owner[]> {
       verifiedAt: app?.verifiedAt || null,
       accountFreshness: app?.accountFreshness || null,
       referredBy: app?.referredBy || null,
+      payoutCurrency: app?.payoutCurrency || null,
       accounts: data.accounts,
     };
   });

@@ -63,3 +63,15 @@ export const CURRENCY_CONFIG: Record<Currency, CurrencyConfig> = {
 export function currencyConfig(slug: string | null | undefined): CurrencyConfig {
   return CURRENCY_CONFIG[referralCurrency(slug)];
 }
+
+// Resolve an owner's currency. An explicit per-owner override ("PHP" | "USD") wins;
+// otherwise it falls back to the referrer's currency. This lets an ambassador be
+// pinned to a currency regardless of who referred them.
+export function currencyConfigFor(
+  explicit: string | null | undefined,
+  slug: string | null | undefined,
+): CurrencyConfig {
+  const ex = (explicit || "").trim().toUpperCase();
+  if (ex === "PHP" || ex === "USD") return CURRENCY_CONFIG[ex as Currency];
+  return currencyConfig(slug);
+}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { formatName } from "@/lib/utils";
-import { type Currency, currencyConfig, formatMoney } from "@/lib/referral-currency";
+import { type Currency, currencyConfig, currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
@@ -131,6 +131,7 @@ interface OwnerAccount {
   monthlyPrice: string | number;
   ambassadorPayment: string | number;
   loginEmail: string | null;
+  personalEmail: string | null;
   accountPassword: string | null;
   twoFactor: string | null;
   workEmail: string | null;
@@ -197,6 +198,7 @@ interface Owner {
   verifiedAt: string | null;
   accountFreshness: string | null;
   referredBy: string | null;
+  payoutCurrency: string | null;
   accounts: OwnerAccount[];
 }
 
@@ -411,13 +413,13 @@ export default function AdminOwnersPage() {
   // Monthly commitment + outstanding setup fees, split by owner currency (₱ can't be
   // summed with $). setupsOutstanding is the plain unpaid COUNT (for the hint).
   const totalMonthly: Record<Currency, number> = { PHP: 0, USD: 0 };
-  for (const o of owners) if (resolveStatus(o) === "active") totalMonthly[currencyConfig(o.referredBy).currency] += payableMonthly(o);
+  for (const o of owners) if (resolveStatus(o) === "active") totalMonthly[currencyConfigFor(o.payoutCurrency, o.referredBy).currency] += payableMonthly(o);
   const totalMonthlySum = totalMonthly.PHP + totalMonthly.USD;
   const setupOutAmt: Record<Currency, number> = { PHP: 0, USD: 0 };
   let setupsOutstanding = 0;
   for (const o of owners) {
     const n = setupBreakdown(o).dueN;
-    if (n > 0) { setupsOutstanding += n; setupOutAmt[currencyConfig(o.referredBy).currency] += n * currencyConfig(o.referredBy).setupAmount; }
+    if (n > 0) { const c = currencyConfigFor(o.payoutCurrency, o.referredBy); setupsOutstanding += n; setupOutAmt[c.currency] += n * c.setupAmount; }
   }
   const blockedCount = owners.filter((o) => o.accountIssue || o.accounts.some(isRestricted)).length;
   const heldAccountCount = owners.reduce((s, o) => s + o.accounts.filter(isRestricted).length, 0);
@@ -561,7 +563,7 @@ export default function AdminOwnersPage() {
           {groups.map((g) => {
             const gCollapsed = collapsedGroups.has(g.key);
             const subtotalByCur: Record<Currency, number> = { PHP: 0, USD: 0 };
-            for (const o of g.owners) subtotalByCur[currencyConfig(o.referredBy).currency] += payableMonthly(o);
+            for (const o of g.owners) subtotalByCur[currencyConfigFor(o.payoutCurrency, o.referredBy).currency] += payableMonthly(o);
             const subtotal = subtotalByCur.PHP + subtotalByCur.USD;
             return (
               <div key={g.key}>
@@ -584,8 +586,9 @@ export default function AdminOwnersPage() {
             const monthlyCount = monthlyOnly.length;
             const setupDue = setupDueDate(owner.onboardedAt);
             const nextMonthlyDue = monthlyDueDate(setupPaidAtOf(owner), monthlyCount);
-            // Payout currency follows the referrer who signed this owner up (PH ₱ / non-PH USD).
-            const cfg = currencyConfig(owner.referredBy);
+            // Payout currency: a per-owner override wins, else it follows the referrer
+            // who signed this owner up (PH ₱ / non-PH USD).
+            const cfg = currencyConfigFor(owner.payoutCurrency, owner.referredBy);
             const money = (n: number) => formatMoney(n, cfg.currency);
             const setupFee = cfg.setupAmount;
             const ownerMonthly = payableMonthly(owner);
@@ -727,6 +730,16 @@ export default function AdminOwnersPage() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                         <span style={labelCss}>Referred by</span>
                         <span title="Referral code the signup came through" style={{ font: `600 13px ${F_SANS}`, color: owner.referredBy ? "var(--text)" : "var(--muted2)", padding: "8px 0" }}>{owner.referredBy || "—"}</span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                        <span style={labelCss}>Payout currency</span>
+                        <select value={owner.payoutCurrency || "auto"} onClick={(e) => e.stopPropagation()} onChange={(e) => patchOwner(owner.applicationId, { payoutCurrency: e.target.value === "auto" ? null : e.target.value })}
+                          title="Currency shown for this owner's fees & payouts. Auto inherits the referrer's currency; override to pin them (e.g. an Indian ambassador on the USD offer)."
+                          style={{ ...inputCss, cursor: "pointer", fontWeight: 600 }}>
+                          <option value="auto">Auto · {currencyConfig(owner.referredBy).currency} ({currencyConfig(owner.referredBy).symbol})</option>
+                          <option value="PHP">PHP · ₱</option>
+                          <option value="USD">USD · $</option>
+                        </select>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
                         <span style={labelCss}>Registered name (on the account)</span>
@@ -945,8 +958,8 @@ export default function AdminOwnersPage() {
                                 </div>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 18px" }}>
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                                    <span style={labelCss}>Monthly payout (₱)</span>
-                                    <input type="number" defaultValue={Number(acc.ambassadorPayment) || ""} placeholder="500"
+                                    <span style={labelCss}>Monthly payout ({cfg.symbol})</span>
+                                    <input type="number" defaultValue={Number(acc.ambassadorPayment) || ""} placeholder={String(cfg.monthlyAmount)}
                                       onBlur={(e) => { const n = e.target.value === "" ? 0 : Number(e.target.value); if (!Number.isNaN(n) && n !== Number(acc.ambassadorPayment)) patchAccount(acc.id, { ambassadorPayment: n }); }}
                                       style={inputCss} />
                                   </div>
@@ -955,6 +968,13 @@ export default function AdminOwnersPage() {
                                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                       <Editable initial={acc.loginEmail} placeholder="account@email.com" mono onSave={(v) => patchAccount(acc.id, { loginEmail: v })} />
                                       <CopyBtn value={acc.loginEmail} />
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                                    <span style={labelCss}>Personal email (their own)</span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                      <Editable initial={acc.personalEmail} placeholder="their personal email" mono onSave={(v) => patchAccount(acc.id, { personalEmail: v })} />
+                                      <CopyBtn value={acc.personalEmail} />
                                     </div>
                                   </div>
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
