@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isCompanyEmail } from "@/lib/company";
+import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 
 // CSV export of the inventory, for Google Sheets to auto-pull via
 // =IMPORTDATA("https://linkedvelocity.com/api/admin/accounts/export?key=XXXX").
@@ -77,10 +78,13 @@ export async function GET(req: NextRequest) {
     : [];
   const ownerMap = new Map(ownerUsers.map((u) => [u.email, u.fullName]));
   // Fallback owner names for people who signed up via an application (no User row).
+  // Also carry payout currency (per-owner override, else the referrer's currency) so
+  // the Ambassador Payout column shows $ vs ₱ correctly — not a hardcoded peso sign.
   const ownerApps = ownerEmails.length
-    ? await prisma.ambassadorApplication.findMany({ where: { email: { in: ownerEmails } }, select: { email: true, fullName: true } })
+    ? await prisma.ambassadorApplication.findMany({ where: { email: { in: ownerEmails } }, select: { email: true, fullName: true, payoutCurrency: true, referredBy: true } })
     : [];
   const ownerAppMap = new Map(ownerApps.map((a) => [a.email, a.fullName]));
+  const ownerCurrencyMap = new Map(ownerApps.map((a) => [a.email, currencyConfigFor(a.payoutCurrency, a.referredBy).currency]));
 
   // Group by the single canonical status so it matches the admin view.
   // Order: Available, then Restricted (just below available), Trial, Rented,
@@ -125,7 +129,7 @@ export async function GET(req: NextRequest) {
       rental ? fmtDate(rental.currentPeriodEnd) : "",
       rental ? (rental.autoRenew ? "Yes" : "No") : "",
       price > 0 ? `$${price.toFixed(0)}` : "",
-      payout > 0 ? `₱${payout.toFixed(0)}` : "",
+      payout > 0 ? formatMoney(payout, ownerCurrencyMap.get(ownerEmail) || "PHP") : "",
       ownerDisplay,
       a.location || "",
       a.connectionCount > 0 ? String(a.connectionCount) : "",

@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             email: true, fullName: true, contactNumber: true, contactChannel: true,
-            referredBy: true, referralSource: true, poc: true, ownerStatus: true,
+            referredBy: true, referralSource: true, poc: true, ownerStatus: true, payoutCurrency: true,
             paymentMethod: true, paymentDetails: true, payoutName: true,
             paypalEmail: true, wiseEmail: true, onboardedAt: true, paidAt: true,
           },
@@ -109,6 +109,7 @@ export async function GET(req: NextRequest) {
         ownerPhone: app?.contactNumber || null,
         contactChannel: app?.contactChannel || null,
         ownerReferredBy: app?.referredBy || null,
+        ownerPayoutCurrency: app?.payoutCurrency || null,
         ownerReferralSource: app?.referralSource || null,
         ownerPoc: app?.poc || null,
         ownerStatus: app?.ownerStatus || null,

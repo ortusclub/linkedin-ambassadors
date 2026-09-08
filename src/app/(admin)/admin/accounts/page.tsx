@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
+import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 
 // LinkedIn 2FA for an account: shows the secret KEY plus the live TOTP code.
 // The server computes the current code (so clock skew can't break it) and, on
@@ -108,6 +109,7 @@ interface Account {
   ownerPhone: string | null;
   contactChannel: string | null;
   ownerReferredBy: string | null;
+  ownerPayoutCurrency: string | null;
   ownerReferralSource: string | null;
   ownerPoc: string | null;
   ownerApplicationId: string | null;
@@ -941,7 +943,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             <DField label="Owner status">{a.ownerStatus || "—"}</DField>
                             <DField label="Industry">{a.industry || "—"}</DField>
                             <DField label="Location">{a.location || "—"}</DField>
-                            <DField label="Ambassador payout">{Number(a.ambassadorPayment) > 0 ? `₱${Number(a.ambassadorPayment)}/mo` : "—"}</DField>
+                            <DField label="Ambassador payout">{Number(a.ambassadorPayment) > 0 ? `${formatMoney(Number(a.ambassadorPayment), currencyConfigFor(a.ownerPayoutCurrency, a.ownerReferredBy).currency)}/mo` : "—"}</DField>
                             <DField label="Payment method">{a.ownerPaymentMethod || "—"}</DField>
                             <DField label="Payout handle">{a.ownerPaymentDetails || "—"}</DField>
                             <DField label="Payout name">{a.ownerPayoutName || "—"}</DField>
