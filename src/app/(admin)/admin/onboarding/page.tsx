@@ -142,6 +142,27 @@ const messagingChannel = (r: Row): "viber" | "telegram" | "whatsapp" => {
 const lastTouchAt = (log: Touch[] | null) => (log && log.length ? fmtDateTime(log[log.length - 1].at) : "");
 const touchCount = (log: Touch[] | null) => (log || []).filter((t) => t.ch !== "note").length;
 
+// "Contact channel" auto-derives from the contact-number prefix (viber:/telegram:/
+// whatsapp:) when the separate channel field is blank — so it's never empty/redundant.
+const CHAN_LABEL: Record<string, string> = { viber: "Viber", telegram: "Telegram", whatsapp: "WhatsApp" };
+const displayChannel = (r: Row): string | null => {
+  if (r.contactChannel) return CHAN_LABEL[r.contactChannel.toLowerCase()] || r.contactChannel;
+  const m = (r.contactNumber || "").match(/^\s*(viber|telegram|whatsapp|wa|tg)\s*:/i);
+  if (!m) return null;
+  const k = m[1].toLowerCase().replace(/^wa$/, "whatsapp").replace(/^tg$/, "telegram");
+  return CHAN_LABEL[k] || null;
+};
+// Owner status: a manual override wins, else auto-derive (account issue → waiting on
+// them, a live/rented account → active, otherwise the ball's on us). Mirrors the
+// Owners page so this read-only view is never confusingly blank.
+const OWNER_STATUS_LABEL: Record<string, string> = { active: "Active", waiting_us: "Waiting on us", waiting_them: "Waiting on them", offline: "Offline", onboarding: "Onboarding", paused: "Paused", lost: "Lost" };
+const ownerStatusText = (r: Row): string => {
+  if (r.ownerStatus && OWNER_STATUS_LABEL[r.ownerStatus]) return OWNER_STATUS_LABEL[r.ownerStatus];
+  if (r.accountIssue) return "Waiting on them";
+  if (r.accountStatus === "available" || r.accountStatus === "rented") return "Active";
+  return "Waiting on us";
+};
+
 // One labelled detail cell. Anything missing shows a muted dash rather than being
 // hidden, so a blank field reads as "we don't have this" instead of vanishing.
 function D({ label, children }: { label: string; children?: React.ReactNode }) {
@@ -216,7 +237,7 @@ function ApplicantRow({ r, onChange, busy, open, onToggle, onLogTouch, onSetFoll
           <D label="Full name">{formatName(r.fullName)}</D>
           <D label="Contact email">{r.email ? <a href={`mailto:${r.email}`} style={{ color: "var(--link,#0a66c2)" }}>{r.email}</a> : null}</D>
           <D label="Contact number">{r.contactNumber}</D>
-          <D label="Contact channel">{r.contactChannel}</D>
+          <D label="Contact channel">{displayChannel(r)}</D>
           <D label="Location">{r.location}</D>
           <D label="Industry">{r.industry}</D>
           <D label="Referred by">{r.referredBy}</D>
@@ -247,7 +268,7 @@ function ApplicantRow({ r, onChange, busy, open, onToggle, onLogTouch, onSetFoll
           <D label="LinkedIn verified">{r.linkedinVerified ? "✓ Yes" : null}</D>
           <D label="Logged in">{r.onboardedAt ? fmtDate(r.onboardedAt) : null}</D>
           <D label="Setup fee paid">{r.setupPaidAt ? fmtDate(r.setupPaidAt) : null}</D>
-          <D label="Owner status">{r.ownerStatus}</D>
+          <D label="Owner status">{ownerStatusText(r)}</D>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--border,#eee)" }}>
           {/* The outreach log is the live chasing tool — every touch made to push them
