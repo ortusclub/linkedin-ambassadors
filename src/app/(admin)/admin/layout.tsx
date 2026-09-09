@@ -24,6 +24,7 @@ const sections = [
     { href: "/admin/emails", label: "Email log" },
   ] },
   { name: "Ambassadors", items: [
+    { href: "/admin/pipeline", label: "Pipeline (new)" },
     { href: "/admin/ambassadors", label: "Applications" },
     { href: "/admin/referrals", label: "Referrals" },
     { href: "/admin/owners", label: "Ambassadors" },

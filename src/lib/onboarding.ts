@@ -1,23 +1,24 @@
 import { prisma } from "@/lib/prisma";
 
-// When an account becomes runnable — i.e. it has a GoLogin profile or share link —
-// its owner's application is, by our own definition, onboarded. (That's the exact bar
-// the Onboarding tab enforces by hand.) We flip the application to "onboarded"
-// automatically so a referrer's conversion shows up the moment the account is set up,
-// instead of waiting on someone to remember to advance the status by hand — the gap
-// that kept referred signups (and the commission owed for them) invisible on the
-// Referrals page.
+// When an account becomes runnable — i.e. it has a GoLogin profile or share link — its
+// owner has reached LEVEL 2: "GoLogin ready, verifying before payout" (status
+// "approved"). We advance them there automatically so the account's stage tracks its
+// real readiness, instead of waiting on someone to bump the status by hand.
 //
-// This only makes the conversion VISIBLE. It never marks the referrer as paid: the
-// commission is still gated behind the deliberate "Confirm ok to pay" (verifiedAt),
-// so auto-onboarding can't cause an accidental payout.
+// It deliberately does NOT mark them "onboarded" and does NOT stamp onboardedAt.
+// Onboarded is the END of the flow (logged in → stability check → setup fee paid), a
+// deliberate step — a GoLogin being attached is not the same as a working, paid,
+// earning account. (Because Referrals counts a conversion at status "onboarded", a
+// referrer's conversion now shows once the owner is actually onboarded, not the moment
+// a GoLogin is attached.) It only advances owners who haven't reached Level 2 yet, and
+// never downgrades or resurrects a rejected/unreachable lead.
 export async function markOwnerOnboardedIfReady(account: {
   notes: string | null;
   linkedinUrl: string | null;
   gologinProfileId: string | null;
   gologinShareLink: string | null;
 }): Promise<void> {
-  // Not runnable yet → not onboarded.
+  // Not runnable yet → nothing to advance.
   if (!account.gologinProfileId && !account.gologinShareLink) return;
 
   const ownerEmail = (account.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || null;
@@ -25,27 +26,23 @@ export async function markOwnerOnboardedIfReady(account: {
 
   const url = account.linkedinUrl?.replace(/\/$/, "") || null;
 
-  // Find this account's owner application. Match on the owner email in notes, or on the
-  // profile URL. Never touch a rejected application (a deliberate "no") or one already
-  // onboarded.
+  // Match on the owner email in notes, or on the profile URL. Only advance an owner who
+  // is still BEFORE Level 2 — never touch approved/onboarded (already there or past it),
+  // rejected (a deliberate "no"), or unreachable (a dead lead).
   const app = await prisma.ambassadorApplication.findFirst({
     where: {
-      status: { notIn: ["onboarded", "rejected"] },
+      status: { in: ["pending", "contacted", "reviewing", "onboarding", "on_hold"] },
       OR: [
         ...(ownerEmail ? [{ email: { equals: ownerEmail, mode: "insensitive" as const } }] : []),
         ...(url ? [{ linkedinUrl: url }, { linkedinUrl: `${url}/` }] : []),
       ],
     },
-    select: { id: true, onboardedAt: true },
+    select: { id: true },
   });
   if (!app) return;
 
   await prisma.ambassadorApplication.update({
     where: { id: app.id },
-    data: {
-      status: "onboarded",
-      // Anchor the payout schedule (setup fee = login + 24h) the first time it lands.
-      ...(app.onboardedAt ? {} : { onboardedAt: new Date() }),
-    },
+    data: { status: "approved" }, // Level 2 — GoLogin ready, verifying before payout.
   });
 }
