@@ -340,6 +340,14 @@ export default function AdminPipelinePage() {
     } finally { setBusy(null); }
   };
   const workflow = async (id: string, patch: Record<string, unknown>) => { setBusy(id); try { await patchApp(id, patch, true); } finally { setBusy(null); } };
+  // Change stage keeping the model consistent: Level 2 (approved) ALWAYS means logged in,
+  // so stamp onboardedAt when moving there; Level 1 (onboarding) means not logged in yet,
+  // so clear it. Everything else goes through the guarded status route.
+  const changeStatus = (r: Row, status: Status) => {
+    if (status === "approved") return workflow(r.id, { status: "approved", ...(r.onboardedAt ? {} : { onboardedAt: new Date().toISOString() }) });
+    if (status === "onboarding") return workflow(r.id, { status: "onboarding", onboardedAt: null });
+    return setStage(r, status);
+  };
   const logTouch = async (id: string, ch: string, text: string, by: string) => {
     const body = text || (({ whatsapp: "WhatsApp message sent", viber: "Viber message sent", telegram: "Telegram message sent", email: "Email sent", call: "Call attempted — no answer", text: "Text message sent", note: "Note added" } as Record<string, string>)[ch] || "Note added");
     setBusy(id);
@@ -569,7 +577,7 @@ export default function AdminPipelinePage() {
           subtotal={mode === "live" ? formatMoney(g.items.filter((r) => !isBlocked(r)).reduce((s, r) => s + monthlyAmt(r), 0), "PHP") + "/mo" : ""}>
           {g.items.map((r) => (
             <Card key={r.id} r={r} busy={busy === r.id} open={open.has(r.id)} onToggle={() => toggle(r.id)}
-              patchApp={patchApp} patchAccount={patchAccount} setStage={setStage} workflow={workflow}
+              patchApp={patchApp} patchAccount={patchAccount} setStage={changeStatus} workflow={workflow}
               logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} />
           ))}
         </GroupSection>
