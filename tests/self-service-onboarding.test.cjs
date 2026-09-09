@@ -75,13 +75,39 @@ test("Proxy-Cheap quotes require a matching country and respect the price ceilin
   } finally { global.fetch = originalFetch; for (const key of Object.keys(process.env)) if (!(key in previous)) delete process.env[key]; Object.assign(process.env, previous); }
 });
 
-function service(prisma, provider = {}) {
+function service(prisma, provider = {}, gologin = { createProfile: () => { throw new Error("Unexpected profile creation"); } }) {
   return load("src/lib/self-service-onboarding.ts", {
     "@/lib/prisma": { prisma }, "@/lib/payment-schedule": { setupDueDate: () => null },
-    "@/services/gologin": { createProfile: () => { throw new Error("Unexpected profile creation"); } },
+    "@/services/gologin": gologin,
     "@/services/proxy-cheap": provider,
   });
 }
+
+test("new profiles use the issued email; existing profiles resolve their real share-link name", async () => {
+  const prev = process.env.GOLOGIN_API_TOKEN_KLABBER;
+  process.env.GOLOGIN_API_TOKEN_KLABBER = "test";
+  try {
+    for (const existing of [false, true]) {
+      const s = { id: "s", state: existing ? "link_pending" : "reserved", proxyId: "proxy", accountId: "account",
+        emailSetup: { address: "harry.billing2@lotuspost.fyi" },
+        account: { gologinProfileId: existing ? "saved-profile" : null, proxyHost: "test", proxyPort: 80 } };
+      let creates = 0;
+      const prisma = { selfServiceOnboarding: { findFirst: async () => s, findFirstOrThrow: async () => s,
+        updateMany: async () => ({ count: 1 }), update: async () => ({}) },
+        linkedInAccount: { update: async () => ({}) }, $transaction: async values => Promise.all(values) };
+      const gologin = {
+        createProfile: async ({ name }) => { creates++; assert.equal(name, s.emailSetup.address); return { id: "new-profile" }; },
+        getPublicShareLink: async (id, name) => {
+          assert.equal(id, existing ? "saved-profile" : "new-profile");
+          assert.equal(name, existing ? undefined : s.emailSetup.address);
+          return { publicUrl: "https://g.camp/share/test" };
+        },
+      };
+      await service(prisma, {}, gologin).prepareOnboarding("s", "referrer");
+      assert.equal(creates, existing ? 0 : 1);
+    }
+  } finally { if (prev === undefined) delete process.env.GOLOGIN_API_TOKEN_KLABBER; else process.env.GOLOGIN_API_TOKEN_KLABBER = prev; }
+});
 
 test("a different referrer cannot provision a saved session", async () => {
   const prev = process.env.GOLOGIN_API_TOKEN_KLABBER;

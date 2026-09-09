@@ -57,8 +57,10 @@ the prepared GoLogin browser, never into this wizard.
 - Save the provider order ID and poll delivery on the next prepare action. Never
   purchase again after a timeout with unknown outcome. No automatic renewal or
   wallet top-up; renewals must be handled before the one-month term expires.
-- GoLogin provisioning uses the klabber token. A deterministic name,
-  `onboarding-<session UUID>`, allows reconciliation after an ambiguous create.
+- GoLogin provisioning uses the klabber token. New profiles use the issued email
+  address as their name; legacy sessions without an issued email fall back to
+  `onboarding-<session UUID>`. Both allow reconciliation after an ambiguous create.
+  Existing profiles are not renamed; share-link retries read their actual name.
   Persist the profile ID before sharing. Never blindly retry profile creation.
 - User login confirmation sets onboardedAt once and records pending verification
   as an account issue. Inventory stays unlisted and under construction; neither
@@ -71,7 +73,8 @@ the prepared GoLogin browser, never into this wizard.
 ## Recovering an interrupted setup
 
 Inspect the session and its linked inventory/application through the database.
-For `creating` / `needs_help`, search GoLogin for the deterministic profile name;
+For `creating` / `needs_help`, search GoLogin for the issued email address and the
+legacy `onboarding-<session UUID>` profile name;
 persist the found ID and set `link_pending` to retry sharing. Only reset to
 `reserved` after proving no upstream profile was created.
 
@@ -89,12 +92,12 @@ Never reset to `reserved` without proving the order did not execute.
   are unchanged. This is not a legal determination about minors signing contracts.
 - The additive email migration is now applied to the shared Neon database.
 - Resend receiving is enabled and its MX records are verified for all three new
-  domains. Test messages arrived on all three. Sending on these domains is disabled;
+  domains. Test messages arrived on all three. Sending is separately configured;
   `ONBOARDING_EMAIL_FROM="LinkedVelocity <info@linkedvelocity.com>"` is used for
   outgoing forwarding/challenges. Other app email keeps its existing sender.
 - `.env` enables the email step locally. A random local-only signing secret is
-  used by the polling bridge. No public Resend webhook or production deployment
-  has been created, and no plan was upgraded.
+  used by the polling bridge, distinct from the production webhook secret.
+  No plan was upgraded.
 - Run `npm run dev -- --hostname 127.0.0.1 --port 3000` and, in a second terminal,
   `node scripts/onboarding-email-local.mjs`. Keep both running while testing.
   The bridge checks Resend every 15 seconds and feeds signed events only to the
@@ -106,7 +109,16 @@ Never reset to `reserved` without proving the order did not execute.
 - The ngrok tunnel was rejected by permission review due to sensitive-message
   exposure. No tunnel was started; the unused gateway file was removed.
 
-## Email-before-GoLogin flow (production not activated yet)
+## Production release (2026-09-09)
+
+Production receiving is configured through a signed Resend `email.received`
+webhook at `https://linkedvelocity.com/api/webhooks/onboarding-email`.
+Vercel has the email enable flag, domain list, branded sender and server-only
+secrets. Local environment and handoff files are excluded from deployment uploads.
+Automatic proxy purchases are **disabled** in production pending spending approval;
+existing pool reuse remains available and the per-proxy ceiling remains US$4.
+
+## Email-before-GoLogin flow
 
 The optional email feature adds **Email** between Payout and Sign in. With
 `ONBOARDING_EMAIL_ENABLED=true`, the server also gates prepare/open/confirm and

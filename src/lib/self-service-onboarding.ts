@@ -189,7 +189,7 @@ export async function prepareOnboarding(id: string, referrerId: string) {
   const owned = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, select: { id: true } });
   if (!owned) throw new OnboardingError("Onboarding not found.", 404);
   if (!await acquireProxy(id, referrerId)) return;
-  const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { account: true } });
+  const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { account: true, emailSetup: true } });
   if (!s) throw new OnboardingError("Onboarding not found.", 404);
   if (["ready", "confirmed"].includes(s.state)) return;
   if (s.state === "creating" || s.state === "needs_help") {
@@ -198,10 +198,14 @@ export async function prepareOnboarding(id: string, referrerId: string) {
   const claim = await prisma.selfServiceOnboarding.updateMany({ where: { id, referrerId, state: { in: ["reserved", "link_pending"] } }, data: { state: "creating" } });
   if (!claim.count) throw new OnboardingError("Setup is already in progress. Refresh to check it.", 409);
   let profileId = s.account.gologinProfileId;
+  // New profiles use the immutable issued address. Existing profiles retain their
+  // real upstream name when recreating a share link (including legacy names).
+  let profileName: string | undefined;
   try {
     if (!profileId) {
+      profileName = s.emailSetup?.address || `onboarding-${id}`;
       const profile = await createProfile({
-        name: `onboarding-${id}`,
+        name: profileName,
         proxy: { host: s.account.proxyHost!, port: s.account.proxyPort!, username: s.account.proxyUsername || undefined, password: s.account.proxyPassword || undefined },
       }, token);
       if (!profile || typeof profile.id !== "string") throw new Error("Missing profile id");
@@ -209,8 +213,7 @@ export async function prepareOnboarding(id: string, referrerId: string) {
       await prisma.linkedInAccount.update({ where: { id: s.accountId }, data: { gologinProfileId: profile.id } });
       profileId = profile.id;
     }
-    const name = `onboarding-${id}`;
-    const link = await getPublicShareLink(profileId!, name, token) || await createPublicShareLink(profileId!, name, token);
+    const link = await getPublicShareLink(profileId!, profileName, token) || await createPublicShareLink(profileId!, profileName, token);
     await prisma.$transaction([
       prisma.linkedInAccount.update({ where: { id: s.accountId }, data: { gologinShareLink: link.publicUrl } }),
       prisma.selfServiceOnboarding.update({ where: { id }, data: { state: "ready" } }),
