@@ -17,6 +17,16 @@ const id = '32f83cf4-d035-4d6d-a050-c20ac0ff3b52';
 const now = new Date();
 const setup = () => ({ sessionId: id, address: 'alex.test@example.test', destination: 'helper@inbox.test', consentAt: now, destinationVerifiedAt: new Date(now.getTime() - 60000), forwardingUntil: new Date(now.getTime() + 3600000), session: { state: 'reserved', referrer: { active: true } } });
 
+test('onboarding sender override does not change other application mail', () => {
+  const env = { ...process.env };
+  try {
+    process.env.RESEND_FROM_EMAIL = 'old@example.test';
+    process.env.ONBOARDING_EMAIL_FROM = 'LinkedVelocity <info@linkedvelocity.com>';
+    assert.equal(policy.onboardingEmailFrom(), 'LinkedVelocity <info@linkedvelocity.com>');
+    assert.equal(process.env.RESEND_FROM_EMAIL, 'old@example.test');
+  } finally { process.env = env; }
+});
+
 test('email feature defaults off and requires all receiving configuration', () => {
   const env = { ...process.env };
   try {
@@ -28,12 +38,56 @@ test('email feature defaults off and requires all receiving configuration', () =
     assert.equal(policy.emailSetupConfig().ready, false);
   } finally { process.env = env; }
 });
-test('addresses are safe, deterministic and collision-resistant for duplicate names', () => {
-  const a = policy.assignedEmail('José Smith', id, 'example.test');
-  assert.match(a, /^jose.smith\.[a-f0-9]{12}@example.test$/);
-  assert.equal(a, policy.assignedEmail('José Smith', id, 'example.test'));
-  assert.notEqual(a, policy.assignedEmail('José Smith', 'abcdefab-1234-4567-8901-123456789012', 'example.test'));
-  assert.match(policy.assignedEmail('李', id, 'example.test'), /^account\./);
+test('addresses use readable first.last with a suffix only for collisions', () => {
+  assert.equal(policy.assignedEmail('José Smith', 'example.test'), 'jose.smith@example.test');
+  assert.equal(policy.assignedEmail('José Smith', 'example.test', 1), 'jose.smith2@example.test');
+  assert.equal(policy.assignedEmail('José Middle Smith', 'example.test', 2), 'jose.smith3@example.test');
+  assert.equal(policy.assignedEmail('李', 'example.test'), 'account@example.test');
+});
+
+test('allocator rotates across domains and resolves collisions without changing domain', async () => {
+  const api = load('src/lib/onboarding-email.ts', { '@/lib/prisma': { prisma: {} } });
+  let count = 0;
+  const occupied = new Set();
+  const tx = {
+    onboardingEmailSetup: { count: async () => count, findUnique: async ({ where }) => occupied.has(where.address) ? { sessionId: id } : null },
+    linkedInAccount: { findFirst: async () => null }, ambassadorApplication: { findFirst: async () => null },
+  };
+  const domains = ['one.test', 'two.test', 'three.test'];
+  const results = [];
+  for (let i = 0; i < 6; i++) {
+    const address = await api.allocateOnboardingAddress(tx, 'Alex Test', domains);
+    occupied.add(address); count++; results.push(address);
+  }
+  assert.deepEqual(results, ['alex.test@one.test', 'alex.test@two.test', 'alex.test@three.test', 'alex.test2@one.test', 'alex.test2@two.test', 'alex.test2@three.test']);
+});
+
+test('allocator avoids addresses already present on inventory or applications', async () => {
+  const api = load('src/lib/onboarding-email.ts', { '@/lib/prisma': { prisma: {} } });
+  const tx = {
+    onboardingEmailSetup: { count: async () => 0, findUnique: async () => null },
+    linkedInAccount: { findFirst: async ({ where }) => where.OR[0].loginEmail.equals === 'alex.test@one.test' ? { id } : null },
+    ambassadorApplication: { findFirst: async ({ where }) => where.OR[0].linkedinEmail.equals === 'alex.test2@one.test' ? { id } : null },
+  };
+  assert.equal(await api.allocateOnboardingAddress(tx, 'Alex Test', ['one.test']), 'alex.test3@one.test');
+});
+
+test('client cannot select a domain; verification retries preserve the assigned address', async () => {
+  configure();
+  const prior = { ...setup(), address: 'old.address@example.test', codeSends: 1 };
+  let saved;
+  const tx = { $executeRaw: async () => {}, onboardingEmailSetup: {
+    findUnique: async () => prior,
+    count: async (args) => { assert.ok(args, 'retry must not consume a round-robin turn'); return 0; },
+    upsert: async (args) => { saved = args; return { ...prior, codeSends: 2 }; },
+  } };
+  const db = { selfServiceOnboarding: { findFirst: async () => ({ state: 'reserved', application: { fullName: 'Alex Test' } }) }, $transaction: async fn => fn(tx) };
+  const api = load('src/lib/onboarding-email.ts', { '@/lib/prisma': { prisma: db }, '@/services/onboarding-mail': { onboardingMailRequest: async () => ({ id: 'sent' }) } });
+  const input = api.emailAction.parse({ action: 'start', destination: prior.destination, consent: true, domain: 'attacker.test' });
+  assert.equal(input.domain, undefined);
+  await api.updateEmailSetup(id, 'owner', input);
+  assert.equal(saved.create.address, prior.address);
+  assert.equal(saved.update.address, undefined);
 });
 test('forwarding requires verified destination and stops on expiry or completion', () => {
   const e = setup();

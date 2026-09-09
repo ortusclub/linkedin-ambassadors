@@ -1,14 +1,32 @@
 import { randomInt } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { assignedEmail, emailSetupConfig, EmailSetupError, forwardingActive, hashEmailCode, linkedinSender, forwardedText } from "@/lib/onboarding-email-policy";
+import { assignedEmail, emailSetupConfig, EmailSetupError, forwardingActive, hashEmailCode, linkedinSender, forwardedText, onboardingEmailFrom } from "@/lib/onboarding-email-policy";
 import { onboardingMailRequest } from "@/services/onboarding-mail";
+import type { Prisma } from "@/generated/prisma/client";
 
 export const emailAction = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("start"), destination: z.string().trim().email().max(254).transform(s => s.toLowerCase()), domain: z.string(), consent: z.literal(true) }),
+  z.object({ action: z.literal("start"), destination: z.string().trim().email().max(254).transform(s => s.toLowerCase()), consent: z.literal(true) }),
   z.object({ action: z.literal("verify"), code: z.string().regex(/^\d{6}$/) }),
   z.object({ action: z.literal("primary"), consent: z.literal(true) }),
 ]);
+
+// Called only inside the email allocation lock. Retained setup rows are the
+// durable round-robin counter; resends/resumes never consume another position.
+export async function allocateOnboardingAddress(tx: Prisma.TransactionClient, name: string, domains: string[]) {
+  if (!domains.length) throw new EmailSetupError("No receiving domain is configured.", 503);
+  const domain = domains[(await tx.onboardingEmailSetup.count()) % domains.length];
+  for (let collision = 0; collision < 10000; collision++) {
+    const address = assignedEmail(name, domain, collision);
+    const [setup, account, application] = await Promise.all([
+      tx.onboardingEmailSetup.findUnique({ where: { address }, select: { sessionId: true } }),
+      tx.linkedInAccount.findFirst({ where: { OR: [{ loginEmail: { equals: address, mode: "insensitive" } }, { personalEmail: { equals: address, mode: "insensitive" } }] }, select: { id: true } }),
+      tx.ambassadorApplication.findFirst({ where: { OR: [{ linkedinEmail: { equals: address, mode: "insensitive" } }, { email: { equals: address, mode: "insensitive" } }] }, select: { id: true } }),
+    ]);
+    if (!setup && !account && !application) return address;
+  }
+  throw new EmailSetupError("Could not reserve a unique email address. Ask the team for help.", 409);
+}
 
 export async function emailSetupSummary(id: string, referrerId: string) {
   const config = emailSetupConfig();
@@ -34,25 +52,25 @@ export async function updateEmailSetup(id: string, referrerId: string, input: z.
   if (!owner || owner.state === "confirmed") throw new EmailSetupError("This onboarding cannot be changed.", 409);
   const now = new Date();
   if (input.action === "start") {
-    if (!config.domains.includes(input.domain)) throw new EmailSetupError("Choose an enabled email domain.");
     if (config.domains.includes(input.destination.split("@")[1])) throw new EmailSetupError("Use an existing inbox, not an onboarding address.");
     const code = String(randomInt(100000, 1000000));
     const attempt = await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100902)`;
       const prior = await tx.onboardingEmailSetup.findUnique({ where: { sessionId: id } });
-      if (prior?.destinationVerifiedAt && (prior.destination !== input.destination || prior.address.split("@")[1] !== input.domain)) throw new EmailSetupError("A verified route cannot be reassigned. Ask the team for help.", 409);
+      if (prior?.destinationVerifiedAt && prior.destination !== input.destination) throw new EmailSetupError("A verified route cannot be reassigned. Ask the team for help.", 409);
       if (prior?.codeSentAt && now.getTime() - prior.codeSentAt.getTime() < 60000) throw new EmailSetupError("Wait one minute before requesting another code.", 429);
       if ((prior?.codeSends || 0) >= 5) throw new EmailSetupError("Verification send limit reached. Ask the team for help.", 429);
       const recent = await tx.onboardingEmailSetup.count({ where: { destination: input.destination, codeSentAt: { gt: new Date(now.getTime() - 60000) } } });
       if (recent) throw new EmailSetupError("A code was recently sent to this inbox. Wait one minute.", 429);
+      const address = prior?.address || await allocateOnboardingAddress(tx, owner.application.fullName, config.domains);
       return tx.onboardingEmailSetup.upsert({ where: { sessionId: id },
-        create: { sessionId: id, address: assignedEmail(owner.application.fullName, id, input.domain), destination: input.destination, consentAt: now,
+        create: { sessionId: id, address, destination: input.destination, consentAt: now,
           codeHash: hashEmailCode(id, input.destination, code), codeExpiresAt: new Date(now.getTime() + 600000), codeSentAt: now, codeSends: 1 },
-        update: { address: prior?.destinationVerifiedAt ? prior.address : assignedEmail(owner.application.fullName, id, input.domain), destination: input.destination, consentAt: now, codeHash: hashEmailCode(id, input.destination, code), codeExpiresAt: new Date(now.getTime() + 600000), codeSentAt: now, codeAttempts: 0, codeSends: { increment: 1 } },
+        update: { destination: input.destination, consentAt: now, codeHash: hashEmailCode(id, input.destination, code), codeExpiresAt: new Date(now.getTime() + 600000), codeSentAt: now, codeAttempts: 0, codeSends: { increment: 1 } },
       });
-    });
+    }, { timeout: 15000 });
     try {
-      await onboardingMailRequest("/emails", { from: process.env.RESEND_FROM_EMAIL, to: [input.destination], subject: "Confirm your onboarding forwarding inbox",
+      await onboardingMailRequest("/emails", { from: onboardingEmailFrom(), to: [input.destination], subject: "Confirm your onboarding forwarding inbox",
         text: `Your verification code is ${code}. It expires in 10 minutes. Only enter it in the LinkedVelocity onboarding you started. If you did not request this, ignore this email.` }, `onboarding-inbox-${id}-${attempt.codeSends}`);
     } catch { throw new EmailSetupError("The verification email could not be confirmed as sent. Wait a minute, then request a new code.", 502); }
     return;
@@ -113,7 +131,7 @@ export async function forwardOnboardingEmail(emailId: string) {
   try {
     const current = await prisma.onboardingEmailSetup.findUnique({ where: { sessionId: e.sessionId }, include: { session: { select: { state: true } } } });
     if (!current || !forwardingActive(current, current.session.state)) return;
-    await onboardingMailRequest("/emails", { from: process.env.RESEND_FROM_EMAIL, to: [e.destination], subject: "LinkedIn onboarding message",
+    await onboardingMailRequest("/emails", { from: onboardingEmailFrom(), to: [e.destination], subject: "LinkedIn onboarding message",
       text: `Message for ${e.address}\n\nOnly use this message for the onboarding you are performing with the account owner's consent. This forwarded message is not proof that the address is primary. Never share passwords.\n\n${content}` }, `onboarding-forward-${emailId}`);
     await prisma.$transaction([
       prisma.onboardingEmailDelivery.update({ where: { emailId }, data: { status: "sent", sentAt: new Date(), leaseUntil: null } }),

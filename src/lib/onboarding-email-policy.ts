@@ -4,16 +4,20 @@ export class EmailSetupError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
 
+export function onboardingEmailFrom() {
+  return process.env.ONBOARDING_EMAIL_FROM || process.env.RESEND_FROM_EMAIL;
+}
+
 export function emailSetupConfig() {
   const domains = (process.env.ONBOARDING_EMAIL_DOMAINS || "").split(",").map(s => s.trim().toLowerCase()).filter(s => /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/.test(s));
   return { domains: [...new Set(domains)], enabled: process.env.ONBOARDING_EMAIL_ENABLED === "true",
-    ready: process.env.ONBOARDING_EMAIL_ENABLED === "true" && domains.length > 0 && !!process.env.RESEND_API_KEY && !!process.env.RESEND_FROM_EMAIL && !!process.env.RESEND_INBOUND_WEBHOOK_SECRET && !!process.env.ONBOARDING_EMAIL_CODE_SECRET };
+    ready: process.env.ONBOARDING_EMAIL_ENABLED === "true" && domains.length > 0 && !!process.env.RESEND_API_KEY && !!onboardingEmailFrom() && !!process.env.RESEND_INBOUND_WEBHOOK_SECRET && !!process.env.ONBOARDING_EMAIL_CODE_SECRET };
 }
 
-export function assignedEmail(name: string, sessionId: string, domain: string) {
+export function assignedEmail(name: string, domain: string, collision = 0) {
   const parts = name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/\s+/).map(s => s.replace(/[^a-z0-9]/g, "")).filter(Boolean);
   const base = (parts.length > 1 ? `${parts[0]}.${parts.at(-1)}` : parts[0] || "account").slice(0, 35);
-  return `${base}.${sessionId.replaceAll("-", "").slice(0, 12)}@${domain}`;
+  return `${base}${collision ? collision + 1 : ""}@${domain}`;
 }
 
 export function hashEmailCode(id: string, destination: string, code: string) {

@@ -12,7 +12,6 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
   setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>; refresh: () => void;
 }) {
   const [destination, setDestination] = useState(setup.destination || "");
-  const [domain, setDomain] = useState(setup.address?.split("@")[1] || setup.domains[0] || "");
   const [consent, setConsent] = useState(false);
   const [code, setCode] = useState("");
   const [primary, setPrimary] = useState(false);
@@ -20,8 +19,8 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
     <h2>Set up their LinkedIn email</h2>
     <p>The owner first adds the new address using LinkedIn on their own device or existing browser. GoLogin comes next.</p>
     {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before you add an address to LinkedIn.</div> : <>
-      {!setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, domain, consent }); }}>
-        <label className={styles.field}>Email domain<select value={domain} disabled={setup.destinationVerified} onChange={e => setDomain(e.target.value)}>{setup.domains.map(d => <option key={d}>{d}</option>)}</select></label>
+      {!setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
+        <div className={styles.note}>{setup.address ? <>Assigned LinkedIn email: <strong>{setup.address}</strong></> : <>We&apos;ll automatically assign an email using the owner&apos;s first and last name. If it&apos;s already taken, we&apos;ll add a small number to make it unique.</>}</div>
         <label className={styles.field}>Where should onboarding messages be forwarded?<input type="email" required maxLength={254} value={destination} disabled={setup.destinationVerified} onChange={e => setDestination(e.target.value)} /></label>
         <p className={styles.hint}>Use an inbox you can open now. We will verify it before forwarding account messages.</p>
         <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>The owner agrees to use a service-managed primary email and understands that it affects sign-in and recovery. They authorize forwarding onboarding messages to this inbox for one hour or until onboarding finishes, whichever comes first.</span></label>

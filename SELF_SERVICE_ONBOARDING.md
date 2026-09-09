@@ -90,7 +90,8 @@ Never reset to `reserved` without proving the order did not execute.
 - The additive email migration is now applied to the shared Neon database.
 - Resend receiving is enabled and its MX records are verified for all three new
   domains. Test messages arrived on all three. Sending on these domains is disabled;
-  existing verified `noreply@klabber.co` is used for outgoing forwarding/challenges.
+  `ONBOARDING_EMAIL_FROM="LinkedVelocity <info@linkedvelocity.com>"` is used for
+  outgoing forwarding/challenges. Other app email keeps its existing sender.
 - `.env` enables the email step locally. A random local-only signing secret is
   used by the polling bridge. No public Resend webhook or production deployment
   has been created, and no plan was upgraded.
@@ -143,8 +144,13 @@ Activation checklist (requires operator approval for production deployment):
 
 Behavior and limits:
 
-- Unique, deterministic first.last + 12 hex suffix avoids duplicate-name clashes;
-  the issued address and chosen destination persist across reloads.
+- New addresses use `first.last@domain`. Domains rotate in configured order using
+  the retained setup-row count under the global email allocation transaction lock.
+  Collisions stay on the assigned domain and try `first.last2`, `first.last3`, etc.,
+  checking saved setups, inventory and applications. Do not delete setup rows:
+  they preserve the rotation and prevent reusing an old recovery address.
+  Resends/resumes keep the existing address (including old UUID-suffixed addresses)
+  and do not consume a rotation position. The client cannot select the domain.
 - Owner's separate explicit consent is saved. The destination must receive a
   six-digit challenge, expiring in 10 minutes, before account mail is forwarded.
   Only a keyed hash is stored. Five wrong guesses per code, five sends per session,
