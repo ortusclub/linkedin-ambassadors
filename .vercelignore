@@ -3,3 +3,7 @@ ambassador-app/.chromium
 .chromium
 profiles
 public/downloads
+.env
+.env.*
+HANDOFF.md
+SESSION-HANDOFF.md
