@@ -247,11 +247,11 @@ const STAGE_ACCENT: Record<Stage, string> = {
 const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "pending", label: "Initial" },
   { value: "contacted", label: "Awaiting reply" },
-  { value: "onboarding", label: "Level 1 · warm-up (not logged in)" },
-  { value: "approved", label: "Level 2 · logged in (payout due)" },
-  { value: "onboarded", label: "Onboarded (paid)" },
-  { value: "reviewing", label: "Level 1 · in review" },
-  { value: "on_hold", label: "Level 1 · on hold" },
+  { value: "onboarding", label: "Level 1" },
+  { value: "approved", label: "Level 2" },
+  { value: "onboarded", label: "Onboarded" },
+  { value: "reviewing", label: "Level 1 · review" },
+  { value: "on_hold", label: "Level 1 · hold" },
   { value: "unreachable", label: "Unreachable" },
   { value: "rejected", label: "Rejected" },
 ];
@@ -724,7 +724,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
         <div style={{ borderTop: "1px solid var(--divider,#eee)", background: "var(--panel,#fafafa)", padding: "16px" }}>
           {/* workflow rail — until fully onboarded (stability check lives here) */}
           {!onboarded && (
-            <WorkflowRail r={r} busy={busy} workflow={workflow} setStage={setStage} />
+            <WorkflowRail r={r} busy={busy} workflow={workflow} />
           )}
 
           {/* BLOCK 1 — applicant & payout */}
@@ -808,7 +808,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
           {!live ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)", flexWrap: "wrap" }}>
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                {r.status !== "approved" && <button onClick={() => workflow(r.id, { status: "approved" })} disabled={busy} title="They've agreed to hand over their account" style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)" }}>✓ Accept</button>}
+                {r.status !== "approved" && r.status !== "onboarding" && <button onClick={() => workflow(r.id, { status: "onboarding" })} disabled={busy} title="They've agreed — start onboarding (Level 1 warm-up)" style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)" }}>✓ Accept → Level 1</button>}
                 {r.status !== "rejected" && <button onClick={() => workflow(r.id, { status: "rejected" })} disabled={busy} style={{ font: `600 12px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e6b4ad)", padding: "8px 13px", borderRadius: 8, cursor: "pointer" }}>Reject</button>}
               </div>
               <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Accepting reveals the inventory profile · other states from the status dropdown</span>
@@ -825,7 +825,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
 }
 
 // -- workflow rail (pre-onboarded): 4 sequential step cards -------------------
-function WorkflowRail({ r, busy, workflow, setStage }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void; setStage: (r: Row, s: Status) => void }) {
+function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void }) {
   const accepted = r.status === "approved" || r.status === "onboarding";
   const started = !!r.onboardingStartedAt;
   const loginDue = loginDueMs(r);
@@ -855,10 +855,13 @@ function WorkflowRail({ r, busy, workflow, setStage }: { r: Row; busy: boolean; 
             </div>),
     },
     {
-      label: "Step 2", title: "Mark logged in", sub: started ? (loginOver ? "warm-up done — log in" : `due ${loginDue ? fmtDate(new Date(loginDue).toISOString()) : "—"}`) : "once they hand over the login", done: false,
-      render: (isNext) => (
-        <button onClick={() => setStage(r, "onboarded")} disabled={busy || !started} style={{ ...btnPrimary, width: "100%", background: isNext && started ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext && started ? "#fff" : "var(--muted2,#9aa0a6)", border: isNext && started ? "none" : "1px solid var(--divider,#eee)", cursor: started ? "pointer" : "not-allowed" }}>✓ Logged in</button>
-      ),
+      // Logging in moves them to LEVEL 2 (approved) and stamps the login — it does NOT
+      // mark them Onboarded (that's the paid/earning end state). They stay in the by-stage
+      // view under Level 2 and the setup fee falls due 24h later.
+      label: "Step 2", title: "Mark logged in", sub: r.onboardedAt ? `logged in ${fmtDate(r.onboardedAt)}` : started ? (loginOver ? "warm-up done — log in" : `due ${loginDue ? fmtDate(new Date(loginDue).toISOString()) : "—"}`) : "once they hand over the login", done: !!r.onboardedAt,
+      render: (isNext) => r.onboardedAt
+        ? (<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge("Logged in")}<span onClick={() => workflow(r.id, { onboardedAt: null })} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span></div>)
+        : (<button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy || !started} style={{ ...btnPrimary, width: "100%", background: isNext && started ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext && started ? "#fff" : "var(--muted2,#9aa0a6)", border: isNext && started ? "none" : "1px solid var(--divider,#eee)", cursor: started ? "pointer" : "not-allowed" }}>✓ Logged in → Level 2</button>),
     },
     {
       label: "Step 3", title: "Stability check", sub: "confirm 'good to go'", done: verified,
