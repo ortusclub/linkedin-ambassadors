@@ -12,6 +12,14 @@ function load(file, mocks = {}) {
   return module.exports;
 }
 const { crmOwnerOptions, matchesCrmOwner } = load('src/lib/crm-owners.ts');
+test('filter choices exclude owners with no leads but assignment choices retain them', () => {
+  const { assignedCrmOwnerOptions } = load('src/lib/crm-owners.ts');
+  const team = [{ email: 'sam@example.com', fullName: 'Sam' }, { email: 'ina@example.com', fullName: 'Ina' }];
+  const leads = [{ ownerEmail: ' SAM@example.com ' }, { ownerEmail: 'Ardi' }, { ownerEmail: null }];
+  assert.deepEqual(assignedCrmOwnerOptions(team, leads).map(o => o.value), ['ardi', 'sam@example.com']);
+  assert.equal(crmOwnerOptions(team, leads).some(o => o.value === 'ina@example.com'), true);
+  assert.deepEqual(assignedCrmOwnerOptions(team, []), []);
+});
 test('owner choices include unassigned team members and preserve legacy owners without duplicates', () => {
   assert.deepEqual(crmOwnerOptions([
     { email: 'sam@example.com', fullName: 'Sam' }, { email: 'anna@example.com', fullName: 'Anna' },

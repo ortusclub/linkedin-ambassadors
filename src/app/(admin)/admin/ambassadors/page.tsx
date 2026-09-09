@@ -326,7 +326,7 @@ export default function AdminAmbassadorsPage() {
       {/* title + sheets */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 640 }}>
-          <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Submissions</h1>
+          <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Applications (Archive)</h1>
           <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>New ambassador applications. Review each one and set it to Accepted or Rejected — accepting automatically creates the profile in your inventory.</p>
         </div>
         {sheetConfigured && (

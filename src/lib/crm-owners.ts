@@ -17,3 +17,8 @@ export function crmOwnerOptions(team: CrmOwner[], leads: { ownerEmail: string | 
 export function matchesCrmOwner(value: string | null, filter: string) {
   return filter === "all" || (filter === "unassigned" ? !ownerKey(value) : ownerKey(value) === ownerKey(filter));
 }
+
+export function assignedCrmOwnerOptions(team: CrmOwner[], leads: { ownerEmail: string | null }[]) {
+  const assigned = new Set(leads.map(lead => ownerKey(lead.ownerEmail)).filter(Boolean));
+  return crmOwnerOptions(team, leads).filter(option => assigned.has(option.value));
+}

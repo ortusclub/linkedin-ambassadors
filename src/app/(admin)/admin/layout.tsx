@@ -25,7 +25,7 @@ const sections = [
   ] },
   { name: "Ambassadors", items: [
     { href: "/admin/pipeline", label: "Pipeline (new)" },
-    { href: "/admin/ambassadors", label: "Applications" },
+    { href: "/admin/ambassadors", label: "Applications (Archive)" },
     { href: "/admin/referrals", label: "Referrals" },
     { href: "/admin/owners", label: "Ambassadors" },
     { href: "/admin/balances", label: "Payouts" },
@@ -34,7 +34,7 @@ const sections = [
     { href: "/admin/onboarding", label: "Onboarding" },
     { href: "/admin/accounts", label: "Inventory" },
     { href: "/admin/proxies", label: "Proxies" },
-    { href: "/admin/payouts-ii", label: "Payouts II" },
+    { href: "/admin/payouts-ii", label: "Payouts Schedule" },
   ] },
 ];
 

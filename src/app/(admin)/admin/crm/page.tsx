@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Poppins, Inter, JetBrains_Mono } from "next/font/google";
-import { crmOwnerOptions, matchesCrmOwner, ownerKey, type CrmOwner } from "@/lib/crm-owners";
+import { assignedCrmOwnerOptions, crmOwnerOptions, matchesCrmOwner, ownerKey, type CrmOwner } from "@/lib/crm-owners";
 
 const poppins = Poppins({ subsets: ["latin"], weight: ["500", "600", "700", "800"], variable: "--lv-poppins" });
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--lv-inter" });
@@ -139,8 +139,10 @@ export default function CrmPage() {
   };
 
   const ownerOptions = useMemo(() => crmOwnerOptions(owners, leads), [owners, leads]);
+  const filterOwnerOptions = useMemo(() => assignedCrmOwnerOptions(owners, leads), [owners, leads]);
+  const activeOwnerFilter = ownerFilter === "all" || ownerFilter === "unassigned" || filterOwnerOptions.some(o => o.value === ownerFilter) ? ownerFilter : "all";
   const ownerLabels = useMemo(() => new Map(ownerOptions.map(o => [o.value, o.label])), [ownerOptions]);
-  const ownerLeads = useMemo(() => leads.filter(l => matchesCrmOwner(l.ownerEmail, ownerFilter)), [leads, ownerFilter]);
+  const ownerLeads = useMemo(() => leads.filter(l => matchesCrmOwner(l.ownerEmail, activeOwnerFilter)), [leads, activeOwnerFilter]);
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: ownerLeads.length };
     STAGES.forEach((s) => (c[s.key] = ownerLeads.filter((l) => (l.stage || "new") === s.key).length));
@@ -247,10 +249,10 @@ export default function CrmPage() {
 
       <div style={{ margin: "0 20px", padding: "14px 18px", background: V.surface, border: `1px solid ${V.border}`, borderRadius: 14 }}>
         <label style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, fontSize: 13, fontWeight: 600, color: V.body }}>Filter by PoC owner
-          <select value={ownerFilter} onChange={e => { setOwnerFilter(e.target.value); setSelId(null); }} style={{ ...input, width: 280, maxWidth: "100%" }}>
+          <select value={activeOwnerFilter} onChange={e => { setOwnerFilter(e.target.value); setSelId(null); }} style={{ ...input, width: 280, maxWidth: "100%" }}>
             <option value="all">All PoC owners</option>
             <option value="unassigned">Unassigned</option>
-            {ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {filterOwnerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </label>
       </div>

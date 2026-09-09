@@ -369,7 +369,7 @@ export default function PayoutsIIPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "8px 4px 60px" }}>
-      <h1 style={{ font: `800 28px ${F_GRO}`, margin: "0 0 6px", color: "var(--fg,#111)" }}>Payouts II</h1>
+      <h1 style={{ font: `800 28px ${F_GRO}`, margin: "0 0 6px", color: "var(--fg,#111)" }}>Payouts Schedule</h1>
       <p style={{ font: `500 14px ${F_SANS}`, color: "var(--muted,#777)", margin: "0 0 4px", maxWidth: 680 }}>
         What we pay <strong>out</strong> to each account&apos;s ambassador — paid every month whether or not
         the account is rented. (Renter payments coming <em>in</em> are separate; they live on Inventory.)
