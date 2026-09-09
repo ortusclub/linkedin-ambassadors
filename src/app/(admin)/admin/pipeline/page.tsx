@@ -112,17 +112,16 @@ const stageOf = (r: Row): Stage => {
   if (r.status === "reviewing" || r.status === "onboarding" || r.status === "on_hold") return "processing";
   return "initial"; // pending, contacted
 };
-// "Payment-relevant" = they've actually LOGGED IN (onboardedAt, set by the deliberate
-// "mark logged in" step) or are fully onboarded. A setup fee is only owed once we've
-// signed into the account — being Level 2 (approved / GoLogin ready) is NOT enough, so
-// those aren't dragged into the payments view or "payment due".
-const isLive = (r: Row) => !!r.onboardedAt || r.status === "onboarded";
+// "Payment-relevant" = Level 2 (approved — logged in, at the payout stage) and Onboarded
+// (paid & earning). A setup fee is owed from Level 2 on, so these belong in the payments
+// view. Level 1 (still warming up, not logged in) is not.
+const isLive = (r: Row) => r.status === "approved" || r.status === "onboarded";
 
 const STAGE_GROUPS: { key: Stage; label: string; dot: string; note: string }[] = [
-  { key: "initial", label: "Initial", dot: "var(--blue-chip-text,#1a56db)", note: "new leads and awaiting reply" },
-  { key: "processing", label: "Processing", dot: "var(--warn-badge-text,#b7791f)", note: "in conversation / call / warm-up stage" },
-  { key: "accepted", label: "Accepted", dot: "var(--st-conv-fg,#6d28d9)", note: "agreed — warm-up not finished" },
-  { key: "onboarded", label: "Onboarded", dot: "var(--st-active-fg,#188038)", note: "live and earning" },
+  { key: "initial", label: "Initial", dot: "var(--blue-chip-text,#1a56db)", note: "new leads and awaiting reply — not started" },
+  { key: "processing", label: "Level 1", dot: "var(--warn-badge-text,#b7791f)", note: "onboarding started — warming up, not logged in yet" },
+  { key: "accepted", label: "Level 2", dot: "var(--st-conv-fg,#6d28d9)", note: "logged in — setup fee due the next day (24h after login)" },
+  { key: "onboarded", label: "Onboarded", dot: "var(--st-active-fg,#188038)", note: "paid & earning" },
   { key: "unreachable", label: "Unreachable", dot: "var(--st-unreach-fg,#c0392b)", note: "chased, no reply" },
   { key: "rejected", label: "Rejected", dot: "var(--st-cancel-fg,#c0392b)", note: "not a fit" },
 ];
@@ -248,11 +247,11 @@ const STAGE_ACCENT: Record<Stage, string> = {
 const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "pending", label: "Initial" },
   { value: "contacted", label: "Awaiting reply" },
-  { value: "reviewing", label: "Processing" },
-  { value: "onboarding", label: "Warm-up (Level 1)" },
-  { value: "approved", label: "Accepted" },
-  { value: "onboarded", label: "Onboarded" },
-  { value: "on_hold", label: "On hold" },
+  { value: "onboarding", label: "Level 1 · warm-up (not logged in)" },
+  { value: "approved", label: "Level 2 · logged in (payout due)" },
+  { value: "onboarded", label: "Onboarded (paid)" },
+  { value: "reviewing", label: "Level 1 · in review" },
+  { value: "on_hold", label: "Level 1 · on hold" },
   { value: "unreachable", label: "Unreachable" },
   { value: "rejected", label: "Rejected" },
 ];
@@ -491,8 +490,8 @@ export default function AdminPipelinePage() {
               { label: "Blocked — can't pay", value: String(metrics.liveBlocked), hint: metrics.liveBlocked === 1 ? "1 account on hold" : `${metrics.liveBlocked} accounts on hold`, color: metrics.liveBlocked ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" },
             ]
           : [
-              { label: "Level 1 · onboarding", value: String(metrics.lvl1), hint: metrics.lvl1Blocked ? `initial → processing · ${metrics.lvl1Blocked} blocked` : "initial → processing", color: "var(--blue-chip-text,#1a56db)" },
-              { label: "Level 2 · warming up", value: String(metrics.lvl2), hint: metrics.lvl2Blocked ? `warming up · ${metrics.lvl2Blocked} blocked` : "warm-up before we pay", color: "var(--st-conv-fg,#6d28d9)" },
+              { label: "Level 1 · warm-up", value: String(metrics.lvl1), hint: metrics.lvl1Blocked ? `not logged in · ${metrics.lvl1Blocked} blocked` : "warming up, not logged in", color: "var(--blue-chip-text,#1a56db)" },
+              { label: "Level 2 · logged in", value: String(metrics.lvl2), hint: metrics.lvl2Blocked ? `payout stage · ${metrics.lvl2Blocked} blocked` : "logged in — payout stage", color: "var(--st-conv-fg,#6d28d9)" },
               { label: "Live accounts", value: String(metrics.live), hint: metrics.onboardedTotal > metrics.live ? `earning · ${metrics.onboardedTotal - metrics.live} blocked` : "onboarded and earning", color: "var(--st-active-fg,#188038)" },
               { label: "No GoLogin", value: String(metrics.noGologin), hint: "can't be run", color: metrics.noGologin ? "var(--warn-badge-text,#b7791f)" : "var(--fg,#111)" },
               { label: "Problem accounts", value: String(metrics.issues), hint: "GoLogin / login / restricted", color: metrics.issues ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" },
