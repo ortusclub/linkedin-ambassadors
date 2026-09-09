@@ -145,11 +145,16 @@ const ACTION_GROUPS: { key: ActionKey; label: string; dot: string; note: string 
 //   restricted (restrictedAt) → temporarily flagged by LinkedIn, may recover
 //   setup    → no GoLogin yet, or a login issue we need to fix
 type BlockKind = "withdrawn" | "retired" | "restricted" | "setup";
+// A GoLogin is only EXPECTED from Level 2 onward ("GoLogin ready, verifying") and when
+// onboarded. Initial / awaiting-reply / Level-1-warm-up leads don't have one yet by
+// design, so a missing GoLogin there is normal — not a problem to flag.
+const needsGologin = (r: Row) => r.status === "approved" || r.status === "onboarded";
+const missingGologin = (r: Row) => needsGologin(r) && !!r.accountId && !r.hasGologin;
 const blockKind = (r: Row): BlockKind | null => {
   if (r.accountStatus === "removed") return "withdrawn";
   if (r.accountStatus === "retired") return "retired";
   if (r.accountRestrictedAt) return "restricted";
-  if (r.accountIssue || (r.accountId && !r.hasGologin)) return "setup";
+  if (r.accountIssue || missingGologin(r)) return "setup";
   return null;
 };
 const isBlocked = (r: Row) => blockKind(r) !== null;
@@ -413,7 +418,7 @@ export default function AdminPipelinePage() {
     const earning = all.filter((r) => r.status === "onboarded");          // fully onboarded = live/earning
     const earningOk = earning.filter((r) => !isBlocked(r));
     const inPayments = all.filter(isLive);                                 // logged in or onboarded (the payments view)
-    const noGologin = all.filter((r) => r.accountId && !r.hasGologin).length;
+    const noGologin = all.filter(missingGologin).length;
     const issues = all.filter(isBlocked).length;
     const monthly = earningOk.reduce((s, r) => s + monthlyAmt(r), 0);
     const setupsDue = inPayments.filter((r) => !isBlocked(r) && !setupPaid(r)).length;   // logged in, setup fee not yet paid
@@ -681,7 +686,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               {r.accountStatus === "removed" && <span title="Ambassador pulled their account back" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--neutral-bg,#eef1f5)", color: "var(--muted,#647189)" }}>↩ Withdrawn</span>}
               {r.accountStatus === "retired" && <span title="LinkedIn permanently restricted — inaccessible" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⛔ Permanently restricted</span>}
               {r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={`Restricted ${fmtDate(r.accountRestrictedAt)} — flagged by LinkedIn, may recover`} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ Restricted</span>}
-              {r.accountId && !r.hasGologin && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No GoLogin — account can't be run until one is added" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin</span>}
+              {missingGologin(r) && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No GoLogin — account can't be run until one is added" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin</span>}
               {r.accountIssue && !r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={r.accountIssue} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ {r.accountIssue.length > 22 ? "login issue" : r.accountIssue}</span>}
               {isLikelyTestEmail(r.email) && <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
             </div>
@@ -751,7 +756,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             {!r.accountId ? (
               <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>no account linked</span>
             ) : !r.hasGologin ? (
-              <span style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin — this account cannot be run</span>
+              <span style={{ font: `600 11px ${F_SANS}`, color: needsGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--muted,#8a97ad)" }}>{needsGologin(r) ? "⚠ No GoLogin — this account cannot be run" : "GoLogin not added yet"}</span>
             ) : r.gologinShareLink ? (
               <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 9px", borderRadius: 6 }}>↗ Open GoLogin</a>
             ) : (
@@ -760,7 +765,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
           </div>
           {r.accountId && <RestrictionControl r={r} onSet={acctSave} />}
           {r.accountId ? (
-            <div style={{ background: "var(--inset,#fafbfc)", border: `1px solid ${!r.hasGologin ? "var(--warn-badge-text,#b7791f)" : "var(--divider,#eee)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+            <div style={{ background: "var(--inset,#fafbfc)", border: `1px solid ${missingGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--divider,#eee)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
               <div style={GRID4}>
                 <Edit label="Login email (work)" value={r.loginEmail} placeholder="klabber address we sign in with" onSave={(v) => acctSave({ loginEmail: v })} />
                 <Edit label="Personal email (on account)" value={r.personalEmail} placeholder="ambassador's own" onSave={(v) => acctSave({ personalEmail: v })} />
