@@ -19,8 +19,18 @@ export interface ReferralGate {
   status: string;
   verifiedAt?: Date | string | null;
   accountIssue?: string | null;
+  onboardedAt?: Date | string | null;
+}
+
+// Whether the referred account is onboarded. The `status` string is the intended signal,
+// but some write paths (paying the setup fee, the owners-page onboarded-date field) set
+// onboarded_at without flipping status off "approved"/"onboarding" — which used to make a
+// genuinely-onboarded referral silently drop out of the referrer's converted/owed totals.
+// onboarded_at set is an equally valid signal, so honour either.
+export function isReferralOnboarded(a: ReferralGate): boolean {
+  return a.status === "onboarded" || !!a.onboardedAt;
 }
 
 export function isReferralEarned(a: ReferralGate): boolean {
-  return a.status === "onboarded" && !!a.verifiedAt;
+  return isReferralOnboarded(a) && !!a.verifiedAt;
 }
