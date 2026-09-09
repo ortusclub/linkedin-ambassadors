@@ -338,6 +338,7 @@ export default function OnboardingPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
+  const [pocFilter, setPocFilter] = useState<string>("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setExpanded((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -398,13 +399,21 @@ export default function OnboardingPage() {
     } catch {}
   };
 
+  // Distinct PoCs across all rows — powers the "Onboarding PoC" filter chips.
+  const pocs = useMemo(() => Array.from(new Set((rows || []).map((r) => (r.poc || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [rows]);
+  const unassignedCount = useMemo(() => (rows || []).filter((r) => !(r.poc || "").trim()).length, [rows]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows || [];
-    return (rows || []).filter((r) =>
-      [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail].some((v) => (v || "").toLowerCase().includes(q))
-    );
-  }, [rows, query]);
+    return (rows || []).filter((r) => {
+      if (pocFilter !== "all") {
+        if (pocFilter === "__none") { if ((r.poc || "").trim()) return false; }
+        else if ((r.poc || "").trim().toLowerCase() !== pocFilter.toLowerCase()) return false;
+      }
+      if (!q) return true;
+      return [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail].some((v) => (v || "").toLowerCase().includes(q));
+    });
+  }, [rows, query, pocFilter]);
 
   const bucketed = useMemo(() => {
     const m: Record<Bucket, Row[]> = { initial: [], processing: [], rejected: [], onboarded: [], unreachable: [] };
@@ -431,9 +440,25 @@ export default function OnboardingPage() {
         missing one are badged and sorted to the bottom.
       </p>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
         <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Onboarding PoC</span>
-        <span style={{ font: `700 12px ${F_SANS}`, padding: "3px 11px", borderRadius: 999, background: "var(--blue-chip-bg,#eaf1ff)", color: "var(--blue-chip-text,#2b5fd0)" }}>Sam</span>
+        {(() => {
+          const chip = (key: string, label: string) => {
+            const on = pocFilter === key;
+            return (
+              <button key={key} type="button" onClick={() => setPocFilter(on ? "all" : key)}
+                style={{ font: `700 12px ${F_SANS}`, padding: "3px 11px", borderRadius: 999, cursor: "pointer",
+                  border: on ? "1px solid var(--blue-chip-text,#2b5fd0)" : "1px solid var(--card-border,#e3e3e6)",
+                  background: on ? "var(--blue-chip-bg,#eaf1ff)" : "var(--card,#fff)",
+                  color: on ? "var(--blue-chip-text,#2b5fd0)" : "var(--muted,#6b7280)" }}>{label}</button>
+            );
+          };
+          return [
+            chip("all", "All"),
+            ...pocs.map((p) => chip(p, p)),
+            unassignedCount > 0 ? chip("__none", `Unassigned (${unassignedCount})`) : null,
+          ];
+        })()}
       </div>
 
       {needsGologin > 0 && (
