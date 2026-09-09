@@ -28,14 +28,14 @@ const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: 
 
 const STEPS = [
   "Pitch it in one line — they earn passive income each month just by lending us their LinkedIn.",
-  "Check they qualify: they're 18 or older. Any LinkedIn account works — brand-new ones just pay out a bit later.",
+  "Check they meet LinkedIn's minimum age: 16, or older where local law requires. Brand-new accounts pay out a bit later.",
   "They scan your QR code.",
   "They fill in their details and sign up — that's what records them against your code, so don't stop before this.",
   "Most important: stay with them until they pick a slot on the \"Book your onboarding call\" screen at the end. Don't let them leave on \"I'll do it later\" — they won't.",
   "Done — our team takes it from there on the call, then setup and payment.",
 ];
-const DOS =["Be friendly, casual and quick", "Get them to complete the form", "Watch them book a call slot before they walk away", "Be honest that payment comes after setup", "Check they're 18 or older"];
-const DONTS = ["Pressure anyone — encourage, never force", "Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up anyone under 18"];
+const DOS =["Be friendly, casual and quick", "Get them to complete the form", "Watch them book a call slot before they walk away", "Be honest that payment comes after setup", "Check LinkedIn's minimum age: 16, or older where local law requires"];
+const DONTS = ["Pressure anyone — encourage, never force", "Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up anyone below LinkedIn's applicable minimum age"];
 
 const TIPS = [
   "They can remove their account at any time.",
@@ -61,7 +61,7 @@ const WARMUP: { t: string; items: string[] }[] = [
 const MARKETER_FAQ = [
   { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up onboarded onto our inventory. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday." },
   { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your ₱500 is triggered." },
-  { q: "What if someone doesn't qualify?", a: "Just thank them and move on — they only need to be 18 or older." },
+  { q: "What if someone doesn't qualify?", a: "Thank them and move on. LinkedIn's minimum age is 16, or older where local law requires." },
   { q: "How do I update my payout details?", a: "Right here — scroll down to \"Your payout details\" and save your GCash / bank info so we can pay you." },
   { q: "How do I get invited back?", a: "We track sign-ups per person — strong performers get first pick for the next field days." },
 ];
@@ -76,7 +76,7 @@ const AMBASSADOR_FAQ = [
   { q: "Can I use a brand-new LinkedIn account?", a: "Yes — new accounts are welcome. It just needs to be about a week old before we pay the setup fee." },
   { q: "Can I still use my account?", a: "Yes. You keep full access, you can see exactly how it's being used, and you can use it yourself any time it isn't being rented." },
   { q: "Do I have to share my password?", a: "Your password is never shared with the renter — they only access the account through our software. We keep it secure so we can quickly sort out any issue with your account for you." },
-  { q: "Can my friends or family do it too?", a: "Yes — anyone 18 or older. Each account earns its own set-up bonus and monthly payout." },
+  { q: "Can my friends or family do it too?", a: "Yes, provided they meet LinkedIn's minimum age: 16, or older where local law requires. Each eligible account earns its own set-up bonus and monthly payout." },
   { q: "What if I want my account back later?", a: "No problem — reclaim it anytime, and the monthly payments simply stop." },
 ];
 
@@ -237,6 +237,8 @@ export default function Portal({ token }: { token: string }) {
               <button onClick={copyLink} style={{ flex: 1, font: `700 14px ${JAK}`, color: "#fff", background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.3)", padding: 13, borderRadius: 12, cursor: "pointer" }}>{linkCopied ? "Copied ✓" : "⧉ Copy link"}</button>
             </div>
             <div style={{ marginTop: 11, font: `500 11.5px ${GRO}`, color: "rgba(255,255,255,.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myLinkShort}</div>
+            <a href={`/m/${token}/onboarding`} style={{ display: "block", marginTop: 14, padding: "13px 16px", borderRadius: 12, background: "#fff", color: C.greenDk, textAlign: "center", textDecoration: "none", font: `700 14px ${JAK}` }}>Do-it-yourself onboarding →</a>
+            <p style={{ color: "rgba(255,255,255,.8)", font: `500 11.5px/1.5 ${JAK}`, margin: "8px 0 0" }}>With the account owner? Set up their browser and guide them through login now.</p>
             <div style={{ marginTop: 9, paddingTop: 9, borderTop: "1px solid rgba(255,255,255,.18)", font: `500 12px ${JAK}`, color: "rgba(255,255,255,.82)" }}>Can&apos;t scan? Give them your code: <b style={{ font: `700 13px ${GRO}`, color: "#fff", letterSpacing: ".02em" }}>{me.slug}</b></div>
           </div>
 

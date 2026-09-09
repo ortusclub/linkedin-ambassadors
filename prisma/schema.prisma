@@ -102,6 +102,7 @@ model VerificationCode {
 }
 
 model LinkedInAccount {
+  selfServiceOnboarding SelfServiceOnboarding?
   id                    String        @id @default(uuid()) @db.Uuid
   gologinProfileId      String?       @map("gologin_profile_id")
   // Which GoLogin account hosts this profile: "master" (info@ortus, legacy rentals)
@@ -274,6 +275,7 @@ enum AmbassadorStatus {
 }
 
 model AmbassadorApplication {
+  selfServiceOnboarding SelfServiceOnboarding?
   id                String           @id @default(uuid()) @db.Uuid
   fullName          String           @map("full_name")
   email             String
@@ -341,6 +343,7 @@ model AmbassadorApplication {
 // their QR; `token` is the secret for their portal link /m/<token>. Self-editable
 // fields (contact, payment) are filled by them via the portal.
 model Referrer {
+  selfServiceOnboardings SelfServiceOnboarding[]
   id               String   @id @default(uuid()) @db.Uuid
   slug             String   @unique
   token            String   @unique
@@ -511,6 +514,7 @@ model MetricsSnapshot {
 // proxy tab is one source of truth, never a hand-kept copy. A row may exist with no
 // linked accounts (a spare/dead proxy Sam is tracking).
 model Proxy {
+  selfServiceOnboardings SelfServiceOnboarding[]
   id        String   @id @default(uuid()) @db.Uuid
   host      String
   port      Int
@@ -527,4 +531,66 @@ model Proxy {
 
   @@unique([host, port])
   @@map("proxies")
+}
+
+// Durable provisioning state: retries must not allocate another proxy or profile.
+model SelfServiceOnboarding {
+  emailSetup OnboardingEmailSetup?
+  id String @id @default(uuid()) @db.Uuid
+  referrerId String @map("referrer_id") @db.Uuid
+  referrer Referrer @relation(fields: [referrerId], references: [id])
+  applicationId String @unique @map("application_id") @db.Uuid
+  application AmbassadorApplication @relation(fields: [applicationId], references: [id])
+  accountId String @unique @map("account_id") @db.Uuid
+  account LinkedInAccount @relation(fields: [accountId], references: [id])
+  proxyId String? @map("proxy_id") @db.Uuid
+  proxySlot Int? @map("proxy_slot")
+  proxy Proxy? @relation(fields: [proxyId], references: [id])
+  proxyOrderId String? @unique @map("proxy_order_id")
+  proxyBudgetReserved Decimal? @map("proxy_budget_reserved") @db.Decimal(10, 2)
+  proxyPurchaseAt DateTime? @map("proxy_purchase_at")
+  email String @unique
+  linkedinUrl String @unique @map("linkedin_url")
+  state String @default("reserved")
+  consentAt DateTime @map("consent_at")
+  openedAt DateTime? @map("opened_at")
+  confirmedAt DateTime? @map("confirmed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([referrerId])
+  @@unique([proxyId, proxySlot])
+  @@map("self_service_onboardings")
+}
+
+model OnboardingEmailSetup {
+  sessionId String @id @map("session_id") @db.Uuid
+  session SelfServiceOnboarding @relation(fields: [sessionId], references: [id])
+  address String @unique
+  destination String
+  consentAt DateTime @map("consent_at")
+  codeHash String? @map("code_hash")
+  codeExpiresAt DateTime? @map("code_expires_at")
+  codeAttempts Int @default(0) @map("code_attempts")
+  codeSends Int @default(0) @map("code_sends")
+  codeSentAt DateTime? @map("code_sent_at")
+  destinationVerifiedAt DateTime? @map("destination_verified_at")
+  forwardingUntil DateTime? @map("forwarding_until")
+  primaryConfirmedAt DateTime? @map("primary_confirmed_at")
+  lastForwardedAt DateTime? @map("last_forwarded_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  messages OnboardingEmailDelivery[]
+  @@map("onboarding_email_setups")
+}
+
+model OnboardingEmailDelivery {
+  emailId String @id @map("email_id")
+  sessionId String @map("session_id") @db.Uuid
+  setup OnboardingEmailSetup @relation(fields: [sessionId], references: [sessionId])
+  status String @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+  leaseUntil DateTime? @map("lease_until")
+  sentAt DateTime? @map("sent_at")
+  @@index([sessionId])
+  @@map("onboarding_email_deliveries")
 }

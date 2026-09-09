@@ -39,6 +39,7 @@ function headers(token?: string) {
 async function gologinFetch(path: string, options: RequestInit = {}, token?: string) {
   const res = await fetch(`${GOLOGIN_API_BASE}${path}`, {
     ...options,
+    signal: options.signal ?? AbortSignal.timeout(20000),
     headers: { ...headers(token), ...options.headers },
   });
   const text = await res.text();
@@ -57,7 +58,7 @@ export async function createProfile(options: {
     username?: string;
     password?: string;
   };
-}) {
+}, token?: string) {
   return gologinFetch("/browser", {
     method: "POST",
     body: JSON.stringify({
@@ -81,7 +82,7 @@ export async function createProfile(options: {
           }
         : undefined,
     }),
-  });
+  }, token);
 }
 
 export async function deleteProfile(profileId: string) {

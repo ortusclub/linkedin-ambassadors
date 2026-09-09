@@ -118,7 +118,7 @@ export async function getProxies(): Promise<ProxyRow[]> {
   for (const m of metaRows) {
     const key = `${m.host}:${m.port}`;
     if (!buckets.has(key)) {
-      buckets.set(key, { host: m.host, port: m.port, username: null, password: null, countries: new Map(), accounts: [] });
+      buckets.set(key, { host: m.host, port: m.port, username: m.username, password: m.password, countries: new Map(), accounts: [] });
     }
   }
 

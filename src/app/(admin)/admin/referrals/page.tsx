@@ -62,7 +62,7 @@ const cardMarkup = (origin: string, r: { slug: string; name: string }) => {
       <div class="why"><i>&#10003;</i><span>Password is never shared</span></div>
       <div class="why"><i>&#10003;</i><span>Add accounts to earn more</span></div>
     </div>
-    <div class="note">Ages 18+ &middot; paid to GCash, Maya or your bank.</div>
+    <div class="note">LinkedIn minimum age: 16, or older where local law requires &middot; paid to GCash, Maya or your bank.</div>
     <div class="signup">
       <img class="qr" src="${qr}" alt="QR"/>
       <div style="min-width:0">

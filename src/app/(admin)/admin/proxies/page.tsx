@@ -16,6 +16,7 @@ const TYPE_OPTIONS: { value: string; label: string }[] = [
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Auto" },
   { value: "active", label: "Active" },
+  { value: "self_service", label: "Self-service pool" },
   { value: "error", label: "Error" },
   { value: "retired", label: "Retired" },
 ];
@@ -156,7 +157,7 @@ export default function AdminProxiesPage() {
         <div style={{ maxWidth: 720 }}>
           <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Proxies</h1>
           <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>
-            Every proxy in use, joined live from the accounts assigned to it. Country, linked accounts and count are derived automatically; set the provider, residential/datacenter type and friendly label per proxy. The Google Sheet mirrors this view via the link on the right.
+            Every proxy in use, joined live from the accounts assigned to it. Guided onboarding can use active residential HTTP proxies with a known country and login credentials, up to two accounts per proxy. Static residential proxies purchased during onboarding become reusable here. The Google Sheet mirrors this view.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flex: "none" }}>

@@ -224,6 +224,7 @@ function ApplicantRow({ r, onChange, busy, open, onToggle, onLogTouch, onSetFoll
           {r.setupPaidAt && <span>Onboarded: <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.setupPaidAt)}</b></span>}
           <span>Account: <b style={{ color: r.accountId ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{r.accountName ? formatName(r.accountName) : "none linked"}</b></span>
           <span>PoC: <b style={{ color: r.poc ? "var(--fg,#444)" : "var(--muted2,#9aa0a6)" }}>{r.poc || "—"}</b></span>
+          {r.referredBy && <span>Referrer: <b style={{ color: "var(--fg,#444)" }}>{r.referredBy}</b></span>}
           {r.gologinShareLink && <a href={r.gologinShareLink} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)" }}>GoLogin ↗</a>}
         </div>
       </div>
