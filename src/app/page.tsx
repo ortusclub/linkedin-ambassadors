@@ -32,11 +32,6 @@ const STEPS = [
   { n: "3", tag: "Launch", title: "Launch campaigns", body: "Open the account in a secure browser and run your outreach tool. Each account has its own limits — multiply your reach, not your risk." },
 ];
 
-const TIERS = [
-  { eyebrow: "ENTRY", bg: "#EAF2FC", fg: "#0A66C2", name: "New / Basic", person: "Jordan T.", role: "Sales Associate", initials: "JT", avatarBg: "#4B9BEA", conn: "<500", ver: "No", verOn: false, nav: "—", navOn: false, desc: "Newer profiles for testing and higher-volume outreach.", price: "$45" },
-  { eyebrow: "SWEET SPOT", bg: "#0A66C2", fg: "#FFFFFF", name: "Established", person: "Anna K.", role: "Marketing Manager", initials: "AK", avatarBg: "#0A66C2", conn: "500+", ver: "Yes", verOn: true, nav: "—", navOn: false, desc: "Verified, established profiles — the reliable middle ground.", price: "$75", featured: true, ribbon: "Most popular" },
-  { eyebrow: "TOP TIER", bg: "#0D1B2A", fg: "#FFFFFF", name: "Premium", person: "Marcus L.", role: "VP of Sales", initials: "ML", avatarBg: "#0D1B2A", conn: "1,000+", ver: "Yes", verOn: true, nav: "✓", navOn: true, desc: "Large networks, Sales Navigator available. Maximum reach.", price: "$110+" },
-];
 
 const GO_FEATURES = [
   { icon: "🌐", title: "Dedicated proxy", body: "Each account runs from a consistent IP location, every session." },
@@ -137,41 +132,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ================= PRICING PREVIEW ================= */}
-      <section style={{ background: "#EEEFF1", padding: "88px 24px" }}>
-        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
-          <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 16 }}>Pricing</div>
-          <h2 style={{ font: `700 clamp(30px,4vw,42px) ${POP}`, lineHeight: 1.08, letterSpacing: "-0.03em", margin: "0 0 14px", maxWidth: 560 }}>Pay per account — priced by quality</h2>
-          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 44px" }}>Every profile is priced on its own merits. Compare the tiers, then see full details.</p>
-          <div className="lvh-3" style={{ alignItems: "start" }}>
-            {TIERS.map((t) => (
-              <div key={t.name} className="lvh-lift" style={{ position: "relative", background: "linear-gradient(180deg,#FFFFFF,#FCFDFE)", borderRadius: 20, padding: "28px 26px", border: "1px solid " + (t.featured ? "#0A66C2" : "#E9ECF0"), borderTop: `3px solid ${t.avatarBg}`, boxShadow: t.featured ? "0 22px 52px rgba(10,102,194,0.18)" : "0 10px 30px rgba(16,24,40,0.07)", transform: t.featured ? "translateY(-10px)" : "none" }}>
-                {t.ribbon && <div style={{ position: "absolute", top: -13, left: "50%", transform: "translateX(-50%)", background: "#00B85C", color: "#fff", font: `500 10.5px ${MONO}`, letterSpacing: "0.08em", textTransform: "uppercase", padding: "5px 14px", borderRadius: 999, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,184,92,0.3)" }}>{t.ribbon}</div>}
-                <span style={{ font: `500 10.5px ${MONO}`, letterSpacing: "0.1em", color: t.fg, background: t.bg, padding: "5px 11px", borderRadius: 7 }}>{t.eyebrow}</span>
-                <div style={{ font: `700 23px ${POP}`, letterSpacing: "-0.01em", margin: "16px 0" }}>{t.name}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 11, background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 12, padding: "11px 13px", marginBottom: 16 }}>
-                  <span style={{ flexShrink: 0, width: 36, height: 36, borderRadius: "50%", background: t.avatarBg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `600 13px ${POP}` }}>{t.initials}</span>
-                  <div><div style={{ fontWeight: 600, fontSize: 14, color: "#0B1220" }}>{t.person}</div><div style={{ fontSize: 12.5, color: "#8A93A2", marginTop: 1 }}>{t.role}</div></div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
-                  {[[t.conn, "connections", "#0A66C2"], [t.ver, "verified", t.verOn ? "#00A150" : "#C2C9D2"], [t.nav, "Sales Nav", t.navOn ? "#00A150" : "#C2C9D2"]].map(([v, l, c], i) => (
-                    <div key={i} style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 4px", textAlign: "center" }}>
-                      <div style={{ font: `700 15px ${POP}`, color: c as string }}>{v}</div><div style={{ fontSize: 10.5, color: "#96A0AD", marginTop: 2 }}>{l}</div>
-                    </div>
-                  ))}
-                </div>
-                <p style={{ fontSize: 14, lineHeight: 1.55, color: "#5A6473", margin: "0 0 18px", minHeight: 42 }}>{t.desc}</p>
-                <div style={{ height: 1, background: "#EDEFF2", marginBottom: 14 }} />
-                <div><span style={{ font: `700 22px ${POP}`, color: "#0A66C2" }}>{t.price}</span><span style={{ fontSize: 13, color: "#96A0AD" }}>/mo</span></div>
-              </div>
-            ))}
-          </div>
-          <p style={{ textAlign: "center", fontSize: 13.5, color: "#96A0AD", margin: "28px auto 0", maxWidth: 620 }}>Every account includes GoLogin browser access and a dedicated residential proxy. Sales Navigator available on any account for +$70/mo.</p>
-          <div style={{ textAlign: "center", marginTop: 20 }}>
-            <Link href="/pricing" className="lvh-cta" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #DFE3E9", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 4px 14px rgba(16,24,40,0.06)" }}>See full pricing details →</Link>
-          </div>
-        </div>
-      </section>
 
       {/* ================= GOLOGIN ================= */}
       <section style={{ position: "relative", background: "#FFFFFF", borderTop: "1px solid #ECEEF1", padding: "88px 24px", overflow: "hidden" }}>
