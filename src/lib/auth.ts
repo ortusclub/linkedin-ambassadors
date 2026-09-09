@@ -6,7 +6,7 @@ import type { User } from "@/generated/prisma/client";
 
 const SESSION_COOKIE = "session_token";
 const SESSION_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
-const ADMIN_SESSION_MAX_AGE = 8 * 60 * 60 * 1000; // 8 hours
+const ADMIN_SESSION_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days — stay signed in on the admin
 
 export async function hashPassword(password: string): Promise<string> {
   return hash(password, 12);
