@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Poppins, Inter, JetBrains_Mono } from "next/font/google";
+import { crmOwnerOptions, matchesCrmOwner, ownerKey, type CrmOwner } from "@/lib/crm-owners";
 
 const poppins = Poppins({ subsets: ["latin"], weight: ["500", "600", "700", "800"], variable: "--lv-poppins" });
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--lv-inter" });
@@ -68,11 +69,14 @@ export default function CrmPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [owners, setOwners] = useState<CrmOwner[]>([]);
+  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [error, setError] = useState<string | null>(null);
   const [selId, setSelId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, { channel: string; body: string }>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", companyEmail: "", type: "Potential Renter", stage: "new", message: "" });
+  const [form, setForm] = useState({ name: "", companyEmail: "", type: "Potential Renter", stage: "new", message: "", ownerEmail: "" });
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -88,22 +92,27 @@ export default function CrmPage() {
     return () => { window.removeEventListener("lv-admin-theme", onEvt); window.removeEventListener("storage", read); };
   }, []);
 
-  const load = () => fetch("/api/admin/inbound").then((r) => r.json()).then((d) => setLeads(d.leads || [])).finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  const load = () => fetch("/api/admin/inbound").then(async (r) => { if (!r.ok) throw new Error("Could not load CRM contacts."); return r.json(); }).then((d) => { setLeads(d.leads || []); setOwners(d.owners || []); }).finally(() => setLoading(false));
+  useEffect(() => { load().catch(() => setError("Could not load CRM contacts. Please refresh.")); }, []);
   useEffect(() => { fetch("/api/admin/inbound/export-url").then((r) => r.json()).then((d) => { if (d.configured) setSheetUrl(d.url); }).catch(() => {}); }, []);
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   const patch = async (id: string, body: Record<string, unknown>) => {
     setBusy(id);
-    await fetch("/api/admin/inbound", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...body }) });
-    await load();
-    setBusy(null);
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/inbound", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...body }) });
+      if (!response.ok) throw new Error("Save failed");
+      await load();
+      return true;
+    } catch { setError("Could not save the change. Please try again."); return false; }
+    finally { setBusy(null); }
   };
 
   const logComm = async (id: string) => {
     const d = draft[id];
     if (!d || !d.body.trim()) return;
-    await patch(id, { addNote: { channel: d.channel, body: d.body } });
+    if (!await patch(id, { addNote: { channel: d.channel, body: d.body } })) return;
     setDraft((p) => ({ ...p, [id]: { channel: d.channel, body: "" } }));
   };
 
@@ -112,7 +121,8 @@ export default function CrmPage() {
     setBusy("new");
     const res = await fetch("/api/admin/inbound", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel: "manual", source: "manual", ...form }) });
     const data = await res.json().catch(() => ({}));
-    setForm({ name: "", companyEmail: "", type: "Potential Renter", stage: "new", message: "" });
+    if (!res.ok) { setError("Could not add the contact. Please try again."); setBusy(null); return; }
+    setForm({ name: "", companyEmail: "", type: "Potential Renter", stage: "new", message: "", ownerEmail: "" });
     setAdding(false);
     await load();
     if (data?.lead?.id) setSelId(data.lead.id);
@@ -128,24 +138,27 @@ export default function CrmPage() {
     setBusy(null);
   };
 
+  const ownerOptions = useMemo(() => crmOwnerOptions(owners, leads), [owners, leads]);
+  const ownerLabels = useMemo(() => new Map(ownerOptions.map(o => [o.value, o.label])), [ownerOptions]);
+  const ownerLeads = useMemo(() => leads.filter(l => matchesCrmOwner(l.ownerEmail, ownerFilter)), [leads, ownerFilter]);
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: leads.length };
-    STAGES.forEach((s) => (c[s.key] = leads.filter((l) => (l.stage || "new") === s.key).length));
+    const c: Record<string, number> = { all: ownerLeads.length };
+    STAGES.forEach((s) => (c[s.key] = ownerLeads.filter((l) => (l.stage || "new") === s.key).length));
     return c;
-  }, [leads]);
+  }, [ownerLeads]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const ts = (l: Lead) => new Date(l.lastContactAt || l.firstContactAt).getTime() || 0;
-    return leads
+    return ownerLeads
       .filter((l) => {
         if (filter !== "all" && (l.stage || "new") !== filter) return false;
         if (!q) return true;
-        return `${l.name} ${l.companyEmail || ""} ${l.type || ""} ${l.source || ""} ${l.handle || ""} ${l.notes || ""}`.toLowerCase().includes(q);
+        return `${l.name} ${l.companyEmail || ""} ${l.type || ""} ${l.source || ""} ${l.handle || ""} ${l.notes || ""} ${l.message || ""} ${l.ownerEmail || ""} ${ownerLabels.get(ownerKey(l.ownerEmail)) || ""}`.toLowerCase().includes(q);
       })
       // most recently contacted first — whoever we talked to latest floats to the top
       .sort((a, b) => ts(b) - ts(a));
-  }, [leads, filter, search]);
+  }, [ownerLeads, filter, search, ownerLabels]);
 
   const cur = useMemo(() => filtered.find((l) => l.id === selId) || filtered[0] || null, [filtered, selId]);
 
@@ -153,7 +166,7 @@ export default function CrmPage() {
 
   // segmented pipeline health bar (design order)
   const segOrder = [["active", "#00B85C"], ["warm", "#E0A43B"], ["new", "#0A66C2"], ["cold", dark ? "#3A4A5A" : "#B7C0CB"], ["lost", "#D8607A"]] as const;
-  const segs = segOrder.filter(([k]) => counts[k] > 0).map(([k, c]) => ({ w: leads.length ? (counts[k] / leads.length) * 100 : 0, color: c }));
+  const segs = segOrder.filter(([k]) => counts[k] > 0).map(([k, c]) => ({ w: counts.all ? (counts[k] / counts.all) * 100 : 0, color: c }));
 
   const V = {
     bg: dark ? "#0A1420" : "#EEF1F4", surface: dark ? "#0F1C2B" : "#FFFFFF", surface2: dark ? "#13212F" : "#F8FAFC",
@@ -189,10 +202,15 @@ export default function CrmPage() {
           </div>
         </div>
 
+        {error && <p role="alert" style={{ color: "#D8607A" }}>{error}</p>}
         {adding && (
           <div style={{ background: V.surface, border: `1px solid ${V.border}`, borderRadius: 14, padding: 16, marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ ...input, flex: "1 1 180px" }} />
             <input placeholder="Company / email" value={form.companyEmail} onChange={(e) => setForm({ ...form, companyEmail: e.target.value })} style={{ ...input, flex: "1 1 180px" }} />
+            <select aria-label="New contact PoC owner" value={form.ownerEmail} onChange={e => setForm({ ...form, ownerEmail: e.target.value })} style={input}>
+              <option value="">Unassigned PoC</option>
+              {ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={input}>
               <option>Potential Renter</option><option>Potential Ambassador</option><option>Renter</option><option>Partner</option><option>Other</option>
             </select>
@@ -212,7 +230,7 @@ export default function CrmPage() {
           <div style={{ flex: 1, display: "flex", height: 8, borderRadius: 999, overflow: "hidden", background: V.pillTrack, minWidth: 120 }}>
             {segs.map((s, i) => <div key={i} style={{ width: s.w + "%", background: s.color }} />)}
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", maxWidth: "100%" }}>
             {CHIPS.map(([k, label, dot]) => {
               const on = filter === k;
               const onBg = dark ? "#0A66C2" : "#0B1220";
@@ -227,6 +245,16 @@ export default function CrmPage() {
         </div>
       </div>
 
+      <div style={{ margin: "0 20px", padding: "14px 18px", background: V.surface, border: `1px solid ${V.border}`, borderRadius: 14 }}>
+        <label style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, fontSize: 13, fontWeight: 600, color: V.body }}>Filter by PoC owner
+          <select value={ownerFilter} onChange={e => { setOwnerFilter(e.target.value); setSelId(null); }} style={{ ...input, width: 280, maxWidth: "100%" }}>
+            <option value="all">All PoC owners</option>
+            <option value="unassigned">Unassigned</option>
+            {ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+      </div>
+
       {/* MASTER-DETAIL */}
       <div style={{ padding: "18px 20px 20px", display: "grid", gridTemplateColumns: "360px minmax(0,1fr)", gap: 20, alignItems: "start" }}>
 
@@ -237,7 +265,7 @@ export default function CrmPage() {
               <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: V.faint, pointerEvents: "none", display: "flex" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
               </span>
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email or message…" style={{ ...input, width: "100%", padding: "11px 13px 11px 38px", fontSize: 13.5 }} />
+              <input aria-label="Search contacts and PoC owners" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contact, PoC or message…" style={{ ...input, width: "100%", padding: "11px 13px 11px 38px", fontSize: 13.5 }} />
             </div>
           </div>
           <div style={{ maxHeight: "calc(100vh - 210px)", overflowY: "auto" }}>
@@ -259,6 +287,7 @@ export default function CrmPage() {
                       <span style={{ fontFamily: font.m, fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: cc.fg, background: cc.bg, borderRadius: 5, padding: "2px 6px", flexShrink: 0 }}>{l.channel}</span>
                     </div>
                     <div style={{ fontSize: 12.5, color: V.muted2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 2 }}>{l.companyEmail || l.type || l.handle || "—"}</div>
+                    <div title={`PoC: ${ownerLabels.get(ownerKey(l.ownerEmail)) || "Unassigned"}`} style={{ fontSize: 12, fontWeight: l.ownerEmail ? 600 : 400, color: l.ownerEmail ? V.body : V.faint, marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>PoC: {ownerLabels.get(ownerKey(l.ownerEmail)) || "Unassigned"}</div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: sc.fg, background: sc.bg, borderRadius: 999, padding: "3px 9px" }}>
@@ -314,8 +343,11 @@ export default function CrmPage() {
                     <div style={{ fontSize: 14, fontWeight: 600, color: V.ink }}>{cur.source || cur.channel}</div>
                   </div>
                   <div style={metaCell}>
-                    <div style={{ ...micro, color: V.faint, marginBottom: 6 }}>Owner</div>
-                    <input key={cur.id + "-owner"} defaultValue={cur.ownerEmail || ""} placeholder="team member" onBlur={(e) => { if (e.target.value !== (cur.ownerEmail || "")) patch(cur.id, { ownerEmail: e.target.value }); }} style={{ ...input, width: "100%", padding: "6px 10px" }} />
+                    <label htmlFor="lead-poc-owner" style={{ ...micro, display: "block", color: V.faint, marginBottom: 6 }}>PoC owner</label>
+                    <select id="lead-poc-owner" value={ownerKey(cur.ownerEmail)} disabled={busy !== null} onChange={e => { void patch(cur.id, { ownerEmail: e.target.value || null }); }} style={{ ...input, width: "100%", padding: "6px 10px" }}>
+                      <option value="">Unassigned</option>
+                      {ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
                   </div>
                   <div style={metaCell}>
                     <div style={{ ...micro, color: V.faint, marginBottom: 6 }}>Follow-up</div>

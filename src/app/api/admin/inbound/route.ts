@@ -45,8 +45,11 @@ type Comm = { ts: string; channel: string; body: string };
 export async function GET() {
   try {
     await requireAdmin();
-    const leads = await prisma.inboundLead.findMany({ orderBy: { firstContactAt: "desc" } });
-    return NextResponse.json({ leads });
+    const [leads, owners] = await Promise.all([
+      prisma.inboundLead.findMany({ orderBy: { firstContactAt: "desc" } }),
+      prisma.user.findMany({ where: { role: "admin" }, select: { email: true, fullName: true }, orderBy: { fullName: "asc" } }),
+    ]);
+    return NextResponse.json({ leads, owners });
   } catch (error) {
     return err(error);
   }
