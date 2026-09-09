@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { isReferralEarned } from "@/lib/referrals";
+import { isReferralEarned, isReferralOnboarded } from "@/lib/referrals";
 import { type Currency, CURRENCY_CONFIG, formatMoney, referralCurrency } from "@/lib/referral-currency";
 
 // A single ambassador application, reduced to what the referral roll-up needs.
@@ -11,6 +11,7 @@ interface App {
   status: string;
   verifiedAt?: string | null;
   accountIssue?: string | null;
+  onboardedAt?: string | null;
 }
 
 interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; }
@@ -83,14 +84,16 @@ const rateFor = (referredBy: string) => CURRENCY_CONFIG[curFor(referredBy)].rate
 // A referrer is "top" once this many of their signups convert.
 const TOP_THRESHOLD = 5;
 
-// "Onboarded" = the referred account made it onto inventory (accepted + transferred).
-const isOnboarded = (s: string) => s === "onboarded";
+// "Onboarded" = the referred account made it onto inventory. Honours onboarded_at too, not
+// just the status string, so a referral whose status lagged (setup paid via a path that
+// didn't flip status) still counts. See isReferralOnboarded.
+const isOnboarded = (a: App) => isReferralOnboarded(a);
 // "Converted" = a SUCCESSFUL onboarding. An account that's onboarded but currently
 // sidelined by an account issue (restricted / can't log in) is NOT a real conversion, so
 // it doesn't inflate the count, the % or what's owed. Exception: if the referrer was
 // already confirmed-to-pay on it (earned), it stays counted so the total never drops below
 // what's already been paid out — mirrors the "earned is permanent" rule in isReferralEarned.
-const isConverted = (a: App) => isOnboarded(a.status) && (!a.accountIssue || isReferralEarned(a));
+const isConverted = (a: App) => isOnboarded(a) && (!a.accountIssue || isReferralEarned(a));
 
 // A commission is "ready" only once the account passes its stability check
 // (marked good-to-go on the ambassador card, after the 3-day / 1-week hold).
@@ -267,7 +270,7 @@ export default function AdminReferralsPage() {
   const convertedFor = (rowName: string) => {
     const nm = (rowName || "").trim().toLowerCase();
     return apps
-      .filter((a) => (a.referredBy || "").trim().toLowerCase() === nm && isOnboarded(a.status))
+      .filter((a) => (a.referredBy || "").trim().toLowerCase() === nm && isOnboarded(a))
       .map((a) => {
         const earned = isReferralEarned(a);
         const issueLabel = a.accountIssue ? (a.accountIssue === "restricted" ? "restricted" : "login issue") : null;

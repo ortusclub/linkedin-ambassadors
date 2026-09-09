@@ -23,7 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      select: { fullName: true, referredBy: true, status: true, verifiedAt: true, accountIssue: true, createdAt: true },
+      select: { fullName: true, referredBy: true, status: true, verifiedAt: true, accountIssue: true, onboardedAt: true, createdAt: true },
     }),
     prisma.payout.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" } }),
   ]);
