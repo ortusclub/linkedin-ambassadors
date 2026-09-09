@@ -361,6 +361,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
   const [pocFilter, setPocFilter] = useState<string>("all");
+  const [referrerFilter, setReferrerFilter] = useState<string>("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setExpanded((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -421,9 +422,11 @@ export default function OnboardingPage() {
     } catch {}
   };
 
-  // Distinct PoCs across all rows — powers the "Onboarding PoC" filter chips.
+  // Distinct PoCs / referrers across all rows — power the filter dropdowns.
   const pocs = useMemo(() => Array.from(new Set((rows || []).map((r) => (r.poc || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [rows]);
   const unassignedCount = useMemo(() => (rows || []).filter((r) => !(r.poc || "").trim()).length, [rows]);
+  const referrers = useMemo(() => Array.from(new Set((rows || []).map((r) => (r.referredBy || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [rows]);
+  const noReferrerCount = useMemo(() => (rows || []).filter((r) => !(r.referredBy || "").trim()).length, [rows]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -432,10 +435,14 @@ export default function OnboardingPage() {
         if (pocFilter === "__none") { if ((r.poc || "").trim()) return false; }
         else if ((r.poc || "").trim().toLowerCase() !== pocFilter.toLowerCase()) return false;
       }
+      if (referrerFilter !== "all") {
+        if (referrerFilter === "__none") { if ((r.referredBy || "").trim()) return false; }
+        else if ((r.referredBy || "").trim().toLowerCase() !== referrerFilter.toLowerCase()) return false;
+      }
       if (!q) return true;
       return [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail].some((v) => (v || "").toLowerCase().includes(q));
     });
-  }, [rows, query, pocFilter]);
+  }, [rows, query, pocFilter, referrerFilter]);
 
   const bucketed = useMemo(() => {
     const m: Record<Bucket, Row[]> = { initial: [], processing: [], rejected: [], onboarded: [], unreachable: [] };
@@ -462,24 +469,37 @@ export default function OnboardingPage() {
         missing one are badged and sorted to the bottom.
       </p>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Onboarding PoC</span>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 18, marginTop: 12, flexWrap: "wrap" }}>
         {(() => {
-          const chip = (key: string, label: string) => {
-            const on = pocFilter === key;
-            return (
-              <button key={key} type="button" onClick={() => setPocFilter(on ? "all" : key)}
-                style={{ font: `700 12px ${F_SANS}`, padding: "3px 11px", borderRadius: 999, cursor: "pointer",
-                  border: on ? "1px solid var(--blue-chip-text,#2b5fd0)" : "1px solid var(--card-border,#e3e3e6)",
-                  background: on ? "var(--blue-chip-bg,#eaf1ff)" : "var(--card,#fff)",
-                  color: on ? "var(--blue-chip-text,#2b5fd0)" : "var(--muted,#6b7280)" }}>{label}</button>
-            );
-          };
-          return [
-            chip("all", "All"),
-            ...pocs.map((p) => chip(p, p)),
-            unassignedCount > 0 ? chip("__none", `Unassigned (${unassignedCount})`) : null,
-          ];
+          const labelCss: React.CSSProperties = { font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)", marginBottom: 4, display: "block" };
+          const selCss: React.CSSProperties = { font: `600 13px ${F_SANS}`, padding: "8px 12px", borderRadius: 9, border: "1px solid var(--border,#dcdce0)", background: "var(--card,#fff)", color: "var(--fg,#111)", cursor: "pointer", minWidth: 180 };
+          const active = (v: string) => v !== "all";
+          return (
+            <>
+              <label>
+                <span style={labelCss}>Onboarding PoC</span>
+                <select value={pocFilter} onChange={(e) => setPocFilter(e.target.value)}
+                  style={{ ...selCss, borderColor: active(pocFilter) ? "var(--blue-chip-text,#2b5fd0)" : "var(--border,#dcdce0)" }}>
+                  <option value="all">All</option>
+                  {pocs.map((p) => <option key={p} value={p}>{p}</option>)}
+                  {unassignedCount > 0 && <option value="__none">Unassigned ({unassignedCount})</option>}
+                </select>
+              </label>
+              <label>
+                <span style={labelCss}>Referrer</span>
+                <select value={referrerFilter} onChange={(e) => setReferrerFilter(e.target.value)}
+                  style={{ ...selCss, borderColor: active(referrerFilter) ? "var(--blue-chip-text,#2b5fd0)" : "var(--border,#dcdce0)" }}>
+                  <option value="all">All</option>
+                  {referrers.map((r) => <option key={r} value={r}>{r}</option>)}
+                  {noReferrerCount > 0 && <option value="__none">No referrer ({noReferrerCount})</option>}
+                </select>
+              </label>
+              {(active(pocFilter) || active(referrerFilter)) && (
+                <button type="button" onClick={() => { setPocFilter("all"); setReferrerFilter("all"); }}
+                  style={{ font: `600 12px ${F_SANS}`, padding: "8px 12px", borderRadius: 9, border: "1px solid var(--border,#dcdce0)", background: "var(--card,#fff)", color: "var(--muted,#6b7280)", cursor: "pointer" }}>Clear</button>
+              )}
+            </>
+          );
         })()}
       </div>
 
