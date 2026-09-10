@@ -376,10 +376,9 @@ export default function AdminPipelinePage() {
     await workflow(r.id, patch);
   };
   const updatePayout = async (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => {
-    const target = (r.monthlyPayouts || [])[index];
-    // Attaching a receipt to the setup fee completes onboarding → move to Onboarded.
-    const onboardNow = !!patch.proofUrl && target?.kind === "setup" && r.status !== "onboarded";
-    await workflow(r.id, { updateMonthlyPayout: { index, ...patch }, ...(onboardNow ? { status: "onboarded" } : {}) });
+    // No auto-advance — moving to Onboarded is an explicit "Mark onboarded" step so
+    // logging a payment or attaching a receipt never surprises you by jumping stages.
+    await workflow(r.id, { updateMonthlyPayout: { index, ...patch } });
   };
   const emailDue = async () => {
     setEmailState("sending");
@@ -965,6 +964,13 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
           false, () => logPayment(r, "monthly"), `+ Log ${formatMoney(monthlyAmt(r), cfg.currency)}`
         )}
       </div>
+
+      {setupDone && r.status !== "onboarded" && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "var(--st-active-bg,#e6f4ea)", border: "1px solid var(--st-active-fg,#188038)", borderRadius: 11, padding: "10px 14px", marginBottom: 18, flexWrap: "wrap" }}>
+          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--st-active-fg,#188038)" }}>Setup fee paid. Finish attaching the receipt and details, then mark them onboarded.</span>
+          <button onClick={() => workflow(r.id, { status: "onboarded" })} style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)", flex: "none" }}>✓ Mark onboarded</button>
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <span style={labelCss}>Payment record</span>
