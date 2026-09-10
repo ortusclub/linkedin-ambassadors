@@ -872,9 +872,9 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
         : (<button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy || !started} style={{ ...btnPrimary, width: "100%", background: isNext && started ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext && started ? "#fff" : "var(--muted2,#9aa0a6)", border: isNext && started ? "none" : "1px solid var(--divider,#eee)", cursor: started ? "pointer" : "not-allowed" }}>✓ Logged in → Level 2</button>),
     },
     {
-      label: "Step 3", title: "Stability check", sub: "confirm 'good to go'", done: verified,
-      render: () => verified ? (<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge("Good to go")}<span onClick={() => workflow(r.id, { verifiedAt: null })} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span></div>)
-        : <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>after login + 24h</span>,
+      label: "Step 3", title: "Stability check", sub: "account good to go — not restricted", done: verified,
+      render: (isNext) => verified ? (<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge("Account OK")}<span onClick={() => workflow(r.id, { verifiedAt: null })} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span></div>)
+        : <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString() })} disabled={busy} style={{ ...btnPrimary, width: "100%", background: isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" }}>✓ Account OK</button>,
     },
     {
       label: "Step 4", title: "Setup fee", sub: `${formatMoney(cfgOf(r).setupAmount, cfgOf(r).currency)} · 24h after login`, done: setupPaid(r),
@@ -912,8 +912,10 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
   const setupDone = setupPaid(r);
   const verified = !!r.verifiedAt;
 
-  const schedRow = (key: "setup" | "monthly", title: string, sub: string, done: boolean, onLog: () => void, logLabel: string) => {
-    const ok = okPay[key];
+  const schedRow = (key: "setup" | "monthly", title: string, sub: string, done: boolean, onLog: () => void, logLabel: string, confirm?: { ok: boolean; onToggle: () => void; label: string }) => {
+    const ok = confirm ? confirm.ok : okPay[key];
+    const onToggle = confirm ? confirm.onToggle : () => setOkPay((p) => ({ ...p, [key]: !p[key] }));
+    const confirmText = confirm ? confirm.label : (ok ? "● Ok to pay" : "○ Confirm ok to pay");
     return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 11, padding: "12px 14px", flexWrap: "wrap" }}>
       <div style={{ minWidth: 0 }}>
@@ -923,7 +925,7 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
       <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
         {done ? <span style={{ font: `700 11.5px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "var(--st-active-bg,#e6f4ea)", padding: "8px 12px", borderRadius: 8 }}>✓ Paid</span>
           : (<>
-              <button onClick={() => setOkPay((p) => ({ ...p, [key]: !p[key] }))} style={{ font: `700 11.5px ${F_SANS}`, padding: "8px 12px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: ok ? "var(--st-active-bg,#e6f4ea)" : "var(--warn-badge-bg,#fef3e2)", color: ok ? "var(--st-active-fg,#188038)" : "var(--warn-badge-text,#b7791f)" }}>{ok ? "● Ok to pay" : "○ Confirm ok to pay"}</button>
+              <button onClick={onToggle} style={{ font: `700 11.5px ${F_SANS}`, padding: "8px 12px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: ok ? "var(--st-active-bg,#e6f4ea)" : "var(--warn-badge-bg,#fef3e2)", color: ok ? "var(--st-active-fg,#188038)" : "var(--warn-badge-text,#b7791f)" }}>{confirmText}</button>
               <button onClick={onLog} disabled={busy || !ok} style={{ font: `600 12px ${F_SANS}`, padding: "8px 13px", borderRadius: 8, border: "1px solid var(--divider,#ddd)", cursor: ok ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: ok ? 1 : 0.55, background: ok ? "var(--btn-dark-bg,#111)" : "transparent", color: ok ? "#fff" : "var(--muted2,#9aa0a6)" }}>{logLabel}</button>
             </>)}
       </div>
@@ -940,7 +942,9 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
           "setup",
           `Setup fee · ${formatMoney(cfg.setupAmount, cfg.currency)}`,
           setupDone ? `Paid ${fmtDate(pays.find((p) => p.kind === "setup")?.paidAt || r.paidAt)}` : `Due 24h after login · ${r.onboardedAt ? "logged in " + fmtDate(r.onboardedAt) : "not logged in yet"}`,
-          setupDone, () => logPayment(r, "setup"), `+ Log ${formatMoney(cfg.setupAmount, cfg.currency)}`
+          setupDone, () => logPayment(r, "setup"), `+ Log ${formatMoney(cfg.setupAmount, cfg.currency)}`,
+          // Setup fee ok-to-pay is gated by the Step 3 "Account OK" (stability) check.
+          { ok: verified, onToggle: () => workflow(r.id, { verifiedAt: verified ? null : new Date().toISOString() }), label: verified ? "● Account OK" : "○ Mark account OK" }
         )}
         {schedRow(
           "monthly",
