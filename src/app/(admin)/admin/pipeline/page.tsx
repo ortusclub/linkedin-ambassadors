@@ -153,9 +153,12 @@ type BlockKind = "withdrawn" | "retired" | "restricted" | "setup";
 const needsGologin = (r: Row) => r.status === "approved" || r.status === "onboarded";
 const missingGologin = (r: Row) => needsGologin(r) && !!r.accountId && !r.hasGologin;
 const blockKind = (r: Row): BlockKind | null => {
-  if (r.accountStatus === "removed") return "withdrawn";
-  if (r.accountStatus === "retired") return "retired";
-  if (r.accountRestrictedAt) return "restricted";
+  // A restriction can be recorded on the account (status / restrictedAt) OR — for a
+  // lead with no linked account yet — as a keyword on the application's accountIssue.
+  const issue = (r.accountIssue || "").toLowerCase();
+  if (r.accountStatus === "removed" || issue.includes("withdrawn")) return "withdrawn";
+  if (r.accountStatus === "retired" || issue.includes("permanent")) return "retired";
+  if (r.accountRestrictedAt || issue.includes("restricted")) return "restricted";
   if (r.accountIssue || missingGologin(r)) return "setup";
   return null;
 };
@@ -778,7 +781,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin {r.gologinProfileId ? r.gologinProfileId.slice(0, 10) + "…" : "ready"}</span>
             )}
           </div>
-          {r.accountId && <RestrictionControl r={r} onSet={acctSave} />}
+          <RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} />
           {r.accountId ? (
             <div style={{ background: "var(--inset,#fafbfc)", border: `1px solid ${missingGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--divider,#eee)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
               <div style={GRID4}>
@@ -998,18 +1001,34 @@ function ToggleChip({ on, onLabel, offLabel, onClick, href, green }: { on: boole
 // Set the account's earning/restriction state in one tap. Maps to the fields the rest
 // of the app already uses: restrictedAt (temporary), status retired (permanent), status
 // removed (withdrawn). "Active" clears the restriction and puts it back in-hand.
-function RestrictionControl({ r, onSet }: { r: Row; onSet: (patch: Record<string, unknown>, reload?: boolean) => void }) {
-  const current: BlockKind | "active" = r.accountStatus === "removed" ? "withdrawn" : r.accountStatus === "retired" ? "retired" : r.accountRestrictedAt ? "restricted" : (r.accountIssue || !r.hasGologin ? "setup" : "active");
-  // If the account is currently retired/removed, the "lighter" states must also lift
-  // that status (back to in-hand) — otherwise retired/removed keeps winning and the
-  // change looks like it did nothing.
+function RestrictionControl({ r, onAccount, onApp }: { r: Row; onAccount: (patch: Record<string, unknown>, reload?: boolean) => void; onApp: (patch: Record<string, unknown>) => void }) {
+  const hasAcct = !!r.accountId;
+  const issue = (r.accountIssue || "").toLowerCase();
+  const restrictIssue = issue.includes("withdrawn") || issue.includes("permanent") || issue.includes("restricted");
+  const current: "active" | "restricted" | "retired" | "withdrawn" =
+    r.accountStatus === "removed" || issue.includes("withdrawn") ? "withdrawn"
+      : r.accountStatus === "retired" || issue.includes("permanent") ? "retired"
+        : r.accountRestrictedAt || issue.includes("restricted") ? "restricted"
+          : "active";
+  // With a linked account, restriction lives on the account (status / restrictedAt);
+  // without one, flag it on the application's accountIssue so a lead can be marked
+  // restricted at Initial/Level 1 before an account exists.
   const dead = r.accountStatus === "retired" || r.accountStatus === "removed";
   const undead = dead ? { status: "unavailable" } : {};
-  const opts: { key: BlockKind | "active"; label: string; patch: Record<string, unknown>; tone: [string, string] }[] = [
-    { key: "active", label: "Active", patch: { restrictedAt: null, ...undead }, tone: ["--st-active-bg,#e6f4ea", "--st-active-fg,#188038"] },
-    { key: "restricted", label: "Restricted", patch: { restrictedAt: new Date().toISOString(), ...undead }, tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
-    { key: "retired", label: "Permanently restricted", patch: { status: "retired", restrictedAt: new Date().toISOString() }, tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
-    { key: "withdrawn", label: "Withdrawn", patch: { status: "removed" }, tone: ["--neutral-bg,#eef1f5", "--muted,#647189"] },
+  const apply = (key: "active" | "restricted" | "retired" | "withdrawn") => {
+    if (hasAcct) {
+      const patch: Record<string, unknown> = key === "active" ? { restrictedAt: null, ...undead } : key === "restricted" ? { restrictedAt: new Date().toISOString(), ...undead } : key === "retired" ? { status: "retired", restrictedAt: new Date().toISOString() } : { status: "removed" };
+      if (key === "active" && restrictIssue) patch.accountIssue = null; // also lift a restriction note
+      onAccount(patch, true);
+    } else {
+      onApp({ accountIssue: key === "active" ? null : key === "restricted" ? "Restricted" : key === "retired" ? "Permanently restricted" : "Withdrawn" });
+    }
+  };
+  const opts: { key: "active" | "restricted" | "retired" | "withdrawn"; label: string; tone: [string, string] }[] = [
+    { key: "active", label: "Active", tone: ["--st-active-bg,#e6f4ea", "--st-active-fg,#188038"] },
+    { key: "restricted", label: "Restricted", tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
+    { key: "retired", label: "Permanently restricted", tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
+    { key: "withdrawn", label: "Withdrawn", tone: ["--neutral-bg,#eef1f5", "--muted,#647189"] },
   ];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
@@ -1017,7 +1036,7 @@ function RestrictionControl({ r, onSet }: { r: Row; onSet: (patch: Record<string
       {opts.map((o) => {
         const on = current === o.key;
         return (
-          <button key={o.key} onClick={(e) => { e.stopPropagation(); onSet(o.patch, true); }}
+          <button key={o.key} onClick={(e) => { e.stopPropagation(); apply(o.key); }}
             style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", border: "1px solid", borderColor: on ? "transparent" : "var(--input-border,#dcdce0)", background: on ? `var(${o.tone[0]})` : "transparent", color: on ? `var(${o.tone[1]})` : "var(--muted,#647189)" }}>
             {on ? "● " : ""}{o.label}
           </button>
