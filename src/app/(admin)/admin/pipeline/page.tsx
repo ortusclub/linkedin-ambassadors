@@ -906,13 +906,15 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
   logPayment: (r: Row, kind: "setup" | "monthly") => Promise<void>;
   updatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>;
 }) {
-  const [okToPay, setOkToPay] = useState(false);
+  const [okPay, setOkPay] = useState<{ setup: boolean; monthly: boolean }>({ setup: false, monthly: false });
   const cfg = cfgOf(r);
   const pays = r.monthlyPayouts || [];
   const setupDone = setupPaid(r);
   const verified = !!r.verifiedAt;
 
-  const schedRow = (title: string, sub: string, done: boolean, onLog: () => void, logLabel: string) => (
+  const schedRow = (key: "setup" | "monthly", title: string, sub: string, done: boolean, onLog: () => void, logLabel: string) => {
+    const ok = okPay[key];
+    return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 11, padding: "12px 14px", flexWrap: "wrap" }}>
       <div style={{ minWidth: 0 }}>
         <div style={{ font: `600 14px ${F_SANS}`, color: "var(--fg,#111)" }}>{title}</div>
@@ -921,12 +923,13 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
       <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
         {done ? <span style={{ font: `700 11.5px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "var(--st-active-bg,#e6f4ea)", padding: "8px 12px", borderRadius: 8 }}>✓ Paid</span>
           : (<>
-              <button onClick={() => setOkToPay((v) => !v)} style={{ font: `700 11.5px ${F_SANS}`, padding: "8px 12px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: okToPay ? "var(--st-active-bg,#e6f4ea)" : "var(--warn-badge-bg,#fef3e2)", color: okToPay ? "var(--st-active-fg,#188038)" : "var(--warn-badge-text,#b7791f)" }}>{okToPay ? "● Ok to pay" : "○ Confirm ok to pay"}</button>
-              <button onClick={onLog} disabled={busy || !okToPay} style={{ font: `600 12px ${F_SANS}`, padding: "8px 13px", borderRadius: 8, border: "1px solid var(--divider,#ddd)", cursor: okToPay ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: okToPay ? 1 : 0.55, background: okToPay ? "var(--btn-dark-bg,#111)" : "transparent", color: okToPay ? "#fff" : "var(--muted2,#9aa0a6)" }}>{logLabel}</button>
+              <button onClick={() => setOkPay((p) => ({ ...p, [key]: !p[key] }))} style={{ font: `700 11.5px ${F_SANS}`, padding: "8px 12px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: ok ? "var(--st-active-bg,#e6f4ea)" : "var(--warn-badge-bg,#fef3e2)", color: ok ? "var(--st-active-fg,#188038)" : "var(--warn-badge-text,#b7791f)" }}>{ok ? "● Ok to pay" : "○ Confirm ok to pay"}</button>
+              <button onClick={onLog} disabled={busy || !ok} style={{ font: `600 12px ${F_SANS}`, padding: "8px 13px", borderRadius: 8, border: "1px solid var(--divider,#ddd)", cursor: ok ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: ok ? 1 : 0.55, background: ok ? "var(--btn-dark-bg,#111)" : "transparent", color: ok ? "#fff" : "var(--muted2,#9aa0a6)" }}>{logLabel}</button>
             </>)}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -934,11 +937,13 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
       {!verified && <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)", marginBottom: 8 }}>⚠ Stability check not done yet — confirm the account is good to go (Step 3) before paying.</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 18 }}>
         {schedRow(
+          "setup",
           `Setup fee · ${formatMoney(cfg.setupAmount, cfg.currency)}`,
           setupDone ? `Paid ${fmtDate(pays.find((p) => p.kind === "setup")?.paidAt || r.paidAt)}` : `Due 24h after login · ${r.onboardedAt ? "logged in " + fmtDate(r.onboardedAt) : "not logged in yet"}`,
           setupDone, () => logPayment(r, "setup"), `+ Log ${formatMoney(cfg.setupAmount, cfg.currency)}`
         )}
         {schedRow(
+          "monthly",
           `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
           "On the 1st, after one full month of service",
           false, () => logPayment(r, "monthly"), `+ Log ${formatMoney(monthlyAmt(r), cfg.currency)}`
