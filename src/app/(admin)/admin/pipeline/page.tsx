@@ -364,7 +364,8 @@ export default function AdminPipelinePage() {
     const payout: Record<string, unknown> = { amount, kind, method: r.paymentMethod || undefined };
     if (kind === "setup" && r.accountId) payout.accountId = r.accountId;
     const patch: Record<string, unknown> = { addMonthlyPayout: payout };
-    if (kind === "setup") patch.paidAt = new Date().toISOString();
+    // Paying the setup fee completes onboarding — move them to Onboarded (paid & earning).
+    if (kind === "setup") { patch.paidAt = new Date().toISOString(); if (r.status !== "onboarded") patch.status = "onboarded"; }
     await workflow(r.id, patch);
   };
   const updatePayout = async (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => {
