@@ -61,6 +61,7 @@ const updateSchema = z.object({
     text: z.string().min(1),
     by: z.string().optional(),
   }).optional(),
+  removeTouch: z.string().optional(), // the `at` timestamp of the outreach entry to remove
 });
 
 export async function PATCH(
@@ -71,7 +72,7 @@ export async function PATCH(
     const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
-    const { addTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, paidAt, marketerPaidAt, ...rest } = updateSchema.parse(body);
+    const { addTouch, removeTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, paidAt, marketerPaidAt, ...rest } = updateSchema.parse(body);
 
     // Get the current application before updating
     const currentApp = await prisma.ambassadorApplication.findUnique({ where: { id } });
@@ -92,6 +93,10 @@ export async function PATCH(
         ...log,
         { ch: addTouch.ch, text: addTouch.text, by: addTouch.by?.trim() || admin.fullName || admin.email, at: new Date().toISOString() },
       ] as Prisma.InputJsonValue;
+    }
+    if (removeTouch) {
+      const log = Array.isArray(currentApp.outreachLog) ? (currentApp.outreachLog as { at?: string }[]) : [];
+      updateData.outreachLog = log.filter((t) => t?.at !== removeTouch) as Prisma.InputJsonValue;
     }
     // When a Wise receipt is attached to a payout, we auto-email the payee and flip
     // "notified". This captures which entry to notify (set below), so the email is

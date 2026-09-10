@@ -811,7 +811,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
 
           {/* BLOCK 3 — outreach log */}
           <SectionLabel num={3}>Outreach log</SectionLabel>
-          <OutreachLog r={r} busy={busy} onLog={logTouch} onSetFollowUp={(iso) => patchApp(r.id, { nextFollowUp: iso })} />
+          <OutreachLog r={r} busy={busy} onLog={logTouch} onSetFollowUp={(iso) => patchApp(r.id, { nextFollowUp: iso })} onDelete={(at) => patchApp(r.id, { removeTouch: at }, true)} />
 
           {(r.adminNotes || r.applicationNotes || r.accountNotes) && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
@@ -1046,7 +1046,7 @@ function RestrictionControl({ r, onAccount, onApp }: { r: Row; onAccount: (patch
   );
 }
 
-function OutreachLog({ r, busy, onLog, onSetFollowUp }: { r: Row; busy: boolean; onLog: (id: string, ch: string, text: string, by: string) => Promise<void>; onSetFollowUp: (iso: string | null) => void }) {
+function OutreachLog({ r, busy, onLog, onSetFollowUp, onDelete }: { r: Row; busy: boolean; onLog: (id: string, ch: string, text: string, by: string) => Promise<void>; onSetFollowUp: (iso: string | null) => void; onDelete: (at: string) => void }) {
   const [draft, setDraft] = useState("");
   const [by, setBy] = useState("");
   const log = r.outreachLog;
@@ -1068,6 +1068,7 @@ function OutreachLog({ r, busy, onLog, onSetFollowUp }: { r: Row; busy: boolean;
             <span style={touchChipStyle(t.ch)}>{touchLabel(t.ch)}</span>
             <span style={{ flex: 1, font: `500 12.5px ${F_SANS}`, color: "var(--text2,#333)", lineHeight: 1.4 }}>{t.text}</span>
             <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap" }}>{(t.by ? t.by + " · " : "") + fmtDateTime(t.at)}</span>
+            <span onClick={() => { if (confirm("Delete this outreach entry?")) onDelete(t.at); }} title="Delete entry" style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", cursor: "pointer", flex: "none", lineHeight: 1.2 }}>×</span>
           </div>
         )) : <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#777)" }}>No outreach logged yet.</span>}
       </div>
