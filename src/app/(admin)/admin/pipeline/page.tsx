@@ -229,6 +229,8 @@ const touchCount = (log: Touch[] | null) => (log || []).filter((t) => t.ch !== "
 const holdDays = (r: Row) => (r.accountFreshness === "fresh" ? 7 : 3);
 const loginDueMs = (r: Row): number | null => (r.onboardingStartedAt ? new Date(r.onboardingStartedAt).getTime() + holdDays(r) * 86400000 : null);
 const eligibleMs = (r: Row): number | null => (r.onboardedAt ? new Date(r.onboardedAt).getTime() + 86400000 : null);
+// Setup fee is "due" only once it's been 24h since login — not the moment they log in.
+const setupDue = (r: Row): boolean => { if (setupPaid(r)) return false; const due = eligibleMs(r); return due !== null && Date.now() >= due; };
 
 // Status pill / dropdown vocabulary (all real backend statuses).
 const STATUS_STYLE: Record<Status, [string, string]> = {
@@ -422,7 +424,7 @@ export default function AdminPipelinePage() {
     // "Owes money" = setup fee not yet paid (they've logged in — the fee is due), OR a
     // monthly cycle has come due per the payments-due feed. An unacknowledged-but-paid
     // payout is NOT a debt, so it does not count here.
-    const liveKey = (r: Row): LiveKey => blockKind(r) ?? ((!setupPaid(r) || (dueInfo?.emails.has((r.email || "").toLowerCase()) ?? false)) ? "due" : "ok");
+    const liveKey = (r: Row): LiveKey => blockKind(r) ?? ((setupDue(r) || (dueInfo?.emails.has((r.email || "").toLowerCase()) ?? false)) ? "due" : "ok");
     const keyOf = mode === "stage" ? (r: Row) => stageOf(r) : mode === "live" ? liveKey : (r: Row) => actionBucket(r);
     return defs
       .map((d) => ({ ...d, items: filtered.filter((r) => keyOf(r) === d.key).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)) }))
@@ -443,7 +445,7 @@ export default function AdminPipelinePage() {
     const noGologin = all.filter(missingGologin).length;
     const issues = all.filter(isBlocked).length;
     const monthly = earningOk.reduce((s, r) => s + monthlyAmt(r), 0);
-    const setupsDue = inPayments.filter((r) => !isBlocked(r) && !setupPaid(r)).length;   // logged in, setup fee not yet paid
+    const setupsDue = inPayments.filter((r) => !isBlocked(r) && setupDue(r)).length;   // setup fee owed now (24h after login, unpaid)
     const liveBlocked = inPayments.filter(isBlocked).length;
     return {
       total: all.length, live: earningOk.length, monthly, noGologin, issues,
@@ -477,7 +479,7 @@ export default function AdminPipelinePage() {
       if (it.kind === "setup") feedSetupEmails.add(it.email);
     }
     for (const [em, r] of visible) {
-      if (!setupPaid(r) && !feedSetupEmails.has(em)) { const cfg = cfgOf(r); if (cfg.currency === "USD") usd += cfg.setupAmount; else php += cfg.setupAmount; people.add(em); }
+      if (setupDue(r) && !feedSetupEmails.has(em)) { const cfg = cfgOf(r); if (cfg.currency === "USD") usd += cfg.setupAmount; else php += cfg.setupAmount; people.add(em); }
     }
     return { php, usd, count: people.size };
   })();
