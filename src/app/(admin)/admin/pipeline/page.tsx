@@ -386,6 +386,11 @@ export default function AdminPipelinePage() {
     catch { setEmailState("error"); }
     setTimeout(() => setEmailState("idle"), 2600);
   };
+  const deleteApp = async (r: Row) => {
+    if (!confirm(`Delete ${formatName(r.fullName) || r.email}'s application permanently? This cannot be undone.`)) return;
+    setBusy(r.id);
+    try { await fetch(`/api/admin/ambassadors/${r.id}`, { method: "DELETE" }); await load(); } finally { setBusy(null); }
+  };
 
   // ---- filtering / grouping ----
   // Payments view = anyone whose money clock has started (logged in or onboarded).
@@ -588,7 +593,7 @@ export default function AdminPipelinePage() {
           {g.items.map((r) => (
             <Card key={r.id} r={r} busy={busy === r.id} open={open.has(r.id)} onToggle={() => toggle(r.id)}
               patchApp={patchApp} patchAccount={patchAccount} setStage={changeStatus} workflow={workflow}
-              logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} />
+              logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} onDeleteApp={() => deleteApp(r)} />
           ))}
         </GroupSection>
       ))}
@@ -669,9 +674,10 @@ function Note({ label, children }: { label: string; children: React.ReactNode })
 
 const GRID4: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "12px 14px" };
 
-function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workflow, logTouch, logPayment, updatePayout, onFilterText }: {
+function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workflow, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
   r: Row; busy: boolean; open: boolean; onToggle: () => void;
   onFilterText: (t: string) => void;
+  onDeleteApp: () => void;
   patchApp: (id: string, patch: Record<string, unknown>, reload?: boolean) => void;
   patchAccount: (id: string, accountId: string, patch: Record<string, unknown>, reload?: boolean) => void;
   setStage: (r: Row, s: Status) => void;
@@ -837,6 +843,10 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>Onboarding complete — warm-up and setup are done. Use the status dropdown to move them back into the pipeline.</span>
             </div>
           ) : null}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+            <button onClick={onDeleteApp} disabled={busy} title="Permanently delete this application" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>Delete application</button>
+          </div>
         </div>
       )}
     </div>
