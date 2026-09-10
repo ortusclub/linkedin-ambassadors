@@ -364,12 +364,16 @@ export default function AdminPipelinePage() {
     const payout: Record<string, unknown> = { amount, kind, method: r.paymentMethod || undefined };
     if (kind === "setup" && r.accountId) payout.accountId = r.accountId;
     const patch: Record<string, unknown> = { addMonthlyPayout: payout };
-    // Paying the setup fee completes onboarding — move them to Onboarded (paid & earning).
-    if (kind === "setup") { patch.paidAt = new Date().toISOString(); if (r.status !== "onboarded") patch.status = "onboarded"; }
+    // Logging the setup fee records it but does NOT advance to Onboarded yet — that
+    // happens once the receipt/proof is attached (see updatePayout).
+    if (kind === "setup") patch.paidAt = new Date().toISOString();
     await workflow(r.id, patch);
   };
   const updatePayout = async (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => {
-    await workflow(r.id, { updateMonthlyPayout: { index, ...patch } });
+    const target = (r.monthlyPayouts || [])[index];
+    // Attaching a receipt to the setup fee completes onboarding → move to Onboarded.
+    const onboardNow = !!patch.proofUrl && target?.kind === "setup" && r.status !== "onboarded";
+    await workflow(r.id, { updateMonthlyPayout: { index, ...patch }, ...(onboardNow ? { status: "onboarded" } : {}) });
   };
   const emailDue = async () => {
     setEmailState("sending");
