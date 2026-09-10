@@ -81,8 +81,11 @@ interface Row {
   linkedinVerified: boolean;
   setupPaidAt: string | null;
   personalEmail: string | null;
+  workEmail: string | null;
   hasPassword: boolean;
   has2fa: boolean;
+  accountPassword: string | null;
+  twoFactor: string | null;
   proxyHost: string | null;
   proxyPort: number | null;
   proxyUsername: string | null;
@@ -781,9 +784,10 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               <div style={GRID4}>
                 <Edit label="Login email (work)" value={r.loginEmail} placeholder="klabber address we sign in with" onSave={(v) => acctSave({ loginEmail: v })} />
                 <Edit label="Personal email (on account)" value={r.personalEmail} placeholder="ambassador's own" onSave={(v) => acctSave({ personalEmail: v })} />
+                <Edit label="Work / recovery email" value={r.workEmail} placeholder="recovery email on the account" onSave={(v) => acctSave({ workEmail: v })} />
                 <Edit label="GoLogin share link" value={r.gologinShareLink} openHref={r.gologinShareLink} placeholder="https://app.gologin.com/share/…" onSave={(v) => acctSave({ gologinShareLink: v }, true)} />
-                <Edit label="Password" hint="stored" value={r.hasPassword ? "••••••" : null} secret placeholder="set account password" onSave={(v) => acctSave({ accountPassword: v })} />
-                <Edit label="2FA / TOTP" hint={r.has2fa ? "stored" : ""} value={null} secret placeholder={r.has2fa ? "replace 2FA secret" : "2FA secret / backup"} onSave={(v) => acctSave({ twoFactor: v })} />
+                <Edit label="Password" value={r.accountPassword} secret placeholder="set account password" onSave={(v) => acctSave({ accountPassword: v })} />
+                <Edit label="2FA / TOTP" hint="backup code / secret" value={r.twoFactor} secret placeholder="2FA secret / backup" onSave={(v) => acctSave({ twoFactor: v })} />
                 <Edit label="Proxy host" value={r.proxyHost} placeholder="1.2.3.4" onSave={(v) => acctSave({ proxyHost: v })} />
                 <Edit label="Proxy port" value={r.proxyPort} numeric placeholder="8000" onSave={(v) => acctSave({ proxyPort: v })} />
                 <Edit label="Proxy username" value={r.proxyUsername} onSave={(v) => acctSave({ proxyUsername: v })} />
