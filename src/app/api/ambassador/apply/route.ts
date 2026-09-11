@@ -84,7 +84,10 @@ export async function POST(req: Request) {
         ...data,
         linkedinUrl,
         referredBy,
-        status: assessment ? (assessment.autoApproved ? "approved" : "reviewing") : "pending",
+        // Every new signup lands in Initial (reviewing = assessed-but-not-yet-reviewed,
+        // pending = no LinkedIn URL). The team promotes to Level 1 by hand — no
+        // auto-approval to Level 2.
+        status: assessment ? "reviewing" : "pending",
         offeredAmount: assessment?.offeredAmount,
         adminNotes: assessment
           ? `Auto-assessed: Score ${assessment.score}/100, Tier: ${assessment.tier}. ${assessment.breakdown.map((b) => `${b.category}: ${b.points}/${b.maxPoints}`).join(", ")}`
@@ -92,26 +95,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // If auto-approved, create a LinkedInAccount automatically
-    if (assessment?.autoApproved) {
-      const existingAccount = await prisma.linkedInAccount.findFirst({
-        where: { linkedinUrl },
-      });
-      if (!existingAccount) {
-        await prisma.linkedInAccount.create({
-          data: {
-            linkedinName: data.fullName,
-            linkedinUrl,
-            connectionCount: data.connectionCount || 0,
-            industry: data.industry || null,
-            location: data.location || null,
-            status: "under_review",
-            ambassadorPayment: assessment.offeredAmount,
-            notes: `Owner: ${data.email}. Profile email: ${data.linkedinEmail || data.email}.`,
-          },
-        });
-      }
-    }
+    // No auto-account on signup — the inventory account is created when the team
+    // actually onboards them, so a fresh signup stays a clean Initial lead.
 
     try {
       await sendAmbassadorApplicationLead({
