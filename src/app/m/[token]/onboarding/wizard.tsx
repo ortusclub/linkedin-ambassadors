@@ -26,6 +26,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [consent, setConsent] = useState(false);
   const [loginConfirmed, setLoginConfirmed] = useState(false);
+  const [verify, setVerify] = useState({ status: "", passport: "" });
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "" });
 
   async function request(method: string, body?: unknown, id?: string) {
@@ -71,7 +72,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     try { await task(); } catch (e) { setError(e instanceof Error ? e.message : "Please try again."); }
     finally { setBusy(false); }
   }
-  function showSession(s: Session) { setSession(s); setStep(s.state === "confirmed" ? 5 : s.emailSetup && !s.emailSetup.primaryConfirmed ? 3 : 4); }
+  function showSession(s: Session) { setSession(s); setStep(s.state === "confirmed" ? 6 : s.emailSetup && !s.emailSetup.primaryConfirmed ? 4 : 5); }
   async function emailAction(body: unknown) {
     if (!session) return;
     await run(async () => {
@@ -79,7 +80,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Email setup failed.");
       showSession(data.session);
-      if ((body as { action?: string }).action !== "primary") setStep(3);
+      if ((body as { action?: string }).action !== "primary") setStep(4);
     });
   }
   async function action(action: "prepare" | "opened" | "confirm") {
@@ -99,7 +100,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       <h1>Do-it-yourself onboarding</h1>
       <p className={styles.subtitle}>Set up an account together, right here. We&apos;ll prepare the browser; the account owner signs into LinkedIn.</p>
       <ol className={styles.steps} aria-label="Onboarding progress">
-        {["Start", "Details", "Payout", "Email", "Sign in", "Done"].map((label, i) => (!bootstrap || bootstrap.emailEnabled || i !== 3) && <li key={label} aria-current={step === i ? "step" : undefined} className={i <= step ? styles.current : ""}><span>{i < step ? "✓" : i + 1 - (bootstrap && !bootstrap.emailEnabled && i > 3 ? 1 : 0)}</span>{label}</li>)}
+        {["Start", "Details", "Verify", "Payout", "Email", "Sign in", "Done"].map((label, i) => (!bootstrap || bootstrap.emailEnabled || i !== 4) && <li key={label} aria-current={step === i ? "step" : undefined} className={i <= step ? styles.current : ""}><span>{i < step ? "✓" : i + 1 - (bootstrap && !bootstrap.emailEnabled && i > 4 ? 1 : 0)}</span>{label}</li>)}
       </ol>
       {error && <div className={styles.error} role="alert">{error}</div>}
       {!bootstrap && error && <button className={styles.primary} onClick={() => { setError(""); setLoadAttempt((n) => n + 1); }}>Retry loading onboarding</button>}
@@ -130,17 +131,42 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <label className={styles.field}>Account age<select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">Established account</option><option value="fresh">Brand-new account</option></select></label>
           <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary}>Continue →</button></div>
         </form>}
-        {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent })).session)); }}>
+        {step === 2 && <div>
+          <h2>Is the account verified on LinkedIn?</h2>
+          <p>Accounts that have verified the owner&apos;s identity are less likely to be restricted. Verifying is free and takes a few minutes.</p>
+          <label className={styles.field}>Is this LinkedIn account already identity-verified?<select value={verify.status} onChange={(e) => setVerify({ ...verify, status: e.target.value })}>
+            <option value="">Choose one</option><option value="yes">Yes, it&apos;s already verified</option><option value="no">No, or not sure</option>
+          </select></label>
+          {verify.status === "yes" && <div className={styles.note}>Great. A verified account is more stable and less likely to be restricted.</div>}
+          {verify.status === "no" && <>
+            <label className={styles.field}>Does the owner have a passport or government ID?<select value={verify.passport} onChange={(e) => setVerify({ ...verify, passport: e.target.value })}>
+              <option value="">Choose one</option><option value="yes">Yes</option><option value="no">No</option>
+            </select></label>
+            {verify.passport === "yes" && <>
+              <div className={styles.note}>Recommended: verify the account now. It&apos;s free, takes about five minutes, and lowers the chance of restrictions.</div>
+              <ol className={styles.instructions}>
+                <li>On the owner&apos;s phone, open the <strong>LinkedIn app</strong> and go to their profile.</li>
+                <li>Open <strong>Settings → Account preferences → Verifications</strong>, or tap &ldquo;Add verification&rdquo; on the profile.</li>
+                <li>Choose <strong>Verify with government ID</strong> and follow the steps: scan the passport and take a selfie. LinkedIn uses a secure verification partner.</li>
+                <li>It usually finishes within minutes and adds a verification badge to the profile.</li>
+              </ol>
+              <p className={styles.hint}>You can start verification now and continue setup at the same time. Exact menu names may vary slightly by app version and country.</p>
+            </>}
+            {verify.passport === "no" && <div className={styles.note}>That&apos;s okay. Verifying with a passport later is strongly recommended, as it lowers the chance of restrictions. You can continue for now.</div>}
+          </>}
+          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={!verify.status} onClick={() => setStep(3)}>Continue →</button></div>
+        </div>}
+        {step === 3 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent })).session)); }}>
           <h2>Where should they get paid?</h2><p>These are the account owner&apos;s payout details. Your referral commission uses your own dashboard details.</p>
           <label className={styles.field}>Payout method<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
           {field("payoutName", "Registered payout account name")}{field("paymentDetails", "Payout number, address or bank details")}
           {(!bootstrap.configured || (!bootstrap.autoPurchase && !bootstrap.countries.some((c) => countryCode(c) === form.country))) && <div className={styles.note}>Browser setup is not ready yet. Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access and a matching proxy, then try Save &amp; continue.</div>}
           <div className={styles.note}>Next, we&apos;ll create their onboarding record and arrange a dedicated connection in {countries.find((c) => c.code === form.country)?.name}.</div>
-          <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
+          <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(2)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
         </form>}
-        {step === 3 && session?.emailSetup && <EmailStep key={session.id} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />}
-        {step === 4 && session && <>
-          {session.emailSetup && <><div className={styles.note}>LinkedIn login email: <strong>{session.emailSetup.address}</strong>. {session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to your verified inbox." : "Onboarding forwarding has expired. Re-verify your inbox if you need more login codes."}</div><button className={styles.secondary} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
+        {step === 4 && session?.emailSetup && <EmailStep key={session.id} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />}
+        {step === 5 && session && <>
+          {session.emailSetup && <><div className={styles.note}>LinkedIn login email: <strong>{session.emailSetup.address}</strong>. {session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to your verified inbox." : "Onboarding forwarding has expired. Re-verify your inbox if you need more login codes."}</div><button className={styles.secondary} disabled={busy} onClick={() => setStep(4)}>Manage onboarding email</button></>}
           <h2>{session.state === "ready" ? "Time to sign into LinkedIn" : "Prepare their browser"}</h2>
           <p>{session.name}&apos;s onboarding is saved. We&apos;ll prepare their dedicated connection and browser together.</p>
           {session.state === "reserved" && <div className={styles.note}>
@@ -161,7 +187,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <button className={styles.secondary} disabled={busy} onClick={() => run(async () => showSession((await request("GET", undefined, session.id)).session))}>Refresh saved progress</button>
           <p className={styles.hint}>Login blocked or verification unfinished? Leave this onboarding saved and contact the team. Only confirm after a successful login.</p>
         </>}
-        {step === 5 && session && <>
+        {step === 6 && session && <>
           <div className={styles.success}>✓</div><h2>Login confirmation saved</h2><p>{session.name}&apos;s account is in the system and linked to your referral.</p>
           <dl className={styles.summary}><dt>Owner setup payment</dt><dd>{session.setupAmount}</dd><dt>Setup due date</dt><dd>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "Awaiting login"}</dd><dt>Owner monthly payment</dt><dd>{session.monthlyAmount}</dd><dt>Your referral commission</dt><dd>{session.commission} · {session.verified ? "Verified" : "Pending verification"}</dd></dl>
           <div className={styles.note}>The team will verify the saved login before payment is released or the account becomes rentable. Monthly payment dates are calculated after the setup payment is made.</div>
