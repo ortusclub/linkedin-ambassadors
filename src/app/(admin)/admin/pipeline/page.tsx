@@ -231,6 +231,18 @@ const loginDueMs = (r: Row): number | null => (r.onboardingStartedAt ? new Date(
 const eligibleMs = (r: Row): number | null => (r.onboardedAt ? new Date(r.onboardedAt).getTime() + 86400000 : null);
 // Setup fee is "due" only once it's been 24h since login — not the moment they log in.
 const setupDue = (r: Row): boolean => { if (setupPaid(r)) return false; const due = eligibleMs(r); return due !== null && Date.now() >= due; };
+// Proxy as one line: host:port:user:pass (trailing empties trimmed).
+const proxyCombined = (r: Row): string | null => {
+  const parts = [r.proxyHost || "", r.proxyPort != null ? String(r.proxyPort) : "", r.proxyUsername || "", r.proxyPassword || ""];
+  return parts.some(Boolean) ? parts.join(":").replace(/:+$/, "") : null;
+};
+const parseProxy = (v: string | number | null): Record<string, unknown> => {
+  const s = v == null ? "" : String(v).trim();
+  if (!s) return { proxyHost: null, proxyPort: null, proxyUsername: null, proxyPassword: null };
+  const p = s.split(":");
+  const port = p[1] ? parseInt(p[1].replace(/[^0-9]/g, ""), 10) : NaN;
+  return { proxyHost: p[0] || null, proxyPort: Number.isFinite(port) ? port : null, proxyUsername: p[2] || null, proxyPassword: p.slice(3).join(":") || null };
+};
 
 // Status pill / dropdown vocabulary (all real backend statuses).
 const STATUS_STYLE: Record<Status, [string, string]> = {
@@ -798,10 +810,9 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                 <Edit label="GoLogin share link" value={r.gologinShareLink} openHref={r.gologinShareLink} placeholder="https://app.gologin.com/share/…" onSave={(v) => acctSave({ gologinShareLink: v }, true)} />
                 <Edit label="Password" value={r.accountPassword} secret placeholder="set account password" onSave={(v) => acctSave({ accountPassword: v })} />
                 <Edit label="2FA / TOTP" hint="backup code / secret" value={r.twoFactor} secret placeholder="2FA secret / backup" onSave={(v) => acctSave({ twoFactor: v })} />
-                <Edit label="Proxy host" value={r.proxyHost} placeholder="1.2.3.4" onSave={(v) => acctSave({ proxyHost: v })} />
-                <Edit label="Proxy port" value={r.proxyPort} numeric placeholder="8000" onSave={(v) => acctSave({ proxyPort: v })} />
-                <Edit label="Proxy username" value={r.proxyUsername} onSave={(v) => acctSave({ proxyUsername: v })} />
-                <Edit label="Proxy password" value={r.proxyPassword} secret onSave={(v) => acctSave({ proxyPassword: v })} />
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <Edit label="Proxy · host:port:user:pass" value={proxyCombined(r)} placeholder="1.2.3.4:8000:username:password" onSave={(v) => acctSave(parseProxy(v))} />
+                </div>
                 <Edit label="Proxy location" value={r.proxyLocation} placeholder="City, Country" onSave={(v) => acctSave({ proxyLocation: v })} />
                 <EditSelect label="Account status" value={r.accountStatus || "under_review"} options={ACCOUNT_STATUS_OPTIONS.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))} onSave={(v) => acctSave({ status: v }, true)} />
                 <Edit label="Rent price ($/mo)" value={r.monthlyPrice} numeric placeholder="e.g. 50" onSave={(v) => acctSave({ monthlyPrice: v ?? 0 })} />
