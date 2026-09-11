@@ -139,20 +139,21 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           </select></label>
           {verify.status === "yes" && <div className={styles.note}>Great. A verified account is more stable and less likely to be restricted.</div>}
           {verify.status === "no" && <>
-            <label className={styles.field}>Does the owner have a passport or government ID?<select value={verify.passport} onChange={(e) => setVerify({ ...verify, passport: e.target.value })}>
+            <label className={styles.field}>{form.country === "PH" ? "Does the owner have a passport?" : "Does the owner have a passport or government ID?"}<select value={verify.passport} onChange={(e) => setVerify({ ...verify, passport: e.target.value })}>
               <option value="">Choose one</option><option value="yes">Yes</option><option value="no">No</option>
             </select></label>
+            {form.country === "PH" && <p className={styles.hint}>In the Philippines, LinkedIn only accepts a passport for identity verification.</p>}
             {verify.passport === "yes" && <>
               <div className={styles.note}>Recommended: verify the account now. It&apos;s free, takes about five minutes, and lowers the chance of restrictions.</div>
               <ol className={styles.instructions}>
                 <li>On the owner&apos;s phone, open the <strong>LinkedIn app</strong> and go to their profile.</li>
                 <li>Open <strong>Settings → Account preferences → Verifications</strong>, or tap &ldquo;Add verification&rdquo; on the profile.</li>
-                <li>Choose <strong>Verify with government ID</strong> and follow the steps: scan the passport and take a selfie. LinkedIn uses a secure verification partner.</li>
+                <li>Choose <strong>Verify with government ID</strong> and follow the steps: scan the {form.country === "PH" ? "passport" : "passport or ID"} and take a selfie. LinkedIn uses a secure verification partner.</li>
                 <li>It usually finishes within minutes and adds a verification badge to the profile.</li>
               </ol>
               <p className={styles.hint}>You can start verification now and continue setup at the same time. Exact menu names may vary slightly by app version and country.</p>
             </>}
-            {verify.passport === "no" && <div className={styles.note}>That&apos;s okay. Verifying with a passport later is strongly recommended, as it lowers the chance of restrictions. You can continue for now.</div>}
+            {verify.passport === "no" && <div className={styles.note}>{form.country === "PH" ? "In the Philippines, LinkedIn only accepts a passport, so verification is not possible without one yet. It is strongly recommended once the owner has a passport, as it lowers the chance of restrictions." : "That's okay. Verifying with a passport later is strongly recommended, as it lowers the chance of restrictions."} You can continue for now.</div>}
           </>}
           <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={!verify.status} onClick={() => setStep(3)}>Continue →</button></div>
         </div>}
