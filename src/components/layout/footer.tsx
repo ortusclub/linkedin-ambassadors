@@ -60,6 +60,7 @@ export function Footer() {
             <b>For ambassadors</b>
             <Link href="/become-ambassador">Earn with your account</Link>
             <Link href="/become-ambassador">How payouts work</Link>
+            <Link href="/ambassador-terms">Ambassador terms</Link>
           </div>
           <div className="lv-foot-col">
             <b>Company</b>
