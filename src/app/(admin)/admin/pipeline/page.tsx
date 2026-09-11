@@ -112,8 +112,8 @@ const stageOf = (r: Row): Stage => {
   if (r.status === "unreachable") return "unreachable";
   if (r.status === "onboarded") return "onboarded";
   if (r.status === "approved") return "accepted";
-  if (r.status === "reviewing" || r.status === "onboarding" || r.status === "on_hold") return "processing";
-  return "initial"; // pending, contacted
+  if (r.status === "onboarding" || r.status === "on_hold") return "processing";
+  return "initial"; // pending, contacted, reviewing (a fresh signup being reviewed — not warming up yet)
 };
 // "Payment-relevant" = Level 2 (approved — logged in, at the payout stage) and Onboarded
 // (paid & earning). A setup fee is owed from Level 2 on, so these belong in the payments
@@ -258,7 +258,7 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "onboarding", label: "Level 1" },
   { value: "approved", label: "Level 2" },
   { value: "onboarded", label: "Onboarded" },
-  { value: "reviewing", label: "Level 1 · review" },
+  { value: "reviewing", label: "In review" },
   { value: "on_hold", label: "Level 1 · hold" },
   { value: "unreachable", label: "Unreachable" },
   { value: "rejected", label: "Rejected" },
@@ -437,7 +437,7 @@ export default function AdminPipelinePage() {
     // Level = the ambassador's real STATUS, not whether they've logged in. A Level-2
     // (approved) person who has logged in is still Level 2 (warming up / verifying)
     // until their setup fee is paid — they must keep counting here.
-    const lvl1 = all.filter((r) => ["pending", "contacted", "reviewing", "onboarding", "on_hold"].includes(r.status));
+    const lvl1 = all.filter((r) => ["onboarding", "on_hold"].includes(r.status)); // warming up — reviewing/pending/contacted are Initial
     const lvl2 = all.filter((r) => r.status === "approved");
     const earning = all.filter((r) => r.status === "onboarded");          // fully onboarded = live/earning
     const earningOk = earning.filter((r) => !isBlocked(r));
