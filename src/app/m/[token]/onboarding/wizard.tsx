@@ -168,7 +168,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <div className={styles.note}>Next, we&apos;ll create their onboarding record and arrange a dedicated connection in {countries.find((c) => c.code === form.country)?.name}.</div>
           <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(2)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
         </form>}
-        {step === 4 && session?.emailSetup && <EmailStep key={session.id} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />}
+        {step === 4 && session?.emailSetup && <EmailStep key={session.id} setup={session.emailSetup} busy={busy} submit={emailAction} ownerEmail={form.email} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />}
         {step === 5 && session && <>
           {session.emailSetup && <><div className={styles.note}>LinkedIn login email: <strong>{session.emailSetup.address}</strong>. {session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to your verified inbox." : "Onboarding forwarding has expired. Re-verify your inbox if you need more login codes."}</div><button className={styles.secondary} disabled={busy} onClick={() => setStep(4)}>Manage onboarding email</button></>}
           <h2>{session.state === "ready" ? "Time to sign into LinkedIn" : "Prepare their browser"}</h2>

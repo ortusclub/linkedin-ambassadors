@@ -8,10 +8,10 @@ export type EmailSetup = {
   forwardingUntil: string | null; lastForwardedAt: string | null;
 };
 
-export default function EmailStep({ setup, busy, submit, refresh }: {
-  setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>; refresh: () => void;
+export default function EmailStep({ setup, busy, submit, refresh, ownerEmail }: {
+  setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>; refresh: () => void; ownerEmail?: string;
 }) {
-  const [destination, setDestination] = useState(setup.destination || "");
+  const [destination, setDestination] = useState(setup.destination || ownerEmail || "");
   const [consent, setConsent] = useState(false);
   const [code, setCode] = useState("");
   const [primary, setPrimary] = useState(false);
@@ -20,12 +20,12 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
     <p>LinkedVelocity adds its own email to the account and makes it the main (primary) one, so LinkedIn&apos;s security codes come to us and the account stays signed in. The owner&apos;s own email stays on the account as a backup and can be made primary again at any time.</p>
     {!setup.configured ? <div className={styles.note}>Email setup is not switched on yet. Your progress is saved. The team needs to finish setting up the email domains before you can add an address to LinkedIn.</div> : <>
       {!setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
-        <div className={styles.note}>{setup.address ? <>The account&apos;s new email: <strong>{setup.address}</strong></> : <>We&apos;ll create the account&apos;s email automatically from the owner&apos;s name. If that one is taken, we add a small number so it is unique.</>}</div>
-        <p>LinkedIn will send confirmation codes to that new email while we set it as the primary one. That mailbox is managed by us, so tell us an inbox the owner can open, and we&apos;ll forward the codes there for them to read.</p>
-        <label className={styles.field}>Where should we send the codes?<input type="email" required maxLength={254} value={destination} disabled={setup.destinationVerified} onChange={e => setDestination(e.target.value)} placeholder="owner@example.com" /></label>
-        <p className={styles.hint}>Use an email the owner can open right now (their own is fine). We&apos;ll send a 6-digit test code there first to make sure forwarding works.</p>
+        <div className={styles.note}>{setup.address ? <>The account&apos;s new email: <strong>{setup.address}</strong></> : <>We&apos;ll create a company login email for the account from the owner&apos;s name. The owner adds it on LinkedIn, and we forward LinkedIn&apos;s confirmation link to the owner so they can finish on their side.</>}</div>
+        <p>First, confirm we can reach the owner. We&apos;ll email a 6-digit code to their address below (already filled in from their details), then hand you the new email to give them.</p>
+        <label className={styles.field}>The owner&apos;s email<input type="email" required maxLength={254} value={destination} disabled={setup.destinationVerified} onChange={e => setDestination(e.target.value)} placeholder="owner@example.com" /></label>
+        <p className={styles.hint}>This is where we&apos;ll forward LinkedIn&apos;s confirmation link during setup. Change it only if the owner prefers a different inbox.</p>
         <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>The owner agrees to make this LinkedVelocity email the account&apos;s main email (this changes how they sign in and recover the account), and to have setup codes forwarded to the inbox above for up to one hour, or until setup finishes.</span></label>
-        <button className={styles.primary} disabled={busy || !consent}>{setup.address ? "Send a new code" : "Send a verification code"}</button>
+        <button className={styles.primary} disabled={busy || !consent}>{setup.address ? "Send a new code" : "Email the owner a code"}</button>
       </form>}
       {setup.address && !setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>
         <label className={styles.field}>Enter the 6-digit code we sent to {setup.destination}<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value)} /></label>
@@ -33,8 +33,8 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
         {setup.destinationVerified && <p className={styles.hint}>Forwarding expired. Send a new code to your inbox before requesting more LinkedIn messages.</p>}
       </form>}
       {setup.forwardingActive && <>
-        <div className={styles.note}>The account&apos;s new email: <strong>{setup.address}</strong><br />Codes forwarded to: {setup.destination}<br />Forwarding active until {setup.forwardingUntil && new Date(setup.forwardingUntil).toLocaleTimeString()}, or until setup finishes.</div>
-        <p>Now add this email to the owner&apos;s real LinkedIn account and make it the primary one:</p>
+        <div className={styles.note}>The account&apos;s new email: <strong>{setup.address}</strong><br />We&apos;ll forward LinkedIn&apos;s confirmation to: {setup.destination}<br />Active until {setup.forwardingUntil && new Date(setup.forwardingUntil).toLocaleTimeString()}, or until setup finishes.</div>
+        <p>Give this email to the ambassador and have them add it on LinkedIn, then make it their primary email:</p>
         <ol className={styles.instructions}>
           <li>On the owner&apos;s usual device, open LinkedIn and go to <strong>Settings → Sign in &amp; security → Email addresses</strong>.</li>
           <li>Choose <strong>Add email address</strong> and enter the new email shown above. Leave the owner&apos;s own email on the account as a backup.</li>
