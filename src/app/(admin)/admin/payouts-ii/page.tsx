@@ -378,7 +378,7 @@ export default function PayoutsIIPage() {
       {onboarding.count > 0 && (
         <p style={{ font: `500 13px ${F_SANS}`, color: "var(--muted,#777)", margin: "10px 0 0" }}>
           {onboarding.count} account{onboarding.count === 1 ? " is" : "s are"} still being onboarded, so nothing is owed yet
-          — {onboarding.names.join(", ")}. They live on <a href="/admin/onboarding" style={{ color: "var(--link,#0a66c2)" }}>Onboarding</a>.
+          — {onboarding.names.join(", ")}. They live on <a href="/admin/pipeline" style={{ color: "var(--link,#0a66c2)" }}>the Pipeline</a>.
         </p>
       )}
       <input

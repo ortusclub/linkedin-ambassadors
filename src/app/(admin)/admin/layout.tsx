@@ -24,14 +24,10 @@ const sections = [
     { href: "/admin/emails", label: "Email log" },
   ] },
   { name: "Ambassadors", items: [
-    { href: "/admin/pipeline", label: "Pipeline (new)" },
-    { href: "/admin/ambassadors", label: "Applications (Archive)" },
+    // Pipeline replaces the old Applications / Ambassadors(owners) / Onboarding tabs.
+    { href: "/admin/pipeline", label: "Pipeline" },
     { href: "/admin/referrals", label: "Referrals" },
-    { href: "/admin/owners", label: "Ambassadors" },
     { href: "/admin/balances", label: "Payouts" },
-    // Onboarding → Inventory → Payouts II sit together at the end: the account
-    // lifecycle, in the order you actually walk it.
-    { href: "/admin/onboarding", label: "Onboarding" },
     { href: "/admin/accounts", label: "Inventory" },
     { href: "/admin/proxies", label: "Proxies" },
     { href: "/admin/payouts-ii", label: "Payouts Schedule" },

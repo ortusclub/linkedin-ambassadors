@@ -67,7 +67,7 @@ export default function AdminDashboardPage() {
   if (stats.restrictedAccounts > 0) attention.push({ label: `${stats.restrictedAccounts} account${stats.restrictedAccounts > 1 ? "s" : ""} restricted — access & billing paused`, tone: "warn", action: "Resolve", href: "/admin/accounts" });
   if (stats.renewalsDue30d > 0) attention.push({ label: `${stats.renewalsDue30d} renewal${stats.renewalsDue30d > 1 ? "s" : ""} due in the next 30 days`, tone: "info", action: "View", href: "/admin/rentals" });
   if (stats.atRisk > 0) attention.push({ label: `${stats.atRisk} rental${stats.atRisk > 1 ? "s" : ""} at-risk — auto-renew off / payment failed`, tone: "warn", action: "View", href: "/admin/rentals" });
-  if (stats.appsToReview > 0) attention.push({ label: `${stats.appsToReview} ambassador application${stats.appsToReview > 1 ? "s" : ""} to review`, tone: "info", action: "Review", href: "/admin/ambassadors" });
+  if (stats.appsToReview > 0) attention.push({ label: `${stats.appsToReview} ambassador application${stats.appsToReview > 1 ? "s" : ""} to review`, tone: "info", action: "Review", href: "/admin/pipeline" });
   if (stats.availableAccounts > 0) attention.push({ label: `${stats.availableAccounts} account${stats.availableAccounts > 1 ? "s" : ""} idle — available, not earning`, tone: "neutral", action: "Assign", href: "/admin/accounts" });
   if (stats.offlineAccounts > 0) attention.push({ label: `${stats.offlineAccounts} account${stats.offlineAccounts > 1 ? "s" : ""} offline`, tone: "warn", action: "View", href: "/admin/accounts" });
 
@@ -215,7 +215,7 @@ export default function AdminDashboardPage() {
               </div>
               <StatCard label="Idle (available)" value={stats.availableAccounts} sub="not earning" href="/admin/accounts" valueColor={stats.availableAccounts > 0 ? "var(--warn-num)" : "var(--faint-num)"}
                 extra={<span style={{ font: `600 10.5px ${F_SANS}`, color: "var(--link)", marginTop: "auto" }}>Assign renters →</span>} />
-              <StatCard label="Apps to review" value={stats.appsToReview} sub="ambassador applications" href="/admin/ambassadors" valueColor={stats.appsToReview > 0 ? "var(--text)" : "var(--faint-num)"} />
+              <StatCard label="Apps to review" value={stats.appsToReview} sub="ambassador applications" href="/admin/pipeline" valueColor={stats.appsToReview > 0 ? "var(--text)" : "var(--faint-num)"} />
             </div>
           </div>
         </div>

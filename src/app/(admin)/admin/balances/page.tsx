@@ -125,7 +125,7 @@ export default function AdminPayoutsPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/admin/owners").then((r) => r.json()).catch(() => ({ owners: [] })),
+      fetch("/api/admin/pipeline").then((r) => r.json()).catch(() => ({ owners: [] })),
       fetch("/api/admin/payments-due").then((r) => r.json()).catch(() => ({ marketers: [] })),
     ]).then(([o, d]: [{ owners: Owner[] }, PaymentsDue]) => {
       setOwners(o.owners || []);
@@ -273,7 +273,7 @@ export default function AdminPayoutsPage() {
         <div style={{ maxWidth: 660 }}>
           <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Ambassador payouts</h1>
           <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>
-            Who&apos;s due and who&apos;s been paid this cycle. Ambassador payments are logged in <a href="/admin/owners" style={{ color: "var(--link)", fontWeight: 600 }}>Account owners</a>; referral fees in <a href="/admin/referrals" style={{ color: "var(--link)", fontWeight: 600 }}>Referrals</a>.
+            Who&apos;s due and who&apos;s been paid this cycle. Ambassador payments are logged in <a href="/admin/pipeline" style={{ color: "var(--link)", fontWeight: 600 }}>the Pipeline</a>; referral fees in <a href="/admin/referrals" style={{ color: "var(--link)", fontWeight: 600 }}>Referrals</a>.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
@@ -300,7 +300,7 @@ export default function AdminPayoutsPage() {
       {/* legend bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, padding: "13px 18px", marginBottom: 16, boxShadow: "var(--card-shadow)", flexWrap: "wrap" }}>
         <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>Read-only overview · status mirrors what&apos;s logged in Account owners</span>
-        <a href="/admin/owners" style={{ font: `600 12.5px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 15px", borderRadius: 9, whiteSpace: "nowrap", flex: "none" }}>Go to Account owners →</a>
+        <a href="/admin/pipeline" style={{ font: `600 12.5px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 15px", borderRadius: 9, whiteSpace: "nowrap", flex: "none" }}>Go to Pipeline →</a>
       </div>
 
       {/* filters */}
@@ -378,7 +378,7 @@ export default function AdminPayoutsPage() {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                       <span style={pill(STATE_META[r.state].bg, STATE_META[r.state].fg, { font: `700 11px ${F_SANS}`, borderRadius: 999, padding: "5px 11px" })}>{STATE_META[r.state].label}</span>
-                      <a href={r.fee === "referral" ? "/admin/referrals" : "/admin/owners"} style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted)", whiteSpace: "nowrap" }}>Record →</a>
+                      <a href={r.fee === "referral" ? "/admin/referrals" : "/admin/pipeline"} style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted)", whiteSpace: "nowrap" }}>Record →</a>
                     </div>
                   </div>
                 ))}

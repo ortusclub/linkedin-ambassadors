@@ -1138,7 +1138,7 @@ export async function sendPaymentsDueDigest(
         ${dueRows(data.monthly, "Monthly payouts due")}
         ${marketerRows}
         ${upcomingBlock}
-        <p style="margin:26px 0 0;"><a href="${appUrl}/admin/owners" style="color:#0A66C2;text-decoration:none;font-size:13px;">Open the Owners page →</a></p>
+        <p style="margin:26px 0 0;"><a href="${appUrl}/admin/pipeline" style="color:#0A66C2;text-decoration:none;font-size:13px;">Open the Pipeline →</a></p>
       </div>
     `,
   });
