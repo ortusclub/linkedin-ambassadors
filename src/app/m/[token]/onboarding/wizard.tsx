@@ -27,6 +27,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [consent, setConsent] = useState(false);
   const [loginConfirmed, setLoginConfirmed] = useState(false);
   const [verify, setVerify] = useState({ status: "", passport: "" });
+  const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "" });
 
   async function request(method: string, body?: unknown, id?: string) {
@@ -144,14 +145,16 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             </select></label>
             {form.country === "PH" && <p className={styles.hint}>In the Philippines, LinkedIn only accepts a passport for identity verification.</p>}
             {verify.passport === "yes" && <>
-              <div className={styles.note}>Recommended: verify the account now. It&apos;s free, takes about five minutes, and lowers the chance of restrictions.</div>
+              <div className={styles.note}>Recommended: verify the account now. It&apos;s free, takes about five minutes, and lowers the chance of restrictions. The owner does this on their own phone, and it needs a phone with <strong>NFC</strong> (most phones from the last few years have it), because LinkedIn reads the chip inside the passport.</div>
+              <p>Share these steps with the owner (tap Copy to send them):</p>
               <ol className={styles.instructions}>
-                <li>On the owner&apos;s phone, open the <strong>LinkedIn app</strong> and go to their profile.</li>
-                <li>Open <strong>Settings → Account preferences → Verifications</strong>, or tap &ldquo;Add verification&rdquo; on the profile.</li>
-                <li>Choose <strong>Verify with government ID</strong> and follow the steps: scan the {form.country === "PH" ? "passport" : "passport or ID"} and take a selfie. LinkedIn uses a secure verification partner.</li>
-                <li>It usually finishes within minutes and adds a verification badge to the profile.</li>
+                <li>On your phone, open the <strong>LinkedIn app</strong> and go to your profile.</li>
+                <li>Open <strong>Settings → Account preferences → Verifications</strong>, or tap &ldquo;Add verification&rdquo; on your profile.</li>
+                <li>Choose <strong>Verify with government ID</strong>{form.country === "PH" ? " and pick Passport" : ""}. Scan it, then hold it to the back of your phone so it reads the chip (this needs NFC), and take a selfie.</li>
+                <li>It usually finishes within minutes and adds a verified badge to your profile.</li>
               </ol>
-              <p className={styles.hint}>You can start verification now and continue setup at the same time. Exact menu names may vary slightly by app version and country.</p>
+              <button type="button" className={styles.secondary} onClick={() => { void navigator.clipboard?.writeText([`Verify your LinkedIn identity (free, about 5 minutes). You'll need a ${form.country === "PH" ? "passport" : "passport or government ID"} and a phone with NFC.`, "1. On your phone, open the LinkedIn app and go to your profile.", "2. Open Settings > Account preferences > Verifications (or tap Add verification on your profile).", `3. Choose Verify with government ID${form.country === "PH" ? " and pick Passport" : ""}. Scan it, then hold it to the back of your phone so it reads the chip (needs NFC), and take a selfie.`, "4. It finishes in a few minutes and adds a verified badge to your profile."].join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}>{copied ? "Copied ✓" : "Copy steps for the owner"}</button>
+              <p className={styles.hint}>No NFC on the phone? Verification won&apos;t work there, so use another phone that has NFC. Exact menu names may vary by app version and country.</p>
             </>}
             {verify.passport === "no" && <div className={styles.note}>{form.country === "PH" ? "In the Philippines, LinkedIn only accepts a passport, so verification is not possible without one yet. It is strongly recommended once the owner has a passport, as it lowers the chance of restrictions." : "That's okay. Verifying with a passport later is strongly recommended, as it lowers the chance of restrictions."} You can continue for now.</div>}
           </>}
