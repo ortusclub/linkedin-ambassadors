@@ -233,9 +233,13 @@ export default function Portal({ token }: { token: string }) {
           {/* choose an onboarding route */}
           <div style={{ backgroundImage: "linear-gradient(160deg,#16a34a,#15803d)", borderRadius: 18, padding: 20, marginBottom: 18, boxShadow: "0 14px 30px -14px rgba(21,128,61,.6)" }}>
             <div style={{ font: `700 11px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.72)", marginBottom: 6 }}>Choose how to onboard</div>
-            <div style={{ font: `600 18px/1.3 ${JAK}`, color: "#fff", marginBottom: 16 }}>Send their form, or complete the setup with them.</div>
+            <div style={{ font: `600 18px/1.3 ${JAK}`, color: "#fff", marginBottom: 5 }}>Earn {money(stats.rate)} or {money(stats.rate * 2)} per successful referral.</div>
+            <p style={{ color: "rgba(255,255,255,.78)", font: `500 11.5px/1.5 ${JAK}`, margin: "0 0 16px" }}>Earn {money(stats.rate)} when they complete your form and our team onboards them, or {money(stats.rate * 2)} when you complete the guided onboarding with them.</p>
 
-            <div style={{ font: `700 12px ${JAK}`, color: "#fff", marginBottom: 5 }}>1 · Send them the signup form</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+              <span style={{ font: `700 12px ${JAK}`, color: "#fff" }}>1 · Send them the signup form</span>
+              <span style={{ marginLeft: "auto", padding: "4px 8px", borderRadius: 999, background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.25)", color: "#fff", font: `800 10px ${JAK}`, whiteSpace: "nowrap" }}>Earn {money(stats.rate)}</span>
+            </div>
             <p style={{ color: "rgba(255,255,255,.82)", font: `500 11.5px/1.5 ${JAK}`, margin: "0 0 11px" }}>They scan your QR or open your link and submit their details. A LinkedVelocity team member then contacts them to arrange onboarding.</p>
             <div style={{ display: "flex", gap: 9 }}>
               <button onClick={() => setQrOpen(true)} style={{ flex: 1, font: `700 14px ${JAK}`, color: C.greenDk, background: "#fff", border: "none", padding: 13, borderRadius: 12, cursor: "pointer" }}>▣ Show QR</button>
