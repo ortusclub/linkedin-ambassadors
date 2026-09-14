@@ -34,6 +34,7 @@ export default function EmailStep({ setup, busy, submit, refresh, ownerEmail }: 
       </form>}
       {setup.forwardingActive && <>
         <div className={styles.note}>The account&apos;s new email: <strong>{setup.address}</strong><br />We&apos;ll forward LinkedIn&apos;s confirmation to: {setup.destination}<br />Active until {setup.forwardingUntil && new Date(setup.forwardingUntil).toLocaleTimeString()}, or until setup finishes.</div>
+        <p className={styles.hint}>This only adds and switches the email. The account&apos;s password does not change, so the owner keeps their login and full access.</p>
         <p>Give this email to the ambassador and have them add it on LinkedIn, then make it their primary email:</p>
         <ol className={styles.instructions}>
           <li>On the owner&apos;s usual device, open LinkedIn and go to <strong>Settings → Sign in &amp; security → Email addresses</strong>.</li>
@@ -41,7 +42,7 @@ export default function EmailStep({ setup, busy, submit, refresh, ownerEmail }: 
           <li>LinkedIn sends a confirmation to that new email. It is forwarded to the inbox above, so open it there, then finish confirming back on LinkedIn. The owner does this themselves. Never type their password on this page.</li>
           <li>Set the new email as the <strong>primary</strong> email, and check that LinkedIn shows it as primary.</li>
         </ol>
-        <p role="status">{setup.lastForwardedAt ? "We received a forwarded LinkedIn message. That does not confirm it is primary yet, so tick the box below once LinkedIn shows the new email as primary." : "Waiting for LinkedIn&apos;s confirmation email. Do steps 1 and 2 on LinkedIn, then click Refresh below."}</p>
+        <p role="status">{setup.lastForwardedAt ? "We received a forwarded LinkedIn message. That does not confirm it is primary yet, so tick the box below once LinkedIn shows the new email as primary." : "Waiting for LinkedIn's confirmation email. Do steps 1 and 2 on LinkedIn, then click Refresh below."}</p>
         <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>The new email is confirmed and shows as primary in LinkedIn. The owner agrees to continue.</span></label>
         <button className={styles.primary} disabled={busy || !primary || !setup.lastForwardedAt} onClick={() => void submit({ action: "primary", consent: true })}>Done, continue to browser setup →</button>
       </>}
