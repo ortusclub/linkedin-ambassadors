@@ -45,7 +45,7 @@ export async function onboardingSummary(id: string, referrerId: string) {
     confirmedAt: s.confirmedAt,
     setupDueAt: s.confirmedAt ? setupDueDate(s.confirmedAt) : null,
     setupAmount: cfg.offer.setup, monthlyAmount: cfg.offer.monthly,
-    commission: `${cfg.symbol}${cfg.rate}`, verified: !!s.application.verifiedAt,
+    commission: `${cfg.symbol}${cfg.rate * 2}`, verified: !!s.application.verifiedAt,
   };
 }
 

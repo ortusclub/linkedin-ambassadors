@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-interface BoardRow { name: string; signups: number; converted: number; isMe: boolean; }
+interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -59,7 +59,7 @@ const WARMUP: { t: string; items: string[] }[] = [
 ];
 
 const MARKETER_FAQ = [
-  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up onboarded onto our inventory. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday." },
+  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up onboarded onto our inventory. Complete the guided onboarding yourself and that referral fee doubles to ₱1,000. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday." },
   { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your ₱500 is triggered." },
   { q: "What if someone doesn't qualify?", a: "Thank them and move on. LinkedIn's minimum age is 16, or older where local law requires." },
   { q: "How do I update my payout details?", a: "Right here — scroll down to \"Your payout details\" and save your GCash / bank info so we can pay you." },
@@ -174,8 +174,8 @@ export default function Portal({ token }: { token: string }) {
   // field-day rate (online only), USD amounts, and the referrer's own payout method.
   // PH referrers keep the original copy verbatim.
   const faqOverrides: Record<string, string> = isUSD ? {
-    "When do I get paid?": `You get ${money(stats.rate)} for every sign-up onboarded onto our inventory. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday.`,
-    "What counts as a successful sign-up?": `The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your ${money(stats.rate)} is triggered.`,
+    "When do I get paid?": `You get ${money(stats.rate)} for every sign-up onboarded onto our inventory, or ${money(stats.rate * 2)} when you complete the guided onboarding yourself. Commissions release about 3 days after onboarding (about a week for a brand-new account) and are paid the following Monday.`,
+    "What counts as a successful sign-up?": `The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your ${money(stats.rate)} standard fee or ${money(stats.rate * 2)} guided-onboarding fee is triggered.`,
     "How do I update my payout details?": `Right here — scroll down to "Your payout details" and save your ${config.defaultPayoutMethod} / bank info so we can pay you.`,
     "How much will I earn?": `${config.offer.setup} to start — paid to your account about 3 days after setup (or a week if it's a brand-new account). Then ${config.offer.monthly} every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ${config.offer.setup} covers your first partial month, so you're never short-changed.`,
   } : {};
@@ -187,6 +187,8 @@ export default function Portal({ token }: { token: string }) {
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=0&data=${encodeURIComponent(myLink)}`;
   const ranked = board.slice().sort((a, b) => b.converted - a.converted || b.signups - a.signups);
   const myRank = ranked.findIndex((b) => b.isMe) + 1;
+  const topFive = ranked.slice(0, 5);
+  const myBoardRow = ranked.find((b) => b.isMe);
   const copyLink = () => { navigator.clipboard?.writeText(myLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1500); };
 
   const card: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "17px 18px", marginBottom: 18 };
@@ -228,18 +230,29 @@ export default function Portal({ token }: { token: string }) {
               : "Here's how your referrals are doing — and everything you need in the field."}
           </p>
 
-          {/* share hero */}
+          {/* choose an onboarding route */}
           <div style={{ backgroundImage: "linear-gradient(160deg,#16a34a,#15803d)", borderRadius: 18, padding: 20, marginBottom: 18, boxShadow: "0 14px 30px -14px rgba(21,128,61,.6)" }}>
-            <div style={{ font: `700 11px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.72)", marginBottom: 6 }}>Sign someone up</div>
-            <div style={{ font: `600 17px/1.3 ${JAK}`, color: "#fff", marginBottom: 14 }}>Show your QR or share your link — that&apos;s it.</div>
+            <div style={{ font: `700 11px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.72)", marginBottom: 6 }}>Choose how to onboard</div>
+            <div style={{ font: `600 18px/1.3 ${JAK}`, color: "#fff", marginBottom: 16 }}>Send their form, or complete the setup with them.</div>
+
+            <div style={{ font: `700 12px ${JAK}`, color: "#fff", marginBottom: 5 }}>1 · Send them the signup form</div>
+            <p style={{ color: "rgba(255,255,255,.82)", font: `500 11.5px/1.5 ${JAK}`, margin: "0 0 11px" }}>They scan your QR or open your link and submit their details. A LinkedVelocity team member then contacts them to arrange onboarding.</p>
             <div style={{ display: "flex", gap: 9 }}>
               <button onClick={() => setQrOpen(true)} style={{ flex: 1, font: `700 14px ${JAK}`, color: C.greenDk, background: "#fff", border: "none", padding: 13, borderRadius: 12, cursor: "pointer" }}>▣ Show QR</button>
               <button onClick={copyLink} style={{ flex: 1, font: `700 14px ${JAK}`, color: "#fff", background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.3)", padding: 13, borderRadius: 12, cursor: "pointer" }}>{linkCopied ? "Copied ✓" : "⧉ Copy link"}</button>
             </div>
             <div style={{ marginTop: 11, font: `500 11.5px ${GRO}`, color: "rgba(255,255,255,.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myLinkShort}</div>
-            <a href={`/m/${token}/onboarding`} style={{ display: "block", marginTop: 14, padding: "13px 16px", borderRadius: 12, background: "#fff", color: C.greenDk, textAlign: "center", textDecoration: "none", font: `700 14px ${JAK}` }}>Do-it-yourself onboarding →</a>
-            <p style={{ color: "rgba(255,255,255,.8)", font: `500 11.5px/1.5 ${JAK}`, margin: "8px 0 0" }}>With the account owner? Set up their browser and guide them through login now.</p>
             <div style={{ marginTop: 9, paddingTop: 9, borderTop: "1px solid rgba(255,255,255,.18)", font: `500 12px ${JAK}`, color: "rgba(255,255,255,.82)" }}>Can&apos;t scan? Give them your code: <b style={{ font: `700 13px ${GRO}`, color: "#fff", letterSpacing: ".02em" }}>{me.slug}</b></div>
+
+            <div style={{ marginTop: 16, padding: 14, borderRadius: 14, background: "rgba(8,70,33,.3)", border: "1px solid rgba(255,255,255,.2)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ font: `700 12px ${JAK}`, color: "#fff" }}>2 · Onboard them yourself</span>
+                <span style={{ marginLeft: "auto", padding: "4px 8px", borderRadius: 999, background: "#dcfce7", color: C.greenDk, font: `800 10px ${JAK}`, whiteSpace: "nowrap" }}>Earn {money(stats.rate * 2)}</span>
+              </div>
+              <p style={{ color: "rgba(255,255,255,.84)", font: `500 11.5px/1.55 ${JAK}`, margin: "0 0 11px" }}>Stay with the account owner and follow our guided steps. We&apos;ll help you add their LinkedVelocity email, open their protected browser, and have them sign in so the owner and LinkedVelocity both retain access.</p>
+              <a href={`/m/${token}/onboarding`} style={{ display: "block", padding: "13px 16px", borderRadius: 12, background: "#fff", color: C.greenDk, textAlign: "center", textDecoration: "none", font: `700 14px ${JAK}` }}>Start guided onboarding →</a>
+              <p style={{ color: "rgba(255,255,255,.7)", font: `500 10.5px/1.45 ${JAK}`, margin: "8px 0 0", textAlign: "center" }}>A successful guided onboarding pays double the standard referral fee.</p>
+            </div>
           </div>
 
           {/* stats */}
@@ -255,7 +268,7 @@ export default function Portal({ token }: { token: string }) {
           {/* how you get paid */}
           <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 16, padding: "17px 18px", marginBottom: 18 }}>
             <div style={{ font: `700 13.5px ${JAK}`, color: C.greenDk, marginBottom: 8 }}>How &amp; when you get paid</div>
-            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{money(stats.rate)}</b> for every signup onboarded onto our inventory. It releases <b>~3 days after</b> onboarding (about <b>a week</b> for a brand-new account) and pays out the <b>following Monday</b>.</p>
+            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{money(stats.rate)}</b> for a successful standard signup, or <b>{money(stats.rate * 2)}</b> when you complete the guided onboarding yourself. It releases <b>~3 days after</b> onboarding (about <b>a week</b> for a brand-new account) and pays out the <b>following Monday</b>.</p>
             <p style={{ font: `500 11.5px/1.5 ${JAK}`, color: "#6b8a77", margin: 0 }}>The figure above is an estimate — the exact payable amount is confirmed at payout.</p>
           </div>
 
@@ -265,14 +278,32 @@ export default function Portal({ token }: { token: string }) {
               <span style={secLbl}>Leaderboard</span>
               {myRank > 0 && <span style={{ font: `700 12px ${JAK}`, color: C.greenDk }}>You&apos;re #{myRank} of {ranked.length}</span>}
             </div>
-            {ranked.map((b, i) => (
+            <div style={{ display: "flex", justifyContent: "flex-end", margin: "-4px 10px 5px", font: `700 9px ${JAK}`, letterSpacing: ".05em", textTransform: "uppercase", color: C.muted2 }}>Lifetime earned</div>
+            {topFive.map((b, i) => (
               <div key={b.name + i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 10px", borderRadius: 10, marginBottom: 4, background: b.isMe ? "#f0faf4" : "transparent" }}>
                 <span style={{ font: `600 13px ${GRO}`, color: C.muted2, width: 16, flex: "none" }}>{i + 1}</span>
-                <span style={{ font: `${b.isMe ? 700 : 500} 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}{b.isMe ? " (you)" : ""}</span>
-                <span style={{ marginLeft: "auto", font: `600 13px ${GRO}`, color: C.greenDk, fontVariantNumeric: "tabular-nums" }}>{b.converted} ✓</span>
-                <span style={{ font: `500 12px ${JAK}`, color: C.muted2, whiteSpace: "nowrap", width: 74, textAlign: "right" }}>{b.signups} signups</span>
+                <span style={{ minWidth: 0, font: `${b.isMe ? 700 : 500} 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}{b.isMe ? " (you)" : ""}</span>
+                <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
+                  <strong style={{ display: "block", font: `700 13px ${GRO}`, color: C.greenDk, fontVariantNumeric: "tabular-nums" }}>{b.lifetimeEarnings}</strong>
+                  <small style={{ display: "block", font: `500 10px ${JAK}`, color: C.muted2, marginTop: 2 }}>{b.converted} onboarded · {b.signups} signed up</small>
+                </span>
               </div>
             ))}
+            {myRank > 5 && myBoardRow && <>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "10px 0 5px", color: C.muted2 }}>
+                <span style={{ height: 1, flex: 1, background: C.line2 }} />
+                <span style={{ font: `700 9px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase" }}>Your position</span>
+                <span style={{ height: 1, flex: 1, background: C.line2 }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px", borderRadius: 10, background: "#f0faf4", border: `1px solid ${C.softGreenBorder}` }}>
+                <span style={{ font: `700 13px ${GRO}`, color: C.greenDk, width: 24, flex: "none" }}>#{myRank}</span>
+                <span style={{ minWidth: 0, font: `700 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myBoardRow.name} (you)</span>
+                <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
+                  <strong style={{ display: "block", font: `700 13px ${GRO}`, color: C.greenDk }}>{myBoardRow.lifetimeEarnings}</strong>
+                  <small style={{ display: "block", font: `500 10px ${JAK}`, color: C.muted2, marginTop: 2 }}>{myBoardRow.converted} onboarded · {myBoardRow.signups} signed up</small>
+                </span>
+              </div>
+            </>}
             <div style={{ marginTop: 10, paddingTop: 11, borderTop: `1px solid ${C.line2}`, font: `500 12px/1.5 ${JAK}`, color: C.muted }}>Strong performers get first pick for the next field days. 💪</div>
           </div>
 

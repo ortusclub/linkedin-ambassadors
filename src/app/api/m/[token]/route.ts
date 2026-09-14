@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isReferralEarned } from "@/lib/referrals";
+import { isReferralEarned, referralCommissionAmount } from "@/lib/referrals";
 import { currencyConfig } from "@/lib/referral-currency";
 
 export const dynamic = "force-dynamic";
@@ -23,19 +23,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      select: { fullName: true, referredBy: true, status: true, verifiedAt: true, accountIssue: true, onboardedAt: true, createdAt: true },
+      select: { fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardedAt: true, createdAt: true },
     }),
     prisma.payout.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" } }),
   ]);
 
   const nameBySlug = new Map(referrers.map((r) => [r.slug, r.name]));
-  const counts = new Map<string, { signups: number; converted: number }>();
+  const counts = new Map<string, { signups: number; converted: number; commission: number }>();
   for (const a of apps) {
     const slug = (a.referredBy || "").trim();
     if (!slug) continue;
-    const c = counts.get(slug) || { signups: 0, converted: 0 };
+    const c = counts.get(slug) || { signups: 0, converted: 0, commission: 0 };
     c.signups++;
-    if (isReferralEarned(a)) c.converted++;
+    if (isReferralEarned(a)) {
+      c.converted++;
+      c.commission += referralCommissionAmount(a, currencyConfig(slug).rate);
+    }
     counts.set(slug, c);
   }
 
@@ -44,11 +47,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   // not surface as a phantom "person" on everyone's leaderboard.
   const board = [...counts.entries()]
     .filter(([slug]) => nameBySlug.has(slug))
-    .map(([slug, c]) => ({ name: nameBySlug.get(slug)!, signups: c.signups, converted: c.converted, isMe: slug === me.slug }))
+    .map(([slug, c]) => ({
+      name: nameBySlug.get(slug)!, signups: c.signups, converted: c.converted,
+      lifetimeEarnings: `${currencyConfig(slug).symbol}${c.commission.toLocaleString("en-US")}`,
+      isMe: slug === me.slug,
+    }))
     .sort((a, b) => b.signups - a.signups || b.converted - a.converted);
-  if (!board.some((b) => b.isMe)) board.push({ name: me.name, signups: 0, converted: 0, isMe: true });
+  if (!board.some((b) => b.isMe)) board.push({ name: me.name, signups: 0, converted: 0, lifetimeEarnings: `${currencyConfig(me.slug).symbol}0`, isMe: true });
 
-  const mine = counts.get(me.slug) || { signups: 0, converted: 0 };
+  const mine = counts.get(me.slug) || { signups: 0, converted: 0, commission: 0 };
   const cfg = currencyConfig(me.slug);
 
   // Activity feed — this marketer's own signups only, names only (no email/number).
@@ -74,7 +81,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       assignedDay: me.assignedDay,
       assignedLocation: me.assignedLocation,
     },
-    stats: { signups: mine.signups, converted: mine.converted, commission: mine.converted * cfg.rate, rate: cfg.rate },
+    stats: { signups: mine.signups, converted: mine.converted, commission: mine.commission, rate: cfg.rate },
     config: {
       currency: cfg.currency,
       symbol: cfg.symbol,

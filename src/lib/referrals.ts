@@ -20,6 +20,7 @@ export interface ReferralGate {
   verifiedAt?: Date | string | null;
   accountIssue?: string | null;
   onboardedAt?: Date | string | null;
+  referralSource?: string | null;
 }
 
 // Whether the referred account is onboarded. The `status` string is the intended signal,
@@ -33,4 +34,10 @@ export function isReferralOnboarded(a: ReferralGate): boolean {
 
 export function isReferralEarned(a: ReferralGate): boolean {
   return isReferralOnboarded(a) && !!a.verifiedAt;
+}
+
+// A successful guided self-service setup earns twice the standard referral fee.
+// referralSource is stamped as "self-service" when the DIY wizard creates the signup.
+export function referralCommissionAmount(a: ReferralGate, standardRate: number): number {
+  return standardRate * (a.referralSource === "self-service" ? 2 : 1);
 }

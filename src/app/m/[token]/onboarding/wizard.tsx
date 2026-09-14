@@ -92,23 +92,55 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>
   );
 
+  const wizardSteps = [
+    { index: 0, label: "Start", detail: "Confirm the owner is present and ready." },
+    { index: 1, label: "Owner details", detail: "Add their LinkedIn and contact details." },
+    { index: 2, label: "Payout", detail: "Record where the owner should be paid." },
+    ...(bootstrap?.emailEnabled ? [{ index: 3, label: "Secure email", detail: "Set up access to LinkedIn verification messages." }] : []),
+    { index: 4, label: "Prepare & sign in", detail: "We create the protected browser; the owner signs in." },
+    { index: 5, label: "Team verification", detail: "We check the saved session before activation and payment." },
+  ];
+
   return <main className={styles.page}>
     <div className={styles.shell}>
       <Link href={`/m/${token}`} className={styles.back}>← Referral dashboard</Link>
       <div className={styles.eyebrow}>LINKEDVELOCITY · SELF-SERVICE</div>
       <h1>Do-it-yourself onboarding</h1>
-      <p className={styles.subtitle}>Set up an account together, right here. We&apos;ll prepare the browser; the account owner signs into LinkedIn.</p>
-      <ol className={styles.steps} aria-label="Onboarding progress">
-        {["Start", "Details", "Payout", "Email", "Sign in", "Done"].map((label, i) => (!bootstrap || bootstrap.emailEnabled || i !== 3) && <li key={label} aria-current={step === i ? "step" : undefined} className={i <= step ? styles.current : ""}><span>{i < step ? "✓" : i + 1 - (bootstrap && !bootstrap.emailEnabled && i > 3 ? 1 : 0)}</span>{label}</li>)}
-      </ol>
+      <p className={styles.subtitle}>Bring the account owner with you. We&apos;ll guide you through their details and payout, add a LinkedVelocity email when needed, prepare a protected browser, and securely sync their signed-in session.</p>
       {error && <div className={styles.error} role="alert">{error}</div>}
       {!bootstrap && error && <button className={styles.primary} onClick={() => { setError(""); setLoadAttempt((n) => n + 1); }}>Retry loading onboarding</button>}
       {!bootstrap && !error && <p role="status">Loading onboarding…</p>}
-      {bootstrap && <section className={styles.card} aria-busy={busy}>
+      {bootstrap && <div className={styles.wizardLayout}>
+        <aside className={styles.flowPanel} aria-label="How onboarding works">
+          <div className={styles.flowKicker}>HOW IT WORKS</div>
+          <h2>One setup, {wizardSteps.length} clear steps</h2>
+          <p>It usually takes about 10 minutes when the owner has their login and verification methods ready.</p>
+          <ol className={styles.flowSteps} aria-label="Onboarding progress">
+            {wizardSteps.map((item, position) => {
+              const complete = item.index < step;
+              const active = item.index === step;
+              return <li key={item.label} aria-current={active ? "step" : undefined} className={`${complete ? styles.complete : ""} ${active ? styles.active : ""}`}>
+                <span className={styles.flowNumber}>{complete ? "✓" : position + 1}</span>
+                <span><strong>{item.label}</strong><small>{item.detail}</small></span>
+              </li>;
+            })}
+          </ol>
+          <div className={styles.privacyNote}><strong>The owner stays in control.</strong> They enter their own LinkedIn password and verification codes inside the prepared browser. Those details are never entered into this wizard.</div>
+        </aside>
+        <section className={styles.card} aria-busy={busy}>
         {step === 0 && <>
-          <h2>Let&apos;s get them set up</h2>
-          <p>Have the account owner with you on a computer. They&apos;ll need access to their LinkedIn account and any verification codes.</p>
-          <div className={styles.note}>They earn US{CURRENCY_CONFIG.USD.offer.setup} ({CURRENCY_CONFIG.PHP.offer.setup}) for setup and US{CURRENCY_CONFIG.USD.offer.monthly} ({CURRENCY_CONFIG.PHP.offer.monthly}) per active month. You earn a referral fee of US${CURRENCY_CONFIG.USD.rate} (₱{CURRENCY_CONFIG.PHP.rate.toLocaleString("en-US")}) for each successfully onboarded referral, subject to verification. Your referral stays attached automatically.</div>
+          <div className={styles.stepLabel}>STEP 1 · BEFORE YOU BEGIN</div>
+          <h2>Get the account owner ready</h2>
+          <p>You&apos;ll complete this together on the same computer. We handle the technical setup; the owner handles their private LinkedIn sign-in.</p>
+          <div className={styles.readyList}>
+            <strong>Have these ready:</strong>
+            <ul>
+              <li>The owner&apos;s LinkedIn profile link and contact details</li>
+              <li>Their preferred payout account</li>
+              <li>Access to LinkedIn and any email, phone or authenticator codes</li>
+            </ul>
+          </div>
+          <div className={styles.note}>They earn US{CURRENCY_CONFIG.USD.offer.setup} ({CURRENCY_CONFIG.PHP.offer.setup}) for setup and US{CURRENCY_CONFIG.USD.offer.monthly} ({CURRENCY_CONFIG.PHP.offer.monthly}) per active month. You earn double the standard referral fee — US${CURRENCY_CONFIG.USD.rate * 2} (₱{(CURRENCY_CONFIG.PHP.rate * 2).toLocaleString("en-US")}) — when you successfully complete this guided onboarding, subject to verification. Your referral stays attached automatically.</div>
           <label className={styles.check}><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             <span>The account owner meets <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age: 16, or older where local law requires</a>, is present, and agrees to share their account through LinkedVelocity under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">ambassador terms</a>.</span></label>
           {!bootstrap.configured && <p className={styles.note}>You can enter the details now. The team will need to configure browser access before you can save and continue to sign-in.</p>}
@@ -168,7 +200,8 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <Link className={styles.primary} href={`/m/${token}`}>Back to your dashboard →</Link>
           <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another person</a>
         </>}
-      </section>}
+        </section>
+      </div>}
     </div>
   </main>;
 }

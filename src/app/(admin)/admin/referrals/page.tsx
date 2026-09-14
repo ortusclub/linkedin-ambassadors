@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { isReferralEarned, isReferralOnboarded } from "@/lib/referrals";
+import { isReferralEarned, isReferralOnboarded, referralCommissionAmount } from "@/lib/referrals";
 import { type Currency, CURRENCY_CONFIG, formatMoney, referralCurrency } from "@/lib/referral-currency";
 
 // A single ambassador application, reduced to what the referral roll-up needs.
@@ -12,6 +12,7 @@ interface App {
   verifiedAt?: string | null;
   accountIssue?: string | null;
   onboardedAt?: string | null;
+  referralSource?: string | null;
 }
 
 interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; }
@@ -173,7 +174,7 @@ export default function AdminReferralsPage() {
   }, []);
 
   const rows = useMemo<Row[]>(() => {
-    const m = new Map<string, { name: string; signups: number; converted: number; ready: number; held: number }>();
+    const m = new Map<string, { name: string; signups: number; converted: number; earned: number; ready: number; held: number }>();
     for (const a of apps) {
       const name = (a.referredBy || "").trim();
       if (!name) continue;
@@ -181,15 +182,20 @@ export default function AdminReferralsPage() {
       // from the signup form) are one referrer, not two. Keep the nicest-cased
       // spelling for display (prefer one that isn't all-lowercase).
       const key = name.toLowerCase();
-      const r = m.get(key) || { name, signups: 0, converted: 0, ready: 0, held: 0 };
+      const r = m.get(key) || { name, signups: 0, converted: 0, earned: 0, ready: 0, held: 0 };
       if (r.name === r.name.toLowerCase() && name !== name.toLowerCase()) r.name = name;
       r.signups++;
-      if (isConverted(a)) { r.converted++; if (isReferralEarned(a)) r.ready++; else r.held++; }
+      if (isConverted(a)) {
+        const commission = referralCommissionAmount(a, rateFor(name));
+        r.converted++;
+        r.earned += commission;
+        if (isReferralEarned(a)) r.ready += commission;
+        else r.held += commission;
+      }
       m.set(key, r);
     }
     return [...m.values()]
       .map((r) => {
-        const rate = rateFor(r.name); // r.name is the referredBy key (usually the slug)
         return {
           name: r.name,
           initials: initialsOf(r.name),
@@ -199,10 +205,10 @@ export default function AdminReferralsPage() {
           isTop: r.converted >= TOP_THRESHOLD,
           active: r.converted > 0,
           convRate: r.signups > 0 ? Math.round((r.converted / r.signups) * 100) + "%" : "—",
-          earned: r.converted * rate,     // Phase 2 will split earned into paid vs owed
-          owed: r.converted * rate,       // Phase 1: nothing paid yet, so all owed
-          readyOwed: r.ready * rate,      // hold cleared — payable now
-          heldOwed: r.held * rate,        // onboarded but still in the stability hold
+          earned: r.earned,               // DIY onboarding earns twice the base rate
+          owed: r.earned,                 // Phase 1: nothing paid yet, so all owed
+          readyOwed: r.ready,             // hold cleared — payable now
+          heldOwed: r.held,               // onboarded but still in the stability hold
         };
       })
       .sort((a, b) => b.signups - a.signups || b.converted - a.converted || a.name.localeCompare(b.name));

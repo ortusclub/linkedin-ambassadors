@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { isReferralEarned } from "@/lib/referrals";
-import { type Currency, currencyConfig, currencyConfigFor, currencyForReferredBy } from "@/lib/referral-currency";
+import { isReferralEarned, referralCommissionAmount } from "@/lib/referrals";
+import { type Currency, currencyConfig, currencyConfigFor } from "@/lib/referral-currency";
 
 // Ambassador payout schedule + "who's due to be paid" computation, shared by the
 // admin Owners panel and the weekly digest email so both agree exactly.
@@ -98,7 +98,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     select: {
       fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
-      paymentMethod: true, paymentDetails: true, referredBy: true, payoutCurrency: true, verifiedAt: true,
+      paymentMethod: true, paymentDetails: true, referredBy: true, referralSource: true, payoutCurrency: true, verifiedAt: true,
       status: true, accountIssue: true,
     },
   });
@@ -170,11 +170,14 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
 
   // Marketer commissions ready to pay — NET of commission already paid, keyed to the
   // referrer's display name (not the slug). Mirrors /admin/referrals so both agree.
-  const earnedByRef = new Map<string, number>();
+  const earnedByRef = new Map<string, { count: number; amount: number }>();
   for (const a of apps) {
     const ref = (a.referredBy || "").trim().toLowerCase();
     if (!ref || !isReferralEarned(a)) continue;
-    earnedByRef.set(ref, (earnedByRef.get(ref) || 0) + 1);
+    const earned = earnedByRef.get(ref) || { count: 0, amount: 0 };
+    earned.count++;
+    earned.amount += referralCommissionAmount(a, currencyConfig(ref).rate);
+    earnedByRef.set(ref, earned);
   }
   const refSlugs = [...earnedByRef.keys()];
   // Every actually-paid commission payout (any referrer) — drives both the net-owed maths
@@ -196,15 +199,15 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     marketerPayments.push({ name: refById.get(p.referrerId)?.name || p.referrerId, amount: Number(p.amount), paidAt: (p.paidAt as Date).toISOString() });
   }
   const marketers: MarketerDue[] = [];
-  for (const [slug, earnedCount] of earnedByRef) {
+  for (const [slug, earned] of earnedByRef) {
     const r = refBySlug.get(slug);
     // Commission currency follows the referrer's own slug (r.slug when resolved, else
     // the raw referredBy key — which is usually the slug anyway).
     const cfg = currencyConfig(r?.slug || slug);
     const paid = r ? paidByRefId.get(r.id) || 0 : 0;
-    const outstanding = Math.max(0, earnedCount * cfg.rate - paid);
+    const outstanding = Math.max(0, earned.amount - paid);
     if (outstanding <= 0) continue;
-    marketers.push({ name: r?.name || slug, count: Math.round(outstanding / cfg.rate), amount: outstanding, currency: cfg.currency });
+    marketers.push({ name: r?.name || slug, count: earned.count, amount: outstanding, currency: cfg.currency });
   }
   marketers.sort((a, b) => b.amount - a.amount);
 
