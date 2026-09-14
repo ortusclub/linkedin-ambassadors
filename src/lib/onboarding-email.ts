@@ -37,6 +37,7 @@ export async function emailSetupSummary(id: string, referrerId: string) {
   const e = s.emailSetup;
   return { configured: config.ready, domains: config.domains, address: e?.address || null, destination: e?.destination || null,
     destinationVerified: !!e?.destinationVerifiedAt, primaryConfirmed: !!e?.primaryConfirmedAt,
+    verificationCodePending: !!e?.codeHash && !!e.codeExpiresAt && e.codeExpiresAt > new Date(),
     forwardingActive: !!e && forwardingActive(e, s.state), forwardingUntil: e?.forwardingUntil || null,
     lastForwardedAt: e?.lastForwardedAt || null };
 }
@@ -94,7 +95,8 @@ export async function updateEmailSetup(id: string, referrerId: string, input: z.
     const e = await prisma.onboardingEmailSetup.findUnique({ where: { sessionId: id } });
     if (!e?.destinationVerifiedAt) throw new EmailSetupError("Verify the forwarding inbox before restarting this step.", 409);
     await prisma.onboardingEmailSetup.update({ where: { sessionId: id }, data: {
-      consentAt: now, forwardingUntil: new Date(now.getTime() + 3600000), lastForwardedAt: null,
+      consentAt: now, destinationVerifiedAt: null, forwardingUntil: null, lastForwardedAt: null,
+      codeHash: null, codeExpiresAt: null, codeAttempts: 0,
     } });
     return;
   }

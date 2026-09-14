@@ -4,7 +4,7 @@ import styles from "./wizard.module.css";
 
 export type EmailSetup = {
   configured: boolean; domains: string[]; address: string | null; destination: string | null;
-  destinationVerified: boolean; primaryConfirmed: boolean; forwardingActive: boolean;
+  destinationVerified: boolean; verificationCodePending: boolean; primaryConfirmed: boolean; forwardingActive: boolean;
   forwardingUntil: string | null; lastForwardedAt: string | null;
 };
 
@@ -35,9 +35,9 @@ export default function EmailStep({ setup, busy, submit }: {
         <label className={styles.field}>Where should onboarding messages be forwarded?<input type="email" required maxLength={254} value={destination} disabled={setup.destinationVerified} onChange={e => setDestination(e.target.value)} /></label>
         <p className={styles.hint}>Use an inbox you can open now. We will verify it before forwarding account messages.</p>
         <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>The owner agrees to use a service-managed primary email and understands that it affects sign-in and recovery. They authorize forwarding onboarding messages to this inbox for one hour or until onboarding finishes, whichever comes first.</span></label>
-        <button className={styles.primary} disabled={busy || !consent}>{setup.destinationVerified ? "Start this email step again" : setup.address ? "Send a new forwarding code" : "Verify forwarding inbox →"}</button>
+        <button className={styles.primary} disabled={busy || !consent}>{setup.destinationVerified ? "Start this email step again" : setup.verificationCodePending ? "Send a new forwarding code" : "Verify forwarding inbox →"}</button>
       </form>}
-      {setup.address && !setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>
+      {setup.address && setup.verificationCodePending && !setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>
         <label className={styles.field}>Six-digit code sent to {setup.destination}<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value)} /></label>
         <button className={styles.primary} disabled={busy || code.length !== 6}>Confirm forwarding inbox</button>
         {setup.destinationVerified && <p className={styles.hint}>Forwarding expired. Verify your inbox again before requesting more LinkedIn messages.</p>}
