@@ -187,17 +187,8 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <label className={styles.field}>Which country is the account holder located in?<select required value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}>
             <option value="">Choose their country</option>{countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
           </select></label><p className={styles.hint}>Choose where the account is normally used. We&apos;ll match the dedicated connection to that country.</p>
-          <label className={styles.field}>How old is the LinkedIn account? <span className={styles.questionMark} title="Why we ask">?</span><select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">More than one year old</option><option value="fresh">Less than one year old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
-          {form.accountFreshness === "unknown" && <details className={styles.ageHelp} open>
-            <summary>How to find the LinkedIn account creation date</summary>
-            <ol>
-              <li>On a computer, open LinkedIn and select <strong>Me → Settings &amp; Privacy</strong>.</li>
-              <li>Open <strong>Data privacy → Get a copy of your data</strong>.</li>
-              <li>Select <strong>Registration</strong>, then request and download the archive.</li>
-              <li>Open the Registration file to see the account&apos;s registered date.</li>
-            </ol>
-            <p>If you cannot check it now, continue with “I&apos;m not sure.” We&apos;ll use the safer 7-day verification period.</p>
-          </details>}
+          <label className={styles.field}>How old is the LinkedIn account?<select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">More than one year old</option><option value="fresh">Less than one year old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
+          {form.accountFreshness === "unknown" && <p className={styles.hint}>We&apos;ll treat this as less than one year old and use the 7-day verification period.</p>}
           <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={!form.phoneVerificationToken}>Continue →</button></div>
         </form>}
         {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent })).session)); }}>

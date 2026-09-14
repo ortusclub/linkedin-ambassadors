@@ -41,12 +41,6 @@
 .ownerRequired strong { color: #7c2d12; font-size: 14px; }
 .paymentTimeline { display: flex; flex-direction: column; gap: 7px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; color: #334155; font-size: 13px; line-height: 1.55; margin: 18px 0; }
 .paymentTimeline strong { color: #1e3a8a; font-size: 14px; }
-.questionMark { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 800; vertical-align: middle; }
-.ageHelp { background: #f8fafc; border: 1px solid #dbe3ec; border-radius: 12px; padding: 14px 16px; margin: -7px 0 18px; color: #475569; font-size: 13px; line-height: 1.55; }
-.ageHelp summary { color: #1e293b; font-weight: 700; cursor: pointer; }
-.ageHelp ol { margin: 12px 0 8px; padding-left: 20px; }
-.ageHelp li { margin-top: 5px; }
-.ageHelp p { margin: 8px 0 0; font-size: 12px; }
 .phoneVerification { margin: -8px 0 18px; }
 .verificationRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; margin-top: 9px; }
 .codeInput { min-width: 0; background: #f7f8fa; border: 1px solid #dce2e8; border-radius: 10px; padding: 11px 12px; font: inherit; color: #0f1729; letter-spacing: .08em; }
