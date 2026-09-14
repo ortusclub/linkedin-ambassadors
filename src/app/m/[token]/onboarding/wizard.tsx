@@ -93,11 +93,11 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   );
 
   const wizardSteps = [
-    { index: 0, label: "Start", detail: "Confirm the owner is present and ready." },
+    { index: 0, label: "Start together", detail: "The owner must stay with you for the entire setup." },
     { index: 1, label: "Owner details", detail: "Add their LinkedIn and contact details." },
     { index: 2, label: "Payout", detail: "Record where the owner should be paid." },
-    ...(bootstrap?.emailEnabled ? [{ index: 3, label: "Secure email", detail: "Set up access to LinkedIn verification messages." }] : []),
-    { index: 4, label: "Prepare & sign in", detail: "We create the protected browser; the owner signs in." },
+    ...(bootstrap?.emailEnabled ? [{ index: 3, label: "Add secure email", detail: "The owner approves a LinkedVelocity-managed email on LinkedIn." }] : []),
+    { index: 4, label: "Prepare & sign in", detail: "The owner enters their login, codes and completes any checks." },
     { index: 5, label: "Team verification", detail: "We check the saved session before activation and payment." },
   ];
 
@@ -106,7 +106,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       <Link href={`/m/${token}`} className={styles.back}>← Referral dashboard</Link>
       <div className={styles.eyebrow}>LINKEDVELOCITY · SELF-SERVICE</div>
       <h1>Do-it-yourself onboarding</h1>
-      <p className={styles.subtitle}>Bring the account owner with you. We&apos;ll guide you through their details and payout, add a LinkedVelocity email when needed, prepare a protected browser, and securely sync their signed-in session.</p>
+      <p className={styles.subtitle}>The account owner must be with you for the whole setup. They&apos;ll need access to their current email, phone and LinkedIn account so they can approve changes, receive verification codes and complete any security checks.</p>
       {error && <div className={styles.error} role="alert">{error}</div>}
       {!bootstrap && error && <button className={styles.primary} onClick={() => { setError(""); setLoadAttempt((n) => n + 1); }}>Retry loading onboarding</button>}
       {!bootstrap && !error && <p role="status">Loading onboarding…</p>}
@@ -114,7 +114,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         <aside className={styles.flowPanel} aria-label="How onboarding works">
           <div className={styles.flowKicker}>HOW IT WORKS</div>
           <h2>One setup, {wizardSteps.length} clear steps</h2>
-          <p>It usually takes about 10 minutes when the owner has their login and verification methods ready.</p>
+          <p>It usually takes about 10 minutes. Do not begin unless the owner can stay until sign-in is complete.</p>
           <ol className={styles.flowSteps} aria-label="Onboarding progress">
             {wizardSteps.map((item, position) => {
               const complete = item.index < step;
@@ -125,24 +125,28 @@ export default function SelfServiceWizard({ token }: { token: string }) {
               </li>;
             })}
           </ol>
-          <div className={styles.privacyNote}><strong>The owner stays in control.</strong> They enter their own LinkedIn password and verification codes inside the prepared browser. Those details are never entered into this wizard.</div>
+          <div className={styles.privacyNote}><strong>The owner stays in control.</strong> They approve the LinkedVelocity email, enter their own password and codes, and complete any LinkedIn identity or security check themselves. Private login details are never entered into this wizard.</div>
         </aside>
         <section className={styles.card} aria-busy={busy}>
         {step === 0 && <>
           <div className={styles.stepLabel}>STEP 1 · BEFORE YOU BEGIN</div>
           <h2>Get the account owner ready</h2>
-          <p>You&apos;ll complete this together on the same computer. We handle the technical setup; the owner handles their private LinkedIn sign-in.</p>
+          <div className={styles.ownerRequired}><strong>The account owner must stay with you from start to finish.</strong><span>You cannot complete this onboarding without them. LinkedIn may send codes or ask them to confirm their identity during setup.</span></div>
+          <p>You&apos;ll work through the steps together on the same computer. We prepare the account email and protected browser; the owner personally approves changes and completes their private LinkedIn sign-in.</p>
           <div className={styles.readyList}>
-            <strong>Have these ready:</strong>
+            <strong>The owner needs:</strong>
             <ul>
               <li>The owner&apos;s LinkedIn profile link and contact details</li>
               <li>Their preferred payout account</li>
-              <li>Access to LinkedIn and any email, phone or authenticator codes</li>
+              <li>Access to the email address and phone currently connected to LinkedIn</li>
+              <li>Their LinkedIn password and authenticator, if enabled</li>
+              <li>To approve adding a LinkedVelocity-managed email to their LinkedIn account</li>
+              <li>To personally complete any identity or security check LinkedIn requests</li>
             </ul>
           </div>
           <div className={styles.note}>They earn US{CURRENCY_CONFIG.USD.offer.setup} ({CURRENCY_CONFIG.PHP.offer.setup}) for setup and US{CURRENCY_CONFIG.USD.offer.monthly} ({CURRENCY_CONFIG.PHP.offer.monthly}) per active month. You earn double the standard referral fee — US${CURRENCY_CONFIG.USD.rate * 2} (₱{(CURRENCY_CONFIG.PHP.rate * 2).toLocaleString("en-US")}) — when you successfully complete this guided onboarding, subject to verification. Your referral stays attached automatically.</div>
           <label className={styles.check}><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            <span>The account owner meets <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age: 16, or older where local law requires</a>, is present, and agrees to share their account through LinkedVelocity under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">ambassador terms</a>.</span></label>
+            <span>The account owner meets <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age: 16, or older where local law requires</a>, is present for the full setup, can access their verification methods, and agrees to add a LinkedVelocity-managed email and share account access under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">ambassador terms</a>.</span></label>
           {!bootstrap.configured && <p className={styles.note}>You can enter the details now. The team will need to configure browser access before you can save and continue to sign-in.</p>}
           {bootstrap.configured && !bootstrap.autoPurchase && bootstrap.countries.length === 0 && <p className={styles.note}>You can enter the details now. A dedicated proxy will be needed before you can save and continue to sign-in.</p>}
           <button className={styles.primary} disabled={!consent} onClick={() => setStep(1)}>Start onboarding →</button>
