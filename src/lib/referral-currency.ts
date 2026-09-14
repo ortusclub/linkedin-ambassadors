@@ -56,8 +56,8 @@ function make(
 }
 
 export const CURRENCY_CONFIG: Record<Currency, CurrencyConfig> = {
-  PHP: make("PHP", "₱", 500, 1000, 500, ["GCash", "Maya", "Bank transfer"], "GCash"),
-  USD: make("USD", "$", 8, 16, 8, ["Wise", "UPI", "Bank transfer", "PayPal"], "Wise"),
+  PHP: make("PHP", "₱", 500, 1000, 500, ["GCash", "Maya", "UPI", "PayPal", "Wise", "Bank transfer"], "GCash"),
+  USD: make("USD", "$", 8, 16, 8, ["UPI", "PayPal", "Wise", "Bank transfer", "GCash", "Maya"], "Wise"),
 };
 
 export function currencyConfig(slug: string | null | undefined): CurrencyConfig {

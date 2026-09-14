@@ -9,6 +9,7 @@ import { proxyPurchaseLimits, quoteStaticProxy, purchaseStaticProxy, readPurchas
 import type { Prisma } from "@/generated/prisma/client";
 import { availableProxySlots } from "@/lib/onboarding-proxy-pool";
 import { emailSetupSummary, requireEmailSetup } from "@/lib/onboarding-email";
+import { assertPhoneVerificationToken } from "@/lib/phone-verification";
 
 export class OnboardingError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -43,13 +44,14 @@ export async function onboardingSummary(id: string, referrerId: string) {
     // Only a ready, owned session may expose a browser capability. Never expose credentials.
     shareLink: s.state === "ready" && (!emailSetup || emailSetup.primaryConfirmed) ? s.account.gologinShareLink : null,
     confirmedAt: s.confirmedAt,
-    setupDueAt: s.confirmedAt ? setupDueDate(s.confirmedAt) : null,
+    setupDueAt: s.confirmedAt ? setupDueDate(s.confirmedAt, s.application.accountFreshness) : null,
     setupAmount: cfg.offer.setup, monthlyAmount: cfg.offer.monthly,
     commission: `${cfg.symbol}${cfg.rate * 2}`, verified: !!s.application.verifiedAt,
   };
 }
 
 export async function reserveOnboarding(referrer: { id: string; slug: string; name: string }, input: z.infer<typeof selfServiceInput>) {
+  assertPhoneVerificationToken(input.phoneVerificationToken, input.contactNumber, referrer.id);
   const cfg = currencyConfig(referrer.slug);
   const country = countryCode(input.country);
   if (!country) throw new OnboardingError("Choose a valid country.");
@@ -78,6 +80,8 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       linkedinUrl: input.linkedinUrl, location: country, contactNumber: input.contactNumber,
       accountFreshness: input.accountFreshness, paymentMethod: input.paymentMethod,
       paymentDetails: input.paymentDetails, payoutName: input.payoutName,
+      bankName: input.bankName || null, bankAccountNumber: input.bankAccountNumber || null,
+      bankRoutingNumber: input.bankRoutingNumber || null,
       referredBy: referrer.slug, referralSource: "self-service", poc: referrer.name,
       status: "onboarding", ownerStatus: "onboarding", onboardingStartedAt: now,
       payoutCurrency: cfg.currency, offeredAmount: cfg.monthlyAmount,

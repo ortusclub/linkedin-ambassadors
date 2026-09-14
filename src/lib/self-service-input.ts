@@ -20,12 +20,39 @@ export const selfServiceInput = z.object({
   }),
   country: z.string().trim().min(2).max(100),
   contactNumber: z.string().trim().min(5).max(100),
-  accountFreshness: z.enum(["fresh", "established"]),
+  phoneVerificationToken: z.string().trim().min(20).max(2000),
+  accountFreshness: z.enum(["fresh", "established", "unknown"]),
   paymentMethod: z.string().trim().min(1).max(40),
-  paymentDetails: z.string().trim().min(3).max(500),
+  paymentDetails: z.string().trim().max(500),
   payoutName: z.string().trim().min(2).max(120),
+  bankName: z.string().trim().max(120).optional().default(""),
+  bankAccountNumber: z.string().trim().max(120).optional().default(""),
+  bankRoutingNumber: z.string().trim().max(120).optional().default(""),
   consent: z.literal(true),
-});
+}).superRefine((input, ctx) => {
+  const details = input.paymentDetails.trim();
+  if (input.paymentMethod === "Bank transfer") {
+    if (input.bankName.length < 2) ctx.addIssue({ code: "custom", path: ["bankName"], message: "Enter the bank name." });
+    if (input.bankAccountNumber.length < 3) ctx.addIssue({ code: "custom", path: ["bankAccountNumber"], message: "Enter the account number or IBAN." });
+    if (input.bankRoutingNumber.length < 2) ctx.addIssue({ code: "custom", path: ["bankRoutingNumber"], message: "Enter the routing, IFSC, sort or SWIFT code." });
+    return;
+  }
+  if (details.length < 3) {
+    ctx.addIssue({ code: "custom", path: ["paymentDetails"], message: "Enter the payout account details." });
+    return;
+  }
+  if (["PayPal", "Wise"].includes(input.paymentMethod) && !z.string().email().safeParse(details).success) {
+    ctx.addIssue({ code: "custom", path: ["paymentDetails"], message: `Enter the email address registered to ${input.paymentMethod}.` });
+  }
+  if (input.paymentMethod === "UPI" && !/^[\w.-]{2,}@[a-zA-Z0-9.-]{2,}$/.test(details)) {
+    ctx.addIssue({ code: "custom", path: ["paymentDetails"], message: "Enter a valid UPI ID, for example name@bank." });
+  }
+  if (["GCash", "Maya"].includes(input.paymentMethod) && details.replace(/\D/g, "").length < 10) {
+    ctx.addIssue({ code: "custom", path: ["paymentDetails"], message: `Enter the mobile number registered to ${input.paymentMethod}, including country code.` });
+  }
+}).transform((input) => input.paymentMethod === "Bank transfer"
+  ? { ...input, paymentDetails: `${input.bankName} · ${input.bankAccountNumber} · ${input.bankRoutingNumber}` }
+  : input);
 
 export const selfServiceAction = z.object({
   id: z.string().uuid(),

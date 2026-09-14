@@ -16,8 +16,18 @@ type Session = {
 };
 type Bootstrap = { emailEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; sessions: { id: string; state: string; name: string }[] };
 
+const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder: string; help: string }> = {
+  GCash: { label: "GCash mobile number", type: "tel", placeholder: "+63 9XX XXX XXXX", help: "Enter the mobile number registered to their GCash account." },
+  Maya: { label: "Maya mobile number", type: "tel", placeholder: "+63 9XX XXX XXXX", help: "Enter the mobile number registered to their Maya account." },
+  UPI: { label: "UPI ID", placeholder: "name@bank", help: "Enter their UPI ID, sometimes called a virtual payment address—not a bank account number." },
+  PayPal: { label: "PayPal email address", type: "email", placeholder: "name@example.com", help: "Use the email address confirmed on their PayPal account." },
+  Wise: { label: "Wise email address", type: "email", placeholder: "name@example.com", help: "Use the email address registered to their Wise account." },
+  "Bank transfer": { label: "Bank transfer details", placeholder: "Bank name, account number and routing / SWIFT details", help: "Include the bank name, account number and the routing, sort, IFSC or SWIFT code required in their country." },
+};
+
 export default function SelfServiceWizard({ token }: { token: string }) {
   const endpoint = `/api/m/${encodeURIComponent(token)}/onboarding`;
+  const phoneEndpoint = `${endpoint}/phone`;
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
   const [step, setStep] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
@@ -26,7 +36,11 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [consent, setConsent] = useState(false);
   const [loginConfirmed, setLoginConfirmed] = useState(false);
-  const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "" });
+  const [phoneCode, setPhoneCode] = useState("");
+  const [phoneCodeSent, setPhoneCodeSent] = useState(false);
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
+  const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" });
 
   async function request(method: string, body?: unknown, id?: string) {
     const response = await fetch(endpoint + (id ? `?id=${encodeURIComponent(id)}` : ""), {
@@ -71,6 +85,20 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     try { await task(); } catch (e) { setError(e instanceof Error ? e.message : "Please try again."); }
     finally { setBusy(false); }
   }
+  async function verifyPhone(action: "send" | "check") {
+    setPhoneBusy(true); setPhoneError("");
+    try {
+      const response = await fetch(phoneEndpoint, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, phone: form.contactNumber, ...(action === "check" ? { code: phoneCode } : {}) }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Mobile verification failed.");
+      if (action === "send") setPhoneCodeSent(true);
+      else setForm((current) => ({ ...current, phoneVerificationToken: data.verificationToken }));
+    } catch (e) { setPhoneError(e instanceof Error ? e.message : "Mobile verification failed."); }
+    finally { setPhoneBusy(false); }
+  }
   function showSession(s: Session) { setSession(s); setStep(s.state === "confirmed" ? 5 : s.emailSetup && !s.emailSetup.primaryConfirmed ? 3 : 4); }
   async function emailAction(body: unknown) {
     if (!session) return;
@@ -100,6 +128,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     { index: 4, label: "Prepare & sign in", detail: "The owner enters their login, codes and completes any checks." },
     { index: 5, label: "Team verification", detail: "We check the saved session before activation and payment." },
   ];
+  const payoutField = PAYOUT_FIELDS[form.paymentMethod] || { label: "Payout details", placeholder: "Account number or payment address", help: "Enter everything needed to send the payment." };
 
   return <main className={styles.page}>
     <div className={styles.shell}>
@@ -125,7 +154,6 @@ export default function SelfServiceWizard({ token }: { token: string }) {
               </li>;
             })}
           </ol>
-          <div className={styles.privacyNote}><strong>The owner stays in control.</strong> They approve the LinkedVelocity email, enter their own password and codes, and complete any LinkedIn identity or security check themselves. Private login details are never entered into this wizard.</div>
         </aside>
         <section className={styles.card} aria-busy={busy}>
         {step === 0 && <>
@@ -133,17 +161,6 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <h2>Get the account owner ready</h2>
           <div className={styles.ownerRequired}><strong>The account owner must stay with you from start to finish.</strong><span>You cannot complete this onboarding without them. LinkedIn may send codes or ask them to confirm their identity during setup.</span></div>
           <p>You&apos;ll work through the steps together on the same computer. We prepare the account email and protected browser; the owner personally approves changes and completes their private LinkedIn sign-in.</p>
-          <div className={styles.readyList}>
-            <strong>The owner needs:</strong>
-            <ul>
-              <li>The owner&apos;s LinkedIn profile link and contact details</li>
-              <li>Their preferred payout account</li>
-              <li>Access to the email address and phone currently connected to LinkedIn</li>
-              <li>Their LinkedIn password and authenticator, if enabled</li>
-              <li>To approve adding a LinkedVelocity-managed email to their LinkedIn account</li>
-              <li>To personally complete any identity or security check LinkedIn requests</li>
-            </ul>
-          </div>
           <div className={styles.note}>They earn US{CURRENCY_CONFIG.USD.offer.setup} ({CURRENCY_CONFIG.PHP.offer.setup}) for setup and US{CURRENCY_CONFIG.USD.offer.monthly} ({CURRENCY_CONFIG.PHP.offer.monthly}) per active month. You earn double the standard referral fee — US${CURRENCY_CONFIG.USD.rate * 2} (₱{(CURRENCY_CONFIG.PHP.rate * 2).toLocaleString("en-US")}) — when you successfully complete this guided onboarding, subject to verification. Your referral stays attached automatically.</div>
           <label className={styles.check}><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             <span>The account owner meets <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age: 16, or older where local law requires</a>, is present for the full setup, can access their verification methods, and agrees to add a LinkedVelocity-managed email and share account access under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">ambassador terms</a>.</span></label>
@@ -153,25 +170,51 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           {bootstrap.sessions.length > 0 && <div className={styles.resume}><h3>Your saved onboardings</h3>{bootstrap.sessions.map((s) => <button key={s.id} disabled={busy} onClick={() => run(async () => showSession((await request("GET", undefined, s.id)).session))}>
             <span>{s.name}</span><span>{s.state === "confirmed" ? "View summary" : "Resume"} →</span></button>)}</div>}
         </>}
-        {step === 1 && <form onSubmit={(e) => { e.preventDefault(); setError(""); setStep(2); }}>
+        {step === 1 && <form onSubmit={(e) => { e.preventDefault(); if (!form.phoneVerificationToken) { setPhoneError("Verify the mobile number before continuing."); return; } setError(""); setStep(2); }}>
           <h2>Who are we onboarding?</h2><p>A few details connect the account, referral and payouts.</p>
           {field("fullName", "Account owner's full name")}
           {field("email", "Account owner's email", "email")}
-          {field("contactNumber", "Contact number, including country code", "tel", "+63…")}
+          <label className={styles.field}>Mobile number, including country code<input required type="tel" value={form.contactNumber} placeholder="+63 912 345 6789" onChange={(e) => { setForm({ ...form, contactNumber: e.target.value, phoneVerificationToken: "" }); setPhoneCode(""); setPhoneCodeSent(false); setPhoneError(""); }} /></label>
+          <div className={styles.phoneVerification}>
+            {form.phoneVerificationToken ? <div className={styles.verifiedPhone}>✓ Mobile number verified</div> : <>
+              <button type="button" className={styles.verifyButton} disabled={phoneBusy || form.contactNumber.trim().length < 8} onClick={() => void verifyPhone("send")}>{phoneBusy && !phoneCodeSent ? "Sending…" : phoneCodeSent ? "Send a new code" : "Send verification code"}</button>
+              {phoneCodeSent && <div className={styles.verificationRow}><input className={styles.codeInput} inputMode="numeric" autoComplete="one-time-code" value={phoneCode} maxLength={10} placeholder="SMS code" onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ""))} /><button type="button" className={styles.verifyButton} disabled={phoneBusy || phoneCode.length < 4} onClick={() => void verifyPhone("check")}>{phoneBusy ? "Checking…" : "Verify number"}</button></div>}
+              {phoneCodeSent && <p className={styles.phoneHint}>Ask the account owner to read you the code sent to this phone.</p>}
+              {phoneError && <p className={styles.phoneError} role="alert">{phoneError}</p>}
+            </>}
+          </div>
           {field("linkedinUrl", "LinkedIn profile link", "url", "https://www.linkedin.com/in/your-name")}
           <label className={styles.field}>Which country is the account holder located in?<select required value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}>
             <option value="">Choose their country</option>{countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
           </select></label><p className={styles.hint}>Choose where the account is normally used. We&apos;ll match the dedicated connection to that country.</p>
-          {form.country && !bootstrap.countries.some((c) => countryCode(c) === form.country) && <div className={styles.note}>{bootstrap.autoPurchase ? "No spare connection in this country. We'll check for a matching static residential proxy during setup. If unavailable, we'll save progress for the team." : "There is no spare connection in this country yet. You can finish entering the details, but the team needs to add a matching proxy before you can save and continue to sign-in."}</div>}
-          <label className={styles.field}>Account age<select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">Established account</option><option value="fresh">Brand-new account</option></select></label>
-          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary}>Continue →</button></div>
+          <label className={styles.field}>How old is the LinkedIn account? <span className={styles.questionMark} title="Why we ask">?</span><select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">More than one year old</option><option value="fresh">Less than one year old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
+          {form.accountFreshness === "unknown" && <details className={styles.ageHelp} open>
+            <summary>How to find the LinkedIn account creation date</summary>
+            <ol>
+              <li>On a computer, open LinkedIn and select <strong>Me → Settings &amp; Privacy</strong>.</li>
+              <li>Open <strong>Data privacy → Get a copy of your data</strong>.</li>
+              <li>Select <strong>Registration</strong>, then request and download the archive.</li>
+              <li>Open the Registration file to see the account&apos;s registered date.</li>
+            </ol>
+            <p>If you cannot check it now, continue with “I&apos;m not sure.” We&apos;ll use the safer 7-day verification period.</p>
+          </details>}
+          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={!form.phoneVerificationToken}>Continue →</button></div>
         </form>}
         {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent })).session)); }}>
           <h2>Where should they get paid?</h2><p>These are the account owner&apos;s payout details. Your referral commission uses your own dashboard details.</p>
-          <label className={styles.field}>Payout method<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
-          {field("payoutName", "Registered payout account name")}{field("paymentDetails", "Payout number, address or bank details")}
+          <label className={styles.field}>Payout method<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value, paymentDetails: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
+          {field("payoutName", "Name registered on the payout account", "text", "Must match the payment account")}
+          {form.paymentMethod === "Bank transfer" ? <>
+            {field("bankName", "Bank name", "text", "Name of the receiving bank")}
+            {field("bankAccountNumber", "Account number or IBAN", "text", "Receiving account number")}
+            {field("bankRoutingNumber", "Routing, IFSC, sort or SWIFT code", "text", "Use the code required in their country")}
+          </> : <>
+            {field("paymentDetails", payoutField.label, payoutField.type || "text", payoutField.placeholder)}
+            <p className={styles.hint}>{payoutField.help}</p>
+          </>}
           {(!bootstrap.configured || (!bootstrap.autoPurchase && !bootstrap.countries.some((c) => countryCode(c) === form.country))) && <div className={styles.note}>Browser setup is not ready yet. Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access and a matching proxy, then try Save &amp; continue.</div>}
-          <div className={styles.note}>Next, we&apos;ll create their onboarding record and arrange a dedicated connection in {countries.find((c) => c.code === form.country)?.name}.</div>
+          <div className={styles.note}><strong>What happens next:</strong> We&apos;ll save their onboarding record, then guide you and the owner through adding a shared LinkedVelocity email to their LinkedIn account. The owner will receive and approve any confirmation codes.</div>
+          <div className={styles.paymentTimeline}><strong>When the owner gets paid</strong><span>After the shared email and protected browser login are complete, the account is officially onboarded. The setup payment is scheduled after <b>{form.accountFreshness === "established" ? "3 days" : "7 days"}</b>{form.accountFreshness === "established" ? " because the account is more than one year old" : form.accountFreshness === "fresh" ? " because the account is less than one year old" : " because its age has not been confirmed"}, subject to successful verification.</span><span>The owner must stay reachable during this period and complete any extra verification LinkedIn requests. This checking period helps ensure they remain available to resolve those prompts.</span></div>
           <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
         </form>}
         {step === 3 && session?.emailSetup && <EmailStep key={session.id} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />}
@@ -200,7 +243,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         {step === 5 && session && <>
           <div className={styles.success}>✓</div><h2>Login confirmation saved</h2><p>{session.name}&apos;s account is in the system and linked to your referral.</p>
           <dl className={styles.summary}><dt>Owner setup payment</dt><dd>{session.setupAmount}</dd><dt>Setup due date</dt><dd>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "Awaiting login"}</dd><dt>Owner monthly payment</dt><dd>{session.monthlyAmount}</dd><dt>Your referral commission</dt><dd>{session.commission} · {session.verified ? "Verified" : "Pending verification"}</dd></dl>
-          <div className={styles.note}>The team will verify the saved login before payment is released or the account becomes rentable. Monthly payment dates are calculated after the setup payment is made.</div>
+          <div className={styles.note}>The account is officially onboarded. The team will verify the saved login during the 3-day checking period for accounts over one year old, or 7 days for newer accounts. The owner must remain reachable and complete any LinkedIn verification requested before payment is released. Monthly payment dates are calculated after the setup payment is made.</div>
           <Link className={styles.primary} href={`/m/${token}`}>Back to your dashboard →</Link>
           <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another person</a>
         </>}
