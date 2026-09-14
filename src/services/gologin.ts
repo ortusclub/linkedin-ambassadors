@@ -85,6 +85,12 @@ export async function createProfile(options: {
   }, token);
 }
 
+export async function findProfileByName(name: string, token?: string): Promise<{ id: string; name: string } | null> {
+  const data = await gologinFetch("/browser/v2?limit=100", {}, token) as { profiles?: { id?: string; name?: string }[] } | null;
+  const profile = data?.profiles?.find((item) => item.id && item.name === name);
+  return profile?.id && profile.name ? { id: profile.id, name: profile.name } : null;
+}
+
 export async function deleteProfile(profileId: string) {
   return gologinFetch(`/browser/${profileId}`, { method: "DELETE" });
 }

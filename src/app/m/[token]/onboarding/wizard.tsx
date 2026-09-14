@@ -173,7 +173,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       <div className={styles.eyebrow}>LINKEDVELOCITY · SELF-SERVICE</div>
       <h1>Do-it-yourself onboarding</h1>
       <p className={styles.subtitle}>The account owner must be with you for the whole setup. They&apos;ll need access to their current email, phone and LinkedIn account so they can approve changes, receive verification codes and complete any security checks.</p>
-      {error && <div className={styles.error} role="alert">{error}</div>}
+      {error && step !== 4 && <div className={styles.error} role="alert">{error}</div>}
       {!bootstrap && error && <button className={styles.primary} onClick={() => { setError(""); setLoadAttempt((n) => n + 1); }}>Retry loading onboarding</button>}
       {!bootstrap && !error && <p role="status">Loading onboarding…</p>}
       {bootstrap && <div className={styles.wizardLayout}>

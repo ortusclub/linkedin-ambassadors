@@ -133,6 +133,28 @@ test("new profiles use the issued email; existing profiles resolve their real sh
   } finally { if (prev === undefined) delete process.env.GOLOGIN_API_TOKEN_KLABBER; else process.env.GOLOGIN_API_TOKEN_KLABBER = prev; }
 });
 
+test("a failed profile create recovers the exact GoLogin profile before retrying", async () => {
+  const prev = process.env.GOLOGIN_API_TOKEN_KLABBER;
+  process.env.GOLOGIN_API_TOKEN_KLABBER = "test";
+  try {
+    const s = { id: "s", state: "needs_help", proxyId: "proxy", accountId: "account",
+      emailSetup: { address: "gary.perp@lotuspost.co.uk" },
+      account: { gologinProfileId: null, proxyHost: "test", proxyPort: 80 } };
+    let creates = 0;
+    const prisma = { selfServiceOnboarding: { findFirst: async () => s, findFirstOrThrow: async () => s,
+      updateMany: async () => ({ count: 1 }), update: async ({ data }) => { if (data.state) s.state = data.state; } },
+      linkedInAccount: { update: async ({ data }) => { if (data.gologinProfileId) s.account.gologinProfileId = data.gologinProfileId; } },
+      $transaction: async values => Promise.all(values) };
+    const gologin = {
+      findProfileByName: async (name) => { assert.equal(name, s.emailSetup.address); return { id: "recovered-profile", name }; },
+      createProfile: async () => { creates++; },
+      getPublicShareLink: async (id) => { assert.equal(id, "recovered-profile"); return { publicUrl: "https://g.camp/share/recovered" }; },
+    };
+    await service(prisma, {}, gologin).prepareOnboarding("s", "referrer");
+    assert.equal(creates, 0);
+  } finally { if (prev === undefined) delete process.env.GOLOGIN_API_TOKEN_KLABBER; else process.env.GOLOGIN_API_TOKEN_KLABBER = prev; }
+});
+
 test("a different referrer cannot provision a saved session", async () => {
   const prev = process.env.GOLOGIN_API_TOKEN_KLABBER;
   process.env.GOLOGIN_API_TOKEN_KLABBER = "test";

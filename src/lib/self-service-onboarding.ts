@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { currencyConfig } from "@/lib/referral-currency";
 import { setupDueDate } from "@/lib/payment-schedule";
-import { createProfile, createPublicShareLink, getPublicShareLink } from "@/services/gologin";
+import { createProfile, createPublicShareLink, findProfileByName, getPublicShareLink } from "@/services/gologin";
 import { selfServiceInput } from "@/lib/self-service-input";
 import { z } from "zod";
 import { countryCode } from "@/lib/countries";
@@ -219,18 +219,34 @@ export async function prepareOnboarding(id: string, referrerId: string) {
   const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { account: true, emailSetup: true } });
   if (!s) throw new OnboardingError("Onboarding not found.", 404);
   if (["ready", "confirmed"].includes(s.state)) return;
-  if (s.state === "creating" || s.state === "needs_help") {
+  if (s.state === "creating") {
     throw new OnboardingError("Browser setup is still running or needs the team to check it. Your progress is saved; do not start a second signup.", 409);
+  }
+  let profileId = s.account.gologinProfileId;
+  const issuedProfileName = s.emailSetup?.address || `onboarding-${id}`;
+  if (s.state === "needs_help" && !profileId) {
+    // A timed-out create can succeed upstream before our database receives the id.
+    // Recover that exact named profile first; only create again when GoLogin confirms
+    // that no such profile exists.
+    const recovered = await findProfileByName(issuedProfileName, token);
+    if (recovered) {
+      await prisma.$transaction([
+        prisma.linkedInAccount.update({ where: { id: s.accountId }, data: { gologinProfileId: recovered.id } }),
+        prisma.selfServiceOnboarding.update({ where: { id }, data: { state: "link_pending" } }),
+      ]);
+      profileId = recovered.id;
+    } else {
+      await prisma.selfServiceOnboarding.update({ where: { id }, data: { state: "reserved" } });
+    }
   }
   const claim = await prisma.selfServiceOnboarding.updateMany({ where: { id, referrerId, state: { in: ["reserved", "link_pending"] } }, data: { state: "creating" } });
   if (!claim.count) throw new OnboardingError("Setup is already in progress. Refresh to check it.", 409);
-  let profileId = s.account.gologinProfileId;
   // New profiles use the immutable issued address. Existing profiles retain their
   // real upstream name when recreating a share link (including legacy names).
   let profileName: string | undefined;
   try {
     if (!profileId) {
-      profileName = s.emailSetup?.address || `onboarding-${id}`;
+      profileName = issuedProfileName;
       const profile = await createProfile({
         name: profileName,
         proxy: { host: s.account.proxyHost!, port: s.account.proxyPort!, username: s.account.proxyUsername || undefined, password: s.account.proxyPassword || undefined },
@@ -245,10 +261,15 @@ export async function prepareOnboarding(id: string, referrerId: string) {
       prisma.linkedInAccount.update({ where: { id: s.accountId }, data: { gologinShareLink: link.publicUrl } }),
       prisma.selfServiceOnboarding.update({ where: { id }, data: { state: "ready" } }),
     ]);
-  } catch {
+  } catch (error) {
+    console.error("Self-service GoLogin setup failed", {
+      sessionId: id,
+      phase: profileId ? "share-link" : "profile-create",
+      message: error instanceof Error ? error.message.replace(/Bearer\s+\S+/gi, "Bearer [redacted]").slice(0, 500) : "Unknown error",
+    });
     // A timed-out create may have succeeded upstream. Never blindly create twice.
     await prisma.selfServiceOnboarding.update({ where: { id }, data: { state: profileId ? "link_pending" : "needs_help" } });
-    throw new OnboardingError(profileId ? "Your browser is saved, but its launch link is not ready. Please retry." : "Browser setup needs a team check. Your signup and proxy are saved.", 502);
+    throw new OnboardingError(profileId ? "Your browser is saved, but its launch link is not ready. Please retry." : "The browser could not be prepared. Please try again.", 502);
   }
 }
 

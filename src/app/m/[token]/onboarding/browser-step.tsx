@@ -53,8 +53,8 @@ export default function BrowserStep({ session, busy, action, refresh }: {
       <div className={styles.stepLabel}>BROWSER STEP 1 OF 4</div>
       <h3>Prepare the protected browser</h3>
       <p>We&apos;ll create a dedicated browser and connection for {session.name}{country ? <> in <strong>{country}</strong></> : ""}.</p>
-      {["reserved", "link_pending", "proxy_pending"].includes(session.state) && <button className={styles.primary} disabled={busy} onClick={() => void action("prepare")}>{busy ? "Preparing browser…" : session.state === "reserved" ? "Prepare browser →" : "Check browser progress →"}</button>}
-      {["purchasing", "purchase_unknown", "creating", "needs_help"].includes(session.state) && <div className={styles.note}>The browser is being prepared. This onboarding is saved, so you can safely return to it later.<br />Reference: {session.id}</div>}
+      {["reserved", "link_pending", "proxy_pending", "needs_help"].includes(session.state) && <button className={styles.primary} disabled={busy} onClick={() => void action("prepare")}>{busy ? "Preparing browser…" : session.state === "needs_help" ? "Try preparing browser again →" : session.state === "reserved" ? "Prepare browser →" : "Check browser progress →"}</button>}
+      {["purchasing", "purchase_unknown", "creating"].includes(session.state) && <div className={styles.note}>The browser is being prepared. This onboarding is saved, so you can safely return to it later.<br />Reference: {session.id}</div>}
       {session.state === "ready" && <><div className={styles.note}>The protected browser is ready.</div><button className={styles.primary} onClick={() => setMiniStep(2)}>Continue to open GoLogin →</button></>}
       <button className={styles.secondary} disabled={busy} onClick={() => void refresh()}>{busy ? "Checking…" : "Check browser progress"}</button>
     </section>}
