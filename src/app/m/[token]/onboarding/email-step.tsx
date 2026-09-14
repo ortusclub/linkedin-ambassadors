@@ -16,8 +16,19 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
   const [code, setCode] = useState("");
   const [primary, setPrimary] = useState(false);
   return <>
-    <h2>Set up their LinkedIn email</h2>
-    <p>The owner first adds the new address using LinkedIn on their own device or existing browser. GoLogin comes next.</p>
+    <h2>First, add a LinkedVelocity email to LinkedIn</h2>
+    <p>The account owner must add the assigned LinkedVelocity email to their account and make it the primary email. They should do this from LinkedIn on their usual device or existing browser. The protected GoLogin browser comes afterwards.</p>
+    <div className={styles.emailPlan}>
+      <strong>How this step works</strong>
+      <ol>
+        <li>Verify a forwarding inbox below so you can receive the email confirmation from LinkedIn.</li>
+        <li>We&apos;ll assign the owner their new LinkedVelocity email address.</li>
+        <li>On LinkedIn, the owner opens <b>Me → Settings &amp; Privacy → Sign in &amp; security → Email addresses</b>.</li>
+        <li>They select <b>Add email address</b> and enter the assigned LinkedVelocity email.</li>
+        <li>LinkedIn may ask the owner to enter their password, receive another code, or complete an identity check. The owner must complete this themselves.</li>
+        <li>After confirming the new address, they make it the <b>primary email</b> on the account.</li>
+      </ol>
+    </div>
     {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before you add an address to LinkedIn.</div> : <>
       {!setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
         <div className={styles.note}>{setup.address ? <>Assigned LinkedIn email: <strong>{setup.address}</strong></> : <>We&apos;ll automatically assign an email using the owner&apos;s first and last name. If it&apos;s already taken, we&apos;ll add a small number to make it unique.</>}</div>
@@ -34,10 +45,11 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
       {setup.forwardingActive && <>
         <div className={styles.note}>New LinkedIn email: <strong>{setup.address}</strong><br />Forwarding to: {setup.destination}<br />Active until {setup.forwardingUntil && new Date(setup.forwardingUntil).toLocaleTimeString()} or onboarding completion.</div>
         <ol className={styles.instructions}>
-          <li>The owner opens LinkedIn settings on their usual device and finds email addresses under sign-in and security.</li>
-          <li>Add the new address above. Keep the owner&apos;s existing email as a recovery option.</li>
-          <li>Open the verification message forwarded to your inbox. The owner completes verification themselves. Never paste their password here.</li>
-          <li>Make the new address primary and check that LinkedIn shows it as primary.</li>
+          <li>On the owner&apos;s usual LinkedIn session, open <strong>Me → Settings &amp; Privacy</strong>.</li>
+          <li>Select <strong>Sign in &amp; security → Email addresses → Add email address</strong>.</li>
+          <li>Enter <strong>{setup.address}</strong>. If LinkedIn asks for a password, code or identity check, the owner completes it themselves.</li>
+          <li>Open the LinkedIn verification message forwarded to <strong>{setup.destination}</strong> and confirm the new address.</li>
+          <li>Return to LinkedIn, make the LinkedVelocity address <strong>primary</strong>, and check that it is labelled as primary before continuing.</li>
         </ol>
         <p role="status">{setup.lastForwardedAt ? "A LinkedIn message has been forwarded. This does not yet confirm the address is primary." : "Waiting for the LinkedIn message. Request it on LinkedIn, then refresh below."}</p>
         <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>The owner verified this address and I can see it marked as primary in LinkedIn. The owner agrees to continue.</span></label>
