@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CURRENCY_CONFIG, type CurrencyConfig } from "@/lib/referral-currency";
 import styles from "./wizard.module.css";
 import { countries, countryCode } from "@/lib/countries";
+import BrowserStep from "./browser-step";
 import EmailStep, { type EmailSetup } from "./email-step";
 
 type Session = {
@@ -35,7 +36,6 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [error, setError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [consent, setConsent] = useState(false);
-  const [loginConfirmed, setLoginConfirmed] = useState(false);
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
   const [phoneBusy, setPhoneBusy] = useState(false);
@@ -210,26 +210,12 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         </form>}
         {step === 3 && session?.emailSetup && <EmailStep key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />}
         {step === 4 && session && <>
+          <div className={styles.browserTip}>
+            <strong>Optional tip: wait 24 hours before signing in</strong>
+            <span>Leaving 24 hours between making the new email primary and signing in through the prepared browser can reduce the chance of LinkedIn requesting ID verification. You can continue now if needed.</span>
+          </div>
           {session.emailSetup && <><div className={styles.note}>LinkedIn login email: <strong>{session.emailSetup.address}</strong>. {session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to your verified inbox." : "Onboarding forwarding has expired. Re-verify your inbox if you need more login codes."}</div><button className={styles.secondary} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
-          <h2>{session.state === "ready" ? "Time to sign into LinkedIn" : "Prepare their browser"}</h2>
-          <p>{session.name}&apos;s onboarding is saved. We&apos;ll prepare their dedicated connection and browser together.</p>
-          {session.state === "reserved" && <div className={styles.note}>
-            Account country: <strong>{countries.find((c) => c.code === session.country)?.name || session.country}</strong>.
-            {session.proxyAssigned ? " A matching proxy is already assigned." : " We'll assign an available residential proxy in this country, or arrange a new one if needed. If none is available, setup will pause."}
-          </div>}
-          {["reserved", "link_pending", "proxy_pending"].includes(session.state) && <button className={styles.primary} disabled={busy} onClick={() => run(() => action("prepare"))}>{busy ? "Preparing connection & browser…" : session.state === "link_pending" ? "Retry browser link" : session.state === "proxy_pending" ? "Check proxy delivery & continue" : "Prepare GoLogin browser →"}</button>}
-          {session.state === "proxy_pending" && <p className={styles.hint}>The matching proxy has been ordered and is being prepared. Check delivery to continue; this will not purchase another proxy.</p>}
-          {["purchasing", "purchase_unknown"].includes(session.state) && <div className={styles.note}>The proxy order is processing or needs a team check. Progress is saved; no duplicate purchase will be made. Reference: {session.id}</div>}
-          {["creating", "needs_help"].includes(session.state) && <div className={styles.note}>Your setup is saved. {session.state === "creating" ? "The browser is being prepared. If this persists, ask the team to check it." : "The team needs to check the browser setup before you continue."}<br />Reference: {session.id}</div>}
-          {session.state === "ready" && <>
-            <ol className={styles.instructions}><li>Open the prepared GoLogin browser below. Allow your browser to open GoLogin if prompted.</li><li>If GoLogin is missing, install it using the launch page instructions, then return here and open the link again.</li><li>Inside that browser, go to <strong>linkedin.com</strong>. The owner enters their own password and any verification codes.</li><li>Check that their LinkedIn feed and profile open. Close the GoLogin browser normally so the session can sync, then confirm below.</li></ol>
-            <a className={styles.primary} href={session.shareLink!} target="_blank" rel="noreferrer" onClick={() => run(() => action("opened"))}>Open their GoLogin browser ↗</a>
-            <p className={styles.hint}>Use this prepared browser for the login. Don&apos;t enter their password into this page.</p>
-            <label className={styles.check}><input type="checkbox" checked={loginConfirmed} onChange={(e) => setLoginConfirmed(e.target.checked)} /><span>I saw the owner&apos;s LinkedIn feed and profile in the prepared browser and closed it to save the session.</span></label>
-            <button className={styles.primary} disabled={busy || !loginConfirmed || !session.opened} onClick={() => run(() => action("confirm"))}>{busy ? "Saving confirmation…" : "Yes, I managed to sign in ✓"}</button>
-          </>}
-          <button className={styles.secondary} disabled={busy} onClick={() => run(async () => showSession((await request("GET", undefined, session.id)).session))}>Refresh saved progress</button>
-          <p className={styles.hint}>Login blocked or verification unfinished? Leave this onboarding saved and contact the team. Only confirm after a successful login.</p>
+          <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} action={(nextAction) => run(() => action(nextAction))} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
         </>}
         {step === 5 && session && <>
           <div className={styles.success}>✓</div><h2>Login confirmation saved</h2><p>{session.name}&apos;s account is in the system and linked to your referral.</p>

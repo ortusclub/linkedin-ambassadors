@@ -32,17 +32,17 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
     <h2>Set up their LinkedIn email</h2>
     <p>Complete these four steps with the account owner before opening their protected GoLogin browser.</p>
 
-    <ol className={styles.emailMiniSteps} aria-label="LinkedIn email setup progress">
+    <ol className={styles.miniSteps} aria-label="LinkedIn email setup progress">
       {MINI_STEPS.map((label, index) => {
         const position = index + 1;
-        return <li key={label} className={position === miniStep ? styles.emailMiniActive : position < miniStep ? styles.emailMiniComplete : ""}>
+        return <li key={label} className={position === miniStep ? styles.miniActive : position < miniStep ? styles.miniComplete : ""}>
           <span>{position < miniStep ? "✓" : position}</span><small>{label}</small>
         </li>;
       })}
     </ol>
 
     {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before this step can continue.</div> : <>
-      {miniStep === 1 && <section className={styles.emailMiniPanel}>
+      {miniStep === 1 && <section className={styles.miniPanel}>
         <div className={styles.stepLabel}>EMAIL STEP 1 OF 4</div>
         <h3>Choose where to receive verification messages</h3>
         <p>Enter an inbox you can open now. We&apos;ll send a six-digit code there first, then temporarily forward LinkedIn&apos;s verification email to the same inbox.</p>
@@ -63,7 +63,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
         </>}
       </section>}
 
-      {miniStep === 2 && setup.forwardingActive && <section className={styles.emailMiniPanel}>
+      {miniStep === 2 && setup.forwardingActive && <section className={styles.miniPanel}>
         <div className={styles.stepLabel}>EMAIL STEP 2 OF 4</div>
         <h3>Add the new email to LinkedIn</h3>
         <div className={styles.emailAddressCard}><span>LinkedVelocity email to add</span><strong>{setup.address}</strong><button type="button" onClick={() => setup.address && navigator.clipboard?.writeText(setup.address)}>Copy email</button></div>
@@ -76,7 +76,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
         <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
       </section>}
 
-      {miniStep === 3 && setup.forwardingActive && <section className={styles.emailMiniPanel}>
+      {miniStep === 3 && setup.forwardingActive && <section className={styles.miniPanel}>
         <div className={styles.stepLabel}>EMAIL STEP 3 OF 4</div>
         <h3>Verify the email address</h3>
         {setup.lastForwardedAt ? <>
@@ -95,7 +95,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
         <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
       </section>}
 
-      {miniStep === 4 && setup.forwardingActive && <section className={styles.emailMiniPanel}>
+      {miniStep === 4 && setup.forwardingActive && <section className={styles.miniPanel}>
         <div className={styles.stepLabel}>EMAIL STEP 4 OF 4</div>
         <h3>Make the LinkedVelocity email primary</h3>
         <p>Return to LinkedIn&apos;s Email addresses list. Find <strong>{setup.address}</strong> and select <strong>Make primary</strong>.</p>
