@@ -8,8 +8,8 @@ export type EmailSetup = {
   forwardingUntil: string | null; lastForwardedAt: string | null;
 };
 
-export default function EmailStep({ setup, busy, submit, refresh }: {
-  setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>; refresh: () => void;
+export default function EmailStep({ setup, busy, submit }: {
+  setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>;
 }) {
   const [destination, setDestination] = useState(setup.destination || "");
   const [consent, setConsent] = useState(false);
@@ -18,7 +18,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
   return <>
     <h2>First, add a LinkedVelocity email to LinkedIn</h2>
     <p>The account owner must add the assigned LinkedVelocity email to their account and make it the primary email. They should do this from LinkedIn on their usual device or existing browser. The protected GoLogin browser comes afterwards.</p>
-    <div className={styles.emailPlan}>
+    {!setup.forwardingActive && <div className={styles.emailPlan}>
       <strong>How this step works</strong>
       <ol>
         <li>Verify a forwarding inbox below so you can receive the email confirmation from LinkedIn.</li>
@@ -28,7 +28,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
         <li>LinkedIn may ask the owner to enter their password, receive another code, or complete an identity check. The owner must complete this themselves.</li>
         <li>After confirming the new address, they make it the <b>primary email</b> on the account.</li>
       </ol>
-    </div>
+    </div>}
     {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before you add an address to LinkedIn.</div> : <>
       {!setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
         <div className={styles.note}>{setup.address ? <>Assigned LinkedIn email: <strong>{setup.address}</strong></> : <>We&apos;ll automatically assign an email using the owner&apos;s first and last name. If it&apos;s already taken, we&apos;ll add a small number to make it unique.</>}</div>
@@ -51,12 +51,12 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
           <li>Open the LinkedIn verification message forwarded to <strong>{setup.destination}</strong> and confirm the new address.</li>
           <li>Return to LinkedIn, make the LinkedVelocity address <strong>primary</strong>, and check that it is labelled as primary before continuing.</li>
         </ol>
-        <p role="status">{setup.lastForwardedAt ? "A LinkedIn message has been forwarded. This does not yet confirm the address is primary." : "Waiting for the LinkedIn message. Request it on LinkedIn, then select “Check for the LinkedIn email” below."}</p>
+        {setup.lastForwardedAt && <p role="status">A LinkedIn verification message has been forwarded. Complete the confirmation in LinkedIn, then make the address primary.</p>}
         <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>The owner verified this address and I can see it marked as primary in LinkedIn. The owner agrees to continue.</span></label>
         <button className={styles.primary} disabled={busy || !primary || !setup.lastForwardedAt} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to GoLogin →</button>
       </>}
     </>}
-    {setup.forwardingActive && <button className={styles.secondary} disabled={busy} onClick={refresh}>Check for the LinkedIn email</button>}
+    {setup.forwardingActive && <button className={styles.secondary} disabled={busy} onClick={() => void submit({ action: "restart", consent: true })}>Start this email step again</button>}
     <p className={styles.hint}>Only change the primary email with the owner&apos;s informed agreement. If anything is unclear, pause and contact the team.</p>
   </>;
 }

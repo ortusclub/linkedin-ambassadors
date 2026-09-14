@@ -8,6 +8,7 @@ import type { Prisma } from "@/generated/prisma/client";
 export const emailAction = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start"), destination: z.string().trim().email().max(254).transform(s => s.toLowerCase()), consent: z.literal(true) }),
   z.object({ action: z.literal("verify"), code: z.string().regex(/^\d{6}$/) }),
+  z.object({ action: z.literal("restart"), consent: z.literal(true) }),
   z.object({ action: z.literal("primary"), consent: z.literal(true) }),
 ]);
 
@@ -87,6 +88,14 @@ export async function updateEmailSetup(id: string, referrerId: string, input: z.
       return true;
     });
     if (!accepted) throw new EmailSetupError("Incorrect or expired code. Request a new code if needed.");
+    return;
+  }
+  if (input.action === "restart") {
+    const e = await prisma.onboardingEmailSetup.findUnique({ where: { sessionId: id } });
+    if (!e?.destinationVerifiedAt) throw new EmailSetupError("Verify the forwarding inbox before restarting this step.", 409);
+    await prisma.onboardingEmailSetup.update({ where: { sessionId: id }, data: {
+      consentAt: now, forwardingUntil: new Date(now.getTime() + 3600000), lastForwardedAt: null,
+    } });
     return;
   }
   await prisma.$transaction(async tx => {
