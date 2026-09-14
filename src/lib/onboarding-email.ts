@@ -14,11 +14,12 @@ export const emailAction = z.discriminatedUnion("action", [
 
 // Called only inside the email allocation lock. Retained setup rows are the
 // durable round-robin counter; resends/resumes never consume another position.
-export async function allocateOnboardingAddress(tx: Prisma.TransactionClient, name: string, domains: string[]) {
+export async function allocateOnboardingAddress(tx: Prisma.TransactionClient, name: string, domains: string[], excludeAddress?: string | null) {
   if (!domains.length) throw new EmailSetupError("No receiving domain is configured.", 503);
   const domain = domains[(await tx.onboardingEmailSetup.count()) % domains.length];
   for (let collision = 0; collision < 10000; collision++) {
     const address = assignedEmail(name, domain, collision);
+    if (address === excludeAddress) continue;
     const [setup, account, application] = await Promise.all([
       tx.onboardingEmailSetup.findUnique({ where: { address }, select: { sessionId: true } }),
       tx.linkedInAccount.findFirst({ where: { OR: [{ loginEmail: { equals: address, mode: "insensitive" } }, { personalEmail: { equals: address, mode: "insensitive" } }] }, select: { id: true } }),
@@ -92,12 +93,16 @@ export async function updateEmailSetup(id: string, referrerId: string, input: z.
     return;
   }
   if (input.action === "restart") {
-    const e = await prisma.onboardingEmailSetup.findUnique({ where: { sessionId: id } });
-    if (!e?.destinationVerifiedAt) throw new EmailSetupError("Verify the forwarding inbox before restarting this step.", 409);
-    await prisma.onboardingEmailSetup.update({ where: { sessionId: id }, data: {
-      consentAt: now, destinationVerifiedAt: null, forwardingUntil: null, lastForwardedAt: null,
-      codeHash: null, codeExpiresAt: null, codeAttempts: 0,
-    } });
+    await prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100902)`;
+      const e = await tx.onboardingEmailSetup.findUnique({ where: { sessionId: id } });
+      if (!e?.destinationVerifiedAt) throw new EmailSetupError("Verify the forwarding inbox before restarting this step.", 409);
+      const address = await allocateOnboardingAddress(tx, owner.application.fullName, config.domains, e.address);
+      await tx.onboardingEmailSetup.update({ where: { sessionId: id }, data: {
+        address, consentAt: now, destinationVerifiedAt: null, primaryConfirmedAt: null,
+        forwardingUntil: null, lastForwardedAt: null, codeHash: null, codeExpiresAt: null, codeAttempts: 0,
+      } });
+    }, { timeout: 15000 });
     return;
   }
   await prisma.$transaction(async tx => {

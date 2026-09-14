@@ -56,7 +56,7 @@ export default function EmailStep({ setup, busy, submit }: {
         <button className={styles.primary} disabled={busy || !primary || !setup.lastForwardedAt} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to GoLogin →</button>
       </>}
     </>}
-    {setup.forwardingActive && <button className={styles.secondary} disabled={busy} onClick={() => void submit({ action: "restart", consent: true })}>Start this email step again</button>}
+    {setup.forwardingActive && <button className={styles.secondary} disabled={busy} onClick={() => void submit({ action: "restart", consent: true })}>Start again with a new email</button>}
     <p className={styles.hint}>Only change the primary email with the owner&apos;s informed agreement. If anything is unclear, pause and contact the team.</p>
   </>;
 }
