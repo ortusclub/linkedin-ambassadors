@@ -27,6 +27,13 @@ export default function BrowserStep({ session, busy, action, refresh }: {
   const [closed, setClosed] = useState(false);
   const country = countries.find((item) => item.code === session.country)?.name || session.country;
 
+  function canOpenStep(position: number) {
+    if (position === 1) return true;
+    if (position === 2) return session.state === "ready";
+    if (position === 3) return session.state === "ready" && session.opened;
+    return position === miniStep;
+  }
+
   return <>
     <h2>Prepare and sign in to their browser</h2>
     <p>We&apos;ll prepare the protected browser, then guide the owner through signing in and saving the session.</p>
@@ -35,7 +42,9 @@ export default function BrowserStep({ session, busy, action, refresh }: {
       {MINI_STEPS.map((label, index) => {
         const position = index + 1;
         return <li key={label} className={position === miniStep ? styles.miniActive : position < miniStep ? styles.miniComplete : ""}>
-          <span>{position < miniStep ? "✓" : position}</span><small>{label}</small>
+          <button type="button" disabled={!canOpenStep(position)} onClick={() => setMiniStep(position)} aria-current={position === miniStep ? "step" : undefined}>
+            <span>{position < miniStep ? "✓" : position}</span><small>{label}</small>
+          </button>
         </li>;
       })}
     </ol>
@@ -46,6 +55,7 @@ export default function BrowserStep({ session, busy, action, refresh }: {
       <p>We&apos;ll create a dedicated browser and connection for {session.name}{country ? <> in <strong>{country}</strong></> : ""}.</p>
       {["reserved", "link_pending", "proxy_pending"].includes(session.state) && <button className={styles.primary} disabled={busy} onClick={() => void action("prepare")}>{busy ? "Preparing browser…" : session.state === "reserved" ? "Prepare browser →" : "Check browser progress →"}</button>}
       {["purchasing", "purchase_unknown", "creating", "needs_help"].includes(session.state) && <div className={styles.note}>The browser is being prepared. This onboarding is saved, so you can safely return to it later.<br />Reference: {session.id}</div>}
+      {session.state === "ready" && <><div className={styles.note}>The protected browser is ready.</div><button className={styles.primary} onClick={() => setMiniStep(2)}>Continue to open GoLogin →</button></>}
       <button className={styles.secondary} disabled={busy} onClick={() => void refresh()}>{busy ? "Checking…" : "Check browser progress"}</button>
     </section>}
 
@@ -69,9 +79,14 @@ export default function BrowserStep({ session, busy, action, refresh }: {
         <li>The owner enters their password and completes any code, identity or security check LinkedIn requests.</li>
         <li>Check that both their LinkedIn feed and profile open successfully.</li>
       </ol>
+      <div className={styles.videoComingSoon}>
+        <span aria-hidden="true">▶</span>
+        <div><strong>LinkedIn sign-in video coming soon</strong><small>A short walkthrough will show how to open the prepared browser, complete the LinkedIn sign-in and save the session.</small></div>
+      </div>
       <label className={styles.check}><input type="checkbox" checked={signedIn} onChange={(event) => setSignedIn(event.target.checked)} /><span>I can see the owner&apos;s LinkedIn feed and profile in the prepared browser.</span></label>
       <button className={styles.primary} disabled={!signedIn} onClick={() => setMiniStep(4)}>Continue to save the session →</button>
       <a className={styles.secondary} href={session.shareLink!} target="_blank" rel="noreferrer">Open the GoLogin browser again ↗</a>
+      <button className={styles.secondary} onClick={() => setMiniStep(2)}>← Back to opening GoLogin</button>
     </section>}
 
     {miniStep === 4 && session.state === "ready" && <section className={styles.miniPanel}>

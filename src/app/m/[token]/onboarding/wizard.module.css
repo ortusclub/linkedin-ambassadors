@@ -52,9 +52,11 @@
 .phoneHint { color: #647189; font-size: 11px; margin: 8px 0 0; }
 .phoneError { color: #b42318; font-size: 12px; margin: 8px 0 0; }
 .miniSteps { display: grid; grid-template-columns: repeat(4, 1fr); list-style: none; padding: 0; margin: 22px 0; }
-.miniSteps li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; color: #94a3b8; text-align: center; }
+.miniSteps li { position: relative; color: #94a3b8; text-align: center; }
 .miniSteps li:not(:last-child)::after { content: ""; position: absolute; top: 14px; left: calc(50% + 18px); right: calc(-50% + 18px); height: 2px; background: #e2e8f0; }
 .miniSteps li.miniComplete:not(:last-child)::after { background: #22c55e; }
+.miniSteps button { display: flex; width: 100%; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.miniSteps button:disabled { cursor: default; }
 .miniSteps span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #e2e8f0; color: #64748b; font-size: 12px; font-weight: 800; z-index: 1; }
 .miniSteps small { font-size: 10px; font-weight: 700; }
 .miniSteps .miniActive, .miniSteps .miniComplete { color: #15803d; }
