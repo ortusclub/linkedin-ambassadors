@@ -91,7 +91,7 @@ export async function updateEmailSetup(id: string, referrerId: string, input: z.
   }
   await prisma.$transaction(async tx => {
     const e = await tx.onboardingEmailSetup.findUnique({ where: { sessionId: id } });
-    if (!e || !forwardingActive(e, owner.state) || !e.lastForwardedAt) throw new EmailSetupError("Verify the forwarding inbox and receive the LinkedIn message before confirming the primary address.", 409);
+    if (!e || !e.destinationVerifiedAt || !e.lastForwardedAt) throw new EmailSetupError("Add the email on LinkedIn and receive its confirmation before confirming the primary address.", 409);
     if (e.primaryConfirmedAt) return;
     await tx.onboardingEmailSetup.update({ where: { sessionId: id }, data: { primaryConfirmedAt: now } });
     await tx.linkedInAccount.update({ where: { id: owner.accountId }, data: { loginEmail: e.address } });
