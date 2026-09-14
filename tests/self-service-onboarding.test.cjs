@@ -75,11 +75,35 @@ test("Proxy-Cheap quotes require a matching country and respect the price ceilin
   } finally { global.fetch = originalFetch; for (const key of Object.keys(process.env)) if (!(key in previous)) delete process.env[key]; Object.assign(process.env, previous); }
 });
 
+test("outside countries select the cheapest quote from India, UK, US and Philippines", async () => {
+  const previous = { ...process.env };
+  const originalFetch = global.fetch;
+  Object.assign(process.env, { PROXY_CHEAP_AUTO_BUY: "true", PROXY_CHEAP_API_KEY: "test", PROXY_CHEAP_API_SECRET: "test", PROXY_CHEAP_MAX_PER_PROXY_USD: "4" });
+  const prices = { IN: 2.4, GB: 1.8, US: 2.1, PH: 2.6 };
+  const quotedCountries = [];
+  global.fetch = async (url, init) => {
+    const body = init.body ? JSON.parse(init.body) : null;
+    if (url.endsWith("/price")) {
+      quotedCountries.push(body.country);
+      return { ok: true, json: async () => ({ finalPrice: prices[body.country], currency: "USD" }) };
+    }
+    if (url.endsWith("/v2/order")) return { ok: true, json: async () => ({ services: [{ id: "static-residential-ipv4", plans: [{ id: "standard", label: "Dedicated" }] }] }) };
+    return { ok: true, json: async () => ({ countries: ["DE", "IN", "GB", "US", "PH"], periods: { months: [1] }, isps: {} }) };
+  };
+  try {
+    const api = load("src/services/proxy-cheap.ts");
+    const quote = await api.quoteCheapestStaticProxy();
+    assert.equal(quote.order.country, "GB");
+    assert.equal(quote.price, 1.8);
+    assert.deepEqual(quotedCountries.sort(), ["GB", "IN", "PH", "US"]);
+  } finally { global.fetch = originalFetch; for (const key of Object.keys(process.env)) if (!(key in previous)) delete process.env[key]; Object.assign(process.env, previous); }
+});
+
 function service(prisma, provider = {}, gologin = { createProfile: () => { throw new Error("Unexpected profile creation"); } }) {
   return load("src/lib/self-service-onboarding.ts", {
     "@/lib/prisma": { prisma }, "@/lib/payment-schedule": { setupDueDate: () => null },
     "@/services/gologin": gologin,
-    "@/services/proxy-cheap": provider,
+    "@/services/proxy-cheap": { PURCHASE_PROXY_COUNTRIES: ["IN", "GB", "US", "PH"], ...provider },
   });
 }
 
@@ -148,7 +172,7 @@ test("monthly budget exhaustion prevents execute", async () => {
   let purchases = 0;
   const tx = { $executeRaw: async () => {}, proxy: { findMany: async () => [] }, linkedInAccount: { findMany: async () => [] }, selfServiceOnboarding: { findFirstOrThrow: async () => ({ state: "reserved" }), findMany: async () => [], aggregate: async () => ({ _sum: { proxyBudgetReserved: 49 } }) } };
   const prisma = { $transaction: async (fn) => fn(tx), selfServiceOnboarding: { findFirst: async () => ({ id: "session" }), findFirstOrThrow: async () => ({ state: "reserved", account: { location: "PH" } }) } };
-  const provider = { quoteStaticProxy: async () => ({ price: 4 }), proxyPurchaseLimits: () => ({ monthly: 50 }), purchaseStaticProxy: async () => { purchases++; } };
+  const provider = { quoteStaticProxy: async () => ({ price: 4, order: { country: "PH" } }), proxyPurchaseLimits: () => ({ monthly: 50 }), purchaseStaticProxy: async () => { purchases++; } };
   try { await assert.rejects(service(prisma, provider).prepareOnboarding("session", "referrer"), /budget/); assert.equal(purchases, 0); }
   finally { if (prev === undefined) delete process.env.GOLOGIN_API_TOKEN_KLABBER; else process.env.GOLOGIN_API_TOKEN_KLABBER = prev; }
 });
@@ -170,6 +194,15 @@ test("residential proxies accept zero or one account, but never a third", () => 
   assert.equal(availableProxySlots([proxy], [account("a"), account("b")], []).length, 0);
   assert.equal(availableProxySlots([{ ...proxy, status: "error" }], [], []).length, 0);
   assert.equal(availableProxySlots([{ ...proxy, type: "datacenter" }], [], []).length, 0);
+});
+
+test("proxy slots fill a second account before using an empty proxy", () => {
+  const { availableProxySlots } = load("src/lib/onboarding-proxy-pool.ts");
+  const proxy = (id, port) => ({ id, host: "proxy.test", port, username: "test", password: "test", country: "PH", type: "residential", status: "active" });
+  const used = { id: "existing", proxyHost: "proxy.test", proxyPort: 8001 };
+  const slots = availableProxySlots([proxy("empty", 8000), proxy("half-full", 8001)], [used], []);
+  assert.equal(slots[0].id, "half-full");
+  assert.equal(slots[0].used, 1);
 });
 
 test("reservations are deduplicated against inventory and still reserve capacity if inventory moves", () => {

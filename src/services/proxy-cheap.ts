@@ -5,6 +5,7 @@ const BASE = "https://api.proxy-cheap.com";
 const SERVICE = "static-residential-ipv4";
 const PLAN = "standard"; // Dedicated (not Basic/shared).
 export const MAX_PROXY_PRICE_USD = 4;
+export const PURCHASE_PROXY_COUNTRIES = ["IN", "GB", "US", "PH"] as const;
 export class ProxyPurchaseNotSubmitted extends Error {}
 
 export function proxyPurchaseLimits() {
@@ -28,7 +29,7 @@ async function api(path: string, body?: unknown, authenticated = false): Promise
   return res.json();
 }
 
-export async function quoteStaticProxy(country: string) {
+async function quoteStaticProxies(countries: readonly string[]) {
   const limits = proxyPurchaseLimits();
   if (!limits.enabled) throw new Error("Automatic proxy purchasing is not enabled. Ask the team to prepare a proxy.");
   const catalog = z.object({ services: z.array(z.object({ id: z.string(), plans: z.array(z.object({ id: z.string(), label: z.string() })).optional() })) }).parse(await api("/v2/order"));
@@ -37,12 +38,32 @@ export async function quoteStaticProxy(country: string) {
   }
   const setup = z.object({ countries: z.array(z.string()), periods: z.object({ months: z.array(z.number()) }), isps: z.record(z.string(), z.array(z.object({ id: z.string(), label: z.string() }))).optional() })
     .parse(await api(`/v2/order/${SERVICE}`, { planId: PLAN }));
-  if (!setup.countries.includes(country) || !setup.periods.months.includes(1)) throw new Error("No one-month dedicated static residential proxy is available in this country. Ask the team for help.");
-  const ispId = setup.isps?.[country]?.[0]?.id;
-  const order = { planId: PLAN, quantity: 1, country, ...(ispId ? { ispId } : {}), period: { unit: "months", value: 1 }, autoExtend: { isEnabled: false } };
-  const quote = z.object({ finalPrice: z.number().finite().positive(), currency: z.literal("USD") }).parse(await api(`/v2/order/${SERVICE}/price`, order, true));
-  if (quote.finalPrice > limits.perProxy) throw new Error(`The matching proxy costs more than US$${limits.perProxy.toFixed(2)}. Setup is paused; no proxy was purchased.`);
-  return { order, price: quote.finalPrice };
+  if (!setup.periods.months.includes(1)) throw new Error("One-month dedicated static residential proxies are unavailable.");
+  const available = [...new Set(countries)].filter((country) => setup.countries.includes(country));
+  if (!available.length) throw new Error("No one-month dedicated static residential proxy is available for the requested country or permitted countries. Ask the team for help.");
+  const results = await Promise.allSettled(available.map(async (country) => {
+    const ispId = setup.isps?.[country]?.[0]?.id;
+    const order = { planId: PLAN, quantity: 1, country, ...(ispId ? { ispId } : {}), period: { unit: "months" as const, value: 1 }, autoExtend: { isEnabled: false } };
+    const quote = z.object({ finalPrice: z.number().finite().positive(), currency: z.literal("USD") }).parse(await api(`/v2/order/${SERVICE}/price`, order, true));
+    return { order, price: quote.finalPrice };
+  }));
+  const quotes = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+  if (!quotes.length) throw new Error("Could not check proxy prices in the permitted countries. Please try again.");
+  return { quotes, perProxy: limits.perProxy };
+}
+
+export async function quoteStaticProxy(country: string) {
+  const { quotes, perProxy } = await quoteStaticProxies([country]);
+  const quote = quotes[0];
+  if (quote.price > perProxy) throw new Error(`The matching proxy costs more than US$${perProxy.toFixed(2)}. Setup is paused; no proxy was purchased.`);
+  return quote;
+}
+
+export async function quoteCheapestStaticProxy() {
+  const { quotes, perProxy } = await quoteStaticProxies(PURCHASE_PROXY_COUNTRIES);
+  const quote = quotes.filter((candidate) => candidate.price <= perProxy).sort((a, b) => a.price - b.price)[0];
+  if (!quote) throw new Error(`Proxies in the permitted countries cost more than US$${perProxy.toFixed(2)}. Setup is paused; no proxy was purchased.`);
+  return quote;
 }
 
 export async function purchaseStaticProxy(quote: Awaited<ReturnType<typeof quoteStaticProxy>>) {

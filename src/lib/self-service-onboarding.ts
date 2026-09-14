@@ -5,7 +5,7 @@ import { createProfile, createPublicShareLink, getPublicShareLink } from "@/serv
 import { selfServiceInput } from "@/lib/self-service-input";
 import { z } from "zod";
 import { countryCode } from "@/lib/countries";
-import { proxyPurchaseLimits, quoteStaticProxy, purchaseStaticProxy, readPurchasedProxy, ProxyPurchaseNotSubmitted } from "@/services/proxy-cheap";
+import { proxyPurchaseLimits, quoteCheapestStaticProxy, quoteStaticProxy, purchaseStaticProxy, readPurchasedProxy, ProxyPurchaseNotSubmitted, PURCHASE_PROXY_COUNTRIES } from "@/services/proxy-cheap";
 import type { Prisma } from "@/generated/prisma/client";
 import { availableProxySlots } from "@/lib/onboarding-proxy-pool";
 import { emailSetupSummary, requireEmailSetup } from "@/lib/onboarding-email";
@@ -22,6 +22,12 @@ async function availableProxies(db: Prisma.TransactionClient = prisma) {
     db.selfServiceOnboarding.findMany({ where: { proxyId: { not: null } }, select: { accountId: true, proxyId: true, proxySlot: true } }),
   ]);
   return availableProxySlots(proxies, accounts, reservations);
+}
+
+function reusableProxy(slots: Awaited<ReturnType<typeof availableProxies>>, accountCountry: string) {
+  return PURCHASE_PROXY_COUNTRIES.includes(accountCountry as typeof PURCHASE_PROXY_COUNTRIES[number])
+    ? slots.find((proxy) => proxy.country === accountCountry)
+    : slots.find((proxy) => PURCHASE_PROXY_COUNTRIES.includes(proxy.country as typeof PURCHASE_PROXY_COUNTRIES[number]));
 }
 
 export async function onboardingCountries() {
@@ -72,7 +78,7 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       tx.linkedInAccount.findFirst({ where: { OR: [{ personalEmail: { equals: input.email, mode: "insensitive" } }, { loginEmail: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true } }),
     ]);
     if (application || account) throw new OnboardingError("This person is already in our system. Ask the team to continue their existing onboarding.", 409);
-    const proxy = (await availableProxies(tx)).find((p) => p.country === country);
+    const proxy = reusableProxy(await availableProxies(tx), country);
     if (!proxy && !proxyPurchaseLimits().enabled) throw new OnboardingError("No dedicated proxy is available for this country yet. Ask the team to add one, then try again.", 409);
     const now = new Date();
     const app = await tx.ambassadorApplication.create({ data: {
@@ -107,7 +113,7 @@ async function reuseProxy(tx: Prisma.TransactionClient, id: string, referrerId: 
   const current = await tx.selfServiceOnboarding.findFirstOrThrow({ where: { id, referrerId } });
   if (current.proxyId) return true;
   if (current.state !== "reserved" || current.proxyPurchaseAt || current.proxyOrderId) return false;
-  const proxy = (await availableProxies(tx)).find((p) => p.country === country);
+  const proxy = reusableProxy(await availableProxies(tx), country);
   if (!proxy) return false;
   await tx.linkedInAccount.update({ where: { id: current.accountId }, data: {
     proxyHost: proxy.host, proxyPort: proxy.port, proxyUsername: proxy.username,
@@ -122,6 +128,7 @@ async function acquireProxy(id: string, referrerId: string): Promise<boolean> {
   if (s.proxyId) return true;
   const country = countryCode(s.account.location);
   if (!country) throw new OnboardingError("The account country needs a team check.", 409);
+  let proxyCountry = countryCode(s.account.proxyLocation);
   let orderId = s.proxyOrderId;
   if (!orderId) {
     if (s.state !== "reserved") throw new OnboardingError("The proxy purchase is running or needs a team check. Your progress is saved.", 409);
@@ -131,7 +138,12 @@ async function acquireProxy(id: string, referrerId: string): Promise<boolean> {
     });
     if (reused) return true;
     let quote;
-    try { quote = await quoteStaticProxy(country); } catch (e) {
+    try {
+      quote = PURCHASE_PROXY_COUNTRIES.includes(country as typeof PURCHASE_PROXY_COUNTRIES[number])
+        ? await quoteStaticProxy(country)
+        : await quoteCheapestStaticProxy();
+      proxyCountry = quote.order.country;
+    } catch (e) {
       throw new OnboardingError(e instanceof Error && !(e instanceof z.ZodError) ? e.message : "Could not check proxy availability. Please try again.", 409);
     }
     const limits = proxyPurchaseLimits();
@@ -148,6 +160,7 @@ async function acquireProxy(id: string, referrerId: string): Promise<boolean> {
       if (limits.monthly !== null && Math.round((Number(spent._sum.proxyBudgetReserved || 0) + quote.price) * 100) > Math.round(limits.monthly * 100)) throw new OnboardingError("The monthly proxy purchase budget has been reached. Ask the team for help.", 409);
       const claim = await tx.selfServiceOnboarding.updateMany({ where: { id, referrerId, state: "reserved", proxyId: null, proxyOrderId: null, proxyPurchaseAt: null }, data: { state: "purchasing", proxyBudgetReserved: quote.price, proxyPurchaseAt: now } });
       if (!claim.count) throw new OnboardingError("This proxy purchase is already in progress. Refresh to check it.", 409);
+      await tx.linkedInAccount.update({ where: { id: s.accountId }, data: { proxyLocation: quote.order.country } });
       return false;
     });
     if (reusedBeforePurchase) return true;
@@ -165,8 +178,12 @@ async function acquireProxy(id: string, referrerId: string): Promise<boolean> {
       throw new OnboardingError("The proxy order needs a team check. No second purchase will be attempted.", 502);
     }
   }
+  proxyCountry ||= PURCHASE_PROXY_COUNTRIES.includes(country as typeof PURCHASE_PROXY_COUNTRIES[number]) ? country : null;
+  if (!proxyCountry || !PURCHASE_PROXY_COUNTRIES.includes(proxyCountry as typeof PURCHASE_PROXY_COUNTRIES[number])) {
+    throw new OnboardingError("The proxy order country needs a team check.", 409);
+  }
   let connection;
-  try { connection = await readPurchasedProxy(orderId, country); } catch {
+  try { connection = await readPurchasedProxy(orderId, proxyCountry); } catch {
     throw new OnboardingError("The purchased proxy is not ready to use. Refresh its delivery status or ask the team to check the saved order.", 502);
   }
   if (!connection) return false;
@@ -174,14 +191,20 @@ async function acquireProxy(id: string, referrerId: string): Promise<boolean> {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100901)`;
     const current = await tx.selfServiceOnboarding.findUniqueOrThrow({ where: { id } });
     if (current.proxyId) return;
-    const used = await tx.linkedInAccount.findFirst({ where: { proxyHost: connection.host, proxyPort: connection.port } });
-    if (used) throw new OnboardingError("The delivered proxy is already assigned. The team needs to check this order.", 409);
     const proxy = await tx.proxy.upsert({ where: { host_port: { host: connection.host, port: connection.port } },
-      create: { ...connection, country, type: "residential", provider: "proxy-cheap", status: "active", notes: `Dedicated static residential IPv4; order ${orderId}; auto-renew disabled.` },
-      update: { ...connection, country, type: "residential", provider: "proxy-cheap", status: "active" },
+      create: { ...connection, country: proxyCountry, type: "residential", provider: "proxy-cheap", status: "active", notes: `Dedicated static residential IPv4; order ${orderId}; auto-renew disabled.` },
+      update: { ...connection, country: proxyCountry, type: "residential", provider: "proxy-cheap", status: "active" },
     });
-    await tx.linkedInAccount.update({ where: { id: s.accountId }, data: { proxyHost: connection.host, proxyPort: connection.port, proxyUsername: connection.username, proxyPassword: connection.password, proxyLocation: country } });
-    await tx.selfServiceOnboarding.update({ where: { id }, data: { proxyId: proxy.id, proxySlot: 1, state: "reserved" } });
+    const [linked, reservations] = await Promise.all([
+      tx.linkedInAccount.findMany({ where: { proxyHost: connection.host, proxyPort: connection.port }, select: { id: true } }),
+      tx.selfServiceOnboarding.findMany({ where: { proxyId: proxy.id }, select: { accountId: true, proxySlot: true } }),
+    ]);
+    const used = new Set([...linked.map((account) => account.id), ...reservations.map((reservation) => reservation.accountId)]);
+    if (used.size >= 2) throw new OnboardingError("The delivered proxy has reached its two-account limit. The team needs to check this order.", 409);
+    const slot = [1, 2].find((candidate) => !reservations.some((reservation) => reservation.proxySlot === candidate));
+    if (!slot) throw new OnboardingError("The delivered proxy has no available account slot. The team needs to check this order.", 409);
+    await tx.linkedInAccount.update({ where: { id: s.accountId }, data: { proxyHost: connection.host, proxyPort: connection.port, proxyUsername: connection.username, proxyPassword: connection.password, proxyLocation: proxyCountry } });
+    await tx.selfServiceOnboarding.update({ where: { id }, data: { proxyId: proxy.id, proxySlot: slot, state: "reserved" } });
   });
   return true;
 }

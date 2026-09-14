@@ -25,6 +25,7 @@ const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder:
   Wise: { label: "Wise email address", type: "email", placeholder: "name@example.com", help: "Use the email address registered to their Wise account." },
   "Bank transfer": { label: "Bank transfer details", placeholder: "Bank name, account number and routing / SWIFT details", help: "Include the bank name, account number and the routing, sort, IFSC or SWIFT code required in their country." },
 };
+const PROXY_COUNTRIES = ["IN", "GB", "US", "PH"];
 
 export default function SelfServiceWizard({ token }: { token: string }) {
   const endpoint = `/api/m/${encodeURIComponent(token)}/onboarding`;
@@ -130,6 +131,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     { index: 5, label: "Team verification", detail: "We check the saved session before activation and payment." },
   ];
   const payoutField = PAYOUT_FIELDS[form.paymentMethod] || { label: "Payout details", placeholder: "Account number or payment address", help: "Enter everything needed to send the payment." };
+  const selectedCountry = countryCode(form.country);
+  const browserCapacityAvailable = selectedCountry && PROXY_COUNTRIES.includes(selectedCountry)
+    ? bootstrap?.countries.some((country) => countryCode(country) === selectedCountry)
+    : bootstrap?.countries.some((country) => {
+      const code = countryCode(country);
+      return !!code && PROXY_COUNTRIES.includes(code);
+    });
 
   async function moveToComputer() {
     const url = window.location.href;
@@ -232,7 +240,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             {field("paymentDetails", payoutField.label, payoutField.type || "text", payoutField.placeholder)}
             <p className={styles.hint}>{payoutField.help}</p>
           </>}
-          {(!bootstrap.configured || (!bootstrap.autoPurchase && !bootstrap.countries.some((c) => countryCode(c) === form.country))) && <div className={styles.note}>Browser setup is not ready yet. Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access and a matching proxy, then try Save &amp; continue.</div>}
+          {(!bootstrap.configured || (!bootstrap.autoPurchase && !browserCapacityAvailable)) && <div className={styles.note}>Browser setup is not ready yet. Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access, then try Save &amp; continue.</div>}
           <div className={styles.note}><strong>What happens next:</strong> We&apos;ll save their onboarding record, then guide you and the owner through adding a shared LinkedVelocity email to their LinkedIn account. The owner will receive and approve any confirmation codes.</div>
           <div className={styles.paymentTimeline}><strong>When the owner gets paid</strong><span>After the shared email and protected browser login are complete, the account is officially onboarded. The setup payment is scheduled after <b>{form.accountFreshness === "established" ? "3 days" : "7 days"}</b>{form.accountFreshness === "established" ? " because the account is more than one year old" : form.accountFreshness === "fresh" ? " because the account is less than one year old" : " because its age has not been confirmed"}, subject to successful verification.</span><span>The owner must stay reachable during this period and complete any extra verification LinkedIn requests. This checking period helps ensure they remain available to resolve those prompts.</span></div>
           <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>

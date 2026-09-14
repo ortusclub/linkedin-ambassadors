@@ -24,5 +24,7 @@ export function availableProxySlots(proxies: PoolProxy[], accounts: PoolAccount[
     const slot = [1, 2].find((n) => !reserved.some((r) => r.proxySlot === n));
     if (!slot) return [];
     return [{ ...p, username, password, country, slot, used }];
-  }).sort((a, b) => a.used - b.used);
+  // Fill the second slot before opening an unused proxy, keeping the pool at
+  // exactly two accounts per proxy wherever capacity allows.
+  }).sort((a, b) => b.used - a.used);
 }
