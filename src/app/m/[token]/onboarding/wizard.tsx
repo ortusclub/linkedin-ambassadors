@@ -40,6 +40,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" });
 
   async function request(method: string, body?: unknown, id?: string) {
@@ -130,8 +131,36 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   ];
   const payoutField = PAYOUT_FIELDS[form.paymentMethod] || { label: "Payout details", placeholder: "Account number or payment address", help: "Enter everything needed to send the payment." };
 
+  async function moveToComputer() {
+    const url = window.location.href;
+    if (navigator.share) {
+      try { await navigator.share({ title: "LinkedVelocity onboarding", url }); return; }
+      catch (error) { if (error instanceof DOMException && error.name === "AbortError") return; }
+    }
+    await navigator.clipboard.writeText(url);
+    setLinkCopied(true);
+  }
+
   return <main className={styles.page}>
     <div className={styles.shell}>
+      <section className={styles.mobileBlock}>
+        <div className={styles.eyebrow}>LINKEDVELOCITY · SELF-SERVICE</div>
+        <div className={styles.mobileComputerIcon} aria-hidden="true">▰</div>
+        <h1>Continue onboarding on a computer</h1>
+        <p>This guided onboarding cannot be completed on a mobile phone or tablet.</p>
+        <div className={styles.mobileReason}>
+          <strong>Why a computer is required</strong>
+          <span>The final sign-in uses GoLogin, desktop anti-detect software that prepares a protected browser for the LinkedIn account. GoLogin must be opened on a Windows or Mac computer.</span>
+        </div>
+        <ol className={styles.mobileInstructions}>
+          <li>Share or copy this onboarding link.</li>
+          <li>Open the same link on a Windows or Mac computer.</li>
+          <li>Have the account owner with you before restarting.</li>
+        </ol>
+        <button className={styles.primary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Share onboarding link"}</button>
+        <Link href={`/m/${token}`} className={styles.secondary}>Return to referral dashboard</Link>
+      </section>
+      <div className={styles.desktopOnboarding}>
       <Link href={`/m/${token}`} className={styles.back}>← Referral dashboard</Link>
       <div className={styles.eyebrow}>LINKEDVELOCITY · SELF-SERVICE</div>
       <h1>Do-it-yourself onboarding</h1>
@@ -226,6 +255,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         </>}
         </section>
       </div>}
+      </div>
     </div>
   </main>;
 }

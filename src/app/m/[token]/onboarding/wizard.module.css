@@ -1,5 +1,6 @@
 .page { min-height: 100vh; background: #eef0f3; color: #0f1729; padding: 28px 16px 64px; font-family: var(--font-sans), system-ui, sans-serif; }
 .shell { max-width: 1040px; margin: auto; }
+.mobileBlock { display: none; }
 .back { display: inline-block; color: #526579; font-size: 14px; margin-bottom: 30px; text-decoration: none; }
 .eyebrow { color: #15803d; font-size: 11px; font-weight: 750; letter-spacing: .09em; margin-bottom: 10px; }
 .shell h1 { font-size: clamp(25px, 5vw, 34px); line-height: 1.15; font-weight: 700; letter-spacing: -.035em; margin: 0 0 12px; }
@@ -83,6 +84,17 @@
 .summary dt { color: #647189; }
 .summary dd { font-weight: 700; margin: 0; text-align: right; }
 .success { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: #dcf5e4; color: #15803d; font-size: 28px; margin-bottom: 20px; }
+@media (max-width: 760px), (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .desktopOnboarding { display: none; }
+  .mobileBlock { display: block; max-width: 520px; margin: 6vh auto 0; background: white; border: 1px solid #e5e9ee; border-radius: 22px; padding: 28px 22px; box-shadow: 0 12px 36px -26px #334155; text-align: center; }
+  .mobileBlock h1 { margin-bottom: 12px; }
+  .mobileBlock > p { color: #647189; font-size: 15px; line-height: 1.6; }
+  .mobileComputerIcon { display: grid; place-items: center; width: 58px; height: 48px; margin: 14px auto 20px; border: 3px solid #15803d; border-radius: 8px; color: #15803d; font-size: 27px; line-height: 1; }
+  .mobileReason { display: flex; flex-direction: column; gap: 5px; background: #effaf3; border: 1px solid #c3ebd2; border-radius: 12px; padding: 16px; margin: 20px 0; color: #3f5c4a; font-size: 13px; line-height: 1.55; text-align: left; }
+  .mobileReason strong { color: #14532d; font-size: 14px; }
+  .mobileInstructions { margin: 20px 0; padding-left: 24px; color: #526579; font-size: 14px; line-height: 1.55; text-align: left; }
+  .mobileInstructions li { margin-bottom: 8px; padding-left: 3px; }
+}
 @media (max-width: 760px) {
   .page { padding-top: 20px; }
   .back { margin-bottom: 24px; }
