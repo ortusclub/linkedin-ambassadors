@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
+
 import Image from "next/image";
+import { useState } from "react";
 import styles from "./wizard.module.css";
 
 export type EmailSetup = {
@@ -9,64 +10,107 @@ export type EmailSetup = {
   forwardingUntil: string | null; lastForwardedAt: string | null;
 };
 
-export default function EmailStep({ setup, busy, submit }: {
-  setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>;
+const MINI_STEPS = ["Receiving inbox", "Add email", "Verify email", "Make primary"];
+
+export default function EmailStep({ setup, busy, submit, refresh }: {
+  setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>; refresh: () => Promise<void>;
 }) {
+  const initialStep = !setup.forwardingActive ? 1 : setup.lastForwardedAt ? 3 : 2;
+  const [miniStep, setMiniStep] = useState(initialStep);
   const [destination, setDestination] = useState(setup.destination || "");
   const [consent, setConsent] = useState(false);
   const [code, setCode] = useState("");
+  const [linkConfirmed, setLinkConfirmed] = useState(false);
   const [primary, setPrimary] = useState(false);
+
+  async function restart() {
+    await submit({ action: "restart", consent: true });
+    setCode(""); setConsent(false); setLinkConfirmed(false); setPrimary(false); setMiniStep(1);
+  }
+
   return <>
-    <h2>First, add a LinkedVelocity email to LinkedIn</h2>
-    <p>The account owner must add the assigned LinkedVelocity email to their account and make it the primary email. They should do this from LinkedIn on their usual device or existing browser. The protected GoLogin browser comes afterwards.</p>
-    {!setup.forwardingActive && <div className={styles.emailPlan}>
-      <strong>How this step works</strong>
-      <ol>
-        <li>Verify a forwarding inbox below so you can receive the email confirmation from LinkedIn.</li>
-        <li>We&apos;ll assign the owner their new LinkedVelocity email address.</li>
-        <li>On LinkedIn, the owner opens <b>Me → Settings &amp; Privacy → Sign in &amp; security → Email addresses</b>.</li>
-        <li>They select <b>Add email address</b> and enter the assigned LinkedVelocity email.</li>
-        <li>LinkedIn may ask the owner to enter their password, receive another code, or complete an identity check. The owner must complete this themselves.</li>
-        <li>After confirming the new address, they make it the <b>primary email</b> on the account.</li>
-      </ol>
-    </div>}
-    {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before you add an address to LinkedIn.</div> : <>
-      {!setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
-        <div className={styles.note}>{setup.address ? <>Assigned LinkedIn email: <strong>{setup.address}</strong></> : <>We&apos;ll automatically assign an email using the owner&apos;s first and last name. If it&apos;s already taken, we&apos;ll add a small number to make it unique.</>}</div>
-        <label className={styles.field}>Where should onboarding messages be forwarded?<input type="email" required maxLength={254} value={destination} disabled={setup.destinationVerified} onChange={e => setDestination(e.target.value)} /></label>
-        <p className={styles.hint}>Use an inbox you can open now. We will verify it before forwarding account messages.</p>
-        <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>The owner agrees to use a service-managed primary email and understands that it affects sign-in and recovery. They authorize forwarding onboarding messages to this inbox for one hour or until onboarding finishes, whichever comes first.</span></label>
-        <button className={styles.primary} disabled={busy || !consent}>{setup.destinationVerified ? "Start this email step again" : setup.verificationCodePending ? "Send a new forwarding code" : "Verify forwarding inbox →"}</button>
-      </form>}
-      {setup.address && setup.verificationCodePending && !setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>
-        <label className={styles.field}>Six-digit code sent to {setup.destination}<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value)} /></label>
-        <button className={styles.primary} disabled={busy || code.length !== 6}>Confirm forwarding inbox</button>
-        {setup.destinationVerified && <p className={styles.hint}>Forwarding expired. Verify your inbox again before requesting more LinkedIn messages.</p>}
-      </form>}
-      {setup.forwardingActive && <>
-        <div className={styles.note}>New LinkedIn email: <strong>{setup.address}</strong><br />Forwarding to: {setup.destination}<br />Active until {setup.forwardingUntil && new Date(setup.forwardingUntil).toLocaleTimeString()} or onboarding completion.</div>
+    <h2>Set up their LinkedIn email</h2>
+    <p>Complete these four steps with the account owner before opening their protected GoLogin browser.</p>
+
+    <ol className={styles.emailMiniSteps} aria-label="LinkedIn email setup progress">
+      {MINI_STEPS.map((label, index) => {
+        const position = index + 1;
+        return <li key={label} className={position === miniStep ? styles.emailMiniActive : position < miniStep ? styles.emailMiniComplete : ""}>
+          <span>{position < miniStep ? "✓" : position}</span><small>{label}</small>
+        </li>;
+      })}
+    </ol>
+
+    {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before this step can continue.</div> : <>
+      {miniStep === 1 && <section className={styles.emailMiniPanel}>
+        <div className={styles.stepLabel}>EMAIL STEP 1 OF 4</div>
+        <h3>Choose where to receive verification messages</h3>
+        <p>Enter an inbox you can open now. We&apos;ll send a six-digit code there first, then temporarily forward LinkedIn&apos;s verification email to the same inbox.</p>
+
+        {setup.destinationVerified && !setup.forwardingActive ? <>
+          <div className={styles.note}>The previous forwarding window expired. Start again to choose the receiving inbox and get a different LinkedVelocity email.</div>
+          <button className={styles.primary} disabled={busy} onClick={() => void restart()}>Start this email step again →</button>
+        </> : <>
+          <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
+            <label className={styles.field}>Inbox for verification messages<input type="email" required maxLength={254} value={destination} onChange={e => setDestination(e.target.value)} placeholder="owner@example.com" /></label>
+            <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>The owner agrees to use a LinkedVelocity-managed primary email and authorizes onboarding messages to be forwarded to this inbox for up to one hour.</span></label>
+            <button className={styles.primary} disabled={busy || !consent}>{setup.verificationCodePending ? "Send another six-digit code" : "Send six-digit code →"}</button>
+          </form>
+          {setup.verificationCodePending && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>
+            <label className={styles.field}>Enter the six-digit code sent to {setup.destination}<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ""))} /></label>
+            <button className={styles.primary} disabled={busy || code.length !== 6}>Verify inbox and continue →</button>
+          </form>}
+        </>}
+      </section>}
+
+      {miniStep === 2 && setup.forwardingActive && <section className={styles.emailMiniPanel}>
+        <div className={styles.stepLabel}>EMAIL STEP 2 OF 4</div>
+        <h3>Add the new email to LinkedIn</h3>
+        <div className={styles.emailAddressCard}><span>LinkedVelocity email to add</span><strong>{setup.address}</strong><button type="button" onClick={() => setup.address && navigator.clipboard?.writeText(setup.address)}>Copy email</button></div>
         <ol className={styles.instructions}>
           <li>On the owner&apos;s usual LinkedIn session, open <strong>Me → Settings &amp; Privacy</strong>.</li>
           <li>Select <strong>Sign in &amp; security → Email addresses → Add email address</strong>.</li>
-          <li>Enter <strong>{setup.address}</strong>. If LinkedIn asks for a password, code or identity check, the owner completes it themselves.</li>
-          <li>Open the LinkedIn verification message forwarded to <strong>{setup.destination}</strong> and confirm the new address.</li>
-          <li>Return to LinkedIn, make the LinkedVelocity address <strong>primary</strong>, and check that it is labelled as primary before continuing.</li>
+          <li>Paste <strong>{setup.address}</strong> and submit it. If LinkedIn asks for a password, code or identity check, the owner completes it themselves.</li>
         </ol>
-        <div className={styles.primaryEmailHelp}>
-          <strong>Finish by selecting “Make primary”</strong>
-          <p>After LinkedIn verifies the new email, find it in the Email addresses list and select <b>Make primary</b>. Do not select Remove.</p>
-          <Image src="/images/onboarding/linkedin-make-primary.png" alt="LinkedIn email controls showing Make primary beside Remove" width={696} height={184} sizes="(max-width: 760px) 100vw, 680px" />
+        <button className={styles.primary} disabled={busy} onClick={() => { setMiniStep(3); void refresh(); }}>I&apos;ve added the email →</button>
+        <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
+      </section>}
+
+      {miniStep === 3 && setup.forwardingActive && <section className={styles.emailMiniPanel}>
+        <div className={styles.stepLabel}>EMAIL STEP 3 OF 4</div>
+        <h3>Verify the email address</h3>
+        {setup.lastForwardedAt ? <>
+          <div className={styles.note}>LinkedIn&apos;s verification message was forwarded to <strong>{setup.destination}</strong>.</div>
+          <ol className={styles.instructions}>
+            <li>Open <strong>{setup.destination}</strong>.</li>
+            <li>Find the message from LinkedIn and open its verification link.</li>
+            <li>Return to LinkedIn and confirm that the new email is shown as verified.</li>
+          </ol>
+          <label className={styles.check}><input type="checkbox" checked={linkConfirmed} onChange={e => setLinkConfirmed(e.target.checked)} /><span>The owner opened the LinkedIn verification link and the new email now shows as verified.</span></label>
+          <button className={styles.primary} disabled={!linkConfirmed} onClick={() => setMiniStep(4)}>Continue to make it primary →</button>
+        </> : <>
+          <div className={styles.note}>The LinkedIn message has not arrived yet. Request the verification email from LinkedIn, then check again.</div>
+          <button className={styles.primary} disabled={busy} onClick={() => void refresh()}>{busy ? "Checking…" : "Check for the LinkedIn email"}</button>
+        </>}
+        <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
+      </section>}
+
+      {miniStep === 4 && setup.forwardingActive && <section className={styles.emailMiniPanel}>
+        <div className={styles.stepLabel}>EMAIL STEP 4 OF 4</div>
+        <h3>Make the LinkedVelocity email primary</h3>
+        <p>Return to LinkedIn&apos;s Email addresses list. Find <strong>{setup.address}</strong> and select <strong>Make primary</strong>.</p>
+        <div className={styles.primaryButtonCrop}>
+          <Image src="/images/onboarding/linkedin-make-primary.png" alt="LinkedIn Make primary button" width={696} height={184} />
         </div>
         <div className={styles.videoComingSoon}>
           <span aria-hidden="true">▶</span>
-          <div><strong>Video walkthrough coming soon</strong><small>A short recording will show every step for adding, verifying and making the LinkedVelocity email primary.</small></div>
+          <div><strong>Video walkthrough coming soon</strong><small>A short recording will show how to add, verify and make the LinkedVelocity email primary.</small></div>
         </div>
-        {setup.lastForwardedAt && <p role="status">A LinkedIn verification message has been forwarded. Complete the confirmation in LinkedIn, then make the address primary.</p>}
-        <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>The owner verified this address and I can see it marked as primary in LinkedIn. The owner agrees to continue.</span></label>
+        <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>The owner verified the address and I can see it marked as primary in LinkedIn. The owner agrees to continue.</span></label>
         <button className={styles.primary} disabled={busy || !primary || !setup.lastForwardedAt} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to GoLogin →</button>
-      </>}
+        <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
+      </section>}
     </>}
-    {setup.forwardingActive && <button className={styles.secondary} disabled={busy} onClick={() => void submit({ action: "restart", consent: true })}>Start again with a new email</button>}
     <p className={styles.hint}>Only change the primary email with the owner&apos;s informed agreement. If anything is unclear, pause and contact the team.</p>
   </>;
 }
