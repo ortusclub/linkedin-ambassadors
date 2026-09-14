@@ -9,7 +9,7 @@ import { proxyPurchaseLimits, quoteStaticProxy, purchaseStaticProxy, readPurchas
 import type { Prisma } from "@/generated/prisma/client";
 import { availableProxySlots } from "@/lib/onboarding-proxy-pool";
 import { emailSetupSummary, requireEmailSetup } from "@/lib/onboarding-email";
-import { assertPhoneVerificationToken } from "@/lib/phone-verification";
+import { assertPhoneVerificationToken, phoneVerificationConfigured } from "@/lib/phone-verification";
 
 export class OnboardingError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -51,7 +51,7 @@ export async function onboardingSummary(id: string, referrerId: string) {
 }
 
 export async function reserveOnboarding(referrer: { id: string; slug: string; name: string }, input: z.infer<typeof selfServiceInput>) {
-  assertPhoneVerificationToken(input.phoneVerificationToken, input.contactNumber, referrer.id);
+  if (phoneVerificationConfigured()) assertPhoneVerificationToken(input.phoneVerificationToken, input.contactNumber, referrer.id);
   const cfg = currencyConfig(referrer.slug);
   const country = countryCode(input.country);
   if (!country) throw new OnboardingError("Choose a valid country.");

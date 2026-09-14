@@ -7,6 +7,7 @@ import { proxyPurchaseLimits } from "@/services/proxy-cheap";
 import { emailSetupConfig, EmailSetupError } from "@/lib/onboarding-email-policy";
 import { requireEmailSetup } from "@/lib/onboarding-email";
 import { OnboardingError, onboardingCountries, onboardingSummary, reserveOnboarding, prepareOnboarding, confirmOnboarding } from "@/lib/self-service-onboarding";
+import { phoneVerificationConfigured } from "@/lib/phone-verification";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -54,7 +55,7 @@ export async function GET(req: Request, context: Context) {
       onboardingCountries(),
       prisma.selfServiceOnboarding.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, state: true, application: { select: { fullName: true } } } }),
     ]);
-    return json({ emailEnabled: emailSetupConfig().enabled, countries, autoPurchase: proxyPurchaseLimits().enabled, config: currencyConfig(me.slug), configured: !!process.env.GOLOGIN_API_TOKEN_KLABBER,
+    return json({ emailEnabled: emailSetupConfig().enabled, phoneVerificationEnabled: phoneVerificationConfigured(), countries, autoPurchase: proxyPurchaseLimits().enabled, config: currencyConfig(me.slug), configured: !!process.env.GOLOGIN_API_TOKEN_KLABBER,
       sessions: sessions.map((s) => ({ id: s.id, state: s.state, name: s.application.fullName })) });
   } catch (error) { return failure(error, "load"); }
 }

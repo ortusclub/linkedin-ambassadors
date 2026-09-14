@@ -6,6 +6,11 @@ export class PhoneVerificationError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
 
+export function phoneVerificationConfigured(): boolean {
+  return !!(process.env.TWILIO_ACCOUNT_SID?.trim() && process.env.TWILIO_AUTH_TOKEN?.trim() &&
+    process.env.TWILIO_VERIFY_SERVICE_SID?.trim() && process.env.PHONE_VERIFICATION_SECRET?.trim());
+}
+
 export function normalizePhone(value: string): string {
   const phone = value.replace(/[\s()-]/g, "");
   if (!/^\+[1-9]\d{7,14}$/.test(phone)) {

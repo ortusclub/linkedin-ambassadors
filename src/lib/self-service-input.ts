@@ -20,7 +20,7 @@ export const selfServiceInput = z.object({
   }),
   country: z.string().trim().min(2).max(100),
   contactNumber: z.string().trim().min(5).max(100),
-  phoneVerificationToken: z.string().trim().min(20).max(2000),
+  phoneVerificationToken: z.string().trim().max(2000).optional().default(""),
   accountFreshness: z.enum(["fresh", "established", "unknown"]),
   paymentMethod: z.string().trim().min(1).max(40),
   paymentDetails: z.string().trim().max(500),
