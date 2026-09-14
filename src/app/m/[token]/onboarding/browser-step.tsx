@@ -53,7 +53,11 @@ export default function BrowserStep({ session, busy, action, refresh }: {
       <div className={styles.stepLabel}>BROWSER STEP 2 OF 4</div>
       <h3>Open the prepared GoLogin browser</h3>
       <p>Keep this page open. Select the button below and allow your browser to open GoLogin if prompted.</p>
-      <div className={styles.note}>If GoLogin is not installed, follow the installation instructions on the launch page, then return here and open the browser again.</div>
+      <div className={styles.note}>
+        <strong>GoLogin is not installed?</strong><br />
+        Open the download and installation page in a new tab. Install the GoLogin desktop app, then return here and open the prepared browser.<br />
+        <a className={styles.installLink} href="https://gologin.com/download" target="_blank" rel="noopener noreferrer">Open GoLogin installation page ↗</a>
+      </div>
       <a className={styles.primary} href={session.shareLink!} target="_blank" rel="noreferrer" onClick={() => void action("opened")}>Open their GoLogin browser ↗</a>
     </section>}
 

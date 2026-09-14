@@ -38,6 +38,7 @@
 .actions { display: flex; gap: 12px; }
 .actions .secondary { width: 30%; }
 .note { background: #effaf3; border: 1px solid #c3ebd2; border-radius: 12px; padding: 16px; color: #3f5c4a; line-height: 1.6; font-size: 14px; overflow-wrap: anywhere; margin: 18px 0; }
+.installLink { display: inline-block; margin-top: 10px; color: #15803d; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
 .ownerRequired { display: flex; flex-direction: column; gap: 5px; background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #f97316; border-radius: 12px; padding: 15px 16px; color: #9a3412; font-size: 13px; line-height: 1.5; margin: 18px 0; }
 .ownerRequired strong { color: #7c2d12; font-size: 14px; }
 .paymentTimeline { display: flex; flex-direction: column; gap: 7px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; color: #334155; font-size: 13px; line-height: 1.55; margin: 18px 0; }
