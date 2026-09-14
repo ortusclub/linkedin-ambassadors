@@ -35,7 +35,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
         <label className={styles.field}>Where should onboarding messages be forwarded?<input type="email" required maxLength={254} value={destination} disabled={setup.destinationVerified} onChange={e => setDestination(e.target.value)} /></label>
         <p className={styles.hint}>Use an inbox you can open now. We will verify it before forwarding account messages.</p>
         <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>The owner agrees to use a service-managed primary email and understands that it affects sign-in and recovery. They authorize forwarding onboarding messages to this inbox for one hour or until onboarding finishes, whichever comes first.</span></label>
-        <button className={styles.primary} disabled={busy || !consent}>{setup.address ? "Send a new verification code" : "Verify forwarding inbox →"}</button>
+        <button className={styles.primary} disabled={busy || !consent}>{setup.destinationVerified ? "Start this email step again" : setup.address ? "Send a new forwarding code" : "Verify forwarding inbox →"}</button>
       </form>}
       {setup.address && !setup.forwardingActive && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>
         <label className={styles.field}>Six-digit code sent to {setup.destination}<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value)} /></label>
@@ -51,12 +51,12 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
           <li>Open the LinkedIn verification message forwarded to <strong>{setup.destination}</strong> and confirm the new address.</li>
           <li>Return to LinkedIn, make the LinkedVelocity address <strong>primary</strong>, and check that it is labelled as primary before continuing.</li>
         </ol>
-        <p role="status">{setup.lastForwardedAt ? "A LinkedIn message has been forwarded. This does not yet confirm the address is primary." : "Waiting for the LinkedIn message. Request it on LinkedIn, then refresh below."}</p>
+        <p role="status">{setup.lastForwardedAt ? "A LinkedIn message has been forwarded. This does not yet confirm the address is primary." : "Waiting for the LinkedIn message. Request it on LinkedIn, then select “Check for the LinkedIn email” below."}</p>
         <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>The owner verified this address and I can see it marked as primary in LinkedIn. The owner agrees to continue.</span></label>
         <button className={styles.primary} disabled={busy || !primary || !setup.lastForwardedAt} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to GoLogin →</button>
       </>}
     </>}
-    <button className={styles.secondary} disabled={busy} onClick={refresh}>Refresh email progress</button>
+    {setup.forwardingActive && <button className={styles.secondary} disabled={busy} onClick={refresh}>Check for the LinkedIn email</button>}
     <p className={styles.hint}>Only change the primary email with the owner&apos;s informed agreement. If anything is unclear, pause and contact the team.</p>
   </>;
 }
