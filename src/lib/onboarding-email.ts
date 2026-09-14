@@ -131,8 +131,8 @@ export async function forwardOnboardingEmail(emailId: string) {
   try {
     const current = await prisma.onboardingEmailSetup.findUnique({ where: { sessionId: e.sessionId }, include: { session: { select: { state: true } } } });
     if (!current || !forwardingActive(current, current.session.state)) return;
-    await onboardingMailRequest("/emails", { from: onboardingEmailFrom(), to: [e.destination], subject: "LinkedIn onboarding message",
-      text: `Message for ${e.address}\n\nOnly use this message for the onboarding you are performing with the account owner's consent. This forwarded message is not proof that the address is primary. Never share passwords.\n\n${content}` }, `onboarding-forward-${emailId}`);
+    await onboardingMailRequest("/emails", { from: onboardingEmailFrom(), to: [e.destination], subject: "Confirm your new LinkedIn email",
+      text: `Hi from LinkedVelocity,\n\nA new email (${e.address}) was just added to your LinkedIn account as part of setting it up with LinkedVelocity. LinkedIn needs you to confirm it. Here's how:\n\n1. Open the confirmation link in LinkedIn's message below (tap it, or copy and paste it into your browser).\n2. If LinkedIn asks you to sign in, use your normal LinkedIn login.\n3. In your LinkedIn settings, set this new email as your Primary email.\n\nGood to know: your LinkedIn password does NOT change and you keep full access to your account. LinkedVelocity will never ask for your password, so never share it with anyone.\n\n------------------------------\nLinkedIn's original message:\n\n${content}` }, `onboarding-forward-${emailId}`);
     await prisma.$transaction([
       prisma.onboardingEmailDelivery.update({ where: { emailId }, data: { status: "sent", sentAt: new Date(), leaseUntil: null } }),
       prisma.onboardingEmailSetup.update({ where: { sessionId: e.sessionId }, data: { lastForwardedAt: new Date() } }),
