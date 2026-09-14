@@ -41,13 +41,17 @@ async function quoteStaticProxies(countries: readonly string[]) {
   if (!setup.periods.months.includes(1)) throw new Error("One-month dedicated static residential proxies are unavailable.");
   const available = [...new Set(countries)].filter((country) => setup.countries.includes(country));
   if (!available.length) throw new Error("No one-month dedicated static residential proxy is available for the requested country or permitted countries. Ask the team for help.");
-  const results = await Promise.allSettled(available.map(async (country) => {
-    const ispId = setup.isps?.[country]?.[0]?.id;
-    const order = { planId: PLAN, quantity: 1, country, ...(ispId ? { ispId } : {}), period: { unit: "months" as const, value: 1 }, autoExtend: { isEnabled: false } };
-    const quote = z.object({ finalPrice: z.number().finite().positive(), currency: z.literal("USD") }).parse(await api(`/v2/order/${SERVICE}/price`, order, true));
-    return { order, price: quote.finalPrice };
-  }));
-  const quotes = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+  const quotes = [];
+  // The provider rate-limits simultaneous quote requests. Check the four
+  // permitted countries sequentially and retain every successful quote.
+  for (const country of available) {
+    try {
+      const ispId = setup.isps?.[country]?.[0]?.id;
+      const order = { planId: PLAN, quantity: 1, country, ...(ispId ? { ispId } : {}), period: { unit: "months" as const, value: 1 }, autoExtend: { isEnabled: false } };
+      const quote = z.object({ finalPrice: z.number().finite().positive(), currency: z.literal("USD") }).parse(await api(`/v2/order/${SERVICE}/price`, order, true));
+      quotes.push({ order, price: quote.finalPrice });
+    } catch {}
+  }
   if (!quotes.length) throw new Error("Could not check proxy prices in the permitted countries. Please try again.");
   return { quotes, perProxy: limits.perProxy };
 }

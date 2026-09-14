@@ -185,7 +185,7 @@ test("uncertain purchase is never retried", async () => {
   finally { if (prev === undefined) delete process.env.GOLOGIN_API_TOKEN_KLABBER; else process.env.GOLOGIN_API_TOKEN_KLABBER = prev; }
 });
 
-test("residential proxies accept zero or one account, but never a third", () => {
+test("residential and datacenter proxies accept zero or one account, but never a third", () => {
   const { availableProxySlots } = load("src/lib/onboarding-proxy-pool.ts");
   const proxy = { id: "p", host: "proxy.test", port: 8000, username: "test", password: "test", country: "Philippines", type: "residential", status: "active" };
   const account = (id) => ({ id, proxyHost: proxy.host, proxyPort: proxy.port, proxyUsername: null, proxyPassword: null, proxyLocation: "PH" });
@@ -193,7 +193,8 @@ test("residential proxies accept zero or one account, but never a third", () => 
   assert.equal(availableProxySlots([proxy], [account("a")], []).length, 1);
   assert.equal(availableProxySlots([proxy], [account("a"), account("b")], []).length, 0);
   assert.equal(availableProxySlots([{ ...proxy, status: "error" }], [], []).length, 0);
-  assert.equal(availableProxySlots([{ ...proxy, type: "datacenter" }], [], []).length, 0);
+  assert.equal(availableProxySlots([{ ...proxy, type: "datacenter" }], [], []).length, 1);
+  assert.equal(availableProxySlots([{ ...proxy, type: "Data Center" }], [account("a")], []).length, 1);
 });
 
 test("proxy slots fill a second account before using an empty proxy", () => {

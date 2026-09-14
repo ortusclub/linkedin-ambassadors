@@ -9,7 +9,11 @@ type Reservation = { accountId: string; proxyId: string | null; proxySlot: numbe
 // Retain reservations even if an administrator edits the account's proxy fields.
 export function availableProxySlots(proxies: PoolProxy[], accounts: PoolAccount[], reservations: Reservation[]) {
   return proxies.flatMap((p) => {
-    if (p.type !== "residential" || ![null, "active", "self_service"].includes(p.status) || p.port < 1 || p.port > 65535) return [];
+    const type = (p.type || "").toLowerCase().replace(/[\s_-]/g, "");
+    const status = p.status?.toLowerCase() || null;
+    // Existing permitted-country datacenter proxies are valid reusable capacity;
+    // automatic purchases remain dedicated static residential proxies.
+    if (!["residential", "datacenter"].includes(type) || ![null, "active", "selfservice"].includes(status) || p.port < 1 || p.port > 65535) return [];
     const linked = accounts.filter((a) => a.proxyHost === p.host && a.proxyPort === p.port);
     const reserved = reservations.filter((r) => r.proxyId === p.id);
     const used = new Set([...linked.map((a) => a.id), ...reserved.map((r) => r.accountId)]).size;
