@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import styles from "./wizard.module.css";
 
 export type EmailSetup = {
@@ -51,6 +52,15 @@ export default function EmailStep({ setup, busy, submit }: {
           <li>Open the LinkedIn verification message forwarded to <strong>{setup.destination}</strong> and confirm the new address.</li>
           <li>Return to LinkedIn, make the LinkedVelocity address <strong>primary</strong>, and check that it is labelled as primary before continuing.</li>
         </ol>
+        <div className={styles.primaryEmailHelp}>
+          <strong>Finish by selecting “Make primary”</strong>
+          <p>After LinkedIn verifies the new email, find it in the Email addresses list and select <b>Make primary</b>. Do not select Remove.</p>
+          <Image src="/images/onboarding/linkedin-make-primary.png" alt="LinkedIn email controls showing Make primary beside Remove" width={696} height={184} sizes="(max-width: 760px) 100vw, 680px" />
+        </div>
+        <div className={styles.videoComingSoon}>
+          <span aria-hidden="true">▶</span>
+          <div><strong>Video walkthrough coming soon</strong><small>A short recording will show every step for adding, verifying and making the LinkedVelocity email primary.</small></div>
+        </div>
         {setup.lastForwardedAt && <p role="status">A LinkedIn verification message has been forwarded. Complete the confirmation in LinkedIn, then make the address primary.</p>}
         <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>The owner verified this address and I can see it marked as primary in LinkedIn. The owner agrees to continue.</span></label>
         <button className={styles.primary} disabled={busy || !primary || !setup.lastForwardedAt} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to GoLogin →</button>

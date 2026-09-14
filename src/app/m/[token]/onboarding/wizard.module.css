@@ -53,6 +53,15 @@
 .emailPlan > strong { color: #1e293b; font-size: 14px; }
 .emailPlan ol { margin: 10px 0 0; padding-left: 20px; }
 .emailPlan li { margin-top: 6px; }
+.primaryEmailHelp { background: #f8fafc; border: 1px solid #dbe3ec; border-radius: 12px; padding: 16px; margin: 18px 0; }
+.primaryEmailHelp > strong { display: block; color: #0f1729; font-size: 14px; margin-bottom: 5px; }
+.primaryEmailHelp p { color: #647189; font-size: 12px; line-height: 1.5; margin: 0 0 12px; }
+.primaryEmailHelp img { display: block; width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 9px; }
+.videoComingSoon { display: flex; align-items: center; gap: 12px; background: #14261d; border-radius: 12px; padding: 14px 16px; color: white; margin: 18px 0; }
+.videoComingSoon > span { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #28a95b; font-size: 12px; padding-left: 2px; }
+.videoComingSoon strong, .videoComingSoon small { display: block; }
+.videoComingSoon strong { font-size: 13px; margin-bottom: 3px; }
+.videoComingSoon small { color: #b9c9c0; font-size: 11px; line-height: 1.45; }
 .error { background: #fff1ef; color: #9a3412; padding: 14px; border-radius: 12px; margin-bottom: 18px; line-height: 1.5; }
 .card .hint { font-size: 12px; margin: 12px 0 18px; }
 .instructions { padding-left: 22px; line-height: 1.6; font-size: 14px; color: #526579; }
