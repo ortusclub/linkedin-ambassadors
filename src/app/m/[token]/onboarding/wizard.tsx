@@ -8,7 +8,7 @@ import { countries, countryCode } from "@/lib/countries";
 import BrowserStep from "./browser-step";
 import PhoneHandoff from "./phone-handoff";
 import EmailStep, { type EmailSetup } from "./email-step";
-import { CopyScript, ScriptsPanel, WaitNotice, scriptByKey, type ScriptContext } from "./onboarding-scripts";
+import { CopyScript, ScriptsPanel, ShareLinks, WaitNotice, scriptByKey, type ScriptContext } from "./onboarding-scripts";
 
 type Session = {
   emailSetup: EmailSetup | null;
@@ -166,6 +166,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     name: session?.name || form.fullName,
     address: session?.emailSetup?.address || null,
     termsUrl: `${typeof window !== "undefined" ? window.location.origin : "https://linkedvelocity.com"}/ambassador-terms`,
+    guideUrl: `${typeof window !== "undefined" ? window.location.origin : "https://linkedvelocity.com"}/ambassador-guide`,
     setupDays: form.accountFreshness === "established" ? 3 : 7,
   };
   const selectedCountry = countryCode(form.country);
@@ -236,6 +237,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <div className={styles.ownerRequired}><strong>The account owner must stay with you from start to finish.</strong><span>You cannot complete this onboarding without them. LinkedIn may send codes or ask them to confirm their identity during setup.</span></div>
           <p>You&apos;ll work through the steps together on the same computer. We prepare the account email and protected browser; the owner personally approves changes and completes their private LinkedIn sign-in.</p>
           <div className={styles.note}>They earn US{CURRENCY_CONFIG.USD.offer.setup} ({CURRENCY_CONFIG.PHP.offer.setup}) for setup and US{CURRENCY_CONFIG.USD.offer.monthly} ({CURRENCY_CONFIG.PHP.offer.monthly}) per active month. You earn double the standard referral fee — US${CURRENCY_CONFIG.USD.rate * 2} (₱{(CURRENCY_CONFIG.PHP.rate * 2).toLocaleString("en-US")}) — when you successfully complete this guided onboarding, subject to verification. Your referral stays attached automatically.</div>
+          <ShareLinks ctx={scriptCtx} />
           <label className={styles.check}><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             <span>The account owner meets <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age: 16, or older where local law requires</a>, is present for the full setup, can access their verification methods, and agrees to add a LinkedVelocity-managed email and share account access under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">ambassador terms</a>.</span></label>
           {!bootstrap.configured && <p className={styles.note}>You can enter the details now. The team will need to configure browser access before you can save and continue to sign-in.</p>}
