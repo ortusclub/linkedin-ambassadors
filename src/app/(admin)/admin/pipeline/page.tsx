@@ -53,6 +53,7 @@ interface Row {
   onboardedAt: string | null;
   accountIssue: string | null;
   reason: string;
+  phoneHandoffPending?: boolean;
   hasGologin: boolean;
   hasLogin: boolean;
   accountId: string | null;
@@ -295,6 +296,7 @@ export default function AdminPipelinePage() {
   const [pocFilter, setPocFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [flagged, setFlagged] = useState(false);
+  const [signInOnly, setSignInOnly] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [dueInfo, setDueInfo] = useState<{ emails: Set<string>; items: { email: string; amount: number; currency: "PHP" | "USD"; kind: string; blocked: boolean }[] } | null>(null);
@@ -425,17 +427,19 @@ export default function AdminPipelinePage() {
   // (approved) person shows in BOTH: still "Accepted" in the pipeline, and "Payment
   // due" for their setup fee.
   const scoped = useMemo(() => (rows || []).filter((r) => (mode === "live" ? isLive(r) : r.status !== "onboarded")), [rows, mode]);
+  const signInCount = useMemo(() => scoped.filter((r) => r.phoneHandoffPending).length, [scoped]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return scoped.filter((r) => {
       if (flagged && !isBlocked(r)) return false;
+      if (signInOnly && !r.phoneHandoffPending) return false;
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (pocFilter !== "all") { const p = (r.poc || "").trim(); if (pocFilter === "__unassigned" ? p !== "" : p !== pocFilter) return false; }
       if (!q) return true;
       return [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc,
         ...(r.outreachLog || []).map((t) => t.text)].some((v) => (v || "").toLowerCase().includes(q));
     });
-  }, [scoped, query, flagged, statusFilter, pocFilter]);
+  }, [scoped, query, flagged, signInOnly, statusFilter, pocFilter]);
 
   const pocChips = useMemo(() => {
     const counts = new Map<string, number>();
@@ -608,6 +612,7 @@ export default function AdminPipelinePage() {
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 22, flexWrap: "wrap" }}>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact, account, referrer or POC…" style={{ ...inputCss, flex: "1 1 280px", padding: "11px 14px", font: `500 13.5px ${F_SANS}` }} />
         <button onClick={() => setFlagged((f) => !f)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(flagged ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>⚠ Problems only</button>
+        {signInCount > 0 && <button onClick={() => setSignInOnly((v) => !v)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(signInOnly ? { background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)", borderColor: "var(--purple-chip-text,#6b3fd4)" } : {}) }}>📱 Needs sign-in ({signInCount})</button>}
         <button onClick={() => setOpen(anyOpen ? new Set() : new Set(filtered.map((r) => r.id)))} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px" }}>{anyOpen ? "Collapse all" : "Expand all"}</button>
       </div>
 
@@ -738,6 +743,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               {r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={`Restricted ${fmtDate(r.accountRestrictedAt)} — flagged by LinkedIn, may recover`} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ Restricted</span>}
               {missingGologin(r) && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No GoLogin — account can't be run until one is added" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin</span>}
               {r.accountIssue && !r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={r.accountIssue} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ {r.accountIssue.length > 22 ? "login issue" : r.accountIssue}</span>}
+              {r.phoneHandoffPending && <span title="DIY phone hand-off — the owner is on a phone, so the team must do the GoLogin sign-in" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)" }}>📱 Needs sign-in</span>}
               {isLikelyTestEmail(r.email) && <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
             </div>
             <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

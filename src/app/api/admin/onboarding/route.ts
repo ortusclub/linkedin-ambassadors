@@ -43,6 +43,13 @@ export async function GET() {
       },
     });
 
+    // DIY phone hand-offs waiting for us to do the GoLogin sign-in. state "handed_off"
+    // is set only by the phone hand-off, so it cleanly marks "the team needs to sign in".
+    const handoffAppIds = new Set(
+      (await prisma.selfServiceOnboarding.findMany({ where: { state: "handed_off" }, select: { applicationId: true } }))
+        .map((s) => s.applicationId)
+    );
+
     // Match an application to its account the same way the rest of the admin does:
     // Match an application to its account by the UNIQUE LinkedIn URL first, then fall
     // back to the "Owner: <email>" line in the account notes — but ONLY when that email
@@ -154,6 +161,8 @@ export async function GET() {
         accountNotes: acct?.notes || null,
         linkedinVerified: !!acct?.linkedinVerified,
         connectionCount: acct?.connectionCount ?? app.connectionCount ?? null,
+        // DIY phone hand-off: owner is on a phone, so LinkedVelocity must do the sign-in.
+        phoneHandoffPending: handoffAppIds.has(app.id),
       };
     });
 

@@ -118,7 +118,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     } catch (e) { setError(e instanceof Error ? e.message : "Photo upload failed."); }
     finally { setPhotoBusy(false); }
   }
-  function showSession(s: Session) { setSession(s); setStep(s.state === "confirmed" ? 5 : s.emailSetup && !s.emailSetup.primaryConfirmed ? 3 : 4); }
+  function showSession(s: Session) { setSession(s); if (s.state === "handed_off") setHandedOff(true); setStep(s.state === "confirmed" ? 5 : s.emailSetup && !s.emailSetup.primaryConfirmed ? 3 : 4); }
   async function emailAction(body: unknown) {
     if (!session) return;
     await run(async () => {
