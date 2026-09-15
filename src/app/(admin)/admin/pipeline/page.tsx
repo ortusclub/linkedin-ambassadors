@@ -403,7 +403,20 @@ export default function AdminPipelinePage() {
   const deleteApp = async (r: Row) => {
     if (!confirm(`Delete ${formatName(r.fullName) || r.email}'s application permanently? This cannot be undone.`)) return;
     setBusy(r.id);
-    try { await fetch(`/api/admin/ambassadors/${r.id}`, { method: "DELETE" }); await load(); } finally { setBusy(null); }
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${r.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(`Couldn't delete: ${data.error || res.statusText}`);
+        return;
+      }
+      // DIY signups also create a LinkedIn account. We only remove it when it's
+      // throwaway test data; if it's a real (listed/rented) account we keep it.
+      if (data.accountKept) {
+        alert("Application deleted. The linked LinkedIn account was kept because it's listed or has been rented — remove it from Inventory if you also want it gone.");
+      }
+      await load();
+    } finally { setBusy(null); }
   };
 
   // ---- filtering / grouping ----
