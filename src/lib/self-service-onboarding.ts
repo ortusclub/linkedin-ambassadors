@@ -274,8 +274,12 @@ export async function prepareOnboarding(id: string, referrerId: string) {
   }
 }
 
-export async function confirmOnboarding(id: string, referrerId: string) {
+export async function confirmOnboarding(id: string, referrerId: string, creds?: { password?: string; twoFactorKey?: string }) {
   await requireEmailSetup(id, referrerId);
+  // The PC flow also captures the login here so LinkedVelocity always holds the
+  // credentials (same as the phone hand-off) instead of only a signed-in session.
+  const hasPassword = !!creds?.password;
+  const has2fa = !!creds?.twoFactorKey;
   await prisma.$transaction(async (tx) => {
     const claim = await tx.selfServiceOnboarding.updateMany({ where: { id, referrerId, state: "ready", openedAt: { not: null } }, data: { state: "confirmed", confirmedAt: new Date() } });
     const s = await tx.selfServiceOnboarding.findFirst({ where: { id, referrerId } });
@@ -292,11 +296,13 @@ export async function confirmOnboarding(id: string, referrerId: string) {
       status: "onboarded", onboardedAt: s.confirmedAt, ownerStatus: "active",
       // Keep payment blocked until an admin checks the self-reported login.
       accountIssue: "Self-service login reported; awaiting team verification before payout.",
-      adminNotes: `Self-service login confirmed by referrer at ${s.confirmedAt!.toISOString()}. Verify login, clear account issue, and confirm ok to pay after review.`,
+      adminNotes: `Self-service login confirmed by referrer at ${s.confirmedAt!.toISOString()}. Verify login, clear account issue, and confirm ok to pay after review.${hasPassword ? " Password saved." : " Password NOT captured."}${has2fa ? " 2FA key saved." : ""}`,
     } });
     // Keep inventory unlisted and in construction until the usual admin review.
     await tx.linkedInAccount.update({ where: { id: s.accountId }, data: {
-      notes: `${acc.notes || ""}\nLogin reported successful ${s.confirmedAt!.toISOString()}; awaiting team verification.`,
+      ...(hasPassword ? { accountPassword: encryptSecret(creds!.password!) } : {}),
+      ...(has2fa ? { twoFactor: encryptSecret(creds!.twoFactorKey!) } : {}),
+      notes: `${acc.notes || ""}\nLogin reported successful ${s.confirmedAt!.toISOString()}; awaiting team verification.${hasPassword ? " Password saved." : ""}${has2fa ? " 2FA key saved." : ""}`,
     } });
   });
 }
