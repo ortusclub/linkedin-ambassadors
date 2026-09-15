@@ -54,6 +54,9 @@ export async function listReferrerInvites(referrerId: string): Promise<InviteRow
   const byId = new Map(sessions.map((s) => [s.id, s]));
   return invites.map((i) => {
     const s = i.sessionId ? byId.get(i.sessionId) : null;
+    // If the linked session was deleted (e.g. cleared test data), treat the invite as
+    // not-yet-filled so it's re-sendable rather than showing a dead "Open" link.
+    const sessionMissing = !!i.sessionId && !s;
     let statusKey = "waiting", statusLabel = "Waiting for the owner to fill in their details";
     if (s) {
       const app = s.application;
@@ -64,7 +67,7 @@ export async function listReferrerInvites(referrerId: string): Promise<InviteRow
       else if (s.emailSetup?.primaryConfirmedAt) { statusKey = "ready"; statusLabel = "Ready · time to sign in"; }
       else { statusKey = "details_in"; statusLabel = "Details in · add the secure email"; }
     }
-    return { token: i.token, ownerName: s?.application.fullName || i.ownerName, filled: !!i.filledAt, sessionId: i.sessionId, statusKey, statusLabel };
+    return { token: i.token, ownerName: s?.application.fullName || i.ownerName, filled: !!i.filledAt && !sessionMissing, sessionId: sessionMissing ? null : i.sessionId, statusKey, statusLabel };
   });
 }
 
