@@ -112,12 +112,23 @@ export default function OwnerIntake({ bootstrapUrl, submitUrl }: { bootstrapUrl:
   if (loadError) return <div className={styles.page}><div className={styles.shell}><div className={styles.card}><h2>Link unavailable</h2><p>{loadError}</p></div></div></div>;
   if (!boot) return <div className={styles.page}><div className={styles.shell}><div className={styles.card}><p>Loading…</p></div></div></div>;
 
-  if (done) return <div className={styles.page}><div className={styles.shell}><div className={styles.card}><div className={styles.done}>
-    <div className={styles.success}>✓</div>
-    <h2>Thank you, {form.fullName.split(" ")[0]}!</h2>
-    <p>We&apos;ve received your details. {boot.referrerName} and the LinkedVelocity team will take it from here and complete your onboarding. We may reach out if we need anything else.</p>
-    <p className={styles.hint}>You can close this page now.</p>
-  </div></div></div></div>;
+  if (done) return <div className={styles.page}><div className={styles.shell}><div className={styles.card}>
+    <div className={styles.done}>
+      <div className={styles.success}>✓</div>
+      <h2>Thank you, {form.fullName.split(" ")[0]}!</h2>
+      <p>We&apos;ve received your details. {boot.referrerName} and the LinkedVelocity team will now sign in and set up your account.</p>
+    </div>
+    <div className={styles.paymentTimeline}>
+      <strong>What happens next</strong>
+      <span><b>Please stay on standby over the next few days.</b> While we complete the sign-in, LinkedIn may ask you to confirm your identity, approve a login, or enter a code — we&apos;ll message you and will need your quick help when it does.</span>
+      <span><b>Restrictions can happen</b>, especially on newer or unverified accounts. If it happens, please be ready to help us verify and recover it (often just scanning a QR code or confirming an ID). We can&apos;t release your setup fee while an account is restricted, so a fast response helps.</span>
+      <span>To keep the account safe, please <b>don&apos;t use it much during this time</b> — you keep full access and can reset your password whenever you like.</span>
+    </div>
+    <div className={styles.note}>
+      <strong>Timeline:</strong> if your account is at least a month old, expect your setup fee in about 3 business days; if it&apos;s newer, we use a 7-day checking period. We&apos;ll keep you posted.
+    </div>
+    <p className={styles.hint}>You can close this page now. Thanks for being reachable while we get you set up.</p>
+  </div></div></div>;
 
   const field = (key: keyof typeof form, label: string, type = "text", placeholder = "") => (
     <label className={styles.field}>{label}<input type={type} value={form[key]} placeholder={placeholder} onChange={(e) => set(key, e.target.value)} /></label>
