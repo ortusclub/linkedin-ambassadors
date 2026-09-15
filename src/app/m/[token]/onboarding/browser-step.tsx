@@ -37,8 +37,8 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
   }
 
   return <>
-    <h2>Prepare and sign in to their browser</h2>
-    <p>We&apos;ll prepare the protected browser, then guide the owner through signing in and saving the session.</p>
+    <h2>Prepare the browser and sign in</h2>
+    <p>We&apos;ll prepare the protected browser, then you sign in with the login the owner gave you and save the session. Coordinate with the owner for any codes.</p>
     {error && <div className={styles.error} role="alert">{error}</div>}
 
     <ol className={styles.miniSteps} aria-label="Browser setup progress">
@@ -76,11 +76,12 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
 
     {miniStep === 3 && session.state === "ready" && <section className={styles.miniPanel}>
       <div className={styles.stepLabel}>BROWSER STEP 3 OF 4</div>
-      <h3>Ask the owner to sign in to LinkedIn</h3>
+      <h3>Sign in to LinkedIn</h3>
       <ol className={styles.instructions}>
         <li>Inside the prepared browser, open <strong>linkedin.com</strong>.</li>
-        <li>The owner enters their password and completes any code, identity or security check LinkedIn requests.</li>
-        <li>Check that both their LinkedIn feed and profile open successfully.</li>
+        <li>Sign in with the login the owner provided (shown above).</li>
+        <li>If LinkedIn asks for a code or an identity/security check, <strong>coordinate with the owner to get it</strong> — codes and prompts go to them — and complete it together.</li>
+        <li>Check that both the LinkedIn feed and profile open successfully.</li>
       </ol>
       <div className={styles.videoComingSoon}>
         <span aria-hidden="true">▶</span>
