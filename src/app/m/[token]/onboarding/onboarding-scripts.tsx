@@ -98,7 +98,7 @@ We already have your payout details and password from your form, so that's every
   {
     key: "restriction",
     title: "5. Restriction reminder (before login)",
-    text: () => `Quick reminder before we log in: since your account is unverified, it can be prone to restrictions. If that happens, we'll need to verify it with an ID to regain access, and we can't send payment while it's restricted. We'll do our best to keep it safe.`,
+    text: () => `Quick reminder before we log in: newer or not-yet-verified accounts can sometimes be restricted by LinkedIn. If that happens, we'll need your help to verify it (usually with an ID) to regain access, and we can't send payment while it's restricted. We'll do our best to keep it safe.`,
   },
   {
     key: "wait",
