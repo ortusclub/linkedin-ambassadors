@@ -321,7 +321,9 @@ export async function handoffOnboarding(id: string, referrerId: string, input: {
       ...(has2fa ? { twoFactor: encryptSecret(input.twoFactorKey) } : {}),
       notes: `${s.account.notes || ""}\nPHONE HAND-OFF ${now.toISOString()}: referrer has no PC. LV to create the proxy + GoLogin profile and sign in. Password saved.${has2fa ? " 2FA key saved." : " 2FA still needs to be set up by the team."}`,
     } });
-    await tx.selfServiceOnboarding.update({ where: { id }, data: { state: "needs_help" } });
+    // Distinct from "needs_help" (a failed browser prep) so the admin can tell a
+    // phone hand-off awaiting our sign-in apart from a prep that needs a retry.
+    await tx.selfServiceOnboarding.update({ where: { id }, data: { state: "handed_off" } });
     await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: {
       adminNotes: `${s.application.adminNotes || ""}\nPHONE HAND-OFF ${now.toISOString()}: owner on a phone. LV to complete the GoLogin sign-in; login saved on the account.${has2fa ? " 2FA key provided." : " 2FA NOT provided — team to set it up."}`,
     } });
