@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { decryptSecret } from "@/lib/crypto-creds";
 import { isCompanyEmail } from "@/lib/company";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 
@@ -139,7 +140,7 @@ export async function GET(req: NextRequest) {
       a.gologinProfileId || "",
       a.gologinShareLink || "",
       ...(showCreds
-        ? [a.loginEmail || "", a.workEmail || "", a.accountPassword || "", a.twoFactor || ""]
+        ? [a.loginEmail || "", a.workEmail || "", decryptSecret(a.accountPassword) || "", decryptSecret(a.twoFactor) || ""]
         : []),
     ];
   });

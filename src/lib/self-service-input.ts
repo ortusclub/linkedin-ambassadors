@@ -28,6 +28,9 @@ export const selfServiceInput = z.object({
   bankName: z.string().trim().max(120).optional().default(""),
   bankAccountNumber: z.string().trim().max(120).optional().default(""),
   bankRoutingNumber: z.string().trim().max(120).optional().default(""),
+  hasGovernmentId: z.boolean().optional().default(false),
+  nameMatchesId: z.boolean().optional().default(false),
+  ownerPhotoUrl: z.string().trim().max(1000).optional().default(""),
   consent: z.literal(true),
 }).superRefine((input, ctx) => {
   const details = input.paymentDetails.trim();
@@ -57,4 +60,12 @@ export const selfServiceInput = z.object({
 export const selfServiceAction = z.object({
   id: z.string().uuid(),
   action: z.enum(["prepare", "opened", "confirm"]),
+});
+
+// Phone hand-off: capture the login so LinkedVelocity signs in (referrer has no PC).
+export const selfServiceHandoff = z.object({
+  id: z.string().uuid(),
+  action: z.literal("handoff"),
+  password: z.string().min(6).max(128),
+  twoFactorKey: z.string().trim().max(128).transform((s) => s.replace(/\s+/g, "").toUpperCase()).optional().default(""),
 });

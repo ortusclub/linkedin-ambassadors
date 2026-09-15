@@ -6,6 +6,7 @@ import { CURRENCY_CONFIG, type CurrencyConfig } from "@/lib/referral-currency";
 import styles from "./wizard.module.css";
 import { countries, countryCode } from "@/lib/countries";
 import BrowserStep from "./browser-step";
+import PhoneHandoff from "./phone-handoff";
 import EmailStep, { type EmailSetup } from "./email-step";
 
 type Session = {
@@ -42,6 +43,10 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
+  const [handedOff, setHandedOff] = useState(false);
+  const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false, ownerPhotoUrl: "" });
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" });
 
   async function request(method: string, body?: unknown, id?: string) {
@@ -101,6 +106,17 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     } catch (e) { setPhoneError(e instanceof Error ? e.message : "Mobile verification failed."); }
     finally { setPhoneBusy(false); }
   }
+  async function uploadPhoto(file: File) {
+    setPhotoBusy(true); setError("");
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch(`${endpoint}/photo`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Photo upload failed.");
+      setIdCheck((c) => ({ ...c, ownerPhotoUrl: data.url }));
+    } catch (e) { setError(e instanceof Error ? e.message : "Photo upload failed."); }
+    finally { setPhotoBusy(false); }
+  }
   function showSession(s: Session) { setSession(s); setStep(s.state === "confirmed" ? 5 : s.emailSetup && !s.emailSetup.primaryConfirmed ? 3 : 4); }
   async function emailAction(body: unknown) {
     if (!session) return;
@@ -110,6 +126,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       if (!res.ok) throw new Error(data.error || "Email setup failed.");
       showSession(data.session);
       if ((body as { action?: string }).action !== "primary") setStep(3);
+    });
+  }
+  async function handoff(body: { password: string; twoFactorKey: string }) {
+    if (!session) return;
+    await run(async () => {
+      await request("PATCH", { id: session.id, action: "handoff", ...body });
+      setHandedOff(true);
     });
   }
   async function action(action: "prepare" | "opened" | "confirm") {
@@ -226,9 +249,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           </select></label><p className={styles.hint}>Choose where the account is normally used. We&apos;ll match the dedicated connection to that country.</p>
           <label className={styles.field}>How old is the LinkedIn account?<select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">More than one year old</option><option value="fresh">Less than one year old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
           {form.accountFreshness === "unknown" && <p className={styles.hint}>We&apos;ll treat this as less than one year old and use the 7-day verification period.</p>}
-          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken}>Continue →</button></div>
+          <label className={styles.check}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} /><span>The owner has a <strong>physical government ID</strong> (passport, national ID or driver&apos;s license). We don&apos;t collect it, but they must have one in case LinkedIn asks them to verify later.</span></label>
+          <label className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} /><span>The owner&apos;s full name above <strong>matches the name on that ID</strong>.</span></label>
+          <label className={styles.field}>Owner&apos;s profile photo (optional)<input type="file" accept="image/*" disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); }} /></label>
+          <p className={styles.hint}>{photoBusy ? "Uploading photo…" : idCheck.ownerPhotoUrl ? "Photo uploaded ✓" : "A clear headshot (1x1 or 2x2). Optional, but it saves us asking later."}</p>
+          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId || photoBusy}>Continue →</button></div>
         </form>}
-        {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent })).session)); }}>
+        {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck })).session)); }}>
           <h2>Where should they get paid?</h2><p>These are the account owner&apos;s payout details. Your referral commission uses your own dashboard details.</p>
           <label className={styles.field}>Payout method<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value, paymentDetails: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
           {field("payoutName", "Name registered on the payout account", "text", "Must match the payment account")}
@@ -246,14 +273,40 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
         </form>}
         {step === 3 && session?.emailSetup && <EmailStep key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />}
-        {step === 4 && session && <>
+        {step === 4 && session && (handedOff ? <>
+          <div className={styles.success}>✓</div>
+          <h2>Handed off to the team</h2>
+          <p>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser, sign in, run the checks and release payment within about a day. Nothing more to do here.</p>
+          <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another person</a>
+        </> : browserMode === "" ? <>
+          <h2>Are you setting up on a computer or a phone?</h2>
+          <p>This decides who does the final LinkedIn sign-in, and what you earn.</p>
+          <div className={styles.handoffChoice}>
+            <button type="button" className={styles.choiceCard} onClick={() => setBrowserMode("pc")}>
+              <span className={styles.choiceIcon}>💻</span>
+              <span className={styles.choiceTitle}>On a computer</span>
+              <span className={styles.choiceDesc}>You do the sign-in in the prepared browser.</span>
+              <span className={styles.choiceFee}>Earn ₱700 unverified · ₱1,000 verified</span>
+            </button>
+            <button type="button" className={styles.choiceCard} onClick={() => setBrowserMode("phone")}>
+              <span className={styles.choiceIcon}>📱</span>
+              <span className={styles.choiceTitle}>On a phone</span>
+              <span className={styles.choiceDesc}>We do the sign-in for you. You hand over the login.</span>
+              <span className={styles.choiceFee}>Earn ₱600 unverified · ₱800 verified</span>
+            </button>
+          </div>
+        </> : browserMode === "phone" ? <>
+          <button className={styles.secondary} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
+          <PhoneHandoff busy={busy} error={error} submit={handoff} />
+        </> : <>
+          <button className={styles.secondary} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
           <div className={styles.browserTip}>
             <strong>Optional tip: wait 24 hours before signing in</strong>
             <span>Leaving 24 hours between making the new email primary and signing in through the prepared browser can reduce the chance of LinkedIn requesting ID verification. You can continue now if needed.</span>
           </div>
           {session.emailSetup && <><div className={styles.note}>LinkedIn login email: <strong>{session.emailSetup.address}</strong>. {session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to your verified inbox." : "Onboarding forwarding has expired. Re-verify your inbox if you need more login codes."}</div><button className={styles.secondary} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
-          <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} action={(nextAction) => run(() => action(nextAction))} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
-        </>}
+          <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} action={(nextAction) => run(() => action(nextAction))} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+        </>)}
         {step === 5 && session && <>
           <div className={styles.success}>✓</div><h2>Login confirmation saved</h2><p>{session.name}&apos;s account is in the system and linked to your referral.</p>
           <dl className={styles.summary}><dt>Owner setup payment</dt><dd>{session.setupAmount}</dd><dt>Setup due date</dt><dd>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "Awaiting login"}</dd><dt>Owner monthly payment</dt><dd>{session.monthlyAmount}</dd><dt>Your referral commission</dt><dd>{session.commission} · {session.verified ? "Verified" : "Pending verification"}</dd></dl>

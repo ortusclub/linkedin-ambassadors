@@ -51,7 +51,7 @@ const cardMarkup = (origin: string, r: { slug: string; name: string }) => {
     <div class="sect">How it works</div>
     <div class="steps">
       <div class="step"><span class="num">1</span><span class="st">Scan the code and sign up &mdash; takes 2 minutes.</span></div>
-      <div class="step"><span class="num">2</span><span class="st">We set it up and rent it to a vetted business. Your <b>name, photo &amp; password stay yours</b>.</span></div>
+      <div class="step"><span class="num">2</span><span class="st">We set it up and rent it to a vetted business. Your <b>name &amp; password stay yours</b>, and we polish your photo to look professional.</span></div>
       <div class="step"><span class="num">3</span><span class="st">Get <b>&#8369;500 every month</b> &mdash; take it back anytime, no penalties.</span></div>
     </div>
     <div class="sect sm">Why people say yes</div>

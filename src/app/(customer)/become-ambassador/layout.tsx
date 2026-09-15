@@ -48,7 +48,7 @@ export default function AmbassadorLayout({
         </ul>
         <h3>Your Account Stays Safe</h3>
         <p>
-          Your personal information, profile content, and photos remain unchanged. Renters access
+          Your name and personal information stay yours, and renters never edit your profile. As part of setup we may update your profile photo to a professional version and tweak a few details like your headline. Renters access
           the account through GoLogin anti-detect browser technology, which creates isolated sessions.
           You can continue using your account simultaneously without any conflicts.
         </p>

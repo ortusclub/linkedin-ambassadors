@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { currencyConfig } from "@/lib/referral-currency";
-import { selfServiceInput, selfServiceAction } from "@/lib/self-service-input";
+import { selfServiceInput, selfServiceAction, selfServiceHandoff } from "@/lib/self-service-input";
 import { proxyPurchaseLimits } from "@/services/proxy-cheap";
 import { emailSetupConfig, EmailSetupError } from "@/lib/onboarding-email-policy";
 import { requireEmailSetup } from "@/lib/onboarding-email";
-import { OnboardingError, onboardingCountries, onboardingSummary, reserveOnboarding, prepareOnboarding, confirmOnboarding } from "@/lib/self-service-onboarding";
+import { OnboardingError, onboardingCountries, onboardingSummary, reserveOnboarding, prepareOnboarding, confirmOnboarding, handoffOnboarding } from "@/lib/self-service-onboarding";
 import { phoneVerificationConfigured } from "@/lib/phone-verification";
 
 export const dynamic = "force-dynamic";
@@ -74,7 +74,15 @@ export async function POST(req: Request, context: Context) {
 export async function PATCH(req: Request, context: Context) {
   try {
     const me = await authenticate(context, req);
-    const parsed = selfServiceAction.safeParse(await req.json());
+    const body = await req.json();
+    if (body && typeof body === "object" && (body as { action?: string }).action === "handoff") {
+      const handoff = selfServiceHandoff.safeParse(body);
+      if (!handoff.success) return json({ error: "Invalid hand-off details." }, 400);
+      await requireEmailSetup(handoff.data.id, me.id);
+      await handoffOnboarding(handoff.data.id, me.id, { password: handoff.data.password, twoFactorKey: handoff.data.twoFactorKey });
+      return json({ session: await onboardingSummary(handoff.data.id, me.id) });
+    }
+    const parsed = selfServiceAction.safeParse(body);
     if (!parsed.success) return json({ error: "Invalid onboarding action." }, 400);
     const { id, action } = parsed.data;
     await requireEmailSetup(id, me.id);

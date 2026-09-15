@@ -15,11 +15,12 @@ type BrowserSession = {
 
 const MINI_STEPS = ["Prepare browser", "Open GoLogin", "Sign in", "Save session"];
 
-export default function BrowserStep({ session, busy, action, refresh }: {
+export default function BrowserStep({ session, busy, action, refresh, error }: {
   session: BrowserSession;
   busy: boolean;
   action: (action: "prepare" | "opened" | "confirm") => Promise<void>;
   refresh: () => Promise<void>;
+  error?: string;
 }) {
   const initialStep = session.state !== "ready" ? 1 : session.opened ? 3 : 2;
   const [miniStep, setMiniStep] = useState(initialStep);
@@ -37,6 +38,7 @@ export default function BrowserStep({ session, busy, action, refresh }: {
   return <>
     <h2>Prepare and sign in to their browser</h2>
     <p>We&apos;ll prepare the protected browser, then guide the owner through signing in and saving the session.</p>
+    {error && <div className={styles.error} role="alert">{error}</div>}
 
     <ol className={styles.miniSteps} aria-label="Browser setup progress">
       {MINI_STEPS.map((label, index) => {

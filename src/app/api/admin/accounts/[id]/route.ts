@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
 import { persistImageUrl } from "@/lib/persist-image";
 import { markOwnerOnboardedIfReady } from "@/lib/onboarding";
+import { encryptSecret, decryptSecret } from "@/lib/crypto-creds";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -66,6 +67,9 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    // Decrypt stored secrets for the admin (legacy plaintext passes through).
+    account.accountPassword = decryptSecret(account.accountPassword);
+    account.twoFactor = decryptSecret(account.twoFactor);
     return NextResponse.json({ account });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
@@ -126,6 +130,10 @@ export async function PATCH(
       data.profilePhotoUrl = await persistImageUrl(data.profilePhotoUrl);
     }
 
+    // Encrypt account secrets at rest before saving (null/empty pass through).
+    if (data.accountPassword !== undefined) data.accountPassword = encryptSecret(data.accountPassword);
+    if (data.twoFactor !== undefined) data.twoFactor = encryptSecret(data.twoFactor);
+
     const account = await prisma.linkedInAccount.update({
       where: { id },
       data,
@@ -181,6 +189,9 @@ export async function PATCH(
       }
     }
 
+    // Return decrypted secrets so the admin UI shows the real values, not ciphertext.
+    account.accountPassword = decryptSecret(account.accountPassword);
+    account.twoFactor = decryptSecret(account.twoFactor);
     return NextResponse.json({ account });
   } catch (error) {
     if (error instanceof z.ZodError) {
