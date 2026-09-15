@@ -40,6 +40,7 @@ export type ScriptContext = {
   name: string;
   address: string | null;
   termsUrl: string;
+  guideUrl: string;
   setupDays: number;
 };
 
@@ -54,7 +55,9 @@ export const ONBOARDING_SCRIPTS: OnboardingScript[] = [
     title: "1. Intro, terms & name check",
     text: (c) => `Hi ${firstName(c.name)}! This is LinkedVelocity. You signed up for the LinkedIn Rental Program. Are you free now to start the onboarding process?
 
-Before we start, please have a quick read of the terms so you're happy with them: ${c.termsUrl}
+Before we start, please have a quick read of these so you're happy with everything:
+- What to expect with your account: ${c.guideUrl}
+- Full terms: ${c.termsUrl}
 
 Can you also confirm that your name on LinkedIn matches the name on your government ID?
 
@@ -109,6 +112,31 @@ For now, I'd suggest not using your account. You still have full access, but it'
 
 export function scriptByKey(key: string) {
   return ONBOARDING_SCRIPTS.find((s) => s.key === key);
+}
+
+function CopyLink({ label, url }: { label: string; url: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ }
+  }
+  return <div className={styles.shareRow}>
+    <div className={styles.shareInfo}><strong>{label}</strong><a href={url} target="_blank" rel="noreferrer">{url}</a></div>
+    <div className={styles.shareButtons}>
+      <button type="button" className={styles.copyButton} onClick={() => void copy()}>{copied ? "Copied ✓" : "Copy link"}</button>
+      <a className={styles.openLink} href={url} target="_blank" rel="noreferrer">Open ↗</a>
+    </div>
+  </div>;
+}
+
+// Prominent share block so the referrer can send the owner the two things they must
+// read before onboarding: the plain-language guide and the full terms.
+export function ShareLinks({ ctx }: { ctx: ScriptContext }) {
+  return <div className={styles.shareBlock}>
+    <div className={styles.stepLabel}>SEND THE OWNER THESE FIRST</div>
+    <p className={styles.hint}>Share both before you start so they know what to expect and agree to the terms.</p>
+    <CopyLink label="What to expect with your account" url={ctx.guideUrl} />
+    <CopyLink label="Ambassador terms" url={ctx.termsUrl} />
+  </div>;
 }
 
 export function CopyScript({ script, ctx }: { script: OnboardingScript; ctx: ScriptContext }) {

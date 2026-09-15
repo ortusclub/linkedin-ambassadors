@@ -143,3 +143,13 @@
 .scriptsPanel { border-top: 1px solid #e5e9ee; margin-top: 26px; padding-top: 18px; }
 .scriptsToggle { display: flex; align-items: center; justify-content: space-between; width: 100%; background: #f7f8fa; border: 1px solid #dce2e8; border-radius: 12px; padding: 13px 16px; font: inherit; font-size: 14px; font-weight: 700; color: #0f1729; cursor: pointer; }
 .scriptsList { margin-top: 12px; }
+
+/* Share the guide + terms with the owner */
+.shareBlock { background: #f0f7f2; border: 1px solid #c3ebd2; border-radius: 14px; padding: 16px; margin: 20px 0; }
+.shareBlock .stepLabel { margin-bottom: 8px; color: #15803d; }
+.shareRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 11px 0; border-top: 1px solid #cfe8d8; }
+.shareInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.shareInfo strong { font-size: 13px; color: #0f1729; }
+.shareInfo a { font-size: 12px; color: #647189; text-decoration: none; overflow-wrap: anywhere; }
+.shareButtons { display: flex; gap: 8px; flex-shrink: 0; }
+.openLink { border: 1px solid #dce2e8; border-radius: 8px; padding: 6px 12px; background: white; color: #526579; font-size: 12px; font-weight: 700; text-decoration: none; }
