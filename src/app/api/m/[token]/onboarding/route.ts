@@ -6,7 +6,7 @@ import { selfServiceInput, selfServiceAction, selfServiceHandoff, selfServiceCon
 import { proxyPurchaseLimits } from "@/services/proxy-cheap";
 import { emailSetupConfig, EmailSetupError } from "@/lib/onboarding-email-policy";
 import { requireEmailSetup } from "@/lib/onboarding-email";
-import { OnboardingError, onboardingCountries, onboardingSummary, reserveOnboarding, prepareOnboarding, confirmOnboarding, handoffOnboarding } from "@/lib/self-service-onboarding";
+import { OnboardingError, onboardingCountries, onboardingSummary, reserveOnboarding, prepareOnboarding, confirmOnboarding, handoffOnboarding, createInvite, listReferrerInvites } from "@/lib/self-service-onboarding";
 import { phoneVerificationConfigured } from "@/lib/phone-verification";
 
 export const dynamic = "force-dynamic";
@@ -51,11 +51,12 @@ export async function GET(req: Request, context: Context) {
     const id = new URL(req.url).searchParams.get("id");
     if (id && !selfServiceAction.shape.id.safeParse(id).success) return json({ error: "Invalid onboarding reference." }, 400);
     if (id) return json({ session: await onboardingSummary(id, me.id, { includeCredentials: true }) });
-    const [countries, sessions] = await Promise.all([
+    const [countries, sessions, invites] = await Promise.all([
       onboardingCountries(),
       prisma.selfServiceOnboarding.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, state: true, application: { select: { fullName: true } } } }),
+      listReferrerInvites(me.id),
     ]);
-    return json({ emailEnabled: emailSetupConfig().enabled, phoneVerificationEnabled: phoneVerificationConfigured(), countries, autoPurchase: proxyPurchaseLimits().enabled, config: currencyConfig(me.slug), configured: !!process.env.GOLOGIN_API_TOKEN_KLABBER, slug: me.slug,
+    return json({ emailEnabled: emailSetupConfig().enabled, phoneVerificationEnabled: phoneVerificationConfigured(), countries, autoPurchase: proxyPurchaseLimits().enabled, config: currencyConfig(me.slug), configured: !!process.env.GOLOGIN_API_TOKEN_KLABBER, slug: me.slug, invites,
       sessions: sessions.map((s) => ({ id: s.id, state: s.state, name: s.application.fullName })) });
   } catch (error) { return failure(error, "load"); }
 }
@@ -75,6 +76,12 @@ export async function PATCH(req: Request, context: Context) {
   try {
     const me = await authenticate(context, req);
     const body = await req.json();
+    // Create a per-owner invite link the referrer can send and then watch.
+    if (body && typeof body === "object" && (body as { action?: string }).action === "create_invite") {
+      const name = typeof (body as { ownerName?: unknown }).ownerName === "string" ? (body as { ownerName: string }).ownerName : "";
+      const token = await createInvite(me.id, name);
+      return json({ token, invites: await listReferrerInvites(me.id) });
+    }
     if (body && typeof body === "object" && (body as { action?: string }).action === "handoff") {
       const handoff = selfServiceHandoff.safeParse(body);
       if (!handoff.success) return json({ error: "Invalid hand-off details." }, 400);

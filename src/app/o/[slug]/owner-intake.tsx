@@ -6,6 +6,9 @@ import { countries } from "@/lib/countries";
 
 type Bootstrap = {
   referrerName: string;
+  slug: string;
+  ownerName?: string;
+  alreadyFilled?: boolean;
   countries: string[];
   payoutMethods: string[];
   emailEnabled: boolean;
@@ -24,7 +27,7 @@ const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder:
   "Bank transfer": { label: "Bank transfer details", placeholder: "Bank name, account number and routing / SWIFT", help: "Bank name, account number and the routing, sort, IFSC or SWIFT code." },
 };
 
-export default function OwnerIntake({ slug }: { slug: string }) {
+export default function OwnerIntake({ bootstrapUrl, submitUrl }: { bootstrapUrl: string; submitUrl: string }) {
   const [boot, setBoot] = useState<Bootstrap | null>(null);
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,11 +51,11 @@ export default function OwnerIntake({ slug }: { slug: string }) {
   const [phoneError, setPhoneError] = useState("");
 
   useEffect(() => {
-    fetch(`/api/onboard/${encodeURIComponent(slug)}`, { cache: "no-store" })
+    fetch(bootstrapUrl, { cache: "no-store" })
       .then(async (r) => { if (!r.ok) throw new Error((await r.json()).error || "This link is not available."); return r.json(); })
-      .then(setBoot)
+      .then((b: Bootstrap) => { setBoot(b); if (b.ownerName) setForm((f) => ({ ...f, fullName: f.fullName || b.ownerName! })); })
       .catch((e) => setLoadError(e.message));
-  }, [slug]);
+  }, [bootstrapUrl]);
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const payoutField = PAYOUT_FIELDS[form.paymentMethod] || { label: "Payout details", placeholder: "Account number or payment address", help: "Everything needed to send your payment." };
@@ -60,7 +63,7 @@ export default function OwnerIntake({ slug }: { slug: string }) {
   async function verifyPhone(action: "send" | "check") {
     setPhoneBusy(true); setPhoneError("");
     try {
-      const res = await fetch(`/api/onboard/${encodeURIComponent(slug)}/phone`, {
+      const res = await fetch(`/api/onboard/${encodeURIComponent(boot!.slug)}/phone`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(action === "send" ? { action, phone: form.contactNumber } : { action, phone: form.contactNumber, code: phoneCode }),
       });
@@ -76,7 +79,7 @@ export default function OwnerIntake({ slug }: { slug: string }) {
     setPhotoBusy(true);
     try {
       const fd = new FormData(); fd.append("file", file);
-      const res = await fetch(`/api/onboard/${encodeURIComponent(slug)}/photo`, { method: "POST", body: fd });
+      const res = await fetch(`/api/onboard/${encodeURIComponent(boot!.slug)}/photo`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed.");
       setIdCheck((c) => ({ ...c, ownerPhotoUrl: data.url }));
@@ -95,7 +98,7 @@ export default function OwnerIntake({ slug }: { slug: string }) {
     if (!canSubmit) return;
     setBusy(true); setError("");
     try {
-      const res = await fetch(`/api/onboard/${encodeURIComponent(slug)}`, {
+      const res = await fetch(submitUrl, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, twoFactorKey: noKey ? "" : form.twoFactorKey, consent, ...idCheck }),
       });

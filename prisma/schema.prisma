@@ -594,3 +594,21 @@ model OnboardingEmailDelivery {
   @@index([sessionId])
   @@map("onboarding_email_deliveries")
 }
+
+// A per-owner onboarding invite: the referrer creates one (with the owner's name),
+// gets a unique link to send, and can see whether it's been filled in yet. When the
+// owner submits, the created SelfServiceOnboarding is linked back here (sessionId) so
+// the referrer's status tracks the same stages the admin sees. referrerId/sessionId
+// are plain columns (referrer has a FK for integrity) so no existing model changes.
+model OnboardingInvite {
+  id         String    @id @default(uuid()) @db.Uuid
+  referrerId String    @map("referrer_id") @db.Uuid
+  ownerName  String    @map("owner_name")
+  token      String    @unique
+  sessionId  String?   @unique @map("session_id") @db.Uuid
+  filledAt   DateTime? @map("filled_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([referrerId])
+  @@map("onboarding_invites")
+}

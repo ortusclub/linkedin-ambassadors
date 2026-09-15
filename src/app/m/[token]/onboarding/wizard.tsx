@@ -17,7 +17,8 @@ type Session = {
   monthlyAmount: string; commission: string; verified: boolean;
   credentials?: Credentials;
 };
-type Bootstrap = { emailEnabled: boolean; slug: string; autoPurchase: boolean; configured: boolean; sessions: { id: string; state: string; name: string }[] };
+type Invite = { token: string; ownerName: string; filled: boolean; sessionId: string | null; statusKey: string; statusLabel: string };
+type Bootstrap = { emailEnabled: boolean; slug: string; autoPurchase: boolean; configured: boolean; invites: Invite[]; sessions: { id: string; state: string; name: string }[] };
 
 export default function SelfServiceWizard({ token }: { token: string }) {
   const endpoint = `/api/m/${encodeURIComponent(token)}/onboarding`;
@@ -27,9 +28,10 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [linkCopied, setLinkCopied] = useState(false);
   const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
   const [handedOff, setHandedOff] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [copiedKey, setCopiedKey] = useState("");
 
   async function request(method: string, body?: unknown, id?: string) {
     const response = await fetch(endpoint + (id ? `?id=${encodeURIComponent(id)}` : ""), {
@@ -102,22 +104,31 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     });
   }
 
-  const ownerLink = bootstrap ? `${typeof window !== "undefined" ? window.location.origin : "https://linkedvelocity.com"}/o/${bootstrap.slug}` : "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://linkedvelocity.com";
+  const inviteLink = (t: string) => `${origin}/o/i/${t}`;
   const scriptCtx: ScriptContext = {
     name: session?.name || "there",
     address: session?.emailSetup?.address || null,
-    termsUrl: `${typeof window !== "undefined" ? window.location.origin : "https://linkedvelocity.com"}/ambassador-terms`,
-    guideUrl: `${typeof window !== "undefined" ? window.location.origin : "https://linkedvelocity.com"}/ambassador-guide`,
-    ownerUrl: ownerLink,
+    termsUrl: `${origin}/ambassador-terms`,
+    guideUrl: `${origin}/ambassador-guide`,
+    ownerUrl: `${origin}/o/${bootstrap?.slug || ""}`,
     setupDays: 3,
   };
-  async function shareOwnerLink() {
-    if (navigator.share) {
-      try { await navigator.share({ title: "LinkedVelocity onboarding", url: ownerLink }); return; }
-      catch (err) { if (err instanceof DOMException && err.name === "AbortError") return; }
-    }
-    try { await navigator.clipboard.writeText(ownerLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); } catch { /* clipboard blocked */ }
+  async function copyText(key: string, text: string) {
+    try { await navigator.clipboard.writeText(text); setCopiedKey(key); setTimeout(() => setCopiedKey((k) => (k === key ? "" : k)), 2000); } catch { /* clipboard blocked */ }
   }
+  async function createInvite() {
+    if (newName.trim().length < 2) return;
+    await run(async () => {
+      const data = await request("PATCH", { action: "create_invite", ownerName: newName.trim() });
+      setBootstrap((b) => (b ? { ...b, invites: data.invites } : b));
+      setNewName("");
+      const created = (data.invites as Invite[]).find((i) => i.token === data.token);
+      if (created) await copyText(`link-${created.token}`, inviteLink(created.token));
+    });
+  }
+  const introFor = (name: string, url: string) => scriptByKey("intro")!.text({ ...scriptCtx, name, ownerUrl: url });
+  const statusColor = (k: string) => k === "done" ? "#15803d" : k === "waiting" ? "#647189" : k === "ready" ? "#b7791f" : "#1a56db";
 
   const wizardSteps = [
     { index: 0, label: "Send the owner their link", detail: "They fill in their own details and payout." },
@@ -163,27 +174,38 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         </aside>
         <section className={styles.card} aria-busy={busy}>
         {step === 0 && <>
-          <div className={styles.stepLabel}>STEP 1 · SEND THE OWNER THEIR LINK</div>
-          <h2>Send the owner their onboarding link</h2>
-          <p>Send this link to the person you&apos;re onboarding. They fill in their own details, payout and login, and agree to the terms. Then their onboarding appears below for you to complete the sign-in.</p>
+          <div className={styles.stepLabel}>STEP 1 · MAKE A LINK FOR EACH PERSON</div>
+          <h2>Create an onboarding link</h2>
+          <p>Make a link for each person you&apos;re onboarding, then send it to them. They fill in their own details, payout and login. You&apos;ll see below when they&apos;ve filled it in and it&apos;s your turn to sign in.</p>
           <div className={styles.note}>
-            <strong>You earn ₱600–₱1,000</strong> for a completed onboarding — the exact amount depends on whether it&apos;s done on a phone or computer and whether the account is verified (you&apos;ll see it at the sign-in step). The owner earns ₱1,000 for setup and ₱500 per active month. Your referral stays attached automatically.
+            <strong>You earn ₱600–₱1,000</strong> for a completed onboarding — the exact amount depends on phone vs computer and whether the account is verified (shown at the sign-in step). The owner earns ₱1,000 for setup and ₱500 per active month. Your referral stays attached automatically.
           </div>
-          <div className={styles.emailAddressCard}>
-            <span>The owner&apos;s onboarding link</span>
-            <strong>{ownerLink}</strong>
-            <button type="button" onClick={() => void shareOwnerLink()}>{linkCopied ? "Copied ✓" : "Copy / share"}</button>
+          <div className={styles.createInvite}>
+            <input value={newName} placeholder="The person's name" maxLength={120} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void createInvite(); }} />
+            <button type="button" className={styles.primary} disabled={busy || newName.trim().length < 2} onClick={() => void createInvite()}>Create link</button>
           </div>
-          <div className={styles.inlineScripts}>
-            <div className={styles.stepLabel}>MESSAGE TO SEND WITH IT</div>
-            {scriptByKey("intro") && <CopyScript script={scriptByKey("intro")!} ctx={scriptCtx} />}
-          </div>
-          {!bootstrap.configured && <p className={styles.note}>Note: browser access isn&apos;t fully configured yet. The owner can still submit their details; the team will finish setup.</p>}
+          {!bootstrap.configured && <p className={styles.note}>Note: browser access isn&apos;t fully configured yet. Owners can still submit their details; the team will finish setup.</p>}
+
           <div className={styles.resume}><h3>Your onboardings</h3>
-            {bootstrap.sessions.length === 0 ? <p className={styles.hint}>None yet. Once an owner submits their link, they&apos;ll show up here.</p>
-              : bootstrap.sessions.map((s) => <button key={s.id} disabled={busy} onClick={() => run(async () => showSession((await request("GET", undefined, s.id)).session))}>
-                <span>{s.name}</span><span>{s.state === "confirmed" ? "View summary" : s.state === "handed_off" ? "Handed off" : "Continue"} →</span></button>)}
+            {bootstrap.invites.length === 0 ? <p className={styles.hint}>None yet. Create a link above and send it to the person you&apos;re onboarding.</p>
+              : bootstrap.invites.map((inv) => {
+                const url = inviteLink(inv.token);
+                return <div key={inv.token} className={styles.inviteRow}>
+                  <div className={styles.inviteHead}>
+                    <strong>{inv.ownerName}</strong>
+                    <span className={styles.inviteStatus} style={{ color: statusColor(inv.statusKey) }}>● {inv.statusLabel}</span>
+                  </div>
+                  {!inv.filled && <div className={styles.inviteActions}>
+                    <button type="button" className={styles.miniBtn} onClick={() => void copyText(`link-${inv.token}`, url)}>{copiedKey === `link-${inv.token}` ? "Link copied ✓" : "Copy link"}</button>
+                    <button type="button" className={styles.miniBtn} onClick={() => void copyText(`msg-${inv.token}`, introFor(inv.ownerName, url))}>{copiedKey === `msg-${inv.token}` ? "Message copied ✓" : "Copy message"}</button>
+                  </div>}
+                  {inv.filled && inv.sessionId && <div className={styles.inviteActions}>
+                    <button type="button" className={styles.miniBtnPrimary} disabled={busy} onClick={() => run(async () => showSession((await request("GET", undefined, inv.sessionId!)).session))}>{inv.statusKey === "done" ? "View summary →" : inv.statusKey === "ready" ? "Sign in now →" : "Open →"}</button>
+                  </div>}
+                </div>;
+              })}
           </div>
+          <div className={styles.note}><strong>What happens next:</strong> once they fill in their link, it turns to <b>Ready</b> here — that&apos;s when you add the secure email and do the sign-in (on a computer), or hand it to us for the phone option. You&apos;ll never see their payout; only they enter that.</div>
         </>}
         {step === 3 && session?.emailSetup && <>
           <button className={styles.secondary} disabled={busy} onClick={() => { setSession(null); setStep(0); }}>← Back to your onboardings</button>
