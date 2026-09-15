@@ -91,7 +91,7 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       referredBy: referrer.slug, referralSource: "self-service", poc: referrer.name,
       status: "onboarding", ownerStatus: "onboarding", onboardingStartedAt: now,
       payoutCurrency: cfg.currency, offeredAmount: cfg.monthlyAmount,
-      adminNotes: `Self-service onboarding; owner consent and LinkedIn minimum-age confirmation (16, or older where local law requires) recorded ${now.toISOString()}. Login not yet confirmed.`,
+      adminNotes: `Self-service onboarding; owner consent and LinkedIn minimum-age confirmation (16, or older where local law requires) recorded ${now.toISOString()}. Login not yet confirmed.${input.hasGovernmentId ? " Owner confirmed they have a physical government ID." : " Owner did NOT confirm a physical government ID."}${input.nameMatchesId ? " Name confirmed to match their ID." : ""}${input.ownerPhotoUrl ? ` Owner photo: ${input.ownerPhotoUrl}` : ""}`,
     } });
     const acc = await tx.linkedInAccount.create({ data: {
       linkedinName: input.fullName, linkedinUrl: input.linkedinUrl, personalEmail: input.email,
