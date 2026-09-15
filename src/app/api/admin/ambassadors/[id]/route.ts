@@ -291,6 +291,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
       // Onboarding email records (session_id -> SelfServiceOnboarding.id).
       await tx.onboardingEmailDelivery.deleteMany({ where: { sessionId: onboarding.id } });
       await tx.onboardingEmailSetup.deleteMany({ where: { sessionId: onboarding.id } });
+      // Any per-owner invite that pointed at this session (avoid orphaned invites).
+      await tx.onboardingInvite.deleteMany({ where: { sessionId: onboarding.id } });
       // The onboarding row itself (FKs the application + the account).
       await tx.selfServiceOnboarding.delete({ where: { id: onboarding.id } });
       // Now the application FK is free.
