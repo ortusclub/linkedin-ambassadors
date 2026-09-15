@@ -269,7 +269,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <span>Leaving 24 hours between making the new email primary and signing in through the prepared browser can reduce the chance of LinkedIn requesting ID verification. You can continue now if needed.</span>
           </div>
           {session.emailSetup && <><div className={styles.note}>LinkedIn login email: <strong>{session.emailSetup.address}</strong>. {session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to your verified inbox." : "Onboarding forwarding has expired. Re-verify your inbox if you need more login codes."}</div><button className={styles.secondary} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
-          <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} action={(nextAction) => run(() => action(nextAction))} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+          <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} action={(nextAction) => run(() => action(nextAction))} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
         </>}
         {step === 5 && session && <>
           <div className={styles.success}>✓</div><h2>Login confirmation saved</h2><p>{session.name}&apos;s account is in the system and linked to your referral.</p>
