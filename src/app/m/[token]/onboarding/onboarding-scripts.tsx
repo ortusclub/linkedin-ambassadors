@@ -61,10 +61,12 @@ Before we start, please have a quick read of these so you're happy with everythi
 
 Can you also confirm that your name on LinkedIn matches the name on your government ID?
 
-Since your account is established, it only takes about ${c.setupDays} business days before we send your set-up fee:
+If your account is at least a month old, it only takes about 3 business days before we send your set-up fee:
 - Day 1 (today): send your photo + add our work email
 - Day 2 (tomorrow): we log in to your account
-- Day 3: we check your account is okay, then send your set-up fee`,
+- Day 3: we check your account is okay, then send your set-up fee
+
+If your account is newer than a month or brand new, we use a 7-day checking period before the set-up fee.`,
   },
   {
     key: "photo",

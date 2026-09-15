@@ -136,7 +136,9 @@ export default function OwnerIntake({ slug }: { slug: string }) {
       </div>
       <div className={styles.paymentTimeline}>
         <strong>How it works</strong>
-        <span>Day 1: you send your photo and add our work email. Day 2: we sign in to your account. Day 3: we check everything is okay and send your setup fee. You keep full access the whole time.</span>
+        <span>If your account is at least a month old, it takes about 3 days: Day 1 you send your photo and add our work email, Day 2 we sign in, Day 3 we check everything is okay and send your setup fee.</span>
+        <span>If your account is newer than a month or brand new, we use a 7-day checking period before sending your setup fee.</span>
+        <span>Either way, you keep full access the whole time.</span>
       </div>
     </div>
 
@@ -158,7 +160,7 @@ export default function OwnerIntake({ slug }: { slug: string }) {
       <label className={styles.field}>Which country is the account normally used in?<select value={form.country} onChange={(e) => set("country", e.target.value)}>
         <option value="">Choose a country</option>{countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
       </select></label>
-      <label className={styles.field}>How old is your LinkedIn account?<select value={form.accountFreshness} onChange={(e) => set("accountFreshness", e.target.value)}><option value="established">More than one year old</option><option value="fresh">Less than one year old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
+      <label className={styles.field}>How old is your LinkedIn account?<select value={form.accountFreshness} onChange={(e) => set("accountFreshness", e.target.value)}><option value="established">At least a month old</option><option value="fresh">Less than a month old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
       <label className={styles.check}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} /><span>I have a <strong>physical government ID</strong> (passport, national ID or driver&apos;s license) in case LinkedIn asks me to verify later. We never collect it.</span></label>
       <label className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} /><span>My full name above <strong>matches the name on that ID</strong>.</span></label>
       <label className={styles.field}>Your profile photo (optional)<input type="file" accept="image/*" disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); }} /></label>
