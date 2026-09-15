@@ -466,7 +466,7 @@ export default function BecomeAmbassadorPage() {
 
       {/* EARN — flat payout, real public figures with PHP/USD toggle */}
       {(() => {
-        const M = currency === "PHP" ? { setup: "₱1,000", monthly: "₱500", year: "₱7,000" } : { setup: "$18", monthly: "$9", year: "$126" };
+        const M = currency === "PHP" ? { setup: "₱1,000", monthly: "₱500", year: "₱7,000" } : { setup: "$16", monthly: "$8", year: "$112" };
         const pill = (on: boolean) => ({ cursor: "pointer", border: "none", borderRadius: 999, padding: "7px 18px", fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: on ? "#0B1220" : "#7B8A81", background: on ? "#fff" : "transparent", boxShadow: on ? "0 1px 2px rgba(16,24,40,0.12)" : "none" } as const);
         return (
       <section id="earn" style={{ background: "#FBFCFB", padding: "64px 24px 8px", borderBottom: "1px solid #E8E6E1" }}>
