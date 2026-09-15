@@ -8,5 +8,6 @@ export const metadata = {
 
 export default async function OwnerOnboardingPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  return <OwnerIntake slug={slug} />;
+  const base = `/api/onboard/${encodeURIComponent(slug)}`;
+  return <OwnerIntake bootstrapUrl={base} submitUrl={base} />;
 }

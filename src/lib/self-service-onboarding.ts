@@ -6,14 +6,66 @@ import { selfServiceInput } from "@/lib/self-service-input";
 import { z } from "zod";
 import { countryCode } from "@/lib/countries";
 import { proxyPurchaseLimits, quoteCheapestStaticProxy, quoteStaticProxy, purchaseStaticProxy, readPurchasedProxy, ProxyPurchaseNotSubmitted, PURCHASE_PROXY_COUNTRIES } from "@/services/proxy-cheap";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { availableProxySlots } from "@/lib/onboarding-proxy-pool";
 import { emailSetupSummary, requireEmailSetup } from "@/lib/onboarding-email";
 import { assertPhoneVerificationToken, phoneVerificationConfigured } from "@/lib/phone-verification";
 import { encryptSecret, decryptSecret } from "@/lib/crypto-creds";
+import { randomBytes } from "crypto";
 
 export class OnboardingError extends Error {
   constructor(message: string, public status = 400) { super(message); }
+}
+
+// ---- Per-owner invites (unique link + status the referrer can watch) ----------------
+
+// The referrer creates one link per person they onboard, so they can see who has filled
+// theirs in. The owner submits through it; the created session is linked back for status.
+export async function createInvite(referrerId: string, ownerName: string) {
+  const name = ownerName.trim().slice(0, 120);
+  if (name.length < 2) throw new OnboardingError("Enter the person's name.");
+  const token = "inv_" + randomBytes(18).toString("base64url");
+  await prisma.onboardingInvite.create({ data: { referrerId, ownerName: name, token } });
+  return token;
+}
+
+export async function inviteForOwner(token: string) {
+  return prisma.onboardingInvite.findUnique({ where: { token } });
+}
+
+export async function markInviteFilled(token: string, sessionId: string) {
+  await prisma.onboardingInvite.updateMany({ where: { token, filledAt: null }, data: { filledAt: new Date(), sessionId } });
+}
+
+// A referrer-facing status that mirrors the stages the admin sees on the pipeline, so
+// both stay in sync: waiting → details in → ready to sign in → handed off → checking → done.
+type InviteRow = { token: string; ownerName: string; filled: boolean; sessionId: string | null; statusKey: string; statusLabel: string };
+export async function listReferrerInvites(referrerId: string): Promise<InviteRow[]> {
+  // Tolerate the table not existing yet (migration applied separately) so the referrer
+  // console still loads instead of hard-failing on the bootstrap fetch.
+  const invites = await prisma.onboardingInvite.findMany({ where: { referrerId }, orderBy: { createdAt: "desc" }, take: 60 }).catch((e) => {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2021") return [];
+    throw e;
+  });
+  const sessionIds = invites.map((i) => i.sessionId).filter((v): v is string => !!v);
+  const sessions = sessionIds.length
+    ? await prisma.selfServiceOnboarding.findMany({ where: { id: { in: sessionIds } }, include: { application: { select: { fullName: true, status: true, verifiedAt: true, paidAt: true } }, emailSetup: { select: { primaryConfirmedAt: true } } } })
+    : [];
+  const byId = new Map(sessions.map((s) => [s.id, s]));
+  return invites.map((i) => {
+    const s = i.sessionId ? byId.get(i.sessionId) : null;
+    let statusKey = "waiting", statusLabel = "Waiting for the owner to fill in their details";
+    if (s) {
+      const app = s.application;
+      if (app.paidAt) { statusKey = "done"; statusLabel = "Setup fee sent · done"; }
+      else if (app.verifiedAt) { statusKey = "checking"; statusLabel = "Account verified · payout due"; }
+      else if (s.state === "confirmed" || app.status === "onboarded") { statusKey = "checking"; statusLabel = "Signed in · we're checking the account"; }
+      else if (s.state === "handed_off") { statusKey = "handed_off"; statusLabel = "Handed off to us · we'll sign in"; }
+      else if (s.emailSetup?.primaryConfirmedAt) { statusKey = "ready"; statusLabel = "Ready · time to sign in"; }
+      else { statusKey = "details_in"; statusLabel = "Details in · add the secure email"; }
+    }
+    return { token: i.token, ownerName: s?.application.fullName || i.ownerName, filled: !!i.filledAt, sessionId: i.sessionId, statusKey, statusLabel };
+  });
 }
 
 async function availableProxies(db: Prisma.TransactionClient = prisma) {
