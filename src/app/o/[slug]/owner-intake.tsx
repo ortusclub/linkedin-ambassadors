@@ -115,13 +115,14 @@ export default function OwnerIntake({ bootstrapUrl, submitUrl }: { bootstrapUrl:
   if (done) return <div className={styles.page}><div className={styles.shell}><div className={styles.card}>
     <div className={styles.done}>
       <div className={styles.success}>✓</div>
-      <h2>Thank you, {form.fullName.split(" ")[0]}!</h2>
-      <p>We&apos;ve received your details. {boot.referrerName} and the LinkedVelocity team will now sign in and set up your account.</p>
+      <h2>Step 1 done, {form.fullName.split(" ")[0]}!</h2>
+      <p>Your details are in. {boot.referrerName} and the LinkedVelocity team will now get you set up.</p>
     </div>
     <div className={styles.paymentTimeline}>
       <strong>What happens next</strong>
-      <span><b>Please stay on standby over the next few days.</b> While we complete the sign-in, LinkedIn may ask you to confirm your identity, approve a login, or enter a code — we&apos;ll message you and will need your quick help when it does.</span>
-      <span><b>Restrictions can happen</b>, especially on newer or unverified accounts. If it happens, please be ready to help us verify and recover it (often just scanning a QR code or confirming an ID). We can&apos;t release your setup fee while an account is restricted, so a fast response helps.</span>
+      <span><b>Next: we add our work email to your LinkedIn.</b> You&apos;ll get a verification message from LinkedIn about a new email being added — that&apos;s us, it&apos;s expected. Please approve it (or share the code with your referrer) so we can confirm it, then set it as your primary email.</span>
+      <span><b>Then please stay on standby for a few days.</b> As we sign in, LinkedIn may ask you to confirm your identity, approve a login, or enter a code — we&apos;ll message you and will need your quick help when it does.</span>
+      <span><b>Restrictions can happen</b>, especially on newer or unverified accounts. If it does, please be ready to help us verify and recover it (often just scanning a QR code or confirming an ID). We can&apos;t release your setup fee while an account is restricted, so a fast response helps.</span>
       <span>To keep the account safe, please <b>don&apos;t use it much during this time</b> — you keep full access and can reset your password whenever you like.</span>
     </div>
     <div className={styles.note}>
