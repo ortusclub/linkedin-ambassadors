@@ -10,7 +10,7 @@ export type EmailSetup = {
   forwardingUntil: string | null; lastForwardedAt: string | null;
 };
 
-const MINI_STEPS = ["Receiving inbox", "Add email", "Verify email", "Make primary"];
+const MINI_STEPS = ["Owner's inbox", "Add email", "Verify email", "Make primary"];
 
 export default function EmailStep({ setup, busy, submit, refresh }: {
   setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>; refresh: () => Promise<void>;
@@ -44,15 +44,15 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
     {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before this step can continue.</div> : <>
       {miniStep === 1 && <section className={styles.miniPanel}>
         <div className={styles.stepLabel}>EMAIL STEP 1 OF 4</div>
-        <h3>Choose where to receive verification messages</h3>
-        <p>Enter an inbox you can open now. We&apos;ll send a six-digit code there first, then temporarily forward LinkedIn&apos;s verification email to the same inbox.</p>
+        <h3>The account owner&apos;s inbox</h3>
+        <p>Enter an inbox <strong>the account owner</strong> can open right now (their own email, not yours). We&apos;ll send a six-digit code there first, then temporarily forward LinkedIn&apos;s verification email to the same inbox so the owner can read it.</p>
 
         {setup.destinationVerified && !setup.forwardingActive ? <>
           <div className={styles.note}>The previous forwarding window expired. Start again to choose the receiving inbox and get a different LinkedVelocity email.</div>
           <button className={styles.primary} disabled={busy} onClick={() => void restart()}>Start this email step again →</button>
         </> : <>
           <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
-            <label className={styles.field}>Inbox for verification messages<input type="email" required maxLength={254} value={destination} onChange={e => setDestination(e.target.value)} placeholder="owner@example.com" /></label>
+            <label className={styles.field}>The account owner&apos;s email<input type="email" required maxLength={254} value={destination} onChange={e => setDestination(e.target.value)} placeholder="owner@example.com" /></label>
             <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>The owner agrees to use a LinkedVelocity-managed primary email and authorizes onboarding messages to be forwarded to this inbox for up to one hour.</span></label>
             <button className={styles.primary} disabled={busy || !consent}>{setup.verificationCodePending ? "Send another six-digit code" : "Send six-digit code →"}</button>
           </form>
