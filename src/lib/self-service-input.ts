@@ -28,6 +28,9 @@ export const selfServiceInput = z.object({
   bankName: z.string().trim().max(120).optional().default(""),
   bankAccountNumber: z.string().trim().max(120).optional().default(""),
   bankRoutingNumber: z.string().trim().max(120).optional().default(""),
+  hasGovernmentId: z.boolean().optional().default(false),
+  nameMatchesId: z.boolean().optional().default(false),
+  ownerPhotoUrl: z.string().trim().max(1000).optional().default(""),
   consent: z.literal(true),
 }).superRefine((input, ctx) => {
   const details = input.paymentDetails.trim();

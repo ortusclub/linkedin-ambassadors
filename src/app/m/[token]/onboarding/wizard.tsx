@@ -42,6 +42,8 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false, ownerPhotoUrl: "" });
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" });
 
   async function request(method: string, body?: unknown, id?: string) {
@@ -100,6 +102,17 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       else setForm((current) => ({ ...current, phoneVerificationToken: data.verificationToken }));
     } catch (e) { setPhoneError(e instanceof Error ? e.message : "Mobile verification failed."); }
     finally { setPhoneBusy(false); }
+  }
+  async function uploadPhoto(file: File) {
+    setPhotoBusy(true); setError("");
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch(`${endpoint}/photo`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Photo upload failed.");
+      setIdCheck((c) => ({ ...c, ownerPhotoUrl: data.url }));
+    } catch (e) { setError(e instanceof Error ? e.message : "Photo upload failed."); }
+    finally { setPhotoBusy(false); }
   }
   function showSession(s: Session) { setSession(s); setStep(s.state === "confirmed" ? 5 : s.emailSetup && !s.emailSetup.primaryConfirmed ? 3 : 4); }
   async function emailAction(body: unknown) {
@@ -226,9 +239,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           </select></label><p className={styles.hint}>Choose where the account is normally used. We&apos;ll match the dedicated connection to that country.</p>
           <label className={styles.field}>How old is the LinkedIn account?<select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">More than one year old</option><option value="fresh">Less than one year old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
           {form.accountFreshness === "unknown" && <p className={styles.hint}>We&apos;ll treat this as less than one year old and use the 7-day verification period.</p>}
-          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken}>Continue →</button></div>
+          <label className={styles.check}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} /><span>The owner has a <strong>physical government ID</strong> (passport, national ID or driver&apos;s license). We don&apos;t collect it, but they must have one in case LinkedIn asks them to verify later.</span></label>
+          <label className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} /><span>The owner&apos;s full name above <strong>matches the name on that ID</strong>.</span></label>
+          <label className={styles.field}>Owner&apos;s profile photo (optional)<input type="file" accept="image/*" disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); }} /></label>
+          <p className={styles.hint}>{photoBusy ? "Uploading photo…" : idCheck.ownerPhotoUrl ? "Photo uploaded ✓" : "A clear headshot (1x1 or 2x2). Optional, but it saves us asking later."}</p>
+          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId || photoBusy}>Continue →</button></div>
         </form>}
-        {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent })).session)); }}>
+        {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck })).session)); }}>
           <h2>Where should they get paid?</h2><p>These are the account owner&apos;s payout details. Your referral commission uses your own dashboard details.</p>
           <label className={styles.field}>Payout method<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value, paymentDetails: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
           {field("payoutName", "Name registered on the payout account", "text", "Must match the payment account")}
