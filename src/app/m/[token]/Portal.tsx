@@ -59,8 +59,8 @@ const WARMUP: { t: string; items: string[] }[] = [
 ];
 
 const MARKETER_FAQ = [
-  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 for every sign-up we onboard. When you do the guided onboarding yourself, you earn ₱700 for an unverified account or ₱1,000 for a verified one. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday." },
-  { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your fee is triggered: ₱500 when we onboard, or ₱700 (unverified) to ₱1,000 (verified) when you do the guided onboarding yourself." },
+  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 to ₱1,000 for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday." },
+  { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your fee (₱500 to ₱1,000, depending on how it's onboarded) is triggered." },
   { q: "What if someone doesn't qualify?", a: "Thank them and move on. LinkedIn's minimum age is 16, or older where local law requires." },
   { q: "How do I update my payout details?", a: "Right here — scroll down to \"Your payout details\" and save your GCash / bank info so we can pay you." },
   { q: "How do I get invited back?", a: "We track sign-ups per person — strong performers get first pick for the next field days." },
@@ -174,12 +174,11 @@ export default function Portal({ token }: { token: string }) {
   // field-day rate (online only), USD amounts, and the referrer's own payout method.
   // DIY (guided) onboarding payout tiers: base = referral we onboard, low = DIY unverified, high = DIY verified.
   const base = money(stats.rate);
-  const diyLow = money(Math.round(stats.rate * 1.4));
   const diyHigh = money(stats.rate * 2);
   // PH referrers keep the original copy verbatim.
   const faqOverrides: Record<string, string> = isUSD ? {
-    "When do I get paid?": `You get ${base} for every sign-up we onboard. When you do the guided onboarding yourself, you earn ${diyLow} for an unverified account or ${diyHigh} for a verified one. Commissions release about 3 days after onboarding (about a week for a brand-new account) and are paid the following Monday.`,
-    "What counts as a successful sign-up?": `The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your fee is triggered: ${base} when we onboard, or ${diyLow} (unverified) to ${diyHigh} (verified) when you do the guided onboarding yourself.`,
+    "When do I get paid?": `You get ${base} to ${diyHigh} for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about 3 days after onboarding (about a week for a brand-new account) and are paid the following Monday.`,
+    "What counts as a successful sign-up?": `The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your fee (${base} to ${diyHigh}, depending on how it's onboarded) is triggered.`,
     "How do I update my payout details?": `Right here — scroll down to "Your payout details" and save your ${config.defaultPayoutMethod} / bank info so we can pay you.`,
     "How much will I earn?": `${config.offer.setup} to start — paid to your account about 3 days after setup (or a week if it's a brand-new account). Then ${config.offer.monthly} every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ${config.offer.setup} covers your first partial month, so you're never short-changed.`,
   } : {};
@@ -238,7 +237,7 @@ export default function Portal({ token }: { token: string }) {
           <div style={{ backgroundImage: "linear-gradient(160deg,#16a34a,#15803d)", borderRadius: 18, padding: 20, marginBottom: 18, boxShadow: "0 14px 30px -14px rgba(21,128,61,.6)" }}>
             <div style={{ font: `700 11px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.72)", marginBottom: 6 }}>Choose how to onboard</div>
             <div style={{ font: `600 18px/1.3 ${JAK}`, color: "#fff", marginBottom: 5 }}>Earn {base} to {diyHigh} per successful referral.</div>
-            <p style={{ color: "rgba(255,255,255,.78)", font: `500 11.5px/1.5 ${JAK}`, margin: "0 0 16px" }}>Earn {base} when they complete your form and our team onboards them, or {diyLow} to {diyHigh} when you do the guided onboarding with them (more for a verified account).</p>
+            <p style={{ color: "rgba(255,255,255,.78)", font: `500 11.5px/1.5 ${JAK}`, margin: "0 0 16px" }}>Earn {base} when they complete your form and our team onboards them, up to {diyHigh} when you do the guided onboarding with them. You&apos;ll see the exact amount when you choose how.</p>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
               <span style={{ font: `700 12px ${JAK}`, color: "#fff" }}>1 · Send them the signup form</span>
@@ -255,11 +254,11 @@ export default function Portal({ token }: { token: string }) {
             <div style={{ marginTop: 16, padding: 14, borderRadius: 14, background: "rgba(8,70,33,.3)", border: "1px solid rgba(255,255,255,.2)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <span style={{ font: `700 12px ${JAK}`, color: "#fff" }}>2 · Onboard them yourself</span>
-                <span style={{ marginLeft: "auto", padding: "4px 8px", borderRadius: 999, background: "#dcfce7", color: C.greenDk, font: `800 10px ${JAK}`, whiteSpace: "nowrap" }}>Earn {diyLow}–{diyHigh}</span>
+                <span style={{ marginLeft: "auto", padding: "4px 8px", borderRadius: 999, background: "#dcfce7", color: C.greenDk, font: `800 10px ${JAK}`, whiteSpace: "nowrap" }}>Earn up to {diyHigh}</span>
               </div>
               <p style={{ color: "rgba(255,255,255,.84)", font: `500 11.5px/1.55 ${JAK}`, margin: "0 0 11px" }}>Stay with the account owner and follow our guided steps. We&apos;ll help you add their LinkedVelocity email, open their protected browser, and have them sign in so the owner and LinkedVelocity both retain access.</p>
               <a href={`/m/${token}/onboarding`} style={{ display: "block", padding: "13px 16px", borderRadius: 12, background: "#fff", color: C.greenDk, textAlign: "center", textDecoration: "none", font: `700 14px ${JAK}` }}>Start guided onboarding →</a>
-              <p style={{ color: "rgba(255,255,255,.7)", font: `500 10.5px/1.45 ${JAK}`, margin: "8px 0 0", textAlign: "center" }}>A guided onboarding pays {diyLow} for an unverified account, or {diyHigh} for a verified one.</p>
+              <p style={{ color: "rgba(255,255,255,.7)", font: `500 10.5px/1.45 ${JAK}`, margin: "8px 0 0", textAlign: "center" }}>A guided onboarding pays more — you&apos;ll see the exact amount when you start it.</p>
             </div>
           </div>
 
@@ -276,7 +275,7 @@ export default function Portal({ token }: { token: string }) {
           {/* how you get paid */}
           <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 16, padding: "17px 18px", marginBottom: 18 }}>
             <div style={{ font: `700 13.5px ${JAK}`, color: C.greenDk, marginBottom: 8 }}>How &amp; when you get paid</div>
-            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{base}</b> for a standard signup we onboard, or <b>{diyLow}</b> to <b>{diyHigh}</b> when you do the guided onboarding yourself (unverified to verified). It releases <b>~3 days after</b> onboarding (about <b>a week</b> for a brand-new account) and pays out the <b>following Monday</b>.</p>
+            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{base}</b> to <b>{diyHigh}</b> per successful signup, depending on how it&apos;s onboarded (you see the exact amount when you choose). It releases <b>~3 days after</b> onboarding (about <b>a week</b> for a brand-new account) and pays out the <b>following Monday</b>.</p>
             <p style={{ font: `500 11.5px/1.5 ${JAK}`, color: "#6b8a77", margin: 0 }}>The figure above is an estimate — the exact payable amount is confirmed at payout.</p>
           </div>
 
