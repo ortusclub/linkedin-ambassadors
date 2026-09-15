@@ -62,6 +62,16 @@ export const selfServiceAction = z.object({
   action: z.enum(["prepare", "opened", "confirm"]),
 });
 
+// Confirm the PC sign-in and, at the same time, capture the login so LinkedVelocity
+// holds it (mirrors the phone hand-off). Credentials are optional so an older client
+// or a referrer who genuinely can't provide them can still confirm.
+export const selfServiceConfirm = z.object({
+  id: z.string().uuid(),
+  action: z.literal("confirm"),
+  password: z.string().min(6).max(128).optional(),
+  twoFactorKey: z.string().trim().max(128).transform((s) => s.replace(/\s+/g, "").toUpperCase()).optional().default(""),
+});
+
 // Phone hand-off: capture the login so LinkedVelocity signs in (referrer has no PC).
 export const selfServiceHandoff = z.object({
   id: z.string().uuid(),

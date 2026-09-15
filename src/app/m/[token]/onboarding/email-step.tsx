@@ -7,7 +7,7 @@ import styles from "./wizard.module.css";
 export type EmailSetup = {
   configured: boolean; domains: string[]; address: string | null; destination: string | null;
   destinationVerified: boolean; verificationCodePending: boolean; primaryConfirmed: boolean; forwardingActive: boolean;
-  forwardingUntil: string | null; lastForwardedAt: string | null;
+  forwardingUntil: string | null; lastForwardedAt: string | null; primaryConfirmedAt: string | null;
 };
 
 const MINI_STEPS = ["Owner's inbox", "Add email", "Verify email", "Make primary"];

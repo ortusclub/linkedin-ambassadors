@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { currencyConfig } from "@/lib/referral-currency";
-import { selfServiceInput, selfServiceAction, selfServiceHandoff } from "@/lib/self-service-input";
+import { selfServiceInput, selfServiceAction, selfServiceHandoff, selfServiceConfirm } from "@/lib/self-service-input";
 import { proxyPurchaseLimits } from "@/services/proxy-cheap";
 import { emailSetupConfig, EmailSetupError } from "@/lib/onboarding-email-policy";
 import { requireEmailSetup } from "@/lib/onboarding-email";
@@ -81,6 +81,14 @@ export async function PATCH(req: Request, context: Context) {
       await requireEmailSetup(handoff.data.id, me.id);
       await handoffOnboarding(handoff.data.id, me.id, { password: handoff.data.password, twoFactorKey: handoff.data.twoFactorKey });
       return json({ session: await onboardingSummary(handoff.data.id, me.id) });
+    }
+    // Confirm carries the captured login (PC flow), so parse it with its own schema.
+    if (body && typeof body === "object" && (body as { action?: string }).action === "confirm") {
+      const confirm = selfServiceConfirm.safeParse(body);
+      if (!confirm.success) return json({ error: "Invalid confirmation details." }, 400);
+      await requireEmailSetup(confirm.data.id, me.id);
+      await confirmOnboarding(confirm.data.id, me.id, { password: confirm.data.password, twoFactorKey: confirm.data.twoFactorKey });
+      return json({ session: await onboardingSummary(confirm.data.id, me.id) });
     }
     const parsed = selfServiceAction.safeParse(body);
     if (!parsed.success) return json({ error: "Invalid onboarding action." }, 400);

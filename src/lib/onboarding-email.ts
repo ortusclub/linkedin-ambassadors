@@ -40,7 +40,7 @@ export async function emailSetupSummary(id: string, referrerId: string) {
     destinationVerified: !!e?.destinationVerifiedAt, primaryConfirmed: !!e?.primaryConfirmedAt,
     verificationCodePending: !!e?.codeHash && !!e.codeExpiresAt && e.codeExpiresAt > new Date(),
     forwardingActive: !!e && forwardingActive(e, s.state), forwardingUntil: e?.forwardingUntil || null,
-    lastForwardedAt: e?.lastForwardedAt || null };
+    lastForwardedAt: e?.lastForwardedAt || null, primaryConfirmedAt: e?.primaryConfirmedAt || null };
 }
 
 export async function requireEmailSetup(id: string, referrerId: string) {

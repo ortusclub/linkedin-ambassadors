@@ -8,6 +8,7 @@ import { countries, countryCode } from "@/lib/countries";
 import BrowserStep from "./browser-step";
 import PhoneHandoff from "./phone-handoff";
 import EmailStep, { type EmailSetup } from "./email-step";
+import { CopyScript, ScriptsPanel, WaitNotice, scriptByKey, type ScriptContext } from "./onboarding-scripts";
 
 type Session = {
   emailSetup: EmailSetup | null;
@@ -135,10 +136,17 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       setHandedOff(true);
     });
   }
-  async function action(action: "prepare" | "opened" | "confirm") {
+  async function action(action: "prepare" | "opened") {
     if (!session) return;
     const data = await request("PATCH", { id: session.id, action });
     showSession(data.session);
+  }
+  async function confirmLogin(creds: { password: string; twoFactorKey: string }) {
+    if (!session) return;
+    await run(async () => {
+      const data = await request("PATCH", { id: session.id, action: "confirm", ...creds });
+      showSession(data.session);
+    });
   }
   const field = (key: keyof typeof form, label: string, type = "text", placeholder = "") => (
     <label className={styles.field}>{label}<input required type={type} value={form[key]} maxLength={key === "paymentDetails" ? 500 : 254} placeholder={placeholder}
@@ -154,6 +162,12 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     { index: 5, label: "Team verification", detail: "We check the saved session before activation and payment." },
   ];
   const payoutField = PAYOUT_FIELDS[form.paymentMethod] || { label: "Payout details", placeholder: "Account number or payment address", help: "Enter everything needed to send the payment." };
+  const scriptCtx: ScriptContext = {
+    name: session?.name || form.fullName,
+    address: session?.emailSetup?.address || null,
+    termsUrl: `${typeof window !== "undefined" ? window.location.origin : "https://linkedvelocity.com"}/ambassador-terms`,
+    setupDays: form.accountFreshness === "established" ? 3 : 7,
+  };
   const selectedCountry = countryCode(form.country);
   const browserCapacityAvailable = selectedCountry && PROXY_COUNTRIES.includes(selectedCountry)
     ? bootstrap?.countries.some((country) => countryCode(country) === selectedCountry)
@@ -232,6 +246,11 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         </>}
         {step === 1 && <form onSubmit={(e) => { e.preventDefault(); if (bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) { setPhoneError("Verify the mobile number before continuing."); return; } setError(""); setStep(2); }}>
           <h2>Who are we onboarding?</h2><p>A few details connect the account, referral and payouts.</p>
+          <div className={styles.inlineScripts}>
+            <div className={styles.stepLabel}>MESSAGES TO SEND</div>
+            {scriptByKey("intro") && <CopyScript script={scriptByKey("intro")!} ctx={scriptCtx} />}
+            {scriptByKey("photo") && <CopyScript script={scriptByKey("photo")!} ctx={scriptCtx} />}
+          </div>
           {field("fullName", "Account owner's full name")}
           {field("email", "Account owner's email", "email")}
           <label className={styles.field}>Mobile number, including country code<input required type="tel" value={form.contactNumber} placeholder="+63 912 345 6789" onChange={(e) => { setForm({ ...form, contactNumber: e.target.value, phoneVerificationToken: "" }); setPhoneCode(""); setPhoneCodeSent(false); setPhoneError(""); }} /></label>
@@ -272,11 +291,22 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <div className={styles.paymentTimeline}><strong>When the owner gets paid</strong><span>After the shared email and protected browser login are complete, the account is officially onboarded. The setup payment is scheduled after <b>{form.accountFreshness === "established" ? "3 days" : "7 days"}</b>{form.accountFreshness === "established" ? " because the account is more than one year old" : form.accountFreshness === "fresh" ? " because the account is less than one year old" : " because its age has not been confirmed"}, subject to successful verification.</span><span>The owner must stay reachable during this period and complete any extra verification LinkedIn requests. This checking period helps ensure they remain available to resolve those prompts.</span></div>
           <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
         </form>}
-        {step === 3 && session?.emailSetup && <EmailStep key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />}
+        {step === 3 && session?.emailSetup && <>
+          <EmailStep key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+          <div className={styles.inlineScripts}>
+            <div className={styles.stepLabel}>MESSAGES TO SEND</div>
+            {scriptByKey("add-email") && <CopyScript script={scriptByKey("add-email")!} ctx={scriptCtx} />}
+            {scriptByKey("primary-password") && <CopyScript script={scriptByKey("primary-password")!} ctx={scriptCtx} />}
+          </div>
+        </>}
         {step === 4 && session && (handedOff ? <>
           <div className={styles.success}>✓</div>
           <h2>Handed off to the team</h2>
           <p>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser, sign in, run the checks and release payment within about a day. Nothing more to do here.</p>
+          <div className={styles.inlineScripts}>
+            <div className={styles.stepLabel}>MESSAGE TO SEND THE OWNER</div>
+            {scriptByKey("wait") && <CopyScript script={scriptByKey("wait")!} ctx={scriptCtx} />}
+          </div>
           <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another person</a>
         </> : browserMode === "" ? <>
           <h2>Are you setting up on a computer or a phone?</h2>
@@ -300,20 +330,26 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <PhoneHandoff busy={busy} error={error} submit={handoff} />
         </> : <>
           <button className={styles.secondary} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
-          <div className={styles.browserTip}>
-            <strong>Optional tip: wait 24 hours before signing in</strong>
-            <span>Leaving 24 hours between making the new email primary and signing in through the prepared browser can reduce the chance of LinkedIn requesting ID verification. You can continue now if needed.</span>
-          </div>
+          <WaitNotice primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null} />
           {session.emailSetup && <><div className={styles.note}>LinkedIn login email: <strong>{session.emailSetup.address}</strong>. {session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to your verified inbox." : "Onboarding forwarding has expired. Re-verify your inbox if you need more login codes."}</div><button className={styles.secondary} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
-          <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} action={(nextAction) => run(() => action(nextAction))} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+          <div className={styles.inlineScripts}>
+            <div className={styles.stepLabel}>MESSAGE TO SEND BEFORE SIGN-IN</div>
+            {scriptByKey("restriction") && <CopyScript script={scriptByKey("restriction")!} ctx={scriptCtx} />}
+          </div>
+          <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
         </>)}
         {step === 5 && session && <>
           <div className={styles.success}>✓</div><h2>Login confirmation saved</h2><p>{session.name}&apos;s account is in the system and linked to your referral.</p>
           <dl className={styles.summary}><dt>Owner setup payment</dt><dd>{session.setupAmount}</dd><dt>Setup due date</dt><dd>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "Awaiting login"}</dd><dt>Owner monthly payment</dt><dd>{session.monthlyAmount}</dd><dt>Your referral commission</dt><dd>{session.commission} · {session.verified ? "Verified" : "Pending verification"}</dd></dl>
           <div className={styles.note}>The account is officially onboarded. The team will verify the saved login during the 3-day checking period for accounts over one year old, or 7 days for newer accounts. The owner must remain reachable and complete any LinkedIn verification requested before payment is released. Monthly payment dates are calculated after the setup payment is made.</div>
+          <div className={styles.inlineScripts}>
+            <div className={styles.stepLabel}>MESSAGE TO SEND</div>
+            {scriptByKey("wait") && <CopyScript script={scriptByKey("wait")!} ctx={scriptCtx} />}
+          </div>
           <Link className={styles.primary} href={`/m/${token}`}>Back to your dashboard →</Link>
           <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another person</a>
         </>}
+        {step >= 1 && step <= 4 && <ScriptsPanel ctx={scriptCtx} />}
         </section>
       </div>}
       </div>
