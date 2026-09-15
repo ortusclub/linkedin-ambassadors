@@ -108,6 +108,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     address: session?.emailSetup?.address || null,
     termsUrl: `${typeof window !== "undefined" ? window.location.origin : "https://linkedvelocity.com"}/ambassador-terms`,
     guideUrl: `${typeof window !== "undefined" ? window.location.origin : "https://linkedvelocity.com"}/ambassador-guide`,
+    ownerUrl: ownerLink,
     setupDays: 3,
   };
   async function shareOwnerLink() {
