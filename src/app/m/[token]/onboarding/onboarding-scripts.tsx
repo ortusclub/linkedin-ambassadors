@@ -41,6 +41,7 @@ export type ScriptContext = {
   address: string | null;
   termsUrl: string;
   guideUrl: string;
+  ownerUrl: string;
   setupDays: number;
 };
 
@@ -52,28 +53,26 @@ const emailOrPlaceholder = (address: string | null) => address || "our work emai
 export const ONBOARDING_SCRIPTS: OnboardingScript[] = [
   {
     key: "intro",
-    title: "1. Intro, terms & name check",
-    text: (c) => `Hi ${firstName(c.name)}! This is LinkedVelocity. You signed up for the LinkedIn Rental Program. Are you free now to start the onboarding process?
+    title: "1. Intro, terms & your link",
+    text: (c) => `Hi ${firstName(c.name)}! This is LinkedVelocity. You signed up for the LinkedIn Rental Program. Are you free now to start onboarding?
 
-Before we start, please have a quick read of these so you're happy with everything:
+First, please have a quick read of these so you're happy with everything:
 - What to expect with your account: ${c.guideUrl}
 - Full terms: ${c.termsUrl}
 
 Can you also confirm that your name on LinkedIn matches the name on your government ID?
 
-If your account is at least a month old, it only takes about 3 business days before we send your set-up fee:
-- Day 1 (today): send your photo + add our work email
-- Day 2 (tomorrow): we log in to your account
-- Day 3: we check your account is okay, then send your set-up fee
+Once you're happy, open your onboarding link and fill in your details. This is where you add your own payout details and set a temporary password for us:
+${c.ownerUrl}
 
-If your account is newer than a month or brand new, we use a 7-day checking period before the set-up fee.`,
+Quick heads-up on timing: if your account is at least a month old, it takes about 3 business days (Day 1 you send your photo and add our work email, Day 2 we sign in, Day 3 we check everything and send your set-up fee). If it's newer than a month or brand new, we use a 7-day checking period. You keep full access the whole time.`,
   },
   {
     key: "photo",
-    title: "2. Ask for a photo",
-    text: () => `Can you send us a clear headshot? A 1x1 or 2x2 works best.
+    title: "2. Photo",
+    text: () => `When you fill in your onboarding form, you can upload a clear headshot (a 1x1 or 2x2 works best).
 
-We'll turn it into a clean, professional profile photo and send it back for you to upload. If you're not happy with it, just let us know and send another and we'll re-try.`,
+We'll turn it into a clean, professional profile photo and send it back for you to upload. If you're not happy with it, just let us know and we'll re-try.`,
   },
   {
     key: "add-email",
@@ -91,12 +90,10 @@ We'll turn it into a clean, professional profile photo and send it back for you 
   },
   {
     key: "primary-password",
-    title: "4. Make it primary, share password & payout",
+    title: "4. Make it primary",
     text: (c) => `Great. Now please set the new email (${emailOrPlaceholder(c.address)}) as your primary email, and let us know once it's done.
 
-Could you also share your LinkedIn password? And your payout method, account number, and the name registered on it, please?
-
-In the meantime, I'll connect a few people to your account. Just accept them. I'll let you know once we log in.`,
+We already have your payout details and password from your form, so that's everything we need. In the meantime, I'll connect a few people to your account. Just accept them. I'll let you know once we log in.`,
   },
   {
     key: "restriction",
