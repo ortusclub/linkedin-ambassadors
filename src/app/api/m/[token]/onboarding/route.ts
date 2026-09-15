@@ -50,12 +50,12 @@ export async function GET(req: Request, context: Context) {
     const me = await authenticate(context);
     const id = new URL(req.url).searchParams.get("id");
     if (id && !selfServiceAction.shape.id.safeParse(id).success) return json({ error: "Invalid onboarding reference." }, 400);
-    if (id) return json({ session: await onboardingSummary(id, me.id) });
+    if (id) return json({ session: await onboardingSummary(id, me.id, { includeCredentials: true }) });
     const [countries, sessions] = await Promise.all([
       onboardingCountries(),
       prisma.selfServiceOnboarding.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, state: true, application: { select: { fullName: true } } } }),
     ]);
-    return json({ emailEnabled: emailSetupConfig().enabled, phoneVerificationEnabled: phoneVerificationConfigured(), countries, autoPurchase: proxyPurchaseLimits().enabled, config: currencyConfig(me.slug), configured: !!process.env.GOLOGIN_API_TOKEN_KLABBER,
+    return json({ emailEnabled: emailSetupConfig().enabled, phoneVerificationEnabled: phoneVerificationConfigured(), countries, autoPurchase: proxyPurchaseLimits().enabled, config: currencyConfig(me.slug), configured: !!process.env.GOLOGIN_API_TOKEN_KLABBER, slug: me.slug,
       sessions: sessions.map((s) => ({ id: s.id, state: s.state, name: s.application.fullName })) });
   } catch (error) { return failure(error, "load"); }
 }
@@ -80,7 +80,7 @@ export async function PATCH(req: Request, context: Context) {
       if (!handoff.success) return json({ error: "Invalid hand-off details." }, 400);
       await requireEmailSetup(handoff.data.id, me.id);
       await handoffOnboarding(handoff.data.id, me.id, { password: handoff.data.password, twoFactorKey: handoff.data.twoFactorKey });
-      return json({ session: await onboardingSummary(handoff.data.id, me.id) });
+      return json({ session: await onboardingSummary(handoff.data.id, me.id, { includeCredentials: true }) });
     }
     // Confirm carries the captured login (PC flow), so parse it with its own schema.
     if (body && typeof body === "object" && (body as { action?: string }).action === "confirm") {
@@ -88,7 +88,7 @@ export async function PATCH(req: Request, context: Context) {
       if (!confirm.success) return json({ error: "Invalid confirmation details." }, 400);
       await requireEmailSetup(confirm.data.id, me.id);
       await confirmOnboarding(confirm.data.id, me.id, { password: confirm.data.password, twoFactorKey: confirm.data.twoFactorKey });
-      return json({ session: await onboardingSummary(confirm.data.id, me.id) });
+      return json({ session: await onboardingSummary(confirm.data.id, me.id, { includeCredentials: true }) });
     }
     const parsed = selfServiceAction.safeParse(body);
     if (!parsed.success) return json({ error: "Invalid onboarding action." }, 400);
@@ -100,6 +100,6 @@ export async function PATCH(req: Request, context: Context) {
       if (!updated.count) throw new OnboardingError("The browser is not ready to open yet.", 409);
     }
     if (action === "confirm") await confirmOnboarding(id, me.id);
-    return json({ session: await onboardingSummary(id, me.id) });
+    return json({ session: await onboardingSummary(id, me.id, { includeCredentials: true }) });
   } catch (error) { return failure(error); }
 }

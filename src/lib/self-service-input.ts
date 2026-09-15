@@ -72,10 +72,20 @@ export const selfServiceConfirm = z.object({
   twoFactorKey: z.string().trim().max(128).transform((s) => s.replace(/\s+/g, "").toUpperCase()).optional().default(""),
 });
 
-// Phone hand-off: capture the login so LinkedVelocity signs in (referrer has no PC).
+// Owner intake: the account owner fills their own form (details + payout are validated
+// by selfServiceInput) and also sets a login for us — parsed alongside it from the same
+// body. Optional 2FA mirrors the phone hand-off ("can't get the key right now").
+export const ownerCredentials = z.object({
+  password: z.string().min(6).max(128),
+  twoFactorKey: z.string().trim().max(128).transform((s) => s.replace(/\s+/g, "").toUpperCase()).optional().default(""),
+});
+
+// Phone hand-off: the referrer has no PC, so LinkedVelocity signs in. The owner already
+// supplied the login in their own intake form, so credentials are optional here — this
+// is normally just a confirmation. They stay accepted for older clients / edge cases.
 export const selfServiceHandoff = z.object({
   id: z.string().uuid(),
   action: z.literal("handoff"),
-  password: z.string().min(6).max(128),
+  password: z.string().min(6).max(128).optional(),
   twoFactorKey: z.string().trim().max(128).transform((s) => s.replace(/\s+/g, "").toUpperCase()).optional().default(""),
 });

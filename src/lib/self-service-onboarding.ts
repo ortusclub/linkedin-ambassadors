@@ -10,7 +10,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { availableProxySlots } from "@/lib/onboarding-proxy-pool";
 import { emailSetupSummary, requireEmailSetup } from "@/lib/onboarding-email";
 import { assertPhoneVerificationToken, phoneVerificationConfigured } from "@/lib/phone-verification";
-import { encryptSecret } from "@/lib/crypto-creds";
+import { encryptSecret, decryptSecret } from "@/lib/crypto-creds";
 
 export class OnboardingError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -35,7 +35,7 @@ export async function onboardingCountries() {
   return [...new Set((await availableProxies()).map((p) => p.country))].sort();
 }
 
-export async function onboardingSummary(id: string, referrerId: string) {
+export async function onboardingSummary(id: string, referrerId: string, opts?: { includeCredentials?: boolean }) {
   const s = await prisma.selfServiceOnboarding.findFirst({
     where: { id, referrerId }, include: { account: true, application: true, referrer: true },
   });
@@ -48,13 +48,34 @@ export async function onboardingSummary(id: string, referrerId: string) {
     country: countryCode(s.account.location),
     proxyAssigned: !!s.proxyId,
     proxyPriceLimit: proxyPurchaseLimits().perProxy,
-    // Only a ready, owned session may expose a browser capability. Never expose credentials.
+    // Only a ready, owned session may expose a browser capability.
     shareLink: s.state === "ready" && (!emailSetup || emailSetup.primaryConfirmed) ? s.account.gologinShareLink : null,
     confirmedAt: s.confirmedAt,
     setupDueAt: s.confirmedAt ? setupDueDate(s.confirmedAt, s.application.accountFreshness) : null,
     setupAmount: cfg.offer.setup, monthlyAmount: cfg.offer.monthly,
     commission: `${cfg.symbol}${cfg.rate * 2}`, verified: !!s.application.verifiedAt,
+    // Login the OWNER supplied, revealed only to the referrer doing the PC sign-in
+    // (never the payout — that stays owner-only). Decrypted at rest.
+    ...(opts?.includeCredentials ? {
+      credentials: {
+        loginEmail: s.account.loginEmail || emailSetup?.address || s.account.personalEmail || null,
+        password: decryptSecret(s.account.accountPassword) || null,
+        twoFactor: decryptSecret(s.account.twoFactor) || null,
+      },
+    } : {}),
   };
+}
+
+// The owner supplied a login in their intake form; store it encrypted on the account so
+// the referrer (PC) or the team (phone) can sign in. No state change — the wizard drives
+// state — just the credential capture.
+export async function captureOnboardingCredentials(id: string, referrerId: string, input: { password: string; twoFactorKey: string }) {
+  const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, select: { accountId: true } });
+  if (!s) throw new OnboardingError("Onboarding not found.", 404);
+  await prisma.linkedInAccount.update({ where: { id: s.accountId }, data: {
+    accountPassword: encryptSecret(input.password),
+    ...(input.twoFactorKey ? { twoFactor: encryptSecret(input.twoFactorKey) } : {}),
+  } });
 }
 
 export async function reserveOnboarding(referrer: { id: string; slug: string; name: string }, input: z.infer<typeof selfServiceInput>) {
@@ -307,25 +328,27 @@ export async function confirmOnboarding(id: string, referrerId: string, creds?: 
   });
 }
 
-// Phone hand-off: the referrer has no PC, so the owner shares the login and we do the
-// GoLogin sign-in. We store the credentials on the account and flag it for the team.
-export async function handoffOnboarding(id: string, referrerId: string, input: { password: string; twoFactorKey: string }) {
+// Phone hand-off: the referrer has no PC, so LinkedVelocity does the GoLogin sign-in.
+// The owner normally already supplied the login in their intake form, so credentials
+// are optional here; if any are passed (older client) we still store them.
+export async function handoffOnboarding(id: string, referrerId: string, input?: { password?: string; twoFactorKey?: string }) {
   const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { account: true, application: true } });
   if (!s) throw new OnboardingError("Onboarding not found.", 404);
   if (s.state === "confirmed") throw new OnboardingError("This onboarding is already complete.", 409);
   const now = new Date();
-  const has2fa = !!input.twoFactorKey;
+  const hasPassword = !!input?.password;
+  const has2fa = !!input?.twoFactorKey;
   await prisma.$transaction(async (tx) => {
     await tx.linkedInAccount.update({ where: { id: s.accountId }, data: {
-      accountPassword: encryptSecret(input.password),
-      ...(has2fa ? { twoFactor: encryptSecret(input.twoFactorKey) } : {}),
-      notes: `${s.account.notes || ""}\nPHONE HAND-OFF ${now.toISOString()}: referrer has no PC. LV to create the proxy + GoLogin profile and sign in. Password saved.${has2fa ? " 2FA key saved." : " 2FA still needs to be set up by the team."}`,
+      ...(hasPassword ? { accountPassword: encryptSecret(input!.password!) } : {}),
+      ...(has2fa ? { twoFactor: encryptSecret(input!.twoFactorKey!) } : {}),
+      notes: `${s.account.notes || ""}\nPHONE HAND-OFF ${now.toISOString()}: referrer has no PC. LV to create the proxy + GoLogin profile and sign in with the login the owner provided.`,
     } });
     // Distinct from "needs_help" (a failed browser prep) so the admin can tell a
     // phone hand-off awaiting our sign-in apart from a prep that needs a retry.
     await tx.selfServiceOnboarding.update({ where: { id }, data: { state: "handed_off" } });
     await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: {
-      adminNotes: `${s.application.adminNotes || ""}\nPHONE HAND-OFF ${now.toISOString()}: owner on a phone. LV to complete the GoLogin sign-in; login saved on the account.${has2fa ? " 2FA key provided." : " 2FA NOT provided — team to set it up."}`,
+      adminNotes: `${s.application.adminNotes || ""}\nPHONE HAND-OFF ${now.toISOString()}: owner on a phone. LV to complete the GoLogin sign-in using the login the owner supplied.`,
     } });
   });
 }
