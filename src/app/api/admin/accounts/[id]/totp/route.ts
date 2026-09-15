@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { generateTotp } from "@/lib/totp";
+import { decryptSecret } from "@/lib/crypto-creds";
 
 // GET /api/admin/accounts/[id]/totp — return the CURRENT LinkedIn 2FA code for
 // an account, computed server-side from the stored base32 secret. The secret
@@ -21,7 +22,7 @@ export async function GET(
     if (!account) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    const secret = (account.twoFactor || "").trim();
+    const secret = (decryptSecret(account.twoFactor) || "").trim();
     if (!secret) {
       return NextResponse.json({ configured: false });
     }

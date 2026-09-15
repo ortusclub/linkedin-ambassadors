@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { decryptSecret } from "@/lib/crypto-creds";
 
 // Onboarding pipeline — every ambassador application, bucketed by how far along it
 // is. The one non-obvious rule: an application only counts as ONBOARDED once the
@@ -138,8 +139,8 @@ export async function GET() {
         workEmail: acct?.workEmail || null,
         hasPassword: !!acct?.accountPassword,
         has2fa: !!acct?.twoFactor,
-        accountPassword: acct?.accountPassword || null,
-        twoFactor: acct?.twoFactor || null,
+        accountPassword: decryptSecret(acct?.accountPassword) || null,
+        twoFactor: decryptSecret(acct?.twoFactor) || null,
         gologinProfileId: acct?.gologinProfileId || null,
         gologinShareLink: acct?.gologinShareLink || null,
         proxyHost: acct?.proxyHost || null,

@@ -61,3 +61,11 @@ export const selfServiceAction = z.object({
   id: z.string().uuid(),
   action: z.enum(["prepare", "opened", "confirm"]),
 });
+
+// Phone hand-off: capture the login so LinkedVelocity signs in (referrer has no PC).
+export const selfServiceHandoff = z.object({
+  id: z.string().uuid(),
+  action: z.literal("handoff"),
+  password: z.string().min(6).max(128),
+  twoFactorKey: z.string().trim().max(128).transform((s) => s.replace(/\s+/g, "").toUpperCase()).optional().default(""),
+});

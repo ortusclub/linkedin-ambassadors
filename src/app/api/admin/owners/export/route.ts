@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOwners, type Owner } from "@/lib/owners";
+import { decryptSecret } from "@/lib/crypto-creds";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 
 // CSV export of Account Owners for Google Sheets via
@@ -157,8 +158,8 @@ export async function GET(req: NextRequest) {
       profileUrlsCell(o),
       credCell(o, (a) => a.loginEmail),
       credCell(o, (a) => a.workEmail),
-      credCell(o, (a) => a.accountPassword),
-      credCell(o, (a) => a.twoFactor),
+      credCell(o, (a) => decryptSecret(a.accountPassword)),
+      credCell(o, (a) => decryptSecret(a.twoFactor)),
       // Payout
       o.payoutName || "",
       o.monthlyPayout > 0 ? `${money(o.monthlyPayout)}/mo` : "TBC",

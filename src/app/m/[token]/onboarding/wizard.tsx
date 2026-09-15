@@ -6,6 +6,7 @@ import { CURRENCY_CONFIG, type CurrencyConfig } from "@/lib/referral-currency";
 import styles from "./wizard.module.css";
 import { countries, countryCode } from "@/lib/countries";
 import BrowserStep from "./browser-step";
+import PhoneHandoff from "./phone-handoff";
 import EmailStep, { type EmailSetup } from "./email-step";
 
 type Session = {
@@ -42,6 +43,8 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
+  const [handedOff, setHandedOff] = useState(false);
   const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false, ownerPhotoUrl: "" });
   const [photoBusy, setPhotoBusy] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" });
@@ -123,6 +126,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       if (!res.ok) throw new Error(data.error || "Email setup failed.");
       showSession(data.session);
       if ((body as { action?: string }).action !== "primary") setStep(3);
+    });
+  }
+  async function handoff(body: { password: string; twoFactorKey: string }) {
+    if (!session) return;
+    await run(async () => {
+      await request("PATCH", { id: session.id, action: "handoff", ...body });
+      setHandedOff(true);
     });
   }
   async function action(action: "prepare" | "opened" | "confirm") {
@@ -263,14 +273,40 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
         </form>}
         {step === 3 && session?.emailSetup && <EmailStep key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />}
-        {step === 4 && session && <>
+        {step === 4 && session && (handedOff ? <>
+          <div className={styles.success}>✓</div>
+          <h2>Handed off to the team</h2>
+          <p>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser, sign in, run the checks and release payment within about a day. Nothing more to do here.</p>
+          <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another person</a>
+        </> : browserMode === "" ? <>
+          <h2>Are you setting up on a computer or a phone?</h2>
+          <p>This decides who does the final LinkedIn sign-in, and what you earn.</p>
+          <div className={styles.handoffChoice}>
+            <button type="button" className={styles.choiceCard} onClick={() => setBrowserMode("pc")}>
+              <span className={styles.choiceIcon}>💻</span>
+              <span className={styles.choiceTitle}>On a computer</span>
+              <span className={styles.choiceDesc}>You do the sign-in in the prepared browser.</span>
+              <span className={styles.choiceFee}>Earn ₱700 unverified · ₱1,000 verified</span>
+            </button>
+            <button type="button" className={styles.choiceCard} onClick={() => setBrowserMode("phone")}>
+              <span className={styles.choiceIcon}>📱</span>
+              <span className={styles.choiceTitle}>On a phone</span>
+              <span className={styles.choiceDesc}>We do the sign-in for you. You hand over the login.</span>
+              <span className={styles.choiceFee}>Earn ₱600 unverified · ₱800 verified</span>
+            </button>
+          </div>
+        </> : browserMode === "phone" ? <>
+          <button className={styles.secondary} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
+          <PhoneHandoff busy={busy} error={error} submit={handoff} />
+        </> : <>
+          <button className={styles.secondary} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
           <div className={styles.browserTip}>
             <strong>Optional tip: wait 24 hours before signing in</strong>
             <span>Leaving 24 hours between making the new email primary and signing in through the prepared browser can reduce the chance of LinkedIn requesting ID verification. You can continue now if needed.</span>
           </div>
           {session.emailSetup && <><div className={styles.note}>LinkedIn login email: <strong>{session.emailSetup.address}</strong>. {session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to your verified inbox." : "Onboarding forwarding has expired. Re-verify your inbox if you need more login codes."}</div><button className={styles.secondary} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
           <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} action={(nextAction) => run(() => action(nextAction))} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
-        </>}
+        </>)}
         {step === 5 && session && <>
           <div className={styles.success}>✓</div><h2>Login confirmation saved</h2><p>{session.name}&apos;s account is in the system and linked to your referral.</p>
           <dl className={styles.summary}><dt>Owner setup payment</dt><dd>{session.setupAmount}</dd><dt>Setup due date</dt><dd>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "Awaiting login"}</dd><dt>Owner monthly payment</dt><dd>{session.monthlyAmount}</dd><dt>Your referral commission</dt><dd>{session.commission} · {session.verified ? "Verified" : "Pending verification"}</dd></dl>

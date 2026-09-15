@@ -10,6 +10,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { availableProxySlots } from "@/lib/onboarding-proxy-pool";
 import { emailSetupSummary, requireEmailSetup } from "@/lib/onboarding-email";
 import { assertPhoneVerificationToken, phoneVerificationConfigured } from "@/lib/phone-verification";
+import { encryptSecret } from "@/lib/crypto-creds";
 
 export class OnboardingError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -296,6 +297,27 @@ export async function confirmOnboarding(id: string, referrerId: string) {
     // Keep inventory unlisted and in construction until the usual admin review.
     await tx.linkedInAccount.update({ where: { id: s.accountId }, data: {
       notes: `${acc.notes || ""}\nLogin reported successful ${s.confirmedAt!.toISOString()}; awaiting team verification.`,
+    } });
+  });
+}
+
+// Phone hand-off: the referrer has no PC, so the owner shares the login and we do the
+// GoLogin sign-in. We store the credentials on the account and flag it for the team.
+export async function handoffOnboarding(id: string, referrerId: string, input: { password: string; twoFactorKey: string }) {
+  const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { account: true, application: true } });
+  if (!s) throw new OnboardingError("Onboarding not found.", 404);
+  if (s.state === "confirmed") throw new OnboardingError("This onboarding is already complete.", 409);
+  const now = new Date();
+  const has2fa = !!input.twoFactorKey;
+  await prisma.$transaction(async (tx) => {
+    await tx.linkedInAccount.update({ where: { id: s.accountId }, data: {
+      accountPassword: encryptSecret(input.password),
+      ...(has2fa ? { twoFactor: encryptSecret(input.twoFactorKey) } : {}),
+      notes: `${s.account.notes || ""}\nPHONE HAND-OFF ${now.toISOString()}: referrer has no PC. LV to create the proxy + GoLogin profile and sign in. Password saved.${has2fa ? " 2FA key saved." : " 2FA still needs to be set up by the team."}`,
+    } });
+    await tx.selfServiceOnboarding.update({ where: { id }, data: { state: "needs_help" } });
+    await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: {
+      adminNotes: `${s.application.adminNotes || ""}\nPHONE HAND-OFF ${now.toISOString()}: owner on a phone. LV to complete the GoLogin sign-in; login saved on the account.${has2fa ? " 2FA key provided." : " 2FA NOT provided — team to set it up."}`,
     } });
   });
 }

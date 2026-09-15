@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { decryptSecret } from "@/lib/crypto-creds";
 import { isCompanyEmail } from "@/lib/company";
 import { monthlyDueDate, setupPaidDate, setupDueDate, SETUP_FEE } from "@/lib/payment-schedule";
 
@@ -133,8 +134,8 @@ export async function GET() {
         connectionCount: a.connectionCount,
         accountAgeMonths: a.accountAgeMonths,
         loginEmail: a.loginEmail,
-        accountPassword: a.accountPassword,
-        twoFactor: a.twoFactor,
+        accountPassword: decryptSecret(a.accountPassword),
+        twoFactor: decryptSecret(a.twoFactor),
         gologinProfileId: a.gologinProfileId,
         gologinShareLink: a.gologinShareLink,
         status: a.status,
