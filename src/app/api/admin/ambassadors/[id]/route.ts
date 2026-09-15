@@ -252,18 +252,68 @@ export async function PATCH(
   }
 }
 
-// Permanently remove a signup (e.g. clearing test data). Does not touch any
-// LinkedInAccount already created from it.
+// Permanently remove a signup (e.g. clearing test data).
+//
+// A plain application deletes directly. A DIY (self-service) application also has
+// a SelfServiceOnboarding row (+ its email setup/deliveries) and a LinkedInAccount
+// that foreign-key it, so a bare delete fails with a FK violation. We cascade those
+// child rows in a transaction. The created LinkedInAccount is only removed when it's
+// safe throwaway test data — not listed in inventory and never rented; a real live
+// account is left in place (its onboarding link is cleared) and we report that back.
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAdmin();
     const { id } = await params;
-    await prisma.ambassadorApplication.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
+
+    const onboarding = await prisma.selfServiceOnboarding.findUnique({
+      where: { applicationId: id },
+      select: { id: true, accountId: true },
+    });
+
+    // Simple case: no DIY onboarding attached — delete the application directly.
+    if (!onboarding) {
+      await prisma.ambassadorApplication.delete({ where: { id } });
+      return NextResponse.json({ ok: true });
+    }
+
+    // DIY case: decide whether the created account is safe to remove.
+    const account = await prisma.linkedInAccount.findUnique({
+      where: { id: onboarding.accountId },
+      select: {
+        id: true,
+        listed: true,
+        _count: { select: { rentals: true } },
+      },
+    });
+    const accountSafeToDelete = !!account && !account.listed && account._count.rentals === 0;
+
+    await prisma.$transaction(async (tx) => {
+      // Onboarding email records (session_id -> SelfServiceOnboarding.id).
+      await tx.onboardingEmailDelivery.deleteMany({ where: { sessionId: onboarding.id } });
+      await tx.onboardingEmailSetup.deleteMany({ where: { sessionId: onboarding.id } });
+      // The onboarding row itself (FKs the application + the account).
+      await tx.selfServiceOnboarding.delete({ where: { id: onboarding.id } });
+      // Now the application FK is free.
+      await tx.ambassadorApplication.delete({ where: { id } });
+      // Only clear away the created account if it's throwaway test data.
+      if (accountSafeToDelete) {
+        await tx.waitlist.deleteMany({ where: { linkedinAccountId: onboarding.accountId } });
+        await tx.cryptoPayment.deleteMany({ where: { linkedinAccountId: onboarding.accountId } });
+        await tx.linkedInAccount.delete({ where: { id: onboarding.accountId } });
+      }
+    });
+
+    return NextResponse.json({
+      ok: true,
+      accountDeleted: accountSafeToDelete,
+      // Tell the admin when we kept a real account instead of deleting it.
+      accountKept: !accountSafeToDelete,
+    });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
       return NextResponse.json({ error: error.message }, { status: error.message === "Forbidden" ? 403 : 401 });
     }
+    console.error("Failed to delete application", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
