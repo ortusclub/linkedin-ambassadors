@@ -19,7 +19,7 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
   session: BrowserSession;
   busy: boolean;
   action: (action: "prepare" | "opened") => Promise<void>;
-  confirm: () => Promise<void>;
+  confirm: (creds: { password: string; twoFactorKey: string }) => Promise<void>;
   refresh: () => Promise<void>;
   error?: string;
 }) {
@@ -27,6 +27,10 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
   const [miniStep, setMiniStep] = useState(initialStep);
   const [signedIn, setSignedIn] = useState(false);
   const [closed, setClosed] = useState(false);
+  const [password, setPassword] = useState("");
+  const [twoFactorKey, setTwoFactorKey] = useState("");
+  const [noKey, setNoKey] = useState(false);
+  const canConfirm = closed && password.trim().length >= 6 && (noKey || twoFactorKey.trim().length >= 8);
   const country = countries.find((item) => item.code === session.country)?.name || session.country;
 
   function canOpenStep(position: number) {
@@ -37,8 +41,8 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
   }
 
   return <>
-    <h2>Prepare the browser and sign in</h2>
-    <p>We&apos;ll prepare the protected browser, then you sign in with the login the owner gave you and save the session. Coordinate with the owner for any codes.</p>
+    <h2>Prepare and sign in to their browser</h2>
+    <p>We&apos;ll prepare the protected browser, then guide the owner through signing in and saving the session.</p>
     {error && <div className={styles.error} role="alert">{error}</div>}
 
     <ol className={styles.miniSteps} aria-label="Browser setup progress">
@@ -76,12 +80,11 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
 
     {miniStep === 3 && session.state === "ready" && <section className={styles.miniPanel}>
       <div className={styles.stepLabel}>BROWSER STEP 3 OF 4</div>
-      <h3>Sign in to LinkedIn</h3>
+      <h3>Ask the owner to sign in to LinkedIn</h3>
       <ol className={styles.instructions}>
         <li>Inside the prepared browser, open <strong>linkedin.com</strong>.</li>
-        <li>Sign in with the login the owner provided (shown above).</li>
-        <li>If LinkedIn asks for a code or an identity/security check, <strong>coordinate with the owner to get it</strong> — codes and prompts go to them — and complete it together.</li>
-        <li>Check that both the LinkedIn feed and profile open successfully.</li>
+        <li>The owner enters their password and completes any code, identity or security check LinkedIn requests.</li>
+        <li>Check that both their LinkedIn feed and profile open successfully.</li>
       </ol>
       <div className={styles.videoComingSoon}>
         <span aria-hidden="true">▶</span>
@@ -98,7 +101,20 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
       <h3>Close the browser and save the login</h3>
       <p>Close the GoLogin browser normally and wait for it to finish saving the signed-in session. Keep this onboarding page open.</p>
       <label className={styles.check}><input type="checkbox" checked={closed} onChange={(event) => setClosed(event.target.checked)} /><span>I closed the GoLogin browser normally after confirming the LinkedIn login worked.</span></label>
-      <button className={styles.primary} disabled={busy || !closed} onClick={() => void confirm()}>{busy ? "Saving confirmation…" : "Confirm successful login ✓"}</button>
+
+      <div className={styles.credCapture}>
+        <strong>Save the login so the team can keep the account safe</strong>
+        <p className={styles.hint}>We hold the login so we can recover the account if LinkedIn logs it out or asks for verification later. The owner keeps full access and can reset the password anytime.</p>
+        <label className={styles.field}>The account password the owner is using
+          <input type="text" autoComplete="off" minLength={6} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="The LinkedIn password you just signed in with" />
+        </label>
+        <label className={styles.check}><input type="checkbox" checked={noKey} onChange={(e) => { setNoKey(e.target.checked); if (e.target.checked) setTwoFactorKey(""); }} /><span>We couldn&apos;t get the 2FA key. The team will set up two-step verification.</span></label>
+        {!noKey && <label className={styles.field}>The 2FA setup key
+          <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} placeholder="e.g. JBSWY3DPEHPK3PXP" />
+        </label>}
+      </div>
+
+      <button className={styles.primary} disabled={busy || !canConfirm} onClick={() => void confirm({ password: password.trim(), twoFactorKey: noKey ? "" : twoFactorKey.trim() })}>{busy ? "Saving confirmation…" : "Confirm successful login ✓"}</button>
       <button className={styles.secondary} onClick={() => { setClosed(false); setMiniStep(3); }}>Back to sign-in instructions</button>
     </section>}
 

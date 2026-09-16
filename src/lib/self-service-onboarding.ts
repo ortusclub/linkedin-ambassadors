@@ -6,69 +6,14 @@ import { selfServiceInput } from "@/lib/self-service-input";
 import { z } from "zod";
 import { countryCode } from "@/lib/countries";
 import { proxyPurchaseLimits, quoteCheapestStaticProxy, quoteStaticProxy, purchaseStaticProxy, readPurchasedProxy, ProxyPurchaseNotSubmitted, PURCHASE_PROXY_COUNTRIES } from "@/services/proxy-cheap";
-import { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { availableProxySlots } from "@/lib/onboarding-proxy-pool";
 import { emailSetupSummary, requireEmailSetup } from "@/lib/onboarding-email";
 import { assertPhoneVerificationToken, phoneVerificationConfigured } from "@/lib/phone-verification";
-import { encryptSecret, decryptSecret } from "@/lib/crypto-creds";
-import { randomBytes } from "crypto";
+import { encryptSecret } from "@/lib/crypto-creds";
 
 export class OnboardingError extends Error {
   constructor(message: string, public status = 400) { super(message); }
-}
-
-// ---- Per-owner invites (unique link + status the referrer can watch) ----------------
-
-// The referrer creates one link per person they onboard, so they can see who has filled
-// theirs in. The owner submits through it; the created session is linked back for status.
-export async function createInvite(referrerId: string, ownerName: string) {
-  const name = ownerName.trim().slice(0, 120);
-  if (name.length < 2) throw new OnboardingError("Enter the person's name.");
-  const token = "inv_" + randomBytes(18).toString("base64url");
-  await prisma.onboardingInvite.create({ data: { referrerId, ownerName: name, token } });
-  return token;
-}
-
-export async function inviteForOwner(token: string) {
-  return prisma.onboardingInvite.findUnique({ where: { token } });
-}
-
-export async function markInviteFilled(token: string, sessionId: string) {
-  await prisma.onboardingInvite.updateMany({ where: { token, filledAt: null }, data: { filledAt: new Date(), sessionId } });
-}
-
-// A referrer-facing status that mirrors the stages the admin sees on the pipeline, so
-// both stay in sync: waiting → details in → ready to sign in → handed off → checking → done.
-type InviteRow = { token: string; ownerName: string; filled: boolean; sessionId: string | null; statusKey: string; statusLabel: string };
-export async function listReferrerInvites(referrerId: string): Promise<InviteRow[]> {
-  // Tolerate the table not existing yet (migration applied separately) so the referrer
-  // console still loads instead of hard-failing on the bootstrap fetch.
-  const invites = await prisma.onboardingInvite.findMany({ where: { referrerId }, orderBy: { createdAt: "desc" }, take: 60 }).catch((e) => {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2021") return [];
-    throw e;
-  });
-  const sessionIds = invites.map((i) => i.sessionId).filter((v): v is string => !!v);
-  const sessions = sessionIds.length
-    ? await prisma.selfServiceOnboarding.findMany({ where: { id: { in: sessionIds } }, include: { application: { select: { fullName: true, status: true, verifiedAt: true, paidAt: true } }, emailSetup: { select: { primaryConfirmedAt: true } } } })
-    : [];
-  const byId = new Map(sessions.map((s) => [s.id, s]));
-  return invites.map((i) => {
-    const s = i.sessionId ? byId.get(i.sessionId) : null;
-    // If the linked session was deleted (e.g. cleared test data), treat the invite as
-    // not-yet-filled so it's re-sendable rather than showing a dead "Open" link.
-    const sessionMissing = !!i.sessionId && !s;
-    let statusKey = "waiting", statusLabel = "Waiting for the owner to fill in their details";
-    if (s) {
-      const app = s.application;
-      if (app.paidAt) { statusKey = "done"; statusLabel = "Setup fee sent · done"; }
-      else if (app.verifiedAt) { statusKey = "checking"; statusLabel = "Account verified · payout due"; }
-      else if (s.state === "confirmed" || app.status === "onboarded") { statusKey = "checking"; statusLabel = "Signed in · we're checking the account"; }
-      else if (s.state === "handed_off") { statusKey = "handed_off"; statusLabel = "Handed off to us · we'll sign in"; }
-      else if (s.emailSetup?.primaryConfirmedAt) { statusKey = "ready"; statusLabel = "Ready · time to sign in"; }
-      else { statusKey = "details_in"; statusLabel = "Details in · add the secure email"; }
-    }
-    return { token: i.token, ownerName: s?.application.fullName || i.ownerName, filled: !!i.filledAt && !sessionMissing, sessionId: sessionMissing ? null : i.sessionId, statusKey, statusLabel };
-  });
 }
 
 async function availableProxies(db: Prisma.TransactionClient = prisma) {
@@ -90,7 +35,7 @@ export async function onboardingCountries() {
   return [...new Set((await availableProxies()).map((p) => p.country))].sort();
 }
 
-export async function onboardingSummary(id: string, referrerId: string, opts?: { includeCredentials?: boolean }) {
+export async function onboardingSummary(id: string, referrerId: string) {
   const s = await prisma.selfServiceOnboarding.findFirst({
     where: { id, referrerId }, include: { account: true, application: true, referrer: true },
   });
@@ -103,34 +48,13 @@ export async function onboardingSummary(id: string, referrerId: string, opts?: {
     country: countryCode(s.account.location),
     proxyAssigned: !!s.proxyId,
     proxyPriceLimit: proxyPurchaseLimits().perProxy,
-    // Only a ready, owned session may expose a browser capability.
+    // Only a ready, owned session may expose a browser capability. Never expose credentials.
     shareLink: s.state === "ready" && (!emailSetup || emailSetup.primaryConfirmed) ? s.account.gologinShareLink : null,
     confirmedAt: s.confirmedAt,
     setupDueAt: s.confirmedAt ? setupDueDate(s.confirmedAt, s.application.accountFreshness) : null,
     setupAmount: cfg.offer.setup, monthlyAmount: cfg.offer.monthly,
     commission: `${cfg.symbol}${cfg.rate * 2}`, verified: !!s.application.verifiedAt,
-    // Login the OWNER supplied, revealed only to the referrer doing the PC sign-in
-    // (never the payout — that stays owner-only). Decrypted at rest.
-    ...(opts?.includeCredentials ? {
-      credentials: {
-        loginEmail: s.account.loginEmail || emailSetup?.address || s.account.personalEmail || null,
-        password: decryptSecret(s.account.accountPassword) || null,
-        twoFactor: decryptSecret(s.account.twoFactor) || null,
-      },
-    } : {}),
   };
-}
-
-// The owner supplied a login in their intake form; store it encrypted on the account so
-// the referrer (PC) or the team (phone) can sign in. No state change — the wizard drives
-// state — just the credential capture.
-export async function captureOnboardingCredentials(id: string, referrerId: string, input: { password: string; twoFactorKey: string }) {
-  const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, select: { accountId: true } });
-  if (!s) throw new OnboardingError("Onboarding not found.", 404);
-  await prisma.linkedInAccount.update({ where: { id: s.accountId }, data: {
-    accountPassword: encryptSecret(input.password),
-    ...(input.twoFactorKey ? { twoFactor: encryptSecret(input.twoFactorKey) } : {}),
-  } });
 }
 
 export async function reserveOnboarding(referrer: { id: string; slug: string; name: string }, input: z.infer<typeof selfServiceInput>) {
@@ -383,27 +307,25 @@ export async function confirmOnboarding(id: string, referrerId: string, creds?: 
   });
 }
 
-// Phone hand-off: the referrer has no PC, so LinkedVelocity does the GoLogin sign-in.
-// The owner normally already supplied the login in their intake form, so credentials
-// are optional here; if any are passed (older client) we still store them.
-export async function handoffOnboarding(id: string, referrerId: string, input?: { password?: string; twoFactorKey?: string }) {
+// Phone hand-off: the referrer has no PC, so the owner shares the login and we do the
+// GoLogin sign-in. We store the credentials on the account and flag it for the team.
+export async function handoffOnboarding(id: string, referrerId: string, input: { password: string; twoFactorKey: string }) {
   const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { account: true, application: true } });
   if (!s) throw new OnboardingError("Onboarding not found.", 404);
   if (s.state === "confirmed") throw new OnboardingError("This onboarding is already complete.", 409);
   const now = new Date();
-  const hasPassword = !!input?.password;
-  const has2fa = !!input?.twoFactorKey;
+  const has2fa = !!input.twoFactorKey;
   await prisma.$transaction(async (tx) => {
     await tx.linkedInAccount.update({ where: { id: s.accountId }, data: {
-      ...(hasPassword ? { accountPassword: encryptSecret(input!.password!) } : {}),
-      ...(has2fa ? { twoFactor: encryptSecret(input!.twoFactorKey!) } : {}),
-      notes: `${s.account.notes || ""}\nPHONE HAND-OFF ${now.toISOString()}: referrer has no PC. LV to create the proxy + GoLogin profile and sign in with the login the owner provided.`,
+      accountPassword: encryptSecret(input.password),
+      ...(has2fa ? { twoFactor: encryptSecret(input.twoFactorKey) } : {}),
+      notes: `${s.account.notes || ""}\nPHONE HAND-OFF ${now.toISOString()}: referrer has no PC. LV to create the proxy + GoLogin profile and sign in. Password saved.${has2fa ? " 2FA key saved." : " 2FA still needs to be set up by the team."}`,
     } });
     // Distinct from "needs_help" (a failed browser prep) so the admin can tell a
     // phone hand-off awaiting our sign-in apart from a prep that needs a retry.
     await tx.selfServiceOnboarding.update({ where: { id }, data: { state: "handed_off" } });
     await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: {
-      adminNotes: `${s.application.adminNotes || ""}\nPHONE HAND-OFF ${now.toISOString()}: owner on a phone. LV to complete the GoLogin sign-in using the login the owner supplied.`,
+      adminNotes: `${s.application.adminNotes || ""}\nPHONE HAND-OFF ${now.toISOString()}: owner on a phone. LV to complete the GoLogin sign-in; login saved on the account.${has2fa ? " 2FA key provided." : " 2FA NOT provided — team to set it up."}`,
     } });
   });
 }
