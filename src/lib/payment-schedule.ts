@@ -23,7 +23,7 @@ export function nextBusinessDay(d: Date): Date {
 }
 
 // The setup fee clears after the post-onboarding verification window: three days for
-// accounts at least a month old, seven days for newer/fresh accounts. This gives the owner time to
+// accounts over a year old, seven days for newer accounts. This gives the owner time to
 // complete any LinkedIn verification prompted after the shared session is established.
 export function setupDueDate(onboardedAt: Date | string | null, freshness?: string | null): Date | null {
   if (!onboardedAt) return null;
