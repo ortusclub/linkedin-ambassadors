@@ -791,7 +791,7 @@ function DashboardContent() {
             </p>
           </div>
         )}
-        {(activeRentals.length === 0 && isAmbassador) ? (
+        {activeRentals.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-gray-500">
               You&apos;re not renting any accounts yet.{" "}
