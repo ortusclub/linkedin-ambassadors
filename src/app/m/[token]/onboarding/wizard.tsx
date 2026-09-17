@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CURRENCY_CONFIG, type CurrencyConfig } from "@/lib/referral-currency";
+import { type CurrencyConfig } from "@/lib/referral-currency";
 import styles from "./wizard.module.css";
 import { countries, countryCode } from "@/lib/countries";
 import BrowserStep from "./browser-step";
@@ -45,6 +45,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
   const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
   const [handedOff, setHandedOff] = useState(false);
   const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false });
@@ -152,6 +153,11 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   ];
   const currentPos = Math.max(0, wizardSteps.findIndex((s) => s.index === step));
   const activeStep = wizardSteps[currentPos];
+  // Currency follows the referrer (₱ for PH, $ for USD referrers) — everything the
+  // wizard shows about money comes from bootstrap.config, never hardcoded pesos.
+  const cfg = bootstrap?.config;
+  const refBase = cfg ? `${cfg.symbol}${cfg.rate.toLocaleString("en-US")}` : "";
+  const refMax = cfg ? `${cfg.symbol}${(cfg.rate * 2).toLocaleString("en-US")}` : "";
   const payoutField = PAYOUT_FIELDS[form.paymentMethod] || { label: "Payout details", placeholder: "Account number or payment address", help: "Enter everything needed to send the payment." };
   const scriptCtx: ScriptContext = {
     name: session?.name || form.fullName,
@@ -224,9 +230,9 @@ export default function SelfServiceWizard({ token }: { token: string }) {
               <p>You can&apos;t complete this onboarding without them. LinkedIn may send codes or ask them to confirm their identity during setup.</p>
             </div>
             <div className={styles.note}>
-              <div className={styles.payRow}><span>Account owner — setup</span><span className={styles.payAmt}>{CURRENCY_CONFIG.PHP.offer.setup}</span></div>
-              <div className={styles.payRow}><span>Account owner — monthly</span><span className={styles.payAmt}>{CURRENCY_CONFIG.PHP.offer.monthly}/mo</span></div>
-              <div className={styles.payRow}><span>You (referrer)</span><span className={styles.payAmt}>₱600–₱1,000</span></div>
+              <div className={styles.payRow}><span>Account owner — setup</span><span className={styles.payAmt}>{bootstrap.config.offer.setup}</span></div>
+              <div className={styles.payRow}><span>Account owner — monthly</span><span className={styles.payAmt}>{bootstrap.config.offer.monthly}/mo</span></div>
+              <div className={styles.payRow}><span>You (referrer)</span><span className={styles.payAmt}>{refBase}–{refMax}</span></div>
               <p style={{ margin: "10px 0 0", fontWeight: 500 }}>Your exact reward depends on phone vs computer and whether the account is verified — you&apos;ll see it at the sign-in step. Your referral stays attached automatically.</p>
             </div>
             <ShareLinks ctx={scriptCtx} />
@@ -302,14 +308,14 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <h1 className={styles.heroTitle}>Computer or phone?</h1>
             <p className={styles.lead}>This decides who does the final LinkedIn sign-in, and what you earn.</p>
             <button type="button" className={`${styles.choiceCard} ${styles.choiceHi}`} onClick={() => setBrowserMode("pc")}>
-              <div className={styles.choiceHead}><strong>💻 On a computer</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>₱700–₱1,000</span></div>
+              <div className={styles.choiceHead}><strong>💻 On a computer</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>Up to {refMax}</span></div>
               <p>You do the sign-in yourself in the prepared GoLogin browser. Needs a Windows or Mac computer.</p>
-              <div className={styles.choiceNote}>Earn ₱700 unverified · ₱1,000 verified</div>
+              <div className={styles.choiceNote}>Highest rate — the top amount when the account is verified.</div>
             </button>
             <button type="button" className={styles.choiceCard} onClick={() => setBrowserMode("phone")}>
-              <div className={styles.choiceHead}><strong>📱 On a phone</strong><span className={styles.rateChip}>₱600–₱800</span></div>
+              <div className={styles.choiceHead}><strong>📱 On a phone</strong><span className={styles.rateChip}>From {refBase}</span></div>
               <p>We do the sign-in for you. You hand over the login securely and the team completes it.</p>
-              <div className={styles.choiceNote}>Earn ₱600 unverified · ₱800 verified</div>
+              <div className={styles.choiceNote}>A little less than doing it yourself — more when the account is verified.</div>
             </button>
           </> : browserMode === "phone" ? <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
@@ -319,7 +325,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <div className={styles.infoBlue}><div>This step needs a computer</div><p>The sign-in uses GoLogin desktop software. If you&apos;re on a phone, copy this link and open it on a Windows or Mac computer with the account owner.</p></div>
             <button type="button" className={styles.secondary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Copy / share this link"}</button>
             <WaitNotice primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null} />
-            {session.emailSetup && <><div className={styles.note}>LinkedIn login email: <strong>{session.emailSetup.address}</strong>. {session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
+            {session.emailSetup && <><div className={styles.emailAddressCard}><span>LinkedIn login email</span><strong>{session.emailSetup.address}</strong><button type="button" onClick={() => { if (session.emailSetup?.address) { navigator.clipboard?.writeText(session.emailSetup.address); setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800); } }}>{emailCopied ? "Copied ✓" : "Copy email"}</button></div><div className={styles.note}>{session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
             <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>)}
 
