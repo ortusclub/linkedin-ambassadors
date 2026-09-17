@@ -22,6 +22,14 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
   const [code, setCode] = useState("");
   const [linkConfirmed, setLinkConfirmed] = useState(false);
   const [primary, setPrimary] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function copyAddress() {
+    if (!setup.address) return;
+    navigator.clipboard?.writeText(setup.address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
 
   async function restart() {
     await submit({ action: "restart", consent: true });
@@ -35,11 +43,26 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
     <ol className={styles.miniSteps} aria-label="LinkedIn email setup progress">
       {MINI_STEPS.map((label, index) => {
         const position = index + 1;
+        // Let the referrer jump back to an earlier completed step (2+) — e.g. to
+        // re-copy the email — but never skip forward or reopen the inbox setup.
+        const canGoBack = position < miniStep && position >= 2;
         return <li key={label} className={position === miniStep ? styles.miniActive : position < miniStep ? styles.miniComplete : ""}>
-          <span>{position < miniStep ? "✓" : position}</span><small>{label}</small>
+          <button type="button" disabled={!canGoBack} onClick={() => canGoBack && setMiniStep(position)}>
+            <span>{position < miniStep ? "✓" : position}</span><small>{label}</small>
+          </button>
         </li>;
       })}
     </ol>
+
+    {/* Keep the LinkedVelocity email copyable on every step after the inbox setup —
+        referrers often move on without copying it and then can't find it again. */}
+    {setup.configured && setup.forwardingActive && setup.address && miniStep >= 2 && (
+      <div className={styles.emailAddressCard}>
+        <span>LinkedVelocity email to add</span>
+        <strong>{setup.address}</strong>
+        <button type="button" onClick={copyAddress}>{copied ? "Copied ✓" : "Copy email"}</button>
+      </div>
+    )}
 
     {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before this step can continue.</div> : <>
       {miniStep === 1 && <section className={styles.miniPanel}>
@@ -66,7 +89,6 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
       {miniStep === 2 && setup.forwardingActive && <section className={styles.miniPanel}>
         <div className={styles.stepLabel}>EMAIL STEP 2 OF 4</div>
         <h3>Add the new email to LinkedIn</h3>
-        <div className={styles.emailAddressCard}><span>LinkedVelocity email to add</span><strong>{setup.address}</strong><button type="button" onClick={() => setup.address && navigator.clipboard?.writeText(setup.address)}>Copy email</button></div>
         <ol className={styles.instructions}>
           <li>On the owner&apos;s usual LinkedIn session, open <strong>Me → Settings &amp; Privacy</strong>.</li>
           <li>Select <strong>Sign in &amp; security → Email addresses → Add email address</strong>.</li>
