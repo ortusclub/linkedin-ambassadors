@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 // Marketing footer — shown on public/landing pages, hidden on app/admin/auth pages.
-const HIDE_PREFIXES = ["/admin", "/dashboard", "/login", "/register", "/profile", "/checkout"];
+const HIDE_PREFIXES = ["/admin", "/dashboard", "/login", "/register", "/profile", "/checkout", "/m"];
 
 const CALENDAR_URL =
   "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";

@@ -44,6 +44,10 @@ export function Navbar() {
     router.push("/");
   };
 
+  // Token-gated app surfaces (referrer portal + DIY onboarding wizard) are standalone
+  // apps with their own top bar; don't overlay the marketing navbar on them.
+  if ((pathname || "").startsWith("/m")) return null;
+
   // Two "worlds": renter (default, blue) and ambassador (green) — the nav swaps with the route.
   const isAmb = (pathname || "").startsWith("/become-ambassador");
 
