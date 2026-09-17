@@ -5,6 +5,8 @@ import { z } from "zod";
 import { persistImageUrl } from "@/lib/persist-image";
 import { markOwnerOnboardedIfReady } from "@/lib/onboarding";
 import { decryptSecret } from "@/lib/crypto-creds";
+import { provisionAccount } from "@/lib/provision-account";
+import * as gologin from "@/services/gologin";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -88,6 +90,14 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
     const data = updateSchema.parse(body);
+
+    // Capture the pre-update login email so we can detect a change and keep the
+    // GoLogin profile name in sync (admin is the source of truth for emails).
+    let oldLoginEmail: string | null | undefined = undefined;
+    if (data.loginEmail !== undefined) {
+      const prev = await prisma.linkedInAccount.findUnique({ where: { id }, select: { loginEmail: true } });
+      oldLoginEmail = prev?.loginEmail ?? null;
+    }
 
     // 2FA-reset gate: a rental leaving "rented" auto-flags the account (the
     // outgoing renter had the code), and it can't be set back to "available"
@@ -182,6 +192,44 @@ export async function PATCH(
         }
       } catch (e) {
         console.error("Failed to sync proxy to GoLogin:", e);
+      }
+    }
+
+    // Admin is the source of truth for the login email. If it changed on an account
+    // that already has a GoLogin profile, rename the profile to match and regenerate
+    // its share link (the g.camp link embeds the name). Skip rented accounts (a mid-
+    // rental change would disrupt the renter). Best-effort — never fails the save.
+    if (
+      data.loginEmail !== undefined &&
+      account.loginEmail &&
+      oldLoginEmail !== undefined &&
+      oldLoginEmail !== account.loginEmail &&
+      account.gologinProfileId &&
+      account.status !== "rented"
+    ) {
+      const token = gologin.tokenForAccount(account.gologinAccount) || undefined;
+      try {
+        await gologin.renameProfile(account.gologinProfileId, account.loginEmail, token);
+        try {
+          const link = await gologin.regeneratePublicShareLink(account.gologinProfileId, account.loginEmail, token);
+          if (link) await prisma.linkedInAccount.update({ where: { id }, data: { gologinShareLink: link.publicUrl } });
+        } catch (e) { console.error("share-link regen after email change failed:", e); }
+      } catch (e) { console.error("GoLogin rename after email change failed:", e); }
+    }
+
+    // Instant auto-provision: the moment a login email is set and setup is still
+    // incomplete, link/create the GoLogin profile, assign a proxy, and generate the
+    // share link. Best-effort — never fails the save; the provision-accounts cron
+    // retries anything that couldn't finish. Skips rented accounts (see provisionAccount).
+    if (
+      account.loginEmail &&
+      account.status !== "rented" &&
+      (!account.gologinProfileId || !account.proxyHost || !account.gologinShareLink)
+    ) {
+      try {
+        await provisionAccount(account.id);
+      } catch (e) {
+        console.error("auto-provision (update) failed:", e);
       }
     }
 

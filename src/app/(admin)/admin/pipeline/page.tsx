@@ -80,6 +80,7 @@ interface Row {
   payoutName: string | null;
   verifiedAt: string | null;
   linkedinVerified: boolean;
+  provisionStatus: string | null;
   setupPaidAt: string | null;
   personalEmail: string | null;
   workEmail: string | null;
@@ -745,6 +746,8 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               {r.accountIssue && !r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={r.accountIssue} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ {r.accountIssue.length > 22 ? "login issue" : r.accountIssue}</span>}
               {r.phoneHandoffPending && <span title="DIY phone hand-off — the owner is on a phone, so the team must do the GoLogin sign-in" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)" }}>📱 Needs sign-in</span>}
               {isLikelyTestEmail(r.email) && <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
+              {r.provisionStatus === "ready_to_buy_cheap" && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No proxy-cheap residential free for this account — buy one to finish auto-provisioning" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>🛒 Ready to buy proxy-cheap</span>}
+              {r.provisionStatus === "needs_proxy6" && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No Proxy 6 datacenter IP free for this verified account — buy one (no Proxy 6 API)" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ Needs Proxy 6</span>}
             </div>
             <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {r.email}{r.contactNumber ? ` · ${r.contactNumber}` : ""}

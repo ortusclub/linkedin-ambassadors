@@ -39,7 +39,7 @@ export async function GET() {
         ambassadorPayment: true, connectionCount: true, status: true,
         restrictedAt: true, notes: true, linkedinVerified: true,
         proxyHost: true, proxyPort: true, proxyUsername: true,
-        proxyPassword: true, proxyLocation: true,
+        proxyPassword: true, proxyLocation: true, provisionStatus: true,
       },
     });
 
@@ -160,6 +160,7 @@ export async function GET() {
         ambassadorPayment: acct?.ambassadorPayment != null ? Number(acct.ambassadorPayment) : null,
         accountNotes: acct?.notes || null,
         linkedinVerified: !!acct?.linkedinVerified,
+        provisionStatus: acct?.provisionStatus || null,
         connectionCount: acct?.connectionCount ?? app.connectionCount ?? null,
         // DIY phone hand-off: owner is on a phone, so LinkedVelocity must do the sign-in.
         phoneHandoffPending: handoffAppIds.has(app.id),
