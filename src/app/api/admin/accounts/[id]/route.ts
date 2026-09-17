@@ -140,6 +140,13 @@ export async function PATCH(
       data.profilePhotoUrl = await persistImageUrl(data.profilePhotoUrl);
     }
 
+    // Marking an account Available lists it in the catalogue by default — "Available"
+    // (we hold it, ready) and "Listed" (shown publicly) used to be separate toggles, so
+    // an account could be available yet invisible. Pass `listed` explicitly to override.
+    if (data.status === "available" && data.listed === undefined) {
+      data.listed = true;
+    }
+
     const account = await prisma.linkedInAccount.update({
       where: { id },
       data,
