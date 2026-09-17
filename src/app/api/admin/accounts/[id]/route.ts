@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
 import { persistImageUrl } from "@/lib/persist-image";
 import { markOwnerOnboardedIfReady } from "@/lib/onboarding";
-import { encryptSecret, decryptSecret } from "@/lib/crypto-creds";
+import { decryptSecret } from "@/lib/crypto-creds";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -129,10 +129,6 @@ export async function PATCH(
     if (data.profilePhotoUrl) {
       data.profilePhotoUrl = await persistImageUrl(data.profilePhotoUrl);
     }
-
-    // Encrypt account secrets at rest before saving (null/empty pass through).
-    if (data.accountPassword !== undefined) data.accountPassword = encryptSecret(data.accountPassword);
-    if (data.twoFactor !== undefined) data.twoFactor = encryptSecret(data.twoFactor);
 
     const account = await prisma.linkedInAccount.update({
       where: { id },

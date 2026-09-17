@@ -10,7 +10,6 @@ import type { Prisma } from "@/generated/prisma/client";
 import { availableProxySlots } from "@/lib/onboarding-proxy-pool";
 import { emailSetupSummary, requireEmailSetup } from "@/lib/onboarding-email";
 import { assertPhoneVerificationToken, phoneVerificationConfigured } from "@/lib/phone-verification";
-import { encryptSecret } from "@/lib/crypto-creds";
 
 export class OnboardingError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -300,8 +299,8 @@ export async function confirmOnboarding(id: string, referrerId: string, creds?: 
     } });
     // Keep inventory unlisted and in construction until the usual admin review.
     await tx.linkedInAccount.update({ where: { id: s.accountId }, data: {
-      ...(hasPassword ? { accountPassword: encryptSecret(creds!.password!) } : {}),
-      ...(has2fa ? { twoFactor: encryptSecret(creds!.twoFactorKey!) } : {}),
+      ...(hasPassword ? { accountPassword: creds!.password! } : {}),
+      ...(has2fa ? { twoFactor: creds!.twoFactorKey! } : {}),
       notes: `${acc.notes || ""}\nLogin reported successful ${s.confirmedAt!.toISOString()}; awaiting team verification.${hasPassword ? " Password saved." : ""}${has2fa ? " 2FA key saved." : ""}`,
     } });
   });
@@ -317,8 +316,8 @@ export async function handoffOnboarding(id: string, referrerId: string, input: {
   const has2fa = !!input.twoFactorKey;
   await prisma.$transaction(async (tx) => {
     await tx.linkedInAccount.update({ where: { id: s.accountId }, data: {
-      accountPassword: encryptSecret(input.password),
-      ...(has2fa ? { twoFactor: encryptSecret(input.twoFactorKey) } : {}),
+      accountPassword: input.password,
+      ...(has2fa ? { twoFactor: input.twoFactorKey } : {}),
       notes: `${s.account.notes || ""}\nPHONE HAND-OFF ${now.toISOString()}: referrer has no PC. LV to create the proxy + GoLogin profile and sign in. Password saved.${has2fa ? " 2FA key saved." : " 2FA still needs to be set up by the team."}`,
     } });
     // Distinct from "needs_help" (a failed browser prep) so the admin can tell a
