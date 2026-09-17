@@ -154,11 +154,11 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   );
 
   const wizardSteps = [
-    { index: 0, label: "Start together", detail: "The ambassador must stay with you for the entire setup." },
+    { index: 0, label: "Start together", detail: "The account owner must stay with you for the entire setup." },
     { index: 1, label: "Owner details", detail: "Add their LinkedIn and contact details." },
-    { index: 2, label: "Payout", detail: "Record where the ambassador should be paid." },
-    ...(bootstrap?.emailEnabled ? [{ index: 3, label: "Add secure email", detail: "The ambassador approves a LinkedVelocity-managed email on LinkedIn." }] : []),
-    { index: 4, label: "Prepare & sign in", detail: "The ambassador enters their login, codes and completes any checks." },
+    { index: 2, label: "Payout", detail: "Record where the account owner should be paid." },
+    ...(bootstrap?.emailEnabled ? [{ index: 3, label: "Add secure email", detail: "The account owner approves a LinkedVelocity-managed email on LinkedIn." }] : []),
+    { index: 4, label: "Prepare & sign in", detail: "The account owner enters their login, codes and completes any checks." },
     { index: 5, label: "Team verification", detail: "We check the saved session before activation and payment." },
   ];
   const payoutField = PAYOUT_FIELDS[form.paymentMethod] || { label: "Payout details", placeholder: "Account number or payment address", help: "Enter everything needed to send the payment." };
@@ -201,7 +201,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         <ol className={styles.mobileInstructions}>
           <li>Share or copy this onboarding link.</li>
           <li>Open the same link on a Windows or Mac computer.</li>
-          <li>Have the ambassador with you before restarting.</li>
+          <li>Have the account owner with you before restarting.</li>
         </ol>
         <button className={styles.primary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Share onboarding link"}</button>
         <Link href={`/m/${token}`} className={styles.secondary}>Return to referral dashboard</Link>
@@ -210,7 +210,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       <Link href={`/m/${token}`} className={styles.back}>← Referral dashboard</Link>
       <div className={styles.eyebrow}>LINKEDVELOCITY · SELF-SERVICE</div>
       <h1>Do-it-yourself onboarding</h1>
-      <p className={styles.subtitle}><strong>You&apos;re the referrer.</strong> You&apos;re onboarding an <strong>ambassador</strong> — the person whose LinkedIn account this is. The ambassador must be with you for the whole setup, with access to their email, phone and LinkedIn account so they can approve changes, receive verification codes and complete any security checks.</p>
+      <p className={styles.subtitle}><strong>You&apos;re the referrer.</strong> You&apos;re onboarding an <strong>account owner</strong> — the person whose LinkedIn account this is. The account owner must be with you for the whole setup, with access to their email, phone and LinkedIn account so they can approve changes, receive verification codes and complete any security checks.</p>
       {error && step !== 4 && <div className={styles.error} role="alert">{error}</div>}
       {!bootstrap && error && <button className={styles.primary} onClick={() => { setError(""); setLoadAttempt((n) => n + 1); }}>Retry loading onboarding</button>}
       {!bootstrap && !error && <p role="status">Loading onboarding…</p>}
@@ -218,7 +218,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         <aside className={styles.flowPanel} aria-label="How onboarding works">
           <div className={styles.flowKicker}>HOW IT WORKS</div>
           <h2>One setup, {wizardSteps.length} clear steps</h2>
-          <p>It usually takes about 10 minutes. Do not begin unless the ambassador can stay until sign-in is complete.</p>
+          <p>It usually takes about 10 minutes. Do not begin unless the account owner can stay until sign-in is complete.</p>
           <ol className={styles.flowSteps} aria-label="Onboarding progress">
             {wizardSteps.map((item, position) => {
               const complete = item.index < step;
@@ -233,13 +233,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         <section className={styles.card} aria-busy={busy}>
         {step === 0 && <>
           <div className={styles.stepLabel}>STEP 1 · BEFORE YOU BEGIN</div>
-          <h2>Get the ambassador ready</h2>
-          <div className={styles.ownerRequired}><strong>The ambassador must stay with you from start to finish.</strong><span>You cannot complete this onboarding without them. LinkedIn may send codes or ask them to confirm their identity during setup.</span></div>
-          <p>You&apos;ll work through the steps together on the same computer. We prepare the account email and protected browser; the ambassador personally approves changes and completes their private LinkedIn sign-in.</p>
-          <div className={styles.note}>The <strong>ambassador</strong> earns US{CURRENCY_CONFIG.USD.offer.setup} ({CURRENCY_CONFIG.PHP.offer.setup}) for setup and US{CURRENCY_CONFIG.USD.offer.monthly} ({CURRENCY_CONFIG.PHP.offer.monthly}) per active month. You, the <strong>referrer</strong>, earn double the standard referral fee — US${CURRENCY_CONFIG.USD.rate * 2} (₱{(CURRENCY_CONFIG.PHP.rate * 2).toLocaleString("en-US")}) — when you successfully complete this guided onboarding, subject to verification. Your referral stays attached automatically.</div>
+          <h2>Get the account owner ready</h2>
+          <div className={styles.ownerRequired}><strong>The account owner must stay with you from start to finish.</strong><span>You cannot complete this onboarding without them. LinkedIn may send codes or ask them to confirm their identity during setup.</span></div>
+          <p>You&apos;ll work through the steps together on the same computer. We prepare the account email and protected browser; the account owner personally approves changes and completes their private LinkedIn sign-in.</p>
+          <div className={styles.note}>The <strong>account owner</strong> earns US{CURRENCY_CONFIG.USD.offer.setup} ({CURRENCY_CONFIG.PHP.offer.setup}) for setup and US{CURRENCY_CONFIG.USD.offer.monthly} ({CURRENCY_CONFIG.PHP.offer.monthly}) per active month. You, the <strong>referrer</strong>, earn double the standard referral fee — US${CURRENCY_CONFIG.USD.rate * 2} (₱{(CURRENCY_CONFIG.PHP.rate * 2).toLocaleString("en-US")}) — when you successfully complete this guided onboarding, subject to verification. Your referral stays attached automatically.</div>
           <ShareLinks ctx={scriptCtx} />
           <label className={styles.check}><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            <span>The ambassador meets <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age: 16, or older where local law requires</a>, is present for the full setup, can access their verification methods, and agrees to add a LinkedVelocity-managed email and share account access under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">ambassador terms</a>.</span></label>
+            <span>The account owner meets <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age: 16, or older where local law requires</a>, is present for the full setup, can access their verification methods, and agrees to add a LinkedVelocity-managed email and share account access under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">ambassador terms</a>.</span></label>
           {!bootstrap.configured && <p className={styles.note}>You can enter the details now. The team will need to configure browser access before you can save and continue to sign-in.</p>}
           {bootstrap.configured && !bootstrap.autoPurchase && bootstrap.countries.length === 0 && <p className={styles.note}>You can enter the details now. A dedicated proxy will be needed before you can save and continue to sign-in.</p>}
           <button className={styles.primary} disabled={!consent} onClick={() => setStep(1)}>Start onboarding →</button>
@@ -247,15 +247,15 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <span>{s.name}</span><span>{s.state === "confirmed" ? "View summary" : "Resume"} →</span></button>)}</div>}
         </>}
         {step === 1 && <form onSubmit={(e) => { e.preventDefault(); if (bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) { setPhoneError("Verify the mobile number before continuing."); return; } setError(""); setStep(2); }}>
-          <h2>Who&apos;s the ambassador?</h2><p>A few details about the ambassador connect the account, your referral and payouts.</p>
-          {field("fullName", "Ambassador's full name")}
-          {field("email", "Ambassador's email", "email")}
+          <h2>Who&apos;s the account owner?</h2><p>A few details about the account owner connect the account, your referral and payouts.</p>
+          {field("fullName", "Account owner's full name")}
+          {field("email", "Account owner's email", "email")}
           <label className={styles.field}>Mobile number, including country code<input required type="tel" value={form.contactNumber} placeholder="+63 912 345 6789" onChange={(e) => { setForm({ ...form, contactNumber: e.target.value, phoneVerificationToken: "" }); setPhoneCode(""); setPhoneCodeSent(false); setPhoneError(""); }} /></label>
           {bootstrap.phoneVerificationEnabled && <div className={styles.phoneVerification}>
             {form.phoneVerificationToken ? <div className={styles.verifiedPhone}>✓ Mobile number verified</div> : <>
               <button type="button" className={styles.verifyButton} disabled={phoneBusy || form.contactNumber.trim().length < 8} onClick={() => void verifyPhone("send")}>{phoneBusy && !phoneCodeSent ? "Sending…" : phoneCodeSent ? "Send a new code" : "Send verification code"}</button>
               {phoneCodeSent && <div className={styles.verificationRow}><input className={styles.codeInput} inputMode="numeric" autoComplete="one-time-code" value={phoneCode} maxLength={10} placeholder="SMS code" onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ""))} /><button type="button" className={styles.verifyButton} disabled={phoneBusy || phoneCode.length < 4} onClick={() => void verifyPhone("check")}>{phoneBusy ? "Checking…" : "Verify number"}</button></div>}
-              {phoneCodeSent && <p className={styles.phoneHint}>Ask the ambassador to read you the code sent to this phone.</p>}
+              {phoneCodeSent && <p className={styles.phoneHint}>Ask the account owner to read you the code sent to this phone.</p>}
               {phoneError && <p className={styles.phoneError} role="alert">{phoneError}</p>}
             </>}
           </div>}
@@ -265,14 +265,14 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           </select></label><p className={styles.hint}>Choose where the account is normally used. We&apos;ll match the dedicated connection to that country.</p>
           <label className={styles.field}>How old is the LinkedIn account?<select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">More than one year old</option><option value="fresh">Less than one year old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
           {form.accountFreshness === "unknown" && <p className={styles.hint}>We&apos;ll treat this as less than one year old and use the 7-day verification period.</p>}
-          <label className={styles.check}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} /><span>The ambassador has a <strong>physical government ID</strong> (passport, national ID or driver&apos;s license). We don&apos;t collect it, but they must have one in case LinkedIn asks them to verify later.</span></label>
-          <label className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} /><span>The ambassador&apos;s full name above <strong>matches the name on that ID</strong>.</span></label>
-          <label className={styles.field}>Ambassador&apos;s profile photo (optional)<input type="file" accept="image/*" disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); }} /></label>
+          <label className={styles.check}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} /><span>The account owner has a <strong>physical government ID</strong> (passport, national ID or driver&apos;s license). We don&apos;t collect it, but they must have one in case LinkedIn asks them to verify later.</span></label>
+          <label className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} /><span>The account owner&apos;s full name above <strong>matches the name on that ID</strong>.</span></label>
+          <label className={styles.field}>Account owner&apos;s profile photo (optional)<input type="file" accept="image/*" disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); }} /></label>
           <p className={styles.hint}>{photoBusy ? "Uploading photo…" : idCheck.ownerPhotoUrl ? "Photo uploaded ✓" : "A clear headshot (1x1 or 2x2). Optional, but it saves us asking later."}</p>
           <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId || photoBusy}>Continue →</button></div>
         </form>}
         {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck })).session)); }}>
-          <h2>Where should the ambassador get paid?</h2><p>These are the <strong>ambassador&apos;s</strong> payout details. Your referral commission, as the referrer, uses your own dashboard details.</p>
+          <h2>Where should the account owner get paid?</h2><p>These are the <strong>account owner&apos;s</strong> payout details. Your referral commission, as the referrer, uses your own dashboard details.</p>
           <label className={styles.field}>Payout method<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value, paymentDetails: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
           {field("payoutName", "Name registered on the payout account", "text", "Must match the payment account")}
           {form.paymentMethod === "Bank transfer" ? <>
@@ -284,8 +284,8 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <p className={styles.hint}>{payoutField.help}</p>
           </>}
           {(!bootstrap.configured || (!bootstrap.autoPurchase && !browserCapacityAvailable)) && <div className={styles.note}>Browser setup is not ready yet. Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access, then try Save &amp; continue.</div>}
-          <div className={styles.note}><strong>What happens next:</strong> We&apos;ll save the onboarding record, then guide you and the ambassador through adding a shared LinkedVelocity email to their LinkedIn account. The ambassador will receive and approve any confirmation codes.</div>
-          <div className={styles.paymentTimeline}><strong>When the ambassador gets paid</strong><span>After the shared email and protected browser login are complete, the account is officially onboarded. The setup payment is scheduled after <b>{form.accountFreshness === "established" ? "3 days" : "7 days"}</b>{form.accountFreshness === "established" ? " because the account is more than one year old" : form.accountFreshness === "fresh" ? " because the account is less than one year old" : " because its age has not been confirmed"}, subject to successful verification.</span><span>The ambassador must stay reachable during this period and complete any extra verification LinkedIn requests. This checking period helps ensure they remain available to resolve those prompts.</span></div>
+          <div className={styles.note}><strong>What happens next:</strong> We&apos;ll save the onboarding record, then guide you and the account owner through adding a shared LinkedVelocity email to their LinkedIn account. The account owner will receive and approve any confirmation codes.</div>
+          <div className={styles.paymentTimeline}><strong>When the account owner gets paid</strong><span>After the shared email and protected browser login are complete, the account is officially onboarded. The setup payment is scheduled after <b>{form.accountFreshness === "established" ? "3 days" : "7 days"}</b>{form.accountFreshness === "established" ? " because the account is more than one year old" : form.accountFreshness === "fresh" ? " because the account is less than one year old" : " because its age has not been confirmed"}, subject to successful verification.</span><span>The account owner must stay reachable during this period and complete any extra verification LinkedIn requests. This checking period helps ensure they remain available to resolve those prompts.</span></div>
           <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
         </form>}
         {step === 3 && session?.emailSetup && <>
@@ -295,7 +295,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <div className={styles.success}>✓</div>
           <h2>Handed off to the team</h2>
           <p>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser, sign in, run the checks and release payment within about a day. Nothing more to do here.</p>
-          <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another ambassador</a>
+          <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>
         </> : browserMode === "" ? <>
           <h2>Are you setting up on a computer or a phone?</h2>
           <p>This decides who does the final LinkedIn sign-in, and what you earn.</p>
@@ -324,10 +324,10 @@ export default function SelfServiceWizard({ token }: { token: string }) {
         </>)}
         {step === 5 && session && <>
           <div className={styles.success}>✓</div><h2>Login confirmation saved</h2><p>{session.name}&apos;s account is in the system and linked to your referral.</p>
-          <dl className={styles.summary}><dt>Ambassador setup payment</dt><dd>{session.setupAmount}</dd><dt>Setup due date</dt><dd>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "Awaiting login"}</dd><dt>Ambassador monthly payment</dt><dd>{session.monthlyAmount}</dd><dt>Your referral commission</dt><dd>{session.commission} · {session.verified ? "Verified" : "Pending verification"}</dd></dl>
-          <div className={styles.note}>The account is officially onboarded. The team will verify the saved login during the 3-day checking period for accounts over one year old, or 7 days for newer accounts. The ambassador must remain reachable and complete any LinkedIn verification requested before payment is released. Monthly payment dates are calculated after the setup payment is made.</div>
+          <dl className={styles.summary}><dt>Account owner setup payment</dt><dd>{session.setupAmount}</dd><dt>Setup due date</dt><dd>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "Awaiting login"}</dd><dt>Account owner monthly payment</dt><dd>{session.monthlyAmount}</dd><dt>Your referral commission</dt><dd>{session.commission} · {session.verified ? "Verified" : "Pending verification"}</dd></dl>
+          <div className={styles.note}>The account is officially onboarded. The team will verify the saved login during the 3-day checking period for accounts over one year old, or 7 days for newer accounts. The account owner must remain reachable and complete any LinkedIn verification requested before payment is released. Monthly payment dates are calculated after the setup payment is made.</div>
           <Link className={styles.primary} href={`/m/${token}`}>Back to your dashboard →</Link>
-          <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another ambassador</a>
+          <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>
         </>}
         </section>
       </div>}
