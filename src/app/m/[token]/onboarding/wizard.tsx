@@ -46,8 +46,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
   const [handedOff, setHandedOff] = useState(false);
-  const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false, ownerPhotoUrl: "" });
-  const [photoBusy, setPhotoBusy] = useState(false);
+  const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false });
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" });
 
   async function request(method: string, body?: unknown, id?: string) {
@@ -106,17 +105,6 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       else setForm((current) => ({ ...current, phoneVerificationToken: data.verificationToken }));
     } catch (e) { setPhoneError(e instanceof Error ? e.message : "Mobile verification failed."); }
     finally { setPhoneBusy(false); }
-  }
-  async function uploadPhoto(file: File) {
-    setPhotoBusy(true); setError("");
-    try {
-      const fd = new FormData(); fd.append("file", file);
-      const res = await fetch(`${endpoint}/photo`, { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Photo upload failed.");
-      setIdCheck((c) => ({ ...c, ownerPhotoUrl: data.url }));
-    } catch (e) { setError(e instanceof Error ? e.message : "Photo upload failed."); }
-    finally { setPhotoBusy(false); }
   }
   function showSession(s: Session) { setSession(s); if (s.state === "handed_off") setHandedOff(true); setStep(s.state === "confirmed" ? 5 : s.emailSetup && !s.emailSetup.primaryConfirmed ? 3 : 4); }
   async function emailAction(body: unknown) {
@@ -236,7 +224,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           <h2>Get the account owner ready</h2>
           <div className={styles.ownerRequired}><strong>The account owner must stay with you from start to finish.</strong><span>You cannot complete this onboarding without them. LinkedIn may send codes or ask them to confirm their identity during setup.</span></div>
           <p>You&apos;ll work through the steps together on the same computer. We prepare the account email and protected browser; the account owner personally approves changes and completes their private LinkedIn sign-in.</p>
-          <div className={styles.note}>The <strong>account owner</strong> earns US{CURRENCY_CONFIG.USD.offer.setup} ({CURRENCY_CONFIG.PHP.offer.setup}) for setup and US{CURRENCY_CONFIG.USD.offer.monthly} ({CURRENCY_CONFIG.PHP.offer.monthly}) per active month. You, the <strong>referrer</strong>, earn double the standard referral fee — US${CURRENCY_CONFIG.USD.rate * 2} (₱{(CURRENCY_CONFIG.PHP.rate * 2).toLocaleString("en-US")}) — when you successfully complete this guided onboarding, subject to verification. Your referral stays attached automatically.</div>
+          <div className={styles.note}>The <strong>account owner</strong> earns US{CURRENCY_CONFIG.USD.offer.setup} ({CURRENCY_CONFIG.PHP.offer.setup}) for setup and US{CURRENCY_CONFIG.USD.offer.monthly} ({CURRENCY_CONFIG.PHP.offer.monthly}) per active month. You, the <strong>referrer</strong>, earn <strong>₱600–₱1,000</strong> per completed onboarding — the exact amount depends on whether it&apos;s done on a phone or a computer and whether the account is verified (you&apos;ll see it at the sign-in step). Your referral stays attached automatically.</div>
           <ShareLinks ctx={scriptCtx} />
           <label className={styles.check}><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             <span>The account owner meets <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age: 16, or older where local law requires</a>, is present for the full setup, can access their verification methods, and agrees to add a LinkedVelocity-managed email and share account access under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">ambassador terms</a>.</span></label>
@@ -267,9 +255,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           {form.accountFreshness === "unknown" && <p className={styles.hint}>We&apos;ll treat this as less than one year old and use the 7-day verification period.</p>}
           <label className={styles.check}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} /><span>The account owner has a <strong>physical government ID</strong> (passport, national ID or driver&apos;s license). We don&apos;t collect it, but they must have one in case LinkedIn asks them to verify later.</span></label>
           <label className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} /><span>The account owner&apos;s full name above <strong>matches the name on that ID</strong>.</span></label>
-          <label className={styles.field}>Account owner&apos;s profile photo (optional)<input type="file" accept="image/*" disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); }} /></label>
-          <p className={styles.hint}>{photoBusy ? "Uploading photo…" : idCheck.ownerPhotoUrl ? "Photo uploaded ✓" : "A clear headshot (1x1 or 2x2). Optional, but it saves us asking later."}</p>
-          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId || photoBusy}>Continue →</button></div>
+          <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId}>Continue →</button></div>
         </form>}
         {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck })).session)); }}>
           <h2>Where should the account owner get paid?</h2><p>These are the <strong>account owner&apos;s</strong> payout details. Your referral commission, as the referrer, uses your own dashboard details.</p>
