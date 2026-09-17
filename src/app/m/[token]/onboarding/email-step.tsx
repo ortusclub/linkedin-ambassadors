@@ -38,7 +38,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
 
   return <>
     <h2>Set up their LinkedIn email</h2>
-    <p>Complete these four steps with the account owner before opening their protected GoLogin browser.</p>
+    <p>The <strong>account owner</strong> adds and verifies the email themselves, on their own phone or laptop where they&apos;re already signed into LinkedIn. <strong>You walk them through each step.</strong> There&apos;s no protected GoLogin browser yet; that only comes at the very end for the final sign-in.</p>
 
     <ol className={styles.miniSteps} aria-label="LinkedIn email setup progress">
       {MINI_STEPS.map((label, index) => {
