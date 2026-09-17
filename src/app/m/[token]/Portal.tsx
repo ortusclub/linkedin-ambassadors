@@ -26,16 +26,19 @@ const JAK = "var(--font-jak), system-ui, sans-serif";
 const GRO = "var(--font-gro), system-ui, sans-serif";
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-const STEPS = [
-  "Pitch it in one line — they earn passive income each month just by lending us their LinkedIn.",
-  "Check they meet LinkedIn's minimum age: 16, or older where local law requires. Brand-new accounts pay out a bit later.",
-  "They scan your QR code.",
-  "They fill in their details and sign up — that's what records them against your code, so don't stop before this.",
-  "Most important: stay with them until they pick a slot on the \"Book your onboarding call\" screen at the end. Don't let them leave on \"I'll do it later\" — they won't.",
-  "Done — our team takes it from there on the call, then setup and payment.",
+// Static field content — the offer, how a guided onboarding goes, do/don't, what
+// makes a good account, and the two FAQ sets. Kept verbatim from the previous
+// single-scroll portal; only the layout around them changed.
+const STEPS: { t: string; s: string }[] = [
+  { t: "Start together", s: "Stay with the account owner for the whole thing — they need their phone, email and LinkedIn to hand." },
+  { t: "Their details", s: "Their name, LinkedIn link and contact, plus a couple of quick eligibility checks." },
+  { t: "Payout", s: "Where the account owner gets paid. Your own commission uses your details in “For you”." },
+  { t: "Add secure email", s: "They add a LinkedVelocity-managed email to their LinkedIn and confirm the code." },
+  { t: "Sign in", s: "Choose computer (you sign in) or phone (hand it to us). This sets what you earn." },
+  { t: "Done", s: "We verify the account works, then release setup and your commission." },
 ];
-const DOS =["Be friendly, casual and quick", "Get them to complete the form", "Watch them book a call slot before they walk away", "Be honest that payment comes after setup", "Check LinkedIn's minimum age: 16, or older where local law requires"];
-const DONTS = ["Pressure anyone — encourage, never force", "Promise cash on the spot", "Collect passwords, PINs or 2FA codes", "Guarantee earnings beyond the offer", "Sign up anyone below LinkedIn's applicable minimum age"];
+const DOS = ["Be friendly, casual and quick", "Get them to finish the form or the guided steps", "Stay with them until a call is booked or sign-in is done", "Be honest that payment comes after setup", "Check LinkedIn's minimum age: 16, or older where local law requires"];
+const DONTS = ["Pressure anyone — encourage, never force", "Promise cash on the spot", "Collect passwords, PINs or 2FA codes yourself", "Guarantee earnings beyond the offer", "Sign up anyone below LinkedIn's applicable minimum age"];
 
 const TIPS = [
   "They can remove their account at any time.",
@@ -62,7 +65,7 @@ const MARKETER_FAQ = [
   { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 to ₱1,000 for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday." },
   { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your fee (₱500 to ₱1,000, depending on how it's onboarded) is triggered." },
   { q: "What if someone doesn't qualify?", a: "Thank them and move on. LinkedIn's minimum age is 16, or older where local law requires." },
-  { q: "How do I update my payout details?", a: "Right here — scroll down to \"Your payout details\" and save your GCash / bank info so we can pay you." },
+  { q: "How do I update my payout details?", a: "In the Earnings tab — under “Where we send your money”, save your GCash / bank info so we can pay you." },
   { q: "How do I get invited back?", a: "We track sign-ups per person — strong performers get first pick for the next field days." },
 ];
 const AMBASSADOR_FAQ = [
@@ -80,21 +83,34 @@ const AMBASSADOR_FAQ = [
   { q: "What if I want my account back later?", a: "No problem — reclaim it anytime, and the monthly payments simply stop." },
 ];
 
+const READY_CHECKS = [
+  { t: "They're with you right now", s: "In person or on a call — they'll need to tap and confirm things themselves." },
+  { t: "They have their phone", s: "LinkedIn sends codes they'll need to read out to you." },
+  { t: "They can get into their LinkedIn", s: "They'll sign in and approve changes during setup." },
+  { t: "About 10 minutes free", s: "It saves as you go, but it's smoothest done in one sitting." },
+];
+
 const C = {
-  pageBg: "#eef0f3", appBg: "#f4f6f8", card: "#fff", line: "#ebedf1", line2: "#f0f1f4",
-  ink: "#0f1729", slate: "#334155", muted: "#647189", muted2: "#9aa3b2",
-  green: "#16a34a", greenDk: "#15803d", softGreen: "#effaf3", softGreenBorder: "#c3ebd2",
-  warn: "#c2410c", blue: "#3b82f6", accBg: "#dcf5e4", accFg: "#15803d", pendBg: "#eef1f5", pendFg: "#647189",
+  pageBg: "#e9ebef", appBg: "#f5f6f8", card: "#fff", line: "#e6e8ec", line2: "#f1f3f6",
+  ink: "#0b1220", slate: "#5b6779", muted: "#7b8696", muted2: "#98a2b3",
+  green: "#16a34a", greenDk: "#15803d", softGreen: "#f0faf4", softGreenBorder: "#c3ebd2",
+  dark: "#0b1220", warn: "#9a3412", warnBg: "#fff7ed", warnBorder: "#fed7aa",
+  blueInk: "#1e3a8a", blueBg: "#f1f5ff", blueBorder: "#c7d7fe",
+  accBg: "#f0faf4", accFg: "#15803d", pendBg: "#eef1f5", pendFg: "#647189",
   inputBg: "#f7f8fa", inputBorder: "#e3e6ea",
 };
+
+type Tab = "home" | "jobs" | "money" | "guide" | "you";
 
 export default function Portal({ token }: { token: string }) {
   const [data, setData] = useState<Data | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
+  const [tab, setTab] = useState<Tab>("home");
   const [form, setForm] = useState({ contactMethod: "WhatsApp", contactHandle: "", paymentMethod: "GCash", paymentDetails: "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [readyOpen, setReadyOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [faqOpen, setFaqOpen] = useState<Set<string>>(new Set());
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -128,6 +144,7 @@ export default function Portal({ token }: { token: string }) {
     } finally { setSaving(false); }
   };
   const toggleFaq = (k: string) => setFaqOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const go = (t: Tab) => { setTab(t); if (typeof window !== "undefined") window.scrollTo({ top: 0 }); };
 
   // Confirming is deliberately a two-step (button → type your name → confirm) so it
   // can't be tapped by accident. Once sent it can't be undone from this side.
@@ -163,23 +180,18 @@ export default function Portal({ token }: { token: string }) {
   const { me, stats, board, activity, payouts, config } = data;
   const money = (n: number) => config.symbol + n.toLocaleString("en-US");
   const isUSD = config.currency !== "PHP";
+  const firstName = me.name.split(" ")[0];
+  const initial = (me.name.trim()[0] || "?").toUpperCase();
 
-  // The ambassador offer amounts shown on the "The offer you share" card.
-  const offer: { w: string; a: string; d: string }[] = [
-    { w: "Set-up", a: config.offer.setup, d: "to their bank, ~3 days after setup" },
-    { w: "Monthly", a: config.offer.monthly, d: "on the 1st of every month" },
-  ];
-
-  // For non-PH (USD) referrers, rewrite the money/method-bearing FAQ answers — no
-  // field-day rate (online only), USD amounts, and the referrer's own payout method.
-  // DIY (guided) onboarding payout tiers: base = referral we onboard, low = DIY unverified, high = DIY verified.
+  // DIY (guided) onboarding payout tiers: base = referral we onboard, high = DIY verified.
   const base = money(stats.rate);
   const diyHigh = money(stats.rate * 2);
-  // PH referrers keep the original copy verbatim.
+
+  // For non-PH (USD) referrers, rewrite the money/method-bearing FAQ answers.
   const faqOverrides: Record<string, string> = isUSD ? {
     "When do I get paid?": `You get ${base} to ${diyHigh} for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about 3 days after onboarding (about a week for a brand-new account) and are paid the following Monday.`,
     "What counts as a successful sign-up?": `The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your fee (${base} to ${diyHigh}, depending on how it's onboarded) is triggered.`,
-    "How do I update my payout details?": `Right here — scroll down to "Your payout details" and save your ${config.defaultPayoutMethod} / bank info so we can pay you.`,
+    "How do I update my payout details?": `In the Earnings tab — under "Where we send your money", save your ${config.defaultPayoutMethod} / bank info so we can pay you.`,
     "How much will I earn?": `${config.offer.setup} to start — paid to your account about 3 days after setup (or a week if it's a brand-new account). Then ${config.offer.monthly} every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ${config.offer.setup} covers your first partial month, so you're never short-changed.`,
   } : {};
   const applyFaq = (items: { q: string; a: string }[]) => items.map((f) => faqOverrides[f.q] ? { ...f, a: faqOverrides[f.q] } : f);
@@ -194,11 +206,19 @@ export default function Portal({ token }: { token: string }) {
   const myBoardRow = ranked.find((b) => b.isMe);
   const copyLink = () => { navigator.clipboard?.writeText(myLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1500); };
 
-  const card: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "17px 18px", marginBottom: 18 };
-  const secLbl: React.CSSProperties = { font: `700 11px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: C.muted2 };
-  const sub: React.CSSProperties = { font: `700 13.5px ${JAK}`, color: C.ink };
-  const inp: React.CSSProperties = { flex: 1, minWidth: 0, background: C.inputBg, border: `1px solid ${C.inputBorder}`, borderRadius: 10, padding: "11px 13px", font: `500 13.5px ${JAK}`, color: C.ink, outline: "none" };
-  const sel: React.CSSProperties = { flex: "none", width: 132, background: C.inputBg, border: `1px solid ${C.inputBorder}`, borderRadius: 10, padding: "11px 12px", font: `600 13px ${JAK}`, color: C.ink, cursor: "pointer" };
+  const paidTotal = payouts.filter((p) => p.confirmedAt).reduce((s, p) => s + p.amount, 0);
+  const pendingCount = activity.filter((a) => a.kind !== "converted").length;
+
+  // shared style helpers
+  const card: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "16px 17px", marginBottom: 12 };
+  const h1: React.CSSProperties = { font: `600 22px ${GRO}`, color: C.ink, margin: "2px 0 4px", letterSpacing: "-.01em" };
+  const lead: React.CSSProperties = { font: `500 12.5px/1.5 ${JAK}`, color: C.slate, margin: "0 0 16px" };
+  const cardTitle: React.CSSProperties = { font: `700 14px ${JAK}`, color: C.ink, marginBottom: 4 };
+  const secLbl: React.CSSProperties = { font: `700 11px ${JAK}`, letterSpacing: ".07em", textTransform: "uppercase", color: C.muted2 };
+  const inp: React.CSSProperties = { flex: 1, minWidth: 0, background: C.inputBg, border: `1px solid ${C.inputBorder}`, borderRadius: 10, padding: "12px 13px", font: `500 13.5px ${JAK}`, color: C.ink, outline: "none" };
+  const selWrap: React.CSSProperties = { position: "relative", flex: "none", width: 136 };
+  const sel: React.CSSProperties = { width: "100%", appearance: "none", WebkitAppearance: "none", background: C.inputBg, border: `1px solid ${C.inputBorder}`, borderRadius: 10, padding: "12px 30px 12px 12px", font: `600 13px ${JAK}`, color: C.ink, cursor: "pointer" };
+  const chev: React.CSSProperties = { position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", font: `600 10px ${JAK}`, color: C.slate };
 
   const faqBlock = (items: { q: string; a: string }[], prefix: string) => items.map((f, i) => {
     const k = prefix + i, open = faqOpen.has(k);
@@ -213,112 +233,209 @@ export default function Portal({ token }: { token: string }) {
     );
   });
 
+  const tabDef: { id: Tab; icon: string; label: string }[] = [
+    { id: "home", icon: "◆", label: "Today" },
+    { id: "jobs", icon: "☰", label: "Signups" },
+    { id: "money", icon: "₱", label: "Earnings" },
+    { id: "guide", icon: "?", label: "What to say" },
+    { id: "you", icon: "☺", label: "For you" },
+  ];
+
   return (
     <div style={outer}>
-      <div style={{ width: "100%", maxWidth: 440, background: C.appBg, minHeight: "100vh", position: "relative", paddingBottom: 88 }}>
+      <div style={{ width: "100%", maxWidth: 440, background: C.appBg, minHeight: "100vh", position: "relative", paddingBottom: 92 }}>
 
         {/* top bar */}
-        <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 9, padding: "14px 20px", background: "rgba(244,246,248,.9)", backdropFilter: "blur(10px)", borderBottom: `1px solid #e6e9ee` }}>
-          <div style={{ width: 20, height: 20, borderRadius: 6, backgroundImage: "linear-gradient(135deg,#22c55e,#16a34a)" }} />
-          <span style={{ font: `700 14px ${JAK}`, color: C.ink }}>LinkedVelocity</span>
-          <span style={{ font: `600 9px ${JAK}`, letterSpacing: ".08em", color: C.muted, border: `1px solid #dfe3ea`, padding: "3px 7px", borderRadius: 6 }}>AMBASSADORS</span>
+        <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 10, padding: "13px 18px", background: C.dark }}>
+          <div style={{ width: 20, height: 20, borderRadius: 6, backgroundImage: "linear-gradient(135deg,#34d399,#16a34a)" }} />
+          <span style={{ font: `700 14px ${JAK}`, color: "#fff" }}>LinkedVelocity</span>
+          <span style={{ font: `700 9px ${JAK}`, letterSpacing: ".09em", color: "#a7f3d0", border: "1px solid #1f6f47", background: "#0f2b1e", padding: "3px 7px", borderRadius: 6 }}>REFERRER</span>
+          <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, font: `600 12.5px ${JAK}`, color: "#cbd5e1" }}>{firstName}
+            <span style={{ width: 26, height: 26, borderRadius: 999, background: "#1e293b", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11px ${JAK}` }}>{initial}</span>
+          </span>
         </div>
 
-        <div style={{ padding: "20px 20px 0" }}>
-          {/* hero */}
-          <h1 style={{ font: `600 26px/1.1 ${GRO}`, color: C.ink, margin: "6px 0 6px", letterSpacing: "-.02em" }}>Hi, {me.name.split(" ")[0]} 👋</h1>
-          <p style={{ font: `500 13.5px/1.5 ${JAK}`, color: C.muted, margin: "0 0 18px" }}>
-            {me.assignedDay || me.assignedLocation
-              ? <>You&apos;re on for <b style={{ color: C.ink }}>{[me.assignedDay, me.assignedLocation].filter(Boolean).join(" · ")}</b>. Here&apos;s everything you need in the field.</>
-              : "Here's how your referrals are doing — and everything you need in the field."}
-          </p>
+        {/* ============ TODAY ============ */}
+        {tab === "home" && (
+          <div style={{ padding: "20px 18px 0" }}>
+            <h1 style={{ font: `600 25px/1.15 ${GRO}`, color: C.ink, margin: "0 0 5px", letterSpacing: "-.02em" }}>Hi, {firstName} 👋</h1>
+            <p style={{ ...lead, margin: "0 0 16px" }}>
+              {me.assignedDay || me.assignedLocation
+                ? <>You&apos;re on for <b style={{ color: C.ink }}>{[me.assignedDay, me.assignedLocation].filter(Boolean).join(" · ")}</b>. Two ways to earn — onboarding them yourself pays more.</>
+                : "Two ways to earn today — onboarding them yourself pays more."}
+            </p>
 
-          {/* choose an onboarding route */}
-          <div style={{ backgroundImage: "linear-gradient(160deg,#16a34a,#15803d)", borderRadius: 18, padding: 20, marginBottom: 18, boxShadow: "0 14px 30px -14px rgba(21,128,61,.6)" }}>
-            <div style={{ font: `700 11px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: "rgba(255,255,255,.72)", marginBottom: 6 }}>Choose how to onboard</div>
-            <div style={{ font: `600 18px/1.3 ${JAK}`, color: "#fff", marginBottom: 5 }}>Earn {base} to {diyHigh} per successful referral.</div>
-            <p style={{ color: "rgba(255,255,255,.78)", font: `500 11.5px/1.5 ${JAK}`, margin: "0 0 16px" }}>Earn {base} when they complete your form and our team onboards them, up to {diyHigh} when you do the guided onboarding with them. You&apos;ll see the exact amount when you choose how.</p>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-              <span style={{ font: `700 12px ${JAK}`, color: "#fff" }}>1 · Send them the signup form</span>
-              <span style={{ marginLeft: "auto", padding: "4px 8px", borderRadius: 999, background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.25)", color: "#fff", font: `800 10px ${JAK}`, whiteSpace: "nowrap" }}>Earn {money(stats.rate)}</span>
+            {/* stats (dark) */}
+            <div style={{ background: C.dark, borderRadius: 18, padding: 18, marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 13 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 999, background: "#34d399" }} />
+                <span style={{ font: `700 11px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: "#6ee7b7" }}>Your totals</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 14 }}>
+                {[{ v: String(stats.signups), l: "Referred", c: "#fff" }, { v: String(stats.converted), l: "Onboarded", c: "#6ee7b7" }, { v: money(stats.commission), l: "Est. earned", c: "#fff" }].map((t, i) => (
+                  <div key={t.l} style={{ display: "flex", alignItems: "flex-end", gap: 14, minWidth: 0 }}>
+                    {i > 0 && <div style={{ width: 1, height: 38, background: "#1e293b" }} />}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ font: `600 26px/1 ${GRO}`, color: t.c, fontVariantNumeric: "tabular-nums" }}>{t.v}</div>
+                      <div style={{ font: `600 11.5px ${JAK}`, color: "#94a3b8", marginTop: 5 }}>{t.l}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p style={{ font: `500 11.5px/1.45 ${JAK}`, color: "#7c8799", margin: "12px 0 0" }}>Referred means they signed up. Onboarded means the account is done and checked — that&apos;s the one that pays, whoever ran it.</p>
             </div>
-            <p style={{ color: "rgba(255,255,255,.82)", font: `500 11.5px/1.5 ${JAK}`, margin: "0 0 11px" }}>They scan your QR or open your link and submit their details. A LinkedVelocity team member then contacts them to arrange onboarding.</p>
-            <div style={{ display: "flex", gap: 9 }}>
-              <button onClick={() => setQrOpen(true)} style={{ flex: 1, font: `700 14px ${JAK}`, color: C.greenDk, background: "#fff", border: "none", padding: 13, borderRadius: 12, cursor: "pointer" }}>▣ Show QR</button>
-              <button onClick={copyLink} style={{ flex: 1, font: `700 14px ${JAK}`, color: "#fff", background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.3)", padding: 13, borderRadius: 12, cursor: "pointer" }}>{linkCopied ? "Copied ✓" : "⧉ Copy link"}</button>
+
+            {/* guided onboarding hero */}
+            <div style={{ position: "relative", overflow: "hidden", backgroundImage: "linear-gradient(155deg,#18a957 0%,#15803d 55%,#116e35 100%)", borderRadius: 20, padding: "21px 20px", marginBottom: 12, boxShadow: "0 18px 34px -20px rgba(17,110,53,.95)" }}>
+              <div style={{ position: "absolute", top: -70, right: -50, width: 190, height: 190, borderRadius: 999, background: "rgba(255,255,255,.09)" }} />
+              <div style={{ position: "relative" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 11 }}>
+                  <span style={{ font: `700 10px ${JAK}`, letterSpacing: ".09em", textTransform: "uppercase", color: "#bbf7d0" }}>Guided onboarding</span>
+                  <span style={{ font: `700 9.5px ${JAK}`, letterSpacing: ".05em", textTransform: "uppercase", color: C.ink, background: "#a7f3d0", padding: "3px 7px", borderRadius: 5, whiteSpace: "nowrap" }}>Pays most</span>
+                </div>
+                <div style={{ font: `600 24px/1.2 ${GRO}`, color: "#fff", letterSpacing: "-.015em", marginBottom: 8 }}>{base}–{diyHigh}<br />per person you onboard</div>
+                <p style={{ font: `500 13px/1.5 ${JAK}`, color: "rgba(255,255,255,.88)", margin: "0 0 16px" }}>Stay with the account owner and follow the guided steps together. Highest pay, and it&apos;s all recorded to your code as you go.</p>
+                <button onClick={() => setReadyOpen(true)} style={{ width: "100%", font: `700 15.5px ${JAK}`, color: C.greenDk, background: "#fff", border: "none", padding: 16, borderRadius: 13, cursor: "pointer", boxShadow: "0 8px 18px -10px rgba(0,0,0,.4)" }}>Start guided onboarding →</button>
+                <div style={{ display: "flex", gap: 6, marginTop: 13 }}>
+                  {[{ a: base, l: "You send the form" }, { a: diyHigh, l: "You onboard them" }].map((t) => (
+                    <div key={t.l} style={{ flex: 1, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)", borderRadius: 10, padding: "9px 8px", textAlign: "center" }}>
+                      <div style={{ font: `600 14px ${GRO}`, color: "#fff" }}>{t.a}</div>
+                      <div style={{ font: `600 9.5px/1.25 ${JAK}`, color: "rgba(255,255,255,.8)", marginTop: 3 }}>{t.l}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "rgba(0,0,0,.2)", borderRadius: 11, padding: 12, marginTop: 12 }}>
+                  <span style={{ font: `700 12px ${JAK}`, color: "#bbf7d0", flex: "none" }}>i</span>
+                  <span style={{ font: `500 12px/1.45 ${JAK}`, color: "#eafbf1" }}>The final sign-in needs a computer. No computer today? Choose &ldquo;hand it to us&rdquo; and we finish it — they still get paid, you earn a little less.</span>
+                </div>
+              </div>
             </div>
-            <div style={{ marginTop: 11, font: `500 11.5px ${GRO}`, color: "rgba(255,255,255,.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myLinkShort}</div>
-            <div style={{ marginTop: 9, paddingTop: 9, borderTop: "1px solid rgba(255,255,255,.18)", font: `500 12px ${JAK}`, color: "rgba(255,255,255,.82)" }}>Can&apos;t scan? Give them your code: <b style={{ font: `700 13px ${GRO}`, color: "#fff", letterSpacing: ".02em" }}>{me.slug}</b></div>
 
-            <div style={{ marginTop: 16, padding: 14, borderRadius: 14, background: "rgba(8,70,33,.3)", border: "1px solid rgba(255,255,255,.2)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ font: `700 12px ${JAK}`, color: "#fff" }}>2 · Onboard them yourself</span>
-                <span style={{ marginLeft: "auto", padding: "4px 8px", borderRadius: 999, background: "#dcfce7", color: C.greenDk, font: `800 10px ${JAK}`, whiteSpace: "nowrap" }}>Earn up to {diyHigh}</span>
-              </div>
-              <p style={{ color: "rgba(255,255,255,.84)", font: `500 11.5px/1.55 ${JAK}`, margin: "0 0 11px" }}>Stay with the account owner and follow our guided steps. We&apos;ll help you add their LinkedVelocity email, open their protected browser, and have them sign in so the owner and LinkedVelocity both retain access.</p>
-              <a href={`/m/${token}/onboarding`} style={{ display: "block", padding: "13px 16px", borderRadius: 12, background: "#fff", color: C.greenDk, textAlign: "center", textDecoration: "none", font: `700 14px ${JAK}` }}>Start guided onboarding →</a>
-              <p style={{ color: "rgba(255,255,255,.7)", font: `500 10.5px/1.45 ${JAK}`, margin: "8px 0 0", textAlign: "center" }}>A guided onboarding pays more — you&apos;ll see the exact amount when you start it.</p>
-            </div>
-          </div>
-
-          {/* stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 }}>
-            {[{ v: String(stats.signups), l: "Signups", c: C.ink }, { v: String(stats.converted), l: "Onboarded", c: C.greenDk }, { v: money(stats.commission), l: "Est. earned", c: C.ink }].map((t) => (
-              <div key={t.l} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: "15px 10px", textAlign: "center" }}>
-                <div style={{ font: `600 24px/1 ${GRO}`, color: t.c, fontVariantNumeric: "tabular-nums" }}>{t.v}</div>
-                <div style={{ font: `600 11px ${JAK}`, color: C.muted, marginTop: 5 }}>{t.l}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* how you get paid */}
-          <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 16, padding: "17px 18px", marginBottom: 18 }}>
-            <div style={{ font: `700 13.5px ${JAK}`, color: C.greenDk, marginBottom: 8 }}>How &amp; when you get paid</div>
-            <p style={{ font: `500 13px/1.55 ${JAK}`, color: "#3f5c4a", margin: "0 0 8px" }}>You earn <b>{base}</b> to <b>{diyHigh}</b> per successful signup, depending on how it&apos;s onboarded (you see the exact amount when you choose). It releases <b>~3 days after</b> onboarding (about <b>a week</b> for a brand-new account) and pays out the <b>following Monday</b>.</p>
-            <p style={{ font: `500 11.5px/1.5 ${JAK}`, color: "#6b8a77", margin: 0 }}>The figure above is an estimate — the exact payable amount is confirmed at payout.</p>
-          </div>
-
-          {/* leaderboard */}
-          <div style={card}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <span style={secLbl}>Leaderboard</span>
-              {myRank > 0 && <span style={{ font: `700 12px ${JAK}`, color: C.greenDk }}>You&apos;re #{myRank} of {ranked.length}</span>}
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", margin: "-4px 10px 5px", font: `700 9px ${JAK}`, letterSpacing: ".05em", textTransform: "uppercase", color: C.muted2 }}>Lifetime earned</div>
-            {topFive.map((b, i) => (
-              <div key={b.name + i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 10px", borderRadius: 10, marginBottom: 4, background: b.isMe ? "#f0faf4" : "transparent" }}>
-                <span style={{ font: `600 13px ${GRO}`, color: C.muted2, width: 16, flex: "none" }}>{i + 1}</span>
-                <span style={{ minWidth: 0, font: `${b.isMe ? 700 : 500} 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}{b.isMe ? " (you)" : ""}</span>
-                <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
-                  <strong style={{ display: "block", font: `700 13px ${GRO}`, color: C.greenDk, fontVariantNumeric: "tabular-nums" }}>{b.lifetimeEarnings}</strong>
-                  <small style={{ display: "block", font: `500 10px ${JAK}`, color: C.muted2, marginTop: 2 }}>{b.converted} onboarded · {b.signups} signed up</small>
-                </span>
-              </div>
-            ))}
-            {myRank > 5 && myBoardRow && <>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "10px 0 5px", color: C.muted2 }}>
-                <span style={{ height: 1, flex: 1, background: C.line2 }} />
-                <span style={{ font: `700 9px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase" }}>Your position</span>
-                <span style={{ height: 1, flex: 1, background: C.line2 }} />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px", borderRadius: 10, background: "#f0faf4", border: `1px solid ${C.softGreenBorder}` }}>
-                <span style={{ font: `700 13px ${GRO}`, color: C.greenDk, width: 24, flex: "none" }}>#{myRank}</span>
-                <span style={{ minWidth: 0, font: `700 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myBoardRow.name} (you)</span>
-                <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
-                  <strong style={{ display: "block", font: `700 13px ${GRO}`, color: C.greenDk }}>{myBoardRow.lifetimeEarnings}</strong>
-                  <small style={{ display: "block", font: `500 10px ${JAK}`, color: C.muted2, marginTop: 2 }}>{myBoardRow.converted} onboarded · {myBoardRow.signups} signed up</small>
-                </span>
-              </div>
-            </>}
-            <div style={{ marginTop: 10, paddingTop: 11, borderTop: `1px solid ${C.line2}`, font: `500 12px/1.5 ${JAK}`, color: C.muted }}>Strong performers get first pick for the next field days. 💪</div>
-          </div>
-
-          {/* payments — marketer confirms receipt, which is our record for cash */}
-          {payouts.length > 0 && (
+            {/* send the form */}
             <div style={card}>
-              <div style={{ ...secLbl, marginBottom: 10 }}>Your payments</div>
-              {payouts.map((p) => {
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 5 }}>
+                <div style={{ font: `700 15.5px/1.3 ${JAK}`, color: C.ink }}>Just send them the form</div>
+                <span style={{ marginLeft: "auto", flex: "none", font: `700 11px ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, padding: "5px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>{base}</span>
+              </div>
+              <p style={{ font: `500 13px/1.5 ${JAK}`, color: C.slate, margin: "0 0 13px" }}>Can&apos;t onboard them now? They fill in your form and a LinkedVelocity team member takes it from there.</p>
+              <div style={{ display: "flex", gap: 9 }}>
+                <button onClick={copyLink} style={{ flex: 1, font: `700 13.5px ${JAK}`, color: C.ink, background: "#f1f3f6", border: `1px solid ${C.inputBorder}`, padding: 13, borderRadius: 12, cursor: "pointer" }}>{linkCopied ? "Copied ✓" : "Send my link"}</button>
+                <button onClick={() => setQrOpen(true)} style={{ flex: 1, font: `700 13.5px ${JAK}`, color: C.ink, background: "#f1f3f6", border: `1px solid ${C.inputBorder}`, padding: 13, borderRadius: 12, cursor: "pointer" }}>Show my QR</button>
+              </div>
+              <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: C.warnBg, border: `1px solid ${C.warnBorder}`, borderRadius: 11, padding: 12, marginTop: 11 }}>
+                <span style={{ font: `700 13px ${JAK}`, color: "#c2410c", flex: "none" }}>!</span>
+                <span style={{ font: `600 12.5px/1.45 ${JAK}`, color: C.warn }}>A form with no booked call almost never gets onboarded — and unonboarded means unpaid. Stay with them until a call is picked.</span>
+              </div>
+              <div style={{ marginTop: 11, paddingTop: 11, borderTop: `1px solid ${C.line2}`, font: `500 12px ${JAK}`, color: C.slate }}>Can&apos;t scan? Give them your code: <b style={{ font: `700 13px ${GRO}`, color: C.ink }}>{me.slug}</b></div>
+            </div>
+
+            {/* money snapshot */}
+            <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 16, padding: "16px 17px", marginTop: 6 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                <span style={{ font: `700 13.5px ${JAK}`, color: "#166534" }}>Estimated earned</span>
+                <span style={{ marginLeft: "auto", font: `600 19px ${GRO}`, color: C.greenDk, fontVariantNumeric: "tabular-nums" }}>{money(stats.commission)}</span>
+              </div>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: "#3f5c4a", margin: "7px 0 0" }}>Commission releases once we&apos;ve verified the account works — about 3 days for an account over a month old, about a week for a newer one. Paid the following Monday.</p>
+              <span onClick={() => go("money")} style={{ display: "inline-block", marginTop: 10, font: `700 12.5px ${JAK}`, color: C.greenDk, cursor: "pointer" }}>See my earnings →</span>
+            </div>
+
+            <div onClick={() => go("guide")} style={{ display: "flex", alignItems: "center", gap: 12, background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: 15, marginTop: 12, cursor: "pointer" }}>
+              <div>
+                <div style={{ font: `700 13.5px ${JAK}`, color: C.ink }}>What do I say to people?</div>
+                <div style={{ font: `500 12px ${JAK}`, color: C.muted, marginTop: 2 }}>The offer, what to avoid, and answers to their questions</div>
+              </div>
+              <span style={{ marginLeft: "auto", font: `600 15px ${JAK}`, color: C.muted2 }}>›</span>
+            </div>
+          </div>
+        )}
+
+        {/* ============ SIGNUPS ============ */}
+        {tab === "jobs" && (
+          <div style={{ padding: "18px 18px 0" }}>
+            <h1 style={h1}>Your signups</h1>
+            <p style={lead}>Everyone you&apos;ve referred and where they&apos;re up to. Onboarded is the one that pays.</p>
+
+            {activity.length === 0 ? (
+              <div style={{ ...card, textAlign: "center", padding: "22px 18px" }}>
+                <div style={{ font: `700 14.5px ${JAK}`, color: C.ink, marginBottom: 5 }}>Nobody here yet</div>
+                <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.muted, margin: "0 0 14px" }}>Once someone signs up through your code — or you start a guided onboarding — they show up here.</p>
+                <button onClick={() => setReadyOpen(true)} style={{ font: `700 13.5px ${JAK}`, color: "#fff", background: C.green, border: "none", padding: "13px 18px", borderRadius: 11, cursor: "pointer" }}>Start your first onboarding</button>
+              </div>
+            ) : activity.map((a, i) => {
+              const onboarded = a.kind === "converted";
+              const nm = a.name || "New signup";
+              const initials = (nm.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") || "?").toUpperCase();
+              return (
+                <div key={i} style={card}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 30, height: 30, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11.5px ${JAK}`, background: onboarded ? C.softGreen : "#eef1f5", color: onboarded ? C.greenDk : C.slate }}>{initials}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ font: `700 14px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nm}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                        <span style={{ font: `500 11.5px ${JAK}`, color: C.muted, whiteSpace: "nowrap" }}>Signed up {fmtDate(a.date)}</span>
+                        {a.referrer && <span style={{ font: `600 10px ${JAK}`, color: C.slate, background: "#f1f3f6", padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap" }}>via {a.referrer}</span>}
+                      </div>
+                    </div>
+                    <span style={{ marginLeft: "auto", flex: "none", font: `600 10px ${JAK}`, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap", background: onboarded ? C.accBg : C.pendBg, color: onboarded ? C.accFg : C.pendFg, border: `1px solid ${onboarded ? C.softGreenBorder : "#e3e6ea"}` }}>{onboarded ? "Onboarded" : "Pending"}</span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {activity.length > 0 && (
+              <div style={{ background: C.card, border: `1px dashed #d8dce3`, borderRadius: 16, padding: 18, textAlign: "center", marginBottom: 8 }}>
+                <div style={{ font: `700 13.5px ${JAK}`, color: C.ink, marginBottom: 4 }}>Someone already said yes?</div>
+                <p style={{ font: `500 12px/1.5 ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Start their onboarding here so they get counted and you get paid.</p>
+                <button onClick={() => setReadyOpen(true)} style={{ font: `700 13.5px ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, padding: "12px 18px", borderRadius: 11, cursor: "pointer" }}>Start an onboarding</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============ EARNINGS ============ */}
+        {tab === "money" && (
+          <div style={{ padding: "18px 18px 0" }}>
+            <h1 style={h1}>Your earnings</h1>
+            <p style={lead}>Paid to your GCash or bank the Monday after each onboarding clears our check. {base}–{diyHigh} per onboarding, depending on how it&apos;s done.</p>
+
+            <div style={{ background: C.dark, borderRadius: 18, padding: 18, marginBottom: 12 }}>
+              <div style={{ font: `600 11.5px ${JAK}`, color: "#94a3b8", marginBottom: 4 }}>Estimated, not yet paid</div>
+              <div style={{ font: `600 32px/1 ${GRO}`, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{money(stats.commission)}</div>
+              <div style={{ display: "flex", gap: 22, marginTop: 16, paddingTop: 14, borderTop: "1px solid #1e293b" }}>
+                <div>
+                  <div style={{ font: `600 17px ${GRO}`, color: "#6ee7b7", fontVariantNumeric: "tabular-nums" }}>{money(paidTotal)}</div>
+                  <div style={{ font: `600 11px ${JAK}`, color: "#94a3b8", marginTop: 3 }}>Confirmed received</div>
+                </div>
+                {myRank > 0 && <div>
+                  <div style={{ font: `600 17px ${GRO}`, color: "#fff", fontVariantNumeric: "tabular-nums" }}>#{myRank}</div>
+                  <div style={{ font: `600 11px ${JAK}`, color: "#94a3b8", marginTop: 3 }}>of {ranked.length} referrers</div>
+                </div>}
+              </div>
+            </div>
+
+            {/* what each onboarding pays */}
+            <div style={card}>
+              <div style={cardTitle}>What each onboarding pays</div>
+              <p style={{ font: `500 12px/1.5 ${JAK}`, color: C.muted, margin: "0 0 8px" }}>Two things move your rate: who does the final sign-in, and whether LinkedIn has ID-verified the account.</p>
+              {[
+                { a: base, t: "You send the form and our team onboards them." },
+                { a: diyHigh, t: "You run the guided onboarding yourself, all the way to sign-in." },
+                { a: "Top", t: "Verified accounts pay the top of each range." },
+              ].map((p, i) => (
+                <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start", padding: "9px 0", borderTop: `1px solid ${C.line2}` }}>
+                  <span style={{ font: `700 13.5px ${GRO}`, color: C.greenDk, flex: "none", minWidth: 62 }}>{p.a}</span>
+                  <span style={{ font: `500 12.5px/1.45 ${JAK}`, color: C.slate }}>{p.t}</span>
+                </div>
+              ))}
+              <p style={{ font: `500 11.5px/1.5 ${JAK}`, color: C.muted2, margin: "10px 0 0" }}>The estimate above is confirmed at payout.</p>
+            </div>
+
+            {/* payment history — marketer confirms receipt */}
+            <div style={card}>
+              <div style={{ ...secLbl, marginBottom: 8 }}>Payment history</div>
+              {payouts.length === 0 ? (
+                <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.muted, margin: 0, padding: "8px 0" }}>No payouts yet. Your first one lands the Monday after your first onboarding clears our check.</p>
+              ) : payouts.map((p) => {
                 const label = PAYOUT_LABEL[p.type] || PAYOUT_LABEL.other;
                 const confirming_ = confirmId === p.id;
                 return (
@@ -368,163 +485,322 @@ export default function Portal({ token }: { token: string }) {
                 );
               })}
             </div>
-          )}
 
-          {/* recent signups */}
-          <div style={card}>
-            <div style={{ ...secLbl, marginBottom: 6 }}>Your recent signups</div>
-            {activity.length === 0 ? (
-              <div style={{ color: C.muted, fontSize: 13, paddingTop: 4 }}>No signups yet — show your QR to get started.</div>
-            ) : activity.map((a, i) => {
-              const onboarded = a.kind === "converted";
+            {/* payout details */}
+            <div style={card}>
+              <div style={cardTitle}>Where we send your money</div>
+              <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 13px" }}>Keep this right or your payout bounces.</p>
+              <div style={{ font: `600 11px ${JAK}`, color: C.slate, marginBottom: 6 }}>Pay me via</div>
+              <div style={{ display: "flex", gap: 9, marginBottom: 13 }}>
+                <div style={selWrap}>
+                  <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} style={sel}>{config.payoutMethods.map((m) => <option key={m}>{m}</option>)}</select>
+                  <span style={chev}>▾</span>
+                </div>
+                <input value={form.paymentDetails} onChange={(e) => setForm({ ...form, paymentDetails: e.target.value })} placeholder="account number / details" style={inp} />
+              </div>
+              <div style={{ font: `600 11px ${JAK}`, color: C.slate, marginBottom: 6 }}>Where we message you</div>
+              <div style={{ display: "flex", gap: 9, marginBottom: 15 }}>
+                <div style={selWrap}>
+                  <select value={form.contactMethod} onChange={(e) => setForm({ ...form, contactMethod: e.target.value })} style={sel}><option>WhatsApp</option><option>Telegram</option><option>Viber</option><option>Email</option></select>
+                  <span style={chev}>▾</span>
+                </div>
+                <input value={form.contactHandle} onChange={(e) => setForm({ ...form, contactHandle: e.target.value })} placeholder="number / @handle" style={inp} />
+              </div>
+              <button onClick={save} disabled={saving} style={{ width: "100%", font: `700 14px ${JAK}`, color: "#fff", background: saved ? C.greenDk : C.green, border: "none", padding: 14, borderRadius: 12, cursor: "pointer" }}>{saving ? "Saving…" : saved ? "Saved ✓" : "Save"}</button>
+            </div>
+
+            {/* leaderboard */}
+            <div style={card}>
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+                <span style={secLbl}>Top referrers · lifetime</span>
+                {myRank > 0 && <span style={{ marginLeft: "auto", font: `700 12px ${JAK}`, color: C.greenDk, whiteSpace: "nowrap" }}>You&apos;re #{myRank}</span>}
+              </div>
+              {topFive.map((b, i) => (
+                <div key={b.name + i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 10px", borderRadius: 10, marginBottom: 3, background: b.isMe ? C.softGreen : "transparent" }}>
+                  <span style={{ font: `600 13px ${GRO}`, color: C.muted2, width: 16, flex: "none" }}>{i + 1}</span>
+                  <span style={{ minWidth: 0, font: `${b.isMe ? 700 : 500} 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}{b.isMe ? " (you)" : ""}</span>
+                  <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
+                    <strong style={{ display: "block", font: `600 13px ${GRO}`, color: C.greenDk, fontVariantNumeric: "tabular-nums" }}>{b.lifetimeEarnings}</strong>
+                    <small style={{ display: "block", font: `500 10.5px ${JAK}`, color: C.muted2, whiteSpace: "nowrap" }}>{b.converted} onboarded · {b.signups} signed up</small>
+                  </span>
+                </div>
+              ))}
+              {myRank > 5 && myBoardRow && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px", borderRadius: 10, marginTop: 4, background: C.softGreen, border: `1px solid ${C.softGreenBorder}` }}>
+                  <span style={{ font: `700 13px ${GRO}`, color: C.greenDk, width: 24, flex: "none" }}>#{myRank}</span>
+                  <span style={{ minWidth: 0, font: `700 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myBoardRow.name} (you)</span>
+                  <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
+                    <strong style={{ display: "block", font: `600 13px ${GRO}`, color: C.greenDk }}>{myBoardRow.lifetimeEarnings}</strong>
+                    <small style={{ display: "block", font: `500 10.5px ${JAK}`, color: C.muted2, whiteSpace: "nowrap" }}>{myBoardRow.converted} onboarded · {myBoardRow.signups} signed up</small>
+                  </span>
+                </div>
+              )}
+              <div style={{ marginTop: 9, paddingTop: 10, borderTop: `1px solid ${C.line2}`, font: `500 12px/1.5 ${JAK}`, color: C.slate }}>Strong performers get first pick for the next field days. 💪</div>
+            </div>
+          </div>
+        )}
+
+        {/* ============ WHAT TO SAY (GUIDE) ============ */}
+        {tab === "guide" && (
+          <div style={{ padding: "18px 18px 0" }}>
+            <h1 style={h1}>What to say</h1>
+            <p style={lead}>Everything you need when you&apos;re talking to someone. Say it your own way.</p>
+
+            {/* the offer */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={cardTitle}>The offer, in their words</div>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate, margin: "0 0 13px" }}>&ldquo;You lend us your LinkedIn account for business outreach. You keep your login, we pay you monthly, and you can take it back any time.&rdquo;</p>
+              <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: `1px solid ${C.line2}` }}>
+                  <span style={{ font: `600 12.5px ${JAK}`, color: C.ink, width: 62, flex: "none" }}>One-off</span>
+                  <span style={{ font: `700 14px ${GRO}`, color: C.greenDk, whiteSpace: "nowrap" }}>{config.offer.setup}</span>
+                  <span style={{ font: `500 12px ${JAK}`, color: C.slate }}>once the account is confirmed stable</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
+                  <span style={{ font: `600 12.5px ${JAK}`, color: C.ink, width: 62, flex: "none" }}>Monthly</span>
+                  <span style={{ font: `700 14px ${GRO}`, color: C.greenDk, whiteSpace: "nowrap" }}>{config.offer.monthly}</span>
+                  <span style={{ font: `500 12px ${JAK}`, color: C.slate }}>on the 1st, every active month</span>
+                </div>
+              </div>
+              <p style={{ font: `500 11.5px/1.45 ${JAK}`, color: C.muted, margin: "9px 0 0" }}>These are floor rates; older, stronger accounts can be worth more.</p>
+              <div style={{ background: C.warnBg, border: `1px solid ${C.warnBorder}`, borderRadius: 11, padding: 13, marginTop: 11 }}>
+                <div style={{ font: `700 12px ${JAK}`, color: C.warn, marginBottom: 8 }}>Say these three things every time</div>
+                <div style={{ font: `600 12.5px/1.45 ${JAK}`, color: C.warn, marginBottom: 6 }}>1. Nobody gets cash on the spot — not them, not you.</div>
+                <div style={{ font: `600 12.5px/1.45 ${JAK}`, color: C.warn, marginBottom: 6 }}>2. We never take a copy of their ID.</div>
+                <div style={{ font: `600 12.5px/1.45 ${JAK}`, color: C.warn }}>3. Don&apos;t use the account while it&apos;s with us — that&apos;s what causes restrictions.</div>
+              </div>
+            </div>
+
+            {/* how a guided onboarding goes */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={cardTitle}>How a guided onboarding goes</div>
+              <p style={{ font: `500 12px/1.5 ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Six steps, about 10 minutes. It saves as you go, so you can resume from the Signups tab.</p>
+              {STEPS.map((s, i) => (
+                <div key={i} style={{ display: "flex", gap: 11, marginBottom: 12 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11px ${GRO}`, background: C.dark, color: "#fff" }}>{i + 1}</span>
+                  <div>
+                    <div style={{ font: `700 13px ${JAK}`, color: C.ink }}>{s.t}</div>
+                    <div style={{ font: `500 12.5px/1.45 ${JAK}`, color: C.slate, marginTop: 2 }}>{s.s}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 11, padding: 12, font: `500 12.5px/1.45 ${JAK}`, color: C.blueInk }}>Only the last step needs a computer — the protected browser doesn&apos;t run on phones. No computer today? Choose &ldquo;hand it to us&rdquo; and our team does the sign-in. They still get paid; you earn a little less.</div>
+            </div>
+
+            {/* do / don't */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 14, padding: 14 }}>
+                <div style={{ font: `700 11px ${JAK}`, color: C.greenDk, marginBottom: 9 }}>DO</div>
+                {DOS.map((d, i) => <div key={i} style={{ font: `500 12px/1.4 ${JAK}`, color: "#2f5741", marginBottom: 8 }}>{d}</div>)}
+              </div>
+              <div style={{ background: "#fdf0f0", border: "1px solid #f5d0d0", borderRadius: 14, padding: 14 }}>
+                <div style={{ font: `700 11px ${JAK}`, color: "#dc2626", marginBottom: 9 }}>DON&apos;T</div>
+                {DONTS.map((d, i) => <div key={i} style={{ font: `500 12px/1.4 ${JAK}`, color: "#7f2d2d", marginBottom: 8 }}>{d}</div>)}
+              </div>
+            </div>
+
+            {/* what makes a good account + warm-up */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={cardTitle}>What makes a good LinkedIn account</div>
+              <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Share this with anyone you sign up, or use it yourself if you&apos;re listing your own account.</p>
+              {GOOD_ACCOUNT.map((g, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
+                  <span style={{ color: C.green, font: `700 13px ${JAK}`, flex: "none", lineHeight: 1.45 }}>✓</span>
+                  <span style={{ font: `500 13px/1.45 ${JAK}`, color: C.slate }}>{g}</span>
+                </div>
+              ))}
+              <div style={{ font: `700 13px ${JAK}`, color: C.ink, margin: "16px 0 4px" }}>Warm it up first</div>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.muted, margin: "0 0 14px" }}>Spend a little time making the account look complete and active. This protects it from getting locked later.</p>
+              {WARMUP.map((w, i) => (
+                <div key={i} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: w.items.length ? 8 : 0 }}>
+                    <span style={{ width: 22, height: 22, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11px ${GRO}`, background: C.green, color: "#fff" }}>{i + 1}</span>
+                    <span style={{ font: `700 13px/1.35 ${JAK}`, color: C.ink }}>{w.t}</span>
+                  </div>
+                  {w.items.map((it, j) => (
+                    <div key={j} style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "0 0 6px 33px" }}>
+                      <span style={{ color: C.muted2, flex: "none", lineHeight: 1.45 }}>•</span>
+                      <span style={{ font: `500 12.5px/1.45 ${JAK}`, color: C.slate }}>{it}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <div style={{ background: C.warnBg, border: `1px solid ${C.warnBorder}`, borderRadius: 12, padding: "12px 14px", marginTop: 4 }}>
+                <div style={{ font: `700 12.5px ${JAK}`, color: C.warn, marginBottom: 5 }}>Expect some restrictions early on</div>
+                <div style={{ font: `500 12.5px/1.5 ${JAK}`, color: "#7c4a26" }}>Restrictions are common. LinkedIn flags unusual activity, so there may be restrictions early on while the account is warming up. The steps above are exactly what makes it less likely and easier to recover from.</div>
+              </div>
+            </div>
+
+            {/* tips */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={cardTitle}>Tips to reassure them</div>
+              <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Handy points to bring up if someone&apos;s unsure.</p>
+              {TIPS.map((t, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
+                  <span style={{ color: C.green, font: `700 13px ${JAK}`, flex: "none", lineHeight: 1.4 }}>✓</span>
+                  <span style={{ font: `500 13px/1.45 ${JAK}`, color: C.slate }}>{t}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* they'll ask you this */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={cardTitle}>They&apos;ll ask you this</div>
+              <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 6px" }}>Tap to see the answer.</p>
+              {faqBlock(applyFaq(AMBASSADOR_FAQ), "a")}
+            </div>
+
+            <div onClick={() => go("you")} style={{ display: "flex", alignItems: "center", gap: 12, background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: 15, marginBottom: 12, cursor: "pointer" }}>
+              <div>
+                <div style={{ font: `700 13.5px ${JAK}`, color: C.ink }}>Questions about your own side?</div>
+                <div style={{ font: `500 12px ${JAK}`, color: C.muted, marginTop: 2 }}>Your pay, your code, getting booked again → For you</div>
+              </div>
+              <span style={{ marginLeft: "auto", font: `600 15px ${JAK}`, color: C.muted2 }}>›</span>
+            </div>
+          </div>
+        )}
+
+        {/* ============ FOR YOU ============ */}
+        {tab === "you" && (
+          <div style={{ padding: "18px 18px 0" }}>
+            <h1 style={h1}>For you</h1>
+            <p style={lead}>Your details, what we expect, and answers about your own side of it.</p>
+
+            {/* profile + code */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <span style={{ width: 42, height: 42, borderRadius: 999, flex: "none", background: C.dark, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 15px ${JAK}` }}>{initial}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: `700 15px ${JAK}`, color: C.ink }}>{me.name}</div>
+                  <div style={{ font: `500 12px ${JAK}`, color: C.muted, marginTop: 2 }}>LinkedVelocity referrer</div>
+                </div>
+                <span style={{ marginLeft: "auto", flex: "none", font: `700 10px ${JAK}`, padding: "5px 9px", borderRadius: 6, background: C.softGreen, color: C.greenDk, border: `1px solid ${C.softGreenBorder}` }}>Active</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: C.inputBg, border: "1px solid #e9ebef", borderRadius: 11, padding: "12px 13px" }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: `600 10.5px ${JAK}`, letterSpacing: ".06em", textTransform: "uppercase", color: "#8b95a5" }}>Your referral code</div>
+                  <div style={{ font: `600 15px ${GRO}`, color: C.ink, marginTop: 3 }}>{me.slug}</div>
+                </div>
+                <button onClick={copyLink} style={{ marginLeft: "auto", flex: "none", font: `700 12px ${JAK}`, color: C.ink, background: "#fff", border: `1px solid ${C.inputBorder}`, padding: "10px 13px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap" }}>{linkCopied ? "Copied ✓" : "Copy link"}</button>
+              </div>
+              <p style={{ font: `500 11.5px/1.45 ${JAK}`, color: C.muted, margin: "10px 0 0" }}>Anyone who signs up through this code or your QR is credited to you, even if someone else finishes the onboarding.</p>
+            </div>
+
+            {/* what we expect */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={cardTitle}>What we expect from you</div>
+              <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 4px" }}>Four things that keep your onboardings paying out.</p>
+              {[
+                { t: "Stay with them to the end", s: "A signup with no booked call — or an onboarding you leave halfway — rarely completes." },
+                { t: "Never handle their secrets", s: "Don't collect passwords, PINs or 2FA codes yourself. The owner enters those." },
+                { t: "Be honest about pay", s: "Payment comes after setup and our check. Never promise cash on the spot." },
+                { t: "Only eligible accounts", s: "LinkedIn's minimum age is 16, or older where local law requires." },
+              ].map((e, i) => (
+                <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start", padding: "11px 0", borderTop: `1px solid ${C.line2}` }}>
+                  <span style={{ font: `700 12px ${GRO}`, color: C.greenDk, flex: "none", width: 14 }}>{i + 1}</span>
+                  <div>
+                    <div style={{ font: `600 13px ${JAK}`, color: C.ink }}>{e.t}</div>
+                    <div style={{ font: `500 12px/1.45 ${JAK}`, color: C.slate, marginTop: 2 }}>{e.s}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* how you grow this */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={cardTitle}>How you grow this</div>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate, margin: "0 0 12px" }}>Completed onboardings are what we count — not signups. The more you finish, the better the rates and support you get.</p>
+              <div style={{ display: "flex", gap: 10 }}>
+                {[
+                  { v: String(stats.converted), l: "Onboarded", bg: C.inputBg, bd: "#e9ebef", c: C.ink, lc: C.slate },
+                  { v: String(pendingCount), l: "Still pending", bg: C.warnBg, bd: C.warnBorder, c: "#c2410c", lc: C.warn },
+                  { v: myRank > 0 ? `#${myRank}` : "—", l: "On the board", bg: C.softGreen, bd: C.softGreenBorder, c: C.greenDk, lc: "#166534" },
+                ].map((t) => (
+                  <div key={t.l} style={{ flex: 1, background: t.bg, border: `1px solid ${t.bd}`, borderRadius: 12, padding: 13 }}>
+                    <div style={{ font: `600 20px ${GRO}`, color: t.c, fontVariantNumeric: "tabular-nums" }}>{t.v}</div>
+                    <div style={{ font: `600 11px ${JAK}`, color: t.lc, marginTop: 3 }}>{t.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* your questions */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={cardTitle}>Your questions</div>
+              <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 6px" }}>About your pay, your commission and your bookings.</p>
+              {faqBlock(applyFaq(MARKETER_FAQ), "m")}
+            </div>
+
+            {/* documents */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={{ ...secLbl, marginBottom: 4 }}>Documents</div>
+              {[
+                { href: "/ambassador-terms", t: "Account owner agreement", s: "Show them this" },
+                { href: "/ambassador-guide", t: "What to expect with your account", s: "Plain-language guide" },
+              ].map((d, i) => (
+                <a key={i} href={d.href} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 0", borderTop: `1px solid ${C.line2}`, textDecoration: "none" }}>
+                  <span style={{ font: `600 13px ${JAK}`, color: C.ink }}>{d.t}</span>
+                  <span style={{ marginLeft: "auto", font: `500 12px ${JAK}`, color: C.muted }}>{d.s}</span>
+                </a>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 12, background: C.inputBg, border: "1px solid #e9ebef", borderRadius: 16, padding: 16, marginBottom: 8 }}>
+              <div>
+                <div style={{ font: `700 13.5px ${JAK}`, color: C.ink }}>Something wrong with your pay?</div>
+                <div style={{ font: `500 12px ${JAK}`, color: C.muted, marginTop: 2 }}>Message your LinkedVelocity contact with the person&apos;s name and date</div>
+              </div>
+            </div>
+            <p style={{ textAlign: "center", font: `500 12px ${JAK}`, color: C.muted2, padding: "4px 0 16px" }}>Questions? Message your LinkedVelocity contact.</p>
+          </div>
+        )}
+
+        {/* ============ TAB BAR ============ */}
+        <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440, background: "#fff", borderTop: `1px solid ${C.inputBorder}`, zIndex: 30 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 2, padding: "8px 6px 12px" }}>
+            {tabDef.map((t) => {
+              const on = tab === t.id;
               return (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line2}` }}>
-                  <span style={{ width: 7, height: 7, borderRadius: 999, flex: "none", background: onboarded ? C.green : C.blue }} />
-                  <span style={{ font: `500 13px ${JAK}`, color: C.slate, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.referrer ? `${a.referrer} → ${a.name}` : `New signup — ${a.name}`}</span>
-                  <span style={{ font: `600 9.5px ${JAK}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", flex: "none", background: onboarded ? C.accBg : C.pendBg, color: onboarded ? C.accFg : C.pendFg }}>{onboarded ? "Onboarded" : "Pending"}</span>
-                  <span style={{ marginLeft: "auto", font: `500 12px ${JAK}`, color: C.muted2, whiteSpace: "nowrap" }}>{fmtDate(a.date)}</span>
+                <div key={t.id} onClick={() => go(t.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "6px 2px", cursor: "pointer", color: on ? C.greenDk : C.muted2, borderRadius: 10, background: on ? C.softGreen : "transparent" }}>
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>{t.icon}</span>
+                  <span style={{ font: `700 9.5px ${JAK}`, textAlign: "center" }}>{t.label}</span>
                 </div>
               );
             })}
           </div>
+        </div>
 
-          {/* field day guide */}
-          <div style={card}>
-            <div style={{ ...secLbl, marginBottom: 14 }}>Field day guide</div>
-            <div style={{ ...sub, marginBottom: 12 }}>How a sign-up works</div>
-            {STEPS.map((s, i) => (
-              <div key={i} style={{ display: "flex", gap: 11, marginBottom: 11 }}>
-                <span style={{ width: 22, height: 22, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11px ${GRO}`, background: C.green, color: "#fff" }}>{i + 1}</span>
-                <span style={{ font: `500 13px/1.45 ${JAK}`, color: C.slate }}>{s}</span>
-              </div>
-            ))}
-            <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 12, padding: "12px 14px", marginTop: 14 }}>
-              <div style={{ font: `700 12.5px ${JAK}`, color: C.greenDk, marginBottom: 5 }}>A booked call is what counts</div>
-              <div style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate }}>A form on its own often goes nowhere. Someone who books a call almost always gets set up — and you only earn on sign-ups that get onboarded. If you get one thing right today, make it this.</div>
-            </div>
-
-            <div style={{ ...sub, margin: "16px 0 10px" }}>The offer you share</div>
-            <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", marginBottom: 10 }}>
-              {offer.map((o, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: i === 0 ? `1px solid ${C.line2}` : "none" }}>
-                  <span style={{ font: `600 13px ${JAK}`, color: C.ink, width: 66, flex: "none" }}>{o.w}</span>
-                  <span style={{ font: `700 14px ${GRO}`, color: C.greenDk }}>{o.a}</span>
-                  <span style={{ font: `500 12px ${JAK}`, color: C.muted }}>{o.d}</span>
+        {/* ready sheet */}
+        {readyOpen && (
+          <div onClick={() => setReadyOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(9,17,12,.5)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "#fff", borderRadius: "22px 22px 0 0", padding: "22px 20px 26px" }}>
+              <div style={{ width: 38, height: 4, borderRadius: 999, background: C.inputBorder, margin: "0 auto 16px" }} />
+              <div style={{ font: `600 19px ${GRO}`, color: C.ink, marginBottom: 5 }}>Before you start</div>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate, margin: "0 0 14px" }}>Six steps, about 10 minutes. Don&apos;t start unless they can stay with you until the sign-in is done.</p>
+              {READY_CHECKS.map((c, i) => (
+                <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start", padding: "11px 0", borderTop: `1px solid ${C.line2}` }}>
+                  <span style={{ width: 20, height: 20, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 10px ${JAK}`, background: C.softGreen, color: C.greenDk, border: `1px solid ${C.softGreenBorder}` }}>✓</span>
+                  <div>
+                    <div style={{ font: `600 13px ${JAK}`, color: C.ink }}>{c.t}</div>
+                    <div style={{ font: `500 12px/1.4 ${JAK}`, color: C.muted, marginTop: 2 }}>{c.s}</div>
+                  </div>
                 </div>
               ))}
-            </div>
-            <p style={{ font: `600 12px ${JAK}`, color: C.warn, margin: "0 0 16px" }}>Payment comes after setup — never cash on the spot.</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 12, padding: 13 }}>
-                <div style={{ font: `700 11px ${JAK}`, color: C.greenDk, marginBottom: 9 }}>DO</div>
-                {DOS.map((d, i) => <div key={i} style={{ font: `500 12px/1.4 ${JAK}`, color: "#3f5c4a", marginBottom: 7 }}>{d}</div>)}
-              </div>
-              <div style={{ background: "#fdf0f0", border: "1px solid #f5d0d0", borderRadius: 12, padding: 13 }}>
-                <div style={{ font: `700 11px ${JAK}`, color: "#dc2626", marginBottom: 9 }}>DON&apos;T</div>
-                {DONTS.map((d, i) => <div key={i} style={{ font: `500 12px/1.4 ${JAK}`, color: "#8a4a4a", marginBottom: 7 }}>{d}</div>)}
-              </div>
+              <a href={`/m/${token}/onboarding`} style={{ display: "block", width: "100%", marginTop: 16, textAlign: "center", font: `700 15px ${JAK}`, color: "#fff", background: C.green, padding: 15, borderRadius: 13, textDecoration: "none" }}>I&apos;m with them — start →</a>
+              <button onClick={() => setReadyOpen(false)} style={{ width: "100%", marginTop: 8, font: `700 13.5px ${JAK}`, color: C.slate, background: "none", border: "none", padding: 11, cursor: "pointer" }}>Not now</button>
             </div>
           </div>
-
-          {/* what makes a good linkedin account + warm-up */}
-          <div style={card}>
-            <div style={{ ...secLbl, marginBottom: 4 }}>What makes a good LinkedIn account</div>
-            <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Share this with anyone you sign up, or use it yourself if you&apos;re listing your own account.</p>
-            {GOOD_ACCOUNT.map((g, i) => (
-              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
-                <span style={{ color: C.green, font: `700 13px ${JAK}`, flex: "none", lineHeight: 1.45 }}>✓</span>
-                <span style={{ font: `500 13px/1.45 ${JAK}`, color: C.slate }}>{g}</span>
-              </div>
-            ))}
-
-            <div style={{ ...sub, margin: "16px 0 4px" }}>Warm it up first</div>
-            <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.muted, margin: "0 0 14px" }}>Spend a little time making the account look complete and active. This protects it from getting locked later. Do it on your own phone or laptop, the normal way you&apos;d use LinkedIn.</p>
-            {WARMUP.map((w, i) => (
-              <div key={i} style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: w.items.length ? 8 : 0 }}>
-                  <span style={{ width: 22, height: 22, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11px ${GRO}`, background: C.green, color: "#fff" }}>{i + 1}</span>
-                  <span style={{ font: `700 13px/1.35 ${JAK}`, color: C.ink }}>{w.t}</span>
-                </div>
-                {w.items.map((it, j) => (
-                  <div key={j} style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "0 0 6px 33px" }}>
-                    <span style={{ color: C.muted2, flex: "none", lineHeight: 1.45 }}>•</span>
-                    <span style={{ font: `500 12.5px/1.45 ${JAK}`, color: C.slate }}>{it}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
-
-            <div style={{ background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 12, padding: "12px 14px", marginTop: 4 }}>
-              <div style={{ font: `700 12.5px ${JAK}`, color: C.greenDk, marginBottom: 5 }}>The goal</div>
-              <div style={{ font: `500 12.5px/1.5 ${JAK}`, color: "#3f5c4a" }}>It should look like a real person has been quietly using LinkedIn, because you have. That history is what keeps it safe. Please avoid mass-adding strangers, posting spammy links, or any automation. Slow and natural means safe.</div>
-            </div>
-
-            <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "12px 14px", marginTop: 10 }}>
-              <div style={{ font: `700 12.5px ${JAK}`, color: C.warn, marginBottom: 5 }}>Expect some restrictions early on</div>
-              <div style={{ font: `500 12.5px/1.5 ${JAK}`, color: "#7c4a26" }}>Restrictions are common. LinkedIn flags unusual activity, so there may be restrictions early on during the transfer or while the account is warming up. That&apos;s normal, and the steps above are exactly what makes it less likely and easier to recover from.</div>
-            </div>
-          </div>
-
-          {/* tips to reassure */}
-          <div style={card}>
-            <div style={{ ...secLbl, marginBottom: 4 }}>Tips to reassure them</div>
-            <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Handy points to bring up if someone&apos;s unsure.</p>
-            {TIPS.map((t, i) => (
-              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
-                <span style={{ color: C.green, font: `700 13px ${JAK}`, flex: "none", lineHeight: 1.4 }}>✓</span>
-                <span style={{ font: `500 13px/1.45 ${JAK}`, color: C.slate }}>{t}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* ambassador faqs */}
-          <div style={card}>
-            <div style={{ ...secLbl, marginBottom: 4 }}>Questions people will ask you</div>
-            <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 8px" }}>Use these to answer anyone you sign up.</p>
-            {faqBlock(applyFaq(AMBASSADOR_FAQ), "a")}
-          </div>
-
-          {/* marketer faqs */}
-          <div style={card}>
-            <div style={{ ...secLbl, marginBottom: 4 }}>Your FAQs</div>
-            <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 8px" }}>About your pay, payouts and getting re-invited.</p>
-            {faqBlock(applyFaq(MARKETER_FAQ), "m")}
-          </div>
-
-          {/* payout details */}
-          <div style={card}>
-            <div style={{ ...secLbl, marginBottom: 3 }}>Your payout details</div>
-            <p style={{ font: `500 12.5px ${JAK}`, color: C.muted, margin: "0 0 14px" }}>Keep these up to date so we can pay you.</p>
-            <div style={{ font: `600 11px ${JAK}`, color: C.muted, marginBottom: 6 }}>Contact</div>
-            <div style={{ display: "flex", gap: 9, marginBottom: 14 }}>
-              <select value={form.contactMethod} onChange={(e) => setForm({ ...form, contactMethod: e.target.value })} style={sel}><option>WhatsApp</option><option>Telegram</option><option>Viber</option><option>Email</option></select>
-              <input value={form.contactHandle} onChange={(e) => setForm({ ...form, contactHandle: e.target.value })} placeholder="number / @handle" style={inp} />
-            </div>
-            <div style={{ font: `600 11px ${JAK}`, color: C.muted, marginBottom: 6 }}>Pay me via</div>
-            <div style={{ display: "flex", gap: 9, marginBottom: 16 }}>
-              <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} style={sel}>{config.payoutMethods.map((m) => <option key={m}>{m}</option>)}</select>
-              <input value={form.paymentDetails} onChange={(e) => setForm({ ...form, paymentDetails: e.target.value })} placeholder="account number / details" style={inp} />
-            </div>
-            <button onClick={save} disabled={saving} style={{ width: "100%", font: `700 14px ${JAK}`, color: "#fff", background: saved ? C.greenDk : C.green, border: "none", padding: 14, borderRadius: 12, cursor: "pointer" }}>{saving ? "Saving…" : saved ? "Saved ✓" : "Save details"}</button>
-          </div>
-
-          <p style={{ textAlign: "center", font: `500 12px ${JAK}`, color: C.muted2, padding: "4px 0 20px" }}>Questions? Message your LinkedVelocity contact.</p>
-        </div>
-
-        {/* sticky CTA */}
-        <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440, padding: "12px 20px", background: "rgba(244,246,248,.94)", backdropFilter: "blur(10px)", borderTop: `1px solid #e6e9ee`, zIndex: 20 }}>
-          <button onClick={() => setQrOpen(true)} style={{ width: "100%", font: `700 15px ${JAK}`, color: "#fff", background: C.green, border: "none", padding: 15, borderRadius: 14, cursor: "pointer", boxShadow: "0 10px 24px -10px rgba(22,163,74,.7)" }}>▣ Show QR to sign someone up</button>
-        </div>
+        )}
 
         {/* QR modal */}
         {qrOpen && (
-          <div onClick={() => setQrOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(9,17,12,.55)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={() => setQrOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(9,17,12,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
             <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 360, background: "#fff", borderRadius: 22, padding: "26px 24px", textAlign: "center" }}>
-              <div style={{ font: `600 18px ${GRO}`, color: C.ink, marginBottom: 5 }}>Scan to sign up</div>
-              <p style={{ font: `500 12.5px ${JAK}`, color: C.muted, margin: "0 0 18px" }}>Point their camera here — it opens your referral form.</p>
-              <div style={{ width: 216, height: 216, margin: "0 auto 18px", border: `1px solid ${C.line}`, borderRadius: 16, padding: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ font: `600 18px ${GRO}`, color: C.ink, marginBottom: 5 }}>Let them scan this</div>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate, margin: "0 0 18px" }}>It opens a short form. You get credited for whoever fills it in.</p>
+              <div style={{ width: 216, height: 216, margin: "0 auto 18px", border: `1px solid ${C.line}`, borderRadius: 16, padding: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrSrc} alt="Your referral QR code" width={192} height={192} style={{ width: "100%", height: "100%" }} />
+                <img src={qrSrc} alt="Your referral QR code" width={184} height={184} style={{ width: "100%", height: "100%" }} />
               </div>
               <div style={{ font: `500 11.5px ${GRO}`, color: C.muted2, marginBottom: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myLinkShort}</div>
               <div style={{ display: "flex", gap: 9 }}>
