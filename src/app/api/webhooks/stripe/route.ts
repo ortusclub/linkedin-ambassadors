@@ -255,6 +255,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return;
 
+  // Per-account effective price (base + Sales Nav) that checkout billed, so each rental
+  // locks in the rate it was sold at. Parsed from "accountId:price,accountId:price".
+  const priceByAccount = new Map<string, number>();
+  for (const pair of (session.metadata?.priceMap || "").split(",")) {
+    const [id, price] = pair.split(":");
+    const n = Number(price);
+    if (id && Number.isFinite(n)) priceByAccount.set(id.trim(), n);
+  }
+  const salesNavSet = new Set(
+    (session.metadata?.salesNavIds || "").split(",").map((s) => s.trim()).filter(Boolean)
+  );
+
+  // If the renter unchecked auto-renew, cancel the subscription at period end so they
+  // get exactly one paid month (Stripe still bills the first invoice now).
+  if (session.metadata?.autoRenew === "0") {
+    try {
+      await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+    } catch (e) {
+      console.error("Failed to set cancel_at_period_end on new subscription:", subscriptionId, e);
+    }
+  }
+
   for (const linkedinAccountId of accountIds) {
     // Per-(subscription, account) idempotency — one subscription can cover several accounts.
     const existing = await prisma.rental.findFirst({
@@ -267,6 +289,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     });
     if (!account) continue;
 
+    const withSalesNav = salesNavSet.has(linkedinAccountId);
+    const lockedPrice = priceByAccount.get(linkedinAccountId) ?? null;
+
     // Create the rental, then AUTO-GRANT access on the spot (share the profile to the
     // renter via the right master/klabber token). If the renter hasn't set up GoLogin yet
     // the grant throws -> we leave it pending_access and the auto-grant cron retries.
@@ -278,6 +303,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         currentPeriodEnd: getPeriodEnd(subscription),
         status: "pending_access",
         accessGrantedAt: null,
+        autoRenew: session.metadata?.autoRenew !== "0",
+        // Lock the sold rate (base + Sales Nav add-on) so renewals + admin display match
+        // what the renter actually paid. Only stored when it differs is unnecessary — we
+        // always store it here since checkout computed it.
+        lockedPrice,
+        notes: withSalesNav ? "Sales Navigator add-on (+$70/mo)" : null,
       },
     });
 
