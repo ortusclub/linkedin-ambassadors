@@ -153,6 +153,11 @@ model LinkedInAccount {
   // Never shown publicly — shared with a renter per-case.
   verificationProof     String?       @map("verification_proof")
   linkedinVerified      Boolean       @default(false) @map("linkedin_verified")
+  // Auto-provisioning flag (set by provisionAccount when no proxy could be assigned):
+  // null = fine / provisioned, "ready_to_buy_cheap" = unverified needs a residential
+  // purchase, "needs_proxy6" = verified needs a datacenter proxy bought.
+  provisionStatus       String?       @map("provision_status")
+  provisionCheckedAt    DateTime?     @map("provision_checked_at")
   notes                 String?
   removedAt             DateTime?     @map("removed_at")
   removedBy             String?       @map("removed_by")

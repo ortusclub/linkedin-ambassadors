@@ -72,6 +72,8 @@ export async function createProfile(options: {
         resolution: "1920x1080",
         platform: "MacIntel",
       },
+      // GoLogin rejects create when proxy is null/undefined — send an explicit
+      // "none" proxy when we don't have one yet (it gets set right after).
       proxy: options.proxy
         ? {
             mode: "http",
@@ -80,9 +82,19 @@ export async function createProfile(options: {
             username: options.proxy.username,
             password: options.proxy.password,
           }
-        : undefined,
+        : { mode: "none" },
     }),
   }, token);
+}
+
+// Rename a profile (used when the admin changes the login email — keep the GoLogin
+// profile name in sync so the g.camp link and matching keep working). GoLogin's PUT
+// needs the whole object, so read-modify-write.
+export async function renameProfile(profileId: string, newName: string, token?: string) {
+  const prof = await gologinFetch(`/browser/${profileId}`, {}, token);
+  if (!prof) throw new Error("Could not read profile to rename");
+  (prof as { name?: string }).name = newName;
+  return gologinFetch(`/browser/${profileId}`, { method: "PUT", body: JSON.stringify(prof) }, token);
 }
 
 export async function findProfileByName(name: string, token?: string): Promise<{ id: string; name: string } | null> {

@@ -42,6 +42,10 @@
     {
       "path": "/api/cron/reengage-signups",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/provision-accounts",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
