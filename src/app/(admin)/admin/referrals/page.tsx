@@ -480,7 +480,7 @@ export default function AdminReferralsPage() {
                       <div style={{ flex: "1 1 240px" }}>
                         <div style={{ font: `600 10px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--label)", marginBottom: 5 }}>Pay via</div>
                         <div style={{ display: "flex", gap: 8 }}>
-                          <select value={dForm.paymentMethod} onChange={(e) => setDForm({ ...dForm, paymentMethod: e.target.value })} style={{ ...inpStyle, width: 108, flex: "none" }}><option>GCash</option><option>Maya</option><option>Bank transfer</option></select>
+                          <select value={dForm.paymentMethod} onChange={(e) => setDForm({ ...dForm, paymentMethod: e.target.value })} style={{ ...inpStyle, width: 108, flex: "none" }}>{[...new Set([...CURRENCY_CONFIG.PHP.payoutMethods, ...CURRENCY_CONFIG.USD.payoutMethods])].map((m) => <option key={m}>{m}</option>)}</select>
                           <input value={dForm.paymentDetails} onChange={(e) => setDForm({ ...dForm, paymentDetails: e.target.value })} placeholder="account number / details" style={inpStyle} />
                         </div>
                       </div>

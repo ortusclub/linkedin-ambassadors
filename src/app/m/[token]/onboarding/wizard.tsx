@@ -22,6 +22,11 @@ type Bootstrap = { emailEnabled: boolean; phoneVerificationEnabled: boolean; cou
 const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder: string; help: string }> = {
   GCash: { label: "GCash mobile number", type: "tel", placeholder: "+63 9XX XXX XXXX", help: "Enter the mobile number registered to their GCash account." },
   Maya: { label: "Maya mobile number", type: "tel", placeholder: "+63 9XX XXX XXXX", help: "Enter the mobile number registered to their Maya account." },
+  Maribank: { label: "Maribank mobile number", type: "tel", placeholder: "+63 9XX XXX XXXX", help: "Enter the mobile number registered to their Maribank account." },
+  GoTyme: { label: "GoTyme account number", placeholder: "GoTyme account number", help: "Enter their GoTyme Bank account number (or the mobile number linked to it)." },
+  UnionBank: { label: "UnionBank account number", placeholder: "Account number", help: "Enter their UnionBank account number." },
+  BPI: { label: "BPI account number", placeholder: "Account number", help: "Enter their BPI account number." },
+  BDO: { label: "BDO account number", placeholder: "Account number", help: "Enter their BDO account number." },
   UPI: { label: "UPI ID", placeholder: "name@bank", help: "Enter their UPI ID, sometimes called a virtual payment address—not a bank account number." },
   PayPal: { label: "PayPal email address", type: "email", placeholder: "name@example.com", help: "Use the email address confirmed on their PayPal account." },
   Wise: { label: "Wise email address", type: "email", placeholder: "name@example.com", help: "Use the email address registered to their Wise account." },
@@ -138,8 +143,8 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       showSession(data.session);
     });
   }
-  const field = (key: keyof typeof form, label: string, type = "text", placeholder = "") => (
-    <label className={styles.field}>{label}<input required type={type} value={form[key]} maxLength={key === "paymentDetails" ? 500 : 254} placeholder={placeholder}
+  const field = (key: keyof typeof form, label: string, type = "text", placeholder = "", required = true) => (
+    <label className={styles.field}>{label}<input required={required} type={type} value={form[key]} maxLength={key === "paymentDetails" ? 500 : 254} placeholder={placeholder}
       onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>
   );
 
@@ -285,7 +290,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             {form.paymentMethod === "Bank transfer" ? <>
               {field("bankName", "Bank name", "text", "Name of the receiving bank")}
               {field("bankAccountNumber", "Account number or IBAN", "text", "Receiving account number")}
-              {field("bankRoutingNumber", "Routing, IFSC, sort or SWIFT code", "text", "Use the code required in their country")}
+              {field("bankRoutingNumber", "Routing, IFSC, sort or SWIFT code (optional)", "text", "Only if their bank needs one — not required in the Philippines", false)}
             </> : <>
               {field("paymentDetails", payoutField.label, payoutField.type || "text", payoutField.placeholder)}
               <p className={styles.hint}>{payoutField.help}</p>
