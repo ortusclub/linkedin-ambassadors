@@ -74,7 +74,9 @@ const PHP_TIERS: ReferralTiers = { referral: 500, phone: { base: 600, verified: 
 const USD_TIERS: ReferralTiers = { referral: 8, phone: { base: 10, verified: 13 }, computer: { base: 11, verified: 16 } };
 
 export const CURRENCY_CONFIG: Record<Currency, CurrencyConfig> = {
-  PHP: make("PHP", "₱", 500, PHP_TIERS, 1000, 500, ["GCash", "Maya", "UPI", "PayPal", "Wise", "Bank transfer"], "GCash"),
+  // PH options ordered by how often people actually get paid that way (GCash dominant,
+  // then Maribank / GoTyme / Maya, then the banks); Bank transfer stays the catch-all.
+  PHP: make("PHP", "₱", 500, PHP_TIERS, 1000, 500, ["GCash", "Maya", "Maribank", "GoTyme", "UnionBank", "BPI", "BDO", "PayPal", "Wise", "Bank transfer"], "GCash"),
   USD: make("USD", "$", 8, USD_TIERS, 16, 8, ["UPI", "PayPal", "Wise", "Bank transfer", "GCash", "Maya"], "Wise"),
 };
 
