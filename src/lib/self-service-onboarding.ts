@@ -24,14 +24,24 @@ async function availableProxies(db: Prisma.TransactionClient = prisma) {
   return availableProxySlots(proxies, accounts, reservations);
 }
 
-function reusableProxy(slots: Awaited<ReturnType<typeof availableProxies>>, accountCountry: string) {
+const normType = (t: string | null | undefined) => (t || "").toLowerCase().replace(/[\s_-]/g, "");
+
+// Pick a reusable pool proxy by tier + country. Sam's rule: unverified / fresh
+// accounts go on proxy-cheap RESIDENTIAL (safer for cold accounts); Proxy 6
+// DATACENTER is for verified accounts only. DIY accounts are unverified at
+// onboarding, so this normally restricts to residential.
+function reusableProxy(slots: Awaited<ReturnType<typeof availableProxies>>, accountCountry: string, verified: boolean) {
+  const wantType = verified ? "datacenter" : "residential";
+  const tiered = slots.filter((proxy) => normType(proxy.type) === wantType);
   return PURCHASE_PROXY_COUNTRIES.includes(accountCountry as typeof PURCHASE_PROXY_COUNTRIES[number])
-    ? slots.find((proxy) => proxy.country === accountCountry)
-    : slots.find((proxy) => PURCHASE_PROXY_COUNTRIES.includes(proxy.country as typeof PURCHASE_PROXY_COUNTRIES[number]));
+    ? tiered.find((proxy) => proxy.country === accountCountry)
+    : tiered.find((proxy) => PURCHASE_PROXY_COUNTRIES.includes(proxy.country as typeof PURCHASE_PROXY_COUNTRIES[number]));
 }
 
 export async function onboardingCountries() {
-  return [...new Set((await availableProxies()).map((p) => p.country))].sort();
+  // DIY accounts are unverified at onboarding, so only residential (proxy-cheap)
+  // capacity counts toward the countries we can start in right now.
+  return [...new Set((await availableProxies()).filter((p) => normType(p.type) === "residential").map((p) => p.country))].sort();
 }
 
 export async function onboardingSummary(id: string, referrerId: string) {
@@ -78,7 +88,8 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       tx.linkedInAccount.findFirst({ where: { OR: [{ personalEmail: { equals: input.email, mode: "insensitive" } }, { loginEmail: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true } }),
     ]);
     if (application || account) throw new OnboardingError("This person is already in our system. Ask the team to continue their existing onboarding.", 409);
-    const proxy = reusableProxy(await availableProxies(tx), country);
+    // New DIY accounts are unverified/fresh → residential (proxy-cheap) only.
+    const proxy = reusableProxy(await availableProxies(tx), country, false);
     if (!proxy && !proxyPurchaseLimits().enabled) throw new OnboardingError("No dedicated proxy is available for this country yet. Ask the team to add one, then try again.", 409);
     const now = new Date();
     const app = await tx.ambassadorApplication.create({ data: {
@@ -110,10 +121,10 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
 
 // Called under the allocation lock, including immediately before reserving a purchase.
 async function reuseProxy(tx: Prisma.TransactionClient, id: string, referrerId: string, country: string) {
-  const current = await tx.selfServiceOnboarding.findFirstOrThrow({ where: { id, referrerId } });
+  const current = await tx.selfServiceOnboarding.findFirstOrThrow({ where: { id, referrerId }, include: { account: { select: { linkedinVerified: true } } } });
   if (current.proxyId) return true;
   if (current.state !== "reserved" || current.proxyPurchaseAt || current.proxyOrderId) return false;
-  const proxy = reusableProxy(await availableProxies(tx), country);
+  const proxy = reusableProxy(await availableProxies(tx), country, current.account.linkedinVerified);
   if (!proxy) return false;
   await tx.linkedInAccount.update({ where: { id: current.accountId }, data: {
     proxyHost: proxy.host, proxyPort: proxy.port, proxyUsername: proxy.username,
