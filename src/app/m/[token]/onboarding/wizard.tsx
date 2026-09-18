@@ -343,11 +343,11 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           </form>}
 
           {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck, linkedinVerified: accountVerified === "yes" })).session)); }}>
-            <div className={styles.stepLabel}>Payout</div>
-            <h1 className={styles.heroTitle}>Where should the account owner get paid?</h1>
-            <p className={styles.lead}>These are the <strong>account owner&apos;s</strong> payout details. Your referral commission, as the referrer, uses your own dashboard details.</p>
-            <label className={styles.field}>Payout method<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value, paymentDetails: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
-            {field("payoutName", "Name registered on the payout account", "text", "Must match the payment account")}
+            <h1 className={styles.heroTitle}>Where should they get paid?</h1>
+            <p className={styles.lead}>This is <strong>their</strong> {bootstrap.config.offer.setup} and {bootstrap.config.offer.monthly} a month. Your own commission goes to the details on your portal.</p>
+            <div className={styles.card}>
+            <label className={styles.field}>Pay them via<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value, paymentDetails: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
+            {field("payoutName", "Name registered on that account", "text", "Must match the payment account")}
             {form.paymentMethod === "Bank transfer" ? <>
               {field("bankName", "Bank name", "text", "Name of the receiving bank")}
               {field("bankAccountNumber", "Account number or IBAN", "text", "Receiving account number")}
@@ -356,9 +356,9 @@ export default function SelfServiceWizard({ token }: { token: string }) {
               {field("paymentDetails", payoutField.label, payoutField.type || "text", payoutField.placeholder)}
               <p className={styles.hint}>{payoutField.help}</p>
             </>}
+            </div>
             {(!bootstrap.configured || (!bootstrap.autoPurchase && !browserCapacityAvailable)) && <div className={styles.warn}><div>Browser setup isn&apos;t ready yet</div><p>Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access, then try Save &amp; continue.</p></div>}
-            <div className={styles.infoBlue}><div>What happens next</div><p>We&apos;ll save the onboarding record, then guide you and the account owner through adding a shared LinkedVelocity email to their LinkedIn account. The account owner will receive and approve any confirmation codes.</p></div>
-            <div className={styles.note}><strong>When the account owner gets paid.</strong> Once the email is set and the account is signed in, it&apos;s officially onboarded. We don&apos;t sign in straight away — we wait about 24 hours first (it lowers the chance LinkedIn asks for an ID check). The setup payment then lands <strong>{checkWindow(form.accountFreshness)}</strong> after onboarding{form.accountFreshness === "established" ? " for an established account" : " for a newer account"}, once the check passes. They must stay reachable and complete any verification LinkedIn asks for.</div>
+            <div className={styles.infoBlue}><div>When their money arrives</div><p>Once the sign-in is saved, the account counts as onboarded. We then verify it — {checkWindow(form.accountFreshness)}, because we wait about 24 hours before signing in — and their {bootstrap.config.offer.setup} goes out. {bootstrap.config.offer.monthly} follows on the 1st of each month. They need to stay reachable for the odd LinkedIn check.</p></div>
             <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
           </form>}
 
@@ -373,18 +373,16 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <p className={styles.lead}>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup payment follows once the account is verified, <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding. Nothing more to do here.</p>
             <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>
           </> : browserMode === "" ? <>
-            <div className={styles.stepLabel}>Prepare &amp; sign in</div>
-            <h1 className={styles.heroTitle}>Computer or phone?</h1>
-            <p className={styles.lead}>This decides who does the final LinkedIn sign-in, and what you earn.</p>
-            <button type="button" className={`${styles.choiceCard} ${styles.choiceHi}`} onClick={() => setBrowserMode("pc")}>
-              <div className={styles.choiceHead}><strong>💻 On a computer</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>{computerRange}</span></div>
-              <p>You do the sign-in yourself in the prepared GoLogin browser. Needs a Windows or Mac computer.</p>
-              <div className={styles.choiceNote}>Highest rate — the top amount when the account is verified.</div>
-            </button>
+            <h1 className={styles.heroTitle}>Who does the sign-in?</h1>
+            <p className={styles.lead}>This is the last step, and it sets your rate: on a laptop you do the sign-in, on a phone we do.</p>
             <button type="button" className={styles.choiceCard} onClick={() => setBrowserMode("phone")}>
-              <div className={styles.choiceHead}><strong>📱 On a phone</strong><span className={styles.rateChip}>{phoneRange}</span></div>
-              <p>We do the sign-in for you. You hand over the login securely and the team completes it.</p>
-              <div className={styles.choiceNote}>A little less than doing it yourself — more when the account is verified.</div>
+              <div className={styles.choiceHead}><strong>Hand it to us</strong><span className={styles.rateChip}>{phoneRange}</span></div>
+              <p>Works on a phone. They set a temporary password, our team does the sign-in, and their payment timeline doesn&apos;t change.</p>
+            </button>
+            <button type="button" className={`${styles.choiceCard} ${styles.choiceHi}`} onClick={() => setBrowserMode("pc")}>
+              <div className={styles.choiceHead}><strong>I&apos;ll do it on a laptop</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>{computerRange}</span></div>
+              <p>You open the protected browser and sign in to their LinkedIn with them beside you. Highest rate.</p>
+              <div className={styles.choiceNote}>Needs a Windows or Mac computer.</div>
             </button>
           </> : browserMode === "phone" ? <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
@@ -400,17 +398,22 @@ export default function SelfServiceWizard({ token }: { token: string }) {
 
           {step === 5 && session && <>
             <div className={styles.success}>✓</div>
-            <h1 className={styles.heroTitle}>Login confirmation saved</h1>
-            <p className={styles.lead}>{session.name}&apos;s account is in the system and linked to your referral.</p>
+            <h1 className={styles.heroTitle}>That&apos;s them onboarded</h1>
+            <p className={styles.lead}>{session.name}&apos;s account is in our system and linked to your code. Nothing else for either of you to do today.</p>
             <div className={styles.card}>
-              <div className={styles.summaryRow}><span>Account owner setup payment</span><b>{session.setupAmount}</b></div>
-              <div className={styles.summaryRow}><span>Setup due date</span><b>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "Awaiting login"}</b></div>
-              <div className={styles.summaryRow}><span>Account owner monthly payment</span><b>{session.monthlyAmount}</b></div>
-              <div className={styles.summaryRow}><span>Your referral commission</span><b>{session.commission} · {session.verified ? "Verified" : "Pending"}</b></div>
+              <div className={styles.summaryRow}><span>Their setup payment</span><b>{session.setupAmount}</b></div>
+              <div className={styles.summaryRow}><span>Their monthly payment</span><b>{session.monthlyAmount}/mo</b></div>
+              <div className={styles.summaryRow}><span>Your commission</span><b>{session.commission} · {session.verified ? "Verified" : "Pending"}</b></div>
+              <div className={styles.summaryRow}><span>Due date</span><b>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "After the check"}</b></div>
             </div>
-            <div className={styles.note}>The account is officially onboarded. We wait about 24 hours before signing in, then verify the account — so the setup payment is released <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding, once the check passes. The account owner must stay reachable and complete any LinkedIn verification requested before payment.</div>
-            <Link className={styles.primary} href={`/m/${token}`}>Back to your dashboard →</Link>
-            <a className={styles.secondary} href={`/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard another account owner</a>
+            <div className={styles.note}><strong>What we do next.</strong> We test the sign-in over {checkWindow(session.accountFreshness)}. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears, their {session.setupAmount} goes out and your commission lands the following Monday.</div>
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>Tell them before you go</div>
+              <p className={styles.cardSub} style={{ marginBottom: 8 }}>Don&apos;t post, message or browse from your own phone while it&apos;s with us — being logged in from two places is what causes restrictions.</p>
+              <p className={styles.cardSub} style={{ margin: 0 }}>And if anything is ever needed on the account, it comes through you — so make sure they&apos;ll pick up when you call.</p>
+            </div>
+            <Link className={styles.primary} href={`/m/${token}`}>Back to my portal →</Link>
+            <a className={styles.secondary} href={`/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard someone else</a>
           </>}
         </>}
       </div>
