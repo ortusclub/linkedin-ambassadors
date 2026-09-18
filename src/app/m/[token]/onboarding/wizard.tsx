@@ -58,7 +58,9 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [handedOff, setHandedOff] = useState(false);
   const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false });
   const [accountVerified, setAccountVerified] = useState<"" | "yes" | "no">("");
-  const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" });
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "", ownerPhotoUrl: "" });
 
   async function request(method: string, body?: unknown, id?: string) {
     const response = await fetch(endpoint + (id ? `?id=${encodeURIComponent(id)}` : ""), {
@@ -146,6 +148,18 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       const data = await request("PATCH", { id: session.id, action: "confirm", ...creds });
       showSession(data.session);
     });
+  }
+  async function uploadPhoto(file: File) {
+    setPhotoBusy(true); setPhotoError("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch(`${endpoint}/photo`, { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed.");
+      setForm((f) => ({ ...f, ownerPhotoUrl: data.url }));
+    } catch (e) { setPhotoError(e instanceof Error ? e.message : "Upload failed."); }
+    finally { setPhotoBusy(false); }
   }
   const field = (key: keyof typeof form, label: string, type = "text", placeholder = "", required = true) => (
     <label className={styles.field}>{label}<input required={required} type={type} value={form[key]} maxLength={key === "paymentDetails" ? 500 : 254} placeholder={placeholder}
@@ -283,6 +297,20 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <label className={styles.field}>Is the account already verified on LinkedIn?<select value={accountVerified} onChange={(e) => setAccountVerified(e.target.value as "" | "yes" | "no")}><option value="">Choose one</option><option value="no">No / not sure</option><option value="yes">Yes — it has the ID-verified badge</option></select></label><p className={styles.hint}>LinkedIn shows a verified badge when the owner has confirmed their identity (usually with a passport). Check their profile if you&apos;re not sure.</p>
             <div className={styles.check} style={{ margin: "10px 0 0" }}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} id="hasGovId" /><label htmlFor="hasGovId">The account owner has a <strong>physical government ID</strong> (passport, national ID or driver&apos;s license). We don&apos;t collect it, but they must have one in case LinkedIn asks them to verify later.</label></div>
             <div className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} id="nameMatches" /><label htmlFor="nameMatches">The account owner&apos;s full name above <strong>matches the name on that ID</strong>.</label></div>
+            <div style={{ margin: "14px 0 4px" }}>
+              <div className={styles.fieldLabel}>Profile photo <span style={{ color: "#98a2b3", fontWeight: 600 }}>(optional)</span></div>
+              <p className={styles.hint} style={{ marginBottom: 9 }}>Upload one where their full face is clearly visible, smiling if possible. It doesn&apos;t need to be professional — we&apos;ll tidy it up. Just upload something.</p>
+              {form.ownerPhotoUrl ? <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={form.ownerPhotoUrl} alt="Uploaded" width={48} height={48} style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", border: "1px solid #e3e6ea" }} />
+                <span className={styles.note} style={{ margin: 0, padding: "8px 12px" }}>Photo added ✓</span>
+                <button type="button" className={styles.linkBtn} style={{ width: "auto" }} onClick={() => setForm({ ...form, ownerPhotoUrl: "" })}>Remove</button>
+              </div> : <label className={styles.secondary} style={{ cursor: "pointer", display: "inline-block", width: "auto", padding: "12px 18px" }}>
+                {photoBusy ? "Uploading…" : "Upload a photo"}
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); e.target.value = ""; }} />
+              </label>}
+              {photoError && <p className={styles.phoneError} style={{ marginTop: 8 }}>{photoError}</p>}
+            </div>
             <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId || !accountVerified}>Continue →</button></div>
           </form>}
 
