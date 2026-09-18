@@ -156,8 +156,11 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   // Currency follows the referrer (₱ for PH, $ for USD referrers) — everything the
   // wizard shows about money comes from bootstrap.config, never hardcoded pesos.
   const cfg = bootstrap?.config;
-  const refBase = cfg ? `${cfg.symbol}${cfg.rate.toLocaleString("en-US")}` : "";
-  const refMax = cfg ? `${cfg.symbol}${(cfg.rate * 2).toLocaleString("en-US")}` : "";
+  const fmtMoney = (n: number) => cfg ? `${cfg.symbol}${n.toLocaleString("en-US")}` : "";
+  const refBase = cfg ? fmtMoney(cfg.referralTiers.referral) : "";
+  const refMax = cfg ? fmtMoney(cfg.referralTiers.computer.verified) : "";
+  const phoneRange = cfg ? `${fmtMoney(cfg.referralTiers.phone.base)}–${fmtMoney(cfg.referralTiers.phone.verified)}` : "";
+  const computerRange = cfg ? `${fmtMoney(cfg.referralTiers.computer.base)}–${fmtMoney(cfg.referralTiers.computer.verified)}` : "";
   const payoutField = PAYOUT_FIELDS[form.paymentMethod] || { label: "Payout details", placeholder: "Account number or payment address", help: "Enter everything needed to send the payment." };
   const scriptCtx: ScriptContext = {
     name: session?.name || form.fullName,
@@ -308,12 +311,12 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <h1 className={styles.heroTitle}>Computer or phone?</h1>
             <p className={styles.lead}>This decides who does the final LinkedIn sign-in, and what you earn.</p>
             <button type="button" className={`${styles.choiceCard} ${styles.choiceHi}`} onClick={() => setBrowserMode("pc")}>
-              <div className={styles.choiceHead}><strong>💻 On a computer</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>Up to {refMax}</span></div>
+              <div className={styles.choiceHead}><strong>💻 On a computer</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>{computerRange}</span></div>
               <p>You do the sign-in yourself in the prepared GoLogin browser. Needs a Windows or Mac computer.</p>
               <div className={styles.choiceNote}>Highest rate — the top amount when the account is verified.</div>
             </button>
             <button type="button" className={styles.choiceCard} onClick={() => setBrowserMode("phone")}>
-              <div className={styles.choiceHead}><strong>📱 On a phone</strong><span className={styles.rateChip}>From {refBase}</span></div>
+              <div className={styles.choiceHead}><strong>📱 On a phone</strong><span className={styles.rateChip}>{phoneRange}</span></div>
               <p>We do the sign-in for you. You hand over the login securely and the team completes it.</p>
               <div className={styles.choiceNote}>A little less than doing it yourself — more when the account is verified.</div>
             </button>

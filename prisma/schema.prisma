@@ -334,6 +334,14 @@ model AmbassadorApplication {
   verifiedAt        DateTime?         @map("verified_at")
   onboardingStartedAt DateTime?       @map("onboarding_started_at")
   onboardedAt       DateTime?         @map("onboarded_at")
+  // How a DIY (self-service) onboarding was completed: "computer" (referrer signed in)
+  // or "phone" (handed off to LV). Drives the tiered referral commission. Null for
+  // plain referrals (LV onboards) and pre-tier rows.
+  onboardingMethod  String?          @map("onboarding_method")
+  // Snapshot of the account's LinkedIn ID-verified state AT onboarding. The referral
+  // commission is locked to this — verifying the account later does NOT change what the
+  // referrer earned. Null for plain referrals / pre-tier rows.
+  onboardingVerified Boolean?        @map("onboarding_verified")
   accountFreshness  String?          @map("account_freshness")
   paidAt            DateTime?         @map("paid_at")
   marketerPaidAt    DateTime?         @map("marketer_paid_at")

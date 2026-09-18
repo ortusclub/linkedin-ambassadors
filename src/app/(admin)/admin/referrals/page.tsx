@@ -13,6 +13,8 @@ interface App {
   accountIssue?: string | null;
   onboardedAt?: string | null;
   referralSource?: string | null;
+  onboardingMethod?: string | null;
+  onboardingVerified?: boolean | null;
 }
 
 interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; }
@@ -81,7 +83,6 @@ const cardMarkup = (origin: string, r: { slug: string; name: string }) => {
 // — see lib/referral-currency. A referrer's currency is keyed off their slug (which is
 // what `referredBy` stores). rateFor/curFor resolve it from the row's referredBy key.
 const curFor = (referredBy: string) => referralCurrency(referredBy);
-const rateFor = (referredBy: string) => CURRENCY_CONFIG[curFor(referredBy)].rate;
 // A referrer is "top" once this many of their signups convert.
 const TOP_THRESHOLD = 5;
 
@@ -186,7 +187,7 @@ export default function AdminReferralsPage() {
       if (r.name === r.name.toLowerCase() && name !== name.toLowerCase()) r.name = name;
       r.signups++;
       if (isConverted(a)) {
-        const commission = referralCommissionAmount(a, rateFor(name));
+        const commission = referralCommissionAmount(a, CURRENCY_CONFIG[curFor(name)].referralTiers);
         r.converted++;
         r.earned += commission;
         if (isReferralEarned(a)) r.ready += commission;
@@ -420,7 +421,7 @@ export default function AdminReferralsPage() {
       {/* title */}
       <div style={{ marginBottom: 22, maxWidth: 660 }}>
         <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Referrals</h1>
-        <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Who&apos;s bringing in new ambassador signups. Track referral volume, see how many convert into inventory, spot your top performers to re-invite, and see commissions owed — {formatMoney(CURRENCY_CONFIG.PHP.rate, "PHP")} per converted signup ({formatMoney(CURRENCY_CONFIG.USD.rate, "USD")} for overseas referrers).</p>
+        <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Who&apos;s bringing in new ambassador signups. Track referral volume, see how many convert into inventory, spot your top performers to re-invite, and see commissions owed — {formatMoney(CURRENCY_CONFIG.PHP.referralTiers.referral, "PHP")}–{formatMoney(CURRENCY_CONFIG.PHP.referralTiers.computer.verified, "PHP")} per converted signup by how it&apos;s onboarded ({formatMoney(CURRENCY_CONFIG.USD.referralTiers.referral, "USD")}–{formatMoney(CURRENCY_CONFIG.USD.referralTiers.computer.verified, "USD")} for overseas referrers).</p>
       </div>
 
       {/* referral links (collapsible) */}

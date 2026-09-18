@@ -15,12 +15,19 @@
 //
 // Shared by the marketer portal, the admin Referrals tab, and the payouts digest so all
 // three agree on who has actually converted and what is owed.
+import type { ReferralTiers } from "@/lib/referral-currency";
+
 export interface ReferralGate {
   status: string;
   verifiedAt?: Date | string | null;
   accountIssue?: string | null;
   onboardedAt?: Date | string | null;
   referralSource?: string | null;
+  // For the tiered DIY commission: how the onboarding was done, and whether the
+  // account was ID-verified AT onboarding (a snapshot — NOT the live linkedinVerified,
+  // and NOT the admin verifiedAt "ok to pay" flag above). Locked at onboarding.
+  onboardingMethod?: string | null;
+  onboardingVerified?: boolean | null;
 }
 
 // Whether the referred account is onboarded. The `status` string is the intended signal,
@@ -36,8 +43,18 @@ export function isReferralEarned(a: ReferralGate): boolean {
   return isReferralOnboarded(a) && !!a.verifiedAt;
 }
 
-// A successful guided self-service setup earns twice the standard referral fee.
-// referralSource is stamped as "self-service" when the DIY wizard creates the signup.
-export function referralCommissionAmount(a: ReferralGate, standardRate: number): number {
-  return standardRate * (a.referralSource === "self-service" ? 2 : 1);
+// Tiered referral commission. A plain referral (LV onboards) pays the base `referral`
+// rate. A DIY (self-service) onboarding pays more, by how it was done and whether the
+// account is ID-verified:
+//   phone    (referrer chased it, LV signed in) → phone.base / phone.verified
+//   computer (referrer did the guided sign-in)  → computer.base / computer.verified
+// `verified` is the snapshot taken AT onboarding (onboardingVerified), so the amount is
+// locked then — verifying the account afterwards does NOT change what the referrer earns.
+// Self-service rows without a recorded method (only pre-tier rows, since new onboardings
+// always stamp it) fall back to the computer tier so the amount is never understated.
+export function referralCommissionAmount(a: ReferralGate, tiers: ReferralTiers): number {
+  if (a.referralSource !== "self-service") return tiers.referral;
+  const verified = !!a.onboardingVerified;
+  const band = a.onboardingMethod === "phone" ? tiers.phone : tiers.computer;
+  return verified ? band.verified : band.base;
 }
