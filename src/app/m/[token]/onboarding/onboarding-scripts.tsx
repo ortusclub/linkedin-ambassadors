@@ -132,10 +132,10 @@ function CopyLink({ label, url }: { label: string; url: string }) {
 // read before onboarding: the plain-language guide and the full terms.
 export function ShareLinks({ ctx }: { ctx: ScriptContext }) {
   return <div className={styles.shareBlock}>
-    <div className={styles.stepLabel}>SEND THE OWNER THESE FIRST</div>
-    <p className={styles.hint}>Share both before you start so they know what to expect and agree to the terms.</p>
+    <div className={styles.stepLabel}>Send them these two first</div>
+    <p className={styles.hint}>So they know what they&apos;re agreeing to before you touch their account.</p>
     <CopyLink label="What to expect with your account" url={ctx.guideUrl} />
-    <CopyLink label="Ambassador terms" url={ctx.termsUrl} />
+    <CopyLink label="The agreement they're signing" url={ctx.termsUrl} />
   </div>;
 }
 
