@@ -85,10 +85,11 @@ const AMBASSADOR_FAQ = [
 ];
 
 const READY_CHECKS = [
-  { t: "They're with you right now", s: "In person or on a call — they'll need to tap and confirm things themselves." },
-  { t: "They have their phone", s: "LinkedIn sends codes they'll need to read out to you." },
-  { t: "They can get into their LinkedIn", s: "They'll sign in and approve changes during setup." },
-  { t: "About 10 minutes free", s: "It saves as you go, but it's smoothest done in one sitting." },
+  { t: "They stay with you the whole way", s: "LinkedIn sends codes and checks mid-setup. Stopping halfway means nobody gets paid." },
+  { t: "They can open their own email and phone", s: "Verification codes and the email confirmation go to them, not you." },
+  { t: "They know their LinkedIn password", s: "On a computer you sign in with it while they watch. Keep it in the app only." },
+  { t: "They meet LinkedIn's minimum age", s: "16, or older where local law requires." },
+  { t: "They have a physical government ID", s: "We never take a copy; they just need one in case LinkedIn asks them to verify later, with a matching name." },
 ];
 
 const C = {
