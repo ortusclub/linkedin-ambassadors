@@ -99,7 +99,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
       fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
       paymentMethod: true, paymentDetails: true, referredBy: true, referralSource: true, payoutCurrency: true, verifiedAt: true,
-      status: true, accountIssue: true,
+      status: true, accountIssue: true, onboardingMethod: true, onboardingVerified: true,
     },
   });
 
@@ -176,7 +176,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     if (!ref || !isReferralEarned(a)) continue;
     const earned = earnedByRef.get(ref) || { count: 0, amount: 0 };
     earned.count++;
-    earned.amount += referralCommissionAmount(a, currencyConfig(ref).rate);
+    earned.amount += referralCommissionAmount(a, currencyConfig(ref).referralTiers);
     earnedByRef.set(ref, earned);
   }
   const refSlugs = [...earnedByRef.keys()];

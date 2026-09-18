@@ -23,7 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      select: { fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardedAt: true, createdAt: true },
+      select: { fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, createdAt: true },
     }),
     prisma.payout.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" } }),
   ]);
@@ -37,7 +37,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     c.signups++;
     if (isReferralEarned(a)) {
       c.converted++;
-      c.commission += referralCommissionAmount(a, currencyConfig(slug).rate);
+      c.commission += referralCommissionAmount(a, currencyConfig(slug).referralTiers);
     }
     counts.set(slug, c);
   }
@@ -86,6 +86,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       currency: cfg.currency,
       symbol: cfg.symbol,
       offer: cfg.offer,
+      referralTiers: cfg.referralTiers,
       payoutMethods: cfg.payoutMethods,
       defaultPayoutMethod: cfg.defaultPayoutMethod,
     },

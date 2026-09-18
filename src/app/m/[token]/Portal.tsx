@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
-interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; payoutMethods: string[]; defaultPayoutMethod: string; }
+interface Tier { base: number; verified: number; }
+interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
 interface Data {
   me: { name: string; slug: string; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; assignedDay: string | null; assignedLocation: string | null; };
   stats: { signups: number; converted: number; commission: number; rate: number; };
@@ -186,6 +187,9 @@ export default function Portal({ token }: { token: string }) {
   // DIY (guided) onboarding payout tiers: base = referral we onboard, high = DIY verified.
   const base = money(stats.rate);
   const diyHigh = money(stats.rate * 2);
+  // Tiered referral commission for display (locked at onboarding by method + verified).
+  const tiers = config.referralTiers;
+  const tierRange = (t: Tier) => `${money(t.base)}–${money(t.verified)}`;
 
   // For non-PH (USD) referrers, rewrite the money/method-bearing FAQ answers.
   const faqOverrides: Record<string, string> = isUSD ? {
@@ -297,7 +301,7 @@ export default function Portal({ token }: { token: string }) {
                 <p style={{ font: `500 13px/1.5 ${JAK}`, color: "rgba(255,255,255,.88)", margin: "0 0 16px" }}>Stay with the account owner and follow the guided steps together. Highest pay, and it&apos;s all recorded to your code as you go.</p>
                 <button onClick={() => setReadyOpen(true)} style={{ width: "100%", font: `700 15.5px ${JAK}`, color: C.greenDk, background: "#fff", border: "none", padding: 16, borderRadius: 13, cursor: "pointer", boxShadow: "0 8px 18px -10px rgba(0,0,0,.4)" }}>Start guided onboarding →</button>
                 <div style={{ display: "flex", gap: 6, marginTop: 13 }}>
-                  {[{ a: base, l: "You send the form" }, { a: diyHigh, l: "You onboard them" }].map((t) => (
+                  {[{ a: tierRange(tiers.phone), l: "Phone — we sign in" }, { a: tierRange(tiers.computer), l: "Computer — you sign in" }].map((t) => (
                     <div key={t.l} style={{ flex: 1, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)", borderRadius: 10, padding: "9px 8px", textAlign: "center" }}>
                       <div style={{ font: `600 14px ${GRO}`, color: "#fff" }}>{t.a}</div>
                       <div style={{ font: `600 9.5px/1.25 ${JAK}`, color: "rgba(255,255,255,.8)", marginTop: 3 }}>{t.l}</div>
@@ -418,9 +422,9 @@ export default function Portal({ token }: { token: string }) {
               <div style={cardTitle}>What each onboarding pays</div>
               <p style={{ font: `500 12px/1.5 ${JAK}`, color: C.muted, margin: "0 0 8px" }}>Two things move your rate: who does the final sign-in, and whether LinkedIn has ID-verified the account.</p>
               {[
-                { a: base, t: "You send the form and our team onboards them." },
-                { a: diyHigh, t: "You run the guided onboarding yourself, all the way to sign-in." },
-                { a: "Top", t: "Verified accounts pay the top of each range." },
+                { a: money(tiers.referral), t: "You send the form — our team onboards them." },
+                { a: tierRange(tiers.phone), t: "Phone: you chase it, we do the sign-in. Verified pays the top." },
+                { a: tierRange(tiers.computer), t: "Computer: you do the guided sign-in yourself. Verified pays the top." },
               ].map((p, i) => (
                 <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start", padding: "9px 0", borderTop: `1px solid ${C.line2}` }}>
                   <span style={{ font: `700 13.5px ${GRO}`, color: C.greenDk, flex: "none", minWidth: 62 }}>{p.a}</span>
@@ -438,26 +442,35 @@ export default function Portal({ token }: { token: string }) {
               ) : payouts.map((p) => {
                 const label = PAYOUT_LABEL[p.type] || PAYOUT_LABEL.other;
                 const confirming_ = confirmId === p.id;
+                const refIsUrl = /^https?:\/\//i.test(p.reference || "");
+                const pill = p.confirmedAt
+                  ? { t: "Confirmed", bg: C.accBg, fg: C.accFg, bd: C.softGreenBorder }
+                  : p.paidAt
+                    ? { t: "Check it arrived", bg: C.warnBg, fg: "#c2410c", bd: C.warnBorder }
+                    : { t: "Not sent yet", bg: C.pendBg, fg: C.pendFg, bd: "#e3e6ea" };
+                const meta = p.paidAt
+                  ? `Paid ${fmtDate(p.paidAt)}${p.method ? ` · ${p.method}` : ""}${p.confirmedAt ? " · you confirmed it" : ""}${p.reference && !refIsUrl ? ` · ref ${p.reference}` : ""}`
+                  : "Not sent yet — lands the Monday after it clears our check";
+                const needsConfirm = !!p.paidAt && !p.confirmedAt && !confirming_;
                 return (
-                  <div key={p.id} style={{ borderTop: `1px solid ${C.line2}`, padding: "12px 0" }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                      <span style={{ font: `700 15px ${GRO}`, color: C.ink }}>{money(p.amount)}</span>
-                      <span style={{ font: `500 12.5px ${JAK}`, color: C.slate, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description || label}</span>
-                      <span style={{ marginLeft: "auto", font: `600 9.5px ${JAK}`, padding: "3px 8px", borderRadius: 5, whiteSpace: "nowrap", flex: "none", background: p.confirmedAt ? C.accBg : C.pendBg, color: p.confirmedAt ? C.accFg : C.pendFg }}>
-                        {p.confirmedAt ? "Confirmed" : p.paidAt ? "Awaiting your confirmation" : "Not sent yet"}
-                      </span>
+                  <div key={p.id} style={{ borderTop: `1px solid ${C.line2}`, padding: "14px 0" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ font: `600 17px ${GRO}`, color: C.ink, fontVariantNumeric: "tabular-nums", flex: "none" }}>{money(p.amount)}</span>
+                      <span style={{ font: `500 12.5px ${JAK}`, color: C.slate, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description || label}</span>
+                      <span style={{ marginLeft: "auto", flex: "none", font: `600 9.5px ${JAK}`, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap", background: pill.bg, color: pill.fg, border: `1px solid ${pill.bd}` }}>{pill.t}</span>
                     </div>
 
-                    {p.paidAt && (
-                      <div style={{ marginTop: 4, font: `500 11.5px ${JAK}`, color: C.muted2 }}>
-                        {p.method || "Paid"} · {fmtDate(p.paidAt)}{p.reference ? ` · ref ${p.reference}` : ""}
-                      </div>
-                    )}
+                    <div style={{ marginTop: 5, font: `500 11.5px ${JAK}`, color: C.muted }}>{meta}</div>
 
-                    {p.paidAt && !p.confirmedAt && !confirming_ && (
-                      <button onClick={() => { setConfirmId(p.id); setConfirmName(""); setConfirmErr(""); }} style={{ marginTop: 9, width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 10, padding: "11px 12px", font: `600 13px ${JAK}`, cursor: "pointer" }}>
-                        I received this
-                      </button>
+                    {(refIsUrl || needsConfirm) && (
+                      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                        {refIsUrl && (
+                          <a href={p.reference!} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", font: `700 12px ${JAK}`, color: C.ink, background: C.inputBg, border: `1px solid ${C.inputBorder}`, padding: 13, borderRadius: 10, textDecoration: "none" }}>View receipt ↗</a>
+                        )}
+                        {needsConfirm && (
+                          <button onClick={() => { setConfirmId(p.id); setConfirmName(""); setConfirmErr(""); }} style={{ flex: 1, font: `700 12px ${JAK}`, color: "#fff", background: C.green, border: "none", padding: 13, borderRadius: 10, cursor: "pointer" }}>I got it ✓</button>
+                        )}
+                      </div>
                     )}
 
                     {confirming_ && (
@@ -473,12 +486,6 @@ export default function Portal({ token }: { token: string }) {
                           </button>
                           <button onClick={() => { setConfirmId(null); setConfirmErr(""); }} style={{ flex: "none", background: "#fff", color: C.slate, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 14px", font: `600 13px ${JAK}`, cursor: "pointer" }}>Cancel</button>
                         </div>
-                      </div>
-                    )}
-
-                    {p.confirmedAt && (
-                      <div style={{ marginTop: 6, font: `500 11.5px ${JAK}`, color: C.muted2 }}>
-                        You confirmed this on {fmtDate(p.confirmedAt)}{p.reference ? ` · ref ${p.reference}` : ""}
                       </div>
                     )}
                   </div>

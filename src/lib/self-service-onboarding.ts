@@ -293,6 +293,8 @@ export async function confirmOnboarding(id: string, referrerId: string, creds?: 
     }
     await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: {
       status: "onboarded", onboardedAt: s.confirmedAt, ownerStatus: "active",
+      onboardingMethod: "computer", // referrer did the guided sign-in themselves
+      onboardingVerified: acc.linkedinVerified, // snapshot: commission locks to this, not later verification
       // Keep payment blocked until an admin checks the self-reported login.
       accountIssue: "Self-service login reported; awaiting team verification before payout.",
       adminNotes: `Self-service login confirmed by referrer at ${s.confirmedAt!.toISOString()}. Verify login, clear account issue, and confirm ok to pay after review.${hasPassword ? " Password saved." : " Password NOT captured."}${has2fa ? " 2FA key saved." : ""}`,
@@ -324,6 +326,8 @@ export async function handoffOnboarding(id: string, referrerId: string, input: {
     // phone hand-off awaiting our sign-in apart from a prep that needs a retry.
     await tx.selfServiceOnboarding.update({ where: { id }, data: { state: "handed_off" } });
     await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: {
+      onboardingMethod: "phone", // referrer chased it; LV does the sign-in
+      onboardingVerified: s.account.linkedinVerified, // snapshot at onboarding; commission locks to this
       adminNotes: `${s.application.adminNotes || ""}\nPHONE HAND-OFF ${now.toISOString()}: owner on a phone. LV to complete the GoLogin sign-in; login saved on the account.${has2fa ? " 2FA key provided." : " 2FA NOT provided — team to set it up."}`,
     } });
   });

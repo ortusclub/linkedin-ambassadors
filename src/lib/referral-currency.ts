@@ -25,10 +25,21 @@ export function referralCurrency(slug: string | null | undefined): Currency {
 // stores the referrer slug (e.g. "aditya-39"); unknown / no referrer → PHP.
 export const currencyForReferredBy = referralCurrency;
 
+// Tiered referral commission. `referral` = LV onboards them (plain referral).
+// The DIY (self-service) tiers pay more, and verified accounts pay the top of each:
+//   phone    = referrer chased it but LV did the sign-in (hand-off)
+//   computer = referrer did the guided sign-in themselves (highest)
+export interface ReferralTiers {
+  referral: number;
+  phone: { base: number; verified: number };
+  computer: { base: number; verified: number };
+}
+
 export interface CurrencyConfig {
   currency: Currency;
   symbol: string;
-  rate: number; // referrer commission per onboarded signup, in this currency
+  rate: number; // referrer commission per onboarded signup (= referralTiers.referral), in this currency
+  referralTiers: ReferralTiers;
   setupAmount: number; // ambassador one-time set-up fee (numeric)
   monthlyAmount: number; // ambassador monthly (numeric)
   offer: { setup: string; monthly: string }; // formatted for display (portal)
@@ -42,11 +53,12 @@ export function formatMoney(amount: number, currency: Currency): string {
 }
 
 function make(
-  currency: Currency, symbol: string, rate: number, setupAmount: number, monthlyAmount: number,
+  currency: Currency, symbol: string, rate: number, referralTiers: ReferralTiers,
+  setupAmount: number, monthlyAmount: number,
   payoutMethods: string[], defaultPayoutMethod: string,
 ): CurrencyConfig {
   return {
-    currency, symbol, rate, setupAmount, monthlyAmount,
+    currency, symbol, rate, referralTiers, setupAmount, monthlyAmount,
     offer: {
       setup: symbol + setupAmount.toLocaleString("en-US"),
       monthly: symbol + monthlyAmount.toLocaleString("en-US"),
@@ -55,9 +67,15 @@ function make(
   };
 }
 
+// PHP tiers agreed with Sam. USD mirrors the same shape, scaled to the two anchors
+// he set ($8 refer, $16 computer-verified) with the intermediate steps rounded to
+// whole dollars and kept in the same order as PHP (600/700/800/1000 → 10/11/13/16).
+const PHP_TIERS: ReferralTiers = { referral: 500, phone: { base: 600, verified: 800 }, computer: { base: 700, verified: 1000 } };
+const USD_TIERS: ReferralTiers = { referral: 8, phone: { base: 10, verified: 13 }, computer: { base: 11, verified: 16 } };
+
 export const CURRENCY_CONFIG: Record<Currency, CurrencyConfig> = {
-  PHP: make("PHP", "₱", 500, 1000, 500, ["GCash", "Maya", "UPI", "PayPal", "Wise", "Bank transfer"], "GCash"),
-  USD: make("USD", "$", 8, 16, 8, ["UPI", "PayPal", "Wise", "Bank transfer", "GCash", "Maya"], "Wise"),
+  PHP: make("PHP", "₱", 500, PHP_TIERS, 1000, 500, ["GCash", "Maya", "UPI", "PayPal", "Wise", "Bank transfer"], "GCash"),
+  USD: make("USD", "$", 8, USD_TIERS, 16, 8, ["UPI", "PayPal", "Wise", "Bank transfer", "GCash", "Maya"], "Wise"),
 };
 
 export function currencyConfig(slug: string | null | undefined): CurrencyConfig {
