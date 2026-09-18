@@ -30,6 +30,9 @@ export const selfServiceInput = z.object({
   bankRoutingNumber: z.string().trim().max(120).optional().default(""),
   hasGovernmentId: z.boolean().optional().default(false),
   nameMatchesId: z.boolean().optional().default(false),
+  // Whether the account is already LinkedIn ID-verified — sets the commission tier
+  // and the proxy tier (verified → datacenter, unverified → residential).
+  linkedinVerified: z.boolean().optional().default(false),
   ownerPhotoUrl: z.string().trim().max(1000).optional().default(""),
   consent: z.literal(true),
 }).superRefine((input, ctx) => {

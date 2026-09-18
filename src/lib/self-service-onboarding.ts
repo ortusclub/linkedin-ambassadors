@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { currencyConfig } from "@/lib/referral-currency";
+import { referralCommissionAmount } from "@/lib/referrals";
 import { setupDueDate } from "@/lib/payment-schedule";
 import { createProfile, createPublicShareLink, findProfileByName, getPublicShareLink } from "@/services/gologin";
 import { selfServiceInput } from "@/lib/self-service-input";
@@ -60,9 +61,12 @@ export async function onboardingSummary(id: string, referrerId: string) {
     // Only a ready, owned session may expose a browser capability. Never expose credentials.
     shareLink: s.state === "ready" && (!emailSetup || emailSetup.primaryConfirmed) ? s.account.gologinShareLink : null,
     confirmedAt: s.confirmedAt,
+    accountFreshness: s.application.accountFreshness,
     setupDueAt: s.confirmedAt ? setupDueDate(s.confirmedAt, s.application.accountFreshness) : null,
     setupAmount: cfg.offer.setup, monthlyAmount: cfg.offer.monthly,
-    commission: `${cfg.symbol}${cfg.rate * 2}`, verified: !!s.application.verifiedAt,
+    // Actual tiered commission for this onboarding (method + verified snapshot), not a flat double.
+    commission: `${cfg.symbol}${referralCommissionAmount({ status: s.application.status, referralSource: s.application.referralSource, onboardingMethod: s.application.onboardingMethod, onboardingVerified: s.application.onboardingVerified }, cfg.referralTiers).toLocaleString("en-US")}`,
+    verified: !!(s.application.onboardingVerified ?? s.account.linkedinVerified),
   };
 }
 
@@ -88,8 +92,8 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       tx.linkedInAccount.findFirst({ where: { OR: [{ personalEmail: { equals: input.email, mode: "insensitive" } }, { loginEmail: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true } }),
     ]);
     if (application || account) throw new OnboardingError("This person is already in our system. Ask the team to continue their existing onboarding.", 409);
-    // New DIY accounts are unverified/fresh → residential (proxy-cheap) only.
-    const proxy = reusableProxy(await availableProxies(tx), country, false);
+    // Tier the proxy to the account: verified → datacenter (Proxy 6), unverified → residential.
+    const proxy = reusableProxy(await availableProxies(tx), country, input.linkedinVerified);
     if (!proxy && !proxyPurchaseLimits().enabled) throw new OnboardingError("No dedicated proxy is available for this country yet. Ask the team to add one, then try again.", 409);
     const now = new Date();
     const app = await tx.ambassadorApplication.create({ data: {
@@ -107,6 +111,7 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
     const acc = await tx.linkedInAccount.create({ data: {
       linkedinName: input.fullName, linkedinUrl: input.linkedinUrl, personalEmail: input.email,
       location: country, gologinAccount: "klabber", status: "under_construction", listed: false,
+      linkedinVerified: input.linkedinVerified,
       ambassadorPayment: cfg.monthlyAmount,
       proxyHost: proxy?.host, proxyPort: proxy?.port, proxyUsername: proxy?.username, proxyPassword: proxy?.password, proxyLocation: proxy?.country,
       notes: `Owner: ${input.email}\nSelf-service onboarding via ${referrer.slug}. Awaiting owner login confirmation.`,
