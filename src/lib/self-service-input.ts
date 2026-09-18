@@ -37,7 +37,7 @@ export const selfServiceInput = z.object({
   if (input.paymentMethod === "Bank transfer") {
     if (input.bankName.length < 2) ctx.addIssue({ code: "custom", path: ["bankName"], message: "Enter the bank name." });
     if (input.bankAccountNumber.length < 3) ctx.addIssue({ code: "custom", path: ["bankAccountNumber"], message: "Enter the account number or IBAN." });
-    if (input.bankRoutingNumber.length < 2) ctx.addIssue({ code: "custom", path: ["bankRoutingNumber"], message: "Enter the routing, IFSC, sort or SWIFT code." });
+    // Routing / IFSC / sort / SWIFT is optional — PH bank transfers don't need one.
     return;
   }
   if (details.length < 3) {
@@ -54,7 +54,7 @@ export const selfServiceInput = z.object({
     ctx.addIssue({ code: "custom", path: ["paymentDetails"], message: `Enter the mobile number registered to ${input.paymentMethod}, including country code.` });
   }
 }).transform((input) => input.paymentMethod === "Bank transfer"
-  ? { ...input, paymentDetails: `${input.bankName} · ${input.bankAccountNumber} · ${input.bankRoutingNumber}` }
+  ? { ...input, paymentDetails: [input.bankName, input.bankAccountNumber, input.bankRoutingNumber].map((s) => s.trim()).filter(Boolean).join(" · ") }
   : input);
 
 export const selfServiceAction = z.object({
