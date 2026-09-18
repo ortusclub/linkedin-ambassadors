@@ -36,6 +36,25 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
     setCode(""); setConsent(false); setLinkConfirmed(false); setPrimary(false); setMiniStep(1);
   }
 
+  // Ready-to-send message the referrer copies and sends to the account owner so they
+  // can add the LinkedVelocity email themselves. The email is filled in for them.
+  const [copiedSteps, setCopiedSteps] = useState(false);
+  const addEmailMessage = `Here's how to add our work email to your LinkedIn:
+
+1. Log in to LinkedIn on your normal device.
+2. Click your photo (Me) at the top right, then Settings & Privacy.
+3. Go to Sign in & security, then Email addresses.
+4. Click Add email address.
+5. Enter: ${setup.address || "(the email we'll share in a moment)"}
+6. Enter your current password when prompted, then click Send verification.
+7. That's it on your end. Let us know once you've added it, and we'll click the verification link from our side to confirm it.
+8. Once it shows as verified, please set it as your primary email, and we'll take it from there.`;
+  function copySteps() {
+    navigator.clipboard?.writeText(addEmailMessage);
+    setCopiedSteps(true);
+    setTimeout(() => setCopiedSteps(false), 1800);
+  }
+
   return <>
     <h2>Set up their LinkedIn email</h2>
     <p>The <strong>account owner</strong> adds and verifies the email themselves, on their own phone or laptop where they&apos;re already signed into LinkedIn. <strong>You walk them through each step.</strong> There&apos;s no protected GoLogin browser yet; that only comes at the very end for the final sign-in.</p>
@@ -89,11 +108,14 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
       {miniStep === 2 && setup.forwardingActive && <section className={styles.miniPanel}>
         <div className={styles.stepLabel}>EMAIL STEP 2 OF 4</div>
         <h3>Add the new email to LinkedIn</h3>
-        <ol className={styles.instructions}>
-          <li>On the owner&apos;s usual LinkedIn session, open <strong>Me → Settings &amp; Privacy</strong>.</li>
-          <li>Select <strong>Sign in &amp; security → Email addresses → Add email address</strong>.</li>
-          <li>Paste <strong>{setup.address}</strong> and submit it. If LinkedIn asks for a password, code or identity check, the owner completes it themselves.</li>
-        </ol>
+        <p>The owner does this on their own LinkedIn. Copy the steps below and send them, or read them out.</p>
+        <div className={styles.scriptCard}>
+          <div className={styles.scriptHead}>
+            <strong>Message to send the owner</strong>
+            <button type="button" className={styles.copyButton} onClick={copySteps}>{copiedSteps ? "Copied ✓" : "Copy steps"}</button>
+          </div>
+          <pre className={styles.scriptText}>{addEmailMessage}</pre>
+        </div>
         <button className={styles.primary} disabled={busy} onClick={() => { setMiniStep(3); void refresh(); }}>I&apos;ve added the email →</button>
         <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
       </section>}
