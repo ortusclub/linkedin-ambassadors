@@ -141,6 +141,7 @@ export default function AdminReferralsPage() {
   const [query, setQuery] = useState("");
   const [nextMonday, setNextMonday] = useState("");
   const [referrers, setReferrers] = useState<Referrer[]>([]);
+  const [visibleCount, setVisibleCount] = useState(20);
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ name: "", type: "marketer", channel: "", assignedDay: "", assignedLocation: "" });
   const [creating, setCreating] = useState(false);
@@ -194,6 +195,15 @@ export default function AdminReferralsPage() {
       }
       m.set(key, r);
     }
+    // Include every registry referrer, even those with no signups yet — otherwise a
+    // freshly-added marketer (0 activity) would be invisible/unmanageable now that the
+    // separate "Referral links" card is gone. Skip any already present (by slug or name)
+    // to avoid duplicating one that already has attributed applications.
+    for (const rf of referrers) {
+      const sk = rf.slug.toLowerCase(), nk = rf.name.toLowerCase();
+      if (m.has(sk) || m.has(nk)) continue;
+      m.set(nk, { name: rf.name, signups: 0, converted: 0, earned: 0, ready: 0, held: 0 });
+    }
     return [...m.values()]
       .map((r) => {
         return {
@@ -211,8 +221,8 @@ export default function AdminReferralsPage() {
           heldOwed: r.held,               // onboarded but still in the stability hold
         };
       })
-      .sort((a, b) => b.signups - a.signups || b.converted - a.converted || a.name.localeCompare(b.name));
-  }, [apps]);
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  }, [apps, referrers]);
 
   const chart = useMemo(() => {
     const withSignups = rows.filter((r) => r.signups > 0);
@@ -237,6 +247,9 @@ export default function AdminReferralsPage() {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => (tier === "all" || tierOf(r).includes(tier)) && (!q || r.name.toLowerCase().includes(q)));
   }, [rows, tier, query]);
+  // Paginate the directory: 20 at a time, "show more"/"show all". A search always
+  // runs across everyone (filtered already applied it), so results aren't paginated.
+  const shown = useMemo(() => (query.trim() ? filtered : filtered.slice(0, visibleCount)), [filtered, query, visibleCount]);
 
   const totals = useMemo(() => {
     const owed: Record<Currency, number> = { PHP: 0, USD: 0 };
@@ -573,7 +586,7 @@ export default function AdminReferralsPage() {
         )}
         {filtered.length === 0 ? (
           <div style={{ padding: 44, textAlign: "center", font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No referrers match.</div>
-        ) : filtered.map((r) => {
+        ) : shown.map((r) => {
           const open = expandedRef.has(r.name);
           const { ref, pays, commissionPaid, outstanding } = refInfo(r.name, r.readyOwed);
           const busy = ref ? pBusy === ref.id : false;
@@ -760,6 +773,18 @@ export default function AdminReferralsPage() {
             </div>
           );
         })}
+        {!query.trim() && filtered.length > shown.length && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap", padding: "16px 22px" }}>
+            <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>Showing {shown.length} of {filtered.length}</span>
+            <button onClick={() => setVisibleCount((c) => c + 100)} style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer" }}>Show 100 more</button>
+            <button onClick={() => setVisibleCount(filtered.length)} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "8px 14px", borderRadius: 8, cursor: "pointer" }}>Show all ({filtered.length})</button>
+          </div>
+        )}
+        {!query.trim() && visibleCount > 20 && filtered.length <= shown.length && (
+          <div style={{ display: "flex", justifyContent: "center", padding: "14px 22px" }}>
+            <button onClick={() => setVisibleCount(20)} style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", background: "transparent", border: "1px solid var(--btn-secondary-border)", padding: "8px 14px", borderRadius: 8, cursor: "pointer" }}>Show fewer</button>
+          </div>
+        )}
       </div>
     </div>
   );
