@@ -309,7 +309,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           {step === 4 && session && (handedOff ? <>
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>Handed off to the team</h1>
-            <p className={styles.lead}>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser, sign in, run the checks and release payment within about a day. Nothing more to do here.</p>
+            <p className={styles.lead}>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in (usually within a day). The setup payment follows once the account is verified, after the checking period: about 3 days for an established account, or about a week for a newer one. Nothing more to do here.</p>
             <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>
           </> : browserMode === "" ? <>
             <div className={styles.stepLabel}>Prepare &amp; sign in</div>
