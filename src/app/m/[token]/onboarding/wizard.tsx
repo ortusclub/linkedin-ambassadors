@@ -14,7 +14,7 @@ type Session = {
   emailSetup: EmailSetup | null;
   country: string | null; proxyAssigned: boolean; proxyPriceLimit: number;
   id: string; name: string; state: string; opened: boolean; shareLink: string | null;
-  confirmedAt: string | null; setupDueAt: string | null; setupAmount: string;
+  confirmedAt: string | null; accountFreshness: string | null; setupDueAt: string | null; setupAmount: string;
   monthlyAmount: string; commission: string; verified: boolean;
 };
 type Bootstrap = { emailEnabled: boolean; phoneVerificationEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; sessions: { id: string; state: string; name: string }[] };
@@ -33,6 +33,9 @@ const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder:
   "Bank transfer": { label: "Bank transfer details", placeholder: "Bank name, account number and routing / SWIFT details", help: "Include the bank name, account number and the routing, sort, IFSC or SWIFT code required in their country." },
 };
 const PROXY_COUNTRIES = ["IN", "GB", "US", "PH"];
+// Setup-fee checking window. We wait ~24h before signing in, so it's about 3 days for
+// an established account and about a week for a newer one.
+const checkWindow = (freshness?: string | null) => freshness === "established" ? "about 3 days" : "about a week";
 
 export default function SelfServiceWizard({ token }: { token: string }) {
   const endpoint = `/api/m/${encodeURIComponent(token)}/onboarding`;
@@ -54,6 +57,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
   const [handedOff, setHandedOff] = useState(false);
   const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false });
+  const [accountVerified, setAccountVerified] = useState<"" | "yes" | "no">("");
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" });
 
   async function request(method: string, body?: unknown, id?: string) {
@@ -276,12 +280,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             </select></label><p className={styles.hint}>Choose where the account is normally used. We&apos;ll match the dedicated connection to that country.</p>
             <label className={styles.field}>How old is the LinkedIn account?<select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">More than one year old</option><option value="fresh">Less than one year old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
             {form.accountFreshness === "unknown" && <p className={styles.hint}>We&apos;ll treat this as less than one year old and use the 7-day verification period.</p>}
+            <label className={styles.field}>Is the account already verified on LinkedIn?<select value={accountVerified} onChange={(e) => setAccountVerified(e.target.value as "" | "yes" | "no")}><option value="">Choose one</option><option value="no">No / not sure</option><option value="yes">Yes — it has the ID-verified badge</option></select></label><p className={styles.hint}>LinkedIn shows a verified badge when the owner has confirmed their identity (usually with a passport). Check their profile if you&apos;re not sure.</p>
             <div className={styles.check} style={{ margin: "10px 0 0" }}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} id="hasGovId" /><label htmlFor="hasGovId">The account owner has a <strong>physical government ID</strong> (passport, national ID or driver&apos;s license). We don&apos;t collect it, but they must have one in case LinkedIn asks them to verify later.</label></div>
             <div className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} id="nameMatches" /><label htmlFor="nameMatches">The account owner&apos;s full name above <strong>matches the name on that ID</strong>.</label></div>
-            <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId}>Continue →</button></div>
+            <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId || !accountVerified}>Continue →</button></div>
           </form>}
 
-          {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck })).session)); }}>
+          {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck, linkedinVerified: accountVerified === "yes" })).session)); }}>
             <div className={styles.stepLabel}>Payout</div>
             <h1 className={styles.heroTitle}>Where should the account owner get paid?</h1>
             <p className={styles.lead}>These are the <strong>account owner&apos;s</strong> payout details. Your referral commission, as the referrer, uses your own dashboard details.</p>
@@ -297,7 +302,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             </>}
             {(!bootstrap.configured || (!bootstrap.autoPurchase && !browserCapacityAvailable)) && <div className={styles.warn}><div>Browser setup isn&apos;t ready yet</div><p>Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access, then try Save &amp; continue.</p></div>}
             <div className={styles.infoBlue}><div>What happens next</div><p>We&apos;ll save the onboarding record, then guide you and the account owner through adding a shared LinkedVelocity email to their LinkedIn account. The account owner will receive and approve any confirmation codes.</p></div>
-            <div className={styles.note}><strong>When the account owner gets paid.</strong> After the shared email and protected browser login are complete, the account is officially onboarded. The setup payment is scheduled after <strong>{form.accountFreshness === "established" ? "3 days" : "7 days"}</strong>{form.accountFreshness === "established" ? " because the account is more than one year old" : form.accountFreshness === "fresh" ? " because the account is less than one year old" : " because its age has not been confirmed"}, subject to successful verification. The account owner must stay reachable during this period and complete any extra verification LinkedIn requests.</div>
+            <div className={styles.note}><strong>When the account owner gets paid.</strong> Once the email is set and the account is signed in, it&apos;s officially onboarded. We don&apos;t sign in straight away — we wait about 24 hours first (it lowers the chance LinkedIn asks for an ID check). The setup payment then lands <strong>{checkWindow(form.accountFreshness)}</strong> after onboarding{form.accountFreshness === "established" ? " for an established account" : " for a newer account"}, once the check passes. They must stay reachable and complete any verification LinkedIn asks for.</div>
             <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
           </form>}
 
@@ -309,7 +314,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           {step === 4 && session && (handedOff ? <>
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>Handed off to the team</h1>
-            <p className={styles.lead}>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in (usually within a day). The setup payment follows once the account is verified, after the checking period: about 3 days for an established account, or about a week for a newer one. Nothing more to do here.</p>
+            <p className={styles.lead}>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup payment follows once the account is verified, <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding. Nothing more to do here.</p>
             <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>
           </> : browserMode === "" ? <>
             <div className={styles.stepLabel}>Prepare &amp; sign in</div>
@@ -347,7 +352,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
               <div className={styles.summaryRow}><span>Account owner monthly payment</span><b>{session.monthlyAmount}</b></div>
               <div className={styles.summaryRow}><span>Your referral commission</span><b>{session.commission} · {session.verified ? "Verified" : "Pending"}</b></div>
             </div>
-            <div className={styles.note}>The account is officially onboarded. The team will verify the saved login during the 3-day checking period for accounts over one year old, or 7 days for newer accounts. The account owner must remain reachable and complete any LinkedIn verification requested before payment is released.</div>
+            <div className={styles.note}>The account is officially onboarded. We wait about 24 hours before signing in, then verify the account — so the setup payment is released <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding, once the check passes. The account owner must stay reachable and complete any LinkedIn verification requested before payment.</div>
             <Link className={styles.primary} href={`/m/${token}`}>Back to your dashboard →</Link>
             <a className={styles.secondary} href={`/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard another account owner</a>
           </>}
