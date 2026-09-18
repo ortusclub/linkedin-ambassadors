@@ -853,6 +853,22 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
           <SectionLabel num={3}>Outreach log</SectionLabel>
           <OutreachLog r={r} busy={busy} onLog={logTouch} onSetFollowUp={(iso) => patchApp(r.id, { nextFollowUp: iso })} onDelete={(at) => patchApp(r.id, { removeTouch: at }, true)} />
 
+          {(() => {
+            const m = (r.adminNotes || "").match(/Owner photo:\s*(https?:\/\/\S+)/);
+            if (!m) return null;
+            const url = m[1];
+            return (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ ...labelCss, marginBottom: 6 }}>Owner photo (from onboarding)</div>
+                <a href={url} target="_blank" rel="noreferrer" style={{ display: "inline-block" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="Owner photo" style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 12, border: "1px solid var(--line,#e6e8ec)", display: "block" }} />
+                </a>
+                <a href={url} target="_blank" rel="noreferrer" style={{ font: `600 12px ${F_SANS}`, color: "var(--green,#15803d)", display: "inline-block", marginTop: 6 }}>Open full size ↗</a>
+              </div>
+            );
+          })()}
+
           {(r.adminNotes || r.applicationNotes || r.accountNotes) && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
               {r.adminNotes && <Note label="Admin notes">{r.adminNotes}</Note>}
