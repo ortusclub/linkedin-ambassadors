@@ -248,23 +248,29 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           </button>}
 
           {step === 0 && <>
-            <div className={styles.stepLabel}>Before you begin</div>
-            <h1 className={styles.heroTitle}>Get the account owner ready</h1>
-            <p className={styles.lead}><strong>You&apos;re the referrer.</strong> You&apos;re onboarding an <strong>account owner</strong> — the person whose LinkedIn account this is. They must be with you for the whole setup, with access to their email, phone and LinkedIn so they can approve changes and receive codes.</p>
+            <h1 className={styles.heroTitle}>Before you begin</h1>
+            <p className={styles.lead}>You&apos;re the referrer. You&apos;re onboarding the <strong>account owner</strong> — the person whose LinkedIn this is. Six steps, about ten minutes, done together.</p>
             <div className={styles.warn}>
-              <div>The account owner must stay with you from start to finish</div>
-              <p>You can&apos;t complete this onboarding without them. LinkedIn may send codes or ask them to confirm their identity during setup.</p>
+              <div>Don&apos;t start unless they can stay</div>
+              <p>LinkedIn will send codes and may ask them to confirm who they are. If they walk away halfway, the account can&apos;t be finished and nobody gets paid.</p>
             </div>
-            <div className={styles.note}>
-              <div className={styles.payRow}><span>Account owner — setup</span><span className={styles.payAmt}>{bootstrap.config.offer.setup}</span></div>
-              <div className={styles.payRow}><span>Account owner — monthly</span><span className={styles.payAmt}>{bootstrap.config.offer.monthly}/mo</span></div>
-              <div className={styles.payRow}><span>You (referrer)</span><span className={styles.payAmt}>{refBase}–{refMax}</span></div>
-              <p style={{ margin: "10px 0 0", fontWeight: 500 }}>Your exact reward depends on phone vs computer and whether the account is verified — you&apos;ll see it at the sign-in step. Your referral stays attached automatically.</p>
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>They need, right now</div>
+              <div className={styles.rowLine}><span className={styles.tick}>✓</span><span className={styles.rowText}>Their LinkedIn email and password — on a computer you use it to sign in, with them sitting right there.</span></div>
+              <div className={styles.rowLine}><span className={styles.tick}>✓</span><span className={styles.rowText}>An inbox open in front of you for LinkedIn&apos;s confirmation code — yours or theirs, either is fine.</span></div>
+              <div className={styles.rowLine}><span className={styles.tick}>✓</span><span className={styles.rowText}>A government ID somewhere at home — we never take a copy, LinkedIn may ask them later.</span></div>
+              <div className={styles.rowLine}><span className={styles.tick}>✓</span><span className={styles.rowText}>A way for you to reach them again — you&apos;re our contact for this account, not them.</span></div>
             </div>
             <ShareLinks ctx={scriptCtx} />
+            <div className={styles.note}>
+              <div style={{ font: "700 13px 'Plus Jakarta Sans'", color: "#166534", marginBottom: 8 }}>Who gets what</div>
+              <div className={styles.payRow}><span>They get</span><span className={styles.payAmt}>{bootstrap.config.offer.setup} + {bootstrap.config.offer.monthly}/mo</span></div>
+              <div className={styles.payRow}><span>You get</span><span className={styles.payAmt}>{refBase}–{refMax}</span></div>
+              <p style={{ margin: "10px 0 0", fontWeight: 500 }}>Your exact rate is set at the sign-in step, by who does the final sign-in and whether the account is ID-verified.</p>
+            </div>
             <div className={styles.consentCard}>
               <label className={styles.check}><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-                <span>The account owner meets <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age: 16, or older where local law requires</a>, is present for the full setup, can access their verification methods, and agrees to add a LinkedVelocity-managed email and share account access under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">ambassador terms</a>.</span></label>
+                <span>They&apos;re here with me, they meet <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age (16, or older where local law requires)</a>, they can reach their own email and phone, and they agree to add a LinkedVelocity email and share access under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">terms</a>.</span></label>
             </div>
             {!bootstrap.configured && <p className={styles.note}>You can enter the details now. The team will need to configure browser access before you can save and continue to sign-in.</p>}
             {bootstrap.configured && !bootstrap.autoPurchase && bootstrap.countries.length === 0 && <p className={styles.note}>You can enter the details now. A dedicated proxy will be needed before you can save and continue to sign-in.</p>}
