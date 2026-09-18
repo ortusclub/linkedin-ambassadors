@@ -57,7 +57,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
   const [handedOff, setHandedOff] = useState(false);
   const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false });
-  const [accountVerified, setAccountVerified] = useState<"" | "yes" | "no">("");
+  const [accountVerified, setAccountVerified] = useState<"" | "yes" | "no" | "unsure">("");
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState("");
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "", ownerPhotoUrl: "" });
@@ -280,12 +280,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           </>}
 
           {step === 1 && <form onSubmit={(e) => { e.preventDefault(); if (bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) { setPhoneError("Verify the mobile number before continuing."); return; } setError(""); setStep(2); }}>
-            <div className={styles.stepLabel}>Account owner</div>
             <h1 className={styles.heroTitle}>Who&apos;s the account owner?</h1>
-            <p className={styles.lead}>A few details about the account owner connect the account, your referral and payouts.</p>
-            {field("fullName", "Account owner's full name")}
-            {field("email", "Account owner's email", "email")}
-            <label className={styles.field}>Mobile number, including country code<input required type="tel" value={form.contactNumber} placeholder="+63 912 345 6789" onChange={(e) => { setForm({ ...form, contactNumber: e.target.value, phoneVerificationToken: "" }); setPhoneCode(""); setPhoneCodeSent(false); setPhoneError(""); }} /></label>
+            <p className={styles.lead}>Let them type their own details where they can — it&apos;s their account.</p>
+            <div className={styles.card}>
+            {field("fullName", "Full name, as on their ID", "text", "Their full name")}
+            {field("email", "Their own email", "email", "them@gmail.com")}
+            <label className={styles.field}>Mobile, with country code<input required type="tel" value={form.contactNumber} placeholder="+63 912 345 6789" onChange={(e) => { setForm({ ...form, contactNumber: e.target.value, phoneVerificationToken: "" }); setPhoneCode(""); setPhoneCodeSent(false); setPhoneError(""); }} /></label>
+            <p className={styles.hint}>Only needed if we ever have to reach them directly — day to day comes to you.</p>
             {bootstrap.phoneVerificationEnabled && <div>
               {form.phoneVerificationToken ? <div className={styles.verifiedPhone}>✓ Mobile number verified</div> : <>
                 <button type="button" className={styles.verifyButton} disabled={phoneBusy || form.contactNumber.trim().length < 8} onClick={() => void verifyPhone("send")}>{phoneBusy && !phoneCodeSent ? "Sending…" : phoneCodeSent ? "Send a new code" : "Send verification code"}</button>
@@ -294,28 +295,49 @@ export default function SelfServiceWizard({ token }: { token: string }) {
                 {phoneError && <p className={styles.phoneError} role="alert">{phoneError}</p>}
               </>}
             </div>}
-            {field("linkedinUrl", "LinkedIn profile link", "url", "https://www.linkedin.com/in/your-name")}
-            <label className={styles.field}>Which country is the account holder located in?<select required value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}>
+            {field("linkedinUrl", "Their LinkedIn profile link", "url", "linkedin.com/in/their-name")}
+            <label className={styles.field}>Country the account is normally used in<select required value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}>
               <option value="">Choose their country</option>{countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-            </select></label><p className={styles.hint}>Choose where the account is normally used. We&apos;ll match the dedicated connection to that country.</p>
-            <label className={styles.field}>How old is the LinkedIn account?<select value={form.accountFreshness} onChange={(e) => setForm({ ...form, accountFreshness: e.target.value })}><option value="established">More than one year old</option><option value="fresh">Less than one year old or brand new</option><option value="unknown">I&apos;m not sure</option></select></label>
-            {form.accountFreshness === "unknown" && <p className={styles.hint}>We&apos;ll treat this as less than one year old and use the 7-day verification period.</p>}
-            <label className={styles.field}>Is the account already verified on LinkedIn?<select value={accountVerified} onChange={(e) => setAccountVerified(e.target.value as "" | "yes" | "no")}><option value="">Choose one</option><option value="no">No / not sure</option><option value="yes">Yes — it has the ID-verified badge</option></select></label><p className={styles.hint}>LinkedIn shows a verified badge when the owner has confirmed their identity (usually with a passport). Check their profile if you&apos;re not sure.</p>
-            <div className={styles.check} style={{ margin: "10px 0 0" }}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} id="hasGovId" /><label htmlFor="hasGovId">The account owner has a <strong>physical government ID</strong> (passport, national ID or driver&apos;s license). We don&apos;t collect it, but they must have one in case LinkedIn asks them to verify later.</label></div>
-            <div className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} id="nameMatches" /><label htmlFor="nameMatches">The account owner&apos;s full name above <strong>matches the name on that ID</strong>.</label></div>
-            <div style={{ margin: "14px 0 4px" }}>
-              <div className={styles.fieldLabel}>Profile photo <span style={{ color: "#98a2b3", fontWeight: 600 }}>(optional)</span></div>
-              <p className={styles.hint} style={{ marginBottom: 9 }}>Upload one where their full face is clearly visible, smiling if possible. It doesn&apos;t need to be professional — we&apos;ll tidy it up. Just upload something.</p>
-              {form.ownerPhotoUrl ? <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.ownerPhotoUrl} alt="Uploaded" width={48} height={48} style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", border: "1px solid #e3e6ea" }} />
-                <span className={styles.note} style={{ margin: 0, padding: "8px 12px" }}>Photo added ✓</span>
-                <button type="button" className={styles.linkBtn} style={{ width: "auto" }} onClick={() => setForm({ ...form, ownerPhotoUrl: "" })}>Remove</button>
-              </div> : <label className={styles.secondary} style={{ cursor: "pointer", display: "inline-block", width: "auto", padding: "12px 18px" }}>
-                {photoBusy ? "Uploading…" : "Upload a photo"}
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); e.target.value = ""; }} />
-              </label>}
+            </select></label><p className={styles.hint}>We match their connection to this country, so LinkedIn keeps seeing them log in from home.</p>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>How old is the account?</div>
+              <button type="button" className={`${styles.optionCard} ${form.accountFreshness === "established" ? styles.optionOn : ""}`} onClick={() => setForm({ ...form, accountFreshness: "established" })}><span className={styles.radio} /><span><strong>More than a month old</strong><small>Three-day check, then payment</small></span></button>
+              <button type="button" className={`${styles.optionCard} ${form.accountFreshness === "fresh" ? styles.optionOn : ""}`} onClick={() => setForm({ ...form, accountFreshness: "fresh" })}><span className={styles.radio} /><span><strong>Less than a month old</strong><small>About a week before payment, and expect the odd restriction</small></span></button>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>Is their LinkedIn already verified?</div>
+              <p className={styles.cardSub}>Open their profile together and look under their name — a verified profile says &ldquo;Verified&rdquo; there. This changes what you earn, so check rather than guess.</p>
+              {([{ v: "yes", t: "Yes — it says Verified", s: "Top rate: your commission goes up" }, { v: "no", t: "No, not verified", s: "Fine, they can still do it later" }, { v: "unsure", t: "Not sure yet", s: "We'll confirm it during the checks" }] as const).map((o) => (
+                <button key={o.v} type="button" className={`${styles.optionCard} ${accountVerified === o.v ? styles.optionOn : ""}`} onClick={() => setAccountVerified(o.v)}><span className={styles.radio} /><span><strong>{o.t}</strong><small>{o.s}</small></span></button>
+              ))}
+              <div className={styles.note} style={{ marginTop: 4 }}>Worth doing now: they can verify with a passport in the LinkedIn app in about two minutes. It makes restrictions much less likely, and it moves you to the top rate.</div>
+            </div>
+            <div className={styles.card}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}><div className={styles.cardTitle} style={{ marginBottom: 0 }}>A photo of them</div><span style={{ font: "700 9.5px 'Plus Jakarta Sans'", letterSpacing: ".06em", color: "#8b95a5", border: "1px solid #e3e6ea", borderRadius: 5, padding: "3px 6px" }}>OPTIONAL</span></div>
+              <p className={styles.cardSub}>Upload one where their full face is clearly visible, smiling if possible. It doesn&apos;t need to be professional — we&apos;ll tidy it up.</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+                {form.ownerPhotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.ownerPhotoUrl} alt="Uploaded" width={56} height={56} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", flex: "none", border: "1px solid #e3e6ea" }} />
+                ) : <span style={{ width: 56, height: 56, borderRadius: "50%", flex: "none", background: "#f7f8fa", border: "1px solid #e3e6ea", display: "flex", alignItems: "center", justifyContent: "center", font: "600 9px 'Plus Jakarta Sans'", color: "#98a2b3" }}>No photo</span>}
+                <div style={{ minWidth: 0 }}>
+                  {form.ownerPhotoUrl
+                    ? <button type="button" className={styles.linkBtn} style={{ width: "auto", textAlign: "left", padding: 0 }} onClick={() => setForm({ ...form, ownerPhotoUrl: "" })}>Remove photo</button>
+                    : <label className={styles.secondary} style={{ cursor: "pointer", display: "inline-block", width: "auto", padding: "11px 16px" }}>{photoBusy ? "Uploading…" : "Upload a photo"}<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden disabled={photoBusy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadPhoto(f); e.target.value = ""; }} /></label>}
+                  <p className={styles.hint} style={{ margin: "8px 0 0" }}>Whatever they send you is fine. Skip it and we&apos;ll ask later.</p>
+                </div>
+              </div>
               {photoError && <p className={styles.phoneError} style={{ marginTop: 8 }}>{photoError}</p>}
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>ID check</div>
+              <p className={styles.cardSub}>We never take a copy. They just need one in case LinkedIn asks them to verify later.</p>
+              <div className={styles.check} style={{ margin: "4px 0 0" }}><input type="checkbox" checked={idCheck.hasGovernmentId} onChange={(e) => setIdCheck({ ...idCheck, hasGovernmentId: e.target.checked })} id="hasGovId" /><label htmlFor="hasGovId">They own a <strong>physical government ID</strong> — passport, national ID or driver&apos;s license.</label></div>
+              <div className={styles.check}><input type="checkbox" checked={idCheck.nameMatchesId} onChange={(e) => setIdCheck({ ...idCheck, nameMatchesId: e.target.checked })} id="nameMatches" /><label htmlFor="nameMatches">The name they gave above <strong>matches the name on that ID</strong>.</label></div>
             </div>
             <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId || !accountVerified}>Continue →</button></div>
           </form>}
