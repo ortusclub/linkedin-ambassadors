@@ -80,6 +80,7 @@ interface Row {
   paymentDetails: string | null;
   payoutName: string | null;
   verifiedAt: string | null;
+  qcChecks: { photo?: boolean; connections?: boolean; experiences?: boolean; education?: boolean } | null;
   emailPrimaryAt: string | null;
   linkedinVerified: boolean;
   provisionStatus: string | null;
@@ -230,7 +231,18 @@ const lastTouchAt = (log: Touch[] | null) => (log && log.length ? fmtDateTime(lo
 const touchCount = (log: Touch[] | null) => (log || []).filter((t) => t.ch !== "note").length;
 
 // Warm-up window before we log in: 3 days established, 1 week fresh.
-const holdDays = (r: Row) => (r.accountFreshness === "fresh" ? 7 : 3);
+// Maturation window: a fixed 1 week for every account (the old 3-day "established"
+// option was removed — accounts must warm up for at least a week).
+const holdDays = (_r: Row) => 7;
+
+// The QC checklist behind "Passed QC" (Step 4). All must be ticked before the
+// account can pass. Stored per-application in qcChecks.
+const QC_ITEMS: [keyof NonNullable<Row["qcChecks"]>, string][] = [
+  ["photo", "Profile picture is sufficient"],
+  ["connections", "At least 10 connections"],
+  ["experiences", "Has at least two experiences"],
+  ["education", "Has education listed"],
+];
 const eligibleMs = (r: Row): number | null => (r.onboardedAt ? new Date(r.onboardedAt).getTime() + 86400000 : null);
 // Setup fee is "due" only once it's been 24h since login — not the moment they log in.
 const setupDue = (r: Row): boolean => { if (setupPaid(r)) return false; const due = eligibleMs(r); return due !== null && Date.now() >= due; };
@@ -977,6 +989,11 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
   const matured = matureDue !== null && Date.now() >= matureDue;
   const gated = false;                             // level ladder isn't gated behind "accept"
 
+  // QC checklist state (Step 4). All items must be ticked before QC can pass.
+  const qc = r.qcChecks || {};
+  const qcCount = QC_ITEMS.filter(([k]) => qc[k]).length;
+  const allQc = qcCount === QC_ITEMS.length;
+
   type Step = { label: string; title: string; sub: string; done: boolean; render: (isNext: boolean) => React.ReactNode };
   const stepCard = (label: string, title: string, sub: string, isNext: boolean, body: React.ReactNode) => (
     <div style={{ flex: "1 1 190px", minWidth: 180, background: "var(--card,#fff)", border: `1px solid ${isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--divider,#eee)"}`, borderRadius: 10, padding: "11px 12px" }}>
@@ -1007,9 +1024,23 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
         : <button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Logged in</button>,
     },
     {
-      label: "Step 4", title: "Passed checks & QC", sub: "quality control — account good, not restricted", done: !!r.verifiedAt,
-      render: (isNext) => r.verifiedAt ? doneCol("Passed QC", { verifiedAt: null, onboardingStartedAt: null })
-        : <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString(), onboardingStartedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Passed QC</button>,
+      label: "Step 4", title: "Passed checks & QC",
+      sub: r.verifiedAt ? `passed ${fmtDate(r.verifiedAt)}` : `quality control · ${qcCount}/${QC_ITEMS.length} checks`,
+      done: !!r.verifiedAt,
+      render: (isNext) => r.verifiedAt
+        ? doneCol("Passed QC", { verifiedAt: null, onboardingStartedAt: null })
+        : (<div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {QC_ITEMS.map(([key, lbl]) => {
+              const on = !!qc[key];
+              return (
+                <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: 7, cursor: busy ? "wait" : "pointer", font: `500 11px ${F_SANS}`, color: on ? "var(--st-active-fg,#188038)" : "var(--fg,#111)" }}>
+                  <input type="checkbox" checked={on} disabled={busy} onChange={() => workflow(r.id, { qcChecks: { ...qc, [key]: !on } })} style={{ width: 15, height: 15, marginTop: 1, accentColor: "var(--st-active-fg,#188038)", flex: "none", cursor: "pointer" }} />
+                  <span>{lbl}</span>
+                </label>
+              );
+            })}
+            <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString(), onboardingStartedAt: new Date().toISOString() })} disabled={busy || !allQc} title={allQc ? "Mark QC as passed" : "Tick all checks first"} style={{ ...primaryBtn(isNext), marginTop: 2, opacity: allQc ? 1 : 0.5, cursor: allQc ? "pointer" : "not-allowed" }}>✓ Passed QC</button>
+          </div>),
     },
     {
       label: "Step 5", title: "Matured — ready to onboard",
@@ -1019,21 +1050,22 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
         ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>🔒 pass QC to begin</span>
         : matured
           ? doneBadge("Matured — ready")
-          : (<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing…</span>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => workflow(r.id, { accountFreshness: "established" })} disabled={busy} title="Established account — 3-day hold" style={{ ...btnSec, flex: 1, ...(r.accountFreshness !== "fresh" ? { borderColor: "var(--sheets-btn-bg,#1a56db)", color: "var(--sheets-btn-bg,#1a56db)" } : {}) }}>Est · 3d</button>
-                <button onClick={() => workflow(r.id, { accountFreshness: "fresh" })} disabled={busy} title="Fresh account — 1-week hold" style={{ ...btnSec, flex: 1, ...(r.accountFreshness === "fresh" ? { borderColor: "var(--sheets-btn-bg,#1a56db)", color: "var(--sheets-btn-bg,#1a56db)" } : {}) }}>Fresh · 1wk</button>
-              </div>
-            </div>),
+          : <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing · 1 week hold…</span>,
     },
   ];
   let unlocked = true;
 
+  // Effective level = the lowest step not yet complete. Steps can be ticked out of
+  // order (a later step done while an earlier one isn't), but the account's level only
+  // counts the unbroken run from Step 1 — so a gap holds it at the lower stage.
+  let effLevel = 0;
+  for (const s of steps) { if (s.done) effLevel++; else break; }
+
   return (
     <div style={{ background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <SectionLabel>Workflow</SectionLabel>
+        <span title="The account's stage = the lowest step not yet complete. Ticking a later step doesn't advance the level until the steps before it are done." style={{ font: `700 11px ${F_SANS}`, color: effLevel >= steps.length ? "var(--st-active-fg,#188038)" : "var(--sheets-btn-bg,#1a56db)", background: effLevel >= steps.length ? "var(--st-active-bg,#e6f4ea)" : "var(--link-bg,#eaf1ff)", padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>Level {effLevel}/{steps.length}</span>
       </div>
       <div style={{ display: "flex", alignItems: "stretch", gap: 8, flexWrap: "wrap" }}>
         {steps.map((s, i) => {

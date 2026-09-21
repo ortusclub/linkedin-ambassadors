@@ -20,7 +20,7 @@ export async function GET() {
       select: {
         id: true, fullName: true, email: true, contactNumber: true, contactChannel: true,
         linkedinUrl: true, connectionCount: true, location: true, status: true,
-        createdAt: true, onboardedAt: true, verifiedAt: true, emailPrimaryAt: true, paidAt: true,
+        createdAt: true, onboardedAt: true, verifiedAt: true, qcChecks: true, emailPrimaryAt: true, paidAt: true,
         accountIssue: true, onboardingFix: true, adminNotes: true, notes: true,
         outreachLog: true, nextFollowUp: true, callOutcome: true,
         referredBy: true, payoutCurrency: true, referralSource: true, industry: true, poc: true,
@@ -137,6 +137,7 @@ export async function GET() {
         paymentDetails: app.paymentDetails,
         payoutName: app.payoutName,
         verifiedAt: app.verifiedAt,
+        qcChecks: app.qcChecks,
         emailPrimaryAt: app.emailPrimaryAt,
         setupPaidAt: app.paidAt,
         bucket,

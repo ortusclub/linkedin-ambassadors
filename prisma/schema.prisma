@@ -332,6 +332,7 @@ model AmbassadorApplication {
   callOutcome       String?          @map("call_outcome")
   bookingEmail      String?          @map("booking_email")
   verifiedAt        DateTime?         @map("verified_at")
+  qcChecks          Json?             @map("qc_checks") // { photo, connections, experiences, education } booleans — the QC checklist behind verifiedAt
   emailPrimaryAt    DateTime?         @map("email_primary_at")
   onboardingStartedAt DateTime?       @map("onboarding_started_at")
   onboardedAt       DateTime?         @map("onboarded_at")
