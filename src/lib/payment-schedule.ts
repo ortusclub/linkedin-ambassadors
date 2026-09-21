@@ -228,8 +228,14 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     // dueCount = the number the OUTSTANDING amount actually represents (avg rate), so the
     // row doesn't say "2 referrals" when only one ₱500 commission is still owed.
     const avg = earned.count ? earned.amount / earned.count : 0;
-    const dueCount = avg > 0 ? Math.max(1, Math.round(outstanding / avg)) : earned.count;
-    marketers.push({ name: r?.name || slug, count: earned.count, dueCount, amount: outstanding, currency: cfg.currency, dueDate: earned.dueMs ? new Date(earned.dueMs).toISOString() : null, people: earned.people });
+    const dueCount = avg > 0 ? Math.min(earned.count, Math.max(1, Math.round(outstanding / avg))) : earned.count;
+    // Only show the referrals the OUTSTANDING amount still covers (some are already paid),
+    // so the row never says "2 people" next to a one-referral ₱500. Paid-first ≈ earliest
+    // matured, so the still-owed ones are the most recent — keep the last `dueCount`.
+    const sortedPeople = [...earned.people].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    const shownPeople = sortedPeople.slice(-dueCount);
+    const dueDate = shownPeople.length ? shownPeople[0].dueDate : (earned.dueMs ? new Date(earned.dueMs).toISOString() : null);
+    marketers.push({ name: r?.name || slug, count: earned.count, dueCount, amount: outstanding, currency: cfg.currency, dueDate, people: shownPeople });
   }
   marketers.sort((a, b) => b.amount - a.amount);
 
