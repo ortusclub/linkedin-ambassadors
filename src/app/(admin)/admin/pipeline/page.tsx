@@ -145,10 +145,10 @@ const levelOf = (r: Row): 1 | 2 | 3 | 4 | 5 => {
   if (r.verifiedAt) n = 4;                          // passed QC — maturing
   else if (r.onboardedAt) n = 3;                    // logged into GoLogin
   else if (r.emailPrimaryAt) n = 2;                 // email added & primary + 2FA
-  // Status floor — older accounts were moved along by status before these timestamps
-  // existed, so a status still implies a minimum level even with no timestamp set.
+  // Status floor — an approved (logged-in) account that predates the milestone
+  // timestamps still counts as at least Level 3. The Progress dropdown stamps the
+  // real timestamps, so a manual change always wins over this fallback.
   if (r.status === "approved" && n < 3) n = 3;                                   // logged in
-  else if ((r.status === "onboarding" || r.status === "on_hold") && n < 2) n = 2; // in setup
   return n as 1 | 2 | 3 | 4 | 5;
 };
 const levelKey = (r: Row): number => levelOf(r);
@@ -854,7 +854,6 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
   const blocked = isBlocked(r);
   const accent = STAGE_ACCENT[stage];
   const lvlKey = levelKey(r);
-  const lvlLabel = lvlKey === 5 ? "Level 5 · Onboarded" : `Level ${lvlKey}`;
   const health = healthOf(r);
   const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
   const st = STATUS_STYLE[r.status];
@@ -919,7 +918,8 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flex: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <select value={health} disabled={busy} title="Health status (how the account is doing). Level/progress is shown by the ladder below." onClick={(e) => e.stopPropagation()}
+            <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Health status</span>
+            <select value={health} disabled={busy} title="How the account is doing — independent of progress." onClick={(e) => e.stopPropagation()}
               onChange={(e) => {
                 const h = e.target.value as Health;
                 const status: Status = h === "active"
@@ -931,8 +931,24 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               {HEALTH_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span title="Progress on the onboarding ladder (see the Workflow steps below). Health status is the dropdown above." style={{ font: `700 10.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--band,#f1f1f2)", color: "var(--fg,#333)", whiteSpace: "nowrap" }}>{lvlLabel}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Progress</span>
+            <select value={String(lvlKey)} disabled={busy} title="Progress on the onboarding ladder — changing it stamps the matching milestones (same as the Workflow steps)." onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                const now = new Date().toISOString();
+                const patch: Record<string, unknown> = {
+                  emailPrimaryAt: n >= 2 ? (r.emailPrimaryAt || now) : null,
+                  onboardedAt: n >= 3 ? (r.onboardedAt || now) : null,
+                  verifiedAt: n >= 4 ? (r.verifiedAt || now) : null,
+                  onboardingStartedAt: n >= 4 ? (r.onboardingStartedAt || now) : null,
+                };
+                if (health === "active") patch.status = n >= 5 ? "onboarded" : n >= 3 ? "approved" : "onboarding";
+                workflow(r.id, patch);
+              }}
+              style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, border: "none", cursor: busy ? "wait" : "pointer", outline: "none", background: "var(--band,#f1f1f2)", color: "var(--fg,#333)" }}>
+              {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n === 5 ? "Level 5 · Onboarded" : `Level ${n}`}</option>)}
+            </select>
             {live && <span style={{ font: `600 13px ${F_GRO}`, color: "var(--fg,#111)", fontVariantNumeric: "tabular-nums" }}>{formatMoney(monthlyAmt(r), cfgOf(r).currency)}/mo</span>}
           </div>
         </div>
