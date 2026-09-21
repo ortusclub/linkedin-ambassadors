@@ -281,7 +281,7 @@ function trialInfo(a: Account): { expired: boolean; label: string } | null {
 }
 // combine admin restriction (restrictedAt) + auto health check into one pill
 function healthOf(a: Account): { label: string; bg: string; fg: string; note: string } {
-  if (a.restrictedAt) return { label: "Recovering", bg: "var(--st-unreach-bg)", fg: "var(--st-unreach-fg)", note: `restricted ${fmtS(a.restrictedAt)}` };
+  if (a.restrictedAt) return { label: "Currently restricted", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)", note: `restricted ${fmtS(a.restrictedAt)}` };
   const h = a.linkedinAccountHealth;
   if (h === "checking") return { label: "Checking…", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)", note: "" };
   if (h === "active") return { label: "Active", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)", note: a.healthCheckedAt ? `checked ${fmtS(a.healthCheckedAt)}` : "" };
@@ -397,6 +397,7 @@ export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [pocFilter, setPocFilter] = useState("all");
   const [verifiedFilter, setVerifiedFilter] = useState<"all" | "yes" | "no">("all");
   const [connFilter, setConnFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -611,6 +612,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       if (verifiedFilter === "yes" && !a.linkedinVerified) return false;
       if (verifiedFilter === "no" && a.linkedinVerified) return false;
       if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
+      if (pocFilter !== "all") { const p = (a.ownerPoc || "").trim(); if (pocFilter === "__unassigned" ? p !== "" : p !== pocFilter) return false; }
       if (!q) return true;
       // Every identifier someone might paste in: the login email we issued, the
       // ambassador's contact email and number, the owner name, plus the profile fields.
@@ -625,7 +627,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       const rankB = anchor(b) + (b.paymentLinkedAccountId ? 0.5 : 0);
       return rankA - rankB;
     });
-  }, [shown, filter, verifiedFilter, connFilter, search]);
+  }, [shown, filter, verifiedFilter, connFilter, pocFilter, search]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allExpanded = filtered.length > 0 && filtered.every((a) => expanded.has(a.id));
@@ -703,6 +705,23 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
           <button onClick={expandAll} style={{ ...secBtn, padding: "9px 14px", borderRadius: 9 }}>{allExpanded ? "Collapse all" : "Expand all"}</button>
         </div>
       </div>
+
+      {/* LV PoC filter (the LinkedVelocity rep who onboarded the account) */}
+      {(() => {
+        const m = new Map<string, number>(); let un = 0;
+        for (const a of shown) { if (isDummy(a)) continue; const p = (a.ownerPoc || "").trim(); if (p) m.set(p, (m.get(p) || 0) + 1); else un++; }
+        const entries = [...m.entries()].sort((x, y) => x[0].localeCompare(y[0]));
+        if (entries.length === 0) return null;
+        const total = shown.filter((a) => !isDummy(a)).length;
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            <span style={{ ...labelCss, marginRight: 2 }}>LV PoC</span>
+            <button onClick={() => setPocFilter("all")} style={chip(pocFilter === "all")}>All<span style={{ color: "var(--muted)" }}>{total}</span></button>
+            {entries.map(([name, n]) => <button key={name} onClick={() => setPocFilter(name)} style={chip(pocFilter === name)}>{name}<span style={{ color: "var(--muted)" }}>{n}</span></button>)}
+            {un > 0 && <button onClick={() => setPocFilter("__unassigned")} style={chip(pocFilter === "__unassigned")}>Unassigned<span style={{ color: "var(--muted)" }}>{un}</span></button>}
+          </div>
+        );
+      })()}
 
       {/* verified + connections filters (compose with the status chips + search) */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
@@ -841,7 +860,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           {a.restrictedAt && st !== "Restricted" && (st === "Construction" && isFirstRestriction(a)
                             ? <span title={`First LinkedIn restriction — ${fmtS(a.restrictedAt)}. Still an account under construction; kept here but sorted to the bottom.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Initial restriction</span>
                             : <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>)}
-                          {!a.restrictedAt && (() => { const rr = recentRestrict(a); return rr ? <span title={`Restricted ${rr.times}× — most recent ${rr.daysAgo === 0 ? "today" : `${rr.daysAgo}d ago`}. Recovered but still fragile — go easy: no activity bursts, verify the proxy is clean PH residential.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Recently restricted{rr.times > 1 ? ` ${rr.times}×` : ""}</span> : null; })()}
+                          {!a.restrictedAt && (() => { const rr = recentRestrict(a); return rr ? <span title={`Restricted ${rr.times}× — most recent ${rr.daysAgo === 0 ? "today" : `${rr.daysAgo}d ago`}. Recovered but still fragile — go easy: no activity bursts, verify the proxy is clean PH residential.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Recently restricted{rr.times > 1 ? ` ${rr.times}×` : ""} · recovered</span> : null; })()}
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
                           {a.twoFactorResetNeeded && <span title="The last renter had this account's 2FA code — rotate it before making this account available again" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>🔑 2FA reset needed</span>}
