@@ -127,7 +127,7 @@ export default function EditAccountPage() {
                 <option value="rented">Rented</option>
                 <option value="under_construction">Construction</option>
                 <option value="maintenance">Maintenance</option>
-                <option value="retired">Inaccessible</option>
+                <option value="retired">Permanently restricted (retire)</option>
               </select>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <button

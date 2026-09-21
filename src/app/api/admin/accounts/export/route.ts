@@ -37,7 +37,7 @@ function displayStatus(a: { status: string; restrictedAt: Date | null; connectio
   if (a.restrictedAt) return "Restricted";
   if (a.status === "available") return "Available";
   if (a.status === "trial") return "Trial";
-  if (a.status === "retired") return "Inaccessible";
+  if (a.status === "retired") return "Permanently restricted";
   if (a.status === "removed") return "Removed";
   // under_review / maintenance / unavailable / anything else → split by size
   return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Construction" : "Maintenance";
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
   // Group by the single canonical status so it matches the admin view.
   // Order: Available, then Restricted (just below available), Trial, Rented,
   // Maintenance, Inaccessible, Removed.
-  const rankByLabel: Record<string, number> = { Available: 0, Restricted: 1, Trial: 2, Rented: 3, Construction: 4, Maintenance: 5, Inaccessible: 6, Removed: 7 };
+  const rankByLabel: Record<string, number> = { Available: 0, Restricted: 1, Trial: 2, Rented: 3, Construction: 4, Maintenance: 5, "Permanently restricted": 6, Removed: 7 };
   const sorted = [...accounts].sort((a, b) => (rankByLabel[displayStatus(a)] ?? 9) - (rankByLabel[displayStatus(b)] ?? 9));
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.

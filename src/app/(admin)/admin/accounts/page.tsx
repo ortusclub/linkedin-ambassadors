@@ -211,7 +211,7 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   // never read as live-and-rentable either, so it's pulled into Maintenance instead.
   if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : a.restrictedAt ? "Restricted" : "Available";
   if (a.status === "trial") return "Trial";
-  if (a.status === "retired") return "Inaccessible";
+  if (a.status === "retired") return "Permanently restricted";
   if (a.status === "removed") return "Removed";
   // Initial — the stage before an account can be built on: we don't yet hold a
   // usable company login for it. That's any of: no login email at all; a login
@@ -247,7 +247,7 @@ const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Restricted", hint: "LinkedIn-restricted — access paused while it recovers", dot: "var(--st-unreach-fg)" },
   { key: "Construction", hint: "onboarded, being prepped — not yet flipped to Available", dot: "var(--st-construct-fg)" },
   { key: "Maintenance", hint: "was live, now needs fixing — 2FA/restriction/post-rental, or manually set", dot: "var(--neutral-chip-text)" },
-  { key: "Inaccessible", hint: "retired — can no longer be used", dot: "var(--st-cancel-fg)" },
+  { key: "Permanently restricted", hint: "retired — permanently restricted, given up on", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
   { key: "Showcase", hint: "public-catalogue demo accounts — not real inventory", dot: "var(--warn-badge-text)" },
 ];
@@ -260,7 +260,7 @@ const statusChip = (disp: string): React.CSSProperties => {
     Initial: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
     Construction: ["var(--st-construct-bg)", "var(--st-construct-fg)"],
     Maintenance: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"],
-    Inaccessible: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
+    "Permanently restricted": ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
     Removed: ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
     Showcase: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
   };
@@ -590,7 +590,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       Restricted: real.filter((a) => a.restrictedAt).length,
       Construction: c("Construction"),
       Maintenance: c("Maintenance"),
-      Inaccessible: c("Inaccessible"),
+      "Permanently restricted": c("Permanently restricted"),
       Removed: c("Removed"),
       Showcase: shown.filter(isDummy).length,
       checksDue: shown.filter(checkDue).length,
@@ -647,7 +647,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Inaccessible", "Inaccessible", counts.Inaccessible, "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted", "Permanently restricted", counts["Permanently restricted"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
