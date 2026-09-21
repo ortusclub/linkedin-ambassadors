@@ -46,6 +46,13 @@
 .infoBlue p { font: 500 12.5px/1.5 'Plus Jakarta Sans'; color: #1e3a8a; margin: 0; }
 .infoBlue strong { color: #1e3a8a; }
 
+/* "What this step is for" explainer on the email step */
+.why { background: #f1f5ff; border: 1px solid #c7d7fe; border-radius: 14px; padding: 15px; margin: 4px 0 16px; }
+.why strong:first-child { display: block; font: 700 13px 'Plus Jakarta Sans'; color: #1e3a8a; margin-bottom: 7px; }
+.why p { font: 500 12.5px/1.55 'Plus Jakarta Sans'; color: #29397a; margin: 0 0 8px; }
+.why p:last-child { margin-bottom: 0; }
+.why strong { color: #1e3a8a; }
+
 /* list rows (needs / links / pay) */
 .rowLine { display: flex; gap: 10px; align-items: flex-start; padding: 11px 0; border-top: 1px solid #f1f3f6; }
 .rowLine:first-of-type { border-top: 0; }

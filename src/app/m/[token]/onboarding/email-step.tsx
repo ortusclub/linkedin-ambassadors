@@ -59,6 +59,13 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
     <h2>Set up their LinkedIn email</h2>
     <p>The <strong>account owner</strong> adds and verifies the email themselves, on their own phone or laptop where they&apos;re already signed into LinkedIn. <strong>You walk them through each step.</strong> There&apos;s no protected GoLogin browser yet; that only comes at the very end for the final sign-in.</p>
 
+    {/* People get confused about "whose email" — spell out what this step is FOR. */}
+    <div className={styles.why} data-tour="email-why">
+      <strong>What this step is for</strong>
+      <p>We&apos;re adding a LinkedVelocity work email to their LinkedIn and making it the primary one — that&apos;s how we manage the account for them. LinkedIn has to <strong>verify</strong> that new email, so its verification message needs to land in an inbox someone can open and click.</p>
+      <p>That receiving inbox can be <strong>yours (the referrer&apos;s) or the owner&apos;s</strong> — it doesn&apos;t matter whose. Yours is usually easiest since you&apos;re driving. We only forward LinkedIn&apos;s messages there, and only for up to an hour.</p>
+    </div>
+
     <ol className={styles.miniSteps} aria-label="LinkedIn email setup progress">
       {MINI_STEPS.map((label, index) => {
         const position = index + 1;
@@ -84,10 +91,10 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
     )}
 
     {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before this step can continue.</div> : <>
-      {miniStep === 1 && <section className={styles.miniPanel}>
+      {miniStep === 1 && <section className={styles.miniPanel} data-tour="email-inbox">
         <div className={styles.stepLabel}>EMAIL STEP 1 OF 4</div>
-        <h3>Where should the codes go?</h3>
-        <p>Enter any inbox you can open right now — <strong>your own (the referrer&apos;s) is easiest</strong>, or the account owner&apos;s. We&apos;ll send a six-digit code there first, then temporarily forward LinkedIn&apos;s verification email to the same inbox so you can read it.</p>
+        <h3>Pick an inbox to catch the verification</h3>
+        <p>This is just where LinkedIn&apos;s verification message will land so it can be opened and confirmed. Enter any inbox you can open right now — <strong>your own (the referrer&apos;s) is easiest</strong>, or the account owner&apos;s. We&apos;ll send a six-digit code there first to check it works, then temporarily forward LinkedIn&apos;s verification email to the same inbox so you can read it.</p>
 
         {setup.destinationVerified && !setup.forwardingActive ? <>
           <div className={styles.note}>The previous forwarding window expired. Start again to choose the receiving inbox and get a different LinkedVelocity email.</div>
