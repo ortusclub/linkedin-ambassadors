@@ -150,6 +150,10 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
         <div className={styles.stepLabel}>EMAIL STEP 4 OF 4</div>
         <h3>Make the LinkedVelocity email primary</h3>
         <p>Return to LinkedIn&apos;s Email addresses list. Find <strong>{setup.address}</strong> and select <strong>Make primary</strong>.</p>
+        <div className={styles.warn}>
+          <div>This must be the PRIMARY email</div>
+          <p>Don&apos;t just leave it added — it has to be set as the <strong>primary</strong> email. If <strong>{setup.address}</strong> isn&apos;t primary, we can&apos;t sign in and the onboarding can&apos;t finish. Double-check it shows as primary before you continue.</p>
+        </div>
         <div className={styles.primaryButtonCrop}>
           <Image src="/images/onboarding/linkedin-make-primary.png" alt="LinkedIn Make primary button" width={696} height={184} />
         </div>
@@ -157,7 +161,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
           <span aria-hidden="true">▶</span>
           <div><strong>Video walkthrough coming soon</strong><small>A short recording will show how to add, verify and make the LinkedVelocity email primary.</small></div>
         </div>
-        <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>The owner verified the address and I can see it marked as primary in LinkedIn. The owner agrees to continue.</span></label>
+        <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>I can see <strong>{setup.address}</strong> set as the <strong>primary</strong> email in the owner&apos;s LinkedIn — not just added. The owner agrees to continue.</span></label>
         <button className={styles.primary} disabled={busy || !primary || !setup.lastForwardedAt} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to GoLogin →</button>
         <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
       </section>}
