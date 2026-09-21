@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     // don't trust a client-supplied recipient). Fall back to a passed slug.
     const app = await prisma.ambassadorApplication.findUnique({
       where: { id },
-      select: { fullName: true, referredBy: true, outreachLog: true },
+      select: { fullName: true, referredBy: true, outreachLog: true, onboardingFix: true },
     });
     if (!app) return NextResponse.json({ error: "Application not found" }, { status: 404 });
     const slug = (app.referredBy || referrerSlug || "").trim();
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
     const referrer = await prisma.referrer.findFirst({
       where: { OR: [{ slug: { equals: slug, mode: "insensitive" } }, { name: { equals: slug, mode: "insensitive" } }] },
-      select: { name: true, email: true },
+      select: { name: true, email: true, token: true },
     });
     if (!referrer?.email) {
       return NextResponse.json({ error: `Referrer "${slug}" has no email set — add one on the Referrals page first.` }, { status: 400 });
@@ -77,7 +77,30 @@ export async function POST(req: Request) {
     const name = (ambassadorName || app.fullName || "your ambassador").toString().trim();
     const lv = (loginEmail || "the LinkedVelocity email we gave you").toString().trim();
     const subject = tpl.subject(name);
-    const text = tpl.body(name, lv);
+
+    // Raise this as a fix on the referrer's portal so it appears there with an
+    // "I've fixed it" button — clicking it flags the pipeline row for a recheck.
+    // Map the email issue → the portal fix issue (merge, don't clobber other open ones).
+    const FIX_FOR: Record<IssueKey, "email_added" | "email_primary" | "twofa"> = {
+      email_not_added: "email_added",
+      email_not_primary: "email_primary",
+      twofa_not_set: "twofa",
+    };
+    const fixIssue = FIX_FOR[issue as IssueKey];
+    const prevFix = app.onboardingFix as { issues?: string[]; raisedAt?: string } | null;
+    const mergedIssues = Array.from(new Set([...(prevFix?.issues || []), fixIssue]));
+    await prisma.ambassadorApplication.update({
+      where: { id },
+      data: { onboardingFix: { issues: mergedIssues, state: "open", raisedAt: prevFix?.raisedAt || new Date().toISOString() } },
+    });
+
+    // Deep link back to their portal, where the fix now shows with a "done" button.
+    const base = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+    const portalLink = `${base}/m/${referrer.token}`;
+    const text =
+      tpl.body(name, lv) +
+      `\n\n— When it's done —\n` +
+      `Open your LinkedVelocity portal and tap "I've fixed it" so we know to re-check the account:\n${portalLink}\n`;
 
     await onboardingMailRequest(
       "/emails",

@@ -118,7 +118,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         line = "Form in — not onboarded yet"; sub = "They filled your form. Onboard them now, or get a call booked."; fee = money(t.referral);
       }
       // Post-sign-in fixes the team raised for this signup (email not primary / 2FA not set).
-      const rawFix = a.onboardingFix as { issues?: ("email_primary" | "twofa")[]; state?: "open" | "referrer_done" } | null;
+      const rawFix = a.onboardingFix as { issues?: ("email_added" | "email_primary" | "twofa")[]; state?: "open" | "referrer_done" } | null;
       const fix = rawFix?.issues?.length ? { issues: rawFix.issues, state: rawFix.state === "referrer_done" ? "referrer_done" : "open" } : null;
       return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix };
     });
