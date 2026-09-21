@@ -53,6 +53,33 @@ export async function GET() {
         .map((s) => s.applicationId)
     );
 
+    // Referrer contact lookup (by slug) — used to build reminder links (WhatsApp
+    // click-to-send / Telegram) next to a raised onboarding issue on the pipeline.
+    const referrers = await prisma.referrer.findMany({
+      select: { slug: true, name: true, contactMethod: true, contactHandle: true, contacts: true },
+    });
+    const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
+    type RefC = { method?: string; handle?: string; preferred?: boolean };
+    const refContact = (slug?: string | null) => {
+      const rf = refBySlug.get((slug || "").trim().toLowerCase());
+      if (!rf) return null;
+      const list: RefC[] = Array.isArray(rf.contacts)
+        ? (rf.contacts as RefC[])
+        : rf.contactHandle
+          ? [{ method: rf.contactMethod || "WhatsApp", handle: rf.contactHandle, preferred: true }]
+          : [];
+      const byMethod = (m: string) => list.find((c) => (c.method || "").toLowerCase() === m)?.handle || null;
+      const wa = byMethod("whatsapp");
+      const tg = byMethod("telegram");
+      const pref = list.find((c) => c.preferred) || list[0];
+      return {
+        name: rf.name,
+        whatsapp: wa ? wa.replace(/[^0-9]/g, "") : null,
+        telegram: tg ? tg.replace(/^@/, "").trim() : null,
+        preferred: pref?.method || null,
+      };
+    };
+
     // Match an application to its account the same way the rest of the admin does:
     // Match an application to its account by the UNIQUE LinkedIn URL first, then fall
     // back to the "Owner: <email>" line in the account notes — but ONLY when that email
@@ -125,6 +152,7 @@ export async function GET() {
         nextFollowUp: app.nextFollowUp,
         callOutcome: app.callOutcome,
         referredBy: app.referredBy,
+        referrer: refContact(app.referredBy),
         payoutCurrency: app.payoutCurrency,
         referralSource: app.referralSource,
         industry: app.industry,
