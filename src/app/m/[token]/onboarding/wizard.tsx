@@ -16,13 +16,13 @@ import { CoachTour, type TourStep } from "./coach-tour";
 // so it re-appears next time they open the wizard. "Skip tour" quiets it for that run.
 const PAGE_TOURS: Record<string, TourStep[]> = {
   before: [
-    { title: "Welcome — quick tour", body: "You'll do this with the account owner over a call — you drive the steps, they confirm and do their bits on their own device — in about 10 minutes. Here's the lay of the land." },
+    { title: "Welcome — quick tour", body: "You'll do this virtually with the account owner — you drive the steps, they confirm and do their bits on their own device — in about 10 minutes. Here's the lay of the land." },
     { target: "rail", title: "See all 6 steps anytime", body: "Tap \"How it works\" to expand the full flow and see where you are. It saves as you go." },
-    { target: "need", title: "Check they're ready", body: "Before you start, make sure the owner has these to hand — and that they can stay on the call the whole way." },
+    { target: "need", title: "Check they're ready", body: "Before you start, make sure the owner has these to hand — and that they can stay with you the whole way." },
     { target: "consent", title: "Get their OK", body: "Once they're happy and agree to the terms, tick this box, then hit Start." },
   ],
   details: [
-    { title: "Their details", body: "You fill these in on the call — read each one back to the owner to confirm it's right rather than guessing. It's their account." },
+    { title: "Their details", body: "You fill these in as you go — read each one back to the owner to confirm it's right rather than guessing. It's their account." },
     { target: "age", title: "How old is the account", body: "This sets when the setup fee lands — about 3 days for an older account, about a week for a newer one." },
     { target: "verified", title: "Is it verified?", body: "Check their profile for a Verified badge. A verified account pays you the top rate, so check rather than guess." },
   ],
@@ -215,7 +215,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   );
 
   const wizardSteps = [
-    { index: 0, label: "Get on a call", detail: "The account owner must stay on the call with you for the entire setup." },
+    { index: 0, label: "Start with them", detail: "The account owner must stay with you for the entire setup." },
     { index: 1, label: "Owner details", detail: "Add their LinkedIn and contact details." },
     { index: 2, label: "Payout", detail: "Record where the account owner should be paid." },
     ...(bootstrap?.emailEnabled ? [{ index: 3, label: "Add secure email", detail: "The account owner approves a LinkedVelocity-managed email on LinkedIn." }] : []),
@@ -299,7 +299,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
 
           {step === 0 && <>
             <h1 className={styles.heroTitle}>Before you begin</h1>
-            <p className={styles.lead}>You&apos;re the referrer. You&apos;re onboarding the <strong>account owner</strong> — the person whose LinkedIn this is — with them on a call. Six steps, about ten minutes.</p>
+            <p className={styles.lead}>You&apos;re the referrer. You&apos;re onboarding the <strong>account owner</strong> — the person whose LinkedIn this is — virtually, with them on the other end. Six steps, about ten minutes.</p>
             <button type="button" className={styles.linkBtn} style={{ width: "auto", textAlign: "left", padding: "0 0 10px", color: "#15803d" }} onClick={() => { if (tourKey) tourSeen.current.delete(tourKey); setTourSkipped(false); setShowTour(true); }}>New here? Take the quick tour →</button>
             <div className={styles.warn}>
               <div>Don&apos;t start unless they can stay</div>
@@ -332,7 +332,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
 
           {step === 1 && <form onSubmit={(e) => { e.preventDefault(); if (bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) { setPhoneError("Verify the mobile number before continuing."); return; } setError(""); setStep(2); }}>
             <h1 className={styles.heroTitle}>Who&apos;s the account owner?</h1>
-            <p className={styles.lead}>Fill these in on the call and confirm each one with the owner as you go — it&apos;s their account.</p>
+            <p className={styles.lead}>Fill these in and confirm each one with the owner as you go — it&apos;s their account.</p>
             <div className={styles.card}>
             {field("fullName", "Full name, as on their ID", "text", "Their full name")}
             {field("email", "Their own email", "email", "them@gmail.com")}
