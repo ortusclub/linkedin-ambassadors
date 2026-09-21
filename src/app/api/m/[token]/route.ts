@@ -89,25 +89,27 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       const path = method === "computer" ? `Guided · computer${a.onboardingVerified ? " · verified" : ""}`
         : method === "phone" ? "Guided · phone hand-off"
         : isDiy ? "Guided" : "Form only";
-      // A LinkedIn restriction mid-onboarding (accountIssue) is a distinct, actionable
-      // state that takes precedence over "resume"/"verifying" — nothing pays out until the
-      // owner clears it. A paid signup that is later restricted stays Paid (see referrals.ts).
-      const restricted = !paid && !!a.accountIssue;
+      // A LinkedIn restriction only matters to the referrer WHILE THEY'RE ONBOARDING —
+      // i.e. a DIY onboarding still in their hands (not yet onboarded, handed off, or paid).
+      // Once it's with us or done, a restriction is an account-health issue for the team, not
+      // something the referrer acts on, so it must not surface here. Paid stays Paid always.
+      const inProgressDiy = isDiy && !paid && !onboarded && state !== "handed_off";
+      const restricted = inProgressDiy && !!a.accountIssue;
       let pill: { text: string; tone: "green" | "blue" | "amber" | "red" }, line: string, sub: string, progress: number, action: "resume" | "onboard" | "clear" | null = null, fee: string, kind: "action" | "blocked" | "waiting" | "paid";
       if (paid) {
         kind = "paid"; pill = { text: "Paid", tone: "green" }; progress = 6;
         line = "Done — account is live"; sub = "Setup fee paid and your commission is in."; fee = `${money(amount)} paid`;
-      } else if (restricted) {
-        kind = "blocked"; pill = { text: "Restricted", tone: "red" }; progress = 5; action = "clear";
-        line = "LinkedIn locked the account";
-        sub = "They need to clear it on their own phone — usually scanning a QR code — then you can finish the sign-in. Nothing pays out until it's done.";
-        fee = `${money(amount)} on completion`;
       } else if (onboarded) {
         kind = "waiting"; pill = { text: "Verifying", tone: "blue" }; progress = 5;
         line = "Our team is verifying the account"; sub = "Nothing for you to do — the check releases payment."; fee = `${money(amount)} pending`;
       } else if (state === "handed_off") {
         kind = "waiting"; pill = { text: "Verifying", tone: "blue" }; progress = 4;
         line = "You handed the sign-in to us"; sub = "Our team does the GoLogin sign-in, then verifies."; fee = `${money(amount)} pending`;
+      } else if (restricted) {
+        kind = "blocked"; pill = { text: "Restricted", tone: "red" }; progress = 5; action = "clear";
+        line = "LinkedIn locked the account";
+        sub = "They need to clear it on their own phone — usually scanning a QR code — then you can finish the sign-in. Nothing pays out until it's done.";
+        fee = `${money(amount)} on completion`;
       } else if (isDiy) {
         kind = "action"; pill = { text: "Resume", tone: "amber" }; progress = 3; action = "resume";
         line = "Left off mid-onboarding"; sub = "Pick up where you left off while they're still with you."; fee = range(t.phone.base, t.computer.verified);
