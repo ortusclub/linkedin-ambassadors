@@ -318,9 +318,14 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
   );
 }
 
+type MarketerDue = { name: string; count: number; amount: number; currency: "PHP" | "USD" };
+type RefInfo = { name: string; slug: string; paymentMethod: string | null; paymentDetails: string | null };
+
 export default function PayoutsIIPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [onboarding, setOnboarding] = useState<{ count: number; names: string[] }>({ count: 0, names: [] });
+  const [marketers, setMarketers] = useState<MarketerDue[]>([]);
+  const [referrers, setReferrers] = useState<RefInfo[]>([]);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -332,6 +337,15 @@ export default function PayoutsIIPage() {
       setRows(d.rows || []);
       setOnboarding(d.onboarding || { count: 0, names: [] });
     } catch { setError(true); }
+    // Referral commissions ready to pay (independent of the ambassador feed).
+    try {
+      const [due, refs] = await Promise.all([
+        fetch("/api/admin/payments-due").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/admin/referrers").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      ]);
+      setMarketers(Array.isArray(due?.marketers) ? due.marketers : []);
+      setReferrers(Array.isArray(refs?.referrers) ? refs.referrers : []);
+    } catch { /* referral block is best-effort */ }
   };
   useEffect(() => { load(); }, []);
 
@@ -391,6 +405,43 @@ export default function PayoutsIIPage() {
 
       {error && <p style={{ color: "var(--st-cancel-fg,#b00)", font: `600 14px ${F_SANS}` }}>Failed to load.</p>}
       {!rows && !error && <p style={{ font: `500 14px ${F_SANS}`, color: "var(--muted,#888)" }}>Loading…</p>}
+
+      {/* Referral commissions ready to pay to marketers/referrers */}
+      {marketers.length > 0 && (() => {
+        const refByName = new Map(referrers.map((r) => [r.name.trim().toLowerCase(), r]));
+        const money = (n: number, c: "PHP" | "USD") => `${c === "USD" ? "$" : "₱"}${Math.round(n).toLocaleString("en-US")}`;
+        const totals = marketers.reduce((acc, m) => { acc[m.currency] = (acc[m.currency] || 0) + m.amount; return acc; }, {} as Record<string, number>);
+        const totalLabel = (["PHP", "USD"] as const).filter((c) => totals[c]).map((c) => money(totals[c], c)).join(" + ") || "₱0";
+        const sorted = [...marketers].sort((a, b) => b.amount - a.amount);
+        return (
+          <section style={{ marginTop: 30 }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 4 }}>
+              <h2 style={{ font: `700 17px ${F_GRO}`, margin: 0, color: "var(--fg,#111)" }}>Referral commissions due <span style={{ font: `600 13px ${F_SANS}`, color: "var(--muted,#888)" }}>· {sorted.length} referrer{sorted.length === 1 ? "" : "s"}</span></h2>
+              <span style={{ font: `700 15px ${F_GRO}`, color: "var(--st-active-fg,#1a8a4a)", fontVariantNumeric: "tabular-nums" }}>{totalLabel} ready</span>
+            </div>
+            <p style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#888)", margin: "0 0 12px" }}>Commissions owed to marketers for onboarded referrals (past the hold). Pay & log on the Referrals page.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {sorted.map((m) => {
+                const info = refByName.get(m.name.trim().toLowerCase());
+                const payTo = info?.paymentDetails ? `${info.paymentMethod || "—"} · ${info.paymentDetails}` : "No payout details set";
+                const href = `/admin/referrals?ref=${encodeURIComponent(info?.slug || m.name)}`;
+                return (
+                  <div key={m.name} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: "var(--card,#fff)", border: "1px solid var(--border,#e3e3e6)", borderRadius: 12, flexWrap: "wrap" }}>
+                    <div style={{ minWidth: 160, flex: "1 1 180px" }}>
+                      <div style={{ font: `700 14px ${F_SANS}`, color: "var(--fg,#111)" }}>{m.name}</div>
+                      <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#888)" }}>{m.count} onboarded referral{m.count === 1 ? "" : "s"}</div>
+                    </div>
+                    <div style={{ flex: "1 1 200px", font: `500 12.5px ${F_SANS}`, color: info?.paymentDetails ? "var(--fg,#333)" : "var(--warn-badge-text,#b7791f)" }}>{payTo}</div>
+                    <div style={{ font: `800 17px ${F_GRO}`, color: "var(--st-active-fg,#1a8a4a)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{money(m.amount, m.currency)}</div>
+                    <a href={href} style={{ font: `700 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg,#1a56db)", padding: "9px 15px", borderRadius: 9, textDecoration: "none", whiteSpace: "nowrap" }}>Pay / log →</a>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })()}
+
       {rows && (
         <>
           {setupNoCreds.length > 0 && (
