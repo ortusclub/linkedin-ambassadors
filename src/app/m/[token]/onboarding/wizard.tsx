@@ -8,6 +8,16 @@ import { countries, countryCode } from "@/lib/countries";
 import BrowserStep from "./browser-step";
 import PhoneHandoff from "./phone-handoff";
 import EmailStep, { type EmailSetup } from "./email-step";
+import { CoachTour, type TourStep } from "./coach-tour";
+
+const TOUR_KEY = "lv_diy_tour_seen";
+const TOUR_STEPS: TourStep[] = [
+  { title: "Welcome — quick 2-minute tour", body: "You'll do this together with the account owner, on one device, in about 10 minutes. Here's the lay of the land before you start." },
+  { target: "rail", title: "See all 6 steps anytime", body: "Tap \"How it works\" to expand the full flow and see where you are. It saves as you go." },
+  { target: "need", title: "Check they're ready", body: "Before you start, make sure the owner has these — and that they'll stay with you the whole way." },
+  { target: "consent", title: "Get their OK", body: "Once they're happy and agree to the terms, tick this box. You can't start until it's ticked." },
+  { target: "start", title: "Then you're off", body: "Hit Start and go step by step. You can pause and pick up again from your portal anytime." },
+];
 import { ShareLinks, WaitNotice, type ScriptContext } from "./onboarding-scripts";
 
 type Session = {
@@ -48,6 +58,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [consent, setConsent] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
   const [phoneBusy, setPhoneBusy] = useState(false);
@@ -99,6 +110,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     void load();
     return () => { cancelled = true; };
   }, [endpoint, loadAttempt]);
+
+  // First-timer coach tour on the opening screen — shows once, then never again.
+  useEffect(() => {
+    if (!bootstrap || step !== 0) return;
+    try { if (!localStorage.getItem(TOUR_KEY)) setShowTour(true); } catch { /* storage blocked */ }
+  }, [bootstrap, step]);
+  const dismissTour = () => { setShowTour(false); try { localStorage.setItem(TOUR_KEY, "1"); } catch { /* ignore */ } };
 
   async function run(task: () => Promise<void>) {
     setBusy(true); setError("");
@@ -241,20 +259,23 @@ export default function SelfServiceWizard({ token }: { token: string }) {
               </div>;
             })}
             <button type="button" className={styles.linkBtn} onClick={() => setRailOpen(false)}>Hide steps ▲</button>
-          </div> : <button type="button" className={styles.rail} onClick={() => setRailOpen(true)}>
+          </div> : <button type="button" data-tour="rail" className={styles.rail} onClick={() => setRailOpen(true)}>
             <span className={styles.railKick}>HOW IT WORKS</span>
             <span className={styles.railNext}>Now: {activeStep?.label}</span>
             <span className={styles.railToggle}>Show all ▼</span>
           </button>}
 
+          {showTour && step === 0 && <CoachTour steps={TOUR_STEPS} onDone={dismissTour} />}
+
           {step === 0 && <>
             <h1 className={styles.heroTitle}>Before you begin</h1>
             <p className={styles.lead}>You&apos;re the referrer. You&apos;re onboarding the <strong>account owner</strong> — the person whose LinkedIn this is. Six steps, about ten minutes, done together.</p>
+            <button type="button" className={styles.linkBtn} style={{ width: "auto", textAlign: "left", padding: "0 0 10px", color: "#15803d" }} onClick={() => setShowTour(true)}>New here? Take the quick tour →</button>
             <div className={styles.warn}>
               <div>Don&apos;t start unless they can stay</div>
               <p>LinkedIn will send codes and may ask them to confirm who they are. If they walk away halfway, the account can&apos;t be finished and nobody gets paid.</p>
             </div>
-            <div className={styles.card}>
+            <div className={styles.card} data-tour="need">
               <div className={styles.cardTitle}>They need, right now</div>
               <div className={styles.rowLine}><span className={styles.tick}>✓</span><span className={styles.rowText}>Their LinkedIn email and password — on a computer you use it to sign in, with them sitting right there.</span></div>
               <div className={styles.rowLine}><span className={styles.tick}>✓</span><span className={styles.rowText}>An inbox open in front of you for LinkedIn&apos;s confirmation code — yours or theirs, either is fine.</span></div>
@@ -268,13 +289,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
               <div className={styles.payRow}><span>You get</span><span className={styles.payAmt}>{refBase}–{refMax}</span></div>
               <p style={{ margin: "10px 0 0", fontWeight: 500 }}>Your exact rate is set at the sign-in step, by who does the final sign-in and whether the account is ID-verified.</p>
             </div>
-            <div className={styles.consentCard}>
+            <div className={styles.consentCard} data-tour="consent">
               <label className={styles.check}><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                 <span>They&apos;re here with me, they meet <a href="https://www.linkedin.com/help/linkedin/answer/a6854067" target="_blank" rel="noreferrer">LinkedIn&apos;s minimum age (16, or older where local law requires)</a>, they can reach their own email and phone, and they agree to add a LinkedVelocity email and share access under the <a href="/ambassador-terms" target="_blank" rel="noreferrer">terms</a>.</span></label>
             </div>
             {!bootstrap.configured && <p className={styles.note}>You can enter the details now. The team will need to configure browser access before you can save and continue to sign-in.</p>}
             {bootstrap.configured && !bootstrap.autoPurchase && bootstrap.countries.length === 0 && <p className={styles.note}>You can enter the details now. A dedicated proxy will be needed before you can save and continue to sign-in.</p>}
-            <button className={styles.primary} disabled={!consent} onClick={() => setStep(1)}>Start onboarding →</button>
+            <button data-tour="start" className={styles.primary} disabled={!consent} onClick={() => setStep(1)}>Start onboarding →</button>
             {bootstrap.sessions.length > 0 && <div className={styles.resume}><h3>Your saved onboardings</h3>{bootstrap.sessions.map((s) => <button key={s.id} disabled={busy} onClick={() => run(async () => showSession((await request("GET", undefined, s.id)).session))}>
               <span>{s.name}</span><span>{s.state === "confirmed" ? "View summary" : "Resume"} →</span></button>)}</div>}
           </>}
