@@ -371,6 +371,7 @@ model Referrer {
   channel          String?
   contactMethod    String?  @map("contact_method")
   contactHandle    String?  @map("contact_handle")
+  contacts         Json?    // [{ method, handle, preferred? }] — preferred one is mirrored into contactMethod/contactHandle
   email            String?
   paymentMethod    String?  @map("payment_method")
   paymentDetails   String?  @map("payment_details")

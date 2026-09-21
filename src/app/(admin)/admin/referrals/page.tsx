@@ -17,7 +17,8 @@ interface App {
   onboardingVerified?: boolean | null;
 }
 
-interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; }
+interface RefContact { method: string; handle: string; preferred?: boolean }
+interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; contacts: RefContact[] | null; email: string | null; paymentMethod: string | null; paymentDetails: string | null; }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
@@ -151,7 +152,7 @@ export default function AdminReferralsPage() {
   const [creating, setCreating] = useState(false);
   const [copiedKey, setCopiedKey] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [dForm, setDForm] = useState({ contactMethod: "WhatsApp", contactHandle: "", paymentMethod: "GCash", paymentDetails: "" });
+  const [dForm, setDForm] = useState<{ email: string; contacts: RefContact[]; preferred: number; paymentMethod: string; paymentDetails: string }>({ email: "", contacts: [{ method: "WhatsApp", handle: "" }], preferred: 0, paymentMethod: "GCash", paymentDetails: "" });
   const [dSaving, setDSaving] = useState(false);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [payOpen, setPayOpen] = useState(false);
@@ -396,14 +397,35 @@ export default function AdminReferralsPage() {
   };
   const openDetails = (r: Referrer) => {
     if (detailId === r.id) { setDetailId(null); return; }
-    setDForm({ contactMethod: r.contactMethod || "WhatsApp", contactHandle: r.contactHandle || "", paymentMethod: r.paymentMethod || "GCash", paymentDetails: r.paymentDetails || "" });
+    // Seed the contact list from `contacts` if present, else fall back to the legacy
+    // single contactMethod/contactHandle. Always keep at least one editable row.
+    const contacts: RefContact[] = Array.isArray(r.contacts) && r.contacts.length
+      ? r.contacts.map((c) => ({ method: c.method || "WhatsApp", handle: c.handle || "", preferred: !!c.preferred }))
+      : (r.contactHandle ? [{ method: r.contactMethod || "WhatsApp", handle: r.contactHandle, preferred: true }] : [{ method: "WhatsApp", handle: "" }]);
+    let preferred = contacts.findIndex((c) => c.preferred);
+    if (preferred < 0) preferred = 0;
+    setDForm({ email: r.email || "", contacts, preferred, paymentMethod: r.paymentMethod || "GCash", paymentDetails: r.paymentDetails || "" });
     setDetailId(r.id);
   };
   const saveDetails = async (r: Referrer) => {
     setDSaving(true);
     try {
-      const res = await fetch(`/api/admin/referrers/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dForm) });
-      if (res.ok) { setReferrers((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...dForm } : x))); setDetailId(null); }
+      const contacts: RefContact[] = dForm.contacts
+        .map((c, i) => ({ method: c.method || "WhatsApp", handle: c.handle.trim(), preferred: i === dForm.preferred }))
+        .filter((c) => c.handle);
+      // fall back the preferred flag to the first entry if the chosen one was blank/removed
+      if (contacts.length && !contacts.some((c) => c.preferred)) contacts[0].preferred = true;
+      const pref = contacts.find((c) => c.preferred) || contacts[0] || null;
+      const payload = {
+        email: dForm.email.trim() || null,
+        contacts,
+        contactMethod: pref?.method ?? null,
+        contactHandle: pref?.handle ?? null,
+        paymentMethod: dForm.paymentMethod,
+        paymentDetails: dForm.paymentDetails,
+      };
+      const res = await fetch(`/api/admin/referrers/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (res.ok) { setReferrers((prev) => prev.map((x) => (x.id === r.id ? { ...x, email: payload.email, contacts, contactMethod: payload.contactMethod, contactHandle: payload.contactHandle, paymentMethod: dForm.paymentMethod, paymentDetails: dForm.paymentDetails } : x))); setDetailId(null); }
     } finally { setDSaving(false); }
   };
   const deleteReferrer = async (r: Referrer) => {
@@ -734,22 +756,36 @@ export default function AdminReferralsPage() {
                         <button onClick={() => deleteReferrer(ref)} title="Remove referrer" style={{ ...copyBtn, color: "var(--danger)", borderColor: "var(--danger-border)" }}>✕ Remove</button>
                       </div>
                       {detailId === ref.id && (
-                        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end", marginTop: 12 }}>
-                          <div style={{ flex: "1 1 240px" }}>
-                            <div style={{ font: `600 10px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--label)", marginBottom: 5 }}>Contact</div>
-                            <div style={{ display: "flex", gap: 8 }}>
-                              <select value={dForm.contactMethod} onChange={(e) => setDForm({ ...dForm, contactMethod: e.target.value })} style={{ ...inpStyle, width: 108, flex: "none" }}><option>WhatsApp</option><option>Telegram</option><option>Viber</option><option>Email</option></select>
-                              <input value={dForm.contactHandle} onChange={(e) => setDForm({ ...dForm, contactHandle: e.target.value })} placeholder="number / @handle" style={inpStyle} />
+                        <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start", marginTop: 12 }}>
+                          {/* contacts (multiple, one preferred) + email */}
+                          <div style={{ flex: "1 1 360px", minWidth: 290 }}>
+                            <div style={{ font: `600 10px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--label)", marginBottom: 6 }}>Contact · tick the preferred one</div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                              {dForm.contacts.map((c, i) => (
+                                <div key={i} style={{ display: "flex", gap: 7, alignItems: "center" }}>
+                                  <input type="radio" name={`pref-${ref.id}`} checked={dForm.preferred === i} onChange={() => setDForm((f) => ({ ...f, preferred: i }))} title="Preferred contact method" style={{ width: 16, height: 16, accentColor: "var(--sheets-btn-bg)", cursor: "pointer", flex: "none" }} />
+                                  <select value={c.method} onChange={(e) => setDForm((f) => ({ ...f, contacts: f.contacts.map((x, j) => (j === i ? { ...x, method: e.target.value } : x)) }))} style={{ ...inpStyle, width: 104, flex: "none" }}><option>WhatsApp</option><option>Telegram</option><option>Viber</option><option>Phone</option><option>SMS</option></select>
+                                  <input value={c.handle} onChange={(e) => setDForm((f) => ({ ...f, contacts: f.contacts.map((x, j) => (j === i ? { ...x, handle: e.target.value } : x)) }))} placeholder="number / @handle" style={inpStyle} />
+                                  {dForm.contacts.length > 1 && (
+                                    <button type="button" onClick={() => setDForm((f) => { const contacts = f.contacts.filter((_, j) => j !== i); let preferred = f.preferred; if (preferred === i) preferred = 0; else if (preferred > i) preferred -= 1; return { ...f, contacts, preferred }; })} title="Remove this number" style={{ font: `600 15px ${F_SANS}`, color: "var(--danger)", background: "transparent", border: "none", cursor: "pointer", padding: "0 2px", lineHeight: 1, flex: "none" }}>✕</button>
+                                  )}
+                                </div>
+                              ))}
                             </div>
+                            <button type="button" onClick={() => setDForm((f) => ({ ...f, contacts: [...f.contacts, { method: "WhatsApp", handle: "" }] }))} style={{ font: `600 12px ${F_SANS}`, color: "var(--sheets-btn-bg)", background: "transparent", border: "none", cursor: "pointer", padding: "7px 0 0" }}>+ Add another number</button>
+
+                            <div style={{ font: `600 10px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--label)", margin: "12px 0 5px" }}>Email</div>
+                            <input type="email" value={dForm.email} onChange={(e) => setDForm((f) => ({ ...f, email: e.target.value }))} placeholder="name@email.com" style={{ ...inpStyle, maxWidth: 320 }} />
                           </div>
-                          <div style={{ flex: "1 1 240px" }}>
-                            <div style={{ font: `600 10px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--label)", marginBottom: 5 }}>Pay via</div>
+                          {/* pay via + save */}
+                          <div style={{ flex: "1 1 240px", minWidth: 220 }}>
+                            <div style={{ font: `600 10px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--label)", marginBottom: 6 }}>Pay via</div>
                             <div style={{ display: "flex", gap: 8 }}>
                               <select value={dForm.paymentMethod} onChange={(e) => setDForm({ ...dForm, paymentMethod: e.target.value })} style={{ ...inpStyle, width: 108, flex: "none" }}>{[...new Set([...CURRENCY_CONFIG.PHP.payoutMethods, ...CURRENCY_CONFIG.USD.payoutMethods])].map((m) => <option key={m}>{m}</option>)}</select>
                               <input value={dForm.paymentDetails} onChange={(e) => setDForm({ ...dForm, paymentDetails: e.target.value })} placeholder="account number / details" style={inpStyle} />
                             </div>
+                            <button onClick={() => saveDetails(ref)} disabled={dSaving} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 16px", borderRadius: 9, cursor: "pointer", opacity: dSaving ? 0.6 : 1, marginTop: 10 }}>{dSaving ? "Saving…" : "Save"}</button>
                           </div>
-                          <button onClick={() => saveDetails(ref)} disabled={dSaving} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 16px", borderRadius: 9, cursor: "pointer", opacity: dSaving ? 0.6 : 1 }}>{dSaving ? "Saving…" : "Save"}</button>
                         </div>
                       )}
                     </div>
