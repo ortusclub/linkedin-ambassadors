@@ -111,11 +111,16 @@ export async function POST(req: Request) {
     const doneLink = `${base}/m/${referrer.token}/fixed?app=${id}`;
     // Identify the exact account: name followed by the LinkedIn profile URL.
     const who = `${name}${app.linkedinUrl ? ` — ${app.linkedinUrl}` : ""}`;
+    // A one-tap "done" link only fits the email fixes. 2FA / password need the referrer
+    // to SEND us the key/password, so those templates ask for a reply instead.
+    const showDone = issue === "email_not_added" || issue === "email_not_primary";
     const text =
       `This is about ${who}\n\n` +
       tpl.body(name, lv) +
-      `\n\n— When it's done —\n` +
-      `Once you've sorted it, just click here and we'll mark it as fixed and re-check the account for you:\n${doneLink}\n`;
+      (showDone
+        ? `\n\n— When it's done —\n` +
+          `Once you've sorted it, just click here and we'll mark it as fixed and re-check the account for you:\n${doneLink}\n`
+        : "");
 
     await onboardingMailRequest(
       "/emails",

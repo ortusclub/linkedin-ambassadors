@@ -53,7 +53,7 @@ interface Row {
   onboardedAt: string | null;
   accountIssue: string | null;
   onboardingFix: { issues: ("email_added" | "email_primary" | "twofa" | "password")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
-  referrer: { name: string; whatsapp: string | null; telegram: string | null; preferred: string | null } | null;
+  referrer: { name: string; token: string | null; whatsapp: string | null; telegram: string | null; preferred: string | null } | null;
   reason: string;
   phoneHandoffPending?: boolean;
   hasGologin: boolean;
@@ -856,13 +856,18 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             const lvEmail = r.loginEmail || "the LinkedVelocity email we gave you";
             // Name followed by the profile URL, so every message identifies the exact account.
             const who = `${r.fullName}${r.linkedinUrl ? ` (${r.linkedinUrl})` : ""}`;
-            // Self-contained per-issue message (WhatsApp/Telegram) — assumes they haven't
-            // read the email and walks them through what's needed for THIS issue.
+            // "Done" link (marks the fix done → we recheck) only makes sense for the two
+            // email fixes; 2FA and password need them to SEND us the key/password, so those
+            // ask for a reply instead of a one-tap "done".
+            const doneUrl = r.referrer?.token ? `https://linkedvelocity.com/m/${r.referrer.token}/fixed?app=${r.id}` : null;
+            const doneLine = (label: string) => (doneUrl ? `\n\nWhen ${label}, tap here to let us know and we'll re-check: ${doneUrl}` : "");
+            // Self-contained per-issue message (WhatsApp/Telegram) — opens by saying who we
+            // are, assumes they haven't read the email, and walks them through THIS issue.
             const MSG: Record<string, string> = {
-              email_not_added: `Hi ${refName}, we're onboarding ${who} with LinkedVelocity but our email isn't on the account yet. Could you ask ${r.fullName} to add our email (${lvEmail}) in LinkedIn → Settings & Privacy → Sign in & security → Email addresses → "Add email address"? LinkedIn sends it a confirmation link (we receive it on our side), then it needs to be set as the primary email. Thanks!`,
-              email_not_primary: `Hi ${refName}, our email is on ${who} but it isn't set as PRIMARY yet. Could you ask ${r.fullName} to open LinkedIn → Settings & Privacy → Sign in & security → Email addresses and tap "Make primary" next to ${lvEmail}? Thanks!`,
-              twofa_not_set: `Hi ${refName}, we need two-step verification (2FA) set up on ${who}. Ask ${r.fullName} to go to Settings & Privacy → Sign in & security → Two-step verification → Authenticator app, then send us the SECRET KEY (tap "Can't scan the QR code?" to reveal it) — not a 6-digit code. Thanks!`,
-              password_incorrect: `Hi ${refName}, the password we have for ${who} isn't working. Could you confirm the correct password with ${r.fullName} (or reset it via Settings & Privacy → Sign in & security → Change password) and send it to us? Thanks!`,
+              email_not_added: `Hi ${refName}, this is LinkedVelocity. We're onboarding ${who} but our email isn't on the account yet. Could you ask ${r.fullName} to add our email (${lvEmail}) in LinkedIn → Settings & Privacy → Sign in & security → Email addresses → "Add email address"? LinkedIn sends it a confirmation link (we receive it on our side), then it needs to be set as the primary email.${doneLine("it's added")}\n\nThanks!`,
+              email_not_primary: `Hi ${refName}, this is LinkedVelocity. Our email is on ${who} but it isn't set as PRIMARY yet. Could you ask ${r.fullName} to open LinkedIn → Settings & Privacy → Sign in & security → Email addresses and tap "Make primary" next to ${lvEmail}?${doneLine("it's primary")}\n\nThanks!`,
+              twofa_not_set: `Hi ${refName}, this is LinkedVelocity. We need two-step verification (2FA) set up on ${who}. Ask ${r.fullName} to go to Settings & Privacy → Sign in & security → Two-step verification → Authenticator app, then reply here with the SECRET KEY (tap "Can't scan the QR code?" to reveal it) — not a 6-digit code. We need that key to finish the setup on our side.\n\nThanks!`,
+              password_incorrect: `Hi ${refName}, this is LinkedVelocity. The password we have for ${who} isn't working. Could you confirm the correct password with ${r.fullName} (or reset it via Settings & Privacy → Sign in & security → Change password) and reply here with it? We need it to sign in.\n\nThanks!`,
             };
             return (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 10, marginBottom: 16, padding: "10px 12px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
@@ -941,7 +946,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                 ) : (
                   <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin {r.gologinProfileId ? r.gologinProfileId.slice(0, 10) + "…" : "ready"}</span>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin browser profile, clear its share link, and unassign the proxy (you'll be asked to confirm)" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e5b4ad)", padding: "3px 9px", borderRadius: 6, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>🗑 Delete GoLogin</button>
+                <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin browser profile, clear its share link, and unassign the proxy (you'll be asked to confirm)" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e5b4ad)", padding: "3px 9px", borderRadius: 6, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Deleting…" : "🗑 Delete GoLogin"}</button>
               </div>
             )}
           </div>

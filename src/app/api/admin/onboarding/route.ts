@@ -56,7 +56,7 @@ export async function GET() {
     // Referrer contact lookup (by slug) — used to build reminder links (WhatsApp
     // click-to-send / Telegram) next to a raised onboarding issue on the pipeline.
     const referrers = await prisma.referrer.findMany({
-      select: { slug: true, name: true, contactMethod: true, contactHandle: true, contacts: true },
+      select: { slug: true, name: true, token: true, contactMethod: true, contactHandle: true, contacts: true },
     });
     const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
     type RefC = { method?: string; handle?: string; preferred?: boolean };
@@ -74,6 +74,7 @@ export async function GET() {
       const pref = list.find((c) => c.preferred) || list[0];
       return {
         name: rf.name,
+        token: rf.token,
         whatsapp: wa ? wa.replace(/[^0-9]/g, "") : null,
         telegram: tg ? tg.replace(/^@/, "").trim() : null,
         preferred: pref?.method || null,
