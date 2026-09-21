@@ -37,6 +37,19 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   signin: [
     { target: "signin-choice", title: "Who signs in?", body: "On a laptop you do the sign-in and earn the most. No computer? \"Hand it to us\" and the team does it — they still get paid, you earn a little less." },
   ],
+  signinPc: [
+    { title: "You're doing the sign-in", body: "This is the highest-rate path. You'll open the protected GoLogin browser and sign in to their LinkedIn together — the steps below walk you through it. You're not finished until you've signed in and confirmed." },
+  ],
+  handoffPhone: [
+    { title: "Handing it to us", body: "No computer, so you're handing the sign-in to our team. Set a temporary password with the owner below. They still get paid the same; you earn a little less than the laptop path." },
+  ],
+  donePhone: [
+    { target: "done-phone", title: "That's your part done", body: "Nothing more for you here. Our team sets up the protected browser and signs in after about 24 hours, then verifies the account. The setup payment follows, and your commission the Monday after — we'll message you if anything is needed." },
+  ],
+  donePc: [
+    { target: "done-summary", title: "Onboarded — here's the deal", body: "Their setup and monthly payments, and your commission, are now locked to your code. This is what everyone gets for this account." },
+    { target: "done-next", title: "What happens next", body: "We test the sign-in over the next few days. If LinkedIn asks for a check, WE message you — not them — so keep your phone on. Once it clears, they're paid and your commission lands the following Monday. That's it, you're done." },
+  ],
 };
 import { ShareLinks, WaitNotice, type ScriptContext } from "./onboarding-scripts";
 
@@ -136,7 +149,10 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   }, [endpoint, loadAttempt]);
 
   // Which page's coach tour applies right now (null = no tour for this screen).
-  const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : step === 3 ? "email" : (step === 4 && browserMode === "") ? "signin" : null;
+  const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : step === 3 ? "email"
+    : step === 5 ? "donePc"
+    : step === 4 ? (handedOff ? "donePhone" : browserMode === "" ? "signin" : browserMode === "phone" ? "handoffPhone" : "signinPc")
+    : null;
   // A referrer stops being a first-timer only once they've completed BOTH a computer and a
   // phone onboarding. Until then the tour keeps returning on each fresh wizard load.
   const experienced = !!bootstrap && bootstrap.doneComputer && bootstrap.donePhone;
@@ -425,7 +441,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           {step === 4 && session && (handedOff ? <>
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>Handed off to the team</h1>
-            <p className={styles.lead}>{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup payment follows once the account is verified, <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding. Nothing more to do here.</p>
+            <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup payment follows once the account is verified, <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding. Nothing more to do here.</p>
             <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>
           </> : browserMode === "" ? <>
             <h1 className={styles.heroTitle}>Who does the sign-in?</h1>
@@ -455,13 +471,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>That&apos;s them onboarded</h1>
             <p className={styles.lead}>{session.name}&apos;s account is in our system and linked to your code. Nothing else for either of you to do today.</p>
-            <div className={styles.card}>
+            <div className={styles.card} data-tour="done-summary">
               <div className={styles.summaryRow}><span>Their setup payment</span><b>{session.setupAmount}</b></div>
               <div className={styles.summaryRow}><span>Their monthly payment</span><b>{session.monthlyAmount}/mo</b></div>
               <div className={styles.summaryRow}><span>Your commission</span><b>{session.commission} · {session.verified ? "Verified" : "Pending"}</b></div>
               <div className={styles.summaryRow}><span>Due date</span><b>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "After the check"}</b></div>
             </div>
-            <div className={styles.note}><strong>What we do next.</strong> We test the sign-in over {checkWindow(session.accountFreshness)}. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears, their {session.setupAmount} goes out and your commission lands the following Monday.</div>
+            <div className={styles.note} data-tour="done-next"><strong>What we do next.</strong> We test the sign-in over {checkWindow(session.accountFreshness)}. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears, their {session.setupAmount} goes out and your commission lands the following Monday.</div>
             <div className={styles.card}>
               <div className={styles.cardTitle}>Tell them before you go</div>
               <p className={styles.cardSub} style={{ marginBottom: 8 }}>Don&apos;t post, message or browse from your own phone while it&apos;s with us — being logged in from two places is what causes restrictions.</p>
