@@ -231,7 +231,6 @@ const touchCount = (log: Touch[] | null) => (log || []).filter((t) => t.ch !== "
 
 // Warm-up window before we log in: 3 days established, 1 week fresh.
 const holdDays = (r: Row) => (r.accountFreshness === "fresh" ? 7 : 3);
-const loginDueMs = (r: Row): number | null => (r.onboardingStartedAt ? new Date(r.onboardingStartedAt).getTime() + holdDays(r) * 86400000 : null);
 const eligibleMs = (r: Row): number | null => (r.onboardedAt ? new Date(r.onboardedAt).getTime() + 86400000 : null);
 // Setup fee is "due" only once it's been 24h since login — not the moment they log in.
 const setupDue = (r: Row): boolean => { if (setupPaid(r)) return false; const due = eligibleMs(r); return due !== null && Date.now() >= due; };
@@ -948,9 +947,12 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
 
 // -- workflow rail (pre-onboarded): 4 sequential step cards -------------------
 function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void }) {
-  const started = !!r.onboardingStartedAt;         // maturation started
-  const matureDue = loginDueMs(r);                 // when the maturation window ends
-  const matured = started && matureDue !== null && Date.now() >= matureDue;
+  // Maturation only begins once QC (Step 4) is passed — the clock counts from
+  // verifiedAt, never before. holdDays picks the window (fresh 1wk / established 3d).
+  const qcPassed = !!r.verifiedAt;
+  const matureStartMs = r.verifiedAt ? new Date(r.verifiedAt).getTime() : null;
+  const matureDue = matureStartMs !== null ? matureStartMs + holdDays(r) * 86400000 : null;
+  const matured = matureDue !== null && Date.now() >= matureDue;
   const gated = false;                             // level ladder isn't gated behind "accept"
 
   type Step = { label: string; title: string; sub: string; done: boolean; render: (isNext: boolean) => React.ReactNode };
@@ -984,16 +986,23 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
     },
     {
       label: "Step 4", title: "Passed checks & QC", sub: "quality control — account good, not restricted", done: !!r.verifiedAt,
-      render: (isNext) => r.verifiedAt ? doneCol("Passed QC", { verifiedAt: null })
-        : <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Passed QC</button>,
+      render: (isNext) => r.verifiedAt ? doneCol("Passed QC", { verifiedAt: null, onboardingStartedAt: null })
+        : <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString(), onboardingStartedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Passed QC</button>,
     },
     {
-      label: "Step 5", title: "Matured — ready to onboard", sub: matured ? "maturation complete" : started ? `maturing · ready ${matureDue ? fmtDate(new Date(matureDue).toISOString()) : "—"}` : (r.accountFreshness === "fresh" ? "fresh · 1 week" : "established · 3 days"), done: matured,
-      render: (isNext) => matured ? doneCol("Matured — ready", { onboardingStartedAt: null })
-        : started ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing…</span>
+      label: "Step 5", title: "Matured — ready to onboard",
+      sub: !qcPassed ? "starts once QC is passed" : matured ? "maturation complete" : `maturing · ready ${matureDue ? fmtDate(new Date(matureDue).toISOString()) : "—"}`,
+      done: matured,
+      render: () => !qcPassed
+        ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>🔒 pass QC to begin</span>
+        : matured
+          ? doneBadge("Matured — ready")
           : (<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <button onClick={() => workflow(r.id, { onboardingStartedAt: new Date().toISOString(), accountFreshness: "established" })} disabled={busy} style={primaryBtn(isNext)}>Start · established 3d</button>
-              <button onClick={() => workflow(r.id, { onboardingStartedAt: new Date().toISOString(), accountFreshness: "fresh" })} disabled={busy} style={{ ...btnSec, width: "100%" }}>Start · fresh 1wk</button>
+              <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing…</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => workflow(r.id, { accountFreshness: "established" })} disabled={busy} title="Established account — 3-day hold" style={{ ...btnSec, flex: 1, ...(r.accountFreshness !== "fresh" ? { borderColor: "var(--sheets-btn-bg,#1a56db)", color: "var(--sheets-btn-bg,#1a56db)" } : {}) }}>Est · 3d</button>
+                <button onClick={() => workflow(r.id, { accountFreshness: "fresh" })} disabled={busy} title="Fresh account — 1-week hold" style={{ ...btnSec, flex: 1, ...(r.accountFreshness === "fresh" ? { borderColor: "var(--sheets-btn-bg,#1a56db)", color: "var(--sheets-btn-bg,#1a56db)" } : {}) }}>Fresh · 1wk</button>
+              </div>
             </div>),
     },
   ];

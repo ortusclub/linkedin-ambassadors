@@ -140,6 +140,9 @@ export default function AdminReferralsPage() {
   const [tier, setTier] = useState("all");
   const [query, setQuery] = useState("");
   const [refApplied, setRefApplied] = useState(false);
+  // Deep-link focus: the referrer to open on load, tracked by ID (not name) so it
+  // survives the row being renamed slug↔display-name when applications load in.
+  const [focusRefId, setFocusRefId] = useState<string | null>(null);
   const [nextMonday, setNextMonday] = useState("");
   const [referrers, setReferrers] = useState<Referrer[]>([]);
   const [visibleCount, setVisibleCount] = useState(20);
@@ -182,17 +185,36 @@ export default function AdminReferralsPage() {
     const slug = new URLSearchParams(window.location.search).get("ref");
     if (!slug) { setRefApplied(true); return; }
     const match = referrers.find((x) => x.slug.toLowerCase() === slug.toLowerCase() || x.name.toLowerCase() === slug.toLowerCase());
-    setQuery(match?.name || slug);
-    setVisibleCount(9999);
     if (match) {
-      // Expand that referrer's row and open its Details editor so you can add
-      // email / contact / payout straight away (row keyed by slug or name).
-      setExpandedRef(new Set([match.name, match.slug]));
+      // Focus this referrer by ID — the directory row is named by slug when the
+      // referrer has signups but by display-name when they don't, so a name/query
+      // match is unreliable. Show everyone (no pagination), expand + open its
+      // Details editor, and the scroll effect below brings it into view.
+      setTier("all");
+      setVisibleCount(9999);
+      setFocusRefId(match.id);
       openDetails(match);
     }
     setRefApplied(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [referrers, refApplied]);
+
+  // Once a referrer is focused (deep-link), scroll its row into view and flash it.
+  // Re-runs when the row set changes (applications load in and rename the row).
+  useEffect(() => {
+    if (!focusRefId || typeof document === "undefined") return;
+    const t = setTimeout(() => {
+      const el = document.getElementById(`refrow-${focusRefId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const prev = el.style.background;
+      el.style.transition = "background .35s";
+      el.style.background = "var(--chip-active-bg, rgba(10,102,194,.10))";
+      setTimeout(() => { el.style.background = prev; }, 1700);
+    }, 140);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRefId, referrers, apps]);
 
   const rows = useMemo<Row[]>(() => {
     const m = new Map<string, { name: string; signups: number; converted: number; earned: number; ready: number; held: number }>();
@@ -577,7 +599,7 @@ export default function AdminReferralsPage() {
           ))}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search referrer…" style={{ width: 240, maxWidth: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 12px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
+          <input value={query} onChange={(e) => { setFocusRefId(null); setQuery(e.target.value); }} placeholder="Search referrer…" style={{ width: 240, maxWidth: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 12px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
           <button onClick={() => printCards()} disabled={!referrers.length} title="Print a 4-up card page for every marketer (one page each)" style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>All cards · 4/page</button>
           <button onClick={() => printFlyers()} disabled={!referrers.length} title="Print an A5 flyer for every marketer (one sheet each)" style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>All flyers · A5</button>
           <button onClick={() => setShowAdd((v) => !v)} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 13px", borderRadius: 8, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add referrer"}</button>
@@ -607,8 +629,9 @@ export default function AdminReferralsPage() {
         {filtered.length === 0 ? (
           <div style={{ padding: 44, textAlign: "center", font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No referrers match.</div>
         ) : shown.map((r) => {
-          const open = expandedRef.has(r.name);
           const { ref, pays, commissionPaid, outstanding } = refInfo(r.name, r.readyOwed);
+          const rid = ref?.id || null;
+          const open = expandedRef.has(r.name) || (!!focusRefId && rid === focusRefId);
           const busy = ref ? pBusy === ref.id : false;
           const rate = CURRENCY_CONFIG[r.currency].rate; // this referrer's commission rate
           const money = (n: number) => formatMoney(n, r.currency);
@@ -655,7 +678,7 @@ export default function AdminReferralsPage() {
           const countedConverted = converted.filter((c) => c.counts).length;
           const notCounted = converted.length - countedConverted;
           return (
-            <div key={r.name} style={{ borderBottom: "1px solid var(--divider)" }}>
+            <div key={r.name} id={rid ? `refrow-${rid}` : undefined} style={{ borderBottom: "1px solid var(--divider)" }}>
               <div onClick={() => toggleRef(r.name)} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 100px 120px 110px 140px 120px", gap: 14, alignItems: "center", padding: "15px 22px", cursor: "pointer", userSelect: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
                   <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", width: 10, textAlign: "center", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>
