@@ -380,6 +380,20 @@ export default function AdminPipelinePage() {
     } finally { setBusy(null); }
   };
 
+  // Delete the GoLogin profile off an account (confirmed first). Proxy stays assigned.
+  const deleteGologin = async (r: Row) => {
+    if (!r.accountId) return;
+    if (!confirm(`Delete the GoLogin profile for ${r.accountName || r.fullName || "this account"}?\n\nThis removes the browser profile and clears the share link. The proxy stays assigned — you can re-create the profile later with "Create GoLogin".`)) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/delete-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not delete GoLogin (${res.status}).`);
+      else if (d.warning) alert(d.warning);
+      await load();
+    } finally { setBusy(null); }
+  };
+
   // Email the referrer a guided fix for a common problem.
   const emailIssue = async (r: Row, issue: string) => {
     setBusy(r.id);
@@ -633,7 +647,7 @@ export default function AdminPipelinePage() {
           {g.items.map((r) => (
             <Card key={r.id} r={r} busy={busy === r.id} open={open.has(r.id)} onToggle={() => toggle(r.id)}
               patchApp={patchApp} patchAccount={patchAccount} setStage={changeStatus} workflow={workflow}
-              provisionGologin={provisionGologin} emailIssue={emailIssue}
+              provisionGologin={provisionGologin} deleteGologin={deleteGologin} emailIssue={emailIssue}
               logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} onDeleteApp={() => deleteApp(r)} />
           ))}
         </GroupSection>
@@ -715,7 +729,7 @@ function Note({ label, children }: { label: string; children: React.ReactNode })
 
 const GRID4: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "12px 14px" };
 
-function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workflow, provisionGologin, emailIssue, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
+function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workflow, provisionGologin, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
   r: Row; busy: boolean; open: boolean; onToggle: () => void;
   onFilterText: (t: string) => void;
   onDeleteApp: () => void;
@@ -724,6 +738,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
   setStage: (r: Row, s: Status) => void;
   workflow: (id: string, patch: Record<string, unknown>) => void;
   provisionGologin: (r: Row) => void;
+  deleteGologin: (r: Row) => void;
   emailIssue: (r: Row, issue: string) => void;
   logTouch: (id: string, ch: string, text: string, by: string) => Promise<void>;
   logPayment: (r: Row, kind: "setup" | "monthly") => Promise<void>;
@@ -857,10 +872,15 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                 <span style={{ font: `600 11px ${F_SANS}`, color: needsGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--muted,#8a97ad)" }}>{needsGologin(r) ? "⚠ No GoLogin — this account cannot be run" : "GoLogin not added yet"}</span>
                 <button onClick={(e) => { e.stopPropagation(); void provisionGologin(r); }} disabled={busy} title="Create the GoLogin profile, assign an available proxy, and generate the share link — all onto this account" style={{ font: `700 11px ${F_SANS}`, color: "#fff", background: "var(--st-active-fg,#188038)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Creating…" : "+ Create GoLogin (profile · proxy · share link)"}</button>
               </div>
-            ) : r.gologinShareLink ? (
-              <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 9px", borderRadius: 6 }}>↗ Open GoLogin</a>
             ) : (
-              <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin {r.gologinProfileId ? r.gologinProfileId.slice(0, 10) + "…" : "ready"}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                {r.gologinShareLink ? (
+                  <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 9px", borderRadius: 6 }}>↗ Open GoLogin</a>
+                ) : (
+                  <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin {r.gologinProfileId ? r.gologinProfileId.slice(0, 10) + "…" : "ready"}</span>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin browser profile and clear its share link (you'll be asked to confirm; the proxy stays assigned)" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e5b4ad)", padding: "3px 9px", borderRadius: 6, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>🗑 Delete GoLogin</button>
+              </div>
             )}
           </div>
           <RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} />

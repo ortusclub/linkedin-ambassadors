@@ -103,8 +103,8 @@ export async function findProfileByName(name: string, token?: string): Promise<{
   return profile?.id && profile.name ? { id: profile.id, name: profile.name } : null;
 }
 
-export async function deleteProfile(profileId: string) {
-  return gologinFetch(`/browser/${profileId}`, { method: "DELETE" });
+export async function deleteProfile(profileId: string, token?: string) {
+  return gologinFetch(`/browser/${profileId}`, { method: "DELETE" }, token);
 }
 
 export async function updateProxy(
