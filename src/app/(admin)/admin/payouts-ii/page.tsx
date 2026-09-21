@@ -158,6 +158,20 @@ function MarkPaidButton({ r, onMarkPaid }: { r: Row; onMarkPaid: (r: Row) => Pro
   );
 }
 
+function ReferralMarkButton({ d, busy, onMark }: { d: ReferralDue; busy: boolean; onMark: (d: ReferralDue) => Promise<void> }) {
+  const [armed, setArmed] = useState(false);
+  const c = d.currency === "USD" ? "$" : "₱";
+  return (
+    <span onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex" }}>
+      <button disabled={busy}
+        onClick={async () => { if (!armed) { setArmed(true); setTimeout(() => setArmed(false), 3000); return; } try { await onMark(d); } finally { setArmed(false); } }}
+        style={{ font: `700 12px ${F_SANS}`, padding: "6px 12px", borderRadius: 8, cursor: "pointer", border: `1px solid ${armed ? "var(--st-active-fg,#1a8a4a)" : "var(--border,#d9d9de)"}`, background: armed ? "var(--st-active-fg,#1a8a4a)" : "var(--card,#fff)", color: armed ? "#fff" : "var(--fg,#333)", whiteSpace: "nowrap" }}>
+        {busy ? "Saving…" : armed ? "Confirm ✓" : `Mark ${c}${Math.round(d.amount)} paid`}
+      </button>
+    </span>
+  );
+}
+
 function AccountRow({ r, onMarkPaid }: { r: Row; onMarkPaid: (r: Row) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const chip = CHIP[r.bucket];
@@ -318,17 +332,13 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
   );
 }
 
-type RefPerson = { name: string; url: string | null; dueDate: string };
-type MarketerDue = { name: string; count: number; dueCount: number; amount: number; currency: "PHP" | "USD"; dueDate: string | null; people: RefPerson[] };
-type MarketerUpcoming = { name: string; count: number; amount: number; currency: "PHP" | "USD"; dueDate: string; people: RefPerson[] };
-type RefInfo = { name: string; slug: string; paymentMethod: string | null; paymentDetails: string | null };
+type ReferralDue = { applicationId: string; person: string; url: string | null; referrerName: string; referrerId: string | null; referrerSlug: string | null; amount: number; currency: "PHP" | "USD"; dueDate: string; status: "ready" | "upcoming"; payVia: string | null };
 
 export default function PayoutsIIPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [onboarding, setOnboarding] = useState<{ count: number; names: string[] }>({ count: 0, names: [] });
-  const [marketers, setMarketers] = useState<MarketerDue[]>([]);
-  const [marketersUpcoming, setMarketersUpcoming] = useState<MarketerUpcoming[]>([]);
-  const [referrers, setReferrers] = useState<RefInfo[]>([]);
+  const [referralsDue, setReferralsDue] = useState<ReferralDue[]>([]);
+  const [markingRef, setMarkingRef] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -340,18 +350,25 @@ export default function PayoutsIIPage() {
       setRows(d.rows || []);
       setOnboarding(d.onboarding || { count: 0, names: [] });
     } catch { setError(true); }
-    // Referral commissions ready to pay (independent of the ambassador feed).
+    // Referral commissions (per person, tied to the specific referral) — best-effort.
     try {
-      const [due, refs] = await Promise.all([
-        fetch("/api/admin/payments-due").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch("/api/admin/referrers").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      ]);
-      setMarketers(Array.isArray(due?.marketers) ? due.marketers : []);
-      setMarketersUpcoming(Array.isArray(due?.marketersUpcoming) ? due.marketersUpcoming : []);
-      setReferrers(Array.isArray(refs?.referrers) ? refs.referrers : []);
+      const due = await fetch("/api/admin/payments-due").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      setReferralsDue(Array.isArray(due?.referralsDue) ? due.referralsDue : []);
     } catch { /* referral block is best-effort */ }
   };
   useEffect(() => { load(); }, []);
+
+  const markReferral = async (d: ReferralDue) => {
+    setMarkingRef(d.applicationId);
+    try {
+      const res = await fetch("/api/admin/payouts-ii/mark-referral", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: d.applicationId }),
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Could not record: ${j.error || res.status}`); return; }
+      await load();
+    } finally { setMarkingRef(null); }
+  };
 
   const onMarkPaid = async (r: Row) => {
     const res = await fetch("/api/admin/payouts-ii/mark", {
@@ -410,66 +427,50 @@ export default function PayoutsIIPage() {
       {error && <p style={{ color: "var(--st-cancel-fg,#b00)", font: `600 14px ${F_SANS}` }}>Failed to load.</p>}
       {!rows && !error && <p style={{ font: `500 14px ${F_SANS}`, color: "var(--muted,#888)" }}>Loading…</p>}
 
-      {/* Referral commissions ready to pay to marketers/referrers — same style as the sections below */}
-      {(marketers.length > 0 || marketersUpcoming.length > 0) && (() => {
-        const refByName = new Map(referrers.map((r) => [r.name.trim().toLowerCase(), r]));
+      {/* Referral commissions — per person, tied to the specific referral. Same row style as the sections below. */}
+      {referralsDue.length > 0 && (() => {
         const money = (n: number, c: "PHP" | "USD") => `${c === "USD" ? "$" : "₱"}${Math.round(n).toLocaleString("en-US")}`;
-        const totals = marketers.reduce((acc, m) => { acc[m.currency] = (acc[m.currency] || 0) + m.amount; return acc; }, {} as Record<string, number>);
+        const ready = referralsDue.filter((d) => d.status === "ready");
+        const upcoming = referralsDue.filter((d) => d.status === "upcoming");
+        const totals = ready.reduce((acc, d) => { acc[d.currency] = (acc[d.currency] || 0) + d.amount; return acc; }, {} as Record<string, number>);
         const totalLabel = (["PHP", "USD"] as const).filter((c) => totals[c]).map((c) => money(totals[c], c)).join(" + ") || "₱0";
-        const sorted = [...marketers].sort((a, b) => b.amount - a.amount);
         const tone = "var(--st-active-fg,#1a8a4a)";
+        const row = (d: ReferralDue, up: boolean) => (
+          <div key={d.applicationId} style={{ border: up ? "1px dashed var(--border,#e0e0e4)" : "1px solid var(--border,#e8e8ea)", borderRadius: 12, background: up ? "var(--panel,#fafafa)" : "var(--card,#fff)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 16px" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)" }}>{d.url ? <a href={d.url} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{d.person} ↗</a> : d.person}</div>
+                <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 2 }}>referrer: <b style={{ color: "var(--fg,#444)" }}>{d.referrerName}</b></div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginTop: 6, font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>
+                  <span>Due: <b style={{ color: up ? "var(--warn-badge-text,#b7791f)" : "var(--fg,#444)" }}>{fmtDate(d.dueDate)}</b></span>
+                  <span>Pay via: <b style={{ color: d.payVia ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{d.payVia || "not set"}</b></span>
+                </div>
+              </div>
+              <span style={{ font: `800 16px ${F_GRO}`, color: up ? "var(--muted,#8a9099)" : tone, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{money(d.amount, d.currency)}</span>
+              {up
+                ? <span style={{ font: `700 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", whiteSpace: "nowrap" }}>maturing</span>
+                : <ReferralMarkButton d={d} busy={markingRef === d.applicationId} onMark={markReferral} />}
+              {!up && <span style={{ font: `700 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, background: "var(--blue-chip-bg,#eaf1ff)", color: "var(--blue-chip-text,#2b5fd0)", whiteSpace: "nowrap" }}>{money(d.amount, d.currency)} due</span>}
+            </div>
+          </div>
+        );
         return (
           <section style={{ marginTop: 30 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
               <span style={{ width: 10, height: 10, borderRadius: 999, background: tone }} />
               <h2 style={{ font: `700 17px ${F_GRO}`, margin: 0, color: "var(--fg,#111)" }}>Referral commissions due</h2>
-              <span style={{ font: `700 13px ${F_SANS}`, color: "var(--muted,#888)" }}>{sorted.length}</span>
+              <span style={{ font: `700 13px ${F_SANS}`, color: "var(--muted,#888)" }}>{ready.length}</span>
               <span style={{ font: `700 13px ${F_SANS}`, color: tone }}>{totalLabel}</span>
-              <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#9aa0a6)" }}>owed to marketers for onboarded referrals · pay &amp; log on the Referrals page</span>
+              <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#9aa0a6)" }}>one row per referral · marking paid ties to that specific person</span>
             </div>
-            {sorted.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-              {sorted.map((m) => {
-                const info = refByName.get(m.name.trim().toLowerCase());
-                const href = `/admin/referrals?ref=${encodeURIComponent(info?.slug || m.name)}`;
-                return (
-                  <div key={m.name} style={{ border: "1px solid var(--border,#e8e8ea)", borderRadius: 12, background: "var(--card,#fff)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 16px" }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)" }}>{m.name}</div>
-                        <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 2 }}>{m.dueCount} referral{m.dueCount === 1 ? "" : "s"} due</div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginTop: 6, font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>
-                          <span>Due: <b style={{ color: "var(--fg,#444)" }}>{m.dueDate ? fmtDate(m.dueDate) : "now"}</b></span>
-                          <span>Pay via: <b style={{ color: info?.paymentDetails ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{info?.paymentDetails ? `${info.paymentMethod || "—"} · ${info.paymentDetails}` : "not set"}</b></span>
-                        </div>
-                        {m.people.length > 0 && <div style={{ marginTop: 5, font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>For: {m.people.map((p, i) => <span key={i}>{i > 0 ? " · " : ""}{p.url ? <a href={p.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "var(--link,#0a66c2)", textDecoration: "none" }}>{p.name} ↗</a> : p.name}</span>)}</div>}
-                      </div>
-                      <span style={{ font: `800 16px ${F_GRO}`, color: tone, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{money(m.amount, m.currency)}</span>
-                      <a href={href} onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border,#d9d9de)", background: "var(--card,#fff)", color: "var(--fg,#333)", textDecoration: "none", whiteSpace: "nowrap" }}>Pay / log →</a>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>}
-            {marketersUpcoming.length > 0 && (
+            {ready.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>{ready.map((d) => row(d, false))}</div>}
+            {upcoming.length > 0 && (
               <div style={{ marginTop: 18 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                   <span style={{ font: `700 12.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⏳ Upcoming — still maturing (Level 4 → 5)</span>
                   <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#9aa0a6)" }}>not payable yet · becomes due once the account passes its 1-week hold</span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {marketersUpcoming.map((m) => (
-                    <div key={m.name} style={{ border: "1px dashed var(--border,#e0e0e4)", borderRadius: 12, background: "var(--panel,#fafafa)" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px" }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ font: `700 14.5px ${F_GRO}`, color: "var(--fg,#111)" }}>{m.name}</div>
-                          <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 2 }}>Due <b style={{ color: "var(--warn-badge-text,#b7791f)" }}>{fmtDate(m.dueDate)}</b> · {m.count} referral{m.count === 1 ? "" : "s"} maturing</div>
-                          {m.people.length > 0 && <div style={{ marginTop: 5, font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>For: {m.people.map((p, i) => <span key={i}>{i > 0 ? " · " : ""}{p.url ? <a href={p.url} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)", textDecoration: "none" }}>{p.name} ↗</a> : p.name} <span style={{ color: "var(--muted2,#9aa0a6)" }}>(due {fmtDate(p.dueDate)})</span></span>)}</div>}
-                        </div>
-                        <span style={{ font: `700 15px ${F_GRO}`, color: "var(--muted,#8a9099)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{money(m.amount, m.currency)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{upcoming.map((d) => row(d, true))}</div>
               </div>
             )}
           </section>

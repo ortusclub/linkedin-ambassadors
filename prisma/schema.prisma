@@ -394,6 +394,7 @@ model Payout {
   referrerId  String    @map("referrer_id") @db.Uuid
   referrer    Referrer  @relation(fields: [referrerId], references: [id], onDelete: Cascade)
   type        String    @default("day_rate") // day_rate | commission | bonus | other
+  ambassadorApplicationId String? @map("ambassador_application_id") @db.Uuid // commission: the specific referred application this pays for
   description String?
   amount      Decimal   @db.Decimal(10, 2)
   method      String?   // cash | gcash | bank

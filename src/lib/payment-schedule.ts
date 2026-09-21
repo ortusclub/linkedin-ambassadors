@@ -79,12 +79,26 @@ export interface ReferralPerson { name: string; url: string | null; dueDate: str
 export interface MarketerDue { name: string; count: number; dueCount: number; amount: number; currency: Currency; dueDate: string | null; people: ReferralPerson[]; }
 export interface MarketerUpcoming { name: string; count: number; amount: number; currency: Currency; dueDate: string; people: ReferralPerson[]; }
 export interface MarketerPayment { name: string; amount: number; paidAt: string; }
+export interface ReferralDue {
+  applicationId: string;
+  person: string;          // referred ambassador name
+  url: string | null;      // their LinkedIn profile
+  referrerName: string;
+  referrerId: string | null;
+  referrerSlug: string | null;
+  amount: number;
+  currency: Currency;
+  dueDate: string;         // maturation date (past for ready, future for upcoming)
+  status: "ready" | "upcoming";
+  payVia: string | null;   // referrer's payout method · details
+}
 export interface PaymentsDue {
   setup: DueItem[];        // setup fees due now / overdue (unpaid)
   monthly: DueItem[];      // monthly due now / overdue
   upcoming: DueItem[];     // due within the horizon (not yet due)
   marketers: MarketerDue[];// commissions ready to pay (onboarded + verified + matured)
   marketersUpcoming: MarketerUpcoming[]; // earned but still maturing (Level 4→5) — due later
+  referralsDue: ReferralDue[]; // per-person referral commissions still owed (ready + upcoming)
   marketerPayments: MarketerPayment[]; // referral commissions actually paid (drives ✓ Paid rows)
   totalDueNow: number;     // setup + monthly + marketer, due now (PH ₱ only — legacy)
   totalsByCurrency: Record<Currency, number>; // due-now totals split by currency
@@ -99,7 +113,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   const apps = await prisma.ambassadorApplication.findMany({
     where: { status: "onboarded" },
     select: {
-      fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
+      id: true, fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
       paymentMethod: true, paymentDetails: true, referredBy: true, referralSource: true, payoutCurrency: true, verifiedAt: true,
       status: true, accountIssue: true, onboardingMethod: true, onboardingVerified: true,
@@ -180,74 +194,76 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   const isMatured = (a: { status: string; verifiedAt: Date | string | null }) =>
     a.status === "onboarded" || (!!a.verifiedAt && Date.now() - new Date(a.verifiedAt).getTime() >= HOLD_MS);
   type RefPerson = { name: string; url: string | null; dueDate: string };
-  type Bucket = { count: number; amount: number; dueMs: number; people: RefPerson[] };
-  const earnedByRef = new Map<string, Bucket>();   // ready (matured)
-  const upcomingByRef = new Map<string, Bucket>();  // maturing
+  // Commission payouts. An ATTRIBUTED payout (ambassadorApplicationId) marks one specific
+  // referral paid; legacy lump payouts (no appId) are still netted by amount, oldest first.
+  const commPayouts = await prisma.payout.findMany({
+    where: { type: "commission", paidAt: { not: null } },
+    select: { referrerId: true, amount: true, paidAt: true, ambassadorApplicationId: true },
+  });
+  const paidAppIds = new Set(commPayouts.map((p) => p.ambassadorApplicationId).filter(Boolean) as string[]);
+  const legacyPaidByRefId = new Map<string, number>();
+  for (const p of commPayouts) if (!p.ambassadorApplicationId) legacyPaidByRefId.set(p.referrerId, (legacyPaidByRefId.get(p.referrerId) || 0) + Number(p.amount));
+
+  const earnedByRefSlug = new Map<string, typeof apps>();
   for (const a of apps) {
     const ref = (a.referredBy || "").trim().toLowerCase();
     if (!ref || !isReferralEarned(a)) continue;
-    const amt = referralCommissionAmount(a, currencyConfig(ref).referralTiers);
-    const matured = isMatured(a);
-    const bucket = matured ? earnedByRef : upcomingByRef;
-    const cur = bucket.get(ref) || { count: 0, amount: 0, dueMs: 0, people: [] };
-    cur.count++; cur.amount += amt;
-    const dm = a.verifiedAt ? new Date(a.verifiedAt).getTime() + HOLD_MS : Date.now();
-    cur.dueMs = matured ? Math.max(cur.dueMs, dm) : (cur.dueMs ? Math.min(cur.dueMs, dm) : dm);
-    cur.people.push({ name: a.fullName, url: a.linkedinUrl, dueDate: new Date(dm).toISOString() });
-    bucket.set(ref, cur);
+    const arr = earnedByRefSlug.get(ref) || [];
+    arr.push(a);
+    earnedByRefSlug.set(ref, arr);
   }
-  const refSlugs = [...new Set([...earnedByRef.keys(), ...upcomingByRef.keys()])];
-  // Every actually-paid commission payout (any referrer) — drives both the net-owed maths
-  // and the "✓ Paid" referral rows on the payouts page.
-  const commPayouts = await prisma.payout.findMany({
-    where: { type: "commission", paidAt: { not: null } },
-    select: { referrerId: true, amount: true, paidAt: true },
-  });
+  const refSlugs = [...earnedByRefSlug.keys()];
   const paidRefIds = [...new Set(commPayouts.map((p) => p.referrerId))];
   const referrers = (refSlugs.length || paidRefIds.length)
-    ? await prisma.referrer.findMany({ where: { OR: [{ slug: { in: refSlugs } }, { id: { in: paidRefIds } }] }, select: { id: true, name: true, slug: true } })
+    ? await prisma.referrer.findMany({ where: { OR: [{ slug: { in: refSlugs } }, { id: { in: paidRefIds } }] }, select: { id: true, name: true, slug: true, paymentMethod: true, paymentDetails: true } })
     : [];
   const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
   const refById = new Map(referrers.map((r) => [r.id, r]));
-  const paidByRefId = new Map<string, number>();
-  const marketerPayments: MarketerPayment[] = [];
-  for (const p of commPayouts) {
-    paidByRefId.set(p.referrerId, (paidByRefId.get(p.referrerId) || 0) + Number(p.amount));
-    marketerPayments.push({ name: refById.get(p.referrerId)?.name || p.referrerId, amount: Number(p.amount), paidAt: (p.paidAt as Date).toISOString() });
-  }
-  const marketers: MarketerDue[] = [];
-  for (const [slug, earned] of earnedByRef) {
-    const r = refBySlug.get(slug);
-    // Commission currency follows the referrer's own slug (r.slug when resolved, else
-    // the raw referredBy key — which is usually the slug anyway).
-    const cfg = currencyConfig(r?.slug || slug);
-    const paid = r ? paidByRefId.get(r.id) || 0 : 0;
-    const outstanding = Math.max(0, earned.amount - paid);
-    if (outstanding <= 0) continue;
-    // Commission is paid amount-first, so some earned referrals may already be covered.
-    // dueCount = the number the OUTSTANDING amount actually represents (avg rate), so the
-    // row doesn't say "2 referrals" when only one ₱500 commission is still owed.
-    const avg = earned.count ? earned.amount / earned.count : 0;
-    const dueCount = avg > 0 ? Math.min(earned.count, Math.max(1, Math.round(outstanding / avg))) : earned.count;
-    // Only show the referrals the OUTSTANDING amount still covers (some are already paid),
-    // so the row never says "2 people" next to a one-referral ₱500. Paid-first ≈ earliest
-    // matured, so the still-owed ones are the most recent — keep the last `dueCount`.
-    const sortedPeople = [...earned.people].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-    const shownPeople = sortedPeople.slice(-dueCount);
-    const dueDate = shownPeople.length ? shownPeople[0].dueDate : (earned.dueMs ? new Date(earned.dueMs).toISOString() : null);
-    marketers.push({ name: r?.name || slug, count: earned.count, dueCount, amount: outstanding, currency: cfg.currency, dueDate, people: shownPeople });
-  }
-  marketers.sort((a, b) => b.amount - a.amount);
+  const marketerPayments: MarketerPayment[] = commPayouts.map((p) => ({ name: refById.get(p.referrerId)?.name || p.referrerId, amount: Number(p.amount), paidAt: (p.paidAt as Date).toISOString() }));
 
-  // Upcoming referral commissions — accounts still maturing (Level 4→5). Not payable yet;
-  // each carries the maturation date it becomes due.
-  const marketersUpcoming: MarketerUpcoming[] = [];
-  for (const [slug, up] of upcomingByRef) {
+  // Per-person referral dues — one row per still-owed referral, tied to its applicationId.
+  const referralsDue: ReferralDue[] = [];
+  for (const [slug, list] of earnedByRefSlug) {
     const r = refBySlug.get(slug);
     const cfg = currencyConfig(r?.slug || slug);
-    marketersUpcoming.push({ name: r?.name || slug, count: up.count, amount: up.amount, currency: cfg.currency, dueDate: new Date(up.dueMs).toISOString(), people: up.people });
+    const payVia = r?.paymentDetails ? `${r.paymentMethod || "—"} · ${r.paymentDetails}` : null;
+    let legacyRemaining = r ? legacyPaidByRefId.get(r.id) || 0 : 0;
+    const sorted = [...list].sort((a, b) => (a.verifiedAt ? new Date(a.verifiedAt).getTime() : 0) - (b.verifiedAt ? new Date(b.verifiedAt).getTime() : 0));
+    for (const a of sorted) {
+      const amt = referralCommissionAmount(a, cfg.referralTiers);
+      if (paidAppIds.has(a.id)) continue;                          // explicitly paid to this person
+      if (legacyRemaining >= amt - 0.001) { legacyRemaining -= amt; continue; } // covered by a legacy lump payout
+      const matured = isMatured(a);
+      const dueMs = a.verifiedAt ? new Date(a.verifiedAt).getTime() + HOLD_MS : Date.now();
+      referralsDue.push({
+        applicationId: a.id, person: a.fullName, url: a.linkedinUrl,
+        referrerName: r?.name || slug, referrerId: r?.id || null, referrerSlug: r?.slug || null,
+        amount: amt, currency: cfg.currency, dueDate: new Date(dueMs).toISOString(),
+        status: matured ? "ready" : "upcoming", payVia,
+      });
+    }
   }
-  marketersUpcoming.sort((a, b) => a.dueDate.localeCompare(b.dueDate)); // soonest first
+  referralsDue.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  // Aggregate per referrer (backward-compat for the digest) from the per-person dues.
+  const aggReady = new Map<string, MarketerDue>();
+  const aggUp = new Map<string, MarketerUpcoming>();
+  for (const it of referralsDue) {
+    const person: RefPerson = { name: it.person, url: it.url, dueDate: it.dueDate };
+    if (it.status === "ready") {
+      const cur = aggReady.get(it.referrerName) || { name: it.referrerName, count: 0, dueCount: 0, amount: 0, currency: it.currency, dueDate: it.dueDate as string | null, people: [] as RefPerson[] };
+      cur.count++; cur.dueCount++; cur.amount += it.amount; cur.people.push(person);
+      if (!cur.dueDate || it.dueDate < cur.dueDate) cur.dueDate = it.dueDate;
+      aggReady.set(it.referrerName, cur);
+    } else {
+      const cur = aggUp.get(it.referrerName) || { name: it.referrerName, count: 0, amount: 0, currency: it.currency, dueDate: it.dueDate, people: [] as RefPerson[] };
+      cur.count++; cur.amount += it.amount; cur.people.push(person);
+      if (it.dueDate < cur.dueDate) cur.dueDate = it.dueDate;
+      aggUp.set(it.referrerName, cur);
+    }
+  }
+  const marketers = [...aggReady.values()].sort((a, b) => b.amount - a.amount);
+  const marketersUpcoming = [...aggUp.values()].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
   const sortByDue = (arr: DueItem[]) => arr.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   sortByDue(setup); sortByDue(monthly); sortByDue(upcoming);
@@ -258,5 +274,5 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   for (const i of monthly) totalsByCurrency[i.currency] += i.amount;
   for (const m of marketers) totalsByCurrency[m.currency] += m.amount;
 
-  return { setup, monthly, upcoming, marketers, marketersUpcoming, marketerPayments, totalDueNow: totalsByCurrency.PHP, totalsByCurrency, horizonDays };
+  return { setup, monthly, upcoming, marketers, marketersUpcoming, referralsDue, marketerPayments, totalDueNow: totalsByCurrency.PHP, totalsByCurrency, horizonDays };
 }
