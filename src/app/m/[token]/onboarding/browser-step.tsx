@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { countries } from "@/lib/countries";
 import styles from "./wizard.module.css";
+import TotpCode from "./totp";
 
 type BrowserSession = {
   id: string;
@@ -109,9 +110,11 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
           <input type="text" autoComplete="off" minLength={6} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="The LinkedIn password you just signed in with" />
         </label>
         <label className={styles.check}><input type="checkbox" checked={noKey} onChange={(e) => { setNoKey(e.target.checked); if (e.target.checked) setTwoFactorKey(""); }} /><span>We couldn&apos;t get the 2FA key. The team will set up two-step verification.</span></label>
-        {!noKey && <label className={styles.field}>The 2FA setup key
+        {!noKey && <><label className={styles.field}>The 2FA setup key
           <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} placeholder="e.g. JBSWY3DPEHPK3PXP" />
-        </label>}
+        </label>
+        <p className={styles.hint}>Paste LinkedIn&apos;s authenticator setup key and we&apos;ll show the 6-digit code to type back into LinkedIn — no separate app needed.</p>
+        <TotpCode secretKey={twoFactorKey.trim()} /></>}
       </div>
 
       <button className={styles.primary} disabled={busy || !canConfirm} onClick={() => void confirm({ password: password.trim(), twoFactorKey: noKey ? "" : twoFactorKey.trim() })}>{busy ? "Saving confirmation…" : "Confirm successful login ✓"}</button>
