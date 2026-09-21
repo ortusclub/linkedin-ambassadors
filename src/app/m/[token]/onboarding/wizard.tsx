@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { type CurrencyConfig } from "@/lib/referral-currency";
 import styles from "./wizard.module.css";
@@ -10,10 +10,10 @@ import PhoneHandoff from "./phone-handoff";
 import EmailStep, { type EmailSetup } from "./email-step";
 import { CoachTour, type TourStep } from "./coach-tour";
 
-// Per-page coach tours — the first time a referrer reaches each page they get a short
-// walkthrough of that screen. "Skip tour" stops all of them; each is also replayable.
-const TOUR_KEY = (page: string) => `lv_diy_tour_${page}`;
-const TOUR_ALL = "lv_diy_tour_all";
+// Per-page coach tours — a referrer gets a short walkthrough of each screen. The tour
+// keeps showing on every fresh onboarding until they've run BOTH a computer AND a phone
+// onboarding at least once (see `experienced`); until then suppression is in-memory only,
+// so it re-appears next time they open the wizard. "Skip tour" quiets it for that run.
 const PAGE_TOURS: Record<string, TourStep[]> = {
   before: [
     { title: "Welcome — quick tour", body: "You'll do this together with the account owner, on one device, in about 10 minutes. Here's the lay of the land." },
@@ -43,7 +43,7 @@ type Session = {
   confirmedAt: string | null; accountFreshness: string | null; setupDueAt: string | null; setupAmount: string;
   monthlyAmount: string; commission: string; verified: boolean;
 };
-type Bootstrap = { emailEnabled: boolean; phoneVerificationEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; sessions: { id: string; state: string; name: string }[] };
+type Bootstrap = { emailEnabled: boolean; phoneVerificationEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; doneComputer: boolean; donePhone: boolean; sessions: { id: string; state: string; name: string }[] };
 
 const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder: string; help: string }> = {
   GCash: { label: "GCash mobile number", type: "tel", placeholder: "+63 9XX XXX XXXX", help: "Enter the mobile number registered to their GCash account." },
@@ -75,6 +75,10 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [consent, setConsent] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  // In-memory tour suppression (per wizard load): which pages have been seen, and whether
+  // the whole run was skipped. Not persisted — so the tour returns on the next onboarding.
+  const tourSeen = useRef<Set<string>>(new Set());
+  const [tourSkipped, setTourSkipped] = useState(false);
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
   const [phoneBusy, setPhoneBusy] = useState(false);
@@ -129,14 +133,19 @@ export default function SelfServiceWizard({ token }: { token: string }) {
 
   // Which page's coach tour applies right now (null = no tour for this screen).
   const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : (step === 4 && browserMode === "") ? "signin" : null;
-  // First-timer coach tour — auto-shows once per page; "Skip tour" stops all of them.
+  // A referrer stops being a first-timer only once they've completed BOTH a computer and a
+  // phone onboarding. Until then the tour keeps returning on each fresh wizard load.
+  const experienced = !!bootstrap && bootstrap.doneComputer && bootstrap.donePhone;
+  // Auto-show each page's tour once per load, unless they're experienced or skipped this run.
   useEffect(() => {
-    if (!bootstrap || !tourKey) { setShowTour(false); return; }
-    try { if (!localStorage.getItem(TOUR_ALL) && !localStorage.getItem(TOUR_KEY(tourKey))) setShowTour(true); } catch { /* storage blocked */ }
-  }, [bootstrap, tourKey]);
+    if (!bootstrap || !tourKey || experienced || tourSkipped) { setShowTour(false); return; }
+    if (tourSeen.current.has(tourKey)) { setShowTour(false); return; }
+    setShowTour(true);
+  }, [bootstrap, tourKey, experienced, tourSkipped]);
   const endTour = (skipped: boolean) => {
     setShowTour(false);
-    try { if (tourKey) localStorage.setItem(TOUR_KEY(tourKey), "1"); if (skipped) localStorage.setItem(TOUR_ALL, "1"); } catch { /* ignore */ }
+    if (tourKey) tourSeen.current.add(tourKey);
+    if (skipped) setTourSkipped(true);
   };
 
   async function run(task: () => Promise<void>) {
@@ -291,7 +300,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           {step === 0 && <>
             <h1 className={styles.heroTitle}>Before you begin</h1>
             <p className={styles.lead}>You&apos;re the referrer. You&apos;re onboarding the <strong>account owner</strong> — the person whose LinkedIn this is. Six steps, about ten minutes, done together.</p>
-            <button type="button" className={styles.linkBtn} style={{ width: "auto", textAlign: "left", padding: "0 0 10px", color: "#15803d" }} onClick={() => setShowTour(true)}>New here? Take the quick tour →</button>
+            <button type="button" className={styles.linkBtn} style={{ width: "auto", textAlign: "left", padding: "0 0 10px", color: "#15803d" }} onClick={() => { if (tourKey) tourSeen.current.delete(tourKey); setTourSkipped(false); setShowTour(true); }}>New here? Take the quick tour →</button>
             <div className={styles.warn}>
               <div>Don&apos;t start unless they can stay</div>
               <p>LinkedIn will send codes and may ask them to confirm who they are. If they walk away halfway, the account can&apos;t be finished and nobody gets paid.</p>
