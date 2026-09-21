@@ -845,49 +845,60 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
           )}
 
           {/* Email the referrer a guided fix for a common problem. Each button tracks its
-              own state: not sent → sent & with the referrer → they marked it done, recheck. */}
+              own state (send → sent/with referrer → they fixed it, check), and once sent
+              shows its own reminder + WhatsApp/Telegram links right underneath it. */}
           {r.referredBy && (() => {
             const FIX_FOR: Record<string, "email_added" | "email_primary" | "twofa" | "password"> = { email_not_added: "email_added", email_not_primary: "email_primary", twofa_not_set: "twofa", password_incorrect: "password" };
             const fixState = r.onboardingFix?.state;
             const resolveIssue = (fk: string) => { const cur = r.onboardingFix?.issues || []; const rem = cur.filter((x) => x !== fk); workflow(r.id, { setOnboardingFix: rem.length ? { issues: rem, state: r.onboardingFix?.state || "open", raisedAt: r.onboardingFix?.raisedAt || new Date().toISOString() } : null }); };
-            // Open (sent, not-yet-done) issues → build a reminder message + click-to-send links.
-            const FIX_LABEL: Record<string, string> = { email_added: "add our email to the account", email_primary: "make our email the primary one", twofa: "set up 2FA", password: "send us the correct password" };
-            const openFixKeys = (r.onboardingFix && r.onboardingFix.state !== "referrer_done") ? r.onboardingFix.issues : [];
-            const openIssueKeys = Object.entries(FIX_FOR).filter(([, fk]) => openFixKeys.includes(fk)).map(([ik]) => ik);
             const ref = r.referrer;
-            const reminderMsg = openFixKeys.length ? `Hi ${ref?.name || "there"}, quick reminder about ${r.fullName}'s LinkedIn onboarding — we still need you to: ${openFixKeys.map((k) => FIX_LABEL[k]).join("; ")}. Full steps are in the email we sent you. Thanks!` : "";
-            const waLink = ref?.whatsapp ? `https://wa.me/${ref.whatsapp}?text=${encodeURIComponent(reminderMsg)}` : null;
-            const tgLink = ref?.telegram ? `https://t.me/${ref.telegram}` : null;
+            const refName = ref?.name || "there";
+            const lvEmail = r.loginEmail || "the LinkedVelocity email we gave you";
+            // Name followed by the profile URL, so every message identifies the exact account.
+            const who = `${r.fullName}${r.linkedinUrl ? ` (${r.linkedinUrl})` : ""}`;
+            // Self-contained per-issue message (WhatsApp/Telegram) — assumes they haven't
+            // read the email and walks them through what's needed for THIS issue.
+            const MSG: Record<string, string> = {
+              email_not_added: `Hi ${refName}, we're onboarding ${who} with LinkedVelocity but our email isn't on the account yet. Could you ask ${r.fullName} to add our email (${lvEmail}) in LinkedIn → Settings & Privacy → Sign in & security → Email addresses → "Add email address"? LinkedIn sends it a confirmation link (we receive it on our side), then it needs to be set as the primary email. Thanks!`,
+              email_not_primary: `Hi ${refName}, our email is on ${who} but it isn't set as PRIMARY yet. Could you ask ${r.fullName} to open LinkedIn → Settings & Privacy → Sign in & security → Email addresses and tap "Make primary" next to ${lvEmail}? Thanks!`,
+              twofa_not_set: `Hi ${refName}, we need two-step verification (2FA) set up on ${who}. Ask ${r.fullName} to go to Settings & Privacy → Sign in & security → Two-step verification → Authenticator app, then send us the SECRET KEY (tap "Can't scan the QR code?" to reveal it) — not a 6-digit code. Thanks!`,
+              password_incorrect: `Hi ${refName}, the password we have for ${who} isn't working. Could you confirm the correct password with ${r.fullName} (or reset it via Settings & Privacy → Sign in & security → Change password) and send it to us? Thanks!`,
+            };
             return (
-            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16, padding: "10px 12px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
-              <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Onboarding issues · email referrer ({r.referredBy})</span>
-              {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"], ["password_incorrect", "Password incorrect"]] as [string, string][]).map(([key, label]) => {
-                const fk = FIX_FOR[key];
-                const raised = !!r.onboardingFix?.issues.includes(fk);
-                const done = raised && fixState === "referrer_done";
-                const st = done
-                  ? { color: "var(--purple-chip-text,#6b3fd4)", background: "var(--purple-chip-bg,#efe7fd)", border: "1px solid var(--purple-chip-text,#6b3fd4)", text: `✓ ${label} — they fixed it, check`, tip: "Referrer marked this done. Verify it, then click to clear it." }
-                  : raised
-                    ? { color: "var(--warn-badge-text,#b7791f)", background: "var(--warn-badge-bg,#fef3e2)", border: "1px solid var(--warn-badge-text,#b7791f)", text: `⏳ ${label} — sent, with referrer`, tip: "Emailed — waiting on the referrer. Click to re-send." }
-                    : { color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", text: `✉ ${label}`, tip: "Email the referrer this fix (also raises it on their portal)." };
-                return (
-                  <button key={key} onClick={(e) => { e.stopPropagation(); if (done) void resolveIssue(fk); else void emailIssue(r, key); }} disabled={busy} title={st.tip}
-                    style={{ font: `700 11px ${F_SANS}`, color: st.color, background: st.background, border: st.border, padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{st.text}</button>
-                );
-              })}
-              <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} title="Open this referrer on the Referrals page"
-                style={{ marginLeft: "auto", font: `700 11px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "transparent", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, textDecoration: "none", whiteSpace: "nowrap" }}>View referrer →</a>
-
-              {/* Reminder row — appears once an issue is sent & still open. Email re-send
-                  always; WhatsApp / Telegram links only when the referrer has that channel. */}
-              {openFixKeys.length > 0 && (
-                <div style={{ width: "100%", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 2, paddingTop: 9, borderTop: "1px dashed var(--line,#e3e6ea)" }}>
-                  <span style={{ font: `600 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Send a reminder →</span>
-                  <button onClick={(e) => { e.stopPropagation(); openIssueKeys.forEach((k) => void emailIssue(r, k)); }} disabled={busy} title="Re-send the email for the open issue(s)" style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "transparent", border: "1px solid var(--line,#d6e4fb)", padding: "5px 10px", borderRadius: 7, cursor: busy ? "wait" : "pointer" }}>↻ Email reminder</button>
-                  {waLink && <a href={waLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Opens WhatsApp on your desktop with the reminder pre-filled — just press send" style={{ font: `700 11px ${F_SANS}`, color: "#0b7a63", background: "#e7f7f2", border: "1px solid #9fdccb", padding: "5px 10px", borderRadius: 7, textDecoration: "none" }}>🟢 WhatsApp reminder</a>}
-                  {tgLink && <a href={tgLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title={`Opens the Telegram chat with ${ref?.name || "the referrer"} — paste: ${reminderMsg}`} style={{ font: `700 11px ${F_SANS}`, color: "#2481cc", background: "#e8f3fb", border: "1px solid #a9d3ef", padding: "5px 10px", borderRadius: 7, textDecoration: "none" }}>✈ Telegram</a>}
-                </div>
-              )}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 10, marginBottom: 16, padding: "10px 12px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Onboarding issues · email referrer ({r.referredBy})</span>
+                <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} title="Open this referrer on the Referrals page"
+                  style={{ marginLeft: "auto", font: `700 11px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "transparent", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, textDecoration: "none", whiteSpace: "nowrap" }}>View referrer →</a>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-start" }}>
+                {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"], ["password_incorrect", "Password incorrect"]] as [string, string][]).map(([key, label]) => {
+                  const fk = FIX_FOR[key];
+                  const raised = !!r.onboardingFix?.issues.includes(fk);
+                  const done = raised && fixState === "referrer_done";
+                  const st = done
+                    ? { color: "var(--purple-chip-text,#6b3fd4)", background: "var(--purple-chip-bg,#efe7fd)", border: "1px solid var(--purple-chip-text,#6b3fd4)", text: `✓ ${label} — they fixed it, check`, tip: "Referrer marked this done. Verify it, then click to clear it." }
+                    : raised
+                      ? { color: "var(--warn-badge-text,#b7791f)", background: "var(--warn-badge-bg,#fef3e2)", border: "1px solid var(--warn-badge-text,#b7791f)", text: `⏳ ${label} — sent, with referrer`, tip: "Emailed — waiting on the referrer. Click to re-send." }
+                      : { color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", text: `✉ ${label}`, tip: "Email the referrer this fix (also raises it on their portal)." };
+                  const openHere = raised && !done;
+                  const waLink = ref?.whatsapp ? `https://wa.me/${ref.whatsapp}?text=${encodeURIComponent(MSG[key])}` : null;
+                  const tgLink = ref?.telegram ? `https://t.me/${ref.telegram}` : null;
+                  return (
+                    <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <button onClick={(e) => { e.stopPropagation(); if (done) void resolveIssue(fk); else void emailIssue(r, key); }} disabled={busy} title={st.tip}
+                        style={{ font: `700 11px ${F_SANS}`, color: st.color, background: st.background, border: st.border, padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap", textAlign: "left" }}>{st.text}</button>
+                      {openHere && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingLeft: 2 }}>
+                          <button onClick={(e) => { e.stopPropagation(); void emailIssue(r, key); }} disabled={busy} title="Re-send this email to the referrer" style={{ font: `600 10.5px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "transparent", border: "1px solid var(--line,#d6e4fb)", padding: "4px 9px", borderRadius: 7, cursor: busy ? "wait" : "pointer" }}>↻ Email reminder</button>
+                          {waLink && <a href={waLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Opens WhatsApp on your desktop with the full message pre-filled — just press send" style={{ font: `700 10.5px ${F_SANS}`, color: "#0b7a63", background: "#e7f7f2", border: "1px solid #9fdccb", padding: "4px 9px", borderRadius: 7, textDecoration: "none" }}>🟢 WhatsApp</a>}
+                          {tgLink && <a href={tgLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title={`Opens the Telegram chat with ${refName} — paste: ${MSG[key]}`} style={{ font: `700 10.5px ${F_SANS}`, color: "#2481cc", background: "#e8f3fb", border: "1px solid #a9d3ef", padding: "4px 9px", borderRadius: 7, textDecoration: "none" }}>✈ Telegram</a>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             );
           })()}

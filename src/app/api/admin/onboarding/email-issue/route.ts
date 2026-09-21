@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     // don't trust a client-supplied recipient). Fall back to a passed slug.
     const app = await prisma.ambassadorApplication.findUnique({
       where: { id },
-      select: { fullName: true, referredBy: true, outreachLog: true, onboardingFix: true },
+      select: { fullName: true, referredBy: true, outreachLog: true, onboardingFix: true, linkedinUrl: true },
     });
     if (!app) return NextResponse.json({ error: "Application not found" }, { status: 404 });
     const slug = (app.referredBy || referrerSlug || "").trim();
@@ -109,7 +109,10 @@ export async function POST(req: Request) {
     // a re-check on our side, so the referrer doesn't have to log into the portal.
     const base = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
     const doneLink = `${base}/m/${referrer.token}/fixed?app=${id}`;
+    // Identify the exact account: name followed by the LinkedIn profile URL.
+    const who = `${name}${app.linkedinUrl ? ` — ${app.linkedinUrl}` : ""}`;
     const text =
+      `This is about ${who}\n\n` +
       tpl.body(name, lv) +
       `\n\n— When it's done —\n` +
       `Once you've sorted it, just click here and we'll mark it as fixed and re-check the account for you:\n${doneLink}\n`;
