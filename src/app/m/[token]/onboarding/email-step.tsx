@@ -8,6 +8,7 @@ export type EmailSetup = {
   configured: boolean; domains: string[]; address: string | null; destination: string | null;
   destinationVerified: boolean; verificationCodePending: boolean; primaryConfirmed: boolean; forwardingActive: boolean;
   forwardingUntil: string | null; lastForwardedAt: string | null; primaryConfirmedAt: string | null;
+  confirmUrl: string | null;
 };
 
 const MINI_STEPS = ["Code inbox", "Add email", "Verify email", "Make primary"];
@@ -15,7 +16,7 @@ const MINI_STEPS = ["Code inbox", "Add email", "Verify email", "Make primary"];
 export default function EmailStep({ setup, busy, submit, refresh }: {
   setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>; refresh: () => Promise<void>;
 }) {
-  const initialStep = !setup.forwardingActive ? 1 : setup.lastForwardedAt ? 3 : 2;
+  const initialStep = !setup.forwardingActive ? 1 : (setup.lastForwardedAt || setup.confirmUrl) ? 3 : 2;
   const [miniStep, setMiniStep] = useState(initialStep);
   const [destination, setDestination] = useState(setup.destination || "");
   const [consent, setConsent] = useState(false);
@@ -23,12 +24,19 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
   const [linkConfirmed, setLinkConfirmed] = useState(false);
   const [primary, setPrimary] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmCopied, setConfirmCopied] = useState(false);
 
   function copyAddress() {
     if (!setup.address) return;
     navigator.clipboard?.writeText(setup.address);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
+  }
+  function copyConfirm() {
+    if (!setup.confirmUrl) return;
+    navigator.clipboard?.writeText(setup.confirmUrl);
+    setConfirmCopied(true);
+    setTimeout(() => setConfirmCopied(false), 1800);
   }
 
   async function restart() {
@@ -130,7 +138,13 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
       {miniStep === 3 && setup.forwardingActive && <section className={styles.miniPanel}>
         <div className={styles.stepLabel}>EMAIL STEP 3 OF 4</div>
         <h3>Verify the email address</h3>
-        {setup.lastForwardedAt ? <>
+        {setup.confirmUrl ? <>
+          <div className={styles.note}>LinkedIn&apos;s confirmation link came through. Open it here, or copy it and send it to the owner — it has to be opened <strong>on the device where they&apos;re logged into LinkedIn</strong>.</div>
+          <a className={styles.primary} href={setup.confirmUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>Open LinkedIn&apos;s confirmation link →</a>
+          <button type="button" className={styles.secondary} onClick={copyConfirm}>{confirmCopied ? "Link copied ✓" : "Copy link to send the owner"}</button>
+          <label className={styles.check}><input type="checkbox" checked={linkConfirmed} onChange={e => setLinkConfirmed(e.target.checked)} /><span>The owner opened the link and the new email now shows as verified on LinkedIn.</span></label>
+          <button className={styles.primary} disabled={!linkConfirmed} onClick={() => setMiniStep(4)}>Continue to make it primary →</button>
+        </> : setup.lastForwardedAt ? <>
           <div className={styles.note}>LinkedIn&apos;s verification message was forwarded to <strong>{setup.destination}</strong>.</div>
           <ol className={styles.instructions}>
             <li>Open <strong>{setup.destination}</strong>.</li>
@@ -140,8 +154,8 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
           <label className={styles.check}><input type="checkbox" checked={linkConfirmed} onChange={e => setLinkConfirmed(e.target.checked)} /><span>The owner opened the LinkedIn verification link and the new email now shows as verified.</span></label>
           <button className={styles.primary} disabled={!linkConfirmed} onClick={() => setMiniStep(4)}>Continue to make it primary →</button>
         </> : <>
-          <div className={styles.note}>The LinkedIn message has not arrived yet. Request the verification email from LinkedIn, then check again.</div>
-          <button className={styles.primary} disabled={busy} onClick={() => void refresh()}>{busy ? "Checking…" : "Check for the LinkedIn email"}</button>
+          <div className={styles.note}>Waiting for LinkedIn&apos;s confirmation. Once the owner adds the email it usually arrives in a moment — tap to check. If it&apos;s slow, have them tap <strong>resend</strong> on LinkedIn; it&apos;ll come through here whenever it lands, no time limit.</div>
+          <button className={styles.primary} disabled={busy} onClick={() => void refresh()}>{busy ? "Checking…" : "Check for LinkedIn&apos;s link"}</button>
         </>}
         <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
       </section>}
@@ -162,7 +176,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
           <div><strong>Video walkthrough coming soon</strong><small>A short recording will show how to add, verify and make the LinkedVelocity email primary.</small></div>
         </div>
         <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>I can see <strong>{setup.address}</strong> set as the <strong>primary</strong> email in the owner&apos;s LinkedIn — not just added. The owner agrees to continue.</span></label>
-        <button className={styles.primary} disabled={busy || !primary || !setup.lastForwardedAt} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to GoLogin →</button>
+        <button className={styles.primary} disabled={busy || !primary || !(setup.lastForwardedAt || setup.confirmUrl)} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to GoLogin →</button>
         <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
       </section>}
     </>}
