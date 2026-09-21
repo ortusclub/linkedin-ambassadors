@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
-interface Signup { name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | null; }
+interface Signup { name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -100,11 +100,30 @@ const C = {
   green: "#16a34a", greenDk: "#15803d", softGreen: "#f0faf4", softGreenBorder: "#c3ebd2",
   dark: "#0b1220", warn: "#9a3412", warnBg: "#fff7ed", warnBorder: "#fed7aa",
   blueInk: "#1e3a8a", blueBg: "#f1f5ff", blueBorder: "#c7d7fe",
+  red: "#b91c1c", redBg: "#fdf0f0", redBorder: "#f5c2c2",
   accBg: "#f0faf4", accFg: "#15803d", pendBg: "#eef1f5", pendFg: "#647189",
   inputBg: "#f7f8fa", inputBorder: "#e3e6ea",
 };
 
 type Tab = "home" | "jobs" | "money" | "guide" | "you";
+
+// Filter chips on the "Your onboardings" tab, by signup kind.
+type JobFilter = "all" | "action" | "blocked" | "waiting" | "paid";
+const JOB_FILTERS: { id: JobFilter; label: string; empty: string; test: (s: Signup) => boolean }[] = [
+  { id: "all", label: "Everyone", empty: "here", test: () => true },
+  { id: "action", label: "Needs you", empty: "needs you right now", test: (s) => s.kind === "action" },
+  { id: "blocked", label: "Restricted", empty: "restricted", test: (s) => s.kind === "blocked" },
+  { id: "waiting", label: "With us", empty: "waiting on us", test: (s) => s.kind === "waiting" },
+  { id: "paid", label: "Paid", empty: "paid yet", test: (s) => s.kind === "paid" },
+];
+
+// The owner clears a LinkedIn restriction themselves on their own phone — steps for the sheet.
+const LOCK_STEPS = [
+  { t: "They open LinkedIn on their own phone", s: "The lock screen appears as soon as they try to use the account." },
+  { t: "They follow the check LinkedIn asks for", s: "Usually scanning a QR code, sometimes a selfie or an ID photo." },
+  { t: "Wait for the confirmation", s: "Minutes for a QR scan, up to a day or two for an ID review." },
+  { t: "Come back and finish the sign-in", s: "Nothing you entered is lost — the onboarding resumes where it stopped." },
+];
 
 export default function Portal({ token }: { token: string }) {
   const [data, setData] = useState<Data | null>(null);
@@ -115,6 +134,8 @@ export default function Portal({ token }: { token: string }) {
   const [saved, setSaved] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [readyOpen, setReadyOpen] = useState(false);
+  const [jobFilter, setJobFilter] = useState<JobFilter>("all");
+  const [lockName, setLockName] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [faqOpen, setFaqOpen] = useState<Set<string>>(new Set());
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -368,11 +389,29 @@ export default function Portal({ token }: { token: string }) {
                 <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.muted, margin: "0 0 14px" }}>Once someone signs up through your code — or you start a guided onboarding — they show up here.</p>
                 <button onClick={() => setReadyOpen(true)} style={{ font: `700 13.5px ${JAK}`, color: "#fff", background: C.green, border: "none", padding: "13px 18px", borderRadius: 11, cursor: "pointer" }}>Start your first onboarding</button>
               </div>
-            ) : signups.map((s, i) => {
+            ) : (<>
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 16 }}>
+                {JOB_FILTERS.map((f) => {
+                  const on = jobFilter === f.id;
+                  const n = f.id === "all" ? 0 : signups.filter(f.test).length;
+                  return (
+                    <button key={f.id} onClick={() => setJobFilter(f.id)} style={{ font: `700 12px ${JAK}`, padding: "9px 13px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", ...(on ? { background: C.dark, color: "#fff", border: "none" } : { background: "#fff", color: C.slate, border: `1px solid ${C.inputBorder}` }) }}>{f.label}{f.id === "all" ? "" : ` ${n}`}</button>
+                  );
+                })}
+              </div>
+              {(() => {
+              const shown = signups.filter((JOB_FILTERS.find((f) => f.id === jobFilter) || JOB_FILTERS[0]).test);
+              if (shown.length === 0) return (
+                <div style={{ ...card, textAlign: "center", padding: "22px 18px" }}>
+                  <div style={{ font: `700 14px ${JAK}`, color: C.ink, marginBottom: 4 }}>Nothing {(JOB_FILTERS.find((f) => f.id === jobFilter) || {}).empty}</div>
+                  <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.muted, margin: 0 }}>Tap &ldquo;Everyone&rdquo; to see the rest.</p>
+                </div>
+              );
+              return shown.map((s, i) => {
               const initials = ((s.name || "").trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") || "?").toUpperCase();
-              const fg = { green: C.greenDk, blue: "#2563eb", amber: "#c2410c" }[s.pill.tone];
-              const bg = { green: C.softGreen, blue: "#eef4ff", amber: C.warnBg }[s.pill.tone];
-              const bd = { green: C.softGreenBorder, blue: "#c7d7fe", amber: C.warnBorder }[s.pill.tone];
+              const fg = { green: C.greenDk, blue: "#2563eb", amber: "#c2410c", red: C.red }[s.pill.tone];
+              const bg = { green: C.softGreen, blue: "#eef4ff", amber: C.warnBg, red: C.redBg }[s.pill.tone];
+              const bd = { green: C.softGreenBorder, blue: "#c7d7fe", amber: C.warnBorder, red: C.redBorder }[s.pill.tone];
               return (
                 <div key={i} style={card}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -395,10 +434,16 @@ export default function Portal({ token }: { token: string }) {
                     <span style={{ font: `500 11.5px ${JAK}`, color: C.muted }}>{s.path}</span>
                     <span style={{ marginLeft: "auto", font: `700 12.5px ${GRO}`, color: C.ink, whiteSpace: "nowrap" }}>{s.fee}</span>
                   </div>
-                  {s.action && <a href={`/m/${token}/onboarding`} style={{ display: "block", width: "100%", marginTop: 12, textAlign: "center", font: `700 13.5px ${JAK}`, color: "#fff", background: C.dark, padding: 13, borderRadius: 11, textDecoration: "none" }}>{s.action === "resume" ? "Resume onboarding" : "Onboard them now"}</a>}
+                  {s.action === "clear" ? (
+                    <button onClick={() => setLockName(s.name)} style={{ display: "block", width: "100%", marginTop: 12, font: `700 13.5px ${JAK}`, color: "#fff", background: C.red, border: "none", padding: 13, borderRadius: 11, cursor: "pointer" }}>See how to clear it</button>
+                  ) : s.action ? (
+                    <a href={`/m/${token}/onboarding`} style={{ display: "block", width: "100%", marginTop: 12, textAlign: "center", font: `700 13.5px ${JAK}`, color: "#fff", background: C.dark, padding: 13, borderRadius: 11, textDecoration: "none" }}>{s.action === "resume" ? "Resume onboarding" : "Onboard them now"}</a>
+                  ) : null}
                 </div>
               );
-            })}
+            });
+            })()}
+            </>)}
 
             {signups.length > 0 && (
               <div style={{ background: C.card, border: `1px dashed #d8dce3`, borderRadius: 16, padding: 18, textAlign: "center", marginBottom: 8 }}>
@@ -809,6 +854,29 @@ export default function Portal({ token }: { token: string }) {
               ))}
               <a href={`/m/${token}/onboarding`} style={{ display: "block", width: "100%", marginTop: 16, textAlign: "center", font: `700 15px ${JAK}`, color: "#fff", background: C.green, padding: 15, borderRadius: 13, textDecoration: "none" }}>I&apos;m with them — start →</a>
               <button onClick={() => setReadyOpen(false)} style={{ width: "100%", marginTop: 8, font: `700 13.5px ${JAK}`, color: C.slate, background: "none", border: "none", padding: 11, cursor: "pointer" }}>Not now</button>
+            </div>
+          </div>
+        )}
+
+        {/* Restricted / "how to clear it" sheet */}
+        {lockName !== null && (
+          <div onClick={() => setLockName(null)} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(9,17,12,.5)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "#fff", borderRadius: "22px 22px 0 0", padding: "22px 20px 26px" }}>
+              <div style={{ width: 38, height: 4, borderRadius: 999, background: C.inputBorder, margin: "0 auto 16px" }} />
+              <div style={{ font: `600 19px ${GRO}`, color: C.ink, marginBottom: 5 }}>Clearing a LinkedIn lock</div>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate, margin: "0 0 14px" }}>Common on newer accounts, and almost always temporary. <strong>They</strong> do this on their own phone — you can&apos;t clear it for them.</p>
+              {LOCK_STEPS.map((l, i) => (
+                <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start", padding: "11px 0", borderTop: `1px solid ${C.line2}` }}>
+                  <span style={{ width: 20, height: 20, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 10px ${GRO}`, background: C.dark, color: "#fff" }}>{i + 1}</span>
+                  <div>
+                    <div style={{ font: `600 13px ${JAK}`, color: C.ink }}>{l.t}</div>
+                    <div style={{ font: `500 12px/1.45 ${JAK}`, color: C.muted, marginTop: 2 }}>{l.s}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ background: C.warnBg, border: `1px solid ${C.warnBorder}`, borderRadius: 12, padding: 13, marginTop: 13, font: `500 12.5px/1.5 ${JAK}`, color: C.warn }}>If it needs an ID check, they photograph their own ID in LinkedIn&apos;s screen. We never see it and never ask for a copy.</div>
+              <a href={`/m/${token}/onboarding`} style={{ display: "block", textAlign: "center", marginTop: 14, font: `700 13.5px ${JAK}`, color: C.ink, background: C.line2, border: `1px solid ${C.inputBorder}`, padding: 14, borderRadius: 13, textDecoration: "none" }}>It&apos;s cleared — resume the onboarding</a>
+              <button onClick={() => setLockName(null)} style={{ width: "100%", marginTop: 8, font: `700 13.5px ${JAK}`, color: C.slate, background: "none", border: "none", padding: 11, cursor: "pointer" }}>Close</button>
             </div>
           </div>
         )}

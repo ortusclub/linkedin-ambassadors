@@ -89,24 +89,33 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       const path = method === "computer" ? `Guided · computer${a.onboardingVerified ? " · verified" : ""}`
         : method === "phone" ? "Guided · phone hand-off"
         : isDiy ? "Guided" : "Form only";
-      let pill: { text: string; tone: "green" | "blue" | "amber" }, line: string, sub: string, progress: number, action: "resume" | "onboard" | null = null, fee: string;
+      // A LinkedIn restriction mid-onboarding (accountIssue) is a distinct, actionable
+      // state that takes precedence over "resume"/"verifying" — nothing pays out until the
+      // owner clears it. A paid signup that is later restricted stays Paid (see referrals.ts).
+      const restricted = !paid && !!a.accountIssue;
+      let pill: { text: string; tone: "green" | "blue" | "amber" | "red" }, line: string, sub: string, progress: number, action: "resume" | "onboard" | "clear" | null = null, fee: string, kind: "action" | "blocked" | "waiting" | "paid";
       if (paid) {
-        pill = { text: "Paid", tone: "green" }; progress = 6;
+        kind = "paid"; pill = { text: "Paid", tone: "green" }; progress = 6;
         line = "Done — account is live"; sub = "Setup fee paid and your commission is in."; fee = `${money(amount)} paid`;
+      } else if (restricted) {
+        kind = "blocked"; pill = { text: "Restricted", tone: "red" }; progress = 5; action = "clear";
+        line = "LinkedIn locked the account";
+        sub = "They need to clear it on their own phone — usually scanning a QR code — then you can finish the sign-in. Nothing pays out until it's done.";
+        fee = `${money(amount)} on completion`;
       } else if (onboarded) {
-        pill = { text: "Verifying", tone: "blue" }; progress = 5;
+        kind = "waiting"; pill = { text: "Verifying", tone: "blue" }; progress = 5;
         line = "Our team is verifying the account"; sub = "Nothing for you to do — the check releases payment."; fee = `${money(amount)} pending`;
       } else if (state === "handed_off") {
-        pill = { text: "Verifying", tone: "blue" }; progress = 4;
+        kind = "waiting"; pill = { text: "Verifying", tone: "blue" }; progress = 4;
         line = "You handed the sign-in to us"; sub = "Our team does the GoLogin sign-in, then verifies."; fee = `${money(amount)} pending`;
       } else if (isDiy) {
-        pill = { text: "Resume", tone: "amber" }; progress = 3; action = "resume";
+        kind = "action"; pill = { text: "Resume", tone: "amber" }; progress = 3; action = "resume";
         line = "Left off mid-onboarding"; sub = "Pick up where you left off while they're still with you."; fee = range(t.phone.base, t.computer.verified);
       } else {
-        pill = { text: "No call booked", tone: "amber" }; progress = 1; action = "onboard";
+        kind = "action"; pill = { text: "No call booked", tone: "amber" }; progress = 1; action = "onboard";
         line = "Form in — not onboarded yet"; sub = "They filled your form. Onboard them now, or get a call booked."; fee = money(t.referral);
       }
-      return { name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action };
+      return { name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind };
     });
 
   return NextResponse.json({
