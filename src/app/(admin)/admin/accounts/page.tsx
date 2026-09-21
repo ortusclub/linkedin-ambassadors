@@ -226,20 +226,27 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   // being built, so it stays in Construction (badged "Initial restriction", and sorted
   // to the bottom of the section). A repeat offender always drops to Maintenance.
   if (a.restrictedAt) return (isFirstRestriction(a) && (a.connectionCount ?? 0) < CONSTRUCTION_MAX) ? "Construction" : "Maintenance";
-  // Non-restricted catch-all (under_review / maintenance / unavailable / …) → split by
-  // size. A small account only counts as "Construction" (warming up) once we've paid the
-  // setup fee — i.e. it's fully onboarded and in-hand. An unpaid small account isn't
-  // inventory we're warming up yet, so it reads as "Initial" (not started) until payment.
+  // Non-restricted catch-all (under_review / unavailable / maintenance). Maintenance is a
+  // PROBLEM state — an account that was live and now needs fixing. Restricted and 2FA are
+  // handled above; the only other way in is an admin explicitly setting DB status
+  // "maintenance". We NEVER derive Maintenance from connection count — a healthy onboarded
+  // account with lots of connections is not "in maintenance", it's just not listed yet.
+  if (a.status === "maintenance") return "Maintenance";
+  // Small accounts still gate on the setup fee: paid = onboarded and warming up
+  // (Construction); unpaid = not started yet (Initial, held out of inventory).
   if ((a.connectionCount ?? 0) < CONSTRUCTION_MAX) return a.ownerSetupPaidAt ? "Construction" : "Initial";
-  return "Maintenance";
+  // A larger account is clearly in-hand inventory being prepped for listing. It reads as
+  // Construction until an admin flips it to Available. We never derive Maintenance (a
+  // problem state) or Initial (not started) from connection count alone.
+  return "Construction";
 };
 const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
   { key: "Restricted", hint: "LinkedIn-restricted — access paused while it recovers", dot: "var(--st-unreach-fg)" },
-  { key: "Construction", hint: `newer account still warming up — under ${CONSTRUCTION_MAX} connections`, dot: "var(--st-construct-fg)" },
-  { key: "Maintenance", hint: "stable account temporarily off — paused, vetting, or 2FA/setup", dot: "var(--neutral-chip-text)" },
+  { key: "Construction", hint: "onboarded, being prepped — not yet flipped to Available", dot: "var(--st-construct-fg)" },
+  { key: "Maintenance", hint: "was live, now needs fixing — 2FA/restriction/post-rental, or manually set", dot: "var(--neutral-chip-text)" },
   { key: "Inaccessible", hint: "retired — can no longer be used", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
   { key: "Showcase", hint: "public-catalogue demo accounts — not real inventory", dot: "var(--warn-badge-text)" },
