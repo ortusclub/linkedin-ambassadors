@@ -364,6 +364,32 @@ export default function AdminPipelinePage() {
     } finally { setBusy(null); }
   };
   const workflow = async (id: string, patch: Record<string, unknown>) => { setBusy(id); try { await patchApp(id, patch, true); } finally { setBusy(null); } };
+
+  // Create GoLogin button — runs the same provisioning the cron does for one account
+  // (profile + proxy + share link). Reports if no free proxy of the right tier.
+  const provisionGologin = async (r: Row) => {
+    if (!r.accountId) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/provision-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(typeof d.error === "string" ? d.error : `Could not create GoLogin (${res.status}).`); }
+      else if (d.result?.proxy === "flagged") { alert(`GoLogin profile created, but no free proxy of the right type — the account is flagged "${d.result.provisionStatus}". Add a proxy and it'll finish (share link included) on the next run.`); }
+      else if (d.result?.errors?.length) { alert(`Partly done: ${d.result.errors.join("; ")}`); }
+      await load();
+    } finally { setBusy(null); }
+  };
+
+  // Email the referrer a guided fix for a common problem.
+  const emailIssue = async (r: Row, issue: string) => {
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/email-issue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, issue, loginEmail: r.loginEmail, ambassadorName: r.fullName, referrerSlug: r.referredBy }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not send (${res.status}).`);
+      else { alert(`Emailed ${d.to} about: ${d.issueLabel}.`); await load(); }
+    } finally { setBusy(null); }
+  };
   // Change stage keeping the model consistent: Level 2 (approved) ALWAYS means logged in,
   // so stamp onboardedAt when moving there; Level 1 (onboarding) means not logged in yet,
   // so clear it. Everything else goes through the guarded status route.
@@ -627,6 +653,7 @@ export default function AdminPipelinePage() {
           {g.items.map((r) => (
             <Card key={r.id} r={r} busy={busy === r.id} open={open.has(r.id)} onToggle={() => toggle(r.id)}
               patchApp={patchApp} patchAccount={patchAccount} setStage={changeStatus} workflow={workflow}
+              provisionGologin={provisionGologin} emailIssue={emailIssue}
               logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} onDeleteApp={() => deleteApp(r)} />
           ))}
         </GroupSection>
@@ -708,7 +735,7 @@ function Note({ label, children }: { label: string; children: React.ReactNode })
 
 const GRID4: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "12px 14px" };
 
-function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workflow, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
+function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workflow, provisionGologin, emailIssue, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
   r: Row; busy: boolean; open: boolean; onToggle: () => void;
   onFilterText: (t: string) => void;
   onDeleteApp: () => void;
@@ -716,6 +743,8 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
   patchAccount: (id: string, accountId: string, patch: Record<string, unknown>, reload?: boolean) => void;
   setStage: (r: Row, s: Status) => void;
   workflow: (id: string, patch: Record<string, unknown>) => void;
+  provisionGologin: (r: Row) => void;
+  emailIssue: (r: Row, issue: string) => void;
   logTouch: (id: string, ch: string, text: string, by: string) => Promise<void>;
   logPayment: (r: Row, kind: "setup" | "monthly") => Promise<void>;
   updatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>;
@@ -805,6 +834,17 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             <WorkflowRail r={r} busy={busy} workflow={workflow} />
           )}
 
+          {/* Email the referrer a guided fix for a common problem */}
+          {r.referredBy && (
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16, padding: "10px 12px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
+              <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Email referrer ({r.referredBy}) a fix</span>
+              {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"]] as [string, string][]).map(([key, label]) => (
+                <button key={key} onClick={(e) => { e.stopPropagation(); void emailIssue(r, key); }} disabled={busy}
+                  style={{ font: `700 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>✉ {label}</button>
+              ))}
+            </div>
+          )}
+
           {/* BLOCK 1 — applicant & payout */}
           <SectionLabel num={1}>Applicant &amp; payout</SectionLabel>
           <div style={{ ...GRID4, marginBottom: 20 }}>
@@ -833,7 +873,10 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             {!r.accountId ? (
               <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>no account linked</span>
             ) : !r.hasGologin ? (
-              <span style={{ font: `600 11px ${F_SANS}`, color: needsGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--muted,#8a97ad)" }}>{needsGologin(r) ? "⚠ No GoLogin — this account cannot be run" : "GoLogin not added yet"}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ font: `600 11px ${F_SANS}`, color: needsGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--muted,#8a97ad)" }}>{needsGologin(r) ? "⚠ No GoLogin — this account cannot be run" : "GoLogin not added yet"}</span>
+                <button onClick={(e) => { e.stopPropagation(); void provisionGologin(r); }} disabled={busy} title="Create the GoLogin profile, assign an available proxy, and generate the share link — all onto this account" style={{ font: `700 11px ${F_SANS}`, color: "#fff", background: "var(--st-active-fg,#188038)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Creating…" : "+ Create GoLogin (profile · proxy · share link)"}</button>
+              </div>
             ) : r.gologinShareLink ? (
               <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 9px", borderRadius: 6 }}>↗ Open GoLogin</a>
             ) : (
