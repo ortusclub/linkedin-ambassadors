@@ -135,7 +135,8 @@ type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejec
 
 // Account statuses that mean the account is already live inventory (past onboarding).
 const LIVE_INVENTORY = new Set(["available", "rented", "trial", "maintenance", "unavailable", "retired"]);
-const levelOf = (r: Row): 1 | 2 | 3 | 4 | 5 => {
+const levelOf = (r: Row): 0 | 1 | 2 | 3 | 4 | 5 => {
+  if (r.status === "rejected") return 0;           // rejected — not progressing through the pipeline
   if (r.status === "onboarded") return 5;          // matured + paid — live and earning
   // Anything that's real inventory — available, rented, restricted, even retired — is
   // fully onboarded, so it sits at Level 5 regardless of the application's own status.
@@ -149,7 +150,7 @@ const levelOf = (r: Row): 1 | 2 | 3 | 4 | 5 => {
   // timestamps still counts as at least Level 3. The Progress dropdown stamps the
   // real timestamps, so a manual change always wins over this fallback.
   if (r.status === "approved" && n < 3) n = 3;                                   // logged in
-  return n as 1 | 2 | 3 | 4 | 5;
+  return n as 0 | 1 | 2 | 3 | 4 | 5;
 };
 const levelKey = (r: Row): number => levelOf(r);
 
@@ -171,6 +172,7 @@ const LEVEL_GROUPS: { key: number; label: string; dot: string; note: string }[] 
   { key: 3, label: "Level 3 · Logged into GoLogin", dot: "var(--warn-badge-text,#b7791f)", note: "signed in via GoLogin — going through QC checks" },
   { key: 4, label: "Level 4 · Maturing", dot: "var(--st-conv-fg,#6d28d9)", note: "passed QC — in the 1-week maturation hold" },
   { key: 5, label: "Level 5 · Onboarded", dot: "var(--st-active-fg,#188038)", note: "matured & paid — live and earning (also in the payments view)" },
+  { key: 0, label: "Level 0 · Not progressing", dot: "var(--st-cancel-fg,#c0392b)", note: "rejected — not moving through the pipeline" },
 ];
 
 const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
@@ -181,7 +183,7 @@ const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
   { key: "unreachable", label: "Unreachable", dot: "var(--st-unreach-fg,#c0392b)" },
   { key: "rejected", label: "Rejected", dot: "var(--st-cancel-fg,#c0392b)" },
 ];
-const LEVEL_CHIP: Record<string, string> = { "1": "1 · Received", "2": "2 · Email & 2FA", "3": "3 · Logged in", "4": "4 · Maturing", "5": "5 · Onboarded" };
+const LEVEL_CHIP: Record<string, string> = { "0": "0 · Not progressing", "1": "1 · Received", "2": "2 · Email & 2FA", "3": "3 · Logged in", "4": "4 · Maturing", "5": "5 · Onboarded" };
 
 // By next action -------------------------------------------------------------
 type ActionKey = "blocked" | "message" | "awaiting" | "noreply" | "replied" | "setup" | "live" | "closed";
@@ -933,7 +935,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Progress</span>
-            <select value={String(lvlKey)} disabled={busy} title="Progress on the onboarding ladder — changing it stamps the matching milestones (same as the Workflow steps)." onClick={(e) => e.stopPropagation()}
+            <select value={String(lvlKey)} disabled={busy || lvlKey === 0} title={lvlKey === 0 ? "Rejected — not progressing. Set Health status back to Active to resume." : "Progress on the onboarding ladder — changing it stamps the matching milestones (same as the Workflow steps)."} onClick={(e) => e.stopPropagation()}
               onChange={(e) => {
                 const n = Number(e.target.value);
                 const now = new Date().toISOString();
@@ -947,7 +949,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                 workflow(r.id, patch);
               }}
               style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, border: "none", cursor: busy ? "wait" : "pointer", outline: "none", background: "var(--band,#f1f1f2)", color: "var(--fg,#333)" }}>
-              {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n === 5 ? "Level 5 · Onboarded" : `Level ${n}`}</option>)}
+              {(lvlKey === 0 ? [0, 1, 2, 3, 4, 5] : [1, 2, 3, 4, 5]).map((n) => <option key={n} value={n}>{n === 0 ? "Level 0 · Not progressing" : n === 5 ? "Level 5 · Onboarded" : `Level ${n}`}</option>)}
             </select>
             {live && <span style={{ font: `600 13px ${F_GRO}`, color: "var(--fg,#111)", fontVariantNumeric: "tabular-nums" }}>{formatMoney(monthlyAmt(r), cfgOf(r).currency)}/mo</span>}
           </div>
