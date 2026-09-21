@@ -59,6 +59,17 @@ export async function GET() {
       select: { slug: true, name: true, token: true, contactMethod: true, contactHandle: true, contacts: true },
     });
     const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
+    // LV PoC = the LinkedVelocity rep who onboards an account. It is NOT the referrer
+    // (the marketer who sent the lead) nor the ambassador. Older data sometimes has a
+    // referrer/applicant name in the poc field, so we blank any poc that matches one —
+    // only a genuine LV-rep name survives as a PoC.
+    const notPocNames = new Set<string>();
+    for (const rf of referrers) if (rf.name) notPocNames.add(rf.name.trim().toLowerCase());
+    for (const ap of apps) if (ap.fullName) notPocNames.add(ap.fullName.trim().toLowerCase());
+    const cleanPoc = (poc?: string | null) => {
+      const p = (poc || "").trim();
+      return p && !notPocNames.has(p.toLowerCase()) ? p : null;
+    };
     type RefC = { method?: string; handle?: string; preferred?: boolean };
     const refContact = (slug?: string | null) => {
       const rf = refBySlug.get((slug || "").trim().toLowerCase());
@@ -157,7 +168,7 @@ export async function GET() {
         payoutCurrency: app.payoutCurrency,
         referralSource: app.referralSource,
         industry: app.industry,
-        poc: app.poc,
+        poc: cleanPoc(app.poc),
         linkedinEmail: app.linkedinEmail,
         bookingEmail: app.bookingEmail,
         accountFreshness: app.accountFreshness,

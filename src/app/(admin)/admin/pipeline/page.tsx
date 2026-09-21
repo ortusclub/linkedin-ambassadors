@@ -133,8 +133,13 @@ const isLive = (r: Row) => r.status === "approved" || r.status === "onboarded";
 // the status field. They're independent: an account is e.g. "Level 3 · Active".
 type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejected";
 
+// Account statuses that mean the account is already live inventory (past onboarding).
+const LIVE_INVENTORY = new Set(["available", "rented", "trial", "maintenance", "unavailable", "retired"]);
 const levelOf = (r: Row): 1 | 2 | 3 | 4 | 5 => {
   if (r.status === "onboarded") return 5;          // matured + paid — live and earning
+  // Anything that's real inventory — available, rented, restricted, even retired — is
+  // fully onboarded, so it sits at Level 5 regardless of the application's own status.
+  if ((r.accountStatus && LIVE_INVENTORY.has(r.accountStatus)) || r.accountRestrictedAt) return 5;
   // Milestone-derived progress (the timestamps are the source of truth when present).
   let n = 1;
   if (r.verifiedAt) n = 4;                          // passed QC — maturing
