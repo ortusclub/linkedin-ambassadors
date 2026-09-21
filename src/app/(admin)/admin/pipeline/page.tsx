@@ -52,6 +52,7 @@ interface Row {
   createdAt: string;
   onboardedAt: string | null;
   accountIssue: string | null;
+  onboardingFix: { issues: ("email_primary" | "twofa")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
   reason: string;
   phoneHandoffPending?: boolean;
   hasGologin: boolean;
@@ -764,6 +765,23 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               <span>PoC <b style={{ color: r.poc ? "var(--fg,#444)" : "var(--muted2,#9aa0a6)" }}>{r.poc || "—"}</b></span>
               {r.referredBy && <span>Referrer <b role="button" title="Filter by this referrer" onClick={(e) => { e.stopPropagation(); onFilterText(r.referredBy!); }} style={{ color: "var(--link,#0a66c2)", cursor: "pointer" }}>{r.referredBy}</b></span>}
             </div>
+            {(r.onboardedAt || r.onboardingFix) && (() => {
+              const has = (i: "email_primary" | "twofa") => !!r.onboardingFix?.issues.includes(i);
+              const raise = (issues: ("email_primary" | "twofa")[]) => workflow(r.id, { setOnboardingFix: issues.length ? { issues, state: "open", raisedAt: new Date().toISOString() } : null });
+              const toggle = (i: "email_primary" | "twofa") => { const cur = r.onboardingFix?.issues || []; return raise(has(i) ? cur.filter((x) => x !== i) : [...cur, i]); };
+              const chip = (i: "email_primary" | "twofa", label: string) => (
+                <button onClick={(e) => { e.stopPropagation(); void toggle(i); }} disabled={busy} style={{ font: `700 10.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 999, cursor: "pointer", border: `1px solid ${has(i) ? "#f5c2c2" : "var(--line,#e3e6ea)"}`, background: has(i) ? "#fdf0f0" : "transparent", color: has(i) ? "#b91c1c" : "var(--muted,#8a9099)" }}>{has(i) ? "✓ " : ""}{label}</button>
+              );
+              return (
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                  <span title="Raise a fix on the referrer's portal — they do it, mark done, then you recheck" style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Referrer to fix</span>
+                  {chip("email_primary", "Email not primary")}
+                  {chip("twofa", "2FA not set up")}
+                  {r.onboardingFix?.state === "referrer_done" && <span style={{ font: `700 10px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)" }}>Referrer marked fixed — recheck</span>}
+                  {r.onboardingFix && <button onClick={(e) => { e.stopPropagation(); void raise([]); }} disabled={busy} style={{ font: `700 10px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, cursor: "pointer", border: "none", background: "var(--st-conv-bg,#ecfdf3)", color: "var(--st-conv-fg,#15803d)" }}>Resolve</button>}
+                </div>
+              );
+            })()}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flex: "none" }}>

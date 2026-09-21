@@ -342,6 +342,11 @@ model AmbassadorApplication {
   // commission is locked to this — verifying the account later does NOT change what the
   // referrer earned. Null for plain referrals / pre-tier rows.
   onboardingVerified Boolean?        @map("onboarding_verified")
+  // Post-sign-in fixes the team needs the referrer to do (e.g. our email isn't set as
+  // primary, or 2FA isn't set up). Surfaced on the referrer's portal, cleared by the team
+  // after a recheck. Shape: { issues: ("email_primary"|"twofa")[], state: "open"|"referrer_done",
+  // raisedAt: ISO, doneAt?: ISO }. Null when there's nothing outstanding.
+  onboardingFix     Json?             @map("onboarding_fix")
   accountFreshness  String?          @map("account_freshness")
   paidAt            DateTime?         @map("paid_at")
   marketerPaidAt    DateTime?         @map("marketer_paid_at")

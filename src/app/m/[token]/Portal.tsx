@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
-interface Signup { name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; }
+type FixIssue = "email_primary" | "twofa";
+interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -117,6 +118,12 @@ const JOB_FILTERS: { id: JobFilter; label: string; empty: string; test: (s: Sign
   { id: "paid", label: "Paid", empty: "paid yet", test: (s) => s.kind === "paid" },
 ];
 
+// Post-sign-in fixes the team can raise on a signup — what the referrer needs to sort out.
+const FIX_INFO: Record<FixIssue, { title: string; how: string }> = {
+  email_primary: { title: "Our email isn't set as Primary", how: "In LinkedIn: Settings → Sign in & security → Email addresses. Set the LinkedVelocity email as the PRIMARY one — not just added. It has to be primary or we can't keep the account signed in." },
+  twofa: { title: "Two-step verification isn't set up", how: "In LinkedIn: Settings → Sign in & security → Two-step verification → Authenticator app. Use the setup key from onboarding (the wizard shows the code to finish it)." },
+};
+
 // The owner clears a LinkedIn restriction themselves on their own phone — steps for the sheet.
 const LOCK_STEPS = [
   { t: "They open LinkedIn on their own phone", s: "The lock screen appears as soon as they try to use the account." },
@@ -136,6 +143,7 @@ export default function Portal({ token }: { token: string }) {
   const [readyOpen, setReadyOpen] = useState(false);
   const [jobFilter, setJobFilter] = useState<JobFilter>("all");
   const [lockName, setLockName] = useState<string | null>(null);
+  const [fixingId, setFixingId] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [faqOpen, setFaqOpen] = useState<Set<string>>(new Set());
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -167,6 +175,14 @@ export default function Portal({ token }: { token: string }) {
       await fetch(`/api/m/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       setSaved(true); setTimeout(() => setSaved(false), 2000);
     } finally { setSaving(false); }
+  };
+  // Referrer marks a raised fix as done → the team rechecks. Optimistically flip to done.
+  const markFixed = async (applicationId: string) => {
+    setFixingId(applicationId);
+    try {
+      await fetch(`/api/m/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fixDone", applicationId }) });
+      setData((d) => d && ({ ...d, signups: d.signups.map((s) => s.id === applicationId && s.fix ? { ...s, fix: { ...s.fix, state: "referrer_done" } } : s) }));
+    } finally { setFixingId(null); }
   };
   const toggleFaq = (k: string) => setFaqOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const go = (t: Tab) => { setTab(t); if (typeof window !== "undefined") window.scrollTo({ top: 0 }); };
@@ -292,6 +308,17 @@ export default function Portal({ token }: { token: string }) {
                 ? <>You&apos;re on for <b style={{ color: C.ink }}>{[me.assignedDay, me.assignedLocation].filter(Boolean).join(" · ")}</b>. Two ways to earn — onboarding them yourself pays more.</>
                 : "Two ways to earn today — onboarding them yourself pays more."}
             </p>
+
+            {(() => {
+              const needFix = signups.filter((s) => s.fix && s.fix.state === "open");
+              if (needFix.length === 0) return null;
+              return (
+                <button onClick={() => go("jobs")} style={{ display: "block", width: "100%", textAlign: "left", background: C.warnBg, border: `1px solid ${C.warnBorder}`, borderRadius: 14, padding: "13px 15px", marginBottom: 12, cursor: "pointer" }}>
+                  <div style={{ font: `700 13.5px ${JAK}`, color: C.warn, marginBottom: 2 }}>⚠ {needFix.length === 1 ? "1 onboarding needs" : `${needFix.length} onboardings need`} a quick fix</div>
+                  <div style={{ font: `500 12px/1.45 ${JAK}`, color: "#9a5b2a" }}>Something&apos;s stopping payment on {needFix.length === 1 ? needFix[0].name : "some of your signups"}. Tap to see what to fix →</div>
+                </button>
+              );
+            })()}
 
             {/* stats (dark) */}
             <div style={{ background: C.dark, borderRadius: 18, padding: 18, marginBottom: 12 }}>
@@ -434,6 +461,20 @@ export default function Portal({ token }: { token: string }) {
                     <span style={{ font: `500 11.5px ${JAK}`, color: C.muted }}>{s.path}</span>
                     <span style={{ marginLeft: "auto", font: `700 12.5px ${GRO}`, color: C.ink, whiteSpace: "nowrap" }}>{s.fee}</span>
                   </div>
+                  {s.fix && (
+                    <div style={{ marginTop: 12, background: C.warnBg, border: `1px solid ${C.warnBorder}`, borderRadius: 12, padding: 13 }}>
+                      <div style={{ font: `700 12.5px ${JAK}`, color: C.warn, marginBottom: 6 }}>⚠ Needs fixing before you get paid</div>
+                      {s.fix.issues.map((iss) => (
+                        <div key={iss} style={{ marginBottom: 8 }}>
+                          <div style={{ font: `700 12px ${JAK}`, color: C.warn }}>{FIX_INFO[iss].title}</div>
+                          <div style={{ font: `500 11.5px/1.45 ${JAK}`, color: "#9a5b2a", marginTop: 2 }}>{FIX_INFO[iss].how}</div>
+                        </div>
+                      ))}
+                      {s.fix.state === "referrer_done"
+                        ? <div style={{ font: `700 12px ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 9, padding: "9px 11px", marginTop: 4 }}>✓ Marked done — the team will recheck it</div>
+                        : <button onClick={() => void markFixed(s.id)} disabled={fixingId === s.id} style={{ width: "100%", marginTop: 4, font: `700 13px ${JAK}`, color: "#fff", background: C.warn, border: "none", padding: 12, borderRadius: 10, cursor: "pointer" }}>{fixingId === s.id ? "Saving…" : "I've fixed it"}</button>}
+                    </div>
+                  )}
                   {s.action === "clear" ? (
                     <button onClick={() => setLockName(s.name)} style={{ display: "block", width: "100%", marginTop: 12, font: `700 13.5px ${JAK}`, color: "#fff", background: C.red, border: "none", padding: 13, borderRadius: 11, cursor: "pointer" }}>See how to clear it</button>
                   ) : s.action ? (
