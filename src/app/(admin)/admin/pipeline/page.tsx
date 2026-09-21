@@ -792,7 +792,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                 return differs ? <span>Account <b style={{ color: "var(--fg,#444)" }}>{an}</b></span> : null;
               })()}
               <span>PoC <b style={{ color: r.poc ? "var(--fg,#444)" : "var(--muted2,#9aa0a6)" }}>{r.poc || "—"}</b></span>
-              {r.referredBy && <span>Referrer <b role="button" title="Filter by this referrer" onClick={(e) => { e.stopPropagation(); onFilterText(r.referredBy!); }} style={{ color: "var(--link,#0a66c2)", cursor: "pointer" }}>{r.referredBy}</b></span>}
+              {r.referredBy && <span>Referrer <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} title="Open this referrer's profile to add their email / contact / payout" onClick={(e) => e.stopPropagation()} style={{ color: "var(--link,#0a66c2)", cursor: "pointer", fontWeight: 700, textDecoration: "none" }}>{r.referredBy}</a></span>}
             </div>
             {(r.onboardedAt || r.onboardingFix) && (() => {
               const has = (i: "email_primary" | "twofa") => !!r.onboardingFix?.issues.includes(i);

@@ -181,10 +181,17 @@ export default function AdminReferralsPage() {
     if (refApplied || typeof window === "undefined" || !referrers.length) return;
     const slug = new URLSearchParams(window.location.search).get("ref");
     if (!slug) { setRefApplied(true); return; }
-    const match = referrers.find((x) => x.slug.toLowerCase() === slug.toLowerCase());
+    const match = referrers.find((x) => x.slug.toLowerCase() === slug.toLowerCase() || x.name.toLowerCase() === slug.toLowerCase());
     setQuery(match?.name || slug);
     setVisibleCount(9999);
+    if (match) {
+      // Expand that referrer's row and open its Details editor so you can add
+      // email / contact / payout straight away (row keyed by slug or name).
+      setExpandedRef(new Set([match.name, match.slug]));
+      openDetails(match);
+    }
     setRefApplied(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [referrers, refApplied]);
 
   const rows = useMemo<Row[]>(() => {
