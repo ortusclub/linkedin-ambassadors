@@ -126,14 +126,57 @@ const stageOf = (r: Row): Stage => {
 // view. Level 1 (still warming up, not logged in) is not.
 const isLive = (r: Row) => r.status === "approved" || r.status === "onboarded";
 
-const STAGE_GROUPS: { key: Stage; label: string; dot: string; note: string }[] = [
-  { key: "initial", label: "Initial", dot: "var(--blue-chip-text,#1a56db)", note: "new leads and awaiting reply — not started" },
-  { key: "processing", label: "Level 1", dot: "var(--warn-badge-text,#b7791f)", note: "adding our email (+ primary) & setting up 2FA — not logged in yet" },
-  { key: "accepted", label: "Level 2", dot: "var(--st-conv-fg,#6d28d9)", note: "logged in — setup fee due the next day (24h after login)" },
-  { key: "onboarded", label: "Onboarded", dot: "var(--st-active-fg,#188038)", note: "paid & earning" },
-  { key: "unreachable", label: "Unreachable", dot: "var(--st-unreach-fg,#c0392b)", note: "chased, no reply" },
-  { key: "rejected", label: "Rejected", dot: "var(--st-cancel-fg,#c0392b)", note: "not a fit" },
+// ── Two axes ────────────────────────────────────────────────────────────────
+// LEVEL = progress on the onboarding ladder (1→5), derived from milestone
+// timestamps, always moves forward. HEALTH = how the account is doing right now
+// (active / awaiting reply / in review / on hold / unreachable / rejected), from
+// the status field. They're independent: an account is e.g. "Level 3 · Active".
+type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejected";
+
+const levelOf = (r: Row): 1 | 2 | 3 | 4 | 5 => {
+  if (!r.emailPrimaryAt) return 1;                 // application received — email/2FA not done
+  if (!r.onboardedAt) return 2;                    // email added & primary + 2FA — not logged in
+  if (!r.verifiedAt) {                             // logged in — QC not fully passed yet
+    const qc = r.qcChecks || {};
+    return (qc.photo || qc.connections || qc.experiences || qc.education) ? 4 : 3; // 4 = in QC, 3 = just logged in
+  }
+  return 5;                                        // passed QC — in the maturation hold
+};
+// Matured + paid → leaves the ladder into its own "Onboarded" section at the bottom.
+const isOnboardedFinal = (r: Row) => r.status === "onboarded";
+const levelKey = (r: Row): number | "onboarded" => (isOnboardedFinal(r) ? "onboarded" : levelOf(r));
+
+const healthOf = (r: Row): Health => {
+  switch (r.status) {
+    case "rejected": return "rejected";
+    case "unreachable": return "unreachable";
+    case "on_hold": return "hold";
+    case "contacted": return "awaiting";
+    case "pending":
+    case "reviewing": return "review";
+    default: return "active"; // onboarding, approved, onboarded
+  }
+};
+
+const LEVEL_GROUPS: { key: number | "onboarded"; label: string; dot: string; note: string }[] = [
+  { key: 1, label: "Level 1 · Application received", dot: "var(--blue-chip-text,#1a56db)", note: "signed up — our email & 2FA not added yet" },
+  { key: 2, label: "Level 2 · Email & 2FA", dot: "var(--blue-chip-text,#1a56db)", note: "our email added & primary, 2FA set — not logged in yet" },
+  { key: 3, label: "Level 3 · Logged into GoLogin", dot: "var(--warn-badge-text,#b7791f)", note: "signed in via GoLogin — quality checks not started" },
+  { key: 4, label: "Level 4 · In QC", dot: "var(--warn-badge-text,#b7791f)", note: "going through the quality checklist" },
+  { key: 5, label: "Level 5 · Maturing", dot: "var(--st-conv-fg,#6d28d9)", note: "passed QC — in the 1-week maturation hold" },
+  { key: "onboarded", label: "Onboarded", dot: "var(--st-active-fg,#188038)", note: "matured & paid — live and earning (also in the payments view)" },
 ];
+
+const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
+  { key: "active", label: "Active", dot: "var(--st-active-fg,#188038)" },
+  { key: "awaiting", label: "Awaiting reply", dot: "var(--blue-chip-text,#1a56db)" },
+  { key: "review", label: "In review", dot: "var(--muted2,#9aa0a6)" },
+  { key: "hold", label: "On hold", dot: "var(--warn-badge-text,#b7791f)" },
+  { key: "unreachable", label: "Unreachable", dot: "var(--st-unreach-fg,#c0392b)" },
+  { key: "rejected", label: "Rejected", dot: "var(--st-cancel-fg,#c0392b)" },
+];
+const HEALTH_LABEL: Record<Health, string> = Object.fromEntries(HEALTH_OPTIONS.map((h) => [h.key, h.label])) as Record<Health, string>;
+const LEVEL_CHIP: Record<string, string> = { "1": "1 · Received", "2": "2 · Email & 2FA", "3": "3 · Logged in", "4": "4 · In QC", "5": "5 · Maturing", onboarded: "Onboarded" };
 
 // By next action -------------------------------------------------------------
 type ActionKey = "blocked" | "message" | "awaiting" | "noreply" | "replied" | "setup" | "live" | "closed";
@@ -308,6 +351,8 @@ export default function AdminPipelinePage() {
   const [error, setError] = useState(false);
   const [mode, setMode] = useState<Mode>("stage");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [levelFilter, setLevelFilter] = useState<number | "onboarded" | "all">("all");
+  const [healthFilter, setHealthFilter] = useState<Health | "all">("all");
   const [pocFilter, setPocFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [flagged, setFlagged] = useState(false);
@@ -481,30 +526,36 @@ export default function AdminPipelinePage() {
   // Stage/action views = everyone not yet fully onboarded — so a logged-in Level-2
   // (approved) person shows in BOTH: still "Accepted" in the pipeline, and "Payment
   // due" for their setup fee.
-  const scoped = useMemo(() => (rows || []).filter((r) => (mode === "live" ? isLive(r) : r.status !== "onboarded")), [rows, mode]);
+  // By-level (stage) mode keeps onboarded rows visible (their own bottom section);
+  // the other modes exclude them (they live in the payments view).
+  const scoped = useMemo(() => (rows || []).filter((r) => (mode === "live" ? isLive(r) : mode === "stage" ? true : r.status !== "onboarded")), [rows, mode]);
   const signInCount = useMemo(() => scoped.filter((r) => r.phoneHandoffPending).length, [scoped]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return scoped.filter((r) => {
       if (flagged && !isBlocked(r)) return false;
       if (signInOnly && !r.phoneHandoffPending) return false;
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      // Stage mode filters on the two axes (level + health); other modes on status.
+      if (mode === "stage") {
+        if (levelFilter !== "all" && levelKey(r) !== levelFilter) return false;
+        if (healthFilter !== "all" && healthOf(r) !== healthFilter) return false;
+      } else if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (pocFilter !== "all") { const p = (r.poc || "").trim(); if (pocFilter === "__unassigned" ? p !== "" : p !== pocFilter) return false; }
       if (!q) return true;
       return [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc,
         ...(r.outreachLog || []).map((t) => t.text)].some((v) => (v || "").toLowerCase().includes(q));
     });
-  }, [scoped, query, flagged, signInOnly, statusFilter, pocFilter]);
+  }, [scoped, query, flagged, signInOnly, mode, statusFilter, levelFilter, healthFilter, pocFilter]);
 
   const groups = useMemo(() => {
-    const defs = mode === "stage" ? STAGE_GROUPS : mode === "live" ? LIVE_GROUPS : ACTION_GROUPS;
+    const defs = mode === "stage" ? LEVEL_GROUPS : mode === "live" ? LIVE_GROUPS : ACTION_GROUPS;
     // "Owes money" = setup fee not yet paid (they've logged in — the fee is due), OR a
     // monthly cycle has come due per the payments-due feed. An unacknowledged-but-paid
     // payout is NOT a debt, so it does not count here.
     const liveKey = (r: Row): LiveKey => blockKind(r) ?? ((setupDue(r) || (dueInfo?.emails.has((r.email || "").toLowerCase()) ?? false)) ? "due" : "ok");
-    const keyOf = mode === "stage" ? (r: Row) => stageOf(r) : mode === "live" ? liveKey : (r: Row) => actionBucket(r);
+    const keyOf: (r: Row) => string | number = mode === "stage" ? (r: Row) => levelKey(r) : mode === "live" ? liveKey : (r: Row) => actionBucket(r);
     return defs
-      .map((d) => ({ ...d, items: filtered.filter((r) => keyOf(r) === d.key).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)) }))
+      .map((d) => ({ ...d, items: filtered.filter((r) => String(keyOf(r)) === String(d.key)).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)) }))
       .filter((g) => g.items.length > 0);
   }, [filtered, mode, dueInfo]);
 
@@ -623,25 +674,50 @@ export default function AdminPipelinePage() {
       {/* mode + hint */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12, flexWrap: "wrap" }}>
         <div style={{ display: "inline-flex", background: "var(--band,#f1f1f2)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 10, padding: 3 }}>
-          <button onClick={() => { setMode("stage"); setStatusFilter("all"); setPocFilter("all"); }} style={modeBtn("stage")}>By stage</button>
+          <button onClick={() => { setMode("stage"); setStatusFilter("all"); setLevelFilter("all"); setHealthFilter("all"); setPocFilter("all"); }} style={modeBtn("stage")}>By level</button>
           <button onClick={() => { setMode("action"); setStatusFilter("all"); setPocFilter("all"); }} style={modeBtn("action")}>By next action</button>
           <button onClick={() => { setMode("live"); setStatusFilter("all"); setPocFilter("all"); }} style={modeBtn("live")}>Onboarded · payments</button>
         </div>
         <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>
-          {mode === "stage" ? "Pipeline stage — onboarded people live in the payments view" : mode === "live" ? "Onboarded only — log payments, proof and acknowledgement here" : "What to do next — onboarded people live in the payments view"}
+          {mode === "stage" ? "Two axes — Level (progress) × Health (how it's doing). Combine the chips to filter." : mode === "live" ? "Onboarded only — log payments, proof and acknowledgement here" : "What to do next — onboarded people live in the payments view"}
         </span>
       </div>
 
-      {/* status chips */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
-        {chips.map((c) => (
-          <button key={c.value} onClick={() => setStatusFilter(c.value)} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 12px ${F_SANS}`, padding: "7px 12px", borderRadius: 999, border: "1px solid", borderColor: statusFilter === c.value ? "transparent" : "var(--input-border,#dcdce0)", background: statusFilter === c.value ? "var(--chip-active-bg,#eaf1ff)" : "transparent", color: statusFilter === c.value ? "var(--chip-active-text,#1a56db)" : "var(--muted,#555)" }}>
-            {c.dot && <span style={{ width: 6, height: 6, borderRadius: 999, background: c.dot }} />}
-            {c.label}
-            <span style={{ font: `700 10.5px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 5px", borderRadius: 5, background: "var(--band,#f1f1f2)", color: "var(--muted,#888)" }}>{c.count}</span>
+      {/* chips — two axes in By-level mode (Level + Health), status chips elsewhere */}
+      {mode === "stage" ? (() => {
+        const chipBtn = (active: boolean, dot: string | null, label: string, count: number, onClick: () => void, key: string) => (
+          <button key={key} onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 12px ${F_SANS}`, padding: "6px 11px", borderRadius: 999, border: "1px solid", borderColor: active ? "transparent" : "var(--input-border,#dcdce0)", background: active ? "var(--chip-active-bg,#eaf1ff)" : "transparent", color: active ? "var(--chip-active-text,#1a56db)" : "var(--muted,#555)" }}>
+            {dot && <span style={{ width: 6, height: 6, borderRadius: 999, background: dot }} />}
+            {label}
+            <span style={{ font: `700 10.5px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 5px", borderRadius: 5, background: "var(--band,#f1f1f2)", color: "var(--muted,#888)" }}>{count}</span>
           </button>
-        ))}
-      </div>
+        );
+        const axisLabel = (t: string) => <span style={{ font: `700 9.5px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--muted2,#9aa0a6)", width: 46, flex: "none" }}>{t}</span>;
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
+              {axisLabel("Level")}
+              {chipBtn(levelFilter === "all", null, "All", scoped.length, () => setLevelFilter("all"), "lvl-all")}
+              {LEVEL_GROUPS.map((g) => { const n = scoped.filter((r) => levelKey(r) === g.key).length; return n > 0 ? chipBtn(levelFilter === g.key, g.dot, LEVEL_CHIP[String(g.key)], n, () => setLevelFilter(g.key), `lvl-${g.key}`) : null; })}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
+              {axisLabel("Health")}
+              {chipBtn(healthFilter === "all", null, "All", scoped.length, () => setHealthFilter("all"), "hl-all")}
+              {HEALTH_OPTIONS.map((h) => { const n = scoped.filter((r) => healthOf(r) === h.key).length; return n > 0 ? chipBtn(healthFilter === h.key, h.dot, h.label, n, () => setHealthFilter(h.key), `hl-${h.key}`) : null; })}
+            </div>
+          </div>
+        );
+      })() : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
+          {chips.map((c) => (
+            <button key={c.value} onClick={() => setStatusFilter(c.value)} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 12px ${F_SANS}`, padding: "7px 12px", borderRadius: 999, border: "1px solid", borderColor: statusFilter === c.value ? "transparent" : "var(--input-border,#dcdce0)", background: statusFilter === c.value ? "var(--chip-active-bg,#eaf1ff)" : "transparent", color: statusFilter === c.value ? "var(--chip-active-text,#1a56db)" : "var(--muted,#555)" }}>
+              {c.dot && <span style={{ width: 6, height: 6, borderRadius: 999, background: c.dot }} />}
+              {c.label}
+              <span style={{ font: `700 10.5px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 5px", borderRadius: 5, background: "var(--band,#f1f1f2)", color: "var(--muted,#888)" }}>{c.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* search + toggles */}
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 22, flexWrap: "wrap" }}>
@@ -762,6 +838,9 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
   const onboarded = r.status === "onboarded"; // fully onboarded — workflow finished
   const blocked = isBlocked(r);
   const accent = STAGE_ACCENT[stage];
+  const lvlKey = levelKey(r);
+  const lvlLabel = lvlKey === "onboarded" ? "Onboarded" : `Level ${lvlKey}`;
+  const health = healthOf(r);
   const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
   const st = STATUS_STYLE[r.status];
 
@@ -831,7 +910,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             </select>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {r.reason && <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap" }}>{r.reason}</span>}
+            <span title="Level = progress on the ladder · Health = how the account is doing" style={{ font: `700 10.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--band,#f1f1f2)", color: "var(--fg,#333)", whiteSpace: "nowrap" }}>{lvlLabel} · {HEALTH_LABEL[health]}</span>
             {live && <span style={{ font: `600 13px ${F_GRO}`, color: "var(--fg,#111)", fontVariantNumeric: "tabular-nums" }}>{formatMoney(monthlyAmt(r), cfgOf(r).currency)}/mo</span>}
           </div>
         </div>
