@@ -469,13 +469,6 @@ export default function AdminPipelinePage() {
     });
   }, [scoped, query, flagged, signInOnly, statusFilter, pocFilter]);
 
-  const pocChips = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const r of scoped) counts.set((r.poc || "").trim(), (counts.get((r.poc || "").trim()) || 0) + 1);
-    const named = [...counts.entries()].filter(([k]) => k).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    return { named, unassigned: counts.get("") || 0, total: scoped.length };
-  }, [scoped]);
-
   const groups = useMemo(() => {
     const defs = mode === "stage" ? STAGE_GROUPS : mode === "live" ? LIVE_GROUPS : ACTION_GROUPS;
     // "Owes money" = setup fee not yet paid (they've logged in — the fee is due), OR a
@@ -623,22 +616,9 @@ export default function AdminPipelinePage() {
         ))}
       </div>
 
-      {/* PoC filter chips */}
-      {pocChips.named.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 7, marginBottom: 12 }}>
-          <span style={{ ...labelCss, marginRight: 2 }}>PoC</span>
-          {[{ key: "all", label: "All", count: pocChips.total }, ...pocChips.named.map(([k, n]) => ({ key: k, label: formatName(k), count: n })), ...(pocChips.unassigned ? [{ key: "__unassigned", label: "Unassigned", count: pocChips.unassigned }] : [])].map((c) => (
-            <button key={c.key} onClick={() => setPocFilter(c.key)} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 12px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, border: "1px solid", borderColor: pocFilter === c.key ? "transparent" : "var(--input-border,#dcdce0)", background: pocFilter === c.key ? "var(--chip-active-bg,#eaf1ff)" : "transparent", color: pocFilter === c.key ? "var(--chip-active-text,#1a56db)" : "var(--muted,#555)" }}>
-              {c.label}
-              <span style={{ font: `700 10.5px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 5px", borderRadius: 5, background: "var(--band,#f1f1f2)", color: "var(--muted,#888)" }}>{c.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* search + toggles */}
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 22, flexWrap: "wrap" }}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact, account, referrer or POC…" style={{ ...inputCss, flex: "1 1 280px", padding: "11px 14px", font: `500 13.5px ${F_SANS}` }} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact, account or referrer…" style={{ ...inputCss, flex: "1 1 280px", padding: "11px 14px", font: `500 13.5px ${F_SANS}` }} />
         <button onClick={() => setFlagged((f) => !f)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(flagged ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>⚠ Problems only</button>
         {signInCount > 0 && <button onClick={() => setSignInOnly((v) => !v)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(signInOnly ? { background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)", borderColor: "var(--purple-chip-text,#6b3fd4)" } : {}) }}>📱 Needs sign-in ({signInCount})</button>}
         <button onClick={() => setOpen(anyOpen ? new Set() : new Set(filtered.map((r) => r.id)))} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px" }}>{anyOpen ? "Collapse all" : "Expand all"}</button>
@@ -791,7 +771,6 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                 const differs = !!an && an.trim().toLowerCase() !== (formatName(r.fullName) || "").trim().toLowerCase();
                 return differs ? <span>Account <b style={{ color: "var(--fg,#444)" }}>{an}</b></span> : null;
               })()}
-              <span>PoC <b style={{ color: r.poc ? "var(--fg,#444)" : "var(--muted2,#9aa0a6)" }}>{r.poc || "—"}</b></span>
               {r.referredBy && <span>Referrer <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} title="Open this referrer's profile to add their email / contact / payout" onClick={(e) => e.stopPropagation()} style={{ color: "var(--link,#0a66c2)", cursor: "pointer", fontWeight: 700, textDecoration: "none" }}>{r.referredBy}</a></span>}
             </div>
             {(r.onboardedAt || r.onboardingFix) && (() => {
@@ -860,7 +839,6 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             <Edit label="Connections" value={r.connectionCount} numeric placeholder="e.g. 500" onSave={(v) => patchApp(r.id, { connectionCount: v })} />
             <Edit label="Referred by" value={r.referredBy} placeholder="marketer code" onSave={(v) => patchApp(r.id, { referredBy: v })} />
             <Edit label="Referral source" value={r.referralSource} placeholder="flyer / FB / referral" onSave={(v) => patchApp(r.id, { referralSource: v })} />
-            <Edit label="POC" hint="who owns this" value={r.poc} placeholder="type a name…" onSave={(v) => patchApp(r.id, { poc: v ?? "" })} />
             <Edit label="Payout method" value={r.paymentMethod} placeholder="Wise / PayPal / GCash" onSave={(v) => patchApp(r.id, { paymentMethod: v })} />
             <Edit label="Payout handle / account no." value={r.paymentDetails} placeholder="email / number / account" onSave={(v) => patchApp(r.id, { paymentDetails: v })} />
             <Edit label="Payout name" value={r.payoutName} placeholder="name on the account" onSave={(v) => patchApp(r.id, { payoutName: v })} />
