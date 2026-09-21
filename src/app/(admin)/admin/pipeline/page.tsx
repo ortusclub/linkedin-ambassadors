@@ -181,7 +181,6 @@ const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
   { key: "unreachable", label: "Unreachable", dot: "var(--st-unreach-fg,#c0392b)" },
   { key: "rejected", label: "Rejected", dot: "var(--st-cancel-fg,#c0392b)" },
 ];
-const HEALTH_LABEL: Record<Health, string> = Object.fromEntries(HEALTH_OPTIONS.map((h) => [h.key, h.label])) as Record<Health, string>;
 const LEVEL_CHIP: Record<string, string> = { "1": "1 · Received", "2": "2 · Email & 2FA", "3": "3 · Logged in", "4": "4 · Maturing", "5": "5 · Onboarded" };
 
 // By next action -------------------------------------------------------------
@@ -920,13 +919,20 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flex: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <select value={r.status} disabled={busy} onClick={(e) => e.stopPropagation()} onChange={(e) => setStage(r, e.target.value as Status)}
+            <select value={health} disabled={busy} title="Health status (how the account is doing). Level/progress is shown by the ladder below." onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                const h = e.target.value as Health;
+                const status: Status = h === "active"
+                  ? ((["onboarding", "approved", "onboarded"] as string[]).includes(r.status) ? (r.status as Status) : (r.onboardedAt ? "approved" : "onboarding"))
+                  : (({ awaiting: "contacted", review: "reviewing", hold: "on_hold", unreachable: "unreachable", rejected: "rejected" } as Record<string, Status>)[h]);
+                setStage(r, status);
+              }}
               style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, border: "none", cursor: busy ? "wait" : "pointer", outline: "none", background: `var(${st[0]})`, color: `var(${st[1]})` }}>
-              {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {HEALTH_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span title="Level = progress on the ladder · Health = how the account is doing" style={{ font: `700 10.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--band,#f1f1f2)", color: "var(--fg,#333)", whiteSpace: "nowrap" }}>{lvlLabel} · {HEALTH_LABEL[health]}</span>
+            <span title="Progress on the onboarding ladder (see the Workflow steps below). Health status is the dropdown above." style={{ font: `700 10.5px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--band,#f1f1f2)", color: "var(--fg,#333)", whiteSpace: "nowrap" }}>{lvlLabel}</span>
             {live && <span style={{ font: `600 13px ${F_GRO}`, color: "var(--fg,#111)", fontVariantNumeric: "tabular-nums" }}>{formatMoney(monthlyAmt(r), cfgOf(r).currency)}/mo</span>}
           </div>
         </div>
