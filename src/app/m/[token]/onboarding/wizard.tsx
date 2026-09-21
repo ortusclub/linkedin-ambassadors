@@ -26,6 +26,10 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: "age", title: "How old is the account", body: "This sets when the setup fee lands — about 3 days for an older account, about a week for a newer one." },
     { target: "verified", title: "Is it verified?", body: "Check their profile for a Verified badge. A verified account pays you the top rate, so check rather than guess." },
   ],
+  email: [
+    { target: "email-why", title: "Why an email at all?", body: "This trips people up. We're adding a LinkedVelocity work email to their LinkedIn and making it primary — that's how we manage the account. LinkedIn has to verify that new email first." },
+    { target: "email-inbox", title: "Whose email goes here?", body: "This inbox just catches LinkedIn's verification message so it can be opened. It can be yours (the referrer's) or the owner's — whichever you can open right now. Yours is usually easiest." },
+  ],
   payout: [
     { target: "payout-method", title: "Where THEY get paid", body: "These are the account owner's payout details. Your own commission uses the details on your portal, not this." },
     { target: "payout-when", title: "When the money moves", body: "Once signed in, the account is onboarded; we verify it, then their fee goes out and yours follows the next Monday." },
@@ -132,7 +136,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   }, [endpoint, loadAttempt]);
 
   // Which page's coach tour applies right now (null = no tour for this screen).
-  const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : (step === 4 && browserMode === "") ? "signin" : null;
+  const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : step === 3 ? "email" : (step === 4 && browserMode === "") ? "signin" : null;
   // A referrer stops being a first-timer only once they've completed BOTH a computer and a
   // phone onboarding. Until then the tour keeps returning on each fresh wizard load.
   const experienced = !!bootstrap && bootstrap.doneComputer && bootstrap.donePhone;
