@@ -594,6 +594,9 @@ model OnboardingEmailSetup {
   codeSentAt DateTime? @map("code_sent_at")
   destinationVerifiedAt DateTime? @map("destination_verified_at")
   forwardingUntil DateTime? @map("forwarding_until")
+  // LinkedIn's "confirm this email" link, captured from the forwarded message so the wizard
+  // can show it directly (copy / open) instead of depending on the forwarded email arriving.
+  confirmUrl String? @map("confirm_url")
   primaryConfirmedAt DateTime? @map("primary_confirmed_at")
   lastForwardedAt DateTime? @map("last_forwarded_at")
   createdAt DateTime @default(now()) @map("created_at")

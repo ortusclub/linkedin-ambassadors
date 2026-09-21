@@ -5,6 +5,11 @@ import { assignedEmail, emailSetupConfig, EmailSetupError, forwardingActive, has
 import { onboardingMailRequest } from "@/services/onboarding-mail";
 import type { Prisma } from "@/generated/prisma/client";
 
+// Forwarding stays active for the whole onboarding, not a tight hour — a slow owner (or a
+// LinkedIn resend that arrives late) should still be captured. Bounded generously so an
+// abandoned onboarding eventually stops, and refreshed on every resend below.
+const FORWARD_WINDOW_MS = 30 * 24 * 3600000; // 30 days
+
 export const emailAction = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start"), destination: z.string().trim().email().max(254).transform(s => s.toLowerCase()), consent: z.literal(true) }),
   z.object({ action: z.literal("verify"), code: z.string().regex(/^\d{6}$/) }),
@@ -40,7 +45,8 @@ export async function emailSetupSummary(id: string, referrerId: string) {
     destinationVerified: !!e?.destinationVerifiedAt, primaryConfirmed: !!e?.primaryConfirmedAt,
     verificationCodePending: !!e?.codeHash && !!e.codeExpiresAt && e.codeExpiresAt > new Date(),
     forwardingActive: !!e && forwardingActive(e, s.state), forwardingUntil: e?.forwardingUntil || null,
-    lastForwardedAt: e?.lastForwardedAt || null, primaryConfirmedAt: e?.primaryConfirmedAt || null };
+    lastForwardedAt: e?.lastForwardedAt || null, primaryConfirmedAt: e?.primaryConfirmedAt || null,
+    confirmUrl: e?.confirmUrl || null };
 }
 
 export async function requireEmailSetup(id: string, referrerId: string) {
@@ -86,7 +92,7 @@ export async function updateEmailSetup(id: string, referrerId: string, input: z.
       // Persist failed attempts: throwing inside the transaction would roll them back.
       await tx.onboardingEmailSetup.update({ where: { sessionId: id }, data: { codeAttempts: { increment: 1 } } });
       if (e.codeHash !== hashEmailCode(id, e.destination, input.code)) return false;
-      await tx.onboardingEmailSetup.update({ where: { sessionId: id }, data: { destinationVerifiedAt: now, forwardingUntil: new Date(now.getTime() + 3600000), codeHash: null, codeExpiresAt: null } });
+      await tx.onboardingEmailSetup.update({ where: { sessionId: id }, data: { destinationVerifiedAt: now, forwardingUntil: new Date(now.getTime() + FORWARD_WINDOW_MS), codeHash: null, codeExpiresAt: null } });
       return true;
     });
     if (!accepted) throw new EmailSetupError("Incorrect or expired code. Request a new code if needed.");
@@ -100,14 +106,14 @@ export async function updateEmailSetup(id: string, referrerId: string, input: z.
       const address = await allocateOnboardingAddress(tx, owner.application.fullName, config.domains, e.address);
       await tx.onboardingEmailSetup.update({ where: { sessionId: id }, data: {
         address, consentAt: now, destinationVerifiedAt: null, primaryConfirmedAt: null,
-        forwardingUntil: null, lastForwardedAt: null, codeHash: null, codeExpiresAt: null, codeAttempts: 0,
+        forwardingUntil: null, lastForwardedAt: null, confirmUrl: null, codeHash: null, codeExpiresAt: null, codeAttempts: 0,
       } });
     }, { timeout: 15000 });
     return;
   }
   await prisma.$transaction(async tx => {
     const e = await tx.onboardingEmailSetup.findUnique({ where: { sessionId: id } });
-    if (!e || !forwardingActive(e, owner.state) || !e.lastForwardedAt) throw new EmailSetupError("Verify the forwarding inbox and receive the LinkedIn message before confirming the primary address.", 409);
+    if (!e || !forwardingActive(e, owner.state) || !(e.lastForwardedAt || e.confirmUrl)) throw new EmailSetupError("Verify the forwarding inbox and receive the LinkedIn message before confirming the primary address.", 409);
     if (e.primaryConfirmedAt) return;
     await tx.onboardingEmailSetup.update({ where: { sessionId: id }, data: { primaryConfirmedAt: now } });
     await tx.linkedInAccount.update({ where: { id: owner.accountId }, data: { loginEmail: e.address } });
@@ -131,7 +137,7 @@ export async function forwardOnboardingEmail(emailId: string) {
   const now = new Date();
   if (!e || !e.session.referrer.active || !forwardingActive(e, e.session.state, now)) return;
   const received = new Date(msg.created_at);
-  if (!Number.isFinite(received.getTime()) || received < e.destinationVerifiedAt! || received > now || now.getTime() - received.getTime() > 3600000) return;
+  if (!Number.isFinite(received.getTime()) || received < e.destinationVerifiedAt! || received > now || now.getTime() - received.getTime() > 86400000) return;
   const claimed = await prisma.$transaction(async tx => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100902)`;
     const prior = await tx.onboardingEmailDelivery.findUnique({ where: { emailId } });
@@ -145,6 +151,12 @@ export async function forwardOnboardingEmail(emailId: string) {
   // Plain text avoids remote tracking, executable markup and attachment disclosure.
   const content = forwardedText(msg.text, msg.html);
   const confirmUrl = content.match(/https:\/\/[a-z0-9.-]*linkedin\.com\/comm\/psettings\/email\/confirm[^\s)]*/i)?.[0];
+  // Surface LinkedIn's confirm link in the wizard immediately — this is the reliable path;
+  // the forwarded email below is a fallback. Store it before attempting the forward so a
+  // slow/failed forward never hides the link from the referrer.
+  if (confirmUrl) {
+    try { await prisma.onboardingEmailSetup.update({ where: { sessionId: e.sessionId }, data: { confirmUrl } }); } catch { /* best effort */ }
+  }
   try {
     const current = await prisma.onboardingEmailSetup.findUnique({ where: { sessionId: e.sessionId }, include: { session: { select: { state: true } } } });
     if (!current || !forwardingActive(current, current.session.state)) return;
