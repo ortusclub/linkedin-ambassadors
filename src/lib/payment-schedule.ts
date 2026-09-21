@@ -75,13 +75,16 @@ export interface DueItem {
   overdue: boolean;
   blocked: string | null; // login issue reason — due but can't be paid until resolved
 }
-export interface MarketerDue { name: string; count: number; dueCount: number; amount: number; currency: Currency; }
+export interface ReferralPerson { name: string; url: string | null; dueDate: string; }
+export interface MarketerDue { name: string; count: number; dueCount: number; amount: number; currency: Currency; dueDate: string | null; people: ReferralPerson[]; }
+export interface MarketerUpcoming { name: string; count: number; amount: number; currency: Currency; dueDate: string; people: ReferralPerson[]; }
 export interface MarketerPayment { name: string; amount: number; paidAt: string; }
 export interface PaymentsDue {
   setup: DueItem[];        // setup fees due now / overdue (unpaid)
   monthly: DueItem[];      // monthly due now / overdue
   upcoming: DueItem[];     // due within the horizon (not yet due)
-  marketers: MarketerDue[];// commissions ready to pay (onboarded + verified)
+  marketers: MarketerDue[];// commissions ready to pay (onboarded + verified + matured)
+  marketersUpcoming: MarketerUpcoming[]; // earned but still maturing (Level 4→5) — due later
   marketerPayments: MarketerPayment[]; // referral commissions actually paid (drives ✓ Paid rows)
   totalDueNow: number;     // setup + monthly + marketer, due now (PH ₱ only — legacy)
   totalsByCurrency: Record<Currency, number>; // due-now totals split by currency
@@ -170,16 +173,30 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
 
   // Marketer commissions ready to pay — NET of commission already paid, keyed to the
   // referrer's display name (not the slug). Mirrors /admin/referrals so both agree.
-  const earnedByRef = new Map<string, { count: number; amount: number }>();
+  // A referral is fully READY once its account has matured (passed the 1-week hold
+  // after QC / verifiedAt, i.e. Level 4→5) or is onboarded; while still maturing it's
+  // UPCOMING, with a due date = maturation completion.
+  const HOLD_MS = 7 * 86400000;
+  const isMatured = (a: { status: string; verifiedAt: Date | string | null }) =>
+    a.status === "onboarded" || (!!a.verifiedAt && Date.now() - new Date(a.verifiedAt).getTime() >= HOLD_MS);
+  type RefPerson = { name: string; url: string | null; dueDate: string };
+  type Bucket = { count: number; amount: number; dueMs: number; people: RefPerson[] };
+  const earnedByRef = new Map<string, Bucket>();   // ready (matured)
+  const upcomingByRef = new Map<string, Bucket>();  // maturing
   for (const a of apps) {
     const ref = (a.referredBy || "").trim().toLowerCase();
     if (!ref || !isReferralEarned(a)) continue;
-    const earned = earnedByRef.get(ref) || { count: 0, amount: 0 };
-    earned.count++;
-    earned.amount += referralCommissionAmount(a, currencyConfig(ref).referralTiers);
-    earnedByRef.set(ref, earned);
+    const amt = referralCommissionAmount(a, currencyConfig(ref).referralTiers);
+    const matured = isMatured(a);
+    const bucket = matured ? earnedByRef : upcomingByRef;
+    const cur = bucket.get(ref) || { count: 0, amount: 0, dueMs: 0, people: [] };
+    cur.count++; cur.amount += amt;
+    const dm = a.verifiedAt ? new Date(a.verifiedAt).getTime() + HOLD_MS : Date.now();
+    cur.dueMs = matured ? Math.max(cur.dueMs, dm) : (cur.dueMs ? Math.min(cur.dueMs, dm) : dm);
+    cur.people.push({ name: a.fullName, url: a.linkedinUrl, dueDate: new Date(dm).toISOString() });
+    bucket.set(ref, cur);
   }
-  const refSlugs = [...earnedByRef.keys()];
+  const refSlugs = [...new Set([...earnedByRef.keys(), ...upcomingByRef.keys()])];
   // Every actually-paid commission payout (any referrer) — drives both the net-owed maths
   // and the "✓ Paid" referral rows on the payouts page.
   const commPayouts = await prisma.payout.findMany({
@@ -212,9 +229,19 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     // row doesn't say "2 referrals" when only one ₱500 commission is still owed.
     const avg = earned.count ? earned.amount / earned.count : 0;
     const dueCount = avg > 0 ? Math.max(1, Math.round(outstanding / avg)) : earned.count;
-    marketers.push({ name: r?.name || slug, count: earned.count, dueCount, amount: outstanding, currency: cfg.currency });
+    marketers.push({ name: r?.name || slug, count: earned.count, dueCount, amount: outstanding, currency: cfg.currency, dueDate: earned.dueMs ? new Date(earned.dueMs).toISOString() : null, people: earned.people });
   }
   marketers.sort((a, b) => b.amount - a.amount);
+
+  // Upcoming referral commissions — accounts still maturing (Level 4→5). Not payable yet;
+  // each carries the maturation date it becomes due.
+  const marketersUpcoming: MarketerUpcoming[] = [];
+  for (const [slug, up] of upcomingByRef) {
+    const r = refBySlug.get(slug);
+    const cfg = currencyConfig(r?.slug || slug);
+    marketersUpcoming.push({ name: r?.name || slug, count: up.count, amount: up.amount, currency: cfg.currency, dueDate: new Date(up.dueMs).toISOString(), people: up.people });
+  }
+  marketersUpcoming.sort((a, b) => a.dueDate.localeCompare(b.dueDate)); // soonest first
 
   const sortByDue = (arr: DueItem[]) => arr.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   sortByDue(setup); sortByDue(monthly); sortByDue(upcoming);
@@ -225,5 +252,5 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   for (const i of monthly) totalsByCurrency[i.currency] += i.amount;
   for (const m of marketers) totalsByCurrency[m.currency] += m.amount;
 
-  return { setup, monthly, upcoming, marketers, marketerPayments, totalDueNow: totalsByCurrency.PHP, totalsByCurrency, horizonDays };
+  return { setup, monthly, upcoming, marketers, marketersUpcoming, marketerPayments, totalDueNow: totalsByCurrency.PHP, totalsByCurrency, horizonDays };
 }

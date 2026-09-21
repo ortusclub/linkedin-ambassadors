@@ -318,13 +318,16 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
   );
 }
 
-type MarketerDue = { name: string; count: number; dueCount: number; amount: number; currency: "PHP" | "USD" };
+type RefPerson = { name: string; url: string | null; dueDate: string };
+type MarketerDue = { name: string; count: number; dueCount: number; amount: number; currency: "PHP" | "USD"; dueDate: string | null; people: RefPerson[] };
+type MarketerUpcoming = { name: string; count: number; amount: number; currency: "PHP" | "USD"; dueDate: string; people: RefPerson[] };
 type RefInfo = { name: string; slug: string; paymentMethod: string | null; paymentDetails: string | null };
 
 export default function PayoutsIIPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [onboarding, setOnboarding] = useState<{ count: number; names: string[] }>({ count: 0, names: [] });
   const [marketers, setMarketers] = useState<MarketerDue[]>([]);
+  const [marketersUpcoming, setMarketersUpcoming] = useState<MarketerUpcoming[]>([]);
   const [referrers, setReferrers] = useState<RefInfo[]>([]);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
@@ -344,6 +347,7 @@ export default function PayoutsIIPage() {
         fetch("/api/admin/referrers").then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       setMarketers(Array.isArray(due?.marketers) ? due.marketers : []);
+      setMarketersUpcoming(Array.isArray(due?.marketersUpcoming) ? due.marketersUpcoming : []);
       setReferrers(Array.isArray(refs?.referrers) ? refs.referrers : []);
     } catch { /* referral block is best-effort */ }
   };
@@ -407,7 +411,7 @@ export default function PayoutsIIPage() {
       {!rows && !error && <p style={{ font: `500 14px ${F_SANS}`, color: "var(--muted,#888)" }}>Loading…</p>}
 
       {/* Referral commissions ready to pay to marketers/referrers — same style as the sections below */}
-      {marketers.length > 0 && (() => {
+      {(marketers.length > 0 || marketersUpcoming.length > 0) && (() => {
         const refByName = new Map(referrers.map((r) => [r.name.trim().toLowerCase(), r]));
         const money = (n: number, c: "PHP" | "USD") => `${c === "USD" ? "$" : "₱"}${Math.round(n).toLocaleString("en-US")}`;
         const totals = marketers.reduce((acc, m) => { acc[m.currency] = (acc[m.currency] || 0) + m.amount; return acc; }, {} as Record<string, number>);
@@ -423,7 +427,7 @@ export default function PayoutsIIPage() {
               <span style={{ font: `700 13px ${F_SANS}`, color: tone }}>{totalLabel}</span>
               <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#9aa0a6)" }}>owed to marketers for onboarded referrals · pay &amp; log on the Referrals page</span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+            {sorted.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
               {sorted.map((m) => {
                 const info = refByName.get(m.name.trim().toLowerCase());
                 const href = `/admin/referrals?ref=${encodeURIComponent(info?.slug || m.name)}`;
@@ -434,8 +438,10 @@ export default function PayoutsIIPage() {
                         <div style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)" }}>{m.name}</div>
                         <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 2 }}>{m.dueCount} referral{m.dueCount === 1 ? "" : "s"} due</div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginTop: 6, font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>
+                          <span>Due: <b style={{ color: "var(--fg,#444)" }}>{m.dueDate ? fmtDate(m.dueDate) : "now"}</b></span>
                           <span>Pay via: <b style={{ color: info?.paymentDetails ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{info?.paymentDetails ? `${info.paymentMethod || "—"} · ${info.paymentDetails}` : "not set"}</b></span>
                         </div>
+                        {m.people.length > 0 && <div style={{ marginTop: 5, font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>For: {m.people.map((p, i) => <span key={i}>{i > 0 ? " · " : ""}{p.url ? <a href={p.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "var(--link,#0a66c2)", textDecoration: "none" }}>{p.name} ↗</a> : p.name}</span>)}</div>}
                       </div>
                       <span style={{ font: `800 16px ${F_GRO}`, color: tone, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{money(m.amount, m.currency)}</span>
                       <a href={href} onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border,#d9d9de)", background: "var(--card,#fff)", color: "var(--fg,#333)", textDecoration: "none", whiteSpace: "nowrap" }}>Pay / log →</a>
@@ -443,7 +449,29 @@ export default function PayoutsIIPage() {
                   </div>
                 );
               })}
-            </div>
+            </div>}
+            {marketersUpcoming.length > 0 && (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                  <span style={{ font: `700 12.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⏳ Upcoming — still maturing (Level 4 → 5)</span>
+                  <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#9aa0a6)" }}>not payable yet · becomes due once the account passes its 1-week hold</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {marketersUpcoming.map((m) => (
+                    <div key={m.name} style={{ border: "1px dashed var(--border,#e0e0e4)", borderRadius: 12, background: "var(--panel,#fafafa)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px" }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ font: `700 14.5px ${F_GRO}`, color: "var(--fg,#111)" }}>{m.name}</div>
+                          <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 2 }}>Due <b style={{ color: "var(--warn-badge-text,#b7791f)" }}>{fmtDate(m.dueDate)}</b> · {m.count} referral{m.count === 1 ? "" : "s"} maturing</div>
+                          {m.people.length > 0 && <div style={{ marginTop: 5, font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>For: {m.people.map((p, i) => <span key={i}>{i > 0 ? " · " : ""}{p.url ? <a href={p.url} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)", textDecoration: "none" }}>{p.name} ↗</a> : p.name} <span style={{ color: "var(--muted2,#9aa0a6)" }}>(due {fmtDate(p.dueDate)})</span></span>)}</div>}
+                        </div>
+                        <span style={{ font: `700 15px ${F_GRO}`, color: "var(--muted,#8a9099)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{money(m.amount, m.currency)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         );
       })()}
