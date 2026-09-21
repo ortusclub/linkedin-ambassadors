@@ -413,7 +413,7 @@ export default function AdminPipelinePage() {
       const res = await fetch("/api/admin/onboarding/email-issue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, issue, loginEmail: r.loginEmail, ambassadorName: r.fullName, referrerSlug: r.referredBy }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not send (${res.status}).`);
-      else { alert(`Emailed ${d.to} about: ${d.issueLabel}.`); await load(); }
+      else { alert(`Sent to ${d.to} — it's now with the referrer. When they mark it fixed, this button will ask you to re-check.`); await load(); }
     } finally { setBusy(null); }
   };
   // Change stage keeping the model consistent: Level 2 (approved) ALWAYS means logged in,
@@ -843,18 +843,34 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             <WorkflowRail r={r} busy={busy} workflow={workflow} />
           )}
 
-          {/* Email the referrer a guided fix for a common problem */}
-          {r.referredBy && (
+          {/* Email the referrer a guided fix for a common problem. Each button tracks its
+              own state: not sent → sent & with the referrer → they marked it done, recheck. */}
+          {r.referredBy && (() => {
+            const FIX_FOR: Record<string, "email_added" | "email_primary" | "twofa" | "password"> = { email_not_added: "email_added", email_not_primary: "email_primary", twofa_not_set: "twofa", password_incorrect: "password" };
+            const fixState = r.onboardingFix?.state;
+            const resolveIssue = (fk: string) => { const cur = r.onboardingFix?.issues || []; const rem = cur.filter((x) => x !== fk); workflow(r.id, { setOnboardingFix: rem.length ? { issues: rem, state: r.onboardingFix?.state || "open", raisedAt: r.onboardingFix?.raisedAt || new Date().toISOString() } : null }); };
+            return (
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16, padding: "10px 12px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
               <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Onboarding issues · email referrer ({r.referredBy})</span>
-              {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"], ["password_incorrect", "Password incorrect"]] as [string, string][]).map(([key, label]) => (
-                <button key={key} onClick={(e) => { e.stopPropagation(); void emailIssue(r, key); }} disabled={busy}
-                  style={{ font: `700 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>✉ {label}</button>
-              ))}
+              {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"], ["password_incorrect", "Password incorrect"]] as [string, string][]).map(([key, label]) => {
+                const fk = FIX_FOR[key];
+                const raised = !!r.onboardingFix?.issues.includes(fk);
+                const done = raised && fixState === "referrer_done";
+                const st = done
+                  ? { color: "var(--purple-chip-text,#6b3fd4)", background: "var(--purple-chip-bg,#efe7fd)", border: "1px solid var(--purple-chip-text,#6b3fd4)", text: `✓ ${label} — they fixed it, check`, tip: "Referrer marked this done. Verify it, then click to clear it." }
+                  : raised
+                    ? { color: "var(--warn-badge-text,#b7791f)", background: "var(--warn-badge-bg,#fef3e2)", border: "1px solid var(--warn-badge-text,#b7791f)", text: `⏳ ${label} — sent, with referrer`, tip: "Emailed — waiting on the referrer. Click to re-send." }
+                    : { color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", text: `✉ ${label}`, tip: "Email the referrer this fix (also raises it on their portal)." };
+                return (
+                  <button key={key} onClick={(e) => { e.stopPropagation(); if (done) void resolveIssue(fk); else void emailIssue(r, key); }} disabled={busy} title={st.tip}
+                    style={{ font: `700 11px ${F_SANS}`, color: st.color, background: st.background, border: st.border, padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{st.text}</button>
+                );
+              })}
               <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} title="Open this referrer on the Referrals page"
                 style={{ marginLeft: "auto", font: `700 11px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "transparent", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, textDecoration: "none", whiteSpace: "nowrap" }}>View referrer →</a>
             </div>
-          )}
+            );
+          })()}
 
           {/* BLOCK 1 — applicant & payout */}
           <SectionLabel num={1}>Applicant &amp; payout</SectionLabel>
