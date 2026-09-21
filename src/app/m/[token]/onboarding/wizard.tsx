@@ -10,14 +10,30 @@ import PhoneHandoff from "./phone-handoff";
 import EmailStep, { type EmailSetup } from "./email-step";
 import { CoachTour, type TourStep } from "./coach-tour";
 
-const TOUR_KEY = "lv_diy_tour_seen";
-const TOUR_STEPS: TourStep[] = [
-  { title: "Welcome — quick 2-minute tour", body: "You'll do this together with the account owner, on one device, in about 10 minutes. Here's the lay of the land before you start." },
-  { target: "rail", title: "See all 6 steps anytime", body: "Tap \"How it works\" to expand the full flow and see where you are. It saves as you go." },
-  { target: "need", title: "Check they're ready", body: "Before you start, make sure the owner has these — and that they'll stay with you the whole way." },
-  { target: "consent", title: "Get their OK", body: "Once they're happy and agree to the terms, tick this box. You can't start until it's ticked." },
-  { target: "start", title: "Then you're off", body: "Hit Start and go step by step. You can pause and pick up again from your portal anytime." },
-];
+// Per-page coach tours — the first time a referrer reaches each page they get a short
+// walkthrough of that screen. "Skip tour" stops all of them; each is also replayable.
+const TOUR_KEY = (page: string) => `lv_diy_tour_${page}`;
+const TOUR_ALL = "lv_diy_tour_all";
+const PAGE_TOURS: Record<string, TourStep[]> = {
+  before: [
+    { title: "Welcome — quick tour", body: "You'll do this together with the account owner, on one device, in about 10 minutes. Here's the lay of the land." },
+    { target: "rail", title: "See all 6 steps anytime", body: "Tap \"How it works\" to expand the full flow and see where you are. It saves as you go." },
+    { target: "need", title: "Check they're ready", body: "Before you start, make sure the owner has these — and that they'll stay with you the whole way." },
+    { target: "consent", title: "Get their OK", body: "Once they're happy and agree to the terms, tick this box, then hit Start." },
+  ],
+  details: [
+    { title: "Their details", body: "Let the owner type their own details where they can — it's their account. You just guide them." },
+    { target: "age", title: "How old is the account", body: "This sets when the setup fee lands — about 3 days for an older account, about a week for a newer one." },
+    { target: "verified", title: "Is it verified?", body: "Check their profile for a Verified badge. A verified account pays you the top rate, so check rather than guess." },
+  ],
+  payout: [
+    { target: "payout-method", title: "Where THEY get paid", body: "These are the account owner's payout details. Your own commission uses the details on your portal, not this." },
+    { target: "payout-when", title: "When the money moves", body: "Once signed in, the account is onboarded; we verify it, then their fee goes out and yours follows the next Monday." },
+  ],
+  signin: [
+    { target: "signin-choice", title: "Who signs in?", body: "On a laptop you do the sign-in and earn the most. No computer? \"Hand it to us\" and the team does it — they still get paid, you earn a little less." },
+  ],
+};
 import { ShareLinks, WaitNotice, type ScriptContext } from "./onboarding-scripts";
 
 type Session = {
@@ -111,12 +127,17 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     return () => { cancelled = true; };
   }, [endpoint, loadAttempt]);
 
-  // First-timer coach tour on the opening screen — shows once, then never again.
+  // Which page's coach tour applies right now (null = no tour for this screen).
+  const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : (step === 4 && browserMode === "") ? "signin" : null;
+  // First-timer coach tour — auto-shows once per page; "Skip tour" stops all of them.
   useEffect(() => {
-    if (!bootstrap || step !== 0) return;
-    try { if (!localStorage.getItem(TOUR_KEY)) setShowTour(true); } catch { /* storage blocked */ }
-  }, [bootstrap, step]);
-  const dismissTour = () => { setShowTour(false); try { localStorage.setItem(TOUR_KEY, "1"); } catch { /* ignore */ } };
+    if (!bootstrap || !tourKey) { setShowTour(false); return; }
+    try { if (!localStorage.getItem(TOUR_ALL) && !localStorage.getItem(TOUR_KEY(tourKey))) setShowTour(true); } catch { /* storage blocked */ }
+  }, [bootstrap, tourKey]);
+  const endTour = (skipped: boolean) => {
+    setShowTour(false);
+    try { if (tourKey) localStorage.setItem(TOUR_KEY(tourKey), "1"); if (skipped) localStorage.setItem(TOUR_ALL, "1"); } catch { /* ignore */ }
+  };
 
   async function run(task: () => Promise<void>) {
     setBusy(true); setError("");
@@ -265,7 +286,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <span className={styles.railToggle}>Show all ▼</span>
           </button>}
 
-          {showTour && step === 0 && <CoachTour steps={TOUR_STEPS} onDone={dismissTour} />}
+          {showTour && tourKey && PAGE_TOURS[tourKey] && <CoachTour steps={PAGE_TOURS[tourKey]} onDone={endTour} />}
 
           {step === 0 && <>
             <h1 className={styles.heroTitle}>Before you begin</h1>
@@ -322,13 +343,13 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             </select></label><p className={styles.hint}>We match their connection to this country, so LinkedIn keeps seeing them log in from home.</p>
             </div>
 
-            <div className={styles.card}>
+            <div className={styles.card} data-tour="age">
               <div className={styles.cardTitle}>How old is the account?</div>
               <button type="button" className={`${styles.optionCard} ${form.accountFreshness === "established" ? styles.optionOn : ""}`} onClick={() => setForm({ ...form, accountFreshness: "established" })}><span className={styles.radio} /><span><strong>More than a month old</strong><small>Three-day check, then payment</small></span></button>
               <button type="button" className={`${styles.optionCard} ${form.accountFreshness === "fresh" ? styles.optionOn : ""}`} onClick={() => setForm({ ...form, accountFreshness: "fresh" })}><span className={styles.radio} /><span><strong>Less than a month old</strong><small>About a week before payment, and expect the odd restriction</small></span></button>
             </div>
 
-            <div className={styles.card}>
+            <div className={styles.card} data-tour="verified">
               <div className={styles.cardTitle}>Is their LinkedIn already verified?</div>
               <p className={styles.cardSub}>Open their profile together and look under their name — a verified profile says &ldquo;Verified&rdquo; there. This changes what you earn, so check rather than guess.</p>
               {([{ v: "yes", t: "Yes — it says Verified", s: "Top rate: your commission goes up" }, { v: "no", t: "No, not verified", s: "Fine, they can still do it later" }, { v: "unsure", t: "Not sure yet", s: "We'll confirm it during the checks" }] as const).map((o) => (
@@ -366,7 +387,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck, linkedinVerified: accountVerified === "yes" })).session)); }}>
             <h1 className={styles.heroTitle}>Where should they get paid?</h1>
             <p className={styles.lead}>This is <strong>their</strong> {bootstrap.config.offer.setup} and {bootstrap.config.offer.monthly} a month. Your own commission goes to the details on your portal.</p>
-            <div className={styles.card}>
+            <div className={styles.card} data-tour="payout-method">
             <label className={styles.field}>Pay them via<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value, paymentDetails: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
             {field("payoutName", "Name registered on that account", "text", "Must match the payment account")}
             {form.paymentMethod === "Bank transfer" ? <>
@@ -379,7 +400,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             </>}
             </div>
             {(!bootstrap.configured || (!bootstrap.autoPurchase && !browserCapacityAvailable)) && <div className={styles.warn}><div>Browser setup isn&apos;t ready yet</div><p>Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access, then try Save &amp; continue.</p></div>}
-            <div className={styles.infoBlue}><div>When their money arrives</div><p>Once the sign-in is saved, the account counts as onboarded. We then verify it — {checkWindow(form.accountFreshness)}, because we wait about 24 hours before signing in — and their {bootstrap.config.offer.setup} goes out. {bootstrap.config.offer.monthly} follows on the 1st of each month. They need to stay reachable for the odd LinkedIn check.</p></div>
+            <div className={styles.infoBlue} data-tour="payout-when"><div>When their money arrives</div><p>Once the sign-in is saved, the account counts as onboarded. We then verify it — {checkWindow(form.accountFreshness)}, because we wait about 24 hours before signing in — and their {bootstrap.config.offer.setup} goes out. {bootstrap.config.offer.monthly} follows on the 1st of each month. They need to stay reachable for the odd LinkedIn check.</p></div>
             <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
           </form>}
 
@@ -396,7 +417,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
           </> : browserMode === "" ? <>
             <h1 className={styles.heroTitle}>Who does the sign-in?</h1>
             <p className={styles.lead}>This is the last step, and it sets your rate: on a laptop you do the sign-in, on a phone we do.</p>
-            <button type="button" className={styles.choiceCard} onClick={() => setBrowserMode("phone")}>
+            <button type="button" data-tour="signin-choice" className={styles.choiceCard} onClick={() => setBrowserMode("phone")}>
               <div className={styles.choiceHead}><strong>Hand it to us</strong><span className={styles.rateChip}>{phoneRange}</span></div>
               <p>Works on a phone. They set a temporary password, our team does the sign-in, and their payment timeline doesn&apos;t change.</p>
             </button>

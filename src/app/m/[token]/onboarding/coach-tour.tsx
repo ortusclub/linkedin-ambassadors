@@ -8,7 +8,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 // No targets are matched across steps, so keep the tour to a single visible screen.
 export type TourStep = { target?: string; title: string; body: string };
 
-export function CoachTour({ steps, onDone }: { steps: TourStep[]; onDone: () => void }) {
+export function CoachTour({ steps, onDone }: { steps: TourStep[]; onDone: (skipped: boolean) => void }) {
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [vh, setVh] = useState(0);
@@ -31,7 +31,7 @@ export function CoachTour({ steps, onDone }: { steps: TourStep[]; onDone: () => 
 
   if (!step) return null;
   const last = i + 1 >= steps.length;
-  const next = () => (last ? onDone() : setI(i + 1));
+  const next = () => (last ? onDone(false) : setI(i + 1));
 
   // Place the bubble below the target if there's room, otherwise above; centred when
   // there's no target.
@@ -58,7 +58,7 @@ export function CoachTour({ steps, onDone }: { steps: TourStep[]; onDone: () => 
           <div style={{ font: "700 15.5px 'Plus Jakarta Sans',sans-serif", color: "#0b1220", marginBottom: 5 }}>{step.title}</div>
           <p style={{ font: "500 12.5px/1.55 'Plus Jakarta Sans',sans-serif", color: "#5b6779", margin: "0 0 14px" }}>{step.body}</p>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={onDone} style={{ font: "600 12px 'Plus Jakarta Sans',sans-serif", color: "#98a2b3", background: "none", border: 0, cursor: "pointer", padding: "8px 0" }}>Skip</button>
+            <button onClick={() => onDone(true)} style={{ font: "600 12px 'Plus Jakarta Sans',sans-serif", color: "#98a2b3", background: "none", border: 0, cursor: "pointer", padding: "8px 0" }}>Skip tour</button>
             <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
               {i > 0 && <button onClick={() => setI(i - 1)} style={btn("transparent", "#0b1220")}>Back</button>}
               <button onClick={next} style={btn("#16a34a", "#fff")}>{last ? "Got it" : "Next"}</button>
