@@ -23,7 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      select: { fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, paidAt: true, createdAt: true, selfServiceOnboarding: { select: { state: true } } },
+      select: { id: true, fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardingFix: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, paidAt: true, createdAt: true, selfServiceOnboarding: { select: { state: true } } },
     }),
     prisma.payout.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" } }),
   ]);
@@ -117,7 +117,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         kind = "action"; pill = { text: "No call booked", tone: "amber" }; progress = 1; action = "onboard";
         line = "Form in — not onboarded yet"; sub = "They filled your form. Onboard them now, or get a call booked."; fee = money(t.referral);
       }
-      return { name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind };
+      // Post-sign-in fixes the team raised for this signup (email not primary / 2FA not set).
+      const rawFix = a.onboardingFix as { issues?: ("email_primary" | "twofa")[]; state?: "open" | "referrer_done" } | null;
+      const fix = rawFix?.issues?.length ? { issues: rawFix.issues, state: rawFix.state === "referrer_done" ? "referrer_done" : "open" } : null;
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix };
     });
 
   return NextResponse.json({
@@ -163,6 +166,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   if (!me) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
+
+  // The referrer marks a raised fix as done from their portal, so the team knows to recheck.
+  // Only their own referred signups, and only a fix that's actually open.
+  if (body.action === "fixDone" && typeof body.applicationId === "string") {
+    const app = await prisma.ambassadorApplication.findUnique({ where: { id: body.applicationId }, select: { referredBy: true, onboardingFix: true } });
+    if (!app || (app.referredBy || "").trim() !== me.slug) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const fix = app.onboardingFix as { issues?: string[]; state?: string; raisedAt?: string } | null;
+    if (fix?.issues?.length) {
+      await prisma.ambassadorApplication.update({ where: { id: body.applicationId }, data: { onboardingFix: { ...fix, state: "referrer_done", doneAt: new Date().toISOString() } } });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const updated = await prisma.referrer.update({
     where: { id: me.id },
     data: {
