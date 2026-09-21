@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import styles from "./wizard.module.css";
+import TotpCode from "./totp";
 
 // Phone hand-off: the referrer can't run GoLogin (desktop-only), so they give us
 // the password and the 2FA key and we do the sign-in on our side. Nothing here
@@ -33,11 +34,12 @@ export default function PhoneHandoff({ busy, error, submit }: {
       <ol className={styles.instructions}>
         <li>In the LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong>.</li>
         <li>Choose <strong>Authenticator app</strong>. When LinkedIn shows a QR code, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong>.</li>
-        <li>Paste that key below. To finish turning it on, LinkedIn asks for a 6-digit code, put the key into a TOTP code tool to get it.</li>
+        <li>Paste that key below. We&apos;ll show you the 6-digit code LinkedIn asks for — type it into LinkedIn to finish turning it on.</li>
       </ol>
       <label className={styles.field}>The 2FA setup key
         <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={e => setTwoFactorKey(e.target.value.toUpperCase())} placeholder="e.g. JBSWY3DPEHPK3PXP" />
       </label>
+      <TotpCode secretKey={twoFactorKey.trim()} />
     </>}
 
     <label className={styles.check}><input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} /><span>The owner agrees to share these so LinkedVelocity can sign in and run the account, and understands they keep full access and can reset the password anytime.</span></label>
