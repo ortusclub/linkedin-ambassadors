@@ -135,10 +135,16 @@ type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejec
 
 const levelOf = (r: Row): 1 | 2 | 3 | 4 | 5 => {
   if (r.status === "onboarded") return 5;          // matured + paid — live and earning
-  if (!r.emailPrimaryAt) return 1;                 // application received — email/2FA not done
-  if (!r.onboardedAt) return 2;                    // email added & primary + 2FA — not logged in
-  if (!r.verifiedAt) return 3;                     // logged into GoLogin — going through QC
-  return 4;                                        // passed QC — in the maturation hold
+  // Milestone-derived progress (the timestamps are the source of truth when present).
+  let n = 1;
+  if (r.verifiedAt) n = 4;                          // passed QC — maturing
+  else if (r.onboardedAt) n = 3;                    // logged into GoLogin
+  else if (r.emailPrimaryAt) n = 2;                 // email added & primary + 2FA
+  // Status floor — older accounts were moved along by status before these timestamps
+  // existed, so a status still implies a minimum level even with no timestamp set.
+  if (r.status === "approved" && n < 3) n = 3;                                   // logged in
+  else if ((r.status === "onboarding" || r.status === "on_hold") && n < 2) n = 2; // in setup
+  return n as 1 | 2 | 3 | 4 | 5;
 };
 const levelKey = (r: Row): number => levelOf(r);
 
@@ -321,11 +327,11 @@ const STAGE_ACCENT: Record<Stage, string> = {
 const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "pending", label: "Initial" },
   { value: "contacted", label: "Awaiting reply" },
-  { value: "onboarding", label: "Level 1" },
-  { value: "approved", label: "Level 2" },
+  { value: "onboarding", label: "Onboarding" },
+  { value: "approved", label: "Logged in" },
   { value: "onboarded", label: "Onboarded" },
   { value: "reviewing", label: "In review" },
-  { value: "on_hold", label: "Level 1 · hold" },
+  { value: "on_hold", label: "On hold" },
   { value: "unreachable", label: "Unreachable" },
   { value: "rejected", label: "Rejected" },
 ];
@@ -666,16 +672,7 @@ export default function AdminPipelinePage() {
         )}
       </div>
 
-      {/* mode + hint */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "inline-flex", background: "var(--band,#f1f1f2)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 10, padding: 3 }}>
-          <button onClick={() => { setMode("stage"); setStatusFilter("all"); setLevelFilter("all"); setHealthFilter("all"); setPocFilter("all"); }} style={modeBtn("stage")}>By level</button>
-          <button onClick={() => { setMode("action"); setStatusFilter("all"); setPocFilter("all"); }} style={modeBtn("action")}>By next action</button>
-          <button onClick={() => { setMode("live"); setStatusFilter("all"); setPocFilter("all"); }} style={modeBtn("live")}>Onboarded · payments</button>
-        </div>
-      </div>
-
-      {/* chips — two axes in By-level mode (Level + Health), status chips elsewhere */}
+      {/* chips — two axes (Level + Health) + PoC */}
       {mode === "stage" ? (() => {
         const chipBtn = (active: boolean, dot: string | null, label: string, count: number, onClick: () => void, key: string) => (
           <button key={key} onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 12px ${F_SANS}`, padding: "6px 11px", borderRadius: 999, border: "1px solid", borderColor: active ? "transparent" : "var(--input-border,#dcdce0)", background: active ? "var(--chip-active-bg,#eaf1ff)" : "transparent", color: active ? "var(--chip-active-text,#1a56db)" : "var(--muted,#555)" }}>
@@ -969,16 +966,16 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                   const raised = !!r.onboardingFix?.issues.includes(fk);
                   const done = raised && fixState === "referrer_done";
                   const st = done
-                    ? { color: "var(--purple-chip-text,#6b3fd4)", background: "var(--purple-chip-bg,#efe7fd)", border: "1px solid var(--purple-chip-text,#6b3fd4)", text: `✓ ${label} — they fixed it, check`, tip: "Referrer marked this done. Verify it, then click to clear it." }
+                    ? { color: "var(--purple-chip-text,#6b3fd4)", background: "var(--purple-chip-bg,#efe7fd)", border: "1px solid var(--purple-chip-text,#6b3fd4)", text: `✓ ${label} — they fixed it · tap to resolve`, tip: "Referrer marked this done. Verify it, then click to mark it resolved." }
                     : raised
-                      ? { color: "var(--warn-badge-text,#b7791f)", background: "var(--warn-badge-bg,#fef3e2)", border: "1px solid var(--warn-badge-text,#b7791f)", text: `⏳ ${label} — sent, with referrer`, tip: "Emailed — waiting on the referrer. Click to re-send." }
+                      ? { color: "var(--warn-badge-text,#b7791f)", background: "var(--warn-badge-bg,#fef3e2)", border: "1px solid var(--warn-badge-text,#b7791f)", text: `⏳ ${label} — sent · tap to resolve ✓`, tip: "Sent — waiting on the referrer. Click here to mark this issue resolved (use ‘Email reminder’ below to re-send)." }
                       : { color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", text: `✉ ${label}`, tip: "Email the referrer this fix (also raises it on their portal)." };
                   const openHere = raised && !done;
                   const waLink = ref?.whatsapp ? `https://wa.me/${ref.whatsapp}?text=${encodeURIComponent(MSG[key])}` : null;
                   const tgLink = ref?.telegram ? `https://t.me/${ref.telegram}` : null;
                   return (
                     <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <button onClick={(e) => { e.stopPropagation(); if (done) void resolveIssue(fk); else void emailIssue(r, key); }} disabled={busy} title={st.tip}
+                      <button onClick={(e) => { e.stopPropagation(); if (raised) void resolveIssue(fk); else void emailIssue(r, key); }} disabled={busy} title={st.tip}
                         style={{ font: `700 11px ${F_SANS}`, color: st.color, background: st.background, border: st.border, padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap", textAlign: "left" }}>{st.text}</button>
                       {openHere && (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingLeft: 2 }}>
