@@ -4,9 +4,10 @@ import { requireAdmin } from "@/lib/auth";
 import { deleteProfile, tokenForAccount } from "@/services/gologin";
 
 // Manual "Delete GoLogin" button on the pipeline / account editor. Removes the
-// GoLogin browser profile (using the token for whichever GoLogin account hosts it)
-// and clears the profile id + share link off the account. The proxy assignment is
-// left in place so re-running "Create GoLogin" reuses it. Confirmed in the UI first.
+// GoLogin browser profile (using the token for whichever GoLogin account hosts it),
+// clears the profile id + share link off the account, AND unassigns the proxy so it's
+// freed for another account (the account→proxy link lives on these fields; a free slot
+// is just a proxy no account points at). Confirmed in the UI first.
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -41,7 +42,16 @@ export async function POST(req: Request) {
 
     await prisma.linkedInAccount.update({
       where: { id: accountId },
-      data: { gologinProfileId: null, gologinShareLink: null },
+      data: {
+        gologinProfileId: null,
+        gologinShareLink: null,
+        // Unassign the proxy — this frees the slot for another account.
+        proxyHost: null,
+        proxyPort: null,
+        proxyUsername: null,
+        proxyPassword: null,
+        proxyLocation: null,
+      },
     });
 
     return NextResponse.json({ ok: true, deleted, warning });

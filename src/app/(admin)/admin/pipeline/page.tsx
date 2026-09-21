@@ -383,7 +383,7 @@ export default function AdminPipelinePage() {
   // Delete the GoLogin profile off an account (confirmed first). Proxy stays assigned.
   const deleteGologin = async (r: Row) => {
     if (!r.accountId) return;
-    if (!confirm(`Delete the GoLogin profile for ${r.accountName || r.fullName || "this account"}?\n\nThis removes the browser profile and clears the share link. The proxy stays assigned — you can re-create the profile later with "Create GoLogin".`)) return;
+    if (!confirm(`Delete the GoLogin profile for ${r.accountName || r.fullName || "this account"}?\n\nThis removes the browser profile, clears the share link, and unassigns the proxy (freeing it for another account). You can re-create everything later with "Create GoLogin".`)) return;
     setBusy(r.id);
     try {
       const res = await fetch("/api/admin/onboarding/delete-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
@@ -879,7 +879,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                 ) : (
                   <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin {r.gologinProfileId ? r.gologinProfileId.slice(0, 10) + "…" : "ready"}</span>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin browser profile and clear its share link (you'll be asked to confirm; the proxy stays assigned)" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e5b4ad)", padding: "3px 9px", borderRadius: 6, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>🗑 Delete GoLogin</button>
+                <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin browser profile, clear its share link, and unassign the proxy (you'll be asked to confirm)" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e5b4ad)", padding: "3px 9px", borderRadius: 6, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>🗑 Delete GoLogin</button>
               </div>
             )}
           </div>
