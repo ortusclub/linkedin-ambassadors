@@ -44,7 +44,10 @@ export async function GET() {
     });
 
     // DIY phone hand-offs waiting for us to do the GoLogin sign-in. state "handed_off"
-    // is set only by the phone hand-off, so it cleanly marks "the team needs to sign in".
+    // is set only by the phone hand-off, so it marks "handed to the team" — but it is never
+    // cleared once we sign in, so the "Needs sign-in" badge below also requires that the
+    // account hasn't been logged in yet (onboardedAt unset). Once it's logged in, the
+    // sign-in is done and the badge must drop.
     const handoffAppIds = new Set(
       (await prisma.selfServiceOnboarding.findMany({ where: { state: "handed_off" }, select: { applicationId: true } }))
         .map((s) => s.applicationId)
@@ -163,7 +166,8 @@ export async function GET() {
         provisionStatus: acct?.provisionStatus || null,
         connectionCount: acct?.connectionCount ?? app.connectionCount ?? null,
         // DIY phone hand-off: owner is on a phone, so LinkedVelocity must do the sign-in.
-        phoneHandoffPending: handoffAppIds.has(app.id),
+        // Only "pending" until the account is actually logged in (onboardedAt stamped).
+        phoneHandoffPending: handoffAppIds.has(app.id) && !app.onboardedAt,
       };
     });
 
