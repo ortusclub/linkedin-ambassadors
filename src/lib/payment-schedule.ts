@@ -75,7 +75,7 @@ export interface DueItem {
   overdue: boolean;
   blocked: string | null; // login issue reason — due but can't be paid until resolved
 }
-export interface MarketerDue { name: string; count: number; amount: number; currency: Currency; }
+export interface MarketerDue { name: string; count: number; dueCount: number; amount: number; currency: Currency; }
 export interface MarketerPayment { name: string; amount: number; paidAt: string; }
 export interface PaymentsDue {
   setup: DueItem[];        // setup fees due now / overdue (unpaid)
@@ -207,7 +207,12 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     const paid = r ? paidByRefId.get(r.id) || 0 : 0;
     const outstanding = Math.max(0, earned.amount - paid);
     if (outstanding <= 0) continue;
-    marketers.push({ name: r?.name || slug, count: earned.count, amount: outstanding, currency: cfg.currency });
+    // Commission is paid amount-first, so some earned referrals may already be covered.
+    // dueCount = the number the OUTSTANDING amount actually represents (avg rate), so the
+    // row doesn't say "2 referrals" when only one ₱500 commission is still owed.
+    const avg = earned.count ? earned.amount / earned.count : 0;
+    const dueCount = avg > 0 ? Math.max(1, Math.round(outstanding / avg)) : earned.count;
+    marketers.push({ name: r?.name || slug, count: earned.count, dueCount, amount: outstanding, currency: cfg.currency });
   }
   marketers.sort((a, b) => b.amount - a.amount);
 

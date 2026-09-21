@@ -318,7 +318,7 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
   );
 }
 
-type MarketerDue = { name: string; count: number; amount: number; currency: "PHP" | "USD" };
+type MarketerDue = { name: string; count: number; dueCount: number; amount: number; currency: "PHP" | "USD" };
 type RefInfo = { name: string; slug: string; paymentMethod: string | null; paymentDetails: string | null };
 
 export default function PayoutsIIPage() {
@@ -406,34 +406,40 @@ export default function PayoutsIIPage() {
       {error && <p style={{ color: "var(--st-cancel-fg,#b00)", font: `600 14px ${F_SANS}` }}>Failed to load.</p>}
       {!rows && !error && <p style={{ font: `500 14px ${F_SANS}`, color: "var(--muted,#888)" }}>Loading…</p>}
 
-      {/* Referral commissions ready to pay to marketers/referrers */}
+      {/* Referral commissions ready to pay to marketers/referrers — same style as the sections below */}
       {marketers.length > 0 && (() => {
         const refByName = new Map(referrers.map((r) => [r.name.trim().toLowerCase(), r]));
         const money = (n: number, c: "PHP" | "USD") => `${c === "USD" ? "$" : "₱"}${Math.round(n).toLocaleString("en-US")}`;
         const totals = marketers.reduce((acc, m) => { acc[m.currency] = (acc[m.currency] || 0) + m.amount; return acc; }, {} as Record<string, number>);
         const totalLabel = (["PHP", "USD"] as const).filter((c) => totals[c]).map((c) => money(totals[c], c)).join(" + ") || "₱0";
         const sorted = [...marketers].sort((a, b) => b.amount - a.amount);
+        const tone = "var(--st-active-fg,#1a8a4a)";
         return (
           <section style={{ marginTop: 30 }}>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 4 }}>
-              <h2 style={{ font: `700 17px ${F_GRO}`, margin: 0, color: "var(--fg,#111)" }}>Referral commissions due <span style={{ font: `600 13px ${F_SANS}`, color: "var(--muted,#888)" }}>· {sorted.length} referrer{sorted.length === 1 ? "" : "s"}</span></h2>
-              <span style={{ font: `700 15px ${F_GRO}`, color: "var(--st-active-fg,#1a8a4a)", fontVariantNumeric: "tabular-nums" }}>{totalLabel} ready</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+              <span style={{ width: 10, height: 10, borderRadius: 999, background: tone }} />
+              <h2 style={{ font: `700 17px ${F_GRO}`, margin: 0, color: "var(--fg,#111)" }}>Referral commissions due</h2>
+              <span style={{ font: `700 13px ${F_SANS}`, color: "var(--muted,#888)" }}>{sorted.length}</span>
+              <span style={{ font: `700 13px ${F_SANS}`, color: tone }}>{totalLabel}</span>
+              <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#9aa0a6)" }}>owed to marketers for onboarded referrals · pay &amp; log on the Referrals page</span>
             </div>
-            <p style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#888)", margin: "0 0 12px" }}>Commissions owed to marketers for onboarded referrals (past the hold). Pay & log on the Referrals page.</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
               {sorted.map((m) => {
                 const info = refByName.get(m.name.trim().toLowerCase());
-                const payTo = info?.paymentDetails ? `${info.paymentMethod || "—"} · ${info.paymentDetails}` : "No payout details set";
                 const href = `/admin/referrals?ref=${encodeURIComponent(info?.slug || m.name)}`;
                 return (
-                  <div key={m.name} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: "var(--card,#fff)", border: "1px solid var(--border,#e3e3e6)", borderRadius: 12, flexWrap: "wrap" }}>
-                    <div style={{ minWidth: 160, flex: "1 1 180px" }}>
-                      <div style={{ font: `700 14px ${F_SANS}`, color: "var(--fg,#111)" }}>{m.name}</div>
-                      <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#888)" }}>{m.count} onboarded referral{m.count === 1 ? "" : "s"}</div>
+                  <div key={m.name} style={{ border: "1px solid var(--border,#e8e8ea)", borderRadius: 12, background: "var(--card,#fff)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 16px" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)" }}>{m.name}</div>
+                        <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 2 }}>{m.dueCount} referral{m.dueCount === 1 ? "" : "s"} due</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginTop: 6, font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>
+                          <span>Pay via: <b style={{ color: info?.paymentDetails ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{info?.paymentDetails ? `${info.paymentMethod || "—"} · ${info.paymentDetails}` : "not set"}</b></span>
+                        </div>
+                      </div>
+                      <span style={{ font: `800 16px ${F_GRO}`, color: tone, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{money(m.amount, m.currency)}</span>
+                      <a href={href} onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border,#d9d9de)", background: "var(--card,#fff)", color: "var(--fg,#333)", textDecoration: "none", whiteSpace: "nowrap" }}>Pay / log →</a>
                     </div>
-                    <div style={{ flex: "1 1 200px", font: `500 12.5px ${F_SANS}`, color: info?.paymentDetails ? "var(--fg,#333)" : "var(--warn-badge-text,#b7791f)" }}>{payTo}</div>
-                    <div style={{ font: `800 17px ${F_GRO}`, color: "var(--st-active-fg,#1a8a4a)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{money(m.amount, m.currency)}</div>
-                    <a href={href} style={{ font: `700 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg,#1a56db)", padding: "9px 15px", borderRadius: 9, textDecoration: "none", whiteSpace: "nowrap" }}>Pay / log →</a>
                   </div>
                 );
               })}
