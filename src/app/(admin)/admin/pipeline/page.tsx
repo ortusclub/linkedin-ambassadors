@@ -695,10 +695,16 @@ export default function AdminPipelinePage() {
               {HEALTH_OPTIONS.map((h) => { const n = scoped.filter((r) => healthOf(r) === h.key).length; return n > 0 ? chipBtn(healthFilter === h.key, h.dot, h.label, n, () => setHealthFilter(h.key), `hl-${h.key}`) : null; })}
             </div>
             {(() => {
-              // LV PoC = who's responsible for this account's onboarding. Row shows only
-              // when at least one account has a handler assigned.
+              // LV PoC = the LinkedVelocity rep responsible for onboarding this account.
+              // Only LV reps can be a PoC — never the ambassador themselves — so ignore any
+              // poc value that matches an applicant's own name (bad/self-referential data).
+              const applicantNames = new Set((rows || []).map((r) => (r.fullName || "").trim().toLowerCase()).filter(Boolean));
               const m = new Map<string, number>(); let unassigned = 0;
-              for (const r of scoped) { const p = (r.poc || "").trim(); if (p) m.set(p, (m.get(p) || 0) + 1); else unassigned++; }
+              for (const r of scoped) {
+                const p = (r.poc || "").trim();
+                if (!p || applicantNames.has(p.toLowerCase())) { unassigned++; continue; }
+                m.set(p, (m.get(p) || 0) + 1);
+              }
               const entries = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
               if (entries.length === 0) return null;
               return (
