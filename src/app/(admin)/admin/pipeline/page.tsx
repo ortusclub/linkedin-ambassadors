@@ -52,7 +52,7 @@ interface Row {
   createdAt: string;
   onboardedAt: string | null;
   accountIssue: string | null;
-  onboardingFix: { issues: ("email_added" | "email_primary" | "twofa")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
+  onboardingFix: { issues: ("email_added" | "email_primary" | "twofa" | "password")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
   reason: string;
   phoneHandoffPending?: boolean;
   hasGologin: boolean;
@@ -801,7 +801,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               {r.referredBy && <span>Referrer <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} title="Open this referrer's profile to add their email / contact / payout" onClick={(e) => e.stopPropagation()} style={{ color: "var(--link,#0a66c2)", cursor: "pointer", fontWeight: 700, textDecoration: "none" }}>{r.referredBy}</a></span>}
             </div>
             {(r.onboardedAt || r.onboardingFix) && (() => {
-              type FixI = "email_added" | "email_primary" | "twofa";
+              type FixI = "email_added" | "email_primary" | "twofa" | "password";
               const has = (i: FixI) => !!r.onboardingFix?.issues.includes(i);
               const raise = (issues: FixI[]) => workflow(r.id, { setOnboardingFix: issues.length ? { issues, state: "open", raisedAt: new Date().toISOString() } : null });
               const toggle = (i: FixI) => { const cur = r.onboardingFix?.issues || []; return raise(has(i) ? cur.filter((x) => x !== i) : [...cur, i]); };
@@ -814,6 +814,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                   {chip("email_added", "Email not added")}
                   {chip("email_primary", "Email not primary")}
                   {chip("twofa", "2FA not set up")}
+                  {chip("password", "Password incorrect")}
                   {r.onboardingFix?.state === "referrer_done" && <span style={{ font: `700 10px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)" }}>Referrer marked fixed — recheck</span>}
                   {r.onboardingFix && <button onClick={(e) => { e.stopPropagation(); void raise([]); }} disabled={busy} style={{ font: `700 10px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, cursor: "pointer", border: "none", background: "var(--st-conv-bg,#ecfdf3)", color: "var(--st-conv-fg,#15803d)" }}>Resolve</button>}
                 </div>
@@ -845,8 +846,8 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
           {/* Email the referrer a guided fix for a common problem */}
           {r.referredBy && (
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16, padding: "10px 12px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
-              <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Step 2 issues · email referrer ({r.referredBy})</span>
-              {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"]] as [string, string][]).map(([key, label]) => (
+              <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Onboarding issues · email referrer ({r.referredBy})</span>
+              {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"], ["password_incorrect", "Password incorrect"]] as [string, string][]).map(([key, label]) => (
                 <button key={key} onClick={(e) => { e.stopPropagation(); void emailIssue(r, key); }} disabled={busy}
                   style={{ font: `700 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>✉ {label}</button>
               ))}

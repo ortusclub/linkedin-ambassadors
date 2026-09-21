@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
-type FixIssue = "email_added" | "email_primary" | "twofa";
+type FixIssue = "email_added" | "email_primary" | "twofa" | "password";
 interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
@@ -123,6 +123,7 @@ const FIX_INFO: Record<FixIssue, { title: string; how: string }> = {
   email_added: { title: "Our email isn't on the account yet", how: "In LinkedIn: Settings → Sign in & security → Email addresses → Add email address. Add the LinkedVelocity email we gave you. LinkedIn sends it a confirmation link (we receive it), then set it as PRIMARY." },
   email_primary: { title: "Our email isn't set as Primary", how: "In LinkedIn: Settings → Sign in & security → Email addresses. Set the LinkedVelocity email as the PRIMARY one — not just added. It has to be primary or we can't keep the account signed in." },
   twofa: { title: "Two-step verification isn't set up", how: "In LinkedIn: Settings → Sign in & security → Two-step verification → Authenticator app. Use the setup key from onboarding (the wizard shows the code to finish it)." },
+  password: { title: "The account password isn't working", how: "Confirm the exact current LinkedIn password with them (watch for typos or a recent change). If unsure, reset it in Settings → Sign in & security → Change password, then send us the working password." },
 };
 
 // The owner clears a LinkedIn restriction themselves on their own phone — steps for the sheet.

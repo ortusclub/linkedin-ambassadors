@@ -41,7 +41,7 @@ const updateSchema = z.object({
   // Post-sign-in fix the team raises for the referrer (email not primary / 2FA not set),
   // shown on their portal. null clears it. state flips to "referrer_done" from the portal.
   setOnboardingFix: z.object({
-    issues: z.array(z.enum(["email_added", "email_primary", "twofa"])).min(1),
+    issues: z.array(z.enum(["email_added", "email_primary", "twofa", "password"])).min(1),
     state: z.enum(["open", "referrer_done"]),
     raisedAt: z.string().datetime(),
     doneAt: z.string().datetime().optional(),

@@ -9,7 +9,7 @@ import { onboardingEmailFrom } from "@/lib/onboarding-email-policy";
 // More issues will be added over time — add a new entry to ISSUES and a button.
 export const dynamic = "force-dynamic";
 
-type IssueKey = "email_not_primary" | "twofa_not_set" | "email_not_added";
+type IssueKey = "email_not_primary" | "twofa_not_set" | "email_not_added" | "password_incorrect";
 
 // Each template is written to the referrer, about `${name}`, and includes the exact
 // LinkedVelocity login email `${lvEmail}` so they know which address to work with.
@@ -34,6 +34,16 @@ const ISSUES: Record<IssueKey, { label: string; subject: (n: string) => string; 
       `2. Find  ${lv}  in the list (make sure it shows as "confirmed").\n` +
       `3. Click "Make primary" next to it.\n\n` +
       `That's it. Reply once it's done and we'll verify on our side.\n\nThanks,\nThe LinkedVelocity team`,
+  },
+  password_incorrect: {
+    label: "Account password is incorrect",
+    subject: (n) => `Action needed: the password for ${n}'s LinkedIn isn't working`,
+    body: (n) =>
+      `Hi,\n\nWe're trying to sign in to ${n}'s LinkedIn account for LinkedVelocity, but the password we have on file isn't working. Could you check it with ${n} and send us the correct one?\n\n` +
+      `1. Confirm the exact current password with ${n} (watch for typos, spaces, or a recent change).\n` +
+      `2. If they're not sure, ask them to reset it: LinkedIn → Settings & Privacy → Sign in & security → Change password.\n` +
+      `3. Send us the working password so we can sign in.\n\n` +
+      `Reply with the correct password and we'll try again.\n\nThanks,\nThe LinkedVelocity team`,
   },
   twofa_not_set: {
     label: "2FA not set up",
@@ -81,10 +91,11 @@ export async function POST(req: Request) {
     // Raise this as a fix on the referrer's portal so it appears there with an
     // "I've fixed it" button — clicking it flags the pipeline row for a recheck.
     // Map the email issue → the portal fix issue (merge, don't clobber other open ones).
-    const FIX_FOR: Record<IssueKey, "email_added" | "email_primary" | "twofa"> = {
+    const FIX_FOR: Record<IssueKey, "email_added" | "email_primary" | "twofa" | "password"> = {
       email_not_added: "email_added",
       email_not_primary: "email_primary",
       twofa_not_set: "twofa",
+      password_incorrect: "password",
     };
     const fixIssue = FIX_FOR[issue as IssueKey];
     const prevFix = app.onboardingFix as { issues?: string[]; raisedAt?: string } | null;
