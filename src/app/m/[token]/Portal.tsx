@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
+interface Signup { name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | null; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -13,6 +14,7 @@ interface Data {
   config: Config;
   board: BoardRow[];
   activity: Activity[];
+  signups: Signup[];
   payouts: Payout[];
 }
 
@@ -179,7 +181,7 @@ export default function Portal({ token }: { token: string }) {
     </div>
   );
 
-  const { me, stats, board, activity, payouts, config } = data;
+  const { me, stats, board, activity, signups, payouts, config } = data;
   const money = (n: number) => config.symbol + n.toLocaleString("en-US");
   const isUSD = config.currency !== "PHP";
   const firstName = me.name.split(" ")[0];
@@ -357,37 +359,48 @@ export default function Portal({ token }: { token: string }) {
         {/* ============ SIGNUPS ============ */}
         {tab === "jobs" && (
           <div style={{ padding: "18px 18px 0" }}>
-            <h1 style={h1}>Your signups</h1>
-            <p style={lead}>Everyone you&apos;ve referred and where they&apos;re up to. Onboarded is the one that pays.</p>
+            <h1 style={h1}>Your onboardings</h1>
+            <p style={lead}>Everyone you&apos;ve referred, where they&apos;re stuck, and who&apos;s running it.</p>
 
-            {activity.length === 0 ? (
+            {signups.length === 0 ? (
               <div style={{ ...card, textAlign: "center", padding: "22px 18px" }}>
                 <div style={{ font: `700 14.5px ${JAK}`, color: C.ink, marginBottom: 5 }}>Nobody here yet</div>
                 <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.muted, margin: "0 0 14px" }}>Once someone signs up through your code — or you start a guided onboarding — they show up here.</p>
                 <button onClick={() => setReadyOpen(true)} style={{ font: `700 13.5px ${JAK}`, color: "#fff", background: C.green, border: "none", padding: "13px 18px", borderRadius: 11, cursor: "pointer" }}>Start your first onboarding</button>
               </div>
-            ) : activity.map((a, i) => {
-              const onboarded = a.kind === "converted";
-              const nm = a.name || "New signup";
-              const initials = (nm.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") || "?").toUpperCase();
+            ) : signups.map((s, i) => {
+              const initials = ((s.name || "").trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("") || "?").toUpperCase();
+              const fg = { green: C.greenDk, blue: "#2563eb", amber: "#c2410c" }[s.pill.tone];
+              const bg = { green: C.softGreen, blue: "#eef4ff", amber: C.warnBg }[s.pill.tone];
+              const bd = { green: C.softGreenBorder, blue: "#c7d7fe", amber: C.warnBorder }[s.pill.tone];
               return (
                 <div key={i} style={card}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ width: 30, height: 30, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11.5px ${JAK}`, background: onboarded ? C.softGreen : "#eef1f5", color: onboarded ? C.greenDk : C.slate }}>{initials}</span>
+                    <span style={{ width: 30, height: 30, borderRadius: 999, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11.5px ${JAK}`, background: bg, color: fg }}>{initials}</span>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ font: `700 14px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nm}</div>
+                      <div style={{ font: `700 14px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                        <span style={{ font: `500 11.5px ${JAK}`, color: C.muted, whiteSpace: "nowrap" }}>Signed up {fmtDate(a.date)}</span>
-                        {a.referrer && <span style={{ font: `600 10px ${JAK}`, color: C.slate, background: "#f1f3f6", padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap" }}>via {a.referrer}</span>}
+                        <span style={{ font: `500 11.5px ${JAK}`, color: C.muted, whiteSpace: "nowrap" }}>Signed up {fmtDate(s.date)}</span>
+                        <span style={{ font: `600 10px ${JAK}`, color: C.slate, background: "#f1f3f6", padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap" }}>{s.whoLabel}</span>
                       </div>
                     </div>
-                    <span style={{ marginLeft: "auto", flex: "none", font: `600 10px ${JAK}`, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap", background: onboarded ? C.accBg : C.pendBg, color: onboarded ? C.accFg : C.pendFg, border: `1px solid ${onboarded ? C.softGreenBorder : "#e3e6ea"}` }}>{onboarded ? "Onboarded" : "Pending"}</span>
+                    <span style={{ marginLeft: "auto", flex: "none", font: `600 10px ${JAK}`, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap", background: bg, color: fg, border: `1px solid ${bd}` }}>{s.pill.text}</span>
                   </div>
+                  <div style={{ display: "flex", gap: 4, margin: "13px 0 9px" }}>
+                    {[0, 1, 2, 3, 4, 5].map((n) => <span key={n} style={{ flex: 1, height: 5, borderRadius: 999, background: n < s.progress ? fg : C.line2 }} />)}
+                  </div>
+                  <div style={{ font: `600 12.5px ${JAK}`, color: fg }}>{s.line}</div>
+                  <div style={{ font: `500 12px/1.45 ${JAK}`, color: C.slate, marginTop: 3 }}>{s.sub}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.line2}` }}>
+                    <span style={{ font: `500 11.5px ${JAK}`, color: C.muted }}>{s.path}</span>
+                    <span style={{ marginLeft: "auto", font: `700 12.5px ${GRO}`, color: C.ink, whiteSpace: "nowrap" }}>{s.fee}</span>
+                  </div>
+                  {s.action && <a href={`/m/${token}/onboarding`} style={{ display: "block", width: "100%", marginTop: 12, textAlign: "center", font: `700 13.5px ${JAK}`, color: "#fff", background: C.dark, padding: 13, borderRadius: 11, textDecoration: "none" }}>{s.action === "resume" ? "Resume onboarding" : "Onboard them now"}</a>}
                 </div>
               );
             })}
 
-            {activity.length > 0 && (
+            {signups.length > 0 && (
               <div style={{ background: C.card, border: `1px dashed #d8dce3`, borderRadius: 16, padding: 18, textAlign: "center", marginBottom: 8 }}>
                 <div style={{ font: `700 13.5px ${JAK}`, color: C.ink, marginBottom: 4 }}>Someone already said yes?</div>
                 <p style={{ font: `500 12px/1.5 ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Start their onboarding here so they get counted and you get paid.</p>

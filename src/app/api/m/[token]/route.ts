@@ -23,7 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      select: { fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, createdAt: true },
+      select: { fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, paidAt: true, createdAt: true, selfServiceOnboarding: { select: { state: true } } },
     }),
     prisma.payout.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" } }),
   ]);
@@ -70,6 +70,45 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       date: a.createdAt,
     }));
 
+  // Rich per-signup status for the "Your onboardings" tab: where they're stuck,
+  // who's running it, the path, the fee, and whether the referrer can act.
+  const money = (n: number) => `${cfg.symbol}${n.toLocaleString("en-US")}`;
+  const t = cfg.referralTiers;
+  const range = (lo: number, hi: number) => `${money(lo)}–${money(hi)}`;
+  const signups = apps
+    .filter((a) => (a.referredBy || "").trim() === me.slug)
+    .slice(0, 25)
+    .map((a) => {
+      const isDiy = a.referralSource === "self-service";
+      const method = a.onboardingMethod; // "computer" | "phone" | null
+      const state = a.selfServiceOnboarding?.state || null;
+      const paid = !!a.paidAt;
+      const onboarded = a.status === "onboarded" || !!a.onboardedAt;
+      const amount = referralCommissionAmount(a, t);
+      const whoLabel = method === "phone" ? "LV ran it" : (method === "computer" || (isDiy && (onboarded || state === "handed_off"))) ? "You ran it" : isDiy ? "You ran it" : "Form only";
+      const path = method === "computer" ? `Guided · computer${a.onboardingVerified ? " · verified" : ""}`
+        : method === "phone" ? "Guided · phone hand-off"
+        : isDiy ? "Guided" : "Form only";
+      let pill: { text: string; tone: "green" | "blue" | "amber" }, line: string, sub: string, progress: number, action: "resume" | "onboard" | null = null, fee: string;
+      if (paid) {
+        pill = { text: "Paid", tone: "green" }; progress = 6;
+        line = "Done — account is live"; sub = "Setup fee paid and your commission is in."; fee = `${money(amount)} paid`;
+      } else if (onboarded) {
+        pill = { text: "Verifying", tone: "blue" }; progress = 5;
+        line = "Our team is verifying the account"; sub = "Nothing for you to do — the check releases payment."; fee = `${money(amount)} pending`;
+      } else if (state === "handed_off") {
+        pill = { text: "Verifying", tone: "blue" }; progress = 4;
+        line = "You handed the sign-in to us"; sub = "Our team does the GoLogin sign-in, then verifies."; fee = `${money(amount)} pending`;
+      } else if (isDiy) {
+        pill = { text: "Resume", tone: "amber" }; progress = 3; action = "resume";
+        line = "Left off mid-onboarding"; sub = "Pick up where you left off while they're still with you."; fee = range(t.phone.base, t.computer.verified);
+      } else {
+        pill = { text: "No call booked", tone: "amber" }; progress = 1; action = "onboard";
+        line = "Form in — not onboarded yet"; sub = "They filled your form. Onboard them now, or get a call booked."; fee = money(t.referral);
+      }
+      return { name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action };
+    });
+
   return NextResponse.json({
     me: {
       name: me.name,
@@ -92,6 +131,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     },
     board,
     activity,
+    signups,
     payouts: payouts.map((p) => ({
       id: p.id,
       type: p.type,
