@@ -678,9 +678,6 @@ export default function AdminPipelinePage() {
           <button onClick={() => { setMode("action"); setStatusFilter("all"); setPocFilter("all"); }} style={modeBtn("action")}>By next action</button>
           <button onClick={() => { setMode("live"); setStatusFilter("all"); setPocFilter("all"); }} style={modeBtn("live")}>Onboarded · payments</button>
         </div>
-        <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>
-          {mode === "stage" ? "Two axes — Level (progress) × Health (how it's doing). Combine the chips to filter." : mode === "live" ? "Onboarded only — log payments, proof and acknowledgement here" : "What to do next — onboarded people live in the payments view"}
-        </span>
       </div>
 
       {/* chips — two axes in By-level mode (Level + Health), status chips elsewhere */}
