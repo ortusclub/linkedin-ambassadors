@@ -89,18 +89,28 @@ export async function GET(req: NextRequest) {
           where: { email: { in: ownerEmails } },
           select: {
             id: true,
-            email: true, fullName: true, contactNumber: true, contactChannel: true,
+            email: true, linkedinUrl: true, fullName: true, contactNumber: true, contactChannel: true,
             referredBy: true, referralSource: true, poc: true, ownerStatus: true, payoutCurrency: true,
             paymentMethod: true, paymentDetails: true, payoutName: true,
             paypalEmail: true, wiseEmail: true, onboardedAt: true, paidAt: true,
           },
         })
       : [];
+    // One payee (Owner: email) can front MANY accounts, each its own application.
+    // Keying only by email collapses those siblings to one arbitrary app, so an
+    // account inherits the wrong paidAt/onboarded/contact — e.g. a paid, onboarded
+    // ambassador reads as unpaid and drops out of inventory. Match each account to
+    // ITS OWN application by LinkedIn URL first (unique per person), and fall back to
+    // the email map only when there's no URL to match on (single-owner accounts).
+    const normUrl = (u?: string | null) =>
+      (u || "").toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("?")[0].replace(/\/+$/, "");
     const appMap = new Map(ownerApps.map((x) => [x.email.toLowerCase(), x]));
+    const appByUrl = new Map(ownerApps.filter((x) => x.linkedinUrl).map((x) => [normUrl(x.linkedinUrl), x]));
 
     const accountsWithOwner = accounts.map((a) => {
       const ownerEmail = (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || "";
-      const app = ownerEmail ? appMap.get(ownerEmail.toLowerCase()) : undefined;
+      const app = (a.linkedinUrl ? appByUrl.get(normUrl(a.linkedinUrl)) : undefined)
+        || (ownerEmail ? appMap.get(ownerEmail.toLowerCase()) : undefined);
       return {
         ...a,
         ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
