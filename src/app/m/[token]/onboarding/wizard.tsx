@@ -9,6 +9,7 @@ import BrowserStep from "./browser-step";
 import PhoneHandoff from "./phone-handoff";
 import EmailStep, { type EmailSetup } from "./email-step";
 import { CoachTour, type TourStep } from "./coach-tour";
+import TotpCode, { looksLikeTotpKey } from "./totp";
 
 // Per-page coach tours — a referrer gets a short walkthrough of each screen. The tour
 // keeps showing on every fresh onboarding until they've run BOTH a computer AND a phone
@@ -36,6 +37,11 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   signin: [
     { target: "signin-choice", title: "Who signs in?", body: "On a laptop you do the sign-in and earn the most. No computer? \"Hand it to us\" and the team does it — they still get paid, you earn a little less." },
+  ],
+  twofa: [
+    { title: "Turn on two-step verification", body: "Do this before you sign in. It's the fix for the biggest hold-up: without it, signing in makes LinkedIn ping the owner's phone to approve — and you're stuck waiting. With it, LinkedIn asks for a 6-digit code instead, which this page gives you." },
+    { target: "twofa-key", title: "Paste LinkedIn's setup key", body: "In the LinkedIn app: Settings → Sign in & security → Two-step verification → Authenticator app → \"Can't scan the QR code?\" reveals a key. Paste it here." },
+    { target: "twofa-code", title: "This is your authenticator", body: "Once the key's in, we show the live 6-digit code — no separate app. Type it into LinkedIn to finish turning 2FA on. The same code appears at sign-in whenever LinkedIn asks." },
   ],
   signinPc: [
     { title: "You're doing the sign-in", body: "This is the highest-rate path. You'll open the protected GoLogin browser and sign in to their LinkedIn together — the steps below walk you through it. You're not finished until you've signed in and confirmed." },
@@ -104,6 +110,11 @@ export default function SelfServiceWizard({ token }: { token: string }) {
   const [emailCopied, setEmailCopied] = useState(false);
   const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
   const [handedOff, setHandedOff] = useState(false);
+  // 2FA is its own step (step 4) after the email is made primary. The key is captured
+  // there once and reused at sign-in, so the live authenticator code is on hand when
+  // LinkedIn asks for it instead of pushing a confirmation to the owner's phone.
+  const [twoFactorKey, setTwoFactorKey] = useState("");
+  const [noTwoFactor, setNoTwoFactor] = useState(false);
   const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false });
   const [accountVerified, setAccountVerified] = useState<"" | "yes" | "no" | "unsure">("");
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -150,8 +161,9 @@ export default function SelfServiceWizard({ token }: { token: string }) {
 
   // Which page's coach tour applies right now (null = no tour for this screen).
   const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : step === 3 ? "email"
-    : step === 5 ? "donePc"
-    : step === 4 ? (handedOff ? "donePhone" : browserMode === "" ? "signin" : browserMode === "phone" ? "handoffPhone" : "signinPc")
+    : step === 4 ? "twofa"
+    : step === 6 ? "donePc"
+    : step === 5 ? (handedOff ? "donePhone" : browserMode === "" ? "signin" : browserMode === "phone" ? "handoffPhone" : "signinPc")
     : null;
   // A referrer stops being a first-timer only once they've completed BOTH a computer and a
   // phone onboarding. Until then the tour keeps returning on each fresh wizard load.
@@ -187,7 +199,14 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     } catch (e) { setPhoneError(e instanceof Error ? e.message : "Mobile verification failed."); }
     finally { setPhoneBusy(false); }
   }
-  function showSession(s: Session) { setSession(s); if (s.state === "handed_off") setHandedOff(true); setStep(s.state === "confirmed" ? 5 : s.emailSetup && !s.emailSetup.primaryConfirmed ? 3 : 4); }
+  function showSession(s: Session) {
+    setSession(s);
+    if (s.state === "handed_off") setHandedOff(true);
+    // Functional update so we never yank a referrer BACKWARD: once the email is primary the
+    // resume point is the 2FA step (4), but if they've already moved on to sign-in (5) a
+    // refresh must leave them there. confirmed → done (6); email not primary → email (3).
+    setStep((prev) => s.state === "confirmed" ? 6 : (s.emailSetup && !s.emailSetup.primaryConfirmed) ? 3 : Math.max(prev, 4));
+  }
   async function emailAction(body: unknown) {
     if (!session) return;
     await run(async () => {
@@ -198,10 +217,10 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       if ((body as { action?: string }).action !== "primary") setStep(3);
     });
   }
-  async function handoff(body: { password: string; twoFactorKey: string }) {
+  async function handoff(password: string) {
     if (!session) return;
     await run(async () => {
-      await request("PATCH", { id: session.id, action: "handoff", ...body });
+      await request("PATCH", { id: session.id, action: "handoff", password, twoFactorKey: noTwoFactor ? "" : twoFactorKey.trim() });
       setHandedOff(true);
     });
   }
@@ -210,10 +229,10 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     const data = await request("PATCH", { id: session.id, action });
     showSession(data.session);
   }
-  async function confirmLogin(creds: { password: string; twoFactorKey: string }) {
+  async function confirmLogin(password: string) {
     if (!session) return;
     await run(async () => {
-      const data = await request("PATCH", { id: session.id, action: "confirm", ...creds });
+      const data = await request("PATCH", { id: session.id, action: "confirm", password, twoFactorKey: noTwoFactor ? "" : twoFactorKey.trim() });
       showSession(data.session);
     });
   }
@@ -239,8 +258,9 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     { index: 1, label: "Owner details", detail: "Add their LinkedIn and contact details." },
     { index: 2, label: "Payout", detail: "Record where the account owner should be paid." },
     ...(bootstrap?.emailEnabled ? [{ index: 3, label: "Add secure email", detail: "The account owner approves a LinkedVelocity-managed email on LinkedIn." }] : []),
-    { index: 4, label: "Prepare & sign in", detail: "The account owner enters their login, codes and completes any checks." },
-    { index: 5, label: "Team verification", detail: "We check the saved session before activation and payment." },
+    { index: 4, label: "Two-step verification", detail: "Turn on authenticator 2FA so sign-in asks for a code, not a device prompt." },
+    { index: 5, label: "Prepare & sign in", detail: "The account owner enters their login, codes and completes any checks." },
+    { index: 6, label: "Team verification", detail: "We check the saved session before activation and payment." },
   ];
   const currentPos = Math.max(0, wizardSteps.findIndex((s) => s.index === step));
   const activeStep = wizardSteps[currentPos];
@@ -438,7 +458,33 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <EmailStep key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>}
 
-          {step === 4 && session && (handedOff ? <>
+          {step === 4 && session && <>
+            <div className={styles.stepLabel}>Two-step verification</div>
+            <h1 className={styles.heroTitle}>Turn on two-step verification</h1>
+            <p className={styles.lead}>Do this <strong>before</strong> signing in. Without it, signing in makes LinkedIn ping the owner&apos;s phone to approve — and you wait. With authenticator 2FA on, LinkedIn asks for a 6-digit <strong>code</strong> instead, which this page gives you.</p>
+            <div className={styles.warn}>
+              <div>Why it matters</div>
+              <p>The device prompt is the biggest hold-up in onboarding. Setting this up now means the sign-in — and any future check — asks for a code you can generate here, not a tap on the owner&apos;s phone.</p>
+            </div>
+            {!noTwoFactor && <>
+              <ol className={styles.instructions}>
+                <li>In the LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong>.</li>
+                <li>Choose <strong>Authenticator app</strong>. When LinkedIn shows a QR code, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong>.</li>
+                <li>Paste that key below. We&apos;ll show the 6-digit code — type it into LinkedIn to finish turning 2FA on.</li>
+              </ol>
+              <label className={styles.field} data-tour="twofa-key">The 2FA setup key
+                <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} placeholder="e.g. JBSWY3DPEHPK3PXP" />
+              </label>
+              <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
+            </>}
+            <label className={styles.check}><input type="checkbox" checked={noTwoFactor} onChange={(e) => { setNoTwoFactor(e.target.checked); if (e.target.checked) setTwoFactorKey(""); }} /><span>We can&apos;t set up 2FA right now — the team will do it at sign-in.</span></label>
+            <div className={styles.actions}>
+              <button type="button" className={styles.secondary} onClick={() => setStep(3)}>Back</button>
+              <button type="button" className={styles.primary} disabled={!noTwoFactor && !looksLikeTotpKey(twoFactorKey)} onClick={() => setStep(5)}>Continue to sign-in →</button>
+            </div>
+          </>}
+
+          {step === 5 && session && (handedOff ? <>
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>Handed off to the team</h1>
             <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup payment follows once the account is verified, <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding. Nothing more to do here.</p>
@@ -457,17 +503,17 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             </button>
           </> : browserMode === "phone" ? <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
-            <PhoneHandoff busy={busy} error={error} submit={handoff} />
+            <PhoneHandoff busy={busy} error={error} hasTwoFactor={!noTwoFactor && looksLikeTotpKey(twoFactorKey)} submit={handoff} />
           </> : <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
             <div className={styles.infoBlue}><div>This step needs a computer</div><p>The sign-in uses GoLogin desktop software. If you&apos;re on a phone, copy this link and open it on a Windows or Mac computer with the account owner.</p></div>
             <button type="button" className={styles.secondary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Copy / share this link"}</button>
             <WaitNotice primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null} />
             {session.emailSetup && <><div className={styles.emailAddressCard}><span>LinkedIn login email</span><strong>{session.emailSetup.address}</strong><button type="button" onClick={() => { if (session.emailSetup?.address) { navigator.clipboard?.writeText(session.emailSetup.address); setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800); } }}>{emailCopied ? "Copied ✓" : "Copy email"}</button></div><div className={styles.note}>{session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
-            <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+            <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={noTwoFactor ? "" : twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>)}
 
-          {step === 5 && session && <>
+          {step === 6 && session && <>
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>That&apos;s them onboarded</h1>
             <p className={styles.lead}>{session.name}&apos;s account is in our system and linked to your code. Nothing else for either of you to do today.</p>
