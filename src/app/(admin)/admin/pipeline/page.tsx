@@ -842,6 +842,8 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                 <button key={key} onClick={(e) => { e.stopPropagation(); void emailIssue(r, key); }} disabled={busy}
                   style={{ font: `700 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>✉ {label}</button>
               ))}
+              <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} title="Open this referrer on the Referrals page"
+                style={{ marginLeft: "auto", font: `700 11px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "transparent", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, textDecoration: "none", whiteSpace: "nowrap" }}>View referrer →</a>
             </div>
           )}
 
