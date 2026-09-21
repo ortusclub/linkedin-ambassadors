@@ -94,13 +94,14 @@ export async function POST(req: Request) {
       data: { onboardingFix: { issues: mergedIssues, state: "open", raisedAt: prevFix?.raisedAt || new Date().toISOString() } },
     });
 
-    // Deep link back to their portal, where the fix now shows with a "done" button.
+    // One-tap "done" link — opening it marks the fix as done and flags the account for
+    // a re-check on our side, so the referrer doesn't have to log into the portal.
     const base = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
-    const portalLink = `${base}/m/${referrer.token}`;
+    const doneLink = `${base}/m/${referrer.token}/fixed?app=${id}`;
     const text =
       tpl.body(name, lv) +
       `\n\n— When it's done —\n` +
-      `Open your LinkedVelocity portal and tap "I've fixed it" so we know to re-check the account:\n${portalLink}\n`;
+      `Once you've sorted it, just click here and we'll mark it as fixed and re-check the account for you:\n${doneLink}\n`;
 
     await onboardingMailRequest(
       "/emails",

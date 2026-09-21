@@ -833,7 +833,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
           {/* Email the referrer a guided fix for a common problem */}
           {r.referredBy && (
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16, padding: "10px 12px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
-              <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Email referrer ({r.referredBy}) a fix</span>
+              <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Step 2 issues · email referrer ({r.referredBy})</span>
               {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"]] as [string, string][]).map(([key, label]) => (
                 <button key={key} onClick={(e) => { e.stopPropagation(); void emailIssue(r, key); }} disabled={busy}
                   style={{ font: `700 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>✉ {label}</button>
