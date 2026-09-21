@@ -230,7 +230,10 @@ export async function PATCH(
     // incomplete, link/create the GoLogin profile, assign a proxy, and generate the
     // share link. Best-effort — never fails the save; the provision-accounts cron
     // retries anything that couldn't finish. Skips rented accounts (see provisionAccount).
+    // Gated behind AUTO_PROVISION_GOLOGIN=true — OFF by default so GoLogin is created
+    // manually from the pipeline "Create GoLogin" button (avoids auto-creating on save).
     if (
+      process.env.AUTO_PROVISION_GOLOGIN === "true" &&
       account.loginEmail &&
       account.status !== "rented" &&
       (!account.gologinProfileId || !account.proxyHost || !account.gologinShareLink)
