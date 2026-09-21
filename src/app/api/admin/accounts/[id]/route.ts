@@ -140,10 +140,12 @@ export async function PATCH(
       data.profilePhotoUrl = await persistImageUrl(data.profilePhotoUrl);
     }
 
-    // Marking an account Available lists it in the catalogue by default — "Available"
-    // (we hold it, ready) and "Listed" (shown publicly) used to be separate toggles, so
-    // an account could be available yet invisible. Pass `listed` explicitly to override.
-    if (data.status === "available" && data.listed === undefined) {
+    // Available ALWAYS means publicly listed. These used to be separate toggles, so an
+    // account could be marked available yet left invisible when the edit form re-sent a
+    // stale unchecked "Listed" box. Enforce the invariant server-side: to hide an account
+    // from the catalogue, change its status (unavailable / under_review), don't unlist it
+    // while leaving it available.
+    if (data.status === "available") {
       data.listed = true;
     }
 

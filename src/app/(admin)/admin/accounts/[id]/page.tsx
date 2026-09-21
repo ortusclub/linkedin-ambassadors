@@ -184,8 +184,11 @@ export default function EditAccountPage() {
                 Has Sales Navigator
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={(form.listed as boolean) ?? true} onChange={(e) => update("listed", e.target.checked)} className="rounded border-gray-300" />
+                {/* Available always implies Listed (enforced server-side). Show it locked
+                    on so the box can't strand an available account off the catalogue. */}
+                <input type="checkbox" checked={form.status === "available" ? true : ((form.listed as boolean) ?? true)} disabled={form.status === "available"} onChange={(e) => update("listed", e.target.checked)} className="rounded border-gray-300" />
                 Listed (visible on Browse Accounts)
+                {form.status === "available" && <span className="text-xs text-gray-500">— always on while Available</span>}
               </label>
               {/* Verified moved here from the inventory row: it changes the price tier
                   (+$10/mo) and what renters are promised, so it shouldn't be a one-click
