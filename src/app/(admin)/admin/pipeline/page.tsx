@@ -134,17 +134,13 @@ const isLive = (r: Row) => r.status === "approved" || r.status === "onboarded";
 type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejected";
 
 const levelOf = (r: Row): 1 | 2 | 3 | 4 | 5 => {
+  if (r.status === "onboarded") return 5;          // matured + paid — live and earning
   if (!r.emailPrimaryAt) return 1;                 // application received — email/2FA not done
   if (!r.onboardedAt) return 2;                    // email added & primary + 2FA — not logged in
-  if (!r.verifiedAt) {                             // logged in — QC not fully passed yet
-    const qc = r.qcChecks || {};
-    return (qc.photo || qc.connections || qc.experiences || qc.education) ? 4 : 3; // 4 = in QC, 3 = just logged in
-  }
-  return 5;                                        // passed QC — in the maturation hold
+  if (!r.verifiedAt) return 3;                     // logged into GoLogin — going through QC
+  return 4;                                        // passed QC — in the maturation hold
 };
-// Matured + paid → leaves the ladder into its own "Onboarded" section at the bottom.
-const isOnboardedFinal = (r: Row) => r.status === "onboarded";
-const levelKey = (r: Row): number | "onboarded" => (isOnboardedFinal(r) ? "onboarded" : levelOf(r));
+const levelKey = (r: Row): number => levelOf(r);
 
 const healthOf = (r: Row): Health => {
   switch (r.status) {
@@ -158,13 +154,12 @@ const healthOf = (r: Row): Health => {
   }
 };
 
-const LEVEL_GROUPS: { key: number | "onboarded"; label: string; dot: string; note: string }[] = [
+const LEVEL_GROUPS: { key: number; label: string; dot: string; note: string }[] = [
   { key: 1, label: "Level 1 · Application received", dot: "var(--blue-chip-text,#1a56db)", note: "signed up — our email & 2FA not added yet" },
   { key: 2, label: "Level 2 · Email & 2FA", dot: "var(--blue-chip-text,#1a56db)", note: "our email added & primary, 2FA set — not logged in yet" },
-  { key: 3, label: "Level 3 · Logged into GoLogin", dot: "var(--warn-badge-text,#b7791f)", note: "signed in via GoLogin — quality checks not started" },
-  { key: 4, label: "Level 4 · In QC", dot: "var(--warn-badge-text,#b7791f)", note: "going through the quality checklist" },
-  { key: 5, label: "Level 5 · Maturing", dot: "var(--st-conv-fg,#6d28d9)", note: "passed QC — in the 1-week maturation hold" },
-  { key: "onboarded", label: "Onboarded", dot: "var(--st-active-fg,#188038)", note: "matured & paid — live and earning (also in the payments view)" },
+  { key: 3, label: "Level 3 · Logged into GoLogin", dot: "var(--warn-badge-text,#b7791f)", note: "signed in via GoLogin — going through QC checks" },
+  { key: 4, label: "Level 4 · Maturing", dot: "var(--st-conv-fg,#6d28d9)", note: "passed QC — in the 1-week maturation hold" },
+  { key: 5, label: "Level 5 · Onboarded", dot: "var(--st-active-fg,#188038)", note: "matured & paid — live and earning (also in the payments view)" },
 ];
 
 const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
@@ -176,7 +171,7 @@ const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
   { key: "rejected", label: "Rejected", dot: "var(--st-cancel-fg,#c0392b)" },
 ];
 const HEALTH_LABEL: Record<Health, string> = Object.fromEntries(HEALTH_OPTIONS.map((h) => [h.key, h.label])) as Record<Health, string>;
-const LEVEL_CHIP: Record<string, string> = { "1": "1 · Received", "2": "2 · Email & 2FA", "3": "3 · Logged in", "4": "4 · In QC", "5": "5 · Maturing", onboarded: "Onboarded" };
+const LEVEL_CHIP: Record<string, string> = { "1": "1 · Received", "2": "2 · Email & 2FA", "3": "3 · Logged in", "4": "4 · Maturing", "5": "5 · Onboarded" };
 
 // By next action -------------------------------------------------------------
 type ActionKey = "blocked" | "message" | "awaiting" | "noreply" | "replied" | "setup" | "live" | "closed";
@@ -351,7 +346,7 @@ export default function AdminPipelinePage() {
   const [error, setError] = useState(false);
   const [mode, setMode] = useState<Mode>("stage");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [levelFilter, setLevelFilter] = useState<number | "onboarded" | "all">("all");
+  const [levelFilter, setLevelFilter] = useState<number | "all">("all");
   const [healthFilter, setHealthFilter] = useState<Health | "all">("all");
   const [pocFilter, setPocFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
@@ -695,13 +690,29 @@ export default function AdminPipelinePage() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
               {axisLabel("Level")}
               {chipBtn(levelFilter === "all", null, "All", scoped.length, () => setLevelFilter("all"), "lvl-all")}
-              {LEVEL_GROUPS.map((g) => { const n = scoped.filter((r) => levelKey(r) === g.key).length; return n > 0 ? chipBtn(levelFilter === g.key, g.dot, LEVEL_CHIP[String(g.key)], n, () => setLevelFilter(g.key), `lvl-${g.key}`) : null; })}
+              {LEVEL_GROUPS.map((g) => chipBtn(levelFilter === g.key, g.dot, LEVEL_CHIP[String(g.key)], scoped.filter((r) => levelKey(r) === g.key).length, () => setLevelFilter(g.key), `lvl-${g.key}`))}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
               {axisLabel("Health")}
               {chipBtn(healthFilter === "all", null, "All", scoped.length, () => setHealthFilter("all"), "hl-all")}
               {HEALTH_OPTIONS.map((h) => { const n = scoped.filter((r) => healthOf(r) === h.key).length; return n > 0 ? chipBtn(healthFilter === h.key, h.dot, h.label, n, () => setHealthFilter(h.key), `hl-${h.key}`) : null; })}
             </div>
+            {(() => {
+              // LV PoC = who's responsible for this account's onboarding. Row shows only
+              // when at least one account has a handler assigned.
+              const m = new Map<string, number>(); let unassigned = 0;
+              for (const r of scoped) { const p = (r.poc || "").trim(); if (p) m.set(p, (m.get(p) || 0) + 1); else unassigned++; }
+              const entries = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+              if (entries.length === 0) return null;
+              return (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
+                  {axisLabel("PoC")}
+                  {chipBtn(pocFilter === "all", null, "All", scoped.length, () => setPocFilter("all"), "poc-all")}
+                  {entries.map(([name, n]) => chipBtn(pocFilter === name, "var(--st-conv-fg,#6d28d9)", name, n, () => setPocFilter(name), `poc-${name}`))}
+                  {unassigned > 0 && chipBtn(pocFilter === "__unassigned", "var(--muted2,#9aa0a6)", "Unassigned", unassigned, () => setPocFilter("__unassigned"), "poc-un")}
+                </div>
+              );
+            })()}
           </div>
         );
       })() : (
@@ -836,7 +847,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
   const blocked = isBlocked(r);
   const accent = STAGE_ACCENT[stage];
   const lvlKey = levelKey(r);
-  const lvlLabel = lvlKey === "onboarded" ? "Onboarded" : `Level ${lvlKey}`;
+  const lvlLabel = lvlKey === 5 ? "Level 5 · Onboarded" : `Level ${lvlKey}`;
   const health = healthOf(r);
   const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
   const st = STATUS_STYLE[r.status];
