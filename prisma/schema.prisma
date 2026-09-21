@@ -332,6 +332,7 @@ model AmbassadorApplication {
   callOutcome       String?          @map("call_outcome")
   bookingEmail      String?          @map("booking_email")
   verifiedAt        DateTime?         @map("verified_at")
+  emailPrimaryAt    DateTime?         @map("email_primary_at")
   onboardingStartedAt DateTime?       @map("onboarding_started_at")
   onboardedAt       DateTime?         @map("onboarded_at")
   // How a DIY (self-service) onboarding was completed: "computer" (referrer signed in)

@@ -80,6 +80,7 @@ interface Row {
   paymentDetails: string | null;
   payoutName: string | null;
   verifiedAt: string | null;
+  emailPrimaryAt: string | null;
   linkedinVerified: boolean;
   provisionStatus: string | null;
   setupPaidAt: string | null;
@@ -947,12 +948,10 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
 
 // -- workflow rail (pre-onboarded): 4 sequential step cards -------------------
 function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void }) {
-  const accepted = r.status === "approved" || r.status === "onboarding";
-  const started = !!r.onboardingStartedAt;
-  const loginDue = loginDueMs(r);
-  const loginOver = loginDue !== null && Date.now() >= loginDue;
-  const verified = !!r.verifiedAt;
-  const gated = !accepted;
+  const started = !!r.onboardingStartedAt;         // maturation started
+  const matureDue = loginDueMs(r);                 // when the maturation window ends
+  const matured = started && matureDue !== null && Date.now() >= matureDue;
+  const gated = false;                             // level ladder isn't gated behind "accept"
 
   type Step = { label: string; title: string; sub: string; done: boolean; render: (isNext: boolean) => React.ReactNode };
   const stepCard = (label: string, title: string, sub: string, isNext: boolean, body: React.ReactNode) => (
@@ -964,34 +963,38 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
     </div>
   );
   const doneBadge = (text: string) => <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "var(--st-active-bg,#e6f4ea)", padding: "6px 10px", borderRadius: 7, display: "inline-block" }}>✓ {text}</span>;
+  const undoLink = (patch: Record<string, unknown>) => <span onClick={() => workflow(r.id, patch)} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span>;
+  const primaryBtn = (isNext: boolean): React.CSSProperties => ({ ...btnPrimary, width: "100%", background: isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" });
+  const doneCol = (badge: string, undo: Record<string, unknown>) => <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge(badge)}{undoLink(undo)}</div>;
 
   const steps: Step[] = [
     {
-      label: "Step 1", title: "Start warm-up", sub: r.accountFreshness === "fresh" ? "fresh · 1 week" : "established · 3 days", done: started,
-      render: (isNext) => started ? doneBadge("Warm-up started")
-        : gated ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>accept first</span>
+      label: "Step 1", title: "Application received", sub: r.createdAt ? `applied ${fmtDate(r.createdAt)}` : "in the pipeline", done: true,
+      render: () => doneBadge("Received"),
+    },
+    {
+      label: "Step 2", title: "LV email added & primary", sub: r.emailPrimaryAt ? `done ${fmtDate(r.emailPrimaryAt)}` : "our email is on the account & set primary", done: !!r.emailPrimaryAt,
+      render: (isNext) => r.emailPrimaryAt ? doneCol("Email primary", { emailPrimaryAt: null })
+        : <button onClick={() => workflow(r.id, { emailPrimaryAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Email added &amp; primary</button>,
+    },
+    {
+      label: "Step 3", title: "Logged into GoLogin", sub: r.onboardedAt ? `logged in ${fmtDate(r.onboardedAt)}` : "sign in via the GoLogin profile", done: !!r.onboardedAt,
+      render: (isNext) => r.onboardedAt ? doneCol("Logged in", { onboardedAt: null })
+        : <button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Logged in</button>,
+    },
+    {
+      label: "Step 4", title: "Passed checks & QC", sub: "quality control — account good, not restricted", done: !!r.verifiedAt,
+      render: (isNext) => r.verifiedAt ? doneCol("Passed QC", { verifiedAt: null })
+        : <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Passed QC</button>,
+    },
+    {
+      label: "Step 5", title: "Matured — ready to onboard", sub: matured ? "maturation complete" : started ? `maturing · ready ${matureDue ? fmtDate(new Date(matureDue).toISOString()) : "—"}` : (r.accountFreshness === "fresh" ? "fresh · 1 week" : "established · 3 days"), done: matured,
+      render: (isNext) => matured ? doneCol("Matured — ready", { onboardingStartedAt: null })
+        : started ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing…</span>
           : (<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <button onClick={() => workflow(r.id, { status: "onboarding", onboardingStartedAt: new Date().toISOString(), accountFreshness: "established" })} disabled={busy} style={{ ...btnPrimary, width: "100%", background: isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" }}>Established · 3d</button>
-              <button onClick={() => workflow(r.id, { status: "onboarding", onboardingStartedAt: new Date().toISOString(), accountFreshness: "fresh" })} disabled={busy} style={{ ...btnSec, width: "100%" }}>Fresh · 1wk</button>
+              <button onClick={() => workflow(r.id, { onboardingStartedAt: new Date().toISOString(), accountFreshness: "established" })} disabled={busy} style={primaryBtn(isNext)}>Start · established 3d</button>
+              <button onClick={() => workflow(r.id, { onboardingStartedAt: new Date().toISOString(), accountFreshness: "fresh" })} disabled={busy} style={{ ...btnSec, width: "100%" }}>Start · fresh 1wk</button>
             </div>),
-    },
-    {
-      // Logging in moves them to LEVEL 2 (approved) and stamps the login — it does NOT
-      // mark them Onboarded (that's the paid/earning end state). They stay in the by-stage
-      // view under Level 2 and the setup fee falls due 24h later.
-      label: "Step 2", title: "Mark logged in", sub: r.onboardedAt ? `logged in ${fmtDate(r.onboardedAt)}` : started ? (loginOver ? "warm-up done — log in" : `due ${loginDue ? fmtDate(new Date(loginDue).toISOString()) : "—"}`) : "once they hand over the login", done: !!r.onboardedAt,
-      render: (isNext) => r.onboardedAt
-        ? (<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge("Logged in")}<span onClick={() => workflow(r.id, { onboardedAt: null })} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span></div>)
-        : (<button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy || !started} style={{ ...btnPrimary, width: "100%", background: isNext && started ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext && started ? "#fff" : "var(--muted2,#9aa0a6)", border: isNext && started ? "none" : "1px solid var(--divider,#eee)", cursor: started ? "pointer" : "not-allowed" }}>✓ Logged in → Level 2</button>),
-    },
-    {
-      label: "Step 3", title: "Stability check", sub: "account good to go — not restricted", done: verified,
-      render: (isNext) => verified ? (<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge("Account OK")}<span onClick={() => workflow(r.id, { verifiedAt: null })} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span></div>)
-        : <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString() })} disabled={busy} style={{ ...btnPrimary, width: "100%", background: isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" }}>✓ Account OK</button>,
-    },
-    {
-      label: "Step 4", title: "Setup fee", sub: `${formatMoney(cfgOf(r).setupAmount, cfgOf(r).currency)} · 24h after login`, done: setupPaid(r),
-      render: () => setupPaid(r) ? doneBadge("Paid") : <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>log it in payments once live</span>,
     },
   ];
   let unlocked = true;

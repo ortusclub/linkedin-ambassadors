@@ -27,6 +27,7 @@ const updateSchema = z.object({
   onboardingStartedAt: z.string().datetime().nullable().optional(),
   onboardedAt: z.string().datetime().nullable().optional(),
   verifiedAt: z.string().datetime().nullable().optional(),
+  emailPrimaryAt: z.string().datetime().nullable().optional(),
   paidAt: z.string().datetime().nullable().optional(),
   marketerPaidAt: z.string().datetime().nullable().optional(),
   // Owner payout details
@@ -80,7 +81,7 @@ export async function PATCH(
     const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
-    const { addTouch, removeTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, paidAt, marketerPaidAt, setOnboardingFix, ...rest } = updateSchema.parse(body);
+    const { addTouch, removeTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, emailPrimaryAt, paidAt, marketerPaidAt, setOnboardingFix, ...rest } = updateSchema.parse(body);
 
     // Get the current application before updating
     const currentApp = await prisma.ambassadorApplication.findUnique({ where: { id } });
@@ -93,6 +94,7 @@ export async function PATCH(
     if (onboardingStartedAt !== undefined) updateData.onboardingStartedAt = onboardingStartedAt ? new Date(onboardingStartedAt) : null;
     if (onboardedAt !== undefined) updateData.onboardedAt = onboardedAt ? new Date(onboardedAt) : null;
     if (verifiedAt !== undefined) updateData.verifiedAt = verifiedAt ? new Date(verifiedAt) : null;
+    if (emailPrimaryAt !== undefined) updateData.emailPrimaryAt = emailPrimaryAt ? new Date(emailPrimaryAt) : null;
     if (paidAt !== undefined) updateData.paidAt = paidAt ? new Date(paidAt) : null;
     if (marketerPaidAt !== undefined) updateData.marketerPaidAt = marketerPaidAt ? new Date(marketerPaidAt) : null;
     if (setOnboardingFix !== undefined) updateData.onboardingFix = setOnboardingFix === null ? Prisma.DbNull : setOnboardingFix;
