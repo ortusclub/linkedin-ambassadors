@@ -128,7 +128,7 @@ const isLive = (r: Row) => r.status === "approved" || r.status === "onboarded";
 
 const STAGE_GROUPS: { key: Stage; label: string; dot: string; note: string }[] = [
   { key: "initial", label: "Initial", dot: "var(--blue-chip-text,#1a56db)", note: "new leads and awaiting reply — not started" },
-  { key: "processing", label: "Level 1", dot: "var(--warn-badge-text,#b7791f)", note: "onboarding started — warming up, not logged in yet" },
+  { key: "processing", label: "Level 1", dot: "var(--warn-badge-text,#b7791f)", note: "adding our email (+ primary) & setting up 2FA — not logged in yet" },
   { key: "accepted", label: "Level 2", dot: "var(--st-conv-fg,#6d28d9)", note: "logged in — setup fee due the next day (24h after login)" },
   { key: "onboarded", label: "Onboarded", dot: "var(--st-active-fg,#188038)", note: "paid & earning" },
   { key: "unreachable", label: "Unreachable", dot: "var(--st-unreach-fg,#c0392b)", note: "chased, no reply" },
@@ -592,7 +592,7 @@ export default function AdminPipelinePage() {
               { label: "Blocked — can't pay", value: String(metrics.liveBlocked), hint: metrics.liveBlocked === 1 ? "1 account on hold" : `${metrics.liveBlocked} accounts on hold`, color: metrics.liveBlocked ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" },
             ]
           : [
-              { label: "Level 1 · warm-up", value: String(metrics.lvl1), hint: metrics.lvl1Blocked ? `not logged in · ${metrics.lvl1Blocked} blocked` : "warming up, not logged in", color: "var(--blue-chip-text,#1a56db)" },
+              { label: "Level 1 · email & 2FA", value: String(metrics.lvl1), hint: metrics.lvl1Blocked ? `not logged in · ${metrics.lvl1Blocked} blocked` : "adding email & 2FA, not logged in", color: "var(--blue-chip-text,#1a56db)" },
               { label: "Level 2 · logged in", value: String(metrics.lvl2), hint: metrics.lvl2Blocked ? `payout stage · ${metrics.lvl2Blocked} blocked` : "logged in — payout stage", color: "var(--st-conv-fg,#6d28d9)" },
               { label: "Live accounts", value: String(metrics.live), hint: metrics.onboardedTotal > metrics.live ? `earning · ${metrics.onboardedTotal - metrics.live} blocked` : "onboarded and earning", color: "var(--st-active-fg,#188038)" },
               { label: "No GoLogin", value: String(metrics.noGologin), hint: "can't be run", color: metrics.noGologin ? "var(--warn-badge-text,#b7791f)" : "var(--fg,#111)" },
@@ -1007,7 +1007,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
           {!live ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)", flexWrap: "wrap" }}>
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                {r.status !== "approved" && r.status !== "onboarding" && <button onClick={() => workflow(r.id, { status: "onboarding" })} disabled={busy} title="They've agreed — start onboarding (Level 1 warm-up)" style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)" }}>✓ Accept → Level 1</button>}
+                {r.status !== "approved" && r.status !== "onboarding" && <button onClick={() => workflow(r.id, { status: "onboarding" })} disabled={busy} title="They've agreed — start onboarding (Level 1 · add email & 2FA)" style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)" }}>✓ Accept → Level 1</button>}
                 {r.status !== "rejected" && <button onClick={() => workflow(r.id, { status: "rejected" })} disabled={busy} style={{ font: `600 12px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e6b4ad)", padding: "8px 13px", borderRadius: 8, cursor: "pointer" }}>Reject</button>}
               </div>
               <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Accepting reveals the inventory profile · other states from the status dropdown</span>
