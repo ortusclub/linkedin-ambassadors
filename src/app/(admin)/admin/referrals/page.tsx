@@ -356,6 +356,25 @@ export default function AdminReferralsPage() {
       .sort((x, y) => (x.tone === "ready" ? -1 : y.tone === "ready" ? 1 : 0) || (Number(y.counts) - Number(x.counts)) || x.name.localeCompare(y.name));
   };
 
+  // Every referrer's converted ambassadors with how they were onboarded + the fee, for
+  // computing/paying commissions in a spreadsheet.
+  const exportCsv = () => {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const out: string[] = [["Referrer", "Ambassador", "Onboarded by", "Fee", "Currency", "Status", "Counts"].join(",")];
+    for (const r of rows) {
+      for (const c of convertedFor(r.name)) {
+        out.push([r.name, c.name, c.method, c.fee, c.cur, c.state, c.counts ? "yes" : "no"].map(esc).join(","));
+      }
+    }
+    const blob = new Blob([out.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `referral-breakdown-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const logCommission = async (referrerId: string, amount: number, description = "Signup commission") => {
     if (!referrerId || amount <= 0) return;
     setPBusy(referrerId);
@@ -632,6 +651,7 @@ export default function AdminReferralsPage() {
           <input value={query} onChange={(e) => { setFocusRefId(null); setQuery(e.target.value); }} placeholder="Search referrer…" style={{ width: 240, maxWidth: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 12px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
           <button onClick={() => printCards()} disabled={!referrers.length} title="Print a 4-up card page for every marketer (one page each)" style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>All cards · 4/page</button>
           <button onClick={() => printFlyers()} disabled={!referrers.length} title="Print an A5 flyer for every marketer (one sheet each)" style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>All flyers · A5</button>
+          <button onClick={exportCsv} title="Download every referrer's converted ambassadors with how each was onboarded + the fee" style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 13px", borderRadius: 8, cursor: "pointer" }}>Export breakdown · CSV</button>
           <button onClick={() => setShowAdd((v) => !v)} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 13px", borderRadius: 8, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add referrer"}</button>
         </div>
       </div>
@@ -803,6 +823,15 @@ export default function AdminReferralsPage() {
                   {converted.length > 0 && (
                     <div>
                       <div style={{ ...label, marginBottom: 8 }}>Converted ambassadors · {countedConverted}{notCounted ? ` · ${notCounted} restricted (not counted)` : ""}</div>
+                      {(() => {
+                        const counted = converted.filter((c) => c.counts);
+                        if (!counted.length) return null;
+                        const byFee = new Map<number, number>();
+                        let sum = 0;
+                        for (const c of counted) { byFee.set(c.fee, (byFee.get(c.fee) || 0) + 1); sum += c.fee; }
+                        const parts = [...byFee.entries()].sort((a, b) => a[0] - b[0]).map(([fee, n]) => `${n} × ${formatMoney(fee, counted[0].cur)}`).join("  +  ");
+                        return <div style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", marginBottom: 10, fontVariantNumeric: "tabular-nums" }}>{parts} = <span style={{ color: "var(--text)" }}>{formatMoney(sum, counted[0].cur)}</span></div>;
+                      })()}
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                         {converted.map((c, i) => {
                           const tone = c.tone === "ready" ? "var(--green)" : c.tone === "paid" ? "var(--green)" : c.tone === "issue" ? "var(--warn-num)" : c.tone === "paidpending" ? "var(--blue-chip-text)" : "var(--muted2)";
