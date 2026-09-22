@@ -133,14 +133,16 @@ const isLive = (r: Row) => r.status === "approved" || r.status === "onboarded";
 // the status field. They're independent: an account is e.g. "Level 3 · Active".
 type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejected";
 
-// Account statuses that mean the account is already live inventory (past onboarding).
-const LIVE_INVENTORY = new Set(["available", "rented", "trial", "maintenance", "unavailable", "retired"]);
+// Account statuses that mean the account is genuinely live and earning (counts as Level 5).
+const EARNING_INVENTORY = new Set(["available", "rented", "trial"]);
 const levelOf = (r: Row): 0 | 1 | 2 | 3 | 4 | 5 => {
   if (r.status === "rejected") return 0;           // rejected — not progressing through the pipeline
   if (r.status === "onboarded") return 5;          // matured + paid — live and earning
-  // Anything that's real inventory — available, rented, restricted, even retired — is
-  // fully onboarded, so it sits at Level 5 regardless of the application's own status.
-  if ((r.accountStatus && LIVE_INVENTORY.has(r.accountStatus)) || r.accountRestrictedAt) return 5;
+  // A genuinely live, earning account (available / rented / trial) is Level 5 even when the
+  // application status lags. A restricted or non-earning account (unavailable, retired,
+  // maintenance) is NOT onboarded: it stays at its real milestone level and shows a
+  // restricted or problem badge instead, so it never inflates the Onboarded count.
+  if (r.accountStatus && EARNING_INVENTORY.has(r.accountStatus) && !r.accountRestrictedAt) return 5;
   // Milestone-derived progress (the timestamps are the source of truth when present).
   let n = 1;
   if (r.verifiedAt) n = 4;                          // passed QC — maturing
