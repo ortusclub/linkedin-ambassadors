@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { isReferralEarned, isReferralOnboarded, referralCommissionAmount } from "@/lib/referrals";
+import { isReferralEarned, isReferralOnboarded, isReferralReadyToPay, referralMaturesAt, referralCommissionAmount } from "@/lib/referrals";
 import { type Currency, CURRENCY_CONFIG, formatMoney, referralCurrency } from "@/lib/referral-currency";
 
 // A single ambassador application, reduced to what the referral roll-up needs.
@@ -15,6 +15,7 @@ interface App {
   referralSource?: string | null;
   onboardingMethod?: string | null;
   onboardingVerified?: boolean | null;
+  accountFreshness?: string | null;
 }
 
 interface RefContact { method: string; handle: string; preferred?: boolean }
@@ -233,7 +234,8 @@ export default function AdminReferralsPage() {
         const commission = referralCommissionAmount(a, CURRENCY_CONFIG[curFor(name)].referralTiers);
         r.converted++;
         r.earned += commission;
-        if (isReferralEarned(a)) r.ready += commission;
+        // Ready to pay only once past the maturing window; verified-but-maturing sits in hold.
+        if (isReferralReadyToPay(a)) r.ready += commission;
         else r.held += commission;
       }
       m.set(key, r);
@@ -335,6 +337,8 @@ export default function AdminReferralsPage() {
       .filter((a) => (a.referredBy || "").trim().toLowerCase() === nm && isOnboarded(a))
       .map((a) => {
         const earned = isReferralEarned(a);
+        const readyToPay = isReferralReadyToPay(a);
+        const maturesAt = referralMaturesAt(a);
         const issueLabel = a.accountIssue ? (a.accountIssue === "restricted" ? "restricted" : "login issue") : null;
         // How it was onboarded + the tiered fee that drives the commission, per person, so
         // the total is auditable: Form (LV onboards) / DIY phone / DIY computer, ±verified.
@@ -347,8 +351,10 @@ export default function AdminReferralsPage() {
           name: a.fullName || "—",
           counts: isConverted(a), // false = restricted/held-back, shown but not counted
           method, fee, cur,
-          state: earned ? "Ready to pay" : issueLabel ? `In hold · ${issueLabel}` : "In hold · verifying",
-          tone: earned ? "ready" : issueLabel ? "issue" : "hold",
+          state: readyToPay ? "Ready to pay"
+            : earned ? `Maturing · until ${maturesAt ? maturesAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "the check clears"}`
+            : issueLabel ? `In hold · ${issueLabel}` : "In hold · verifying",
+          tone: readyToPay ? "ready" : issueLabel ? "issue" : "hold",
           title: a.accountIssue || "",
         };
       })
