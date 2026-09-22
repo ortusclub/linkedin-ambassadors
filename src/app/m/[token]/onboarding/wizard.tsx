@@ -236,6 +236,12 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       showSession(data.session);
     });
   }
+  // Persist the 2FA key as soon as it's set up (2FA step), so it's recorded even if the
+  // onboarding stalls before sign-in. Best-effort; the sign-in confirm/hand-off also send it.
+  async function saveTwoFactor() {
+    if (!session || noTwoFactor || !looksLikeTotpKey(twoFactorKey)) return;
+    try { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); } catch { /* best effort */ }
+  }
   async function uploadPhoto(file: File) {
     setPhotoBusy(true); setPhotoError("");
     try {
@@ -473,14 +479,14 @@ export default function SelfServiceWizard({ token }: { token: string }) {
                 <li>Paste that key below. We&apos;ll show the 6-digit code — type it into LinkedIn to finish turning 2FA on.</li>
               </ol>
               <label className={styles.field} data-tour="twofa-key">The 2FA setup key
-                <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} placeholder="e.g. JBSWY3DPEHPK3PXP" />
+                <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
               </label>
               <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
             </>}
             <label className={styles.check}><input type="checkbox" checked={noTwoFactor} onChange={(e) => { setNoTwoFactor(e.target.checked); if (e.target.checked) setTwoFactorKey(""); }} /><span>We can&apos;t set up 2FA right now — the team will do it at sign-in.</span></label>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={() => setStep(3)}>Back</button>
-              <button type="button" className={styles.primary} disabled={!noTwoFactor && !looksLikeTotpKey(twoFactorKey)} onClick={() => setStep(5)}>Continue to sign-in →</button>
+              <button type="button" className={styles.primary} disabled={!noTwoFactor && !looksLikeTotpKey(twoFactorKey)} onClick={() => { void saveTwoFactor(); setStep(5); }}>Continue to sign-in →</button>
             </div>
           </>}
 

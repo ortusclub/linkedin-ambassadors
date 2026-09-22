@@ -326,6 +326,21 @@ export async function confirmOnboarding(id: string, referrerId: string, creds?: 
 
 // Phone hand-off: the referrer has no PC, so the owner shares the login and we do the
 // GoLogin sign-in. We store the credentials on the account and flag it for the team.
+// Save the account's authenticator 2FA key as soon as the referrer sets it up (the 2FA
+// step, before sign-in), so it's recorded even if the onboarding stalls before sign-in.
+// Idempotent; safe to call repeatedly as they type/continue.
+export async function saveTwoFactorKey(id: string, referrerId: string, twoFactorKey: string) {
+  const key = twoFactorKey.trim();
+  if (!key) return;
+  const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { account: { select: { id: true, twoFactor: true, notes: true } } } });
+  if (!s) throw new OnboardingError("Onboarding not found.", 404);
+  if (s.account.twoFactor === key) return;
+  await prisma.linkedInAccount.update({ where: { id: s.accountId }, data: {
+    twoFactor: key,
+    notes: s.account.twoFactor ? s.account.notes || undefined : `${s.account.notes || ""}\n2FA key saved by referrer ${new Date().toISOString()}.`,
+  } });
+}
+
 export async function handoffOnboarding(id: string, referrerId: string, input: { password: string; twoFactorKey: string }) {
   const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { account: true, application: true } });
   if (!s) throw new OnboardingError("Onboarding not found.", 404);
