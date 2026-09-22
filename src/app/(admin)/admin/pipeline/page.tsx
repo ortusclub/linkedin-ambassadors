@@ -81,7 +81,7 @@ interface Row {
   paymentDetails: string | null;
   payoutName: string | null;
   verifiedAt: string | null;
-  qcChecks: { photo?: boolean; connections?: boolean; experiences?: boolean; education?: boolean } | null;
+  qcChecks: { photo?: boolean; headline?: boolean; about?: boolean; connections?: boolean; experiences?: boolean; education?: boolean } | null;
   emailPrimaryAt: string | null;
   linkedinVerified: boolean;
   provisionStatus: string | null;
@@ -292,9 +292,11 @@ const holdDays = (_r: Row) => 7;
 // account can pass. Stored per-application in qcChecks.
 const QC_ITEMS: [keyof NonNullable<Row["qcChecks"]>, string][] = [
   ["photo", "Profile picture is sufficient"],
-  ["connections", "At least 10 connections"],
+  ["headline", "Headline is filled in"],
+  ["about", "About section is filled in"],
   ["experiences", "Has at least two experiences"],
   ["education", "Has education listed"],
+  ["connections", "At least 10 new connections"],
 ];
 const eligibleMs = (r: Row): number | null => (r.onboardedAt ? new Date(r.onboardedAt).getTime() + 86400000 : null);
 // Setup fee is "due" only once it's been 24h since login — not the moment they log in.
