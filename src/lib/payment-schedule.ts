@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { isReferralEarned, referralCommissionAmount } from "@/lib/referrals";
+import { isReferralEarned, isReferralMatured, REFERRAL_HOLD_MS, referralCommissionAmount } from "@/lib/referrals";
 import { type Currency, currencyConfig, currencyConfigFor } from "@/lib/referral-currency";
 
 // Ambassador payout schedule + "who's due to be paid" computation, shared by the
@@ -190,9 +190,8 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   // A referral is fully READY once its account has matured (passed the 1-week hold
   // after QC / verifiedAt, i.e. Level 4→5) or is onboarded; while still maturing it's
   // UPCOMING, with a due date = maturation completion.
-  const HOLD_MS = 7 * 86400000;
-  const isMatured = (a: { status: string; verifiedAt: Date | string | null }) =>
-    a.status === "onboarded" || (!!a.verifiedAt && Date.now() - new Date(a.verifiedAt).getTime() >= HOLD_MS);
+  const HOLD_MS = REFERRAL_HOLD_MS;
+  const isMatured = (a: { status: string; verifiedAt: Date | string | null }) => isReferralMatured(a);
   type RefPerson = { name: string; url: string | null; dueDate: string };
   // Commission payouts. An ATTRIBUTED payout (ambassadorApplicationId) marks one specific
   // referral paid; legacy lump payouts (no appId) are still netted by amount, oldest first.
