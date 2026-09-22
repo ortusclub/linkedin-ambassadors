@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, createSession } from "@/lib/auth";
 import { sendSignupNotification } from "@/services/email";
 import { isLikelyTestEmail } from "@/lib/test-mode";
+import { isShadowRenterEmail } from "@/lib/shadow-rental";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     const passwordHash = password ? await hashPassword(password) : null;
     const contactNumber = contactHandle ? `${contactMethod || "whatsapp"}:${contactHandle}` : null;
     const user = await prisma.user.create({
-      data: { email, passwordHash, fullName, contactNumber, referralSource: referralSource || null, isTest: isLikelyTestEmail(email) },
+      data: { email, passwordHash, fullName, contactNumber, referralSource: referralSource || null, isTest: isLikelyTestEmail(email), isShadowRenter: isShadowRenterEmail(email) },
     });
 
     // Don't create session here — user will verify email first

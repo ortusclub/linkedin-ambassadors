@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { sendRentalReadyEmail, sendRentalNotification } from "@/services/email";
 import { grantRentalAccess } from "@/lib/rental-access";
 import { SALES_NAV_MONTHLY } from "@/lib/utils";
+import { SHADOW_MONTHLY_PRICE, yieldShadowRentals, isShadowRenterEmail } from "@/lib/shadow-rental";
 
 export async function POST(req: Request) {
   try {
@@ -21,9 +22,30 @@ export async function POST(req: Request) {
       Array.isArray(salesNavAccountIds) ? salesNavAccountIds : []
     );
 
-    const accounts = await prisma.linkedInAccount.findMany({
+    // Shadow renter (e.g. Apex Strategy): rents idle accounts at a flat rate without
+    // taking them out of the catalogue, and gets auto-yielded when a real customer rents
+    // the same account. Identified by a flag on the User (not a hardcoded email).
+    const isShadow = user.isShadowRenter === true || isShadowRenterEmail(user.email);
+
+    let accounts = await prisma.linkedInAccount.findMany({
       where: { id: { in: accountIds }, status: "available" },
     });
+
+    // A shadow renter can only hold each account once — drop any they're already on so
+    // re-selecting it doesn't create a duplicate shadow rental / double-charge.
+    if (isShadow && accounts.length) {
+      const already = await prisma.rental.findMany({
+        where: {
+          userId: user.id,
+          isShadow: true,
+          status: { in: ["active", "pending_access", "payment_failed"] },
+          linkedinAccountId: { in: accounts.map((a) => a.id) },
+        },
+        select: { linkedinAccountId: true },
+      });
+      const heldIds = new Set(already.map((r) => r.linkedinAccountId));
+      accounts = accounts.filter((a) => !heldIds.has(a.id));
+    }
 
     if (accounts.length === 0) {
       return NextResponse.json({ error: "No selected accounts are available" }, { status: 400 });
@@ -31,10 +53,11 @@ export async function POST(req: Request) {
 
     // Effective monthly charge per account = base price + Sales Nav add-on (if chosen
     // and not already included). This is the amount we bill now AND lock in for renewals.
+    // Shadow renters ignore all of that and pay the flat shadow rate instead.
     const addonFor = (a: (typeof accounts)[number]) =>
-      salesNavSet.has(a.id) && !a.hasSalesNav ? SALES_NAV_MONTHLY : 0;
+      !isShadow && salesNavSet.has(a.id) && !a.hasSalesNav ? SALES_NAV_MONTHLY : 0;
     const priceFor = (a: (typeof accounts)[number]) =>
-      a.monthlyPrice.add(addonFor(a));
+      isShadow ? new Prisma.Decimal(SHADOW_MONTHLY_PRICE) : a.monthlyPrice.add(addonFor(a));
 
     const totalPrice = accounts.reduce(
       (sum, a) => sum.add(priceFor(a)),
@@ -81,18 +104,26 @@ export async function POST(req: Request) {
               autoRenew: !!autoRenew,
               status: "pending_access",
               accessGrantedAt: null,
-              // Lock the base+add-on rate so every renewal bills the Sales Nav add-on
-              // too (all billing paths read lockedPrice ?? monthlyPrice).
-              lockedPrice: withSalesNav ? effectivePrice : null,
-              notes: withSalesNav ? "Sales Navigator add-on (+$70/mo)" : null,
+              isShadow,
+              // Lock the rate so every renewal bills the same: the flat shadow rate for a
+              // shadow renter, or base+Sales Nav add-on otherwise (all billing paths read
+              // lockedPrice ?? monthlyPrice).
+              lockedPrice: isShadow ? effectivePrice : withSalesNav ? effectivePrice : null,
+              notes: isShadow
+                ? `Shadow rental (${SHADOW_MONTHLY_PRICE}/mo) — stays in catalogue; yields to a real rental`
+                : withSalesNav ? "Sales Navigator add-on (+$70/mo)" : null,
               currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
             },
           });
 
-          await tx.linkedInAccount.update({
-            where: { id: account.id },
-            data: { status: "rented" },
-          });
+          // A shadow rental deliberately does NOT flip the account to "rented" — it stays
+          // catalogue-available so a real customer can still rent it (and yield the shadow).
+          if (!isShadow) {
+            await tx.linkedInAccount.update({
+              where: { id: account.id },
+              data: { status: "rented" },
+            });
+          }
 
           await tx.transaction.create({
             data: {
@@ -100,7 +131,7 @@ export async function POST(req: Request) {
               type: "rental_payment",
               amount: effectivePrice.negated(),
               rentalId: rental.id,
-              description: `Rental payment for ${account.linkedinName}${withSalesNav ? " (+ Sales Navigator)" : ""}`,
+              description: `Rental payment for ${account.linkedinName}${isShadow ? " (shadow)" : withSalesNav ? " (+ Sales Navigator)" : ""}`,
             },
           });
 
@@ -109,6 +140,18 @@ export async function POST(req: Request) {
 
         return arr;
       });
+
+      // A REAL rental reclaims any account a shadow renter (Apex) was holding: cut their
+      // GoLogin access, end the shadow rental, and email them. Never for a shadow order.
+      if (!isShadow) {
+        for (const { accountId } of created) {
+          try {
+            await yieldShadowRentals(accountId, { reason: "wallet rental" });
+          } catch (e) {
+            console.error("shadow yield after wallet rental failed:", accountId, e instanceof Error ? e.message : e);
+          }
+        }
+      }
 
       // AUTO-GRANT each on the spot (after commit, so grantRentalAccess sees the rentals).
       // Shares to the renter via the right master/klabber token + flips to active. If the

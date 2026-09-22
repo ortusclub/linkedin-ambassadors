@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
+import { SHADOW_MONTHLY_PRICE, yieldShadowRentals, isShadowRenterEmail } from "@/lib/shadow-rental";
 
 export async function GET() {
   try {
@@ -109,6 +111,10 @@ export async function POST(req: Request) {
     const start = new Date(data.startDate);
     const periodEnd = new Date(start.getFullYear(), start.getMonth() + 1, start.getDate());
 
+    // A shadow renter (Apex) gets the same soft-hold behaviour here as via self-checkout:
+    // flat rate, no status flip, and no yield (they're not a real customer taking it back).
+    const isShadow = user.isShadowRenter === true || isShadowRenterEmail(user.email);
+
     const rental = await prisma.rental.create({
       data: {
         userId: user.id,
@@ -117,14 +123,26 @@ export async function POST(req: Request) {
         startDate: start,
         currentPeriodEnd: periodEnd,
         autoRenew: data.autoRenew,
+        isShadow,
+        lockedPrice: isShadow ? new Prisma.Decimal(SHADOW_MONTHLY_PRICE) : undefined,
+        notes: isShadow
+          ? `Shadow rental (${SHADOW_MONTHLY_PRICE}/mo) — stays in catalogue; yields to a real rental`
+          : undefined,
       },
     });
 
-    // Update account status to rented
-    await prisma.linkedInAccount.update({
-      where: { id: data.linkedinAccountId },
-      data: { status: "rented" },
-    });
+    if (!isShadow) {
+      // Real rental: take the account out of the catalogue and reclaim it from any shadow holder.
+      await prisma.linkedInAccount.update({
+        where: { id: data.linkedinAccountId },
+        data: { status: "rented" },
+      });
+      try {
+        await yieldShadowRentals(data.linkedinAccountId, { reason: "admin-created rental" });
+      } catch (e) {
+        console.error("shadow yield after admin rental failed:", data.linkedinAccountId, e instanceof Error ? e.message : e);
+      }
+    }
 
     return NextResponse.json({ rental }, { status: 201 });
   } catch (error) {

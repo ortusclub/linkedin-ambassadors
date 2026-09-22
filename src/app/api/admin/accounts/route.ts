@@ -53,8 +53,10 @@ export async function GET(req: NextRequest) {
         rentals: {
           // "active" = healthy renter; also surface a renter whose charge just
           // failed (payment_failed) so the inventory can show WHO is overdue
-          // rather than "no renter on file". Newest first.
-          where: { status: { in: ["active", "payment_failed"] } },
+          // rather than "no renter on file". Newest first. Shadow rentals (Apex)
+          // are excluded here — they don't occupy the account, and are surfaced
+          // separately as `shadowRenter` so an "Available" row still reads Available.
+          where: { status: { in: ["active", "payment_failed"] }, isShadow: false },
           include: { user: { select: { fullName: true, email: true } } },
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -67,6 +69,21 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
     });
+
+    // Which accounts a shadow renter (Apex) is currently sitting on. These stay
+    // "Available" but the inventory row shows a "Shadow · Apex" badge so the team
+    // knows someone's using it even though it's still rentable.
+    const shadowRentals = accounts.length
+      ? await prisma.rental.findMany({
+          where: {
+            isShadow: true,
+            status: { in: ["active", "pending_access", "payment_failed"] },
+            linkedinAccountId: { in: accounts.map((a) => a.id) },
+          },
+          select: { linkedinAccountId: true, user: { select: { email: true } } },
+        })
+      : [];
+    const shadowByAccount = new Map(shadowRentals.map((r) => [r.linkedinAccountId, r.user.email]));
 
     // Resolve owner names from notes
     const ownerEmails = accounts
@@ -128,6 +145,7 @@ export async function GET(req: NextRequest) {
         ownerPayoutName: app?.payoutName || null,
         ownerOnboardedAt: app?.onboardedAt || null,
         ownerSetupPaidAt: app?.paidAt || null,
+        shadowRenter: shadowByAccount.get(a.id) || null,
       };
     });
 

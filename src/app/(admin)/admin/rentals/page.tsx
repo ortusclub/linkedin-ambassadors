@@ -16,6 +16,7 @@ interface Rental {
   notes: string | null;
   lvPoc: string | null;
   lockedPrice: string | number | null;
+  isShadow: boolean;
   renterAccountsLive: number;
   paymentMethodResolved: "USDC" | "Stripe";
   gologinShareIds: { email: string; shareId: string }[];
@@ -308,6 +309,7 @@ export default function AdminRentalsPage() {
                   ) : (
                     <button onClick={(e) => { e.stopPropagation(); setPocEdit(g.key); }} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, cursor: "pointer", ...(g.poc ? { background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)", border: "none" } : { background: "transparent", color: "var(--muted)", border: "1px dashed var(--btn-secondary-border)" }) }}>{g.poc ? `◔ LV POC · ${g.poc}` : "+ Assign LV POC"}</button>
                   )}
+                  {g.rentals.some((r) => r.isShadow) && <span title="Shadow renter — holds idle accounts without removing them from the catalogue; a real customer rental takes the account back." style={{ font: `600 12px ${F_SANS}`, color: "var(--blue-chip-text)", background: "var(--blue-chip-bg)", padding: "5px 11px", borderRadius: 999 }}>Shadow · doesn&apos;t hold inventory</span>}
                   <span style={{ font: `600 12px ${F_SANS}`, color: "var(--text2)", background: "var(--tag-bg)", padding: "5px 11px", borderRadius: 999 }}>{g.rentals.length} {g.rentals.length === 1 ? "account" : "accounts"}</span>
                   {gAttn > 0 && <span style={{ font: `600 12px ${F_SANS}`, color: "var(--warn-badge-text)", background: "var(--warn-badge-bg)", padding: "5px 11px", borderRadius: 999 }}>{gAttn} needs attention</span>}
                 </div>
