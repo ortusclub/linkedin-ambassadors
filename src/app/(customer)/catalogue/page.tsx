@@ -77,12 +77,18 @@ export default function CataloguePage() {
   const [view, setView] = useState<"list" | "grid">("list");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<{ id: string } | null>(null);
+  const [myIds, setMyIds] = useState<Set<string>>(new Set()); // accounts the viewer currently rents (incl. shadow)
   // Public share variant: /catalogue?pricing=off hides all prices (for sharing the
   // inventory with prospects/partners without revealing rates). Default = pricing on.
   const [showPricing, setShowPricing] = useState(true);
 
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.user) setUser(d.user); }).catch(() => {});
+    // Accounts the viewer currently rents (incl. shadow rentals) — badged "Rented by you".
+    fetch("/api/rentals").then((r) => (r.ok ? r.json() : { rentals: [] })).then((d) => {
+      const active = new Set(["active", "pending_access", "payment_failed"]);
+      setMyIds(new Set<string>(((d.rentals || []) as Array<{ status: string; linkedinAccount?: { id?: string } }>).filter((rt) => active.has(rt.status)).map((rt) => rt.linkedinAccount?.id).filter((x): x is string => !!x)));
+    }).catch(() => {});
     if (typeof window !== "undefined") setShowPricing(new URLSearchParams(window.location.search).get("pricing") !== "off");
   }, []);
 
@@ -222,7 +228,7 @@ export default function CataloguePage() {
               <input type="checkbox" checked={selected.size > 0 && selected.size === rentable.length} onChange={toggleSelectAll} style={{ accentColor: "#0A66C2", cursor: "pointer" }} />
               <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span>Price</span><span></span>
             </div>
-            {visible.map((a) => <ListRow key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} showPricing={showPricing} />)}
+            {visible.map((a) => <ListRow key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} showPricing={showPricing} mine={myIds.has(a.id)} />)}
           </div>
         )}
       </div>
@@ -274,7 +280,12 @@ export default function CataloguePage() {
   );
 }
 
-function StatusBadge({ rented }: { rented: boolean }) {
+function StatusBadge({ rented, mine }: { rented: boolean; mine?: boolean }) {
+  if (mine) return (
+    <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "4px 11px", color: "#0A66C2", background: "#EAF2FC" }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#0A66C2" }} />Rented by you
+    </span>
+  );
   return (
     <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "4px 11px", color: rented ? "#946011" : "#067A45", background: rented ? "#FBF0DA" : "#E4F6EC" }}>
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: rented ? "#E0A43B" : "#00B85C" }} />{rented ? "Rented" : "Available"}
@@ -373,7 +384,7 @@ function GridCard({ a, selected, onToggle, showPricing }: { a: Account; selected
   );
 }
 
-function ListRow({ a, selected, onToggle, showPricing }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean }) {
+function ListRow({ a, selected, onToggle, showPricing, mine }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean; mine?: boolean }) {
   const rented = a.status !== "available";
   const rentable = a.status === "available";
   const displayName = shortName(a.linkedinName);
@@ -395,7 +406,7 @@ function ListRow({ a, selected, onToggle, showPricing }: { a: Account; selected:
       <span className="cat2-hide">{a.industry ? <IndustryTag industry={a.industry} /> : "—"}</span>
       <span className="cat2-hide" style={{ fontSize: 13, color: "#5A6473", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.location || "—"}</span>
       <span><PriceBlock a={a} showPricing={showPricing} compact /></span>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} /><Actions a={a} /></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} mine={mine} /><Actions a={a} /></div>
     </div>
   );
 }
