@@ -336,9 +336,17 @@ export default function AdminReferralsPage() {
       .map((a) => {
         const earned = isReferralEarned(a);
         const issueLabel = a.accountIssue ? (a.accountIssue === "restricted" ? "restricted" : "login issue") : null;
+        // How it was onboarded + the tiered fee that drives the commission, per person, so
+        // the total is auditable: Form (LV onboards) / DIY phone / DIY computer, ±verified.
+        const cur = curFor(rowName);
+        const fee = referralCommissionAmount(a, CURRENCY_CONFIG[cur].referralTiers);
+        const method = a.referralSource === "self-service"
+          ? (a.onboardingMethod === "phone" ? "You ran it · phone" : a.onboardingMethod === "computer" ? "You ran it · computer" : "You ran it") + (a.onboardingVerified ? " · verified" : "")
+          : "Form · LV onboards";
         return {
           name: a.fullName || "—",
           counts: isConverted(a), // false = restricted/held-back, shown but not counted
+          method, fee, cur,
           state: earned ? "Ready to pay" : issueLabel ? `In hold · ${issueLabel}` : "In hold · verifying",
           tone: earned ? "ready" : issueLabel ? "issue" : "hold",
           title: a.accountIssue || "",
@@ -802,7 +810,9 @@ export default function AdminReferralsPage() {
                             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }} title={c.title || undefined}>
                               <span style={{ width: 7, height: 7, borderRadius: 999, background: tone, flex: "none" }} />
                               <span style={{ font: `500 13px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{c.name}</span>
-                              <span style={{ font: `600 11px ${F_SANS}`, color: tone, whiteSpace: "nowrap" }}>{c.state}</span>
+                              <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", whiteSpace: "nowrap" }}>{c.method}</span>
+                              <span style={{ font: `700 12px ${F_SANS}`, color: "var(--text2)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", minWidth: 52, textAlign: "right" }}>{formatMoney(c.fee, c.cur)}</span>
+                              <span style={{ font: `600 11px ${F_SANS}`, color: tone, whiteSpace: "nowrap", minWidth: 96, textAlign: "right" }}>{c.state}</span>
                             </div>
                           );
                         })}
