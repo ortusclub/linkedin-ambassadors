@@ -38,6 +38,8 @@ function CheckoutContent() {
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
   const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
+  const [isShadow, setIsShadow] = useState(false); // Apex Strategy: flat shadow price
+  const SHADOW_MONTHLY_PRICE = 20; // must match SHADOW_MONTHLY_PRICE in lib/shadow-rental
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [autoRenew, setAutoRenew] = useState(true);
@@ -68,12 +70,15 @@ function CheckoutContent() {
     ]).then(([accountResults, balanceData, vettingData]) => {
       setAccounts(accountResults.filter(Boolean));
       setUsdcBalance(parseFloat(balanceData.balance || "0"));
+      setIsShadow(!!balanceData.isShadowRenter);
       setVetted(!!vettingData.vetted);
       setLoading(false);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const total = accounts.reduce((sum, a) => sum + Number(a.monthlyPrice) + (salesNavFor(a) ? SALES_NAV_MONTHLY : 0), 0);
+  // Shadow renters (Apex) pay a flat rate per account, overriding the listed price + add-ons.
+  const priceOf = (a: Account) => (isShadow ? SHADOW_MONTHLY_PRICE : Number(a.monthlyPrice) + (salesNavFor(a) ? SALES_NAV_MONTHLY : 0));
+  const total = accounts.reduce((sum, a) => sum + priceOf(a), 0);
   const hasSufficientBalance = usdcBalance !== null && usdcBalance >= total;
 
   const handleCheckout = async () => {
@@ -165,7 +170,7 @@ function CheckoutContent() {
               <span style={{ fontSize: 13, color: "#8A93A2" }}>Flat monthly rate each</span>
             </div>
             {accounts.map((a) => {
-              const price = Number(a.monthlyPrice);
+              const price = isShadow ? SHADOW_MONTHLY_PRICE : Number(a.monthlyPrice);
               const name = shortName(a.linkedinName);
               const ic = a.industry ? (INDUSTRY_COLORS[a.industry] || "#0A66C2") : "#0A66C2";
               return (
@@ -231,9 +236,9 @@ function CheckoutContent() {
                 <div key={a.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 14 }}>
                     <span style={{ color: "#5A6473" }}>{shortName(a.linkedinName)}</span>
-                    <span style={{ color: "#0B1220", fontWeight: 600 }}>{formatCurrency(Number(a.monthlyPrice))}</span>
+                    <span style={{ color: "#0B1220", fontWeight: 600 }}>{formatCurrency(isShadow ? SHADOW_MONTHLY_PRICE : Number(a.monthlyPrice))}</span>
                   </div>
-                  {salesNavFor(a) && (
+                  {!isShadow && salesNavFor(a) && (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12.5 }}>
                       <span style={{ color: "#5747C9" }}>+ Sales Navigator</span>
                       <span style={{ color: "#5747C9", fontWeight: 600 }}>{formatCurrency(SALES_NAV_MONTHLY)}</span>
