@@ -16,6 +16,7 @@ interface App {
   onboardingMethod?: string | null;
   onboardingVerified?: boolean | null;
   accountFreshness?: string | null;
+  createdAt?: string | null;
 }
 
 interface RefContact { method: string; handle: string; preferred?: boolean }
