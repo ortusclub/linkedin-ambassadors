@@ -341,6 +341,7 @@ model AmbassadorApplication {
   callOutcome       String?          @map("call_outcome")
   bookingEmail      String?          @map("booking_email")
   verifiedAt        DateTime?         @map("verified_at")
+  emailPrimaryAt    DateTime?         @map("email_primary_at")
   onboardingStartedAt DateTime?       @map("onboarding_started_at")
   onboardedAt       DateTime?         @map("onboarded_at")
   // How a DIY (self-service) onboarding was completed: "computer" (referrer signed in)
@@ -351,6 +352,11 @@ model AmbassadorApplication {
   // commission is locked to this — verifying the account later does NOT change what the
   // referrer earned. Null for plain referrals / pre-tier rows.
   onboardingVerified Boolean?        @map("onboarding_verified")
+  // Post-sign-in fixes the team needs the referrer to do (e.g. our email isn't set as
+  // primary, or 2FA isn't set up). Surfaced on the referrer's portal, cleared by the team
+  // after a recheck. Shape: { issues: ("email_primary"|"twofa")[], state: "open"|"referrer_done",
+  // raisedAt: ISO, doneAt?: ISO }. Null when there's nothing outstanding.
+  onboardingFix     Json?             @map("onboarding_fix")
   accountFreshness  String?          @map("account_freshness")
   paidAt            DateTime?         @map("paid_at")
   marketerPaidAt    DateTime?         @map("marketer_paid_at")
@@ -598,6 +604,9 @@ model OnboardingEmailSetup {
   codeSentAt DateTime? @map("code_sent_at")
   destinationVerifiedAt DateTime? @map("destination_verified_at")
   forwardingUntil DateTime? @map("forwarding_until")
+  // LinkedIn's "confirm this email" link, captured from the forwarded message so the wizard
+  // can show it directly (copy / open) instead of depending on the forwarded email arriving.
+  confirmUrl String? @map("confirm_url")
   primaryConfirmedAt DateTime? @map("primary_confirmed_at")
   lastForwardedAt DateTime? @map("last_forwarded_at")
   createdAt DateTime @default(now()) @map("created_at")

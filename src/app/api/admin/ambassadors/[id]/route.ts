@@ -27,6 +27,7 @@ const updateSchema = z.object({
   onboardingStartedAt: z.string().datetime().nullable().optional(),
   onboardedAt: z.string().datetime().nullable().optional(),
   verifiedAt: z.string().datetime().nullable().optional(),
+  emailPrimaryAt: z.string().datetime().nullable().optional(),
   paidAt: z.string().datetime().nullable().optional(),
   marketerPaidAt: z.string().datetime().nullable().optional(),
   // Owner payout details
@@ -37,6 +38,14 @@ const updateSchema = z.object({
   payoutCurrency: z.enum(["PHP", "USD"]).nullable().optional(),
   contactChannel: z.string().nullable().optional(),
   accountIssue: z.string().nullable().optional(),
+  // Post-sign-in fix the team raises for the referrer (email not primary / 2FA not set),
+  // shown on their portal. null clears it. state flips to "referrer_done" from the portal.
+  setOnboardingFix: z.object({
+    issues: z.array(z.enum(["email_primary", "twofa"])).min(1),
+    state: z.enum(["open", "referrer_done"]),
+    raisedAt: z.string().datetime(),
+    doneAt: z.string().datetime().optional(),
+  }).nullable().optional(),
   // Recurring ₱500/month payout: append a receipt, or remove one by index.
   // A receipt can carry proof-of-payment and its notified / acknowledged audit trail.
   addMonthlyPayout: z.object({
@@ -72,7 +81,7 @@ export async function PATCH(
     const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
-    const { addTouch, removeTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, paidAt, marketerPaidAt, ...rest } = updateSchema.parse(body);
+    const { addTouch, removeTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, emailPrimaryAt, paidAt, marketerPaidAt, setOnboardingFix, ...rest } = updateSchema.parse(body);
 
     // Get the current application before updating
     const currentApp = await prisma.ambassadorApplication.findUnique({ where: { id } });
@@ -85,8 +94,10 @@ export async function PATCH(
     if (onboardingStartedAt !== undefined) updateData.onboardingStartedAt = onboardingStartedAt ? new Date(onboardingStartedAt) : null;
     if (onboardedAt !== undefined) updateData.onboardedAt = onboardedAt ? new Date(onboardedAt) : null;
     if (verifiedAt !== undefined) updateData.verifiedAt = verifiedAt ? new Date(verifiedAt) : null;
+    if (emailPrimaryAt !== undefined) updateData.emailPrimaryAt = emailPrimaryAt ? new Date(emailPrimaryAt) : null;
     if (paidAt !== undefined) updateData.paidAt = paidAt ? new Date(paidAt) : null;
     if (marketerPaidAt !== undefined) updateData.marketerPaidAt = marketerPaidAt ? new Date(marketerPaidAt) : null;
+    if (setOnboardingFix !== undefined) updateData.onboardingFix = setOnboardingFix === null ? Prisma.DbNull : setOnboardingFix;
     if (addTouch) {
       const log = Array.isArray(currentApp.outreachLog) ? (currentApp.outreachLog as unknown[]) : [];
       updateData.outreachLog = [

@@ -46,6 +46,16 @@
 .infoBlue p { font: 500 12.5px/1.5 'Plus Jakarta Sans'; color: #1e3a8a; margin: 0; }
 .infoBlue strong { color: #1e3a8a; }
 
+/* In-wizard 2FA authenticator — live TOTP code */
+.totpCard { background: #0b1220; border-radius: 14px; padding: 14px 16px; margin: 10px 0 4px; }
+.totpHead { margin-bottom: 6px; }
+.totpLabel { font: 600 10px 'Plus Jakarta Sans'; letter-spacing: .05em; text-transform: uppercase; color: #94a3b8; }
+.totpRow { display: flex; align-items: center; gap: 12px; }
+.totpCode { font: 600 30px/1 'Space Grotesk'; letter-spacing: .04em; color: #fff; font-variant-numeric: tabular-nums; }
+.totpCopy { margin-left: auto; flex: none; font: 700 12px 'Plus Jakarta Sans'; color: #0b1220; background: #fff; border: none; padding: 9px 13px; border-radius: 9px; cursor: pointer; }
+.totpBarTrack { height: 4px; border-radius: 999px; background: #1e293b; margin-top: 12px; overflow: hidden; }
+.totpBar { display: block; height: 100%; border-radius: 999px; background: #34d399; transition: width 1s linear; }
+
 /* "What this step is for" explainer on the email step */
 .why { background: #f1f5ff; border: 1px solid #c7d7fe; border-radius: 14px; padding: 15px; margin: 4px 0 16px; }
 .why strong:first-child { display: block; font: 700 13px 'Plus Jakarta Sans'; color: #1e3a8a; margin-bottom: 7px; }

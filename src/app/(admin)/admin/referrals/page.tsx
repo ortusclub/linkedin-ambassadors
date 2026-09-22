@@ -139,6 +139,7 @@ export default function AdminReferralsPage() {
   const [loading, setLoading] = useState(true);
   const [tier, setTier] = useState("all");
   const [query, setQuery] = useState("");
+  const [refApplied, setRefApplied] = useState(false);
   const [nextMonday, setNextMonday] = useState("");
   const [referrers, setReferrers] = useState<Referrer[]>([]);
   const [visibleCount, setVisibleCount] = useState(20);
@@ -173,6 +174,25 @@ export default function AdminReferralsPage() {
     const n = new Date();
     setToday(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`);
   }, []);
+
+  // Deep-link: /admin/referrals?ref=<slug> (from the pipeline "View referrer →" button)
+  // focuses the search on that referrer once the registry has loaded. Applied once.
+  useEffect(() => {
+    if (refApplied || typeof window === "undefined" || !referrers.length) return;
+    const slug = new URLSearchParams(window.location.search).get("ref");
+    if (!slug) { setRefApplied(true); return; }
+    const match = referrers.find((x) => x.slug.toLowerCase() === slug.toLowerCase() || x.name.toLowerCase() === slug.toLowerCase());
+    setQuery(match?.name || slug);
+    setVisibleCount(9999);
+    if (match) {
+      // Expand that referrer's row and open its Details editor so you can add
+      // email / contact / payout straight away (row keyed by slug or name).
+      setExpandedRef(new Set([match.name, match.slug]));
+      openDetails(match);
+    }
+    setRefApplied(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referrers, refApplied]);
 
   const rows = useMemo<Row[]>(() => {
     const m = new Map<string, { name: string; signups: number; converted: number; earned: number; ready: number; held: number }>();

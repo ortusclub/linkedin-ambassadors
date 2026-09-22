@@ -17,6 +17,12 @@ async function run(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // Auto-provisioning is opt-in — OFF by default so GoLogin profiles are only created
+  // manually from the pipeline "Create GoLogin" button. Set AUTO_PROVISION_GOLOGIN=true
+  // to re-enable the automatic sweep.
+  if (process.env.AUTO_PROVISION_GOLOGIN !== "true") {
+    return NextResponse.json({ ok: true, disabled: true, note: "Auto-provisioning is off (AUTO_PROVISION_GOLOGIN != true). Create GoLogin manually from the pipeline." });
+  }
   const dryRun = new URL(req.url).searchParams.get("dryRun") === "1";
 
   const accounts = await prisma.linkedInAccount.findMany({

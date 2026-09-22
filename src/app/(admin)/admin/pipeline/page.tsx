@@ -52,6 +52,7 @@ interface Row {
   createdAt: string;
   onboardedAt: string | null;
   accountIssue: string | null;
+  onboardingFix: { issues: ("email_primary" | "twofa")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
   reason: string;
   phoneHandoffPending?: boolean;
   hasGologin: boolean;
@@ -79,6 +80,7 @@ interface Row {
   paymentDetails: string | null;
   payoutName: string | null;
   verifiedAt: string | null;
+  emailPrimaryAt: string | null;
   linkedinVerified: boolean;
   provisionStatus: string | null;
   setupPaidAt: string | null;
@@ -363,6 +365,32 @@ export default function AdminPipelinePage() {
     } finally { setBusy(null); }
   };
   const workflow = async (id: string, patch: Record<string, unknown>) => { setBusy(id); try { await patchApp(id, patch, true); } finally { setBusy(null); } };
+
+  // Create GoLogin button — runs the same provisioning the cron does for one account
+  // (profile + proxy + share link). Reports if no free proxy of the right tier.
+  const provisionGologin = async (r: Row) => {
+    if (!r.accountId) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/provision-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(typeof d.error === "string" ? d.error : `Could not create GoLogin (${res.status}).`); }
+      else if (d.result?.proxy === "flagged") { alert(`GoLogin profile created, but no free proxy of the right type — the account is flagged "${d.result.provisionStatus}". Add a proxy and it'll finish (share link included) on the next run.`); }
+      else if (d.result?.errors?.length) { alert(`Partly done: ${d.result.errors.join("; ")}`); }
+      await load();
+    } finally { setBusy(null); }
+  };
+
+  // Email the referrer a guided fix for a common problem.
+  const emailIssue = async (r: Row, issue: string) => {
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/email-issue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, issue, loginEmail: r.loginEmail, ambassadorName: r.fullName, referrerSlug: r.referredBy }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not send (${res.status}).`);
+      else { alert(`Emailed ${d.to} about: ${d.issueLabel}.`); await load(); }
+    } finally { setBusy(null); }
+  };
   // Change stage keeping the model consistent: Level 2 (approved) ALWAYS means logged in,
   // so stamp onboardedAt when moving there; Level 1 (onboarding) means not logged in yet,
   // so clear it. Everything else goes through the guarded status route.
@@ -441,13 +469,6 @@ export default function AdminPipelinePage() {
         ...(r.outreachLog || []).map((t) => t.text)].some((v) => (v || "").toLowerCase().includes(q));
     });
   }, [scoped, query, flagged, signInOnly, statusFilter, pocFilter]);
-
-  const pocChips = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const r of scoped) counts.set((r.poc || "").trim(), (counts.get((r.poc || "").trim()) || 0) + 1);
-    const named = [...counts.entries()].filter(([k]) => k).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    return { named, unassigned: counts.get("") || 0, total: scoped.length };
-  }, [scoped]);
 
   const groups = useMemo(() => {
     const defs = mode === "stage" ? STAGE_GROUPS : mode === "live" ? LIVE_GROUPS : ACTION_GROUPS;
@@ -596,22 +617,9 @@ export default function AdminPipelinePage() {
         ))}
       </div>
 
-      {/* PoC filter chips */}
-      {pocChips.named.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 7, marginBottom: 12 }}>
-          <span style={{ ...labelCss, marginRight: 2 }}>PoC</span>
-          {[{ key: "all", label: "All", count: pocChips.total }, ...pocChips.named.map(([k, n]) => ({ key: k, label: formatName(k), count: n })), ...(pocChips.unassigned ? [{ key: "__unassigned", label: "Unassigned", count: pocChips.unassigned }] : [])].map((c) => (
-            <button key={c.key} onClick={() => setPocFilter(c.key)} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 12px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, border: "1px solid", borderColor: pocFilter === c.key ? "transparent" : "var(--input-border,#dcdce0)", background: pocFilter === c.key ? "var(--chip-active-bg,#eaf1ff)" : "transparent", color: pocFilter === c.key ? "var(--chip-active-text,#1a56db)" : "var(--muted,#555)" }}>
-              {c.label}
-              <span style={{ font: `700 10.5px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 5px", borderRadius: 5, background: "var(--band,#f1f1f2)", color: "var(--muted,#888)" }}>{c.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* search + toggles */}
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 22, flexWrap: "wrap" }}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact, account, referrer or POC…" style={{ ...inputCss, flex: "1 1 280px", padding: "11px 14px", font: `500 13.5px ${F_SANS}` }} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact, account or referrer…" style={{ ...inputCss, flex: "1 1 280px", padding: "11px 14px", font: `500 13.5px ${F_SANS}` }} />
         <button onClick={() => setFlagged((f) => !f)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(flagged ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>⚠ Problems only</button>
         {signInCount > 0 && <button onClick={() => setSignInOnly((v) => !v)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(signInOnly ? { background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)", borderColor: "var(--purple-chip-text,#6b3fd4)" } : {}) }}>📱 Needs sign-in ({signInCount})</button>}
         <button onClick={() => setOpen(anyOpen ? new Set() : new Set(filtered.map((r) => r.id)))} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px" }}>{anyOpen ? "Collapse all" : "Expand all"}</button>
@@ -626,6 +634,7 @@ export default function AdminPipelinePage() {
           {g.items.map((r) => (
             <Card key={r.id} r={r} busy={busy === r.id} open={open.has(r.id)} onToggle={() => toggle(r.id)}
               patchApp={patchApp} patchAccount={patchAccount} setStage={changeStatus} workflow={workflow}
+              provisionGologin={provisionGologin} emailIssue={emailIssue}
               logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} onDeleteApp={() => deleteApp(r)} />
           ))}
         </GroupSection>
@@ -707,7 +716,7 @@ function Note({ label, children }: { label: string; children: React.ReactNode })
 
 const GRID4: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "12px 14px" };
 
-function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workflow, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
+function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workflow, provisionGologin, emailIssue, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
   r: Row; busy: boolean; open: boolean; onToggle: () => void;
   onFilterText: (t: string) => void;
   onDeleteApp: () => void;
@@ -715,6 +724,8 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
   patchAccount: (id: string, accountId: string, patch: Record<string, unknown>, reload?: boolean) => void;
   setStage: (r: Row, s: Status) => void;
   workflow: (id: string, patch: Record<string, unknown>) => void;
+  provisionGologin: (r: Row) => void;
+  emailIssue: (r: Row, issue: string) => void;
   logTouch: (id: string, ch: string, text: string, by: string) => Promise<void>;
   logPayment: (r: Row, kind: "setup" | "monthly") => Promise<void>;
   updatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>;
@@ -761,9 +772,25 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
                 const differs = !!an && an.trim().toLowerCase() !== (formatName(r.fullName) || "").trim().toLowerCase();
                 return differs ? <span>Account <b style={{ color: "var(--fg,#444)" }}>{an}</b></span> : null;
               })()}
-              <span>PoC <b style={{ color: r.poc ? "var(--fg,#444)" : "var(--muted2,#9aa0a6)" }}>{r.poc || "—"}</b></span>
-              {r.referredBy && <span>Referrer <b role="button" title="Filter by this referrer" onClick={(e) => { e.stopPropagation(); onFilterText(r.referredBy!); }} style={{ color: "var(--link,#0a66c2)", cursor: "pointer" }}>{r.referredBy}</b></span>}
+              {r.referredBy && <span>Referrer <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} title="Open this referrer's profile to add their email / contact / payout" onClick={(e) => e.stopPropagation()} style={{ color: "var(--link,#0a66c2)", cursor: "pointer", fontWeight: 700, textDecoration: "none" }}>{r.referredBy}</a></span>}
             </div>
+            {(r.onboardedAt || r.onboardingFix) && (() => {
+              const has = (i: "email_primary" | "twofa") => !!r.onboardingFix?.issues.includes(i);
+              const raise = (issues: ("email_primary" | "twofa")[]) => workflow(r.id, { setOnboardingFix: issues.length ? { issues, state: "open", raisedAt: new Date().toISOString() } : null });
+              const toggle = (i: "email_primary" | "twofa") => { const cur = r.onboardingFix?.issues || []; return raise(has(i) ? cur.filter((x) => x !== i) : [...cur, i]); };
+              const chip = (i: "email_primary" | "twofa", label: string) => (
+                <button onClick={(e) => { e.stopPropagation(); void toggle(i); }} disabled={busy} style={{ font: `700 10.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 999, cursor: "pointer", border: `1px solid ${has(i) ? "#f5c2c2" : "var(--line,#e3e6ea)"}`, background: has(i) ? "#fdf0f0" : "transparent", color: has(i) ? "#b91c1c" : "var(--muted,#8a9099)" }}>{has(i) ? "✓ " : ""}{label}</button>
+              );
+              return (
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                  <span title="Raise a fix on the referrer's portal — they do it, mark done, then you recheck" style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Referrer to fix</span>
+                  {chip("email_primary", "Email not primary")}
+                  {chip("twofa", "2FA not set up")}
+                  {r.onboardingFix?.state === "referrer_done" && <span style={{ font: `700 10px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)" }}>Referrer marked fixed — recheck</span>}
+                  {r.onboardingFix && <button onClick={(e) => { e.stopPropagation(); void raise([]); }} disabled={busy} style={{ font: `700 10px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, cursor: "pointer", border: "none", background: "var(--st-conv-bg,#ecfdf3)", color: "var(--st-conv-fg,#15803d)" }}>Resolve</button>}
+                </div>
+              );
+            })()}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flex: "none" }}>
@@ -787,6 +814,19 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             <WorkflowRail r={r} busy={busy} workflow={workflow} />
           )}
 
+          {/* Email the referrer a guided fix for a common problem */}
+          {r.referredBy && (
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16, padding: "10px 12px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
+              <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Email referrer ({r.referredBy}) a fix</span>
+              {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"]] as [string, string][]).map(([key, label]) => (
+                <button key={key} onClick={(e) => { e.stopPropagation(); void emailIssue(r, key); }} disabled={busy}
+                  style={{ font: `700 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>✉ {label}</button>
+              ))}
+              <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} title="Open this referrer on the Referrals page"
+                style={{ marginLeft: "auto", font: `700 11px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "transparent", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, textDecoration: "none", whiteSpace: "nowrap" }}>View referrer →</a>
+            </div>
+          )}
+
           {/* BLOCK 1 — applicant & payout */}
           <SectionLabel num={1}>Applicant &amp; payout</SectionLabel>
           <div style={{ ...GRID4, marginBottom: 20 }}>
@@ -800,7 +840,6 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             <Edit label="Connections" value={r.connectionCount} numeric placeholder="e.g. 500" onSave={(v) => patchApp(r.id, { connectionCount: v })} />
             <Edit label="Referred by" value={r.referredBy} placeholder="marketer code" onSave={(v) => patchApp(r.id, { referredBy: v })} />
             <Edit label="Referral source" value={r.referralSource} placeholder="flyer / FB / referral" onSave={(v) => patchApp(r.id, { referralSource: v })} />
-            <Edit label="POC" hint="who owns this" value={r.poc} placeholder="type a name…" onSave={(v) => patchApp(r.id, { poc: v ?? "" })} />
             <Edit label="Payout method" value={r.paymentMethod} placeholder="Wise / PayPal / GCash" onSave={(v) => patchApp(r.id, { paymentMethod: v })} />
             <Edit label="Payout handle / account no." value={r.paymentDetails} placeholder="email / number / account" onSave={(v) => patchApp(r.id, { paymentDetails: v })} />
             <Edit label="Payout name" value={r.payoutName} placeholder="name on the account" onSave={(v) => patchApp(r.id, { payoutName: v })} />
@@ -815,7 +854,10 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
             {!r.accountId ? (
               <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>no account linked</span>
             ) : !r.hasGologin ? (
-              <span style={{ font: `600 11px ${F_SANS}`, color: needsGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--muted,#8a97ad)" }}>{needsGologin(r) ? "⚠ No GoLogin — this account cannot be run" : "GoLogin not added yet"}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ font: `600 11px ${F_SANS}`, color: needsGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--muted,#8a97ad)" }}>{needsGologin(r) ? "⚠ No GoLogin — this account cannot be run" : "GoLogin not added yet"}</span>
+                <button onClick={(e) => { e.stopPropagation(); void provisionGologin(r); }} disabled={busy} title="Create the GoLogin profile, assign an available proxy, and generate the share link — all onto this account" style={{ font: `700 11px ${F_SANS}`, color: "#fff", background: "var(--st-active-fg,#188038)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Creating…" : "+ Create GoLogin (profile · proxy · share link)"}</button>
+              </div>
             ) : r.gologinShareLink ? (
               <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 9px", borderRadius: 6 }}>↗ Open GoLogin</a>
             ) : (
@@ -906,12 +948,10 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
 
 // -- workflow rail (pre-onboarded): 4 sequential step cards -------------------
 function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void }) {
-  const accepted = r.status === "approved" || r.status === "onboarding";
-  const started = !!r.onboardingStartedAt;
-  const loginDue = loginDueMs(r);
-  const loginOver = loginDue !== null && Date.now() >= loginDue;
-  const verified = !!r.verifiedAt;
-  const gated = !accepted;
+  const started = !!r.onboardingStartedAt;         // maturation started
+  const matureDue = loginDueMs(r);                 // when the maturation window ends
+  const matured = started && matureDue !== null && Date.now() >= matureDue;
+  const gated = false;                             // level ladder isn't gated behind "accept"
 
   type Step = { label: string; title: string; sub: string; done: boolean; render: (isNext: boolean) => React.ReactNode };
   const stepCard = (label: string, title: string, sub: string, isNext: boolean, body: React.ReactNode) => (
@@ -923,34 +963,38 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
     </div>
   );
   const doneBadge = (text: string) => <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "var(--st-active-bg,#e6f4ea)", padding: "6px 10px", borderRadius: 7, display: "inline-block" }}>✓ {text}</span>;
+  const undoLink = (patch: Record<string, unknown>) => <span onClick={() => workflow(r.id, patch)} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span>;
+  const primaryBtn = (isNext: boolean): React.CSSProperties => ({ ...btnPrimary, width: "100%", background: isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" });
+  const doneCol = (badge: string, undo: Record<string, unknown>) => <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge(badge)}{undoLink(undo)}</div>;
 
   const steps: Step[] = [
     {
-      label: "Step 1", title: "Start warm-up", sub: r.accountFreshness === "fresh" ? "fresh · 1 week" : "established · 3 days", done: started,
-      render: (isNext) => started ? doneBadge("Warm-up started")
-        : gated ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>accept first</span>
+      label: "Step 1", title: "Application received", sub: r.createdAt ? `applied ${fmtDate(r.createdAt)}` : "in the pipeline", done: true,
+      render: () => doneBadge("Received"),
+    },
+    {
+      label: "Step 2", title: "LV email added & primary", sub: r.emailPrimaryAt ? `done ${fmtDate(r.emailPrimaryAt)}` : "our email is on the account & set primary", done: !!r.emailPrimaryAt,
+      render: (isNext) => r.emailPrimaryAt ? doneCol("Email primary", { emailPrimaryAt: null })
+        : <button onClick={() => workflow(r.id, { emailPrimaryAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Email added &amp; primary</button>,
+    },
+    {
+      label: "Step 3", title: "Logged into GoLogin", sub: r.onboardedAt ? `logged in ${fmtDate(r.onboardedAt)}` : "sign in via the GoLogin profile", done: !!r.onboardedAt,
+      render: (isNext) => r.onboardedAt ? doneCol("Logged in", { onboardedAt: null })
+        : <button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Logged in</button>,
+    },
+    {
+      label: "Step 4", title: "Passed checks & QC", sub: "quality control — account good, not restricted", done: !!r.verifiedAt,
+      render: (isNext) => r.verifiedAt ? doneCol("Passed QC", { verifiedAt: null })
+        : <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Passed QC</button>,
+    },
+    {
+      label: "Step 5", title: "Matured — ready to onboard", sub: matured ? "maturation complete" : started ? `maturing · ready ${matureDue ? fmtDate(new Date(matureDue).toISOString()) : "—"}` : (r.accountFreshness === "fresh" ? "fresh · 1 week" : "established · 3 days"), done: matured,
+      render: (isNext) => matured ? doneCol("Matured — ready", { onboardingStartedAt: null })
+        : started ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing…</span>
           : (<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <button onClick={() => workflow(r.id, { status: "onboarding", onboardingStartedAt: new Date().toISOString(), accountFreshness: "established" })} disabled={busy} style={{ ...btnPrimary, width: "100%", background: isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" }}>Established · 3d</button>
-              <button onClick={() => workflow(r.id, { status: "onboarding", onboardingStartedAt: new Date().toISOString(), accountFreshness: "fresh" })} disabled={busy} style={{ ...btnSec, width: "100%" }}>Fresh · 1wk</button>
+              <button onClick={() => workflow(r.id, { onboardingStartedAt: new Date().toISOString(), accountFreshness: "established" })} disabled={busy} style={primaryBtn(isNext)}>Start · established 3d</button>
+              <button onClick={() => workflow(r.id, { onboardingStartedAt: new Date().toISOString(), accountFreshness: "fresh" })} disabled={busy} style={{ ...btnSec, width: "100%" }}>Start · fresh 1wk</button>
             </div>),
-    },
-    {
-      // Logging in moves them to LEVEL 2 (approved) and stamps the login — it does NOT
-      // mark them Onboarded (that's the paid/earning end state). They stay in the by-stage
-      // view under Level 2 and the setup fee falls due 24h later.
-      label: "Step 2", title: "Mark logged in", sub: r.onboardedAt ? `logged in ${fmtDate(r.onboardedAt)}` : started ? (loginOver ? "warm-up done — log in" : `due ${loginDue ? fmtDate(new Date(loginDue).toISOString()) : "—"}`) : "once they hand over the login", done: !!r.onboardedAt,
-      render: (isNext) => r.onboardedAt
-        ? (<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge("Logged in")}<span onClick={() => workflow(r.id, { onboardedAt: null })} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span></div>)
-        : (<button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy || !started} style={{ ...btnPrimary, width: "100%", background: isNext && started ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext && started ? "#fff" : "var(--muted2,#9aa0a6)", border: isNext && started ? "none" : "1px solid var(--divider,#eee)", cursor: started ? "pointer" : "not-allowed" }}>✓ Logged in → Level 2</button>),
-    },
-    {
-      label: "Step 3", title: "Stability check", sub: "account good to go — not restricted", done: verified,
-      render: (isNext) => verified ? (<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge("Account OK")}<span onClick={() => workflow(r.id, { verifiedAt: null })} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span></div>)
-        : <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString() })} disabled={busy} style={{ ...btnPrimary, width: "100%", background: isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" }}>✓ Account OK</button>,
-    },
-    {
-      label: "Step 4", title: "Setup fee", sub: `${formatMoney(cfgOf(r).setupAmount, cfgOf(r).currency)} · 24h after login`, done: setupPaid(r),
-      render: () => setupPaid(r) ? doneBadge("Paid") : <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>log it in payments once live</span>,
     },
   ];
   let unlocked = true;
