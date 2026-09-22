@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { revokeRentalAccess, grantRentalAccess } from "@/lib/rental-access";
+import { yieldShadowRentals } from "@/lib/shadow-rental";
 import {
   sendRentalOnboardingEmail,
   sendAccessReadyEmail,
@@ -285,6 +286,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       where: { id: linkedinAccountId },
       data: { status: "rented" },
     });
+
+    // If a shadow renter (Apex) was holding this account, reclaim it: cut their GoLogin
+    // access, end the shadow rental, and email them. Best-effort — never block the sale.
+    try {
+      await yieldShadowRentals(linkedinAccountId, { reason: "card rental" });
+    } catch (e) {
+      console.error("shadow yield after card rental failed:", linkedinAccountId, e instanceof Error ? e.message : e);
+    }
 
     let granted = false;
     if (account.gologinProfileId) {

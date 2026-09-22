@@ -63,6 +63,11 @@ model User {
   cardBrand         String?    @map("card_brand")
   cardLast4         String?    @map("card_last4")
   isTest            Boolean    @default(false) @map("is_test")
+  // "Shadow renter" (e.g. Apex Strategy): rents idle accounts at a flat rate WITHOUT
+  // removing them from the catalogue. A real customer can still rent the same account,
+  // which yields (ends) the shadow rental. Flagged on the User; each of their rentals
+  // inherits it via Rental.isShadow.
+  isShadowRenter    Boolean    @default(false) @map("is_shadow_renter")
   reengageNudgeAt    DateTime? @map("reengage_nudge_at")    // dormant-signup re-engagement email 1 sent
   reengageFollowupAt DateTime? @map("reengage_followup_at") // dormant-signup re-engagement email 2 sent
   createdAt         DateTime   @default(now()) @map("created_at")
@@ -243,6 +248,10 @@ model Rental {
   // Auto-grant retry counter: how many times the cron has tried to share GoLogin
   // access (the renter must have set up GoLogin first). Bounded to avoid looping.
   accessGrantAttempts   Int          @default(0) @map("access_grant_attempts")
+  // Shadow rental (see User.isShadowRenter): billed at the flat shadow rate, does NOT
+  // flip the account to "rented" (stays catalogue-available), and is auto-yielded when
+  // a real customer rents the same account.
+  isShadow              Boolean      @default(false) @map("is_shadow")
   notes                 String?
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")
