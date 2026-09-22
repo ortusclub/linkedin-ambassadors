@@ -47,7 +47,7 @@ export async function yieldShadowRentals(
 
     // 2. End the shadow rental with an audit note (kept visible in /admin/rentals).
     const stamp = new Date().toISOString().slice(0, 10);
-    const yieldNote = `Yielded to a customer rental on ${stamp}${opts?.reason ? ` (${opts.reason})` : ""}`;
+    const yieldNote = `Yielded to a customer rental on ${stamp}${opts?.reason ? ` (${opts.reason})` : ""} — $${SHADOW_MONTHLY_PRICE} refunded as credit`;
     try {
       await prisma.rental.update({
         where: { id: s.id },
@@ -62,7 +62,18 @@ export async function yieldShadowRentals(
       console.error("shadow yield: end rental failed:", s.id, e instanceof Error ? e.message : e);
     }
 
-    // 3. Tell the shadow renter we've taken the account back (the sent email is itself
+    // 3. Refund the flat shadow fee as account credit (their usdcBalance), so it's
+    //    usable toward another shadow rental — "taken away, money back as credit".
+    try {
+      await prisma.user.update({
+        where: { id: s.userId },
+        data: { usdcBalance: { increment: SHADOW_MONTHLY_PRICE } },
+      });
+    } catch (e) {
+      console.error("shadow yield: refund credit failed:", s.id, e instanceof Error ? e.message : e);
+    }
+
+    // 4. Tell the shadow renter we've taken the account back (the sent email is itself
     //    logged in email_log / /admin/emails, so it doubles as the audit trail).
     try {
       await sendShadowYieldEmail(s.user.email, s.linkedinAccount.linkedinName);
