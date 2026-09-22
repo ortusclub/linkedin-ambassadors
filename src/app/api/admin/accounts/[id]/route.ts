@@ -165,7 +165,10 @@ export async function PATCH(
     // Sync proxy to GoLogin profile if it has one
     if (account.gologinProfileId && (data.proxyHost || data.proxyPort || data.proxyUsername || data.proxyPassword)) {
       try {
-        const token = process.env.GOLOGIN_API_TOKEN!;
+        // Use the token for the GoLogin account that hosts this profile (klabber vs
+        // master); the master token can't see klabber profiles, so a hardcoded master
+        // token silently no-ops the sync for klabber accounts.
+        const token = gologin.tokenForAccount(account.gologinAccount) || process.env.GOLOGIN_API_TOKEN!;
         const headers = {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
