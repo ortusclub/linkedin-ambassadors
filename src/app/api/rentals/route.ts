@@ -14,6 +14,7 @@ export async function GET() {
             id: true,
             linkedinName: true,
             linkedinHeadline: true,
+            linkedinUrl: true,
             profilePhotoUrl: true,
             connectionCount: true,
             gologinShareLink: true,

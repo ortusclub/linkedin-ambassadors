@@ -12,48 +12,51 @@ import { formatMoney } from "@/lib/referral-currency";
 import { CardTopUp } from "./card-topup";
 import { startDashboardTour } from "@/lib/dashboard-tour";
 
-// Renter action: open the rented GoLogin profile directly (via the gologin://
-// protocol), with a fallback to reveal/copy the raw share link.
-function RevealShareLink({ link }: { link: string | null }) {
+// Renter action: reveal the two links for a rented account, each clearly
+// labelled — the LinkedIn profile URL (opens the actual LinkedIn page) and the
+// GoLogin share link (opens the profile in GoLogin). Click to reveal + copy.
+function RevealShareLink({ link, linkedinUrl }: { link: string | null; linkedinUrl?: string | null }) {
   const [shown, setShown] = useState(false);
-  const [copied, setCopied] = useState(false);
-  if (!link) return null;
-  // Launch the profile straight into the GoLogin desktop app; if the protocol
-  // handler isn't registered, fall back to opening the share link in a tab.
-  const openProfile = () => {
-    try {
-      const shareUrl = new URL(link);
-      window.location.href = `gologin:/${shareUrl.pathname}`;
-    } catch {
-      window.open(link, "_blank");
-    }
+  const [copied, setCopied] = useState<string | null>(null);
+  if (!link && !linkedinUrl) return null;
+  const copy = (value: string) => {
+    try { navigator.clipboard?.writeText(value); setCopied(value); setTimeout(() => setCopied(null), 1200); } catch {}
   };
-  return (
-    <span className="inline-flex items-center gap-2 max-w-[360px]">
+  if (!shown) {
+    return (
       <button
-        onClick={openProfile}
-        className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
+        onClick={() => setShown(true)}
+        className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
       >
-        Open profile
-        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+        Reveal links
       </button>
-      {!shown ? (
-        <button
-          onClick={() => setShown(true)}
-          className="shrink-0 text-[11px] font-medium text-gray-500 hover:text-gray-700 underline cursor-pointer"
-        >
-          share link
-        </button>
-      ) : (
-        <>
-          <a href={link} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline break-all">{link}</a>
+    );
+  }
+  return (
+    <span className="inline-flex flex-col items-end gap-1.5 max-w-[360px]">
+      {linkedinUrl && (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">LinkedIn profile</span>
+          <a href={linkedinUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline break-all">{linkedinUrl}</a>
           <button
-            onClick={() => { try { navigator.clipboard?.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch {} }}
+            onClick={() => copy(linkedinUrl)}
             className="shrink-0 rounded-md border border-gray-300 px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 cursor-pointer"
           >
-            {copied ? "Copied" : "Copy"}
+            {copied === linkedinUrl ? "Copied" : "Copy"}
           </button>
-        </>
+        </span>
+      )}
+      {link && (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">GoLogin share link</span>
+          <a href={link} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline break-all">{link}</a>
+          <button
+            onClick={() => copy(link)}
+            className="shrink-0 rounded-md border border-gray-300 px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 cursor-pointer"
+          >
+            {copied === link ? "Copied" : "Copy"}
+          </button>
+        </span>
       )}
     </span>
   );
@@ -71,6 +74,7 @@ interface Rental {
     id: string;
     linkedinName: string;
     linkedinHeadline: string | null;
+    linkedinUrl: string | null;
     profilePhotoUrl: string | null;
     connectionCount: number;
     gologinProfileId: string | null;
@@ -907,10 +911,10 @@ function DashboardContent() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center gap-2 justify-end">
-                      {/* Open-profile link always shows when a share link exists — even
-                          while restricted or preparing — so the renter can reach it. */}
-                      {rental.linkedinAccount.gologinShareLink ? (
-                        <RevealShareLink link={rental.linkedinAccount.gologinShareLink} />
+                      {/* Links always show when a share link or LinkedIn URL exists —
+                          even while restricted or preparing — so the renter can reach it. */}
+                      {(rental.linkedinAccount.gologinShareLink || rental.linkedinAccount.linkedinUrl) ? (
+                        <RevealShareLink link={rental.linkedinAccount.gologinShareLink} linkedinUrl={rental.linkedinAccount.linkedinUrl} />
                       ) : rental.linkedinAccount.restrictedAt ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600 whitespace-nowrap" title="LinkedIn restricted this account — we're recovering it. No action needed.">
                           Recovering…
