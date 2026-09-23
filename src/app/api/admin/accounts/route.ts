@@ -110,6 +110,9 @@ export async function GET(req: NextRequest) {
             referredBy: true, referralSource: true, poc: true, ownerStatus: true, payoutCurrency: true,
             paymentMethod: true, paymentDetails: true, payoutName: true,
             paypalEmail: true, wiseEmail: true, onboardedAt: true, paidAt: true,
+            // Shared outreach/notes tracker: the account view reads/writes the SAME
+            // pipeline log (via ownerApplicationId), so both pages stay in sync.
+            outreachLog: true, nextFollowUp: true,
           },
         })
       : [];
@@ -133,6 +136,8 @@ export async function GET(req: NextRequest) {
         ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
         ownerEmail: ownerEmail || null,
         ownerApplicationId: app?.id || null,
+        ownerOutreachLog: app?.outreachLog ?? null,
+        ownerNextFollowUp: app?.nextFollowUp ?? null,
         ownerPhone: app?.contactNumber || null,
         contactChannel: app?.contactChannel || null,
         ownerReferredBy: app?.referredBy || null,
