@@ -78,6 +78,8 @@ export default function CataloguePage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [myIds, setMyIds] = useState<Set<string>>(new Set()); // accounts the viewer currently rents (incl. shadow)
+  const [viewerIsShadow, setViewerIsShadow] = useState(false);
+  const [shadowTaken, setShadowTaken] = useState<Set<string>>(new Set()); // shadow-bought by any shadow renter
   // Public share variant: /catalogue?pricing=off hides all prices (for sharing the
   // inventory with prospects/partners without revealing rates). Default = pricing on.
   const [showPricing, setShowPricing] = useState(true);
@@ -88,6 +90,11 @@ export default function CataloguePage() {
     fetch("/api/rentals").then((r) => (r.ok ? r.json() : { rentals: [] })).then((d) => {
       const active = new Set(["active", "pending_access", "payment_failed"]);
       setMyIds(new Set<string>(((d.rentals || []) as Array<{ status: string; linkedinAccount?: { id?: string } }>).filter((rt) => active.has(rt.status)).map((rt) => rt.linkedinAccount?.id).filter((x): x is string => !!x)));
+    }).catch(() => {});
+    // Shadow buyers: an account already shadow-bought reads as unavailable to them.
+    fetch("/api/wallet/balance").then((r) => (r.ok ? r.json() : {})).then((d: { isShadowRenter?: boolean; shadowTakenIds?: string[] }) => {
+      setViewerIsShadow(!!d.isShadowRenter);
+      setShadowTaken(new Set<string>(d.shadowTakenIds || []));
     }).catch(() => {});
     if (typeof window !== "undefined") setShowPricing(new URLSearchParams(window.location.search).get("pricing") !== "off");
   }, []);
@@ -228,7 +235,7 @@ export default function CataloguePage() {
               <input type="checkbox" checked={selected.size > 0 && selected.size === rentable.length} onChange={toggleSelectAll} style={{ accentColor: "#0A66C2", cursor: "pointer" }} />
               <span>Profile</span><span className="cat2-hide">Connections</span><span className="cat2-hide">Industry</span><span className="cat2-hide">Location</span><span>Price</span><span></span>
             </div>
-            {visible.map((a) => <ListRow key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} showPricing={showPricing} mine={myIds.has(a.id)} />)}
+            {visible.map((a) => <ListRow key={a.id} a={a} selected={selected.has(a.id)} onToggle={toggleSelect} showPricing={showPricing} mine={myIds.has(a.id)} taken={viewerIsShadow && shadowTaken.has(a.id) && !myIds.has(a.id)} />)}
           </div>
         )}
       </div>
@@ -280,7 +287,12 @@ export default function CataloguePage() {
   );
 }
 
-function StatusBadge({ rented, mine }: { rented: boolean; mine?: boolean }) {
+function StatusBadge({ rented, mine, taken }: { rented: boolean; mine?: boolean; taken?: boolean }) {
+  if (taken) return (
+    <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "4px 11px", color: "#6B7280", background: "#F1F3F5" }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#9AA0A6" }} />Shadow-taken
+    </span>
+  );
   if (mine) return (
     <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "4px 11px", color: "#0A66C2", background: "#EAF2FC" }}>
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#0A66C2" }} />Rented by you
@@ -384,9 +396,9 @@ function GridCard({ a, selected, onToggle, showPricing }: { a: Account; selected
   );
 }
 
-function ListRow({ a, selected, onToggle, showPricing, mine }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean; mine?: boolean }) {
-  const rented = a.status !== "available";
-  const rentable = a.status === "available";
+function ListRow({ a, selected, onToggle, showPricing, mine, taken }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean; mine?: boolean; taken?: boolean }) {
+  const rented = a.status !== "available" || !!taken;
+  const rentable = a.status === "available" && !taken;
   const displayName = shortName(a.linkedinName);
   return (
     <div className="cat2-row" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "15px 22px", borderBottom: "1px solid #F0F2F5", opacity: rented ? 0.66 : 1, background: selected ? "#F0F7FF" : "transparent", transition: "background .15s" }}>
@@ -406,7 +418,7 @@ function ListRow({ a, selected, onToggle, showPricing, mine }: { a: Account; sel
       <span className="cat2-hide">{a.industry ? <IndustryTag industry={a.industry} /> : "—"}</span>
       <span className="cat2-hide" style={{ fontSize: 13, color: "#5A6473", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.location || "—"}</span>
       <span><PriceBlock a={a} showPricing={showPricing} compact /></span>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} mine={mine} /><Actions a={a} /></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} mine={mine} taken={taken} /><Actions a={a} /></div>
     </div>
   );
 }

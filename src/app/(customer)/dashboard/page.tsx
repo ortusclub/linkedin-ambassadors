@@ -44,6 +44,7 @@ function RevealShareLink({ link }: { link: string | null }) {
 interface Rental {
   id: string;
   status: string;
+  isShadow?: boolean;
   paused?: boolean;
   startDate: string;
   currentPeriodEnd: string | null;
@@ -848,12 +849,12 @@ function DashboardContent() {
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                         Paused
                       </span>
-                    ) : rental.linkedinAccount.gologinShareLink ? (
+                    ) : rental.linkedinAccount.gologinShareLink && rental.status !== "pending_access" && !rental.isShadow ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                         Active
                       </span>
-                    ) : rental.status === "pending_access" ? (
+                    ) : (rental.status === "pending_access" || rental.isShadow) ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
                         Preparing

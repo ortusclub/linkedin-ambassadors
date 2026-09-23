@@ -38,8 +38,8 @@ function CheckoutContent() {
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
   const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
-  const [isShadow, setIsShadow] = useState(false); // Apex Strategy: flat shadow price
-  const SHADOW_MONTHLY_PRICE = 20; // must match SHADOW_MONTHLY_PRICE in lib/shadow-rental
+  const [isShadow, setIsShadow] = useState(false); // shadow renter (Apex $20 / Ortus $25)
+  const [SHADOW_MONTHLY_PRICE, setShadowRate] = useState(20); // per-renter flat rate from the API
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [autoRenew, setAutoRenew] = useState(true);
@@ -71,6 +71,7 @@ function CheckoutContent() {
       setAccounts(accountResults.filter(Boolean));
       setUsdcBalance(parseFloat(balanceData.balance || "0"));
       setIsShadow(!!balanceData.isShadowRenter);
+      if (balanceData.shadowRate) setShadowRate(Number(balanceData.shadowRate));
       setVetted(!!vettingData.vetted);
       setLoading(false);
     });

@@ -57,8 +57,8 @@ export default function AccountDetailPage() {
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [insufficientInfo, setInsufficientInfo] = useState<{ balance: number; price: number } | null>(null);
   const [addSalesNav, setAddSalesNav] = useState(false);
-  const [isShadow, setIsShadow] = useState(false); // Apex Strategy: flat shadow price
-  const SHADOW_MONTHLY_PRICE = 20; // must match lib/shadow-rental
+  const [isShadow, setIsShadow] = useState(false); // shadow renter (Apex $20 / Ortus $25)
+  const [SHADOW_MONTHLY_PRICE, setShadowRate] = useState(20); // per-renter flat rate from the API
 
   useEffect(() => {
     Promise.all([
@@ -69,6 +69,7 @@ export default function AccountDetailPage() {
       setAccount(accountData.account);
       setUser(userData.user);
       setIsShadow(!!balData.isShadowRenter);
+      if (balData.shadowRate) setShadowRate(Number(balData.shadowRate));
       setLoading(false);
     });
   }, [params.id]);

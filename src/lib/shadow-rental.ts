@@ -2,20 +2,43 @@ import { prisma } from "@/lib/prisma";
 import { revokeRentalAccess } from "@/lib/rental-access";
 import { sendShadowYieldEmail } from "@/services/email";
 
-// Flat monthly rate a shadow renter (e.g. Apex Strategy) pays per idle account.
-// Overrides the account's tier/Sales Nav/verified price entirely.
+// Per-renter flat monthly rate. A shadow renter pays this per idle account instead of the
+// account's tier/Sales Nav/verified price. Each shadow email has its OWN rate.
+// Override via env SHADOW_RENTER_RATES="email:rate,email:rate".
+export const SHADOW_RENTER_RATES: Record<string, number> = (() => {
+  const out: Record<string, number> = { "info@apexstrategy.io": 20, "info@ortus.solutions": 25 };
+  const raw = process.env.SHADOW_RENTER_RATES;
+  if (raw) {
+    for (const pair of raw.split(",")) {
+      const [em, rate] = pair.split(":").map((s) => s.trim());
+      const n = Number(rate);
+      if (em && Number.isFinite(n) && n > 0) out[em.toLowerCase()] = n;
+    }
+  }
+  return out;
+})();
+
+// Legacy default (Apex rate) — kept for any caller that still references a single price.
 export const SHADOW_MONTHLY_PRICE = 20;
 
-// Emails treated as shadow renters. When one of these signs up (or rents), the account
-// is flagged automatically — so the renter just registers/logs in themselves and we only
-// have to "note the email" here. Overridable via env (comma-separated); defaults to Apex.
-export const SHADOW_RENTER_EMAILS = (process.env.SHADOW_RENTER_EMAILS || "info@apexstrategy.io")
-  .split(",")
-  .map((s) => s.trim().toLowerCase())
-  .filter(Boolean);
+export const SHADOW_RENTER_EMAILS = Object.keys(SHADOW_RENTER_RATES);
 
-export const isShadowRenterEmail = (email?: string | null): boolean =>
-  !!email && SHADOW_RENTER_EMAILS.includes(email.toLowerCase());
+// The flat rate for a shadow renter's email, or null if they're not a shadow renter.
+export const shadowRateFor = (email?: string | null): number | null =>
+  email ? (SHADOW_RENTER_RATES[email.toLowerCase()] ?? null) : null;
+
+export const isShadowRenterEmail = (email?: string | null): boolean => shadowRateFor(email) !== null;
+
+// Account ids that already have an ACTIVE shadow rental — a given account can be shadow-
+// bought by only ONE shadow renter at a time, and it must read as unavailable to shadow
+// buyers (but still available to everyone else).
+export async function activeShadowAccountIds(): Promise<Set<string>> {
+  const rows = await prisma.rental.findMany({
+    where: { isShadow: true, status: { in: ["active", "pending_access", "payment_failed"] } },
+    select: { linkedinAccountId: true },
+  });
+  return new Set(rows.map((r) => r.linkedinAccountId));
+}
 
 // Called right after a REAL (non-shadow) rental is created for an account. Any active
 // shadow rental on that same account must yield: cut the shadow renter's GoLogin access,
@@ -46,8 +69,9 @@ export async function yieldShadowRentals(
     }
 
     // 2. End the shadow rental with an audit note (kept visible in /admin/rentals).
+    const refund = shadowRateFor(s.user.email) ?? SHADOW_MONTHLY_PRICE;
     const stamp = new Date().toISOString().slice(0, 10);
-    const yieldNote = `Yielded to a customer rental on ${stamp}${opts?.reason ? ` (${opts.reason})` : ""} — $${SHADOW_MONTHLY_PRICE} refunded as credit`;
+    const yieldNote = `Yielded to a customer rental on ${stamp}${opts?.reason ? ` (${opts.reason})` : ""} — $${refund} refunded as credit`;
     try {
       await prisma.rental.update({
         where: { id: s.id },
@@ -67,7 +91,7 @@ export async function yieldShadowRentals(
     try {
       await prisma.user.update({
         where: { id: s.userId },
-        data: { usdcBalance: { increment: SHADOW_MONTHLY_PRICE } },
+        data: { usdcBalance: { increment: refund } },
       });
     } catch (e) {
       console.error("shadow yield: refund credit failed:", s.id, e instanceof Error ? e.message : e);

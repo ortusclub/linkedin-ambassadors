@@ -5,7 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { sendRentalReadyEmail, sendRentalNotification } from "@/services/email";
 import { grantRentalAccess } from "@/lib/rental-access";
 import { SALES_NAV_MONTHLY } from "@/lib/utils";
-import { SHADOW_MONTHLY_PRICE, yieldShadowRentals, isShadowRenterEmail } from "@/lib/shadow-rental";
+import { SHADOW_MONTHLY_PRICE, yieldShadowRentals, isShadowRenterEmail, shadowRateFor } from "@/lib/shadow-rental";
 
 export async function POST(req: Request) {
   try {
@@ -31,12 +31,12 @@ export async function POST(req: Request) {
       where: { id: { in: accountIds }, status: "available" },
     });
 
-    // A shadow renter can only hold each account once — drop any they're already on so
-    // re-selecting it doesn't create a duplicate shadow rental / double-charge.
+    // Each account can be shadow-bought by only ONE shadow renter at a time — drop any
+    // account that ALREADY has an active shadow rental (this renter's OR the other shadow
+    // renter's), so two shadow buyers can never hold the same account.
     if (isShadow && accounts.length) {
       const already = await prisma.rental.findMany({
         where: {
-          userId: user.id,
           isShadow: true,
           status: { in: ["active", "pending_access", "payment_failed"] },
           linkedinAccountId: { in: accounts.map((a) => a.id) },
@@ -56,8 +56,9 @@ export async function POST(req: Request) {
     // Shadow renters ignore all of that and pay the flat shadow rate instead.
     const addonFor = (a: (typeof accounts)[number]) =>
       !isShadow && salesNavSet.has(a.id) && !a.hasSalesNav ? SALES_NAV_MONTHLY : 0;
+    const shadowRate = new Prisma.Decimal(shadowRateFor(user.email) ?? SHADOW_MONTHLY_PRICE);
     const priceFor = (a: (typeof accounts)[number]) =>
-      isShadow ? new Prisma.Decimal(SHADOW_MONTHLY_PRICE) : a.monthlyPrice.add(addonFor(a));
+      isShadow ? shadowRate : a.monthlyPrice.add(addonFor(a));
 
     const totalPrice = accounts.reduce(
       (sum, a) => sum.add(priceFor(a)),
@@ -158,6 +159,9 @@ export async function POST(req: Request) {
       // renter hasn't set up GoLogin yet it throws -> stays pending_access; the cron retries.
       const readyByAccount = new Map<string, boolean>();
       for (const { rentalId, accountId } of created) {
+        // Shadow rentals are NOT auto-granted — we prepare the profile/share link manually,
+        // so the renter sees "Preparing" until we hand it over. Leave it pending_access.
+        if (isShadow) { readyByAccount.set(accountId, false); continue; }
         const account = accounts.find((a) => a.id === accountId);
         if (!account?.gologinProfileId) { readyByAccount.set(accountId, false); continue; }
         try {
