@@ -18,6 +18,7 @@ const CARDS: Card[] = [
   { icon: "💼", wide: true, title: "How your account is used", body: <>Verified companies use it for professional <strong>outreach / outbound messaging</strong> and <strong>internet research</strong> only. It will <strong>never</strong> be used for anything illegal or harmful — that&apos;s a firm promise.</> },
   { icon: "⚠️", tone: "amber", wide: true, title: "Restrictions can happen — and that's normal", body: <>Especially while a new account is being warmed up or isn&apos;t verified yet, LinkedIn may temporarily restrict it. This is common and usually easy to fix — we&apos;ll simply ask for your quick help to verify and recover it (often just scanning a QR code). Nothing to worry about.</> },
   { icon: "🪪", title: "Your ID stays private", body: <>When verification is needed, <strong>you</strong> complete it yourself. We never receive or keep a copy of your ID.</> },
+  { icon: "🏦", tone: "green", wide: true, title: "Your first payment", body: <>₱1,000 (about $16), paid once your account is confirmed stable — roughly <strong>a week after it&apos;s logged in and passes our quality checks</strong>. If LinkedIn restricts it during that time, it&apos;s about <strong>3 more days</strong> once the restriction is cleared.</> },
   { icon: "💰", tone: "green", title: "₱500 monthly retainer", body: <>A thank-you for staying with us and for your help whenever verification is needed — paid to you every month.</> },
 ];
 

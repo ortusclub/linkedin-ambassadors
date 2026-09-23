@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { isReferralEarned, referralCommissionAmount } from "@/lib/referrals";
+import { isReferralEarned, isReferralMatured, referralMaturesAt, referralCommissionAmount } from "@/lib/referrals";
 import { type Currency, currencyConfig, currencyConfigFor } from "@/lib/referral-currency";
 
 // Ambassador payout schedule + "who's due to be paid" computation, shared by the
@@ -187,12 +187,11 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
 
   // Marketer commissions ready to pay — NET of commission already paid, keyed to the
   // referrer's display name (not the slug). Mirrors /admin/referrals so both agree.
-  // A referral is fully READY once its account has matured (passed the 1-week hold
-  // after QC / verifiedAt, i.e. Level 4→5) or is onboarded; while still maturing it's
-  // UPCOMING, with a due date = maturation completion.
-  const HOLD_MS = 7 * 86400000;
-  const isMatured = (a: { status: string; verifiedAt: Date | string | null }) =>
-    a.status === "onboarded" || (!!a.verifiedAt && Date.now() - new Date(a.verifiedAt).getTime() >= HOLD_MS);
+  // A referral is fully READY once its account has matured (passed its check window after
+  // QC / verifiedAt — 3 days established / 1 week new) or is onboarded; while still maturing
+  // it's UPCOMING, with a due date = maturation completion.
+  type MatGate = { status: string; verifiedAt: Date | string | null; accountFreshness: string | null };
+  const isMatured = (a: MatGate) => isReferralMatured(a);
   type RefPerson = { name: string; url: string | null; dueDate: string };
   // Commission payouts. An ATTRIBUTED payout (ambassadorApplicationId) marks one specific
   // referral paid; legacy lump payouts (no appId) are still netted by amount, oldest first.
@@ -234,7 +233,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
       if (paidAppIds.has(a.id)) continue;                          // explicitly paid to this person
       if (legacyRemaining >= amt - 0.001) { legacyRemaining -= amt; continue; } // covered by a legacy lump payout
       const matured = isMatured(a);
-      const dueMs = a.verifiedAt ? new Date(a.verifiedAt).getTime() + HOLD_MS : Date.now();
+      const dueMs = referralMaturesAt(a)?.getTime() ?? Date.now(); // null → already matured/onboarded → due now
       referralsDue.push({
         applicationId: a.id, person: a.fullName, url: a.linkedinUrl,
         referrerName: r?.name || slug, referrerId: r?.id || null, referrerSlug: r?.slug || null,

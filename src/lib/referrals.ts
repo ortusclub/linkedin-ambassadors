@@ -28,6 +28,10 @@ export interface ReferralGate {
   // and NOT the admin verifiedAt "ok to pay" flag above). Locked at onboarding.
   onboardingMethod?: string | null;
   onboardingVerified?: boolean | null;
+  // Account age at onboarding — sets the maturing window before the referral is payable.
+  accountFreshness?: string | null;
+  // When the application came in — decides which maturing policy applies (see below).
+  createdAt?: Date | string | null;
 }
 
 // Whether the referred account is onboarded. The `status` string is the intended signal,
@@ -41,6 +45,38 @@ export function isReferralOnboarded(a: ReferralGate): boolean {
 
 export function isReferralEarned(a: ReferralGate): boolean {
   return isReferralOnboarded(a) && !!a.verifiedAt;
+}
+
+// After QC passes (verifiedAt), the account still MATURES through its check window before
+// anyone is paid, so a signup can be "earned" (converted, counted) yet not "ready to pay"
+// until it has matured — this stops a same-day verify from reading as instantly payable. A
+// fully-onboarded (Level 5) account is treated as already matured, so marking Level 5 is the
+// manual lever to make a referral payable immediately.
+//
+// POLICY CUTOVER: applications from 2026-09-23 (PH) use a flat one-week hold for every
+// account. Applications already in flight before then keep the old split — 3 days for an
+// established account, a week for a new/unknown one (matching the owner's setup-fee window).
+// Kept in step with the payouts digest (lib/payment-schedule), which uses the same rule.
+const FLAT_HOLD_FROM = new Date("2026-09-23T00:00:00+08:00");
+export function referralMatureDays(a: Pick<ReferralGate, "accountFreshness" | "createdAt">): number {
+  const created = a.createdAt ? new Date(a.createdAt) : null;
+  if (created && !Number.isNaN(created.getTime()) && created.getTime() >= FLAT_HOLD_FROM.getTime()) return 7;
+  return a.accountFreshness === "established" ? 3 : 7;
+}
+export function referralMaturesAt(a: ReferralGate): Date | null {
+  if (a.status === "onboarded" || !a.verifiedAt) return null; // null = already matured / n/a
+  const base = new Date(a.verifiedAt);
+  if (Number.isNaN(base.getTime())) return null;
+  return new Date(base.getTime() + referralMatureDays(a) * 86400000);
+}
+export function isReferralMatured(a: ReferralGate, now: Date = new Date()): boolean {
+  if (a.status === "onboarded") return true;
+  const at = referralMaturesAt(a);
+  return !!at && now.getTime() >= at.getTime();
+}
+// Payable now = earned (onboarded + QC-passed) AND past its maturing window.
+export function isReferralReadyToPay(a: ReferralGate, now: Date = new Date()): boolean {
+  return isReferralEarned(a) && isReferralMatured(a, now);
 }
 
 // Tiered referral commission. A plain referral (LV onboards) pays the base `referral`

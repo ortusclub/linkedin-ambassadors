@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { isReferralEarned, isReferralOnboarded, referralCommissionAmount } from "@/lib/referrals";
+import { isReferralEarned, isReferralOnboarded, isReferralReadyToPay, referralMaturesAt, referralCommissionAmount } from "@/lib/referrals";
 import { type Currency, CURRENCY_CONFIG, formatMoney, referralCurrency } from "@/lib/referral-currency";
 
 // A single ambassador application, reduced to what the referral roll-up needs.
@@ -15,6 +15,8 @@ interface App {
   referralSource?: string | null;
   onboardingMethod?: string | null;
   onboardingVerified?: boolean | null;
+  accountFreshness?: string | null;
+  createdAt?: string | null;
 }
 
 interface RefContact { method: string; handle: string; preferred?: boolean }
@@ -233,7 +235,8 @@ export default function AdminReferralsPage() {
         const commission = referralCommissionAmount(a, CURRENCY_CONFIG[curFor(name)].referralTiers);
         r.converted++;
         r.earned += commission;
-        if (isReferralEarned(a)) r.ready += commission;
+        // Ready to pay only once past the maturing window; verified-but-maturing sits in hold.
+        if (isReferralReadyToPay(a)) r.ready += commission;
         else r.held += commission;
       }
       m.set(key, r);
@@ -335,17 +338,48 @@ export default function AdminReferralsPage() {
       .filter((a) => (a.referredBy || "").trim().toLowerCase() === nm && isOnboarded(a))
       .map((a) => {
         const earned = isReferralEarned(a);
+        const readyToPay = isReferralReadyToPay(a);
+        const maturesAt = referralMaturesAt(a);
         const issueLabel = a.accountIssue ? (a.accountIssue === "restricted" ? "restricted" : "login issue") : null;
+        // How it was onboarded + the tiered fee that drives the commission, per person, so
+        // the total is auditable: Form (LV onboards) / DIY phone / DIY computer, ±verified.
+        const cur = curFor(rowName);
+        const fee = referralCommissionAmount(a, CURRENCY_CONFIG[cur].referralTiers);
+        const method = a.referralSource === "self-service"
+          ? (a.onboardingMethod === "phone" ? "You ran it · phone" : a.onboardingMethod === "computer" ? "You ran it · computer" : "You ran it") + (a.onboardingVerified ? " · verified" : "")
+          : "Form · LV onboards";
         return {
           name: a.fullName || "—",
           counts: isConverted(a), // false = restricted/held-back, shown but not counted
-          state: earned ? "Ready to pay" : issueLabel ? `In hold · ${issueLabel}` : "In hold · verifying",
-          tone: earned ? "ready" : issueLabel ? "issue" : "hold",
+          method, fee, cur,
+          state: readyToPay ? "Ready to pay"
+            : earned ? `Maturing · until ${maturesAt ? maturesAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "the check clears"}`
+            : issueLabel ? `In hold · ${issueLabel}` : "In hold · verifying",
+          tone: readyToPay ? "ready" : issueLabel ? "issue" : "hold",
           title: a.accountIssue || "",
         };
       })
       // ready first, then counted (verifying) above not-counted (restricted), then name
       .sort((x, y) => (x.tone === "ready" ? -1 : y.tone === "ready" ? 1 : 0) || (Number(y.counts) - Number(x.counts)) || x.name.localeCompare(y.name));
+  };
+
+  // Every referrer's converted ambassadors with how they were onboarded + the fee, for
+  // computing/paying commissions in a spreadsheet.
+  const exportCsv = () => {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const out: string[] = [["Referrer", "Ambassador", "Onboarded by", "Fee", "Currency", "Status", "Counts"].join(",")];
+    for (const r of rows) {
+      for (const c of convertedFor(r.name)) {
+        out.push([r.name, c.name, c.method, c.fee, c.cur, c.state, c.counts ? "yes" : "no"].map(esc).join(","));
+      }
+    }
+    const blob = new Blob([out.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `referral-breakdown-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const logCommission = async (referrerId: string, amount: number, description = "Signup commission") => {
@@ -624,6 +658,7 @@ export default function AdminReferralsPage() {
           <input value={query} onChange={(e) => { setFocusRefId(null); setQuery(e.target.value); }} placeholder="Search referrer…" style={{ width: 240, maxWidth: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 12px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" }} />
           <button onClick={() => printCards()} disabled={!referrers.length} title="Print a 4-up card page for every marketer (one page each)" style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>All cards · 4/page</button>
           <button onClick={() => printFlyers()} disabled={!referrers.length} title="Print an A5 flyer for every marketer (one sheet each)" style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 13px", borderRadius: 8, cursor: referrers.length ? "pointer" : "default", opacity: referrers.length ? 1 : 0.5 }}>All flyers · A5</button>
+          <button onClick={exportCsv} title="Download every referrer's converted ambassadors with how each was onboarded + the fee" style={{ font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 13px", borderRadius: 8, cursor: "pointer" }}>Export breakdown · CSV</button>
           <button onClick={() => setShowAdd((v) => !v)} style={{ font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 13px", borderRadius: 8, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add referrer"}</button>
         </div>
       </div>
@@ -795,6 +830,15 @@ export default function AdminReferralsPage() {
                   {converted.length > 0 && (
                     <div>
                       <div style={{ ...label, marginBottom: 8 }}>Converted ambassadors · {countedConverted}{notCounted ? ` · ${notCounted} restricted (not counted)` : ""}</div>
+                      {(() => {
+                        const counted = converted.filter((c) => c.counts);
+                        if (!counted.length) return null;
+                        const byFee = new Map<number, number>();
+                        let sum = 0;
+                        for (const c of counted) { byFee.set(c.fee, (byFee.get(c.fee) || 0) + 1); sum += c.fee; }
+                        const parts = [...byFee.entries()].sort((a, b) => a[0] - b[0]).map(([fee, n]) => `${n} × ${formatMoney(fee, counted[0].cur)}`).join("  +  ");
+                        return <div style={{ font: `600 12px ${F_SANS}`, color: "var(--muted)", marginBottom: 10, fontVariantNumeric: "tabular-nums" }}>{parts} = <span style={{ color: "var(--text)" }}>{formatMoney(sum, counted[0].cur)}</span></div>;
+                      })()}
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                         {converted.map((c, i) => {
                           const tone = c.tone === "ready" ? "var(--green)" : c.tone === "paid" ? "var(--green)" : c.tone === "issue" ? "var(--warn-num)" : c.tone === "paidpending" ? "var(--blue-chip-text)" : "var(--muted2)";
@@ -802,7 +846,9 @@ export default function AdminReferralsPage() {
                             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }} title={c.title || undefined}>
                               <span style={{ width: 7, height: 7, borderRadius: 999, background: tone, flex: "none" }} />
                               <span style={{ font: `500 13px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{c.name}</span>
-                              <span style={{ font: `600 11px ${F_SANS}`, color: tone, whiteSpace: "nowrap" }}>{c.state}</span>
+                              <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", whiteSpace: "nowrap" }}>{c.method}</span>
+                              <span style={{ font: `700 12px ${F_SANS}`, color: "var(--text2)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", minWidth: 52, textAlign: "right" }}>{formatMoney(c.fee, c.cur)}</span>
+                              <span style={{ font: `600 11px ${F_SANS}`, color: tone, whiteSpace: "nowrap", minWidth: 96, textAlign: "right" }}>{c.state}</span>
                             </div>
                           );
                         })}

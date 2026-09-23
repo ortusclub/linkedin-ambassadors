@@ -24,7 +24,7 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   details: [
     { title: "Their details", body: "You fill these in as you go — read each one back to the owner to confirm it's right rather than guessing. It's their account." },
-    { target: "age", title: "How old is the account", body: "This sets when the setup fee lands — about 3 days for an older account, about a week for a newer one." },
+    { target: "age", title: "How old is the account", body: "Good to note either way — newer accounts see the odd restriction. The setup fee lands about a week after sign-in and our checks." },
     { target: "verified", title: "Is it verified?", body: "Check their profile for a Verified badge. A verified account pays you the top rate, so check rather than guess." },
   ],
   email: [
@@ -82,9 +82,10 @@ const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder:
   "Bank transfer": { label: "Bank transfer details", placeholder: "Bank name, account number and routing / SWIFT details", help: "Include the bank name, account number and the routing, sort, IFSC or SWIFT code required in their country." },
 };
 const PROXY_COUNTRIES = ["IN", "GB", "US", "PH"];
-// Setup-fee checking window. We wait ~24h before signing in, so it's about 3 days for
-// an established account and about a week for a newer one.
-const checkWindow = (freshness?: string | null) => freshness === "established" ? "about 3 days" : "about a week";
+// Setup-fee checking window. New policy (from Sep 2026): the account is checked for about a
+// week after login + QC before the setup payment, regardless of account age. A restriction
+// adds a few more days once cleared.
+const checkWindow = (_freshness?: string | null) => "about a week";
 
 export default function SelfServiceWizard({ token }: { token: string }) {
   const endpoint = `/api/m/${encodeURIComponent(token)}/onboarding`;
@@ -235,6 +236,12 @@ export default function SelfServiceWizard({ token }: { token: string }) {
       const data = await request("PATCH", { id: session.id, action: "confirm", password, twoFactorKey: noTwoFactor ? "" : twoFactorKey.trim() });
       showSession(data.session);
     });
+  }
+  // Persist the 2FA key as soon as it's set up (2FA step), so it's recorded even if the
+  // onboarding stalls before sign-in. Best-effort; the sign-in confirm/hand-off also send it.
+  async function saveTwoFactor() {
+    if (!session || noTwoFactor || !looksLikeTotpKey(twoFactorKey)) return;
+    try { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); } catch { /* best effort */ }
   }
   async function uploadPhoto(file: File) {
     setPhotoBusy(true); setPhotoError("");
@@ -394,8 +401,8 @@ export default function SelfServiceWizard({ token }: { token: string }) {
 
             <div className={styles.card} data-tour="age">
               <div className={styles.cardTitle}>How old is the account?</div>
-              <button type="button" className={`${styles.optionCard} ${form.accountFreshness === "established" ? styles.optionOn : ""}`} onClick={() => setForm({ ...form, accountFreshness: "established" })}><span className={styles.radio} /><span><strong>More than a month old</strong><small>Three-day check, then payment</small></span></button>
-              <button type="button" className={`${styles.optionCard} ${form.accountFreshness === "fresh" ? styles.optionOn : ""}`} onClick={() => setForm({ ...form, accountFreshness: "fresh" })}><span className={styles.radio} /><span><strong>Less than a month old</strong><small>About a week before payment, and expect the odd restriction</small></span></button>
+              <button type="button" className={`${styles.optionCard} ${form.accountFreshness === "established" ? styles.optionOn : ""}`} onClick={() => setForm({ ...form, accountFreshness: "established" })}><span className={styles.radio} /><span><strong>More than a month old</strong><small>About a week of checks, then payment</small></span></button>
+              <button type="button" className={`${styles.optionCard} ${form.accountFreshness === "fresh" ? styles.optionOn : ""}`} onClick={() => setForm({ ...form, accountFreshness: "fresh" })}><span className={styles.radio} /><span><strong>Less than a month old</strong><small>About a week of checks before payment, and expect the odd restriction</small></span></button>
             </div>
 
             <div className={styles.card} data-tour="verified">
@@ -473,14 +480,14 @@ export default function SelfServiceWizard({ token }: { token: string }) {
                 <li>Paste that key below. We&apos;ll show the 6-digit code — type it into LinkedIn to finish turning 2FA on.</li>
               </ol>
               <label className={styles.field} data-tour="twofa-key">The 2FA setup key
-                <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} placeholder="e.g. JBSWY3DPEHPK3PXP" />
+                <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
               </label>
               <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
             </>}
             <label className={styles.check}><input type="checkbox" checked={noTwoFactor} onChange={(e) => { setNoTwoFactor(e.target.checked); if (e.target.checked) setTwoFactorKey(""); }} /><span>We can&apos;t set up 2FA right now — the team will do it at sign-in.</span></label>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={() => setStep(3)}>Back</button>
-              <button type="button" className={styles.primary} disabled={!noTwoFactor && !looksLikeTotpKey(twoFactorKey)} onClick={() => setStep(5)}>Continue to sign-in →</button>
+              <button type="button" className={styles.primary} disabled={!noTwoFactor && !looksLikeTotpKey(twoFactorKey)} onClick={() => { void saveTwoFactor(); setStep(5); }}>Continue to sign-in →</button>
             </div>
           </>}
 
