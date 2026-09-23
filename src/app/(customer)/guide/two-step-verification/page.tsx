@@ -23,7 +23,7 @@ const STEPS: Step[] = [
   { title: "Enter your password", body: <>When the <strong>Enter Password</strong> box appears, type the LinkedIn password and click <strong>Submit</strong>.</>, img: `${IMG}/step-7.png`, alt: "Enter Password prompt" },
   {
     title: "Copy the setup key",
-    body: <>LinkedIn shows a QR code and a <strong>setup key</strong> underneath (blurred here for privacy — yours will show clearly). Click the <strong>copy</strong> icon next to the key. (Don&apos;t scan the QR — you just need the key.)</>,
+    body: <>LinkedIn shows a QR code and a <strong>setup key</strong> underneath (blurred here for privacy — yours will show clearly). It&apos;s a long string of letters and numbers — it looks like <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[13px] text-gray-800">JBSWY3DPEHPK3PXP</code>. Click the <strong>copy</strong> icon next to it. (Don&apos;t scan the QR — you just need the key.)</>,
     img: `${IMG}/step-8.png`, alt: "Authenticator setup screen with QR and key",
     note: <>This key is what lets LinkedVelocity keep the account signed in. <strong>Copy it into your LinkedVelocity portal&apos;s 2FA step</strong> (it shows the code for you), or send it to us.</>,
   },
