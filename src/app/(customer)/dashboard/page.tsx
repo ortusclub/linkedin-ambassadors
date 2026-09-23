@@ -15,12 +15,12 @@ import { startDashboardTour } from "@/lib/dashboard-tour";
 // Renter action: reveal the two links for a rented account, each clearly
 // labelled — the LinkedIn profile URL (opens the actual LinkedIn page) and the
 // GoLogin share link (opens the profile in GoLogin). Click to reveal + copy.
-function RevealShareLink({ link, linkedinUrl }: { link: string | null; linkedinUrl?: string | null }) {
+function RevealShareLink({ link }: { link: string | null; linkedinUrl?: string | null }) {
   const [shown, setShown] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-  if (!link && !linkedinUrl) return null;
-  const copy = (value: string) => {
-    try { navigator.clipboard?.writeText(value); setCopied(value); setTimeout(() => setCopied(null), 1200); } catch {}
+  const [copied, setCopied] = useState(false);
+  if (!link) return null;
+  const copy = () => {
+    try { navigator.clipboard?.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch {}
   };
   if (!shown) {
     return (
@@ -28,36 +28,22 @@ function RevealShareLink({ link, linkedinUrl }: { link: string | null; linkedinU
         onClick={() => setShown(true)}
         className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
       >
-        Reveal links
+        Reveal GoLogin share link
       </button>
     );
   }
   return (
-    <span className="inline-flex flex-col items-end gap-1.5 max-w-[360px]">
-      {linkedinUrl && (
-        <span className="inline-flex items-center gap-1.5">
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">LinkedIn profile</span>
-          <a href={linkedinUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline break-all">{linkedinUrl}</a>
-          <button
-            onClick={() => copy(linkedinUrl)}
-            className="shrink-0 rounded-md border border-gray-300 px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 cursor-pointer"
-          >
-            {copied === linkedinUrl ? "Copied" : "Copy"}
-          </button>
-        </span>
-      )}
-      {link && (
-        <span className="inline-flex items-center gap-1.5">
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">GoLogin share link</span>
-          <a href={link} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline break-all">{link}</a>
-          <button
-            onClick={() => copy(link)}
-            className="shrink-0 rounded-md border border-gray-300 px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 cursor-pointer"
-          >
-            {copied === link ? "Copied" : "Copy"}
-          </button>
-        </span>
-      )}
+    <span className="inline-flex items-center gap-2">
+      <a href={link} target="_blank" rel="noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap no-underline">
+        Open in GoLogin ↗
+      </a>
+      <button
+        onClick={copy}
+        className="shrink-0 rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer whitespace-nowrap"
+      >
+        {copied ? "Copied" : "Copy link"}
+      </button>
     </span>
   );
 }
@@ -842,11 +828,17 @@ function DashboardContent() {
                 <tr key={rental.id} className="border-b">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
-                        {rental.linkedinAccount.profilePhotoUrl ? (
-                          <img src={rental.linkedinAccount.profilePhotoUrl} alt={rental.linkedinAccount.linkedinName} className="h-full w-full rounded-full object-cover" />
-                        ) : (
-                          initials
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
+                          {rental.linkedinAccount.profilePhotoUrl ? (
+                            <img src={rental.linkedinAccount.profilePhotoUrl} alt={rental.linkedinAccount.linkedinName} className="h-full w-full rounded-full object-cover" />
+                          ) : (
+                            initials
+                          )}
+                        </div>
+                        {rental.linkedinAccount.linkedinUrl && (
+                          <a href={rental.linkedinAccount.linkedinUrl} target="_blank" rel="noreferrer" title="Open the LinkedIn profile"
+                            className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#0A66C2] text-[9px] font-bold leading-none text-white ring-2 ring-white hover:bg-[#004182]">in</a>
                         )}
                       </div>
                       <div>
@@ -871,12 +863,12 @@ function DashboardContent() {
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                         Paused
                       </span>
-                    ) : rental.linkedinAccount.gologinShareLink && rental.status !== "pending_access" && !rental.isShadow ? (
+                    ) : rental.linkedinAccount.gologinShareLink && rental.status !== "pending_access" ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                         Active
                       </span>
-                    ) : (rental.status === "pending_access" || rental.isShadow) ? (
+                    ) : (rental.status === "pending_access" || (rental.isShadow && !rental.linkedinAccount.gologinShareLink)) ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
                         Preparing
