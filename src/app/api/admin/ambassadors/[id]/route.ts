@@ -49,6 +49,8 @@ const updateSchema = z.object({
   // QC checklist behind verifiedAt — each check is a boolean the admin ticks.
   qcChecks: z.object({
     photo: z.boolean().optional(),
+    headline: z.boolean().optional(),
+    about: z.boolean().optional(),
     connections: z.boolean().optional(),
     experiences: z.boolean().optional(),
     education: z.boolean().optional(),
