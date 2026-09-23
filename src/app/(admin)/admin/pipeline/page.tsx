@@ -98,6 +98,7 @@ interface Row {
   proxyPassword: string | null;
   proxyLocation: string | null;
   accountRestrictedAt: string | null;
+  accountRestrictionLog: { at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }[] | null;
   monthlyPrice: number | null;
   ambassadorPayment: number | null;
   outreachLog: Touch[] | null;
@@ -1380,18 +1381,30 @@ function RestrictionControl({ r, onAccount, onApp }: { r: Row; onAccount: (patch
     { key: "retired", label: "Permanently restricted", tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
     { key: "withdrawn", label: "Withdrawn", tone: ["--neutral-bg,#eef1f5", "--muted,#647189"] },
   ];
+  const history = Array.isArray(r.accountRestrictionLog) ? r.accountRestrictionLog : [];
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-      <span style={labelCss}>Restriction</span>
-      {opts.map((o) => {
-        const on = current === o.key;
-        return (
-          <button key={o.key} onClick={(e) => { e.stopPropagation(); apply(o.key); }}
-            style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", border: "1px solid", borderColor: on ? "transparent" : "var(--input-border,#dcdce0)", background: on ? `var(${o.tone[0]})` : "transparent", color: on ? `var(${o.tone[1]})` : "var(--muted,#647189)" }}>
-            {on ? "● " : ""}{o.label}
-          </button>
-        );
-      })}
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={labelCss}>Restriction</span>
+        {opts.map((o) => {
+          const on = current === o.key;
+          return (
+            <button key={o.key} onClick={(e) => { e.stopPropagation(); apply(o.key); }}
+              style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", border: "1px solid", borderColor: on ? "transparent" : "var(--input-border,#dcdce0)", background: on ? `var(${o.tone[0]})` : "transparent", color: on ? `var(${o.tone[1]})` : "var(--muted,#647189)" }}>
+              {on ? "● " : ""}{o.label}
+            </button>
+          );
+        })}
+      </div>
+      {history.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 7, paddingLeft: 2 }}>
+          {history.slice().reverse().map((e, i) => (
+            <span key={i} style={{ font: `500 10.5px ${F_SANS}`, color: e.event === "recovered" ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)" }}>
+              {e.event === "recovered" ? "✓ Recovered" : "⚠ Restricted"} {fmtDate(e.at)}{e.creditedDays ? ` (+${e.creditedDays}d credit)` : ""}{e.note ? ` (${e.note})` : ""}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
