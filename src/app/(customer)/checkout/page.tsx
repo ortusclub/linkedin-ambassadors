@@ -53,13 +53,8 @@ function CheckoutContent() {
   const [salesNavIds, setSalesNavIds] = useState<Set<string>>(
     () => new Set(searchParams.get("salesNav")?.split(",").filter(Boolean) || [])
   );
-  const toggleSalesNav = (id: string) =>
-    setSalesNavIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  const salesNavFor = (a: Account) => salesNavIds.has(a.id) && !a.hasSalesNav;
+  // Sales Navigator add-on withdrawn (2026-09-23): nothing can add it, so it never prices in.
+  const salesNavFor = (_a: Account) => false;
 
   useEffect(() => {
     if (accountIds.length === 0) { router.push("/catalogue"); return; }
@@ -198,13 +193,6 @@ function CheckoutContent() {
                   </div>
                   <button onClick={() => removeAccount(a.id)} title="Remove" style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 9, border: "1px solid #EAECEF", background: "#fff", color: "#96A0AD", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
                 </div>
-                {!a.hasSalesNav && (
-                  <button onClick={() => toggleSalesNav(a.id)} style={{ display: "flex", gap: 10, alignItems: "center", width: "100%", textAlign: "left", background: salesNavIds.has(a.id) ? "#F1EFFB" : "#F8FAFC", border: "1px solid " + (salesNavIds.has(a.id) ? "#D9D2F5" : "#EDEFF2"), borderRadius: 10, padding: "10px 12px", marginTop: 10, cursor: "pointer" }}>
-                    <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: 700, border: "1.5px solid " + (salesNavIds.has(a.id) ? "#5747C9" : "#CBD2DB"), background: salesNavIds.has(a.id) ? "#5747C9" : "#fff" }}>{salesNavIds.has(a.id) ? "✓" : ""}</span>
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#0B1220" }}>Add Sales Navigator</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#5747C9" }}>+{formatCurrency(SALES_NAV_MONTHLY)}/mo</span>
-                  </button>
-                )}
                 </div>
               );
             })}

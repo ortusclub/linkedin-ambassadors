@@ -160,11 +160,6 @@ export default function CataloguePage() {
         <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 14 }}>Marketplace</div>
         <h1 style={{ font: `700 clamp(30px,4vw,44px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Browse available accounts</h1>
         <p style={{ fontSize: 17, color: "#5A6473", margin: 0 }}>Verified, pre-warmed profiles — ready to rent right now.</p>
-        {showPricing && (
-          <p style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, padding: "7px 12px", background: "#EFF6FF", border: "1px solid #CFE2FA", borderRadius: 9, font: `500 13px ${INT}`, color: "#0A66C2" }}>
-            <span style={{ fontWeight: 700 }}>Sales Navigator (optional):</span> add <strong>+$70/mo</strong> · $20/wk · $4/day to any account.
-          </p>
-        )}
       </div>
 
       {/* controls */}

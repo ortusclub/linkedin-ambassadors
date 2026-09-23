@@ -10,7 +10,7 @@ import { SHADOW_MONTHLY_PRICE, yieldShadowRentals, isShadowRenterEmail, shadowRa
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    const { accountIds, autoRenew = true, salesNavAccountIds } = await req.json();
+    const { accountIds, autoRenew = true } = await req.json();
 
     if (!accountIds || !Array.isArray(accountIds) || accountIds.length === 0) {
       return NextResponse.json({ error: "No accounts selected" }, { status: 400 });
@@ -18,9 +18,9 @@ export async function POST(req: Request) {
 
     // Accounts the renter chose to add Sales Navigator to (+$70/mo each). Only
     // honoured for accounts that don't already include it.
-    const salesNavSet = new Set<string>(
-      Array.isArray(salesNavAccountIds) ? salesNavAccountIds : []
-    );
+    // Sales Navigator add-on withdrawn (2026-09-23): a request that still sends
+    // salesNavAccountIds is ignored, so nothing can be billed for it.
+    const salesNavSet = new Set<string>();
 
     // Shadow renter (e.g. Apex Strategy): rents idle accounts at a flat rate without
     // taking them out of the catalogue, and gets auto-yielded when a real customer rents

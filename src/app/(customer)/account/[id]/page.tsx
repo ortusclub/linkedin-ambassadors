@@ -56,7 +56,8 @@ export default function AccountDetailPage() {
   const [browserOpen, setBrowserOpen] = useState(false);
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [insufficientInfo, setInsufficientInfo] = useState<{ balance: number; price: number } | null>(null);
-  const [addSalesNav, setAddSalesNav] = useState(false);
+  // Sales Navigator add-on withdrawn (2026-09-23): never offered, never priced in.
+  const addSalesNav = false;
   const [isShadow, setIsShadow] = useState(false); // shadow renter (Apex $20 / Ortus $25)
   const [SHADOW_MONTHLY_PRICE, setShadowRate] = useState(20); // per-renter flat rate from the API
 
@@ -217,12 +218,6 @@ export default function AccountDetailPage() {
                 </div>
                 <div style={{ fontSize: 13.5, color: "#8A93A2", marginTop: 4 }}>Flat monthly rate · billed until you cancel</div>
 
-                {salesNavEligible && (
-                  <button onClick={() => setAddSalesNav((v) => !v)} style={{ display: "flex", gap: 11, alignItems: "flex-start", width: "100%", textAlign: "left", background: addSalesNav ? "#F1EFFB" : "#F8FAFC", border: "1px solid " + (addSalesNav ? "#D9D2F5" : "#EDEFF2"), borderRadius: 12, padding: 13, marginTop: 16, cursor: "pointer" }}>
-                    <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 700, marginTop: 1, border: "1.5px solid " + (addSalesNav ? "#5747C9" : "#CBD2DB"), background: addSalesNav ? "#5747C9" : "#fff" }}>{addSalesNav ? "✓" : ""}</span>
-                    <span><span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#0B1220", marginBottom: 2 }}>Add Sales Navigator <span style={{ color: "#5747C9" }}>+{formatCurrency(SALES_NAV_MONTHLY)}/mo</span></span><span style={{ fontSize: 12.5, lineHeight: 1.5, color: "#8A93A2" }}>Premium search &amp; outreach on this profile. Billed with your rental, cancel anytime.</span></span>
-                  </button>
-                )}
 
                 {rentable ? (
                   <button onClick={handleRent} disabled={actionLoading} className="ac-cta" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, marginTop: 20, cursor: "pointer", boxShadow: "0 12px 28px rgba(10,102,194,0.28)" }}>{actionLoading ? "Processing…" : "Rent this account →"}</button>
