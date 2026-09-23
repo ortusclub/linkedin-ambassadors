@@ -12,28 +12,29 @@ export const metadata: Metadata = {
 // account email). Set `img` to a file under /public/images/guide/2fa/ to replace the slot.
 type Step = { title: string; body: ReactNode; img?: string; alt?: string; note?: ReactNode };
 
+const IMG = "/images/guide/2fa";
 const STEPS: Step[] = [
-  { title: "Open the menu", body: <>On LinkedIn (on a computer), click your photo — <strong>Me</strong> — at the top right, then <strong>Settings &amp; Privacy</strong>.</>, img: undefined, alt: "The Me menu with Settings & Privacy" },
-  { title: "Go to Sign in & security", body: <>In the left-hand menu, click <strong>Sign in &amp; security</strong>.</>, img: undefined, alt: "Settings left menu, Sign in & security" },
-  { title: "Open Two-factor authentication", body: <>Under <strong>Account access</strong>, click <strong>Two-factor authentication</strong> (it will say <em>Off</em>).</>, img: undefined, alt: "Account access list, Two-factor authentication Off" },
-  { title: "Click Set up", body: <>On the two-factor authentication screen, click the blue <strong>Set up</strong> button.</>, img: undefined, alt: "Two-factor authentication intro with Set up button" },
-  { title: "Confirm it's you", body: <>LinkedIn emails a <strong>6-digit code</strong> to the account&apos;s email. Open that inbox, enter the code, and click <strong>Submit</strong>.</>, img: undefined, alt: "Enter the emailed 6-digit code" },
-  { title: "Choose Authenticator App", body: <>Under <strong>Choose your authentication method</strong>, select <strong>Authenticator App</strong>, then <strong>Continue</strong>.</>, img: undefined, alt: "Authentication method set to Authenticator App" },
-  { title: "Enter your password", body: <>When the <strong>Enter Password</strong> box appears, type the LinkedIn password and click <strong>Submit</strong>.</>, img: undefined, alt: "Enter Password prompt" },
+  { title: "Open the menu", body: <>On LinkedIn (on a computer), click your photo — <strong>Me</strong> — at the top right, then <strong>Settings &amp; Privacy</strong>.</>, img: `${IMG}/step-1.png`, alt: "The Me menu with Settings & Privacy" },
+  { title: "Go to Sign in & security", body: <>In the left-hand menu, click <strong>Sign in &amp; security</strong>.</>, img: `${IMG}/step-2.png`, alt: "Settings left menu, Sign in & security" },
+  { title: "Open Two-factor authentication", body: <>Under <strong>Account access</strong>, click <strong>Two-factor authentication</strong> (it will say <em>Off</em>).</>, img: `${IMG}/step-3.png`, alt: "Account access list, Two-factor authentication Off" },
+  { title: "Click Set up", body: <>On the two-factor authentication screen, click the blue <strong>Set up</strong> button.</>, img: `${IMG}/step-4.png`, alt: "Two-factor authentication intro with Set up button" },
+  { title: "Confirm it's you", body: <>LinkedIn emails a <strong>6-digit code</strong> to the account&apos;s email. Open that inbox, enter the code, and click <strong>Submit</strong>.</>, img: `${IMG}/step-5.png`, alt: "Enter the emailed 6-digit code" },
+  { title: "Choose Authenticator App", body: <>Under <strong>Choose your authentication method</strong>, select <strong>Authenticator App</strong>, then <strong>Continue</strong>.</>, img: `${IMG}/step-6.png`, alt: "Authentication method set to Authenticator App" },
+  { title: "Enter your password", body: <>When the <strong>Enter Password</strong> box appears, type the LinkedIn password and click <strong>Submit</strong>.</>, img: `${IMG}/step-7.png`, alt: "Enter Password prompt" },
   {
     title: "Copy the setup key",
-    body: <>LinkedIn shows a QR code and a <strong>setup key</strong> underneath. Click the <strong>copy</strong> icon next to the key to copy it. (Don&apos;t scan the QR — you just need the key.)</>,
-    img: undefined, alt: "Authenticator setup screen with QR and key",
+    body: <>LinkedIn shows a QR code and a <strong>setup key</strong> underneath (blacked out here — yours will show). Click the <strong>copy</strong> icon next to the key. (Don&apos;t scan the QR — you just need the key.)</>,
+    img: `${IMG}/step-8.png`, alt: "Authenticator setup screen with QR and key",
     note: <>This key is what lets LinkedVelocity keep the account signed in. <strong>Copy it into your LinkedVelocity portal&apos;s 2FA step</strong> (it shows the code for you), or send it to us.</>,
   },
   {
     title: "Get your 6-digit code",
-    body: <>Turn that key into the 6-digit code LinkedIn is asking for. Easiest: paste the key into your <strong>LinkedVelocity portal</strong> and it shows the live code. Or go to <strong>2-fa.com/en</strong>, paste the key, and copy the 6-digit code it displays.</>,
-    img: undefined, alt: "2-fa.com showing the generated 6-digit code",
+    body: <>Turn that key into the 6-digit code LinkedIn is asking for. Easiest: paste the key into your <strong>LinkedVelocity portal</strong> and it shows the live code. Or go to <strong>2-fa.com/en</strong>, paste the key, and copy the 6-digit code it displays (blacked out here).</>,
+    img: `${IMG}/step-9.png`, alt: "2-fa.com showing the generated 6-digit code",
     note: <>The code refreshes every 30 seconds — grab a fresh one if it&apos;s about to change.</>,
   },
-  { title: "Enter the code", body: <>Back on LinkedIn, paste the <strong>6-digit code</strong> into the box and click <strong>Confirm</strong>.</>, img: undefined, alt: "Enter the authenticator code and Confirm" },
-  { title: "Done — 2FA is on", body: <>Two-factor authentication now shows <strong>On</strong>. That&apos;s it — the account is set up.</>, img: undefined, alt: "Two-factor authentication toggled On" },
+  { title: "Enter the code", body: <>Back on LinkedIn, paste the <strong>6-digit code</strong> into the box and click <strong>Confirm</strong>.</>, img: `${IMG}/step-10.png`, alt: "Enter the authenticator code and Confirm" },
+  { title: "Done — 2FA is on", body: <>Two-factor authentication now shows <strong>On</strong>. That&apos;s it — the account is set up.</>, img: `${IMG}/step-11.png`, alt: "Two-factor authentication toggled On" },
 ];
 
 export default function TwoStepVerificationGuide() {
