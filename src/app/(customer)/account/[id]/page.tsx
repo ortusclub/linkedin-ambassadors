@@ -57,14 +57,18 @@ export default function AccountDetailPage() {
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [insufficientInfo, setInsufficientInfo] = useState<{ balance: number; price: number } | null>(null);
   const [addSalesNav, setAddSalesNav] = useState(false);
+  const [isShadow, setIsShadow] = useState(false); // Apex Strategy: flat shadow price
+  const SHADOW_MONTHLY_PRICE = 20; // must match lib/shadow-rental
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/accounts/${params.id}`).then((r) => r.json()),
       fetch("/api/auth/me").then((r) => r.json()).catch(() => ({ user: null })),
-    ]).then(([accountData, userData]) => {
+      fetch("/api/wallet/balance").then((r) => r.json()).catch(() => ({ isShadowRenter: false })),
+    ]).then(([accountData, userData, balData]) => {
       setAccount(accountData.account);
       setUser(userData.user);
+      setIsShadow(!!balData.isShadowRenter);
       setLoading(false);
     });
   }, [params.id]);
@@ -92,8 +96,8 @@ export default function AccountDetailPage() {
       const balData = await balRes.json();
       const balance = parseFloat(balData.balance || "0");
       const base = typeof account.monthlyPrice === "string" ? parseFloat(account.monthlyPrice) : Number(account.monthlyPrice);
-      const salesNav = addSalesNav && !account.hasSalesNav;
-      const price = base + (salesNav ? SALES_NAV_MONTHLY : 0);
+      const salesNav = !isShadow && addSalesNav && !account.hasSalesNav;
+      const price = isShadow ? SHADOW_MONTHLY_PRICE : base + (salesNav ? SALES_NAV_MONTHLY : 0);
       if (balance < price) { setInsufficientInfo({ balance, price }); setShowInsufficientModal(true); return; }
       router.push(`/checkout?accounts=${params.id}${salesNav ? `&salesNav=${params.id}` : ""}`);
     } catch { alert("Something went wrong. Please try again."); } finally { setActionLoading(false); }
@@ -106,7 +110,7 @@ export default function AccountDetailPage() {
   const name = shortName(account.linkedinName);
   const rentable = account.status === "available";
   const salesNavEligible = rentable && !account.hasSalesNav;
-  const displayPrice = price + (addSalesNav && salesNavEligible ? SALES_NAV_MONTHLY : 0);
+  const displayPrice = isShadow ? SHADOW_MONTHLY_PRICE : price + (addSalesNav && salesNavEligible ? SALES_NAV_MONTHLY : 0);
   const initial = account.linkedinName.replace(/\s*\(.*\)\s*$/, "").charAt(0).toUpperCase();
   const detailVal = (v: string, c?: string) => ({ font: `600 14px ${POP}`, color: c || "#0B1220" });
   const ageLabel = account.accountAgeMonths ? (account.accountAgeMonths >= 12 ? `${Math.floor(account.accountAgeMonths / 12)}+ years` : `${account.accountAgeMonths} months`) : null;
