@@ -66,8 +66,8 @@ const WARMUP: { t: string; items: string[] }[] = [
 ];
 
 const MARKETER_FAQ = [
-  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 to ₱1,000 for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about 3 days after a sign-up is onboarded (about a week for a brand-new account) and are paid the following Monday." },
-  { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your fee (₱500 to ₱1,000, depending on how it's onboarded) is triggered." },
+  { q: "When do I get paid?", a: "You get ₱2,000 for the day, plus ₱500 to ₱1,000 for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about a week after a sign-up is onboarded, once we've confirmed the account is stable, and are paid the following Monday. A restriction in that window adds a few days." },
+  { q: "What counts as a successful sign-up?", a: "The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about a week after onboarding, once it's passed our checks. That's when your fee (₱500 to ₱1,000, depending on how it's onboarded) is triggered." },
   { q: "What if someone doesn't qualify?", a: "Thank them and move on. LinkedIn's minimum age is 16, or older where local law requires." },
   { q: "How do I update my payout details?", a: "In the Earnings tab — under “Where we send your money”, save your GCash / bank info so we can pay you." },
   { q: "How do I get invited back?", a: "We track sign-ups per person — strong performers get first pick for the next field days." },
@@ -79,7 +79,7 @@ const AMBASSADOR_FAQ = [
   { q: "Is this a scam or illegal?", a: "No — it's completely legal. It's your account and your choice to share access. It does go against LinkedIn's own rules, but that isn't the same as illegal, and everything is consent-based. We only work with vetted, legitimate businesses doing normal professional outreach." },
   { q: "Is it safe? Can you steal my account?", a: "No. You keep recovery access to your own account at all times and can take it back whenever you want. It's used for professional outreach only." },
   { q: "Will you change anything on my profile?", a: "Your name stays exactly the same, and we never change that. We may polish your profile photo into a cleaner, professional version that still clearly looks like you, and update details like your job title, location, or headline / About to keep the profile credible for professional outreach. It's still your profile." },
-  { q: "How much will I earn?", a: "₱1,000 to start — paid to your bank about 3 days after setup (or a week if it's a brand-new account). Then ₱500 every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ₱1,000 covers your first partial month, so you're never short-changed." },
+  { q: "How much will I earn?", a: "₱1,000 to start — paid to your bank about a week after setup, once the account is confirmed stable. Then ₱500 every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ₱1,000 covers your first partial month, so you're never short-changed." },
   { q: "Can I use a brand-new LinkedIn account?", a: "Yes — new accounts are welcome. It just needs to be about a week old before we pay the setup fee." },
   { q: "Can I still use my account?", a: "Yes. You keep full access, you can see exactly how it's being used, and you can use it yourself any time it isn't being rented." },
   { q: "Do I have to share my password?", a: "Your password is never shared with the renter — they only access the account through our software. We keep it secure so we can quickly sort out any issue with your account for you." },
@@ -235,10 +235,10 @@ export default function Portal({ token }: { token: string }) {
 
   // For non-PH (USD) referrers, rewrite the money/method-bearing FAQ answers.
   const faqOverrides: Record<string, string> = isUSD ? {
-    "When do I get paid?": `You get ${base} to ${diyHigh} for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about 3 days after onboarding (about a week for a brand-new account) and are paid the following Monday.`,
-    "What counts as a successful sign-up?": `The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about 3 days after onboarding, or about a week for a brand-new account. That's when your fee (${base} to ${diyHigh}, depending on how it's onboarded) is triggered.`,
+    "When do I get paid?": `You get ${base} to ${diyHigh} for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about a week after onboarding, once we've confirmed the account is stable, and are paid the following Monday. A restriction in that window adds a few days.`,
+    "What counts as a successful sign-up?": `The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about a week after onboarding, once it's passed our checks. That's when your fee (${base} to ${diyHigh}, depending on how it's onboarded) is triggered.`,
     "How do I update my payout details?": `In the Earnings tab — under "Where we send your money", save your ${config.defaultPayoutMethod} / bank info so we can pay you.`,
-    "How much will I earn?": `${config.offer.setup} to start — paid to your account about 3 days after setup (or a week if it's a brand-new account). Then ${config.offer.monthly} every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ${config.offer.setup} covers your first partial month, so you're never short-changed.`,
+    "How much will I earn?": `${config.offer.setup} to start — paid to your account about a week after setup, once the account is confirmed stable. Then ${config.offer.monthly} every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ${config.offer.setup} covers your first partial month, so you're never short-changed.`,
   } : {};
   const applyFaq = (items: { q: string; a: string }[]) => items.map((f) => faqOverrides[f.q] ? { ...f, a: faqOverrides[f.q] } : f);
 
@@ -392,7 +392,7 @@ export default function Portal({ token }: { token: string }) {
                 <span style={{ font: `700 13.5px ${JAK}`, color: "#166534" }}>Estimated earned</span>
                 <span style={{ marginLeft: "auto", font: `600 19px ${GRO}`, color: C.greenDk, fontVariantNumeric: "tabular-nums" }}>{money(stats.commission)}</span>
               </div>
-              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: "#3f5c4a", margin: "7px 0 0" }}>Commission releases once we&apos;ve verified the account works — about 3 days for an account over a month old, about a week for a newer one. Paid the following Monday.</p>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: "#3f5c4a", margin: "7px 0 0" }}>Commission releases once we&apos;ve verified the account works — about a week after onboarding. Paid the following Monday.</p>
               <span onClick={() => go("money")} style={{ display: "inline-block", marginTop: 10, font: `700 12.5px ${JAK}`, color: C.greenDk, cursor: "pointer" }}>See my earnings →</span>
             </div>
 
