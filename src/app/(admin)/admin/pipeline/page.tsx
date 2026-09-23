@@ -654,8 +654,8 @@ export default function AdminPipelinePage() {
               { label: "Blocked — can't pay", value: String(metrics.liveBlocked), hint: metrics.liveBlocked === 1 ? "1 account on hold" : `${metrics.liveBlocked} accounts on hold`, color: metrics.liveBlocked ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" },
             ]
           : [
-              { label: "Level 1 · email & 2FA", value: String(metrics.lvl1), hint: metrics.lvl1Blocked ? `not logged in · ${metrics.lvl1Blocked} blocked` : "adding email & 2FA, not logged in", color: "var(--blue-chip-text,#1a56db)" },
-              { label: "Level 2 · logged in", value: String(metrics.lvl2), hint: metrics.lvl2Blocked ? `payout stage · ${metrics.lvl2Blocked} blocked` : "logged in — payout stage", color: "var(--st-conv-fg,#6d28d9)" },
+              { label: "Warming up", value: String(metrics.lvl1), hint: metrics.lvl1Blocked ? `not logged in · ${metrics.lvl1Blocked} blocked` : "email & 2FA, not logged in yet", color: "var(--blue-chip-text,#1a56db)" },
+              { label: "Logged in", value: String(metrics.lvl2), hint: metrics.lvl2Blocked ? `payout stage · ${metrics.lvl2Blocked} blocked` : "logged in, payout stage", color: "var(--st-conv-fg,#6d28d9)" },
               { label: "Live accounts", value: String(metrics.live), hint: metrics.onboardedTotal > metrics.live ? `earning · ${metrics.onboardedTotal - metrics.live} blocked` : "onboarded and earning", color: "var(--st-active-fg,#188038)" },
               { label: "No GoLogin", value: String(metrics.noGologin), hint: "can't be run", color: metrics.noGologin ? "var(--warn-badge-text,#b7791f)" : "var(--fg,#111)" },
               { label: "Problem accounts", value: String(metrics.issues), hint: "GoLogin / login / restricted", color: metrics.issues ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" },
