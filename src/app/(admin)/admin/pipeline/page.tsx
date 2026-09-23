@@ -136,7 +136,7 @@ type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejec
 // Account statuses that mean the account is genuinely live and earning (counts as Level 5).
 const EARNING_INVENTORY = new Set(["available", "rented", "trial"]);
 const levelOf = (r: Row): 0 | 1 | 2 | 3 | 4 | 5 => {
-  if (r.status === "rejected") return 0;           // rejected — not progressing through the pipeline
+  if (r.status === "rejected" || r.status === "unreachable") return 0; // rejected or unreachable — not progressing; grouped at the bottom
   if (r.status === "onboarded") return 5;          // matured + paid — live and earning
   // A genuinely live, earning account (available / rented / trial) is Level 5 even when the
   // application status lags. A restricted or non-earning account (unavailable, retired,
@@ -174,7 +174,7 @@ const LEVEL_GROUPS: { key: number; label: string; dot: string; note: string }[] 
   { key: 3, label: "Level 3 · Logged into GoLogin", dot: "var(--warn-badge-text,#b7791f)", note: "signed in via GoLogin — going through QC checks" },
   { key: 4, label: "Level 4 · Maturing", dot: "var(--st-conv-fg,#6d28d9)", note: "passed QC — in the 1-week maturation hold" },
   { key: 5, label: "Level 5 · Onboarded", dot: "var(--st-active-fg,#188038)", note: "matured & paid — live and earning (also in the payments view)" },
-  { key: 0, label: "Level 0 · Not progressing", dot: "var(--st-cancel-fg,#c0392b)", note: "rejected — not moving through the pipeline" },
+  { key: 0, label: "Level 0 · Not progressing", dot: "var(--st-cancel-fg,#c0392b)", note: "rejected or unreachable — not moving through the pipeline" },
 ];
 
 const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
