@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 // Screenshots are added once redacted (the raw ones contain a live 2FA secret key + the
 // account email). Set `img` to a file under /public/images/guide/2fa/ to replace the slot.
-type Step = { title: string; body: ReactNode; img?: string; alt?: string; note?: ReactNode };
+type Step = { title: string; body: ReactNode; img?: string; alt?: string; img2?: string; alt2?: string; note?: ReactNode };
 
 const IMG = "/images/guide/2fa";
 const STEPS: Step[] = [
@@ -23,14 +23,15 @@ const STEPS: Step[] = [
   { title: "Enter your password", body: <>When the <strong>Enter Password</strong> box appears, type the LinkedIn password and click <strong>Submit</strong>.</>, img: `${IMG}/step-7.png`, alt: "Enter Password prompt" },
   {
     title: "Copy the setup key",
-    body: <>LinkedIn shows a QR code and a <strong>setup key</strong> underneath (blacked out here — yours will show). Click the <strong>copy</strong> icon next to the key. (Don&apos;t scan the QR — you just need the key.)</>,
+    body: <>LinkedIn shows a QR code and a <strong>setup key</strong> underneath (blurred here for privacy — yours will show clearly). Click the <strong>copy</strong> icon next to the key. (Don&apos;t scan the QR — you just need the key.)</>,
     img: `${IMG}/step-8.png`, alt: "Authenticator setup screen with QR and key",
     note: <>This key is what lets LinkedVelocity keep the account signed in. <strong>Copy it into your LinkedVelocity portal&apos;s 2FA step</strong> (it shows the code for you), or send it to us.</>,
   },
   {
     title: "Get your 6-digit code",
-    body: <>Turn that key into the 6-digit code LinkedIn is asking for. Easiest: paste the key into your <strong>LinkedVelocity portal</strong> and it shows the live code. Or go to <strong>2-fa.com/en</strong>, paste the key, and copy the 6-digit code it displays (blacked out here).</>,
-    img: `${IMG}/step-9.png`, alt: "2-fa.com showing the generated 6-digit code",
+    body: <>Turn that key into the 6-digit code LinkedIn is asking for. <strong>Easiest:</strong> paste the key into <strong>&ldquo;The 2FA setup key&rdquo;</strong> field in your LinkedVelocity portal (shown first below) — it shows the live code for you. <strong>Or</strong> go to <strong>2-fa.com/en</strong>, paste the key, and copy the 6-digit code it displays (blacked out below).</>,
+    img: `${IMG}/step-9-portal.png`, alt: "The 2FA setup key field in the LinkedVelocity portal",
+    img2: `${IMG}/step-9.png`, alt2: "2-fa.com showing the generated 6-digit code",
     note: <>The code refreshes every 30 seconds — grab a fresh one if it&apos;s about to change.</>,
   },
   { title: "Enter the code", body: <>Back on LinkedIn, paste the <strong>6-digit code</strong> into the box and click <strong>Confirm</strong>.</>, img: `${IMG}/step-10.png`, alt: "Enter the authenticator code and Confirm" },
@@ -72,6 +73,12 @@ export default function TwoStepVerificationGuide() {
                     </div>
                   )}
                 </div>
+                {s.img2 && (
+                  <div className="mt-3 overflow-hidden rounded-xl border border-gray-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s.img2} alt={s.alt2 || s.title} className="block w-full" />
+                  </div>
+                )}
               </div>
             </div>
           </li>
