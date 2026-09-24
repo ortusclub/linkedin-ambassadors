@@ -325,6 +325,18 @@ export default function Portal({ token }: { token: string }) {
                 : "Two ways to earn today — onboarding them yourself pays more."}
             </p>
 
+            {me.type === "ortus" && (
+              <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 14, padding: "14px 16px", marginBottom: 16 }}>
+                <div style={{ font: `700 13.5px ${JAK}`, color: "#6d28d9", marginBottom: 6 }}>◆ How your Ortus accounts are used</div>
+                <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.ink, margin: 0 }}>
+                  Every account you bring on is <b>first assigned to you</b> — yours to use for Ortus projects. Once you have <b>10 accounts assigned</b> to you, any further accounts go into the shared <b>Ortus pool</b>.
+                </p>
+                <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.ink, margin: "8px 0 0" }}>
+                  Either way, your accounts are <b>never listed in the general inventory and never rented to other companies</b>. They are only ever used for Ortus projects.
+                </p>
+              </div>
+            )}
+
             {(() => {
               const needFix = signups.filter((s) => s.fix && s.fix.state === "open");
               if (needFix.length === 0) return null;
