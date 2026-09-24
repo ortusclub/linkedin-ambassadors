@@ -27,7 +27,7 @@ const MONTHLY = money(8, 500);
 
 export default function DIYPage() {
   const [tier, setTier] = useState<Tier>("full");
-  const [form, setForm] = useState({ fullName: "", email: "", contactHandle: "", linkedinUrl: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", contactMethod: "WhatsApp", contactHandle: "", linkedinUrl: "" });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +48,7 @@ export default function DIYPage() {
         body: JSON.stringify({
           fullName: form.fullName.trim(),
           email: form.email.trim(),
-          contactNumber: form.contactHandle.trim(),
+          contactNumber: `${form.contactMethod}:${form.contactHandle.trim()}`,
           linkedinUrl: form.linkedinUrl.trim() || undefined,
           referredBy: "diy",
           referralSource: "DIY page",
@@ -127,8 +127,14 @@ export default function DIYPage() {
                 <input style={inp} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="you@example.com" />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={label}>Contact number (WhatsApp) *</label>
-                <input style={inp} value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder="+63…" />
+                <label style={label}>How can we reach you? *</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <select value={form.contactMethod} onChange={(e) => update("contactMethod", e.target.value)} style={{ ...inp, width: 140, flex: "none", cursor: "pointer" }}>
+                    <option value="WhatsApp">WhatsApp</option>
+                    <option value="Telegram">Telegram</option>
+                  </select>
+                  <input style={inp} value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder={form.contactMethod === "Telegram" ? "@username or +63…" : "+63…"} />
+                </div>
               </div>
               <div style={{ marginBottom: 20 }}>
                 <label style={label}>LinkedIn profile URL <span style={{ fontWeight: 400, color: "#96A0AD" }}>(optional)</span></label>
