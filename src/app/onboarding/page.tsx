@@ -21,6 +21,9 @@ const TIERS: {
 ];
 
 const peso = (n: number) => "₱" + n.toLocaleString("en-US");
+// USD first, PHP in brackets (e.g. "$16 (₱1,000)"). Monthly is $8 (₱500) everywhere.
+const money = (usd: number, php: number) => `$${usd} (${peso(php)})`;
+const MONTHLY = money(8, 500);
 
 export default function DIYPage() {
   const [tier, setTier] = useState<Tier>("full");
@@ -74,7 +77,7 @@ export default function DIYPage() {
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 12 }}>Earn from your LinkedIn</div>
           <h1 style={{ fontFamily: "'Poppins','Inter',sans-serif", fontWeight: 700, fontSize: "clamp(28px,5vw,42px)", letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 14px" }}>Get paid monthly for your LinkedIn account</h1>
           <p style={{ fontSize: 17, lineHeight: 1.55, color: "#5A6473", margin: 0 }}>
-            <strong style={{ color: "#0B1220" }}>{peso(500)}/month</strong> for every month your account stays active, plus a one-time sign-on bonus.
+            <strong style={{ color: "#0B1220" }}>{MONTHLY}/month</strong> for every month your account stays active, plus a one-time sign-on bonus.
             The more of the quick setup you do yourself, the bigger your bonus — and the faster you go live.
           </p>
         </div>
@@ -84,7 +87,7 @@ export default function DIYPage() {
             <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
             <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>You&apos;re in, {form.fullName.split(" ")[0]}!</h2>
             <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: "0 0 22px" }}>
-              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {peso(chosen.php)} sign-on bonus + {peso(500)}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Book a quick call to get started fast:
+              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — ${chosen.usd} ({peso(chosen.php)}) sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Book a quick call to get started fast:
             </p>
             <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, padding: "14px 28px", borderRadius: 13, textDecoration: "none" }}>Book my onboarding call →</a>
           </div>
@@ -98,11 +101,11 @@ export default function DIYPage() {
                   <button key={t.id} onClick={() => setTier(t.id)} style={{ textAlign: "left", cursor: "pointer", background: active ? "#0D2A1C" : "#fff", border: `2px solid ${active ? "#00B85C" : "#E6E8EC"}`, borderRadius: 18, padding: "20px 20px 22px", transition: "all .15s", position: "relative" }}>
                     {t.highlight && <span style={{ position: "absolute", top: -11, right: 16, background: "#00B85C", color: "#fff", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 9px", borderRadius: 6 }}>Biggest bonus</span>}
                     <div style={{ fontSize: 13.5, fontWeight: 700, color: active ? "#6EE7B7" : "#00A150", marginBottom: 10 }}>{t.name}</div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginBottom: 3 }}>
-                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: active ? "#fff" : "#0B1220" }}>{peso(t.php)}</span>
-                      <span style={{ fontSize: 13, color: active ? "#9DC4AE" : "#8A93A2" }}>~${t.usd}</span>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginBottom: 3, flexWrap: "wrap" }}>
+                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: active ? "#fff" : "#0B1220" }}>${t.usd}</span>
+                      <span style={{ fontSize: 13, color: active ? "#9DC4AE" : "#8A93A2" }}>({peso(t.php)})</span>
                     </div>
-                    <div style={{ fontSize: 12.5, color: active ? "#9DC4AE" : "#8A93A2", marginBottom: 14 }}>sign-on bonus · then {peso(500)}/mo</div>
+                    <div style={{ fontSize: 12.5, color: active ? "#9DC4AE" : "#8A93A2", marginBottom: 14 }}>sign-on bonus · then {MONTHLY}/mo</div>
                     <div style={{ fontSize: 13, lineHeight: 1.5, color: active ? "#D6E7DD" : "#37424F", marginBottom: 10 }}>{t.who}</div>
                     <div style={{ fontSize: 12.5, lineHeight: 1.45, fontWeight: 600, color: t.id === "full" ? (active ? "#6EE7B7" : "#00A150") : (active ? "#9DC4AE" : "#8A93A2") }}>{t.delay}</div>
                   </button>
@@ -113,7 +116,7 @@ export default function DIYPage() {
             {/* Signup */}
             <div style={{ maxWidth: 560, margin: "0 auto", background: "#fff", border: "1px solid #E6E8EC", borderRadius: 20, padding: "28px 28px 30px", boxShadow: "0 6px 20px rgba(16,24,40,0.05)" }}>
               <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 19, marginBottom: 4 }}>Sign up — {chosen.name}</div>
-              <p style={{ fontSize: 13.5, color: "#5A6473", margin: "0 0 20px" }}>{peso(chosen.php)} sign-on + {peso(500)}/month. {chosen.delay}</p>
+              <p style={{ fontSize: 13.5, color: "#5A6473", margin: "0 0 20px" }}>${chosen.usd} ({peso(chosen.php)}) sign-on + {MONTHLY}/month. {chosen.delay}</p>
 
               <div style={{ marginBottom: 14 }}>
                 <label style={label}>Your name *</label>
@@ -135,7 +138,7 @@ export default function DIYPage() {
               {error && <div style={{ fontSize: 13.5, color: "#C0392B", marginBottom: 14 }}>{error}</div>}
 
               <button onClick={submit} disabled={submitting} style={{ width: "100%", background: submitting ? "#8FD9B4" : "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: submitting ? "not-allowed" : "pointer" }}>
-                {submitting ? "Sending…" : `Sign up for ${peso(chosen.php)} + ${peso(500)}/mo →`}
+                {submitting ? "Sending…" : `Sign up for $${chosen.usd} (${peso(chosen.php)}) + ${MONTHLY}/mo →`}
               </button>
               <div style={{ textAlign: "center", fontSize: 12.5, color: "#8A93A2", marginTop: 12 }}>Consent-based · you keep full control · cancel anytime</div>
             </div>
