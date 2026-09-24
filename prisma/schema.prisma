@@ -353,6 +353,10 @@ model AmbassadorApplication {
   // or "phone" (handed off to LV). Drives the tiered referral commission. Null for
   // plain referrals (LV onboards) and pre-tier rows.
   onboardingMethod  String?          @map("onboarding_method")
+  // DIY landing page tier the owner chose: "standard" (₱1,000 sign-on, we set it up),
+  // "partial" (₱1,500, they add email+2FA), "full" (₱2,000, they do it all incl. GoLogin).
+  // Drives the sign-on bonus paid; null for non-DIY signups.
+  diyTier           String?          @map("diy_tier")
   // Snapshot of the account's LinkedIn ID-verified state AT onboarding. The referral
   // commission is locked to this — verifying the account later does NOT change what the
   // referrer earned. Null for plain referrals / pre-tier rows.

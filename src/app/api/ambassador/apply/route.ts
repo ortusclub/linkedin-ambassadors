@@ -16,6 +16,7 @@ const applySchema = z.object({
   notes: z.string().optional(),
   referralSource: z.string().optional(),
   referredBy: z.string().optional(),
+  diyTier: z.enum(["standard", "partial", "full"]).optional(),
 });
 
 export async function POST(req: Request) {
