@@ -19,14 +19,37 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const me = await prisma.referrer.findUnique({ where: { token } });
   if (!me) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const [referrers, apps, payouts] = await Promise.all([
+  const [referrers, apps, accounts, payouts] = await Promise.all([
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardingFix: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, paidAt: true, createdAt: true, selfServiceOnboarding: { select: { state: true } } },
+      select: { id: true, fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardingFix: true, restrictionReport: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, paidAt: true, createdAt: true, email: true, linkedinUrl: true, selfServiceOnboarding: { select: { state: true } } },
     }),
+    // For surfacing an active LinkedIn restriction to the referrer we need the linked
+    // account's live restriction flag. Match the same way the admin does (below).
+    prisma.linkedInAccount.findMany({ select: { id: true, linkedinUrl: true, notes: true, restrictedAt: true, status: true } }),
     prisma.payout.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" } }),
   ]);
+
+  // Application → account matching, mirroring src/app/api/admin/onboarding/route.ts:
+  // by unique LinkedIn URL first, then an "Owner: <email>" line in the account notes,
+  // but only when that email maps to exactly one account (a shared owner inbox can't
+  // disambiguate). Kept minimal here — we only read restrictedAt off the match.
+  const normUrl = (u?: string | null) => (u || "").split("?")[0].replace(/\/+$/, "").toLowerCase().trim();
+  const byUrl = new Map<string, (typeof accounts)[number]>();
+  const byOwner = new Map<string, (typeof accounts)[number]>();
+  const ownerCount = new Map<string, number>();
+  for (const acc of accounts) {
+    const u = normUrl(acc.linkedinUrl);
+    if (u && !byUrl.has(u)) byUrl.set(u, acc);
+    const owner = (acc.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "")?.toLowerCase();
+    if (owner) { ownerCount.set(owner, (ownerCount.get(owner) || 0) + 1); if (!byOwner.has(owner)) byOwner.set(owner, acc); }
+  }
+  const accountFor = (a: { linkedinUrl: string | null; email: string }) => {
+    const u = normUrl(a.linkedinUrl);
+    const email = (a.email || "").toLowerCase();
+    return (u ? byUrl.get(u) : undefined) || (ownerCount.get(email) === 1 ? byOwner.get(email) : undefined) || null;
+  };
 
   const nameBySlug = new Map(referrers.map((r) => [r.slug, r.name]));
   const counts = new Map<string, { signups: number; converted: number; commission: number }>();
@@ -89,12 +112,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       const path = method === "computer" ? `Guided · computer${a.onboardingVerified ? " · verified" : ""}`
         : method === "phone" ? "Guided · phone hand-off"
         : isDiy ? "Guided" : "Form only";
-      // A LinkedIn restriction only matters to the referrer WHILE THEY'RE ONBOARDING —
-      // i.e. a DIY onboarding still in their hands (not yet onboarded, handed off, or paid).
-      // Once it's with us or done, a restriction is an account-health issue for the team, not
-      // something the referrer acts on, so it must not surface here. Paid stays Paid always.
+      // A restriction is surfaced to the referrer whenever their referred account is
+      // CURRENTLY restricted (restrictedAt set on the linked account) — at any stage,
+      // including onboarded/paid, since they're the one in contact with the owner who
+      // has to clear it on their phone. Fall back to the free-text accountIssue for a
+      // DIY onboarding still in their hands but not yet linked to an account.
       const inProgressDiy = isDiy && !paid && !onboarded && state !== "handed_off";
-      const restricted = inProgressDiy && !!a.accountIssue;
+      const acct = accountFor(a);
+      // A retired / removed account is permanently gone, not a temporary lock the owner
+      // can clear — don't offer the referrer a "clear it" / "unrestricted" flow for those.
+      const recoverable = acct ? acct.status !== "retired" && acct.status !== "removed" : true;
+      const accountRestricted = recoverable && (!!acct?.restrictedAt || (inProgressDiy && !!a.accountIssue));
       let pill: { text: string; tone: "green" | "blue" | "amber" | "red" }, line: string, sub: string, progress: number, action: "resume" | "onboard" | "clear" | null = null, fee: string, kind: "action" | "blocked" | "waiting" | "paid";
       if (paid) {
         kind = "paid"; pill = { text: "Paid", tone: "green" }; progress = 6;
@@ -105,11 +133,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       } else if (state === "handed_off") {
         kind = "waiting"; pill = { text: "Verifying", tone: "blue" }; progress = 4;
         line = "You handed the sign-in to us"; sub = "Our team does the GoLogin sign-in, then verifies."; fee = `${money(amount)} pending`;
-      } else if (restricted) {
-        kind = "blocked"; pill = { text: "Restricted", tone: "red" }; progress = 5; action = "clear";
-        line = "LinkedIn locked the account";
-        sub = "They need to clear it on their own phone — usually scanning a QR code — then you can finish the sign-in. Nothing pays out until it's done.";
-        fee = `${money(amount)} on completion`;
       } else if (isDiy) {
         kind = "action"; pill = { text: "Resume", tone: "amber" }; progress = 3; action = "resume";
         line = "Left off mid-onboarding"; sub = "Pick up where you left off while they're still with you."; fee = range(t.phone.base, t.computer.verified);
@@ -117,10 +140,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         kind = "action"; pill = { text: "No call booked", tone: "amber" }; progress = 1; action = "onboard";
         line = "Form in — not onboarded yet"; sub = "They filled your form. Onboard them now, or get a call booked."; fee = money(t.referral);
       }
+      // Restriction takes visual priority: whatever the lifecycle stage, a currently
+      // restricted account reads as "Restricted" so the referrer can help clear it. The
+      // restriction card (steps + report buttons) is driven by the `restricted` flag; we
+      // clear `action` here so it owns the buttons rather than the generic CTA.
+      if (accountRestricted) {
+        kind = "blocked"; pill = { text: "Restricted", tone: "red" }; action = null;
+        line = "LinkedIn restricted the account";
+        sub = "The owner clears it on their own phone — usually scanning a QR code. Tell us once it's done or already unrestricted.";
+      }
       // Post-sign-in fixes the team raised for this signup (email not primary / 2FA not set).
       const rawFix = a.onboardingFix as { issues?: ("email_added" | "email_primary" | "twofa" | "password")[]; state?: "open" | "referrer_done" } | null;
       const fix = rawFix?.issues?.length ? { issues: rawFix.issues, state: rawFix.state === "referrer_done" ? "referrer_done" : "open" } : null;
-      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix };
+      // The referrer's own report about this restriction (QR done / says recovered), so we
+      // can show "you told us" and hide the buttons until the team clears it. Cleared to
+      // null once the team lifts the restriction (accountRestricted goes false).
+      const rawReport = a.restrictionReport as { type?: "qr_done" | "recovered"; at?: string } | null;
+      const restrictionReport = accountRestricted && rawReport?.type ? { type: rawReport.type, at: rawReport.at || "" } : null;
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport };
     });
 
   return NextResponse.json({
@@ -176,6 +213,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     if (fix?.issues?.length) {
       await prisma.ambassadorApplication.update({ where: { id: body.applicationId }, data: { onboardingFix: { ...fix, state: "referrer_done", doneAt: new Date().toISOString() } } });
     }
+    return NextResponse.json({ ok: true });
+  }
+
+  // The referrer reports on a LinkedIn restriction from their portal: either the owner
+  // has done LinkedIn's QR/ID check ("qr_done"), or they say it's already unrestricted
+  // ("recovered"). We only RECORD the report for the team to verify — it never touches
+  // the account's restrictedAt / restrictionLog (the team confirms before clearing it).
+  if (body.action === "restrictionReport" && typeof body.applicationId === "string" && (body.type === "qr_done" || body.type === "recovered")) {
+    const app = await prisma.ambassadorApplication.findUnique({ where: { id: body.applicationId }, select: { referredBy: true } });
+    if (!app || (app.referredBy || "").trim() !== me.slug) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    await prisma.ambassadorApplication.update({
+      where: { id: body.applicationId },
+      data: { restrictionReport: { type: body.type, at: new Date().toISOString(), by: "referrer" } },
+    });
     return NextResponse.json({ ok: true });
   }
 

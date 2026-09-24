@@ -7,6 +7,7 @@ import { markOwnerOnboardedIfReady } from "@/lib/onboarding";
 import { decryptSecret } from "@/lib/crypto-creds";
 import { provisionAccount } from "@/lib/provision-account";
 import * as gologin from "@/services/gologin";
+import { restrictionUpdate } from "@/lib/restriction";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -129,9 +130,18 @@ export async function PATCH(
       (data as Record<string, unknown>).healthCheckedAt = new Date();
     }
 
-    // restrictedAt comes in as an ISO string (or null) — coerce to a Date column.
+    // A restriction change (restrictedAt set or cleared) is recorded to the shared
+    // restrictionLog through the same helper the inventory /restricted route uses, so
+    // the history is captured no matter which surface set it (pipeline or inventory).
     if (data.restrictedAt !== undefined) {
-      (data as Record<string, unknown>).restrictedAt = data.restrictedAt ? new Date(data.restrictedAt) : null;
+      const cur = await prisma.linkedInAccount.findUnique({ where: { id }, select: { id: true, restrictedAt: true, restrictionLog: true } });
+      if (cur) {
+        const fields = await restrictionUpdate(cur, data.restrictedAt !== null);
+        (data as Record<string, unknown>).restrictedAt = fields.restrictedAt;
+        if (fields.restrictionLog) (data as Record<string, unknown>).restrictionLog = fields.restrictionLog;
+      } else {
+        (data as Record<string, unknown>).restrictedAt = data.restrictedAt ? new Date(data.restrictedAt) : null;
+      }
     }
 
     // Re-host any newly-set external profile photo (e.g. a licdn URL) onto Blob

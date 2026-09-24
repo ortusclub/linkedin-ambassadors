@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
+import { OutreachLog, type Touch } from "@/components/admin/outreach-log";
 
 // LinkedIn 2FA for an account: shows the secret KEY plus the live TOTP code.
 // The server computes the current code (so clock skew can't break it) and, on
@@ -104,6 +105,9 @@ interface Account {
   status: string;
   gologinProfileId: string | null;
   notes: string | null;
+  // Shared with the pipeline: the account's own owner-application log + follow-up.
+  ownerOutreachLog: Touch[] | null;
+  ownerNextFollowUp: string | null;
   ownerName: string | null;
   ownerEmail: string | null;
   ownerPhone: string | null;
@@ -364,6 +368,14 @@ const payChipCss = (state: PayState): React.CSSProperties => {
 const shortAddr = (s: string) => (s.length > 14 ? `${s.slice(0, 6)}…${s.slice(-5)}` : s);
 // A rented account should be health-checked weekly — flag it if the last check is >7 days old (or never).
 const isDummy = (a: Account) => (a.notes || "").includes("[SHOWCASE]");
+// Primary messaging channel for the log's first "+ …" button, from the owner's
+// preferred contact channel (defaults to WhatsApp).
+const channelOf = (a: Account): "viber" | "telegram" | "whatsapp" => {
+  const c = (a.contactChannel || "").toLowerCase();
+  if (c.includes("viber")) return "viber";
+  if (c.includes("telegram") || c.includes("tg")) return "telegram";
+  return "whatsapp";
+};
 const checkDue = (a: Account) => !isDummy(a) && a.status === "rented" && !a.restrictedAt && (!a.healthCheckedAt || Date.now() - new Date(a.healthCheckedAt).getTime() > 7 * 86400000);
 // "Handle with care" marker: was restricted at least once, and the most recent
 // restriction was within the last RECENT_RESTRICT_DAYS. Persists AFTER recovery
@@ -423,6 +435,37 @@ export default function AdminAccountsPage() {
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
   const patch = async (id: string, body: Record<string, unknown>) => fetch(`/api/admin/accounts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+  // ---- Outreach/notes tracker, SHARED with the pipeline ----
+  // The account's log IS its owner application's log (same record on
+  // /admin/pipeline), so writes go to the ambassadors route and every sibling
+  // account pointing at the same application updates in lockstep.
+  const patchApp = (appId: string, body: Record<string, unknown>) =>
+    fetch(`/api/admin/ambassadors/${appId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  // Update every account row bound to this application (multi-account owners share one log).
+  const setAppLog = (appId: string, fn: (a: Account) => Account) =>
+    setAccounts((prev) => prev.map((x) => (x.ownerApplicationId === appId ? fn(x) : x)));
+  const logTouch = async (a: Account, ch: string, text: string, by: string) => {
+    if (!a.ownerApplicationId) return;
+    const appId = a.ownerApplicationId;
+    const body = text || (({ whatsapp: "WhatsApp message sent", viber: "Viber message sent", telegram: "Telegram message sent", email: "Email sent", text: "Text message sent", note: "Note added" } as Record<string, string>)[ch] || "Note added");
+    const optimistic: Touch = { ch, text: body, by: by || "You", at: new Date().toISOString() };
+    setAppLog(appId, (x) => ({ ...x, ownerOutreachLog: [...(x.ownerOutreachLog || []), optimistic] }));
+    const res = await patchApp(appId, { addTouch: { ch, text: body, by: by || undefined } });
+    if (res.ok) { const d = await res.json(); if (d.application?.outreachLog) setAppLog(appId, (x) => ({ ...x, ownerOutreachLog: d.application.outreachLog })); }
+  };
+  const setFollowUp = async (a: Account, iso: string | null) => {
+    if (!a.ownerApplicationId) return;
+    const appId = a.ownerApplicationId;
+    setAppLog(appId, (x) => ({ ...x, ownerNextFollowUp: iso }));
+    await patchApp(appId, { nextFollowUp: iso });
+  };
+  const deleteTouch = async (a: Account, at: string) => {
+    if (!a.ownerApplicationId) return;
+    const appId = a.ownerApplicationId;
+    setAppLog(appId, (x) => ({ ...x, ownerOutreachLog: (x.ownerOutreachLog || []).filter((t) => t.at !== at) }));
+    await patchApp(appId, { removeTouch: at });
+  };
 
   const markForTrial = async (a: Account) => {
     setBusy(a.id);
@@ -1028,6 +1071,12 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                                 );
                               })()}
                             </div>
+                          </div>
+                          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                            <span style={labelCss}>Notes &amp; conversations <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--muted2)", fontWeight: 500 }}>· shared with the pipeline</span></span>
+                            {a.ownerApplicationId
+                              ? <OutreachLog log={a.ownerOutreachLog} nextFollowUp={a.ownerNextFollowUp} handler={a.ownerPoc} channel={channelOf(a)} busy={busy === a.id} onLog={(ch, text, by) => logTouch(a, ch, text, by)} onSetFollowUp={(iso) => setFollowUp(a, iso)} onDelete={(at) => deleteTouch(a, at)} />
+                              : <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted2)" }}>No linked onboarding record — this log is shared with the pipeline and appears once the account is matched to an owner application.</span>}
                           </div>
                         </div>
                       )}

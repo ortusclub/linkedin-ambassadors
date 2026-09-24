@@ -358,6 +358,11 @@ model AmbassadorApplication {
   // after a recheck. Shape: { issues: ("email_primary"|"twofa")[], state: "open"|"referrer_done",
   // raisedAt: ISO, doneAt?: ISO }. Null when there's nothing outstanding.
   onboardingFix     Json?             @map("onboarding_fix")
+  // The referrer's own report about a LinkedIn restriction on their referred account,
+  // sent from their portal so the team knows to verify. It does NOT auto-clear our
+  // restriction record (restrictedAt / restrictionLog stay the system of truth until the
+  // team confirms). Shape: { type: "qr_done"|"recovered", at: ISO }. Null = no report.
+  restrictionReport Json?             @map("restriction_report")
   accountFreshness  String?          @map("account_freshness")
   paidAt            DateTime?         @map("paid_at")
   marketerPaidAt    DateTime?         @map("marketer_paid_at")
