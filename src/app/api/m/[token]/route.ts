@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isReferralEarned, referralCommissionAmount } from "@/lib/referrals";
 import { currencyConfig } from "@/lib/referral-currency";
+import { setupDueDate, monthlyDueDate, setupPaidDate } from "@/lib/payment-schedule";
 
 export const dynamic = "force-dynamic";
+
+// Payout dates are the team's Manila wall clock — format them that way so the referrer
+// sees the same day the payment actually lands on, not the server's UTC day.
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
 
 // The commission rate + currency are per-referrer (PH = ₱500, non-PH = USD) — see
 // lib/referral-currency. A signup only counts (and pays) once the referred account
@@ -23,7 +28,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardingFix: true, restrictionReport: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, paidAt: true, createdAt: true, email: true, linkedinUrl: true, selfServiceOnboarding: { select: { state: true } } },
+      select: { id: true, fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardingFix: true, restrictionReport: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, paidAt: true, createdAt: true, email: true, linkedinUrl: true, accountFreshness: true, monthlyPayouts: true, selfServiceOnboarding: { select: { state: true } } },
     }),
     // For surfacing an active LinkedIn restriction to the referrer we need the linked
     // account's live restriction flag. Match the same way the admin does (below).
@@ -161,7 +166,30 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       // restriction still on?). Prefer the linked account's URL, fall back to the application's.
       const rawLi = acct?.linkedinUrl || a.linkedinUrl || "";
       const liUrl = rawLi ? (rawLi.startsWith("http") ? rawLi : `https://${rawLi}`) : null;
-      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl };
+
+      // When the PERSON THEY REFERRED gets paid — referrers get asked this. The account
+      // owner's setup fee clears ~a week after sign-in (setupDueDate, next business day),
+      // then monthly on the 1st. Shown so the referrer can answer "when's my payment?".
+      let pay: { text: string; sub?: string } | null = null;
+      if (accountRestricted) {
+        pay = { text: "Payment paused while restricted", sub: "the timer resumes once the account is cleared" };
+      } else if (paid) {
+        const paidCount = Array.isArray(a.monthlyPayouts) ? (a.monthlyPayouts as { kind?: string }[]).filter((p) => p?.kind !== "setup").length : 0;
+        const nm = monthlyDueDate(setupPaidDate(a.paidAt, a.monthlyPayouts), paidCount);
+        pay = { text: "Setup fee paid ✓", sub: nm ? `next monthly around ${fmtDate(nm.toISOString())}` : "monthly payouts continue on the 1st" };
+      } else if (onboarded) {
+        const due = setupDueDate(a.onboardedAt, a.accountFreshness);
+        pay = due
+          ? (due.getTime() <= Date.now()
+            ? { text: "Setup fee is due now", sub: "we're processing it — usually paid within a couple of business days; your commission follows" }
+            : { text: `Setup fee expected around ${fmtDate(due.toISOString())}`, sub: "once the account clears our checks; your commission follows" })
+          : { text: "Setup fee is due now", sub: "we're processing it; your commission follows" };
+      } else if (state === "handed_off") {
+        pay = { text: "Setup fee about a week after sign-in", sub: "we set the exact date once we've signed in" };
+      } else {
+        pay = { text: "Setup fee about a week after sign-in", sub: "the exact date is set once they're signed in" };
+      }
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay };
     });
 
   return NextResponse.json({
