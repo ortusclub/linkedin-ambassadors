@@ -1056,11 +1056,11 @@ export default function BecomeAmbassadorPage() {
                 <div style={{ position: "absolute", width: 340, height: 340, left: "50%", top: -180, transform: "translateX(-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(0,184,92,0.24), rgba(0,184,92,0) 65%)", filter: "blur(16px)", pointerEvents: "none" }} />
                 <div style={{ position: "relative" }}>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6FCF97", marginBottom: 16 }}>Based on your profile, we&apos;d like to offer you</div>
-                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 8 }}>
-                    <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 64, lineHeight: 1, letterSpacing: "-0.03em", color: "#fff" }}>₱500</span>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: isOrtusRef ? 44 : 64, lineHeight: 1, letterSpacing: "-0.03em", color: "#fff" }}>{isOrtusRef ? "$8 · ₱500" : "₱500"}</span>
                     <span style={{ fontSize: 20, color: "#9DC4AE", fontWeight: 500 }}>/mo</span>
                   </div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ ₱1,000 one-time setup bonus</div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ {isOrtusRef ? "$16 · ₱1,000" : "₱1,000"} one-time setup bonus</div>
                   <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via bank transfer on the 1st of each month. Cancel anytime.</p>
                 </div>
               </div>
