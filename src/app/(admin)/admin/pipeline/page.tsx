@@ -53,6 +53,7 @@ interface Row {
   onboardedAt: string | null;
   accountIssue: string | null;
   onboardingFix: { issues: ("email_added" | "email_primary" | "twofa" | "password")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
+  restrictionReport: { type: "qr_done" | "recovered"; at: string; by?: string } | null;
   referrer: { name: string; token: string | null; whatsapp: string | null; telegram: string | null; preferred: string | null } | null;
   reason: string;
   phoneHandoffPending?: boolean;
@@ -428,6 +429,11 @@ export default function AdminPipelinePage() {
     try { await fetch(`/api/admin/accounts/${accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); } catch {}
     if (reload) await load();
   };
+  // Delete one mistaken entry from an account's restriction history (by its `at` timestamp).
+  const deleteRestrictionEvent = async (accountId: string, at: string) => {
+    try { await fetch(`/api/admin/accounts/${accountId}/restricted`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at }) }); } catch {}
+    await load();
+  };
   const setStage = async (r: Row, status: Status) => {
     setBusy(r.id);
     try {
@@ -762,7 +768,7 @@ export default function AdminPipelinePage() {
           subtotal={mode === "live" ? formatMoney(g.items.filter((r) => !isBlocked(r)).reduce((s, r) => s + monthlyAmt(r), 0), "PHP") + "/mo" : ""}>
           {g.items.map((r) => (
             <Card key={r.id} r={r} busy={busy === r.id} open={open.has(r.id)} onToggle={() => toggle(r.id)}
-              patchApp={patchApp} patchAccount={patchAccount} setStage={changeStatus} workflow={workflow}
+              patchApp={patchApp} patchAccount={patchAccount} deleteRestrictionEvent={deleteRestrictionEvent} setStage={changeStatus} workflow={workflow}
               provisionGologin={provisionGologin} deleteGologin={deleteGologin} emailIssue={emailIssue}
               logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} onDeleteApp={() => deleteApp(r)} />
           ))}
@@ -845,12 +851,13 @@ function Note({ label, children }: { label: string; children: React.ReactNode })
 
 const GRID4: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "12px 14px" };
 
-function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workflow, provisionGologin, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
+function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
   r: Row; busy: boolean; open: boolean; onToggle: () => void;
   onFilterText: (t: string) => void;
   onDeleteApp: () => void;
   patchApp: (id: string, patch: Record<string, unknown>, reload?: boolean) => void;
   patchAccount: (id: string, accountId: string, patch: Record<string, unknown>, reload?: boolean) => void;
+  deleteRestrictionEvent: (accountId: string, at: string) => void;
   setStage: (r: Row, s: Status) => void;
   workflow: (id: string, patch: Record<string, unknown>) => void;
   provisionGologin: (r: Row) => void;
@@ -1079,7 +1086,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, setStage, workf
               </div>
             )}
           </div>
-          <RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} />
+          <RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} />
           {r.accountId ? (
             <div style={{ background: "var(--inset,#fafbfc)", border: `1px solid ${missingGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--divider,#eee)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
               <div style={GRID4}>
@@ -1357,7 +1364,7 @@ function ToggleChip({ on, onLabel, offLabel, onClick, href, green }: { on: boole
 // Set the account's earning/restriction state in one tap. Maps to the fields the rest
 // of the app already uses: restrictedAt (temporary), status retired (permanent), status
 // removed (withdrawn). "Active" clears the restriction and puts it back in-hand.
-function RestrictionControl({ r, onAccount, onApp }: { r: Row; onAccount: (patch: Record<string, unknown>, reload?: boolean) => void; onApp: (patch: Record<string, unknown>) => void }) {
+function RestrictionControl({ r, onAccount, onApp, onDeleteEvent }: { r: Row; onAccount: (patch: Record<string, unknown>, reload?: boolean) => void; onApp: (patch: Record<string, unknown>) => void; onDeleteEvent: (at: string) => void }) {
   const hasAcct = !!r.accountId;
   const issue = (r.accountIssue || "").toLowerCase();
   const restrictIssue = issue.includes("withdrawn") || issue.includes("permanent") || issue.includes("restricted");
@@ -1372,6 +1379,9 @@ function RestrictionControl({ r, onAccount, onApp }: { r: Row; onAccount: (patch
   const dead = r.accountStatus === "retired" || r.accountStatus === "removed";
   const undead = dead ? { status: "unavailable" } : {};
   const apply = (key: "active" | "restricted" | "retired" | "withdrawn") => {
+    // Clearing a restriction also clears any pending referrer report (it's been actioned).
+    // Send the API key (setRestrictionReport) plus the local field so the banner hides at once.
+    if (key === "active" && r.restrictionReport) onApp({ setRestrictionReport: null, restrictionReport: null });
     if (hasAcct) {
       const patch: Record<string, unknown> = key === "active" ? { restrictedAt: null, ...undead } : key === "restricted" ? { restrictedAt: new Date().toISOString(), ...undead } : key === "retired" ? { status: "retired", restrictedAt: new Date().toISOString() } : { status: "removed" };
       if (key === "active" && restrictIssue) patch.accountIssue = null; // also lift a restriction note
@@ -1404,10 +1414,24 @@ function RestrictionControl({ r, onAccount, onApp }: { r: Row; onAccount: (patch
       {history.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 7, paddingLeft: 2 }}>
           {history.slice().reverse().map((e, i) => (
-            <span key={i} style={{ font: `500 10.5px ${F_SANS}`, color: e.event === "recovered" ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)" }}>
+            <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `500 10.5px ${F_SANS}`, color: e.event === "recovered" ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)" }}>
               {e.event === "recovered" ? "✓ Recovered" : "⚠ Restricted"} {fmtDate(e.at)}{e.creditedDays ? ` (+${e.creditedDays}d credit)` : ""}{e.note ? ` (${e.note})` : ""}
+              {hasAcct && (
+                <button
+                  title="Delete this entry (added by mistake)"
+                  onClick={(ev) => { ev.stopPropagation(); if (confirm(`Delete this ${e.event === "recovered" ? "recovered" : "restricted"} entry from ${fmtDate(e.at)}? This only fixes the history — it doesn't restrict or recover the account.`)) onDeleteEvent(e.at); }}
+                  style={{ font: `700 11px ${F_SANS}`, lineHeight: 1, color: "var(--muted2,#9aa0a6)", background: "none", border: "none", cursor: "pointer", padding: "0 1px" }}>×</button>
+              )}
             </span>
           ))}
+        </div>
+      )}
+      {r.restrictionReport && current === "restricted" && (
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: "var(--purple-chip-bg,#efe7fd)", border: "1px solid var(--purple-chip-border,#d9c9fb)", borderRadius: 8, padding: "6px 10px" }}>
+          <span style={{ font: `700 10.5px ${F_SANS}`, color: "var(--purple-chip-text,#6b3fd4)" }}>
+            Referrer says {r.restrictionReport.type === "recovered" ? "it's unrestricted now" : "the owner did LinkedIn's QR/ID check"} · {fmtDate(r.restrictionReport.at)} — verify, then set Active to recover
+          </span>
+          <button onClick={(e) => { e.stopPropagation(); onApp({ setRestrictionReport: null, restrictionReport: null }); }} style={{ marginLeft: "auto", font: `700 10px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, cursor: "pointer", border: "none", background: "var(--neutral-bg,#eef1f5)", color: "var(--muted,#647189)" }}>Dismiss</button>
         </div>
       )}
     </div>
