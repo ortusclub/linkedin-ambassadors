@@ -9,7 +9,7 @@ import { onboardingEmailFrom } from "@/lib/onboarding-email-policy";
 // More issues will be added over time — add a new entry to ISSUES and a button.
 export const dynamic = "force-dynamic";
 
-type IssueKey = "email_not_primary" | "twofa_not_set" | "email_not_added" | "password_incorrect";
+type IssueKey = "email_not_primary" | "twofa_not_set" | "email_not_added" | "password_incorrect" | "account_restricted";
 
 // Each template is written to the referrer, about `${name}`, and includes the exact
 // LinkedVelocity login email `${lvEmail}` so they know which address to work with.
@@ -35,11 +35,21 @@ const ISSUES: Record<IssueKey, { label: string; subject: (n: string) => string; 
       `3. Click "Make primary" next to it.\n\n` +
       `That's it. Reply once it's done and we'll verify on our side.\n\nThanks,\nThe LinkedVelocity team`,
   },
-  password_incorrect: {
-    label: "Account password is incorrect",
-    subject: (n) => `Action needed: the password for ${n}'s LinkedIn isn't working`,
+  account_restricted: {
+    label: "Account is restricted by LinkedIn",
+    subject: (n) => `Action needed: ${n}'s LinkedIn account is restricted`,
     body: (n) =>
-      `Hi,\n\nWe're trying to sign in to ${n}'s LinkedIn account for LinkedVelocity, but the password we have on file isn't working. Could you check it with ${n} and send us the correct one?\n\n` +
+      `Hi,\n\nLinkedIn has placed a temporary restriction on ${n}'s account, which we're setting up on LinkedVelocity. These are common on newer accounts and are almost always temporary — but the owner has to clear it themselves, on their own phone. We can't do this part for them.\n\n` +
+      `1. Ask ${n} to open the LinkedIn app on their OWN phone — the lock screen appears as soon as they try to use the account.\n` +
+      `2. Follow the check LinkedIn asks for — usually scanning a QR code, sometimes a quick selfie or a photo of an ID.\n` +
+      `3. Wait for confirmation — minutes for a QR scan, up to a day or two for an ID review.\n\n` +
+      `Once it's cleared (or if it's already fine), please let us know from your portal — on ${n}'s card there's a "They did the QR check" and an "It's unrestricted now" button — or just reply to this email.\n\nThanks,\nThe LinkedVelocity team`,
+  },
+  password_incorrect: {
+    label: "Account password is missing or incorrect",
+    subject: (n) => `Action needed: we need the password for ${n}'s LinkedIn`,
+    body: (n) =>
+      `Hi,\n\nWe're trying to sign in to ${n}'s LinkedIn account for LinkedVelocity, but the password we have on file isn't working (or we don't have one yet). Could you check it with ${n} and send us the correct one?\n\n` +
       `1. Confirm the exact current password with ${n} (watch for typos, spaces, or a recent change).\n` +
       `2. If they're not sure, ask them to reset it: LinkedIn → Settings & Privacy → Sign in & security → Change password.\n` +
       `3. Send us the working password so we can sign in.\n\n` +
@@ -91,19 +101,24 @@ export async function POST(req: Request) {
     // Raise this as a fix on the referrer's portal so it appears there with an
     // "I've fixed it" button — clicking it flags the pipeline row for a recheck.
     // Map the email issue → the portal fix issue (merge, don't clobber other open ones).
-    const FIX_FOR: Record<IssueKey, "email_added" | "email_primary" | "twofa" | "password"> = {
+    // Notify-only issues (account_restricted) aren't in this map — they're surfaced on the
+    // portal by their own flow (the restriction report loop, driven by restrictedAt), so we
+    // email + log but do NOT add an onboardingFix chip (which would duplicate it).
+    const FIX_FOR: Partial<Record<IssueKey, "email_added" | "email_primary" | "twofa" | "password">> = {
       email_not_added: "email_added",
       email_not_primary: "email_primary",
       twofa_not_set: "twofa",
       password_incorrect: "password",
     };
     const fixIssue = FIX_FOR[issue as IssueKey];
-    const prevFix = app.onboardingFix as { issues?: string[]; raisedAt?: string } | null;
-    const mergedIssues = Array.from(new Set([...(prevFix?.issues || []), fixIssue]));
-    await prisma.ambassadorApplication.update({
-      where: { id },
-      data: { onboardingFix: { issues: mergedIssues, state: "open", raisedAt: prevFix?.raisedAt || new Date().toISOString() } },
-    });
+    if (fixIssue) {
+      const prevFix = app.onboardingFix as { issues?: string[]; raisedAt?: string } | null;
+      const mergedIssues = Array.from(new Set([...(prevFix?.issues || []), fixIssue]));
+      await prisma.ambassadorApplication.update({
+        where: { id },
+        data: { onboardingFix: { issues: mergedIssues, state: "open", raisedAt: prevFix?.raisedAt || new Date().toISOString() } },
+      });
+    }
 
     // One-tap "done" link — opening it marks the fix as done and flags the account for
     // a re-check on our side, so the referrer doesn't have to log into the portal.

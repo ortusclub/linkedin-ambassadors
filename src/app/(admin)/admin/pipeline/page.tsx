@@ -994,7 +994,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
                   {chip("email_added", "Email not added")}
                   {chip("email_primary", "Email not primary")}
                   {chip("twofa", "2FA not set up")}
-                  {chip("password", "Password incorrect")}
+                  {chip("password", "Password missing / wrong")}
                   {r.onboardingFix?.state === "referrer_done" && <span style={{ font: `700 10px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)" }}>Referrer marked fixed — recheck</span>}
                   {r.onboardingFix && <button onClick={(e) => { e.stopPropagation(); void raise([]); }} disabled={busy} style={{ font: `700 10px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, cursor: "pointer", border: "none", background: "var(--st-conv-bg,#ecfdf3)", color: "var(--st-conv-fg,#15803d)" }}>Resolve</button>}
                 </div>
@@ -1088,7 +1088,8 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
               email_not_added: `Hi ${refName}, this is LinkedVelocity. We're onboarding ${who} but our email isn't on the account yet. Could you ask ${r.fullName} to add our email (${lvEmail}) in LinkedIn → Settings & Privacy → Sign in & security → Email addresses → "Add email address"? LinkedIn sends it a confirmation link (we receive it on our side), then it needs to be set as the primary email.${doneLine("it's added")}\n\nThanks!`,
               email_not_primary: `Hi ${refName}, this is LinkedVelocity. Our email is on ${who} but it isn't set as PRIMARY yet. Could you ask ${r.fullName} to open LinkedIn → Settings & Privacy → Sign in & security → Email addresses and tap "Make primary" next to ${lvEmail}?${doneLine("it's primary")}\n\nThanks!`,
               twofa_not_set: `Hi ${refName}, this is LinkedVelocity. We need two-step verification (2FA) set up on ${who}. Ask ${r.fullName} to go to Settings & Privacy → Sign in & security → Two-step verification → Authenticator app, then reply here with the SECRET KEY (tap "Can't scan the QR code?" to reveal it) — not a 6-digit code. We need that key to finish the setup on our side.\n\nThanks!`,
-              password_incorrect: `Hi ${refName}, this is LinkedVelocity. The password we have for ${who} isn't working. Could you confirm the correct password with ${r.fullName} (or reset it via Settings & Privacy → Sign in & security → Change password) and reply here with it? We need it to sign in.\n\nThanks!`,
+              password_incorrect: `Hi ${refName}, this is LinkedVelocity. The password we have for ${who} isn't working (or we don't have one yet). Could you confirm the correct password with ${r.fullName} (or reset it via Settings & Privacy → Sign in & security → Change password) and reply here with it? We need it to sign in.\n\nThanks!`,
+              account_restricted: `Hi ${refName}, this is LinkedVelocity. LinkedIn has restricted ${who}. It's usually temporary, but ${r.fullName} has to clear it on their OWN phone: open the LinkedIn app, follow the check LinkedIn shows (usually scan a QR code, sometimes a selfie or ID photo), and wait for confirmation. Once it's done, tell us from your portal (the "They did the QR check" / "It's unrestricted now" buttons on their card) or reply here.\n\nThanks!`,
             };
             return (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 10, marginBottom: 16, padding: "10px 12px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
@@ -1098,7 +1099,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
                   style={{ marginLeft: "auto", font: `700 11px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "transparent", border: "1px solid var(--line,#d6e4fb)", padding: "6px 11px", borderRadius: 8, textDecoration: "none", whiteSpace: "nowrap" }}>View referrer →</a>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-start" }}>
-                {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"], ["password_incorrect", "Password incorrect"]] as [string, string][]).map(([key, label]) => {
+                {([["email_not_added", "Email not added"], ["email_not_primary", "Email not primary"], ["twofa_not_set", "2FA not set up"], ["password_incorrect", "Password missing / wrong"]] as [string, string][]).map(([key, label]) => {
                   const fk = FIX_FOR[key];
                   const raised = !!r.onboardingFix?.issues.includes(fk);
                   const done = raised && fixState === "referrer_done";
@@ -1124,6 +1125,24 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
                     </div>
                   );
                 })}
+                {/* Restriction is notify-only (no raise/resolve chip) — it's tracked by the
+                    restriction report loop on the portal. Shown only when actually restricted. */}
+                {isRestricted(r) && (() => {
+                  const waLink = ref?.whatsapp ? `https://wa.me/${ref.whatsapp}?text=${encodeURIComponent(MSG.account_restricted)}` : null;
+                  const tgLink = ref?.telegram ? `https://t.me/${ref.telegram}` : null;
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <button onClick={(e) => { e.stopPropagation(); void emailIssue(r, "account_restricted"); }} disabled={busy} title="Email the referrer that the account is restricted — the owner clears it on their own phone and can report back on their portal."
+                        style={{ font: `700 11px ${F_SANS}`, color: "var(--st-cancel-fg,#c0392b)", background: "var(--st-cancel-bg,#fdecea)", border: "1px solid var(--st-cancel-fg,#c0392b)", padding: "6px 11px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap", textAlign: "left" }}>⚠ Account restricted — notify referrer</button>
+                      {(waLink || tgLink) && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingLeft: 2 }}>
+                          {waLink && <a href={waLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Opens WhatsApp with the restriction message pre-filled" style={{ font: `700 10.5px ${F_SANS}`, color: "#0b7a63", background: "#e7f7f2", border: "1px solid #9fdccb", padding: "4px 9px", borderRadius: 7, textDecoration: "none" }}>🟢 WhatsApp</a>}
+                          {tgLink && <a href={tgLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title={`Opens the Telegram chat with ${refName} — paste: ${MSG.account_restricted}`} style={{ font: `700 10.5px ${F_SANS}`, color: "#2481cc", background: "#e8f3fb", border: "1px solid #a9d3ef", padding: "4px 9px", borderRadius: 7, textDecoration: "none" }}>✈ Telegram</a>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
             );
