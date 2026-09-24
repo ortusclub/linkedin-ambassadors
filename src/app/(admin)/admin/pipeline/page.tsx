@@ -1006,26 +1006,6 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
               })()}
               {r.referredBy && <span>Referrer <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} title="Open this referrer's profile to add their email / contact / payout" onClick={(e) => e.stopPropagation()} style={{ color: "var(--link,#0a66c2)", cursor: "pointer", fontWeight: 700, textDecoration: "none" }}>{r.referredBy}</a></span>}
             </div>
-            {(r.onboardedAt || r.onboardingFix) && (() => {
-              type FixI = "email_added" | "email_primary" | "twofa" | "password";
-              const has = (i: FixI) => !!r.onboardingFix?.issues.includes(i);
-              const raise = (issues: FixI[]) => workflow(r.id, { setOnboardingFix: issues.length ? { issues, state: "open", raisedAt: new Date().toISOString() } : null });
-              const toggle = (i: FixI) => { const cur = r.onboardingFix?.issues || []; return raise(has(i) ? cur.filter((x) => x !== i) : [...cur, i]); };
-              const chip = (i: FixI, label: string) => (
-                <button onClick={(e) => { e.stopPropagation(); void toggle(i); }} disabled={busy} style={{ font: `700 10.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 999, cursor: "pointer", border: `1px solid ${has(i) ? "#f5c2c2" : "var(--line,#e3e6ea)"}`, background: has(i) ? "#fdf0f0" : "transparent", color: has(i) ? "#b91c1c" : "var(--muted,#8a9099)" }}>{has(i) ? "✓ " : ""}{label}</button>
-              );
-              return (
-                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                  <span title="Raise a fix on the referrer's portal — they do it, mark done, then you recheck" style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Referrer to fix</span>
-                  {chip("email_added", "Email not added")}
-                  {chip("email_primary", "Email not primary")}
-                  {chip("twofa", "2FA not set up")}
-                  {chip("password", "Password missing / wrong")}
-                  {r.onboardingFix?.state === "referrer_done" && <span style={{ font: `700 10px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)" }}>Referrer marked fixed — recheck</span>}
-                  {r.onboardingFix && <button onClick={(e) => { e.stopPropagation(); void raise([]); }} disabled={busy} style={{ font: `700 10px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, cursor: "pointer", border: "none", background: "var(--st-conv-bg,#ecfdf3)", color: "var(--st-conv-fg,#15803d)" }}>Resolve</button>}
-                </div>
-              );
-            })()}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flex: "none" }}>
