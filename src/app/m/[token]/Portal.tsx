@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 type FixIssue = "email_added" | "email_primary" | "twofa" | "password";
-interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; }
+interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -472,13 +472,15 @@ export default function Portal({ token }: { token: string }) {
                   <div style={{ font: `500 12px/1.45 ${JAK}`, color: C.slate, marginTop: 3 }}>{s.sub}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.line2}` }}>
                     <span style={{ font: `500 11.5px ${JAK}`, color: C.muted }}>{s.path}</span>
+                    {s.liUrl && !s.restricted && <a href={s.liUrl} target="_blank" rel="noopener noreferrer" style={{ font: `600 11.5px ${JAK}`, color: "#2563eb", textDecoration: "none", whiteSpace: "nowrap" }}>View on LinkedIn ↗</a>}
                     <span style={{ marginLeft: "auto", font: `700 12.5px ${GRO}`, color: C.ink, whiteSpace: "nowrap" }}>{s.fee}</span>
                   </div>
                   {s.restricted && (
                     <div style={{ marginTop: 12, background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 12, padding: 13 }}>
                       <div style={{ font: `700 12.5px ${JAK}`, color: C.red, marginBottom: 4 }}>⚠ Account restricted</div>
                       <div style={{ font: `500 11.5px/1.45 ${JAK}`, color: "#8a2b2b" }}>LinkedIn has locked this account. The owner clears it on their <strong>own phone</strong> — usually scanning a QR code, sometimes a selfie or ID photo. You can&apos;t clear it for them.</div>
-                      <button onClick={() => setLockName(s.name)} style={{ width: "100%", marginTop: 10, font: `700 12.5px ${JAK}`, color: C.red, background: "#fff", border: `1px solid ${C.redBorder}`, padding: 11, borderRadius: 10, cursor: "pointer" }}>See the steps to clear it</button>
+                      {s.liUrl && <a href={s.liUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", width: "100%", marginTop: 10, font: `700 12.5px ${JAK}`, color: "#fff", background: C.dark, padding: 11, borderRadius: 10, textDecoration: "none" }}>Open LinkedIn to check it ↗</a>}
+                      <button onClick={() => setLockName(s.name)} style={{ width: "100%", marginTop: 8, font: `700 12.5px ${JAK}`, color: C.red, background: "#fff", border: `1px solid ${C.redBorder}`, padding: 11, borderRadius: 10, cursor: "pointer" }}>See the steps to clear it</button>
                       {s.restrictionReport ? (
                         <div style={{ font: `700 11.5px/1.4 ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 9, padding: "9px 11px", marginTop: 8 }}>
                           ✓ {s.restrictionReport.type === "recovered" ? "You told us it's unrestricted" : "You told us the check is done"} — the team is verifying it now.
