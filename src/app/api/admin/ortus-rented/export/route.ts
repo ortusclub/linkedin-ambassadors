@@ -31,9 +31,12 @@ function statusLabel(a: { status: string; restrictedAt: Date | null }): string {
 }
 
 export async function GET(req: NextRequest) {
+  // Accept a dedicated key for this feed, or fall back to the shared inventory key.
   const key = req.nextUrl.searchParams.get("key");
-  const expected = process.env.RENTALS_EXPORT_KEY;
-  if (!expected || !key || key !== expected) {
+  const accepted = [process.env.ORTUS_RENTED_EXPORT_KEY, process.env.RENTALS_EXPORT_KEY]
+    .map((k) => (k || "").trim())
+    .filter(Boolean);
+  if (!accepted.length || !key || !accepted.includes(key.trim())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
