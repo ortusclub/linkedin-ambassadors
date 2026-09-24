@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 type FixIssue = "email_added" | "email_primary" | "twofa" | "password";
-interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; }
+interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -146,6 +146,7 @@ export default function Portal({ token }: { token: string }) {
   const [jobFilter, setJobFilter] = useState<JobFilter>("all");
   const [lockName, setLockName] = useState<string | null>(null);
   const [fixingId, setFixingId] = useState<string | null>(null);
+  const [reportingId, setReportingId] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [faqOpen, setFaqOpen] = useState<Set<string>>(new Set());
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -185,6 +186,16 @@ export default function Portal({ token }: { token: string }) {
       await fetch(`/api/m/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fixDone", applicationId }) });
       setData((d) => d && ({ ...d, signups: d.signups.map((s) => s.id === applicationId && s.fix ? { ...s, fix: { ...s.fix, state: "referrer_done" } } : s) }));
     } finally { setFixingId(null); }
+  };
+  // Referrer reports on a restriction: the owner did LinkedIn's QR/ID check, or it's
+  // already unrestricted. We only tell the team to verify — it doesn't clear it here.
+  const reportRestriction = async (applicationId: string, type: "qr_done" | "recovered") => {
+    setReportingId(applicationId);
+    try {
+      await fetch(`/api/m/${token}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restrictionReport", applicationId, type }) });
+      setData((d) => d && ({ ...d, signups: d.signups.map((s) => s.id === applicationId ? { ...s, restrictionReport: { type, at: new Date().toISOString() } } : s) }));
+      setLockName(null);
+    } finally { setReportingId(null); }
   };
   const toggleFaq = (k: string) => setFaqOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const go = (t: Tab) => { setTab(t); if (typeof window !== "undefined") window.scrollTo({ top: 0 }); };
@@ -463,6 +474,23 @@ export default function Portal({ token }: { token: string }) {
                     <span style={{ font: `500 11.5px ${JAK}`, color: C.muted }}>{s.path}</span>
                     <span style={{ marginLeft: "auto", font: `700 12.5px ${GRO}`, color: C.ink, whiteSpace: "nowrap" }}>{s.fee}</span>
                   </div>
+                  {s.restricted && (
+                    <div style={{ marginTop: 12, background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 12, padding: 13 }}>
+                      <div style={{ font: `700 12.5px ${JAK}`, color: C.red, marginBottom: 4 }}>⚠ Account restricted</div>
+                      <div style={{ font: `500 11.5px/1.45 ${JAK}`, color: "#8a2b2b" }}>LinkedIn has locked this account. The owner clears it on their <strong>own phone</strong> — usually scanning a QR code, sometimes a selfie or ID photo. You can&apos;t clear it for them.</div>
+                      <button onClick={() => setLockName(s.name)} style={{ width: "100%", marginTop: 10, font: `700 12.5px ${JAK}`, color: C.red, background: "#fff", border: `1px solid ${C.redBorder}`, padding: 11, borderRadius: 10, cursor: "pointer" }}>See the steps to clear it</button>
+                      {s.restrictionReport ? (
+                        <div style={{ font: `700 11.5px/1.4 ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 9, padding: "9px 11px", marginTop: 8 }}>
+                          ✓ {s.restrictionReport.type === "recovered" ? "You told us it's unrestricted" : "You told us the check is done"} — the team is verifying it now.
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                          <button onClick={() => void reportRestriction(s.id, "qr_done")} disabled={reportingId === s.id} style={{ flex: 1, font: `700 12px ${JAK}`, color: C.ink, background: C.line2, border: `1px solid ${C.inputBorder}`, padding: 11, borderRadius: 10, cursor: "pointer" }}>{reportingId === s.id ? "Saving…" : "They did the QR check"}</button>
+                          <button onClick={() => void reportRestriction(s.id, "recovered")} disabled={reportingId === s.id} style={{ flex: 1, font: `700 12px ${JAK}`, color: "#fff", background: C.greenDk, border: "none", padding: 11, borderRadius: 10, cursor: "pointer" }}>{reportingId === s.id ? "Saving…" : "It's unrestricted now"}</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {s.fix && (
                     <div style={{ marginTop: 12, background: C.warnBg, border: `1px solid ${C.warnBorder}`, borderRadius: 12, padding: 13 }}>
                       <div style={{ font: `700 12.5px ${JAK}`, color: C.warn, marginBottom: 6 }}>⚠ Needs fixing before you get paid</div>

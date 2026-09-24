@@ -53,6 +53,7 @@ interface Row {
   onboardedAt: string | null;
   accountIssue: string | null;
   onboardingFix: { issues: ("email_added" | "email_primary" | "twofa" | "password")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
+  restrictionReport: { type: "qr_done" | "recovered"; at: string; by?: string } | null;
   referrer: { name: string; token: string | null; whatsapp: string | null; telegram: string | null; preferred: string | null } | null;
   reason: string;
   phoneHandoffPending?: boolean;
@@ -1372,6 +1373,9 @@ function RestrictionControl({ r, onAccount, onApp }: { r: Row; onAccount: (patch
   const dead = r.accountStatus === "retired" || r.accountStatus === "removed";
   const undead = dead ? { status: "unavailable" } : {};
   const apply = (key: "active" | "restricted" | "retired" | "withdrawn") => {
+    // Clearing a restriction also clears any pending referrer report (it's been actioned).
+    // Send the API key (setRestrictionReport) plus the local field so the banner hides at once.
+    if (key === "active" && r.restrictionReport) onApp({ setRestrictionReport: null, restrictionReport: null });
     if (hasAcct) {
       const patch: Record<string, unknown> = key === "active" ? { restrictedAt: null, ...undead } : key === "restricted" ? { restrictedAt: new Date().toISOString(), ...undead } : key === "retired" ? { status: "retired", restrictedAt: new Date().toISOString() } : { status: "removed" };
       if (key === "active" && restrictIssue) patch.accountIssue = null; // also lift a restriction note
@@ -1408,6 +1412,14 @@ function RestrictionControl({ r, onAccount, onApp }: { r: Row; onAccount: (patch
               {e.event === "recovered" ? "✓ Recovered" : "⚠ Restricted"} {fmtDate(e.at)}{e.creditedDays ? ` (+${e.creditedDays}d credit)` : ""}{e.note ? ` (${e.note})` : ""}
             </span>
           ))}
+        </div>
+      )}
+      {r.restrictionReport && current === "restricted" && (
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: "var(--purple-chip-bg,#efe7fd)", border: "1px solid var(--purple-chip-border,#d9c9fb)", borderRadius: 8, padding: "6px 10px" }}>
+          <span style={{ font: `700 10.5px ${F_SANS}`, color: "var(--purple-chip-text,#6b3fd4)" }}>
+            Referrer says {r.restrictionReport.type === "recovered" ? "it's unrestricted now" : "the owner did LinkedIn's QR/ID check"} · {fmtDate(r.restrictionReport.at)} — verify, then set Active to recover
+          </span>
+          <button onClick={(e) => { e.stopPropagation(); onApp({ setRestrictionReport: null, restrictionReport: null }); }} style={{ marginLeft: "auto", font: `700 10px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, cursor: "pointer", border: "none", background: "var(--neutral-bg,#eef1f5)", color: "var(--muted,#647189)" }}>Dismiss</button>
         </div>
       )}
     </div>

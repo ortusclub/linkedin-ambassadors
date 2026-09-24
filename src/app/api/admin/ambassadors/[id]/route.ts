@@ -46,6 +46,14 @@ const updateSchema = z.object({
     raisedAt: z.string().datetime(),
     doneAt: z.string().datetime().optional(),
   }).nullable().optional(),
+  // The referrer's own report about a restriction (owner did the QR/ID check, or says
+  // it's unrestricted), raised from their portal. The team only ever clears it here
+  // (null) once verified — recovering the account is a separate restriction action.
+  setRestrictionReport: z.object({
+    type: z.enum(["qr_done", "recovered"]),
+    at: z.string(),
+    by: z.string().optional(),
+  }).nullable().optional(),
   // QC checklist behind verifiedAt — each check is a boolean the admin ticks.
   qcChecks: z.object({
     photo: z.boolean().optional(),
@@ -90,7 +98,7 @@ export async function PATCH(
     const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
-    const { addTouch, removeTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, emailPrimaryAt, paidAt, marketerPaidAt, setOnboardingFix, qcChecks, ...rest } = updateSchema.parse(body);
+    const { addTouch, removeTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, emailPrimaryAt, paidAt, marketerPaidAt, setOnboardingFix, setRestrictionReport, qcChecks, ...rest } = updateSchema.parse(body);
 
     // Get the current application before updating
     const currentApp = await prisma.ambassadorApplication.findUnique({ where: { id } });
@@ -107,6 +115,7 @@ export async function PATCH(
     if (paidAt !== undefined) updateData.paidAt = paidAt ? new Date(paidAt) : null;
     if (marketerPaidAt !== undefined) updateData.marketerPaidAt = marketerPaidAt ? new Date(marketerPaidAt) : null;
     if (setOnboardingFix !== undefined) updateData.onboardingFix = setOnboardingFix === null ? Prisma.DbNull : setOnboardingFix;
+    if (setRestrictionReport !== undefined) updateData.restrictionReport = setRestrictionReport === null ? Prisma.DbNull : setRestrictionReport;
     if (qcChecks !== undefined) updateData.qcChecks = qcChecks === null ? Prisma.DbNull : qcChecks;
     if (addTouch) {
       const log = Array.isArray(currentApp.outreachLog) ? (currentApp.outreachLog as unknown[]) : [];
