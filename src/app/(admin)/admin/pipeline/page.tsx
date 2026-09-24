@@ -329,40 +329,66 @@ const lastActivity = (r: Row): string | undefined => {
   return `${c.what} ${fmtDate(c.at)}${dd > 0 ? ` (${dd}d ago)` : " (today)"}`;
 };
 
+// Timestamp of the most recent signal for this row (last outreach touch or milestone),
+// falling back to signup — the clock the ACTION-NOW grace period counts from.
+const lastActivityAt = (r: Row): string => {
+  let best = r.createdAt;
+  const touches = (r.outreachLog || []).filter((t) => t.ch !== "note");
+  if (touches.length && +new Date(touches[touches.length - 1].at) > +new Date(best)) best = touches[touches.length - 1].at;
+  for (const d of [r.verifiedAt, r.onboardedAt, r.emailPrimaryAt]) if (d && +new Date(d) > +new Date(best)) best = d;
+  return best;
+};
+
 const nextStep = (r: Row): NextStep => {
   const last = lastActivity(r);
+  const at = lastActivityAt(r);
+  const idle = ageDays(at);
+  // A routine task only escalates to ACTION NOW after a grace period of no activity, so
+  // fresh or just-touched cards stay calm (a same-day signup highlights the NEXT day). Until
+  // then it reads as WAITING with the date it becomes due. Urgent things — a restriction,
+  // a referrer reply, a follow-up the admin scheduled, money owed — skip the grace entirely.
+  const gate = (label: string, graceDays: number): NextStep => {
+    if (idle >= graceDays) return { state: "now", label, last };
+    const dueAt = new Date(new Date(at).getTime() + graceDays * 86400000).toISOString();
+    return { state: "waiting", label, timing: `from ${fmtDate(dueAt)}`, last };
+  };
+
   // Terminal — nothing to action.
   if (r.status === "rejected") return { state: "done", label: "Closed — rejected" };
   if (r.accountStatus === "removed") return { state: "done", label: "Withdrawn — account pulled" };
   if (r.accountStatus === "retired") return { state: "done", label: "Permanently restricted" };
 
-  // Restriction outranks everything else that's live.
+  // Urgent — highlighted immediately, no grace.
   if (r.accountRestrictedAt || (r.accountIssue || "").toLowerCase().includes("restricted")) {
     if (r.restrictionReport) return { state: "now", label: `Verify restriction — referrer says ${r.restrictionReport.type === "recovered" ? "it's unrestricted" : "the QR check is done"}`, last };
     return { state: "now", label: "Restricted — chase the owner to clear it", timing: r.accountRestrictedAt ? `since ${fmtDate(r.accountRestrictedAt)}` : undefined, last };
   }
-  // Referrer-fix loop.
   if (r.onboardingFix?.state === "referrer_done") return { state: "now", label: "Recheck — referrer marked the fix done", last };
   if (r.onboardingFix?.issues?.length) return { state: "waiting", label: `Waiting on referrer to fix ${r.onboardingFix.issues.length} issue${r.onboardingFix.issues.length > 1 ? "s" : ""}`, last };
-  // Blocked on infra (no GoLogin / login issue).
-  if (blockKind(r) === "setup") return { state: "now", label: missingGologin(r) ? "Add a GoLogin so the account can run" : "Fix the login issue", last };
-  // A follow-up reminder the admin set overrides the generic waiting state.
   if (r.nextFollowUp) {
     const t = new Date(r.nextFollowUp).getTime();
     if (Date.now() >= t) return { state: "now", label: "Follow-up due", timing: `set for ${fmtDate(r.nextFollowUp)}`, last };
     return { state: "waiting", label: "Follow-up scheduled", timing: `${fmtDate(r.nextFollowUp)} · ${daysUntil(t)}d`, last };
   }
-  // Lead states (before the onboarding ladder).
-  if (r.status === "unreachable") return { state: "now", label: "Unreachable — try another channel", last };
-  if (r.status === "pending") return { state: "now", label: "Reach out — new application", last };
-  if (r.status === "contacted") return { state: "waiting", label: "Awaiting their reply", last };
+  // Blocked on infra (no GoLogin / login issue) — routine, 1-day grace.
+  if (blockKind(r) === "setup") return gate(missingGologin(r) ? "Add a GoLogin so the account can run" : "Fix the login issue", 1);
+
+  // Lead states. Unresponsive people (contacted/unreachable) get a longer 3-day leash
+  // before we shout "chase"; a brand-new application highlights the next day.
+  if (r.status === "unreachable") return gate(`Chase — unresponsive${idle > 0 ? ` (${idle}d quiet)` : ""}`, 3);
+  if (r.status === "contacted") {
+    if (idle >= 3) return { state: "now", label: `Chase — no reply in ${idle}d`, last };
+    return { state: "waiting", label: "Awaiting their reply", timing: idle > 0 ? `${idle}d` : "today", last };
+  }
+  if (r.status === "pending") return gate("Reach out — new application", 1);
   if (r.status === "reviewing") return { state: "waiting", label: "In review", last };
   if (r.status === "on_hold") return { state: "waiting", label: "On hold", last };
-  // The onboarding ladder.
+
+  // The onboarding ladder — the admin's own steps, 1-day grace so a same-day move stays calm.
   const lvl = levelOf(r);
-  if (lvl <= 1) return { state: "now", label: "Add our email (set primary) + 2FA", last };
-  if (lvl === 2) return { state: "now", label: "Log in via GoLogin", last };
-  if (lvl === 3) { const done = QC_ITEMS.filter(([k]) => r.qcChecks?.[k]).length; return { state: "now", label: `Run QC checks (${done}/${QC_ITEMS.length} done)`, last }; }
+  if (lvl <= 1) return gate("Add our email (set primary) + 2FA", 1);
+  if (lvl === 2) return gate("Log in via GoLogin", 1);
+  if (lvl === 3) { const done = QC_ITEMS.filter(([k]) => r.qcChecks?.[k]).length; return gate(`Run QC checks (${done}/${QC_ITEMS.length} done)`, 1); }
   if (lvl === 4) {
     const matureAt = r.onboardedAt ? new Date(r.onboardedAt).getTime() + holdDays(r) * 86400000 : null;
     if (matureAt && Date.now() < matureAt) return { state: "waiting", label: "Maturing", timing: `${daysUntil(matureAt)} day${daysUntil(matureAt) === 1 ? "" : "s"} left · ready ${fmtDate(new Date(matureAt).toISOString())}`, last };
