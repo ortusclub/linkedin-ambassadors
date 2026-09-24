@@ -15,6 +15,7 @@ export async function GET() {
             linkedinName: true,
             linkedinHeadline: true,
             linkedinUrl: true,
+            loginEmail: true,
             profilePhotoUrl: true,
             connectionCount: true,
             gologinShareLink: true,
@@ -25,7 +26,14 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ rentals });
+    // Renter-facing: surface the sign-in email as accountEmail (loginEmail is the
+    // address we log into the account with), and drop the raw field name.
+    const shaped = rentals.map((r) => {
+      const { loginEmail, ...account } = r.linkedinAccount;
+      return { ...r, linkedinAccount: { ...account, accountEmail: loginEmail } };
+    });
+
+    return NextResponse.json({ rentals: shaped });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

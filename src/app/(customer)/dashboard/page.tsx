@@ -61,6 +61,7 @@ interface Rental {
     linkedinName: string;
     linkedinHeadline: string | null;
     linkedinUrl: string | null;
+    accountEmail: string | null;
     profilePhotoUrl: string | null;
     connectionCount: number;
     gologinProfileId: string | null;
@@ -845,6 +846,9 @@ function DashboardContent() {
                         <p className="font-medium text-gray-900">{rental.linkedinAccount.linkedinName}</p>
                         {rental.linkedinAccount.linkedinHeadline && (
                           <p className="text-xs text-gray-500">{rental.linkedinAccount.linkedinHeadline}</p>
+                        )}
+                        {rental.linkedinAccount.accountEmail && (
+                          <p className="text-xs text-gray-400 mt-0.5 break-all">{rental.linkedinAccount.accountEmail}</p>
                         )}
                       </div>
                     </div>
