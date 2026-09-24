@@ -124,6 +124,7 @@ interface Account {
   ownerOnboardedAt: string | null;
   ownerSetupPaidAt: string | null;
   shadowRenter: string | null;
+  inventoryPool?: string | null;
   personalEmail: string | null;
   proxyLocation: string | null;
   workEmail: string | null;
@@ -902,6 +903,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
                           <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{st}</span>
                           {a.shadowRenter && <span title={`Shadow-held by ${a.shadowRenter} — still available to rent; a real customer rental takes it back automatically.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>◑ Shadow · Apex</span>}
+                          {a.inventoryPool === "ortus" && <span title="Ortus inventory — brought in by an Ortus referrer. Hidden from the public catalogue and auto-owned ($0) by info@ortus.solutions." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#ede9fe", color: "#6d28d9" }}>◆ Ortus</span>}
                           {a.restrictedAt && st !== "Restricted" && (st === "Construction" && isFirstRestriction(a)
                             ? <span title={`First LinkedIn restriction — ${fmtS(a.restrictedAt)}. Still an account under construction; kept here but sorted to the bottom.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Initial restriction</span>
                             : <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>)}

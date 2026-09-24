@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { isReferralEarned, isReferralOnboarded, isReferralReadyToPay, referralMaturesAt, referralCommissionAmount } from "@/lib/referrals";
 import { type Currency, CURRENCY_CONFIG, formatMoney, referralCurrency } from "@/lib/referral-currency";
 
@@ -112,7 +112,7 @@ const fmtByCur = (rec: Record<Currency, number>) =>
 interface Row {
   name: string; initials: string; signups: number; converted: number; currency: Currency;
   isTop: boolean; active: boolean; convRate: string; earned: number; owed: number;
-  readyOwed: number; heldOwed: number;
+  readyOwed: number; heldOwed: number; isOrtus: boolean;
 }
 
 interface Payout {
@@ -250,6 +250,9 @@ export default function AdminReferralsPage() {
       if (m.has(sk) || m.has(nk)) continue;
       m.set(nk, { name: rf.name, signups: 0, converted: 0, earned: 0, ready: 0, held: 0 });
     }
+    // Ortus referrers (Referrer.type = "ortus") are grouped apart from standard ones.
+    const ortusKeys = new Set<string>();
+    for (const rf of referrers) if (rf.type === "ortus") { ortusKeys.add(rf.slug.toLowerCase()); ortusKeys.add(rf.name.toLowerCase()); }
     return [...m.values()]
       .map((r) => {
         return {
@@ -265,9 +268,11 @@ export default function AdminReferralsPage() {
           owed: r.earned,                 // Phase 1: nothing paid yet, so all owed
           readyOwed: r.ready,             // hold cleared — payable now
           heldOwed: r.held,               // onboarded but still in the stability hold
+          isOrtus: ortusKeys.has(r.name.toLowerCase()),
         };
       })
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+      // Ortus referrers first (grouped block), then standard — each alphabetical.
+      .sort((a, b) => (Number(b.isOrtus) - Number(a.isOrtus)) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
   }, [apps, referrers]);
 
   const chart = useMemo(() => {
@@ -676,7 +681,7 @@ export default function AdminReferralsPage() {
         {showAdd && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, padding: "14px 22px", borderBottom: "1px solid var(--divider)", background: "var(--card)" }}>
             <input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} placeholder="Name *" style={inpStyle} />
-            <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value })} style={inpStyle}><option value="marketer">Marketer</option><option value="ambassador">Ambassador</option></select>
+            <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value })} style={inpStyle}><option value="marketer">Marketer</option><option value="ambassador">Ambassador</option><option value="ortus">Ortus referrer</option></select>
             <input value={addForm.channel} onChange={(e) => setAddForm({ ...addForm, channel: e.target.value })} placeholder="Channel (optional)" style={inpStyle} />
             <input value={addForm.assignedDay} onChange={(e) => setAddForm({ ...addForm, assignedDay: e.target.value })} placeholder="Day (optional)" style={inpStyle} />
             <input value={addForm.assignedLocation} onChange={(e) => setAddForm({ ...addForm, assignedLocation: e.target.value })} placeholder="Location (optional)" style={inpStyle} />
@@ -685,7 +690,11 @@ export default function AdminReferralsPage() {
         )}
         {filtered.length === 0 ? (
           <div style={{ padding: 44, textAlign: "center", font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No referrers match.</div>
-        ) : shown.map((r) => {
+        ) : shown.map((r, i) => {
+          // Show the "Ortus referrers" / "Standard referrers" dividers only when both
+          // kinds are present in the current view; otherwise keep the plain list.
+          const showGroupHeaders = shown.some((x) => x.isOrtus) && shown.some((x) => !x.isOrtus);
+          const firstOfGroup = i === 0 || shown[i - 1].isOrtus !== r.isOrtus;
           const { ref, pays, commissionPaid, outstanding } = refInfo(r.name, r.readyOwed);
           const rid = ref?.id || null;
           const open = expandedRef.has(r.name) || (!!focusRefId && rid === focusRefId);
@@ -735,13 +744,21 @@ export default function AdminReferralsPage() {
           const countedConverted = converted.filter((c) => c.counts).length;
           const notCounted = converted.length - countedConverted;
           return (
-            <div key={r.name} id={rid ? `refrow-${rid}` : undefined} style={{ borderBottom: "1px solid var(--divider)" }}>
+            <Fragment key={r.name}>
+            {showGroupHeaders && firstOfGroup && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 22px", background: r.isOrtus ? "#f5f3ff" : "var(--subtle-bg, rgba(0,0,0,.02))", borderBottom: "1px solid var(--divider)", borderTop: i === 0 ? "none" : "1px solid var(--divider)" }}>
+                <span style={{ font: `700 10.5px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: r.isOrtus ? "#6d28d9" : "var(--muted)" }}>{r.isOrtus ? "◆ Ortus referrers" : "Standard referrers"}</span>
+                <span style={{ font: `600 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{shown.filter((x) => x.isOrtus === r.isOrtus).length}</span>
+              </div>
+            )}
+            <div id={rid ? `refrow-${rid}` : undefined} style={{ borderBottom: "1px solid var(--divider)" }}>
               <div onClick={() => toggleRef(r.name)} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 100px 120px 110px 140px 120px", gap: 14, alignItems: "center", padding: "15px 22px", cursor: "pointer", userSelect: "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
                   <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", width: 10, textAlign: "center", transform: open ? "rotate(90deg)" : "none", transition: "transform .18s" }}>▸</span>
                   <div style={{ width: 38, height: 38, borderRadius: 10, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `600 14px ${F_GRO}`, background: "var(--avatar-bg)", color: "var(--avatar-fg)" }}>{r.initials}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                     <span style={{ font: `600 14px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ref?.name || r.name}</span>
+                    {r.isOrtus && <span title="Ortus referrer — onboards land in the Ortus inventory (owned by info@ortus.solutions), not the main catalogue." style={{ font: `700 9.5px ${F_SANS}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", background: "#ede9fe", color: "#6d28d9" }}>◆ Ortus</span>}
                     {r.isTop && <span style={{ font: `700 9.5px ${F_SANS}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", background: "var(--st-active-bg)", color: "var(--st-active-fg)" }}>★ Top</span>}
                     {!r.active && <span style={{ font: `600 9.5px ${F_SANS}`, padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap", background: "var(--neutral-chip-bg)", color: "var(--neutral-chip-text)" }}>Inactive</span>}
                   </div>
@@ -896,6 +913,7 @@ export default function AdminReferralsPage() {
                 </div>
               )}
             </div>
+            </Fragment>
           );
         })}
         {!query.trim() && filtered.length > shown.length && (
