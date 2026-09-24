@@ -237,9 +237,10 @@ export default function Portal({ token }: { token: string }) {
   const isUSD = config.currency !== "PHP";
   const firstName = me.name.split(" ")[0];
   const initial = (me.name.trim()[0] || "?").toUpperCase();
-  // Ortus referrers see the portal branded "Ortus"; everything else stays shared so any
-  // common wording/feature change here applies to both. Only the brand label varies.
-  const brand = me.type === "ortus" ? "Ortus" : "LinkedVelocity";
+  // Pool referrers (Ortus / Apex) see the portal branded accordingly; everything else stays
+  // shared so any common wording/feature change here applies to all. Only the label varies.
+  const brand = me.type === "ortus" ? "Ortus" : me.type === "apex" ? "Apex" : "LinkedVelocity";
+  const isPoolRef = me.type === "ortus" || me.type === "apex";
 
   // DIY (guided) onboarding payout tiers: base = referral we onboard, high = DIY verified.
   const base = money(stats.rate);
@@ -251,7 +252,7 @@ export default function Portal({ token }: { token: string }) {
   // Ortus referrers see every earning figure in BOTH currencies, USD first. The PHP and
   // USD amounts are separately-agreed anchors (not FX-converted), so we read the matching
   // field from each currency's config rather than converting a number.
-  const showBoth = me.type === "ortus";
+  const showBoth = isPoolRef;
   const P = CURRENCY_CONFIG.PHP, U = CURRENCY_CONFIG.USD;
   const fmt = (cfg: typeof P, n: number) => cfg.symbol + Math.round(n).toLocaleString("en-US");
   // A single amount (given each currency's field value): USD · PHP for Ortus, else primary only.
@@ -343,14 +344,14 @@ export default function Portal({ token }: { token: string }) {
                 : "Two ways to earn today — onboarding them yourself pays more."}
             </p>
 
-            {me.type === "ortus" && (
+            {isPoolRef && (
               <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 14, padding: "14px 16px", marginBottom: 16 }}>
-                <div style={{ font: `700 13.5px ${JAK}`, color: "#6d28d9", marginBottom: 6 }}>◆ How your Ortus accounts are used</div>
+                <div style={{ font: `700 13.5px ${JAK}`, color: "#6d28d9", marginBottom: 6 }}>◆ How your {brand} accounts are used</div>
                 <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.ink, margin: 0 }}>
-                  Every account you bring on goes into the <b>Ortus pool</b> — reserved for Ortus projects and looked after by the Ortus team.
+                  Every account you bring on goes into the <b>{brand} pool</b> — reserved for {brand} projects and looked after by the {brand} team.
                 </p>
                 <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.ink, margin: "8px 0 0" }}>
-                  Your accounts are <b>never listed in the general inventory and never rented to other companies</b>. They are only ever used for Ortus projects.
+                  Your accounts are <b>never listed in the general inventory and never rented to other companies</b>. They are only ever used for {brand} projects.
                 </p>
               </div>
             )}

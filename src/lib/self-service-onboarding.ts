@@ -111,9 +111,9 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
     const acc = await tx.linkedInAccount.create({ data: {
       linkedinName: input.fullName, linkedinUrl: input.linkedinUrl, personalEmail: input.email,
       location: country, gologinAccount: "klabber", status: "under_construction", listed: false,
-      // Ortus referrers' onboards land in the segregated Ortus pool (hidden from the
-      // public catalogue, auto-owned by info@ortus.solutions); everyone else is "main".
-      inventoryPool: referrer.type === "ortus" ? "ortus" : "main",
+      // Ortus/Apex referrers' onboards land in their segregated pool (hidden from the
+      // public catalogue, auto-owned by their pool account); everyone else is "main".
+      inventoryPool: referrer.type === "ortus" ? "ortus" : referrer.type === "apex" ? "apex" : "main",
       linkedinVerified: input.linkedinVerified,
       ambassadorPayment: cfg.monthlyAmount,
       proxyHost: proxy?.host, proxyPort: proxy?.port, proxyUsername: proxy?.username, proxyPassword: proxy?.password, proxyLocation: proxy?.country,
@@ -292,15 +292,21 @@ export async function prepareOnboarding(id: string, referrerId: string) {
   }
 }
 
-// The Ortus shadow renter that owns everything in the "ortus" inventory pool.
-const ORTUS_OWNER_EMAIL = "info@ortus.solutions";
+// The pool account that owns everything in each segregated inventory pool.
+const POOL_OWNER_EMAIL: Record<string, string> = {
+  ortus: "info@ortus.solutions",
+  apex: "info@apexstrategy.io",
+};
 
-// Give info@ortus.solutions a standing $0 "owned" rental of an Ortus-pool account so it
-// reads as rented on their dashboard the moment it's onboarded. Idempotent and best-effort
-// (never blocks onboarding): if the owner user doesn't exist yet, we simply skip.
-export async function ensureOrtusOwnership(tx: Prisma.TransactionClient, accountId: string) {
+// Give a pool's owner account (e.g. info@ortus.solutions / info@apexstrategy.io) a standing
+// $0 "owned" rental of one of its accounts, so it reads as rented on their dashboard the
+// moment it's onboarded. Idempotent and best-effort (never blocks onboarding): if the pool
+// is unknown or the owner user doesn't exist yet, we simply skip.
+export async function ensurePoolOwnership(tx: Prisma.TransactionClient, accountId: string, pool: string) {
+  const ownerEmail = POOL_OWNER_EMAIL[pool];
+  if (!ownerEmail) return;
   const owner = await tx.user.findFirst({
-    where: { email: { equals: ORTUS_OWNER_EMAIL, mode: "insensitive" } },
+    where: { email: { equals: ownerEmail, mode: "insensitive" } },
     select: { id: true },
   });
   if (!owner) return;
@@ -317,7 +323,7 @@ export async function ensureOrtusOwnership(tx: Prisma.TransactionClient, account
     autoRenew: false,
     lockedPrice: 0,
     startDate: new Date(),
-    notes: "Ortus inventory — auto-owned ($0) via an Ortus referrer.",
+    notes: `${pool[0].toUpperCase()}${pool.slice(1)} inventory — auto-owned ($0) via a ${pool} referrer.`,
   } });
 }
 
@@ -353,8 +359,8 @@ export async function confirmOnboarding(id: string, referrerId: string, creds?: 
       ...(has2fa ? { twoFactor: creds!.twoFactorKey! } : {}),
       notes: `${acc.notes || ""}\nLogin reported successful ${s.confirmedAt!.toISOString()}; awaiting team verification.${hasPassword ? " Password saved." : ""}${has2fa ? " 2FA key saved." : ""}`,
     } });
-    // Ortus-pool accounts are owned by info@ortus.solutions the moment they're onboarded.
-    if (acc.inventoryPool === "ortus") await ensureOrtusOwnership(tx, s.accountId);
+    // Pooled (Ortus/Apex) accounts are auto-owned by their pool account on onboard.
+    if (acc.inventoryPool === "ortus" || acc.inventoryPool === "apex") await ensurePoolOwnership(tx, s.accountId, acc.inventoryPool);
   });
 }
 

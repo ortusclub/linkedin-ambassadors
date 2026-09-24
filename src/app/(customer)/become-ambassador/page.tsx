@@ -122,7 +122,10 @@ export default function BecomeAmbassadorPage() {
   // If the ?ref= belongs to an Ortus referrer, the form adapts: an Ortus-use note + USD-first pricing.
   const [refType, setRefType] = useState<string | null>(null);
   const isOrtusRef = refType === "ortus";
-  // Ortus referrals book the Ortus Calendly; everyone else keeps the standard schedule.
+  // Pool referrals (Ortus / Apex) get the pool note + USD-first pricing; only Ortus books
+  // the Calendly — Apex (and everyone else) keeps the standard Google schedule.
+  const isPoolRef = refType === "ortus" || refType === "apex";
+  const poolBrand = refType === "apex" ? "Apex" : "Ortus";
   const bookingUrl = isOrtusRef ? ORTUS_CALENDAR_URL : CALENDAR_URL;
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [assignedProxy, setAssignedProxy] = useState<{host:string;port:number;username:string;password:string}|null>(null);
@@ -200,7 +203,7 @@ export default function BecomeAmbassadorPage() {
           .then((d) => {
             if (d?.referrer) {
               setRefType(d.referrer.type);
-              if (d.referrer.type === "ortus") setCurrency("USD"); // lead with USD for Ortus
+              if (d.referrer.type === "ortus" || d.referrer.type === "apex") setCurrency("USD"); // lead with USD for pool referrers
             }
           })
           .catch(() => {});
@@ -888,11 +891,11 @@ export default function BecomeAmbassadorPage() {
                 }} style={{ background: "none", border: "none", fontSize: 14.5, color: "#0A66C2", fontWeight: 600, cursor: "pointer" }}>Skip valuation for now →</button>
               </div>
 
-              {isOrtusRef && (
+              {isPoolRef && (
                 <div style={{ maxWidth: 780, margin: "22px auto 0", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 14, padding: "16px 18px" }}>
                   <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 14, color: "#6D28D9", marginBottom: 6 }}>◆ How your account will be used</div>
                   <p style={{ fontSize: 14, lineHeight: 1.6, color: "#37424F", margin: 0 }}>
-                    This account will be used by <b>the referrer</b>. In the event that the referrer already has enough accounts, or is not an Ortus team member, the account will be used for <b>Ortus projects only</b> — it will never be rented to or used by any other company.
+                    This account will be used by <b>the referrer</b>. In the event that the referrer already has enough accounts, or is not an {poolBrand} team member, the account will be used for <b>{poolBrand} projects only</b> — it will never be rented to or used by any other company.
                   </p>
                 </div>
               )}
@@ -987,10 +990,10 @@ export default function BecomeAmbassadorPage() {
                   <div style={{ background: "#0D2A1C", borderRadius: 18, padding: 24 }}>
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6FCF97", marginBottom: 14 }}>What you&apos;ll earn</div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: "#fff" }}>{isOrtusRef ? "$8 · ₱500" : "₱500"}</span>
+                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: "#fff" }}>{isPoolRef ? "$8 · ₱500" : "₱500"}</span>
                       <span style={{ fontSize: 14, color: "#9DC4AE" }}>/month</span>
                     </div>
-                    <div style={{ fontSize: 13.5, color: "#9DC4AE", marginTop: 4 }}>plus a {isOrtusRef ? "$16 · ₱1,000" : "₱1,000"} one-time setup bonus.</div>
+                    <div style={{ fontSize: 13.5, color: "#9DC4AE", marginTop: 4 }}>plus a {isPoolRef ? "$16 · ₱1,000" : "₱1,000"} one-time setup bonus.</div>
                     <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "18px 0" }} />
                     {["Paid every month, guaranteed", "You keep full control of your account", "Cancel anytime, no penalties"].map((t) => (
                       <div key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: "#D6E7DD", lineHeight: 1.45, marginBottom: 12 }}><span style={{ color: "#3EF08A", fontWeight: 700 }}>✓</span>{t}</div>
@@ -1059,10 +1062,10 @@ export default function BecomeAmbassadorPage() {
                 <div style={{ position: "relative" }}>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6FCF97", marginBottom: 16 }}>Based on your profile, we&apos;d like to offer you</div>
                   <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: isOrtusRef ? 44 : 64, lineHeight: 1, letterSpacing: "-0.03em", color: "#fff" }}>{isOrtusRef ? "$8 · ₱500" : "₱500"}</span>
+                    <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: isPoolRef ? 44 : 64, lineHeight: 1, letterSpacing: "-0.03em", color: "#fff" }}>{isPoolRef ? "$8 · ₱500" : "₱500"}</span>
                     <span style={{ fontSize: 20, color: "#9DC4AE", fontWeight: 500 }}>/mo</span>
                   </div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ {isOrtusRef ? "$16 · ₱1,000" : "₱1,000"} one-time setup bonus</div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ {isPoolRef ? "$16 · ₱1,000" : "₱1,000"} one-time setup bonus</div>
                   <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via bank transfer on the 1st of each month. Cancel anytime.</p>
                 </div>
               </div>

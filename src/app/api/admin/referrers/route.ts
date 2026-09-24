@@ -44,7 +44,7 @@ export async function POST(req: Request) {
         slug,
         token,
         name,
-        type: ["ambassador", "ortus"].includes(body.type) ? body.type : "marketer",
+        type: ["ambassador", "ortus", "apex"].includes(body.type) ? body.type : "marketer",
         email: body.email?.trim() || null,
         channel: body.channel?.trim() || null,
         contactMethod: body.contactMethod || null,

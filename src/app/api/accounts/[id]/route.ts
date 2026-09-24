@@ -29,9 +29,9 @@ export async function GET(
     },
   });
 
-  // Ortus-pool accounts are segregated inventory — not exposed via the public detail
-  // endpoint (they're only reachable by info@ortus.solutions through their dashboard).
-  if (!account || account.inventoryPool === "ortus") {
+  // Pooled (Ortus/Apex) accounts are segregated inventory — not exposed via the public
+  // detail endpoint (only reachable by their pool account through its dashboard).
+  if (!account || account.inventoryPool === "ortus" || account.inventoryPool === "apex") {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
