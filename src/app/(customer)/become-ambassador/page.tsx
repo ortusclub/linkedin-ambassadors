@@ -11,6 +11,8 @@ type Step = "choice" | "logged-in-choice" | "info" | "scanning" | "result" | "ba
 // Onboarding-call booking. Every path that ends a signup should push to this —
 // a booked call converts far better than leaving someone to "check back soon".
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
+// Ortus referrals book a separate Calendly so those onboarding calls land distinctly.
+const ORTUS_CALENDAR_URL = "https://calendly.com/linkedvelocity-info/30min";
 
 const SCAN_STEPS = [
   "Locating your LinkedIn profile...",
@@ -121,6 +123,8 @@ export default function BecomeAmbassadorPage() {
   const [refType, setRefType] = useState<string | null>(null);
   const [refName, setRefName] = useState<string | null>(null);
   const isOrtusRef = refType === "ortus";
+  // Ortus referrals book the Ortus Calendly; everyone else keeps the standard schedule.
+  const bookingUrl = isOrtusRef ? ORTUS_CALENDAR_URL : CALENDAR_URL;
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [assignedProxy, setAssignedProxy] = useState<{host:string;port:number;username:string;password:string}|null>(null);
   const [loading, setLoading] = useState(false);
@@ -1085,7 +1089,7 @@ export default function BecomeAmbassadorPage() {
               <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 34, letterSpacing: "-0.02em", margin: "0 0 10px" }}>You&apos;re in{form.fullName ? `, ${form.fullName.split(" ")[0]}` : ""}! 🎉</h2>
               <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 auto 30px", maxWidth: 460 }}>{form.linkedinUrl.trim() ? "We've got your details. The last step is a quick onboarding call to verify your profile and get you set up to earn." : "We've got your details. The last step is a quick onboarding call — we'll help you get your LinkedIn ready and connected so you can start earning. No account yet? No problem, we'll sort it with you."}</p>
 
-              <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 11, background: "#00B85C", color: "#fff", fontSize: 16.5, fontWeight: 600, padding: "16px 30px", borderRadius: 14, textDecoration: "none", boxShadow: "0 14px 32px rgba(0,184,92,0.32)" }}>
+              <a href={bookingUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 11, background: "#00B85C", color: "#fff", fontSize: 16.5, fontWeight: 600, padding: "16px 30px", borderRadius: 14, textDecoration: "none", boxShadow: "0 14px 32px rgba(0,184,92,0.32)" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>Book your onboarding call
               </a>
 
@@ -1121,7 +1125,7 @@ export default function BecomeAmbassadorPage() {
 
               <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center mb-6">
                 <a
-                  href={CALENDAR_URL}
+                  href={bookingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-green-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-green-600/25 hover:bg-green-700 transition-colors"
@@ -1614,7 +1618,7 @@ export default function BecomeAmbassadorPage() {
                       We can&apos;t set your account up or start your payments until we&apos;ve spoken. It takes about 10 minutes and there&apos;s no cost or commitment — pick a time that suits you now, while it&apos;s in front of you.
                     </p>
                     <a
-                      href={CALENDAR_URL}
+                      href={bookingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-4 inline-flex items-center justify-center gap-2.5 rounded-xl bg-green-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-green-600/25 hover:bg-green-700 transition-colors"
@@ -1722,7 +1726,7 @@ export default function BecomeAmbassadorPage() {
 
               <div className="mt-6 flex flex-col items-center gap-3">
                 <a
-                  href={CALENDAR_URL}
+                  href={bookingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-green-600 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-green-600/25 hover:bg-green-700 transition-colors"
