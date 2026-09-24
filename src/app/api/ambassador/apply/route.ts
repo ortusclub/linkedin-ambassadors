@@ -29,10 +29,11 @@ export async function POST(req: Request) {
     // Canonicalize a referral code to the matching referrer's slug, so a manually-typed
     // code ("Lewis-4823", "lewis 4823", "LEWIS-4823") credits the same person as the QR.
     let referredBy = data.referredBy?.trim() || undefined;
+    let referrerType: string | undefined;
     if (referredBy) {
       const norm = referredBy.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
       const match = norm ? await prisma.referrer.findUnique({ where: { slug: norm } }) : null;
-      if (match) referredBy = match.slug;
+      if (match) { referredBy = match.slug; referrerType = match.type; }
     }
 
     // Leads without a LinkedIn URL (e.g. a field-day walk-up who skipped the valuation)
@@ -85,6 +86,8 @@ export async function POST(req: Request) {
         ...data,
         linkedinUrl,
         referredBy,
+        // Ortus-referred signups are handled by Ton as the LV point of contact.
+        ...(referrerType === "ortus" ? { poc: "Ton" } : {}),
         // Every new signup lands in Initial (reviewing = assessed-but-not-yet-reviewed,
         // pending = no LinkedIn URL). The team promotes to Level 1 by hand — no
         // auto-approval to Level 2.
