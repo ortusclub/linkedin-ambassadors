@@ -70,7 +70,7 @@ export async function onboardingSummary(id: string, referrerId: string) {
   };
 }
 
-export async function reserveOnboarding(referrer: { id: string; slug: string; name: string }, input: z.infer<typeof selfServiceInput>) {
+export async function reserveOnboarding(referrer: { id: string; slug: string; name: string; type?: string }, input: z.infer<typeof selfServiceInput>) {
   if (phoneVerificationConfigured()) assertPhoneVerificationToken(input.phoneVerificationToken, input.contactNumber, referrer.id);
   const cfg = currencyConfig(referrer.slug);
   const country = countryCode(input.country);
@@ -111,6 +111,9 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
     const acc = await tx.linkedInAccount.create({ data: {
       linkedinName: input.fullName, linkedinUrl: input.linkedinUrl, personalEmail: input.email,
       location: country, gologinAccount: "klabber", status: "under_construction", listed: false,
+      // Ortus referrers' onboards land in the segregated Ortus pool (hidden from the
+      // public catalogue, auto-owned by info@ortus.solutions); everyone else is "main".
+      inventoryPool: referrer.type === "ortus" ? "ortus" : "main",
       linkedinVerified: input.linkedinVerified,
       ambassadorPayment: cfg.monthlyAmount,
       proxyHost: proxy?.host, proxyPort: proxy?.port, proxyUsername: proxy?.username, proxyPassword: proxy?.password, proxyLocation: proxy?.country,
@@ -289,6 +292,35 @@ export async function prepareOnboarding(id: string, referrerId: string) {
   }
 }
 
+// The Ortus shadow renter that owns everything in the "ortus" inventory pool.
+const ORTUS_OWNER_EMAIL = "info@ortus.solutions";
+
+// Give info@ortus.solutions a standing $0 "owned" rental of an Ortus-pool account so it
+// reads as rented on their dashboard the moment it's onboarded. Idempotent and best-effort
+// (never blocks onboarding): if the owner user doesn't exist yet, we simply skip.
+export async function ensureOrtusOwnership(tx: Prisma.TransactionClient, accountId: string) {
+  const owner = await tx.user.findFirst({
+    where: { email: { equals: ORTUS_OWNER_EMAIL, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (!owner) return;
+  const existing = await tx.rental.findFirst({
+    where: { linkedinAccountId: accountId, userId: owner.id, status: { in: ["active", "pending_access"] } },
+    select: { id: true },
+  });
+  if (existing) return;
+  await tx.rental.create({ data: {
+    userId: owner.id,
+    linkedinAccountId: accountId,
+    status: "active",
+    isShadow: false,
+    autoRenew: false,
+    lockedPrice: 0,
+    startDate: new Date(),
+    notes: "Ortus inventory — auto-owned ($0) via an Ortus referrer.",
+  } });
+}
+
 export async function confirmOnboarding(id: string, referrerId: string, creds?: { password?: string; twoFactorKey?: string }) {
   await requireEmailSetup(id, referrerId);
   // The PC flow also captures the login here so LinkedVelocity always holds the
@@ -321,6 +353,8 @@ export async function confirmOnboarding(id: string, referrerId: string, creds?: 
       ...(has2fa ? { twoFactor: creds!.twoFactorKey! } : {}),
       notes: `${acc.notes || ""}\nLogin reported successful ${s.confirmedAt!.toISOString()}; awaiting team verification.${hasPassword ? " Password saved." : ""}${has2fa ? " 2FA key saved." : ""}`,
     } });
+    // Ortus-pool accounts are owned by info@ortus.solutions the moment they're onboarded.
+    if (acc.inventoryPool === "ortus") await ensureOrtusOwnership(tx, s.accountId);
   });
 }
 

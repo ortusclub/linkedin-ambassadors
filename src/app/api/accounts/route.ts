@@ -15,6 +15,9 @@ export async function GET(req: NextRequest) {
   const statusFilter = searchParams.get("status");
   const where: Record<string, unknown> = {};
   const and: Record<string, unknown>[] = [];
+  // Ortus-pool inventory is segregated: never shown in the public catalogue (or to
+  // shadow renters) — it's owned by info@ortus.solutions only.
+  where.inventoryPool = { not: "ortus" };
   if (statusFilter) {
     where.status = statusFilter;
     where.listed = true;

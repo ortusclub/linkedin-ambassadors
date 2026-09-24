@@ -145,6 +145,10 @@ model LinkedInAccount {
   accountAgeMonths      Int?          @map("account_age_months")
   hasSalesNav           Boolean       @default(false) @map("has_sales_nav")
   listed                Boolean       @default(true)
+  // Inventory partition. "main" = normal rentable catalogue. "ortus" = brought in by an
+  // Ortus referrer (Referrer.type = "ortus"): hidden from the public catalogue and from
+  // other shadow renters, and auto-owned by info@ortus.solutions (a $0 rental).
+  inventoryPool         String        @default("main") @map("inventory_pool")
   gologinShareLink      String?       @map("gologin_share_link")
   linkedinAccountHealth String?       @default("unchecked") @map("linkedin_account_health")
   healthCheckedAt       DateTime?     @map("health_checked_at")

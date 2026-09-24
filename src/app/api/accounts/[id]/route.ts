@@ -25,10 +25,13 @@ export async function GET(
       monthlyPrice: true,
       status: true,
       notes: true,
+      inventoryPool: true,
     },
   });
 
-  if (!account) {
+  // Ortus-pool accounts are segregated inventory — not exposed via the public detail
+  // endpoint (they're only reachable by info@ortus.solutions through their dashboard).
+  if (!account || account.inventoryPool === "ortus") {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
