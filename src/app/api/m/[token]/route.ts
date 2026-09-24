@@ -157,7 +157,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       // null once the team lifts the restriction (accountRestricted goes false).
       const rawReport = a.restrictionReport as { type?: "qr_done" | "recovered"; at?: string } | null;
       const restrictionReport = accountRestricted && rawReport?.type ? { type: rawReport.type, at: rawReport.at || "" } : null;
-      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport };
+      // LinkedIn profile URL so the referrer can open the account and check it (e.g. is a
+      // restriction still on?). Prefer the linked account's URL, fall back to the application's.
+      const rawLi = acct?.linkedinUrl || a.linkedinUrl || "";
+      const liUrl = rawLi ? (rawLi.startsWith("http") ? rawLi : `https://${rawLi}`) : null;
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl };
     });
 
   return NextResponse.json({
