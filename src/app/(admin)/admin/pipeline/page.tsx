@@ -306,6 +306,71 @@ const QC_ITEMS: [keyof NonNullable<Row["qcChecks"]>, string][] = [
 const eligibleMs = (r: Row): number | null => (r.onboardedAt ? new Date(r.onboardedAt).getTime() + 86400000 : null);
 // Setup fee is "due" only once it's been 24h since login — not the moment they log in.
 const setupDue = (r: Row): boolean => { if (setupPaid(r)) return false; const due = eligibleMs(r); return due !== null && Date.now() >= due; };
+
+// ── "Next step" — one clear read on each card of whether it needs the admin NOW, is
+// WAITING on a timer / the person, or is DONE. Collapses level + milestones + timers +
+// the outreach log into a single line so the pipeline is scannable ("what needs me?").
+type StepState = "now" | "waiting" | "done";
+type NextStep = { state: StepState; label: string; timing?: string; last?: string };
+const STEP_RANK: Record<StepState, number> = { now: 0, waiting: 1, done: 2 };
+const daysUntil = (ms: number) => Math.max(1, Math.ceil((ms - Date.now()) / 86400000));
+
+// The most recent thing that happened to this row, so the admin can tell whether they've
+// already touched it. Prefers the last real outreach touch, else the latest milestone.
+const lastActivity = (r: Row): string | undefined => {
+  const cands: { at: string; what: string }[] = [];
+  const touches = (r.outreachLog || []).filter((t) => t.ch !== "note");
+  if (touches.length) { const t = touches[touches.length - 1]; cands.push({ at: t.at, what: t.ch === "reply" ? "they replied" : t.ch === "booked" ? "call booked" : "you reached out" }); }
+  const miles: [string | null, string][] = [[r.verifiedAt, "passed QC"], [r.onboardedAt, "logged in"], [r.emailPrimaryAt, "email & 2FA set"]];
+  for (const [d, w] of miles) if (d) { cands.push({ at: d, what: w }); break; }
+  if (!cands.length) return undefined;
+  cands.sort((a, b) => +new Date(b.at) - +new Date(a.at));
+  const c = cands[0]; const dd = ageDays(c.at);
+  return `${c.what} ${fmtDate(c.at)}${dd > 0 ? ` (${dd}d ago)` : " (today)"}`;
+};
+
+const nextStep = (r: Row): NextStep => {
+  const last = lastActivity(r);
+  // Terminal — nothing to action.
+  if (r.status === "rejected") return { state: "done", label: "Closed — rejected" };
+  if (r.accountStatus === "removed") return { state: "done", label: "Withdrawn — account pulled" };
+  if (r.accountStatus === "retired") return { state: "done", label: "Permanently restricted" };
+
+  // Restriction outranks everything else that's live.
+  if (r.accountRestrictedAt || (r.accountIssue || "").toLowerCase().includes("restricted")) {
+    if (r.restrictionReport) return { state: "now", label: `Verify restriction — referrer says ${r.restrictionReport.type === "recovered" ? "it's unrestricted" : "the QR check is done"}`, last };
+    return { state: "now", label: "Restricted — chase the owner to clear it", timing: r.accountRestrictedAt ? `since ${fmtDate(r.accountRestrictedAt)}` : undefined, last };
+  }
+  // Referrer-fix loop.
+  if (r.onboardingFix?.state === "referrer_done") return { state: "now", label: "Recheck — referrer marked the fix done", last };
+  if (r.onboardingFix?.issues?.length) return { state: "waiting", label: `Waiting on referrer to fix ${r.onboardingFix.issues.length} issue${r.onboardingFix.issues.length > 1 ? "s" : ""}`, last };
+  // Blocked on infra (no GoLogin / login issue).
+  if (blockKind(r) === "setup") return { state: "now", label: missingGologin(r) ? "Add a GoLogin so the account can run" : "Fix the login issue", last };
+  // A follow-up reminder the admin set overrides the generic waiting state.
+  if (r.nextFollowUp) {
+    const t = new Date(r.nextFollowUp).getTime();
+    if (Date.now() >= t) return { state: "now", label: "Follow-up due", timing: `set for ${fmtDate(r.nextFollowUp)}`, last };
+    return { state: "waiting", label: "Follow-up scheduled", timing: `${fmtDate(r.nextFollowUp)} · ${daysUntil(t)}d`, last };
+  }
+  // Lead states (before the onboarding ladder).
+  if (r.status === "unreachable") return { state: "now", label: "Unreachable — try another channel", last };
+  if (r.status === "pending") return { state: "now", label: "Reach out — new application", last };
+  if (r.status === "contacted") return { state: "waiting", label: "Awaiting their reply", last };
+  if (r.status === "reviewing") return { state: "waiting", label: "In review", last };
+  if (r.status === "on_hold") return { state: "waiting", label: "On hold", last };
+  // The onboarding ladder.
+  const lvl = levelOf(r);
+  if (lvl <= 1) return { state: "now", label: "Add our email (set primary) + 2FA", last };
+  if (lvl === 2) return { state: "now", label: "Log in via GoLogin", last };
+  if (lvl === 3) { const done = QC_ITEMS.filter(([k]) => r.qcChecks?.[k]).length; return { state: "now", label: `Run QC checks (${done}/${QC_ITEMS.length} done)`, last }; }
+  if (lvl === 4) {
+    const matureAt = r.onboardedAt ? new Date(r.onboardedAt).getTime() + holdDays(r) * 86400000 : null;
+    if (matureAt && Date.now() < matureAt) return { state: "waiting", label: "Maturing", timing: `${daysUntil(matureAt)} day${daysUntil(matureAt) === 1 ? "" : "s"} left · ready ${fmtDate(new Date(matureAt).toISOString())}`, last };
+    return { state: "now", label: setupPaid(r) ? "Matured — mark onboarded (live)" : "Matured — pay setup fee & mark onboarded", last };
+  }
+  if (!setupPaid(r)) return { state: "now", label: "Pay setup fee", last };
+  return { state: "done", label: "Live & earning", last };
+};
 // Proxy as one line: host:port:user:pass (trailing empties trimmed).
 const proxyCombined = (r: Row): string | null => {
   const parts = [r.proxyHost || "", r.proxyPort != null ? String(r.proxyPort) : "", r.proxyUsername || "", r.proxyPassword || ""];
@@ -577,7 +642,9 @@ export default function AdminPipelinePage() {
     const liveKey = (r: Row): LiveKey => blockKind(r) ?? ((setupDue(r) || (dueInfo?.emails.has((r.email || "").toLowerCase()) ?? false)) ? "due" : "ok");
     const keyOf: (r: Row) => string | number = mode === "stage" ? (r: Row) => levelKey(r) : mode === "live" ? liveKey : (r: Row) => actionBucket(r);
     return defs
-      .map((d) => ({ ...d, items: filtered.filter((r) => String(keyOf(r)) === String(d.key)).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)) }))
+      // Within each group, float what needs the admin NOW to the top (then waiting, then
+      // done), and keep newest-first inside each of those bands.
+      .map((d) => ({ ...d, items: filtered.filter((r) => String(keyOf(r)) === String(d.key)).sort((a, b) => (STEP_RANK[nextStep(a).state] - STEP_RANK[nextStep(b).state]) || (+new Date(b.createdAt) - +new Date(a.createdAt))) }))
       .filter((g) => g.items.length > 0);
   }, [filtered, mode, dueInfo]);
 
@@ -972,6 +1039,24 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
           </div>
         </div>
       </div>
+
+      {/* Next step — the one-line "do I act on this now?" read (always visible). */}
+      {(() => {
+        const ns = nextStep(r);
+        const p = ns.state === "now"
+          ? { bg: "var(--warn-badge-bg,#fef3e2)", fg: "var(--warn-badge-text,#b7791f)", dot: "●", tag: "ACTION NOW" }
+          : ns.state === "waiting"
+          ? { bg: "var(--blue-chip-bg,#e8f0fe)", fg: "var(--blue-chip-text,#1a56db)", dot: "○", tag: "WAITING" }
+          : { bg: "var(--st-active-bg,#e6f4ea)", fg: "var(--st-active-fg,#188038)", dot: "✓", tag: "UP TO DATE" };
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 15px", background: p.bg, borderTop: "1px solid var(--divider,#eee)", flexWrap: "wrap" }}>
+            <span style={{ font: `800 9.5px ${F_SANS}`, letterSpacing: ".06em", color: p.fg, whiteSpace: "nowrap" }}>{p.dot} {p.tag}</span>
+            <span style={{ font: `700 12.5px ${F_SANS}`, color: "var(--fg,#222)" }}>{ns.label}</span>
+            {ns.timing && <span style={{ font: `600 11.5px ${F_SANS}`, color: p.fg }}>· {ns.timing}</span>}
+            {ns.last && <span style={{ marginLeft: "auto", font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap" }}>last: {ns.last}</span>}
+          </div>
+        );
+      })()}
 
       {open && (
         <div style={{ borderTop: "1px solid var(--divider,#eee)", background: "var(--panel,#fafafa)", padding: "16px" }}>
