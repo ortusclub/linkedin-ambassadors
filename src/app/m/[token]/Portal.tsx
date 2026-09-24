@@ -6,7 +6,7 @@ import { CURRENCY_CONFIG } from "@/lib/referral-currency";
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 type FixIssue = "email_added" | "email_primary" | "twofa" | "password";
-interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; }
+interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; pay: { text: string; sub?: string } | null; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -504,6 +504,12 @@ export default function Portal({ token }: { token: string }) {
                   </div>
                   <div style={{ font: `600 12.5px ${JAK}`, color: fg }}>{s.line}</div>
                   <div style={{ font: `500 12px/1.45 ${JAK}`, color: C.slate, marginTop: 3 }}>{s.sub}</div>
+                  {s.pay && (
+                    <div style={{ marginTop: 9, padding: "8px 10px", background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 9 }}>
+                      <div style={{ font: `700 11.5px ${JAK}`, color: C.blueInk }}>📅 {s.pay.text}</div>
+                      {s.pay.sub && <div style={{ font: `500 11px/1.4 ${JAK}`, color: C.slate, marginTop: 2 }}>{s.pay.sub}</div>}
+                    </div>
+                  )}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.line2}` }}>
                     <span style={{ font: `500 11.5px ${JAK}`, color: C.muted }}>{s.path}</span>
                     {s.liUrl && !s.restricted && <a href={s.liUrl} target="_blank" rel="noopener noreferrer" style={{ font: `600 11.5px ${JAK}`, color: "#2563eb", textDecoration: "none", whiteSpace: "nowrap" }}>View on LinkedIn ↗</a>}
