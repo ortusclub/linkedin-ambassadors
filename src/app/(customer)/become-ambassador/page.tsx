@@ -117,6 +117,10 @@ export default function BecomeAmbassadorPage() {
   const [step, setStep] = useState<Step | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currency, setCurrency] = useState<"PHP" | "USD">("PHP");
+  // If the ?ref= belongs to an Ortus referrer, the form adapts: an Ortus-use note + USD-first pricing.
+  const [refType, setRefType] = useState<string | null>(null);
+  const [refName, setRefName] = useState<string | null>(null);
+  const isOrtusRef = refType === "ortus";
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [assignedProxy, setAssignedProxy] = useState<{host:string;port:number;username:string;password:string}|null>(null);
   const [loading, setLoading] = useState(false);
@@ -187,6 +191,17 @@ export default function BecomeAmbassadorPage() {
           referredBy: prev.referredBy || ref,
           referralSource: prev.referralSource || "Flyer",
         }));
+        // Resolve the referrer so an Ortus link shows the Ortus-use note + USD-first pricing.
+        fetch(`/api/ambassador/referrer-info?ref=${encodeURIComponent(ref)}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            if (d?.referrer) {
+              setRefType(d.referrer.type);
+              setRefName(d.referrer.name);
+              if (d.referrer.type === "ortus") setCurrency("USD"); // lead with USD for Ortus
+            }
+          })
+          .catch(() => {});
       }
     } catch {}
   }, []);
@@ -871,6 +886,15 @@ export default function BecomeAmbassadorPage() {
                 }} style={{ background: "none", border: "none", fontSize: 14.5, color: "#0A66C2", fontWeight: 600, cursor: "pointer" }}>Skip valuation for now →</button>
               </div>
 
+              {isOrtusRef && (
+                <div style={{ maxWidth: 780, margin: "22px auto 0", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 14, padding: "16px 18px" }}>
+                  <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 14, color: "#6D28D9", marginBottom: 6 }}>◆ How your account will be used</div>
+                  <p style={{ fontSize: 14, lineHeight: 1.6, color: "#37424F", margin: 0 }}>
+                    This account will be used by <b>{refName || "the person who sent you this form"}</b>. If they already have 10 accounts, it will go into the pool of <b>Ortus Club</b> accounts. Either way, it will <b>only ever be used by The Ortus Club</b> — never rented to or used by any other company.
+                  </p>
+                </div>
+              )}
+
               <div className="ambf-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px", gap: 34, alignItems: "start", marginTop: 34 }}>
                 {/* FORM */}
                 <form onSubmit={handleSubmit} style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 20, padding: "30px 32px", boxShadow: "0 6px 20px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.04)" }}>
@@ -960,11 +984,11 @@ export default function BecomeAmbassadorPage() {
                 <div className="ambf-side" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 24 }}>
                   <div style={{ background: "#0D2A1C", borderRadius: 18, padding: 24 }}>
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6FCF97", marginBottom: 14 }}>What you&apos;ll earn</div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: "#fff" }}>₱500</span>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: "#fff" }}>{isOrtusRef ? "$8 · ₱500" : "₱500"}</span>
                       <span style={{ fontSize: 14, color: "#9DC4AE" }}>/month</span>
                     </div>
-                    <div style={{ fontSize: 13.5, color: "#9DC4AE", marginTop: 4 }}>plus a ₱1,000 one-time setup bonus.</div>
+                    <div style={{ fontSize: 13.5, color: "#9DC4AE", marginTop: 4 }}>plus a {isOrtusRef ? "$16 · ₱1,000" : "₱1,000"} one-time setup bonus.</div>
                     <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "18px 0" }} />
                     {["Paid every month, guaranteed", "You keep full control of your account", "Cancel anytime, no penalties"].map((t) => (
                       <div key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: "#D6E7DD", lineHeight: 1.45, marginBottom: 12 }}><span style={{ color: "#3EF08A", fontWeight: 700 }}>✓</span>{t}</div>

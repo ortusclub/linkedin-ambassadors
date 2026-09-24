@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CURRENCY_CONFIG } from "@/lib/referral-currency";
 
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
@@ -247,6 +248,23 @@ export default function Portal({ token }: { token: string }) {
   const tiers = config.referralTiers;
   const tierRange = (t: Tier) => `${money(t.base)}–${money(t.verified)}`;
 
+  // Ortus referrers see every earning figure in BOTH currencies, USD first. The PHP and
+  // USD amounts are separately-agreed anchors (not FX-converted), so we read the matching
+  // field from each currency's config rather than converting a number.
+  const showBoth = me.type === "ortus";
+  const P = CURRENCY_CONFIG.PHP, U = CURRENCY_CONFIG.USD;
+  const fmt = (cfg: typeof P, n: number) => cfg.symbol + Math.round(n).toLocaleString("en-US");
+  // A single amount (given each currency's field value): USD · PHP for Ortus, else primary only.
+  const dualVal = (usd: number, php: number, primary: string) =>
+    showBoth ? `${fmt(U, usd)} · ${fmt(P, php)}` : primary;
+  // A range low–high in both currencies: "$8–$16 · ₱500–₱1,000" for Ortus, else primary.
+  const dualRange = (usdLo: number, usdHi: number, phpLo: number, phpHi: number, primary: string) =>
+    showBoth ? `${fmt(U, usdLo)}–${fmt(U, usdHi)} · ${fmt(P, phpLo)}–${fmt(P, phpHi)}` : primary;
+  const baseD = dualVal(U.referralTiers.referral, P.referralTiers.referral, base);
+  const rangeD = dualRange(U.referralTiers.referral, U.referralTiers.computer.verified, P.referralTiers.referral, P.referralTiers.computer.verified, `${base}–${diyHigh}`);
+  const tierRangeD = (key: "phone" | "computer") =>
+    dualRange(U.referralTiers[key].base, U.referralTiers[key].verified, P.referralTiers[key].base, P.referralTiers[key].verified, tierRange(tiers[key]));
+
   // For non-PH (USD) referrers, rewrite the money/method-bearing FAQ answers.
   const faqOverrides: Record<string, string> = isUSD ? {
     "When do I get paid?": `You get ${base} to ${diyHigh} for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about a week after onboarding, once we've confirmed the account is stable, and are paid the following Monday. A restriction in that window adds a few days.`,
@@ -329,10 +347,10 @@ export default function Portal({ token }: { token: string }) {
               <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 14, padding: "14px 16px", marginBottom: 16 }}>
                 <div style={{ font: `700 13.5px ${JAK}`, color: "#6d28d9", marginBottom: 6 }}>◆ How your Ortus accounts are used</div>
                 <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.ink, margin: 0 }}>
-                  Every account you bring on is <b>first assigned to you</b> — yours to use for Ortus projects. Once you have <b>10 accounts assigned</b> to you, any further accounts go into the shared <b>Ortus pool</b>.
+                  Every account you bring on goes into the <b>Ortus pool</b> — reserved for Ortus projects and looked after by the Ortus team.
                 </p>
                 <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.ink, margin: "8px 0 0" }}>
-                  Either way, your accounts are <b>never listed in the general inventory and never rented to other companies</b>. They are only ever used for Ortus projects.
+                  Your accounts are <b>never listed in the general inventory and never rented to other companies</b>. They are only ever used for Ortus projects.
                 </p>
               </div>
             )}
@@ -376,11 +394,11 @@ export default function Portal({ token }: { token: string }) {
                   <span style={{ font: `700 10px ${JAK}`, letterSpacing: ".09em", textTransform: "uppercase", color: "#bbf7d0" }}>Guided onboarding</span>
                   <span style={{ font: `700 9.5px ${JAK}`, letterSpacing: ".05em", textTransform: "uppercase", color: C.ink, background: "#a7f3d0", padding: "3px 7px", borderRadius: 5, whiteSpace: "nowrap" }}>Pays most</span>
                 </div>
-                <div style={{ font: `600 24px/1.2 ${GRO}`, color: "#fff", letterSpacing: "-.015em", marginBottom: 8 }}>{base}–{diyHigh}<br />per person you onboard</div>
+                <div style={{ font: `600 24px/1.2 ${GRO}`, color: "#fff", letterSpacing: "-.015em", marginBottom: 8 }}>{rangeD}<br />per person you onboard</div>
                 <p style={{ font: `500 13px/1.5 ${JAK}`, color: "rgba(255,255,255,.88)", margin: "0 0 16px" }}>Stay with the account owner and follow the guided steps together. Highest pay, and it&apos;s all recorded to your code as you go.</p>
                 <button onClick={() => setReadyOpen(true)} style={{ width: "100%", font: `700 15.5px ${JAK}`, color: C.greenDk, background: "#fff", border: "none", padding: 16, borderRadius: 13, cursor: "pointer", boxShadow: "0 8px 18px -10px rgba(0,0,0,.4)" }}>Start guided onboarding →</button>
                 <div style={{ display: "flex", gap: 6, marginTop: 13 }}>
-                  {[{ a: tierRange(tiers.phone), l: "Phone — we sign in" }, { a: tierRange(tiers.computer), l: "Computer — you sign in" }].map((t) => (
+                  {[{ a: tierRangeD("phone"), l: "Phone — we sign in" }, { a: tierRangeD("computer"), l: "Computer — you sign in" }].map((t) => (
                     <div key={t.l} style={{ flex: 1, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)", borderRadius: 10, padding: "9px 8px", textAlign: "center" }}>
                       <div style={{ font: `600 14px ${GRO}`, color: "#fff" }}>{t.a}</div>
                       <div style={{ font: `600 9.5px/1.25 ${JAK}`, color: "rgba(255,255,255,.8)", marginTop: 3 }}>{t.l}</div>
@@ -398,7 +416,7 @@ export default function Portal({ token }: { token: string }) {
             <div style={card}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 5 }}>
                 <div style={{ font: `700 15.5px/1.3 ${JAK}`, color: C.ink }}>Just send them the form</div>
-                <span style={{ marginLeft: "auto", flex: "none", font: `700 11px ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, padding: "5px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>{base}</span>
+                <span style={{ marginLeft: "auto", flex: "none", font: `700 11px ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, padding: "5px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>{baseD}</span>
               </div>
               <p style={{ font: `500 13px/1.5 ${JAK}`, color: C.slate, margin: "0 0 13px" }}>Can&apos;t onboard them now? They fill in your form and a LinkedVelocity team member takes it from there.</p>
               <div style={{ display: "flex", gap: 9 }}>
@@ -547,7 +565,7 @@ export default function Portal({ token }: { token: string }) {
         {tab === "money" && (
           <div style={{ padding: "18px 18px 0" }}>
             <h1 style={h1}>Your earnings</h1>
-            <p style={lead}>Paid to your GCash or bank the Monday after each onboarding clears our check. {base}–{diyHigh} per onboarding, depending on how it&apos;s done.</p>
+            <p style={lead}>Paid to your GCash or bank the Monday after each onboarding clears our check. {rangeD} per onboarding, depending on how it&apos;s done.</p>
 
             <div style={{ background: C.dark, borderRadius: 18, padding: 18, marginBottom: 12 }}>
               <div style={{ font: `600 11.5px ${JAK}`, color: "#94a3b8", marginBottom: 4 }}>Estimated, not yet paid</div>
