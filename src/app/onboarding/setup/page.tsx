@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 type Cfg = { countries: string[]; payoutMethods: string[]; defaultPayoutMethod: string; symbol: string };
 
 const TIER_LABEL: Record<string, string> = { full: "Full DIY — $32 (₱2,000) sign-on", partial: "You add email + 2FA — $24 (₱1,500) sign-on" };
+const COUNTRY_NAMES: Record<string, string> = { PH: "Philippines", US: "United States", GB: "United Kingdom", IN: "India" };
+const countryLabel = (c: string) => COUNTRY_NAMES[c] || c;
 
 export default function SelfSetupStart() {
   const [cfg, setCfg] = useState<Cfg | null>(null);
@@ -122,7 +124,7 @@ export default function SelfSetupStart() {
             <label style={lab}>Country *</label>
             <select style={{ ...inp, cursor: "pointer" }} value={form.country} onChange={(e) => set("country", e.target.value)}>
               <option value="">Select…</option>
-              {(cfg?.countries || []).map((c) => <option key={c} value={c}>{c}</option>)}
+              {(cfg?.countries || []).map((c) => <option key={c} value={c}>{countryLabel(c)}</option>)}
             </select>
           </div>
 
