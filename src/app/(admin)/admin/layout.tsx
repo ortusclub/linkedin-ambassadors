@@ -29,6 +29,7 @@ const sections = [
     { href: "/admin/referrals", label: "Referrals" },
     { href: "/admin/balances", label: "Payouts" },
     { href: "/admin/accounts", label: "Inventory" },
+    { href: "/admin/restrictions", label: "Restrictions" },
     { href: "/admin/proxies", label: "Proxies" },
     { href: "/admin/payouts-ii", label: "Payouts Schedule" },
   ] },

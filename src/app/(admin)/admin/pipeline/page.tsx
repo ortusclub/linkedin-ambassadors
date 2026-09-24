@@ -98,6 +98,7 @@ interface Row {
   proxyPassword: string | null;
   proxyLocation: string | null;
   accountRestrictedAt: string | null;
+  accountRestrictionLog: { at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }[] | null;
   monthlyPrice: number | null;
   ambassadorPayment: number | null;
   outreachLog: Touch[] | null;
@@ -221,6 +222,9 @@ const blockKind = (r: Row): BlockKind | null => {
   return null;
 };
 const isBlocked = (r: Row) => blockKind(r) !== null;
+// Restriction is orthogonal to Health (a restricted account can still read as "active"
+// from its status), so it's a cross-cutting filter, not one of the Health states.
+const isRestricted = (r: Row) => blockKind(r) === "restricted";
 const REPLY_CH: Record<string, 1> = { reply: 1, booked: 1, done: 1 };
 const actionBucket = (r: Row): ActionKey => {
   if (r.status === "rejected") return "closed";
@@ -363,7 +367,7 @@ export default function AdminPipelinePage() {
   const [mode, setMode] = useState<Mode>("stage");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [levelFilter, setLevelFilter] = useState<number | "all">("all");
-  const [healthFilter, setHealthFilter] = useState<Health | "all">("all");
+  const [healthFilter, setHealthFilter] = useState<Health | "restricted" | "all">("all");
   const [pocFilter, setPocFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [flagged, setFlagged] = useState(false);
@@ -549,7 +553,8 @@ export default function AdminPipelinePage() {
       // Stage mode filters on the two axes (level + health); other modes on status.
       if (mode === "stage") {
         if (levelFilter !== "all" && levelKey(r) !== levelFilter) return false;
-        if (healthFilter !== "all" && healthOf(r) !== healthFilter) return false;
+        if (healthFilter === "restricted") { if (!isRestricted(r)) return false; }
+        else if (healthFilter !== "all" && healthOf(r) !== healthFilter) return false;
       } else if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (pocFilter !== "all") { const p = (r.poc || "").trim(); if (pocFilter === "__unassigned" ? p !== "" : p !== pocFilter) return false; }
       if (!q) return true;
@@ -703,6 +708,7 @@ export default function AdminPipelinePage() {
               {axisLabel("Health")}
               {chipBtn(healthFilter === "all", null, "All", scoped.length, () => setHealthFilter("all"), "hl-all")}
               {HEALTH_OPTIONS.map((h) => { const n = scoped.filter((r) => healthOf(r) === h.key).length; return n > 0 ? chipBtn(healthFilter === h.key, h.dot, h.label, n, () => setHealthFilter(h.key), `hl-${h.key}`) : null; })}
+              {(() => { const n = scoped.filter(isRestricted).length; return n > 0 ? chipBtn(healthFilter === "restricted", "var(--st-cancel-fg,#c0392b)", "Restricted", n, () => setHealthFilter("restricted"), "hl-restricted") : null; })()}
             </div>
             {(() => {
               // LV PoC = the LinkedVelocity rep responsible for onboarding this account.
@@ -1380,18 +1386,30 @@ function RestrictionControl({ r, onAccount, onApp }: { r: Row; onAccount: (patch
     { key: "retired", label: "Permanently restricted", tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
     { key: "withdrawn", label: "Withdrawn", tone: ["--neutral-bg,#eef1f5", "--muted,#647189"] },
   ];
+  const history = Array.isArray(r.accountRestrictionLog) ? r.accountRestrictionLog : [];
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-      <span style={labelCss}>Restriction</span>
-      {opts.map((o) => {
-        const on = current === o.key;
-        return (
-          <button key={o.key} onClick={(e) => { e.stopPropagation(); apply(o.key); }}
-            style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", border: "1px solid", borderColor: on ? "transparent" : "var(--input-border,#dcdce0)", background: on ? `var(${o.tone[0]})` : "transparent", color: on ? `var(${o.tone[1]})` : "var(--muted,#647189)" }}>
-            {on ? "● " : ""}{o.label}
-          </button>
-        );
-      })}
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={labelCss}>Restriction</span>
+        {opts.map((o) => {
+          const on = current === o.key;
+          return (
+            <button key={o.key} onClick={(e) => { e.stopPropagation(); apply(o.key); }}
+              style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", border: "1px solid", borderColor: on ? "transparent" : "var(--input-border,#dcdce0)", background: on ? `var(${o.tone[0]})` : "transparent", color: on ? `var(${o.tone[1]})` : "var(--muted,#647189)" }}>
+              {on ? "● " : ""}{o.label}
+            </button>
+          );
+        })}
+      </div>
+      {history.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 7, paddingLeft: 2 }}>
+          {history.slice().reverse().map((e, i) => (
+            <span key={i} style={{ font: `500 10.5px ${F_SANS}`, color: e.event === "recovered" ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)" }}>
+              {e.event === "recovered" ? "✓ Recovered" : "⚠ Restricted"} {fmtDate(e.at)}{e.creditedDays ? ` (+${e.creditedDays}d credit)` : ""}{e.note ? ` (${e.note})` : ""}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
