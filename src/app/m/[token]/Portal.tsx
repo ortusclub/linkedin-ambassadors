@@ -10,7 +10,7 @@ interface Payout { id: string; type: string; description: string | null; amount:
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
 interface Data {
-  me: { name: string; slug: string; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; assignedDay: string | null; assignedLocation: string | null; };
+  me: { name: string; slug: string; type: string; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; assignedDay: string | null; assignedLocation: string | null; };
   stats: { signups: number; converted: number; commission: number; rate: number; };
   config: Config;
   board: BoardRow[];
@@ -236,6 +236,9 @@ export default function Portal({ token }: { token: string }) {
   const isUSD = config.currency !== "PHP";
   const firstName = me.name.split(" ")[0];
   const initial = (me.name.trim()[0] || "?").toUpperCase();
+  // Ortus referrers see the portal branded "Ortus"; everything else stays shared so any
+  // common wording/feature change here applies to both. Only the brand label varies.
+  const brand = me.type === "ortus" ? "Ortus" : "LinkedVelocity";
 
   // DIY (guided) onboarding payout tiers: base = referral we onboard, high = DIY verified.
   const base = money(stats.rate);
@@ -305,7 +308,7 @@ export default function Portal({ token }: { token: string }) {
         {/* top bar */}
         <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 10, padding: "13px 18px", background: C.dark }}>
           <div style={{ width: 20, height: 20, borderRadius: 6, backgroundImage: "linear-gradient(135deg,#34d399,#16a34a)" }} />
-          <span style={{ font: `700 14px ${JAK}`, color: "#fff" }}>LinkedVelocity</span>
+          <span style={{ font: `700 14px ${JAK}`, color: "#fff" }}>{brand}</span>
           <span style={{ font: `700 9px ${JAK}`, letterSpacing: ".09em", color: "#a7f3d0", border: "1px solid #1f6f47", background: "#0f2b1e", padding: "3px 7px", borderRadius: 6 }}>REFERRER</span>
           <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, font: `600 12.5px ${JAK}`, color: "#cbd5e1" }}>{firstName}
             <span style={{ width: 26, height: 26, borderRadius: 999, background: "#1e293b", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11px ${JAK}` }}>{initial}</span>
@@ -811,7 +814,7 @@ export default function Portal({ token }: { token: string }) {
                 <span style={{ width: 42, height: 42, borderRadius: 999, flex: "none", background: C.dark, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 15px ${JAK}` }}>{initial}</span>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ font: `700 15px ${JAK}`, color: C.ink }}>{me.name}</div>
-                  <div style={{ font: `500 12px ${JAK}`, color: C.muted, marginTop: 2 }}>LinkedVelocity referrer</div>
+                  <div style={{ font: `500 12px ${JAK}`, color: C.muted, marginTop: 2 }}>{brand} referrer</div>
                 </div>
                 <span style={{ marginLeft: "auto", flex: "none", font: `700 10px ${JAK}`, padding: "5px 9px", borderRadius: 6, background: C.softGreen, color: C.greenDk, border: `1px solid ${C.softGreenBorder}` }}>Active</span>
               </div>

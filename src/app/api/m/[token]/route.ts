@@ -168,6 +168,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     me: {
       name: me.name,
       slug: me.slug,
+      type: me.type,
       contactMethod: me.contactMethod,
       contactHandle: me.contactHandle,
       paymentMethod: me.paymentMethod,
