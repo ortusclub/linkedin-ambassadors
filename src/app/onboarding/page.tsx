@@ -132,6 +132,7 @@ export default function DIYPage() {
                   <select value={form.contactMethod} onChange={(e) => update("contactMethod", e.target.value)} style={{ ...inp, width: 140, flex: "none", cursor: "pointer" }}>
                     <option value="WhatsApp">WhatsApp</option>
                     <option value="Telegram">Telegram</option>
+                    <option value="Cell">Cell number</option>
                   </select>
                   <input style={inp} value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder={form.contactMethod === "Telegram" ? "@username or +63…" : "+63…"} />
                 </div>
