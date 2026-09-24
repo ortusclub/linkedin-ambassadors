@@ -118,35 +118,48 @@ export default function DIYPage() {
               <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 19, marginBottom: 4 }}>Sign up — {chosen.name}</div>
               <p style={{ fontSize: 13.5, color: "#5A6473", margin: "0 0 20px" }}>${chosen.usd} ({peso(chosen.php)}) sign-on + {MONTHLY}/month. {chosen.delay}</p>
 
-              <div style={{ marginBottom: 14 }}>
-                <label style={label}>Your name *</label>
-                <input style={inp} value={form.fullName} onChange={(e) => update("fullName", e.target.value)} placeholder="Full name" />
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={label}>Email *</label>
-                <input style={inp} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="you@example.com" />
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={label}>How can we reach you? *</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <select value={form.contactMethod} onChange={(e) => update("contactMethod", e.target.value)} style={{ ...inp, width: 140, flex: "none", cursor: "pointer" }}>
-                    <option value="WhatsApp">WhatsApp</option>
-                    <option value="Telegram">Telegram</option>
-                    <option value="Cell">Cell number</option>
-                  </select>
-                  <input style={inp} value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder={form.contactMethod === "Telegram" ? "@username or +63…" : "+63…"} />
-                </div>
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <label style={label}>LinkedIn profile URL <span style={{ fontWeight: 400, color: "#96A0AD" }}>(optional)</span></label>
-                <input style={inp} value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} placeholder="linkedin.com/in/yourprofile" />
-              </div>
+              {(tier === "full" || tier === "partial") ? (
+                <>
+                  <p style={{ fontSize: 14, lineHeight: 1.6, color: "#37424F", margin: "0 0 18px" }}>
+                    You&apos;ll verify your email, add a few details, then go through the quick setup yourself — <strong>zero delays</strong>, you&apos;re live straight away.
+                  </p>
+                  <a href={`/onboarding/setup?tier=${tier}`} style={{ display: "block", textAlign: "center", width: "100%", boxSizing: "border-box", background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, borderRadius: 12, padding: 15, textDecoration: "none" }}>
+                    Start my setup — ${chosen.usd} ({peso(chosen.php)}) →
+                  </a>
+                </>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={label}>Your name *</label>
+                    <input style={inp} value={form.fullName} onChange={(e) => update("fullName", e.target.value)} placeholder="Full name" />
+                  </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={label}>Email *</label>
+                    <input style={inp} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="you@example.com" />
+                  </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={label}>How can we reach you? *</label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <select value={form.contactMethod} onChange={(e) => update("contactMethod", e.target.value)} style={{ ...inp, width: 140, flex: "none", cursor: "pointer" }}>
+                        <option value="WhatsApp">WhatsApp</option>
+                        <option value="Telegram">Telegram</option>
+                        <option value="Cell">Cell number</option>
+                      </select>
+                      <input style={inp} value={form.contactHandle} onChange={(e) => update("contactHandle", e.target.value)} placeholder={form.contactMethod === "Telegram" ? "@username or +63…" : "+63…"} />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={label}>LinkedIn profile URL <span style={{ fontWeight: 400, color: "#96A0AD" }}>(optional)</span></label>
+                    <input style={inp} value={form.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} placeholder="linkedin.com/in/yourprofile" />
+                  </div>
 
-              {error && <div style={{ fontSize: 13.5, color: "#C0392B", marginBottom: 14 }}>{error}</div>}
+                  {error && <div style={{ fontSize: 13.5, color: "#C0392B", marginBottom: 14 }}>{error}</div>}
 
-              <button onClick={submit} disabled={submitting} style={{ width: "100%", background: submitting ? "#8FD9B4" : "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: submitting ? "not-allowed" : "pointer" }}>
-                {submitting ? "Sending…" : `Sign up for $${chosen.usd} (${peso(chosen.php)}) + ${MONTHLY}/mo →`}
-              </button>
+                  <button onClick={submit} disabled={submitting} style={{ width: "100%", background: submitting ? "#8FD9B4" : "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: submitting ? "not-allowed" : "pointer" }}>
+                    {submitting ? "Sending…" : `Sign up for $${chosen.usd} (${peso(chosen.php)}) + ${MONTHLY}/mo →`}
+                  </button>
+                </>
+              )}
               <div style={{ textAlign: "center", fontSize: 12.5, color: "#8A93A2", marginTop: 12 }}>Consent-based · you keep full control · cancel anytime</div>
             </div>
           </>

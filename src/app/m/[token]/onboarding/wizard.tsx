@@ -87,8 +87,10 @@ const PROXY_COUNTRIES = ["IN", "GB", "US", "PH"];
 // adds a few more days once cleared.
 const checkWindow = (_freshness?: string | null) => "about a week";
 
-export default function SelfServiceWizard({ token }: { token: string }) {
-  const endpoint = `/api/m/${encodeURIComponent(token)}/onboarding`;
+export default function SelfServiceWizard({ token, endpoint: endpointProp, selfMode = false }: { token: string; endpoint?: string; selfMode?: boolean }) {
+  // selfMode = the public DIY flow: the ambassador drives their OWN session via a per-session
+  // token + the /api/self-onboarding mirror. Everything else is shared with the referral flow.
+  const endpoint = endpointProp ?? `/api/m/${encodeURIComponent(token)}/onboarding`;
   const phoneEndpoint = `${endpoint}/phone`;
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
   const [step, setStep] = useState(0);
@@ -160,6 +162,22 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     return () => { cancelled = true; };
   }, [endpoint, loadAttempt]);
 
+  // selfMode: the session was already created by /api/self-onboarding/start, so resume it
+  // automatically (jump straight to the email step) instead of showing the details form.
+  useEffect(() => {
+    if (!selfMode || !bootstrap || session) return;
+    const s0 = bootstrap.sessions[0];
+    if (!s0) return;
+    void run(async () => {
+      const s = (await request("GET", undefined, s0.id)).session as Session;
+      setSession(s);
+      if (s.state === "confirmed") setStep(6);
+      else if (s.emailSetup && s.emailSetup.primaryConfirmed) setStep((p) => Math.max(p, 4));
+      else setStep(3);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selfMode, bootstrap, session]);
+
   // Which page's coach tour applies right now (null = no tour for this screen).
   const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : step === 3 ? "email"
     : step === 4 ? "twofa"
@@ -168,7 +186,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     : null;
   // A referrer stops being a first-timer only once they've completed BOTH a computer and a
   // phone onboarding. Until then the tour keeps returning on each fresh wizard load.
-  const experienced = !!bootstrap && bootstrap.doneComputer && bootstrap.donePhone;
+  const experienced = selfMode || (!!bootstrap && bootstrap.doneComputer && bootstrap.donePhone);
   // Auto-show each page's tour once per load, unless they're experienced or skipped this run.
   useEffect(() => {
     if (!bootstrap || !tourKey || experienced || tourSkipped) { setShowTour(false); return; }
@@ -309,7 +327,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
     <div className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headerRow}>
-          <Link href={`/m/${token}`} className={styles.headerBack}>← Dashboard</Link>
+          {!selfMode && <Link href={`/m/${token}`} className={styles.headerBack}>← Dashboard</Link>}
           <span className={styles.headerTitle}>DIY onboarding</span>
           {bootstrap && <span className={styles.headerStep}>Step {currentPos + 1} of {wizardSteps.length}</span>}
         </div>
@@ -344,7 +362,8 @@ export default function SelfServiceWizard({ token }: { token: string }) {
 
           {showTour && tourKey && PAGE_TOURS[tourKey] && <CoachTour steps={PAGE_TOURS[tourKey]} onDone={endTour} />}
 
-          {step === 0 && <>
+          {selfMode && !session && !error && <div style={{ padding: 28, textAlign: "center", color: "#5A6473" }}>Loading your onboarding…</div>}
+          {!selfMode && step === 0 && <>
             <h1 className={styles.heroTitle}>Before you begin</h1>
             <p className={styles.lead}>You&apos;re the referrer. You&apos;re onboarding the <strong>account owner</strong> — the person whose LinkedIn this is — virtually, with them on the other end. Six steps, about ten minutes.</p>
             <button type="button" className={styles.linkBtn} style={{ width: "auto", textAlign: "left", padding: "0 0 10px", color: "#15803d" }} onClick={() => { if (tourKey) tourSeen.current.delete(tourKey); setTourSkipped(false); setShowTour(true); }}>New here? Take the quick tour →</button>
@@ -495,7 +514,7 @@ export default function SelfServiceWizard({ token }: { token: string }) {
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>Handed off to the team</h1>
             <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup payment follows once the account is verified, <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding. Nothing more to do here.</p>
-            <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>
+            {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>}
           </> : browserMode === "" ? <>
             <h1 className={styles.heroTitle}>Who does the sign-in?</h1>
             <p className={styles.lead}>This is the last step, and it sets your rate: on a laptop you do the sign-in, on a phone we do.</p>
@@ -536,8 +555,8 @@ export default function SelfServiceWizard({ token }: { token: string }) {
               <p className={styles.cardSub} style={{ marginBottom: 8 }}>Don&apos;t post, message or browse from your own phone while it&apos;s with us — being logged in from two places is what causes restrictions.</p>
               <p className={styles.cardSub} style={{ margin: 0 }}>And if anything is ever needed on the account, it comes through you — so make sure they&apos;ll pick up when you call.</p>
             </div>
-            <Link className={styles.primary} href={`/m/${token}`}>Back to my portal →</Link>
-            <a className={styles.secondary} href={`/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard someone else</a>
+            {!selfMode && <Link className={styles.primary} href={`/m/${token}`}>Back to my portal →</Link>}
+            {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard someone else</a>}
           </>}
         </>}
       </div>
