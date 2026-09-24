@@ -2,19 +2,21 @@ import { NextResponse } from "next/server";
 import { currencyConfig } from "@/lib/referral-currency";
 import { onboardingCountries, DIY_REFERRER_SLUG } from "@/lib/self-service-onboarding";
 import { proxyPurchaseLimits, PURCHASE_PROXY_COUNTRIES } from "@/services/proxy-cheap";
+import { countries as ALL_COUNTRIES } from "@/lib/countries";
 
 export const dynamic = "force-dynamic";
 
-// Public config for the DIY details form: the countries onboarding can actually start in
-// right now (existing residential capacity, plus purchasable countries when auto-buy is on)
-// and the payout methods. No secrets.
+// Public config for the DIY details form. `countries` is the FULL list (people from anywhere
+// can sign up); `provisionable` is where we can spin up an account instantly right now
+// (existing residential capacity + purchasable countries). A country outside `provisionable`
+// is captured as a lead by /start instead of a stuck session.
 export async function GET() {
   const [existing] = await Promise.all([onboardingCountries()]);
   const autoPurchase = proxyPurchaseLimits().enabled;
-  const countries = [...new Set([...existing, ...(autoPurchase ? PURCHASE_PROXY_COUNTRIES : [])])].sort();
+  const provisionable = [...new Set([...existing, ...(autoPurchase ? PURCHASE_PROXY_COUNTRIES : [])])].sort();
   const cfg = currencyConfig(DIY_REFERRER_SLUG);
   return NextResponse.json(
-    { countries, autoPurchase, payoutMethods: cfg.payoutMethods, defaultPayoutMethod: cfg.defaultPayoutMethod, symbol: cfg.symbol },
+    { countries: ALL_COUNTRIES.map((c) => c.name), provisionable, autoPurchase, payoutMethods: cfg.payoutMethods, defaultPayoutMethod: cfg.defaultPayoutMethod, symbol: cfg.symbol },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

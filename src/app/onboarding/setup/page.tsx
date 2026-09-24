@@ -27,6 +27,7 @@ export default function SelfSetupStart() {
   const [gateMsg, setGateMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [lead, setLead] = useState(false);
 
   const set = (k: keyof typeof form, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -80,11 +81,13 @@ export default function SelfSetupStart() {
           fullName: form.fullName, email: form.email, linkedinUrl: form.linkedinUrl, country: form.country,
           contactNumber: `${form.contactMethod}:${form.contactHandle.trim()}`, accountFreshness: form.accountFreshness,
           paymentMethod: form.paymentMethod, paymentDetails: form.paymentDetails, payoutName: form.payoutName,
-          linkedinVerified: form.linkedinVerified, consent: true, permit,
+          linkedinVerified: form.linkedinVerified, consent: true, permit, tier,
         }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Could not start onboarding.");
+      // Provisionable country → live wizard. Anywhere else → captured as a lead.
+      if (d.lead) { setLead(true); return; }
       window.location.href = `/onboarding/setup/${encodeURIComponent(d.token)}`;
     } catch (e) { setError(e instanceof Error ? e.message : "Could not start onboarding."); setSubmitting(false); }
   };
@@ -96,6 +99,13 @@ export default function SelfSetupStart() {
   return (
     <main style={{ minHeight: "100dvh", background: "#F6F8F7", fontFamily: "'Inter',sans-serif" }}>
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 18px 70px" }}>
+        {lead ? (
+          <div style={{ background: "#0D2A1C", borderRadius: 18, padding: "36px 28px", textAlign: "center", color: "#fff" }}>
+            <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
+            <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>Thanks, {form.fullName.split(" ")[0] || "you're in"}!</h2>
+            <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: 0 }}>We&apos;re not set up to onboard instantly in your country just yet, so our team will get your account ready and reach out by email at <strong style={{ color: "#fff" }}>{form.email}</strong>. You&apos;ll still get your sign-on bonus and {"₱"}500/month.</p>
+          </div>
+        ) : (<>
         <h1 style={{ fontFamily: "'Poppins','Inter',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", margin: "0 0 6px" }}>Do it yourself — set up now</h1>
         <p style={{ fontSize: 14.5, color: "#5A6473", margin: "0 0 22px" }}>{TIER_LABEL[tier] || TIER_LABEL.full}. Verify your email, add a few details, then you&apos;ll go through the quick setup yourself — zero delays.</p>
 
@@ -160,6 +170,7 @@ export default function SelfSetupStart() {
             {submitting ? "Starting…" : permit ? "Start my setup →" : "Verify your email to continue"}
           </button>
         </div>
+        </>)}
       </div>
     </main>
   );
