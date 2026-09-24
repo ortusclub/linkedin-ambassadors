@@ -121,7 +121,6 @@ export default function BecomeAmbassadorPage() {
   const [currency, setCurrency] = useState<"PHP" | "USD">("PHP");
   // If the ?ref= belongs to an Ortus referrer, the form adapts: an Ortus-use note + USD-first pricing.
   const [refType, setRefType] = useState<string | null>(null);
-  const [refName, setRefName] = useState<string | null>(null);
   const isOrtusRef = refType === "ortus";
   // Ortus referrals book the Ortus Calendly; everyone else keeps the standard schedule.
   const bookingUrl = isOrtusRef ? ORTUS_CALENDAR_URL : CALENDAR_URL;
@@ -201,7 +200,6 @@ export default function BecomeAmbassadorPage() {
           .then((d) => {
             if (d?.referrer) {
               setRefType(d.referrer.type);
-              setRefName(d.referrer.name);
               if (d.referrer.type === "ortus") setCurrency("USD"); // lead with USD for Ortus
             }
           })
@@ -894,7 +892,7 @@ export default function BecomeAmbassadorPage() {
                 <div style={{ maxWidth: 780, margin: "22px auto 0", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 14, padding: "16px 18px" }}>
                   <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 14, color: "#6D28D9", marginBottom: 6 }}>◆ How your account will be used</div>
                   <p style={{ fontSize: 14, lineHeight: 1.6, color: "#37424F", margin: 0 }}>
-                    This account will be used by <b>{refName || "the person who sent you this form"}</b>. If they already have 10 accounts, it will go into the pool of <b>Ortus Club</b> accounts. Either way, it will <b>only ever be used by The Ortus Club</b> — never rented to or used by any other company.
+                    This account will be used by <b>the referrer</b>. In the event that the referrer already has enough accounts, or is not an Ortus team member, the account will be used for <b>Ortus projects only</b> — it will never be rented to or used by any other company.
                   </p>
                 </div>
               )}
