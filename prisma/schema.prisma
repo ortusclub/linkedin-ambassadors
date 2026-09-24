@@ -595,6 +595,10 @@ model SelfServiceOnboarding {
   proxyPurchaseAt DateTime? @map("proxy_purchase_at")
   email String @unique
   linkedinUrl String @unique @map("linkedin_url")
+  // Per-session public token for the DIY self-onboarding flow: lets the ambassador drive
+  // ONLY their own session via /api/self-onboarding/<token>, without the shared referrer
+  // token (which would expose other people's sessions). Null for referrer-driven sessions.
+  publicToken String? @unique @map("public_token")
   state String @default("reserved")
   consentAt DateTime @map("consent_at")
   openedAt DateTime? @map("opened_at")

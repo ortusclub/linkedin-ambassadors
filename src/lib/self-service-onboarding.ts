@@ -16,6 +16,35 @@ export class OnboardingError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
 
+// --- DIY self-onboarding: per-session public token (ambassador drives only their own session) ---
+import { randomBytes } from "crypto";
+
+// The hidden system referrer that DIY self-serve sessions attribute to.
+export const DIY_REFERRER_SLUG = "diy";
+
+// Mint (once) and return a per-session public token for the given onboarding session.
+export async function mintSelfToken(sessionId: string): Promise<string> {
+  const existing = await prisma.selfServiceOnboarding.findUnique({ where: { id: sessionId }, select: { publicToken: true } });
+  if (existing?.publicToken) return existing.publicToken;
+  const token = randomBytes(24).toString("base64url");
+  await prisma.selfServiceOnboarding.update({ where: { id: sessionId }, data: { publicToken: token } });
+  return token;
+}
+
+// Resolve a per-session public token to its session id + owning referrer. Throws if unknown.
+// This is the ONLY authorization for the /api/self-onboarding routes, and it scopes every
+// action to exactly one session — so a token can never see or touch another person's data.
+export async function resolveSelfSession(token: string): Promise<{ sessionId: string; referrerId: string; referrerSlug: string }> {
+  const s = token
+    ? await prisma.selfServiceOnboarding.findUnique({
+        where: { publicToken: token },
+        select: { id: true, referrerId: true, referrer: { select: { slug: true, active: true } } },
+      })
+    : null;
+  if (!s || !s.referrer.active) throw new OnboardingError("This onboarding link is not valid.", 404);
+  return { sessionId: s.id, referrerId: s.referrerId, referrerSlug: s.referrer.slug };
+}
+
 async function availableProxies(db: Prisma.TransactionClient = prisma) {
   const [proxies, accounts, reservations] = await Promise.all([
     db.proxy.findMany({ orderBy: { createdAt: "asc" } }),
