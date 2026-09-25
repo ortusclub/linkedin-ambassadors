@@ -452,7 +452,10 @@ export default function AdminReferralsPage() {
       : (r.contactHandle ? [{ method: r.contactMethod || "WhatsApp", handle: r.contactHandle, preferred: true }] : [{ method: "WhatsApp", handle: "" }]);
     let preferred = contacts.findIndex((c) => c.preferred);
     if (preferred < 0) preferred = 0;
-    setDForm({ email: r.email || "", contacts, preferred, paymentMethod: r.paymentMethod || "GCash", paymentDetails: r.paymentDetails || "" });
+    // Default the payout method to the referrer's currency default (Wise for USD, GCash for PH)
+    // rather than always GCash, so an overseas referrer isn't seeded a PH-only method.
+    const defaultMethod = CURRENCY_CONFIG[referralCurrency(r.slug)].defaultPayoutMethod;
+    setDForm({ email: r.email || "", contacts, preferred, paymentMethod: r.paymentMethod || defaultMethod, paymentDetails: r.paymentDetails || "" });
     setDetailId(r.id);
   };
   const saveDetails = async (r: Referrer) => {
