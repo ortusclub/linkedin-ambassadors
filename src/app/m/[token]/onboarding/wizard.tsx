@@ -11,10 +11,11 @@ import EmailStep, { type EmailSetup } from "./email-step";
 import { CoachTour, type TourStep } from "./coach-tour";
 import TotpCode, { looksLikeTotpKey } from "./totp";
 
-// Per-page coach tours — a referrer gets a short walkthrough of each screen. The tour
-// keeps showing on every fresh onboarding until they've run BOTH a computer AND a phone
-// onboarding at least once (see `experienced`); until then suppression is in-memory only,
-// so it re-appears next time they open the wizard. "Skip tour" quiets it for that run.
+// Per-page coach tours — a referrer gets a short walkthrough of each screen. Tours stop
+// entirely once they've run BOTH a computer AND a phone onboarding (see `experienced`).
+// Before that, each page's tour shows until it's skipped or clicked through, and that
+// dismissal is persisted per token in localStorage (readTourStore / writeTourStore) so it
+// does NOT reappear on every fresh onboarding. "Skip tour" quiets all pages for good.
 const PAGE_TOURS: Record<string, TourStep[]> = {
   before: [
     { title: "Welcome — quick tour", body: "You'll do this virtually with the account owner — you drive the steps, they confirm and do their bits on their own device — in about 10 minutes. Here's the lay of the land." },
@@ -87,6 +88,24 @@ const PROXY_COUNTRIES = ["IN", "GB", "US", "PH"];
 // adds a few more days once cleared.
 const checkWindow = (_freshness?: string | null) => "about a week";
 
+// The coach tour is a first-run aid. Its "seen / skipped" state is persisted per referrer
+// token in localStorage (best-effort — private mode or blocked storage just falls back to
+// in-memory), so it stops popping up on every fresh onboarding once they've skipped it or
+// clicked through it. Wrapped in try/catch and SSR-guarded; a read that fails reads as "new".
+const tourStoreKey = (token: string) => `lv-ob-tour:${token}`;
+function readTourStore(token: string): { skipped: boolean; seen: string[] } {
+  if (typeof window === "undefined") return { skipped: false, seen: [] };
+  try {
+    const raw = window.localStorage.getItem(tourStoreKey(token));
+    const p = raw ? JSON.parse(raw) : null;
+    return { skipped: !!p?.skipped, seen: Array.isArray(p?.seen) ? p.seen.filter((s: unknown): s is string => typeof s === "string") : [] };
+  } catch { return { skipped: false, seen: [] }; }
+}
+function writeTourStore(token: string, value: { skipped: boolean; seen: string[] }) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(tourStoreKey(token), JSON.stringify(value)); } catch { /* private mode / blocked — fine */ }
+}
+
 export default function SelfServiceWizard({ token, endpoint: endpointProp, selfMode = false }: { token: string; endpoint?: string; selfMode?: boolean }) {
   // selfMode = the public DIY flow: the ambassador drives their OWN session via a per-session
   // token + the /api/self-onboarding mirror. Everything else is shared with the referral flow.
@@ -101,10 +120,13 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const [consent, setConsent] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
-  // In-memory tour suppression (per wizard load): which pages have been seen, and whether
-  // the whole run was skipped. Not persisted — so the tour returns on the next onboarding.
-  const tourSeen = useRef<Set<string>>(new Set());
-  const [tourSkipped, setTourSkipped] = useState(false);
+  // Tour suppression: which pages have been seen, and whether the whole run was skipped.
+  // Seeded once from localStorage (per token) so a tour the referrer has already skipped or
+  // clicked through does NOT return on the next onboarding; endTour writes changes back.
+  const tourInit = useRef<{ skipped: boolean; seen: string[] } | null>(null);
+  if (tourInit.current === null) tourInit.current = readTourStore(token);
+  const tourSeen = useRef<Set<string>>(new Set(tourInit.current.seen));
+  const [tourSkipped, setTourSkipped] = useState(tourInit.current.skipped);
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
   const [phoneBusy, setPhoneBusy] = useState(false);
@@ -196,6 +218,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     setShowTour(false);
     if (tourKey) tourSeen.current.add(tourKey);
     if (skipped) setTourSkipped(true);
+    // Persist so the tour stays quiet on the next onboarding, not just this load.
+    writeTourStore(token, { skipped: skipped || tourSkipped, seen: [...tourSeen.current] });
   };
 
   async function run(task: () => Promise<void>) {
