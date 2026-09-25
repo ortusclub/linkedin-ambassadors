@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { sendSetupFeePaidEmail, sendMonthlyPayoutEmail } from "@/services/email";
 import { currencyConfigFor } from "@/lib/referral-currency";
+import { carryAppRestrictionToAccount } from "@/lib/restriction";
 
 const updateSchema = z.object({
   status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarding", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
@@ -245,6 +246,9 @@ export async function PATCH(
         if (existing.status === "under_review") {
           await prisma.linkedInAccount.update({ where: { id: existing.id }, data: { status: "unavailable" } });
         }
+        // If this lead was flagged restricted in the pipeline before the account was
+        // linked, carry that onto the now-linked account so both views agree.
+        await carryAppRestrictionToAccount(existing.id, application);
       } else {
         // Monthly rate follows the referrer's currency (PH ₱500 / non-PH USD $8 — see
         // lib/referral-currency). For PH, offered_amount is unreliable (it sometimes holds
@@ -253,7 +257,7 @@ export async function PATCH(
         const cfg = currencyConfigFor(application.payoutCurrency, application.referredBy);
         const offered = Number(application.offeredAmount) || 0;
         const monthly = cfg.currency === "PHP" && offered >= 100 ? offered : cfg.monthlyAmount;
-        await prisma.linkedInAccount.create({
+        const created = await prisma.linkedInAccount.create({
           data: {
             linkedinName: application.fullName,
             linkedinUrl: application.linkedinUrl || null,
@@ -267,6 +271,8 @@ export async function PATCH(
             notes: `Owner: ${application.email}. Profile email: ${application.linkedinEmail || application.email}.`,
           },
         });
+        // Carry a pre-account pipeline restriction flag onto the freshly-created account.
+        await carryAppRestrictionToAccount(created.id, application);
       }
     }
 
