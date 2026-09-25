@@ -117,7 +117,6 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   // there once and reused at sign-in, so the live authenticator code is on hand when
   // LinkedIn asks for it instead of pushing a confirmation to the owner's phone.
   const [twoFactorKey, setTwoFactorKey] = useState("");
-  const [noTwoFactor, setNoTwoFactor] = useState(false);
   const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false });
   const [accountVerified, setAccountVerified] = useState<"" | "yes" | "no" | "unsure">("");
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -239,7 +238,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   async function handoff(password: string) {
     if (!session) return;
     await run(async () => {
-      await request("PATCH", { id: session.id, action: "handoff", password, twoFactorKey: noTwoFactor ? "" : twoFactorKey.trim() });
+      await request("PATCH", { id: session.id, action: "handoff", password, twoFactorKey: twoFactorKey.trim() });
       setHandedOff(true);
     });
   }
@@ -251,14 +250,14 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   async function confirmLogin(password: string) {
     if (!session) return;
     await run(async () => {
-      const data = await request("PATCH", { id: session.id, action: "confirm", password, twoFactorKey: noTwoFactor ? "" : twoFactorKey.trim() });
+      const data = await request("PATCH", { id: session.id, action: "confirm", password, twoFactorKey: twoFactorKey.trim() });
       showSession(data.session);
     });
   }
   // Persist the 2FA key as soon as it's set up (2FA step), so it's recorded even if the
   // onboarding stalls before sign-in. Best-effort; the sign-in confirm/hand-off also send it.
   async function saveTwoFactor() {
-    if (!session || noTwoFactor || !looksLikeTotpKey(twoFactorKey)) return;
+    if (!session || !looksLikeTotpKey(twoFactorKey)) return;
     try { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); } catch { /* best effort */ }
   }
   async function uploadPhoto(file: File) {
@@ -492,21 +491,19 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <div>Why it matters</div>
               <p>The device prompt is the biggest hold-up in onboarding. Setting this up now means the sign-in — and any future check — asks for a code you can generate here, not a tap on the owner&apos;s phone.</p>
             </div>
-            {!noTwoFactor && <>
-              <ol className={styles.instructions}>
-                <li>In the LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong>.</li>
-                <li>Choose <strong>Authenticator app</strong>. When LinkedIn shows a QR code, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong>.</li>
-                <li>Paste that key below. We&apos;ll show the 6-digit code — type it into LinkedIn to finish turning 2FA on.</li>
-              </ol>
-              <label className={styles.field} data-tour="twofa-key">The 2FA setup key
-                <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
-              </label>
-              <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
-            </>}
-            <label className={styles.check}><input type="checkbox" checked={noTwoFactor} onChange={(e) => { setNoTwoFactor(e.target.checked); if (e.target.checked) setTwoFactorKey(""); }} /><span>We can&apos;t set up 2FA right now — the team will do it at sign-in.</span></label>
+            <ol className={styles.instructions}>
+              <li>In the LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong>.</li>
+              <li>Choose <strong>Authenticator app</strong>. When LinkedIn shows a QR code, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong>.</li>
+              <li>Paste that key below. We&apos;ll show the 6-digit code — type it into LinkedIn to finish turning 2FA on.</li>
+            </ol>
+            <p className={styles.hint} style={{ margin: "0 0 14px" }}>Need the steps with screenshots? Follow the <a href="https://linkedvelocity.com/guide/two-step-verification" target="_blank" rel="noreferrer">two-step verification guide</a>.</p>
+            <label className={styles.field} data-tour="twofa-key">The 2FA setup key
+              <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
+            </label>
+            <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={() => setStep(3)}>Back</button>
-              <button type="button" className={styles.primary} disabled={!noTwoFactor && !looksLikeTotpKey(twoFactorKey)} onClick={() => { void saveTwoFactor(); setStep(5); }}>Continue to sign-in →</button>
+              <button type="button" className={styles.primary} disabled={!looksLikeTotpKey(twoFactorKey)} onClick={() => { void saveTwoFactor(); setStep(5); }}>Continue to sign-in →</button>
             </div>
           </>}
 
@@ -529,14 +526,14 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             </button>
           </> : browserMode === "phone" ? <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
-            <PhoneHandoff busy={busy} error={error} hasTwoFactor={!noTwoFactor && looksLikeTotpKey(twoFactorKey)} submit={handoff} />
+            <PhoneHandoff busy={busy} error={error} submit={handoff} />
           </> : <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
             <div className={styles.infoBlue}><div>This step needs a computer</div><p>The sign-in uses GoLogin desktop software. If you&apos;re on a phone, copy this link and open it on a Windows or Mac computer with the account owner.</p></div>
             <button type="button" className={styles.secondary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Copy / share this link"}</button>
             <WaitNotice primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null} />
             {session.emailSetup && <><div className={styles.emailAddressCard}><span>LinkedIn login email</span><strong>{session.emailSetup.address}</strong><button type="button" onClick={() => { if (session.emailSetup?.address) { navigator.clipboard?.writeText(session.emailSetup.address); setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800); } }}>{emailCopied ? "Copied ✓" : "Copy email"}</button></div><div className={styles.note}>{session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
-            <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={noTwoFactor ? "" : twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+            <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>)}
 
           {step === 6 && session && <>
