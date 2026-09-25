@@ -42,6 +42,10 @@ type Payout = {
 
 interface Row {
   id: string;
+  // True for an inventory-only account (a LinkedIn account we hold with no ambassador
+  // application). These are surfaced only when restricted, render as a compact card, and
+  // are excluded from the level / onboarding metrics. See the onboarding route.
+  accountOnly?: boolean;
   fullName: string;
   email: string;
   contactNumber: string | null;
@@ -138,6 +142,7 @@ type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejec
 // Account statuses that mean the account is genuinely live and earning (counts as Level 5).
 const EARNING_INVENTORY = new Set(["available", "rented", "trial"]);
 const levelOf = (r: Row): 0 | 1 | 2 | 3 | 4 | 5 => {
+  if (r.accountOnly) return 0; // inventory-only account (no application) — sits at the bottom
   if (r.status === "rejected" || r.status === "unreachable") return 0; // rejected or unreachable — not progressing; grouped at the bottom
   if (r.status === "onboarded") return 5;          // matured + paid — live and earning
   // A genuinely live, earning account (available / rented / trial) is Level 5 even when the
@@ -301,7 +306,7 @@ const QC_ITEMS: [keyof NonNullable<Row["qcChecks"]>, string][] = [
   ["about", "About section is filled in"],
   ["experiences", "Has at least two experiences"],
   ["education", "Has education listed"],
-  ["connections", "At least 10 new connections"],
+  ["connections", "Has sent new connection requests"],
 ];
 const eligibleMs = (r: Row): number | null => (r.onboardedAt ? new Date(r.onboardedAt).getTime() + 86400000 : null);
 // Setup fee is "due" only once it's been 24h since login — not the moment they log in.
@@ -676,7 +681,9 @@ export default function AdminPipelinePage() {
 
   // ---- header / strip metrics (from the full scoped set, ignoring filters) ----
   const metrics = useMemo(() => {
-    const all = rows || [];
+    // Inventory-only account rows are not applications, so they never count toward the
+    // onboarding-ladder metrics — only toward the "problem accounts" issue tally below.
+    const all = (rows || []).filter((r) => !r.accountOnly);
     // Level = the ambassador's real STATUS, not whether they've logged in. A Level-2
     // (approved) person who has logged in is still Level 2 (warming up / verifying)
     // until their setup fee is paid — they must keep counting here.
@@ -686,7 +693,7 @@ export default function AdminPipelinePage() {
     const earningOk = earning.filter((r) => !isBlocked(r));
     const inPayments = all.filter(isLive);                                 // logged in or onboarded (the payments view)
     const noGologin = all.filter(missingGologin).length;
-    const issues = all.filter(isBlocked).length;
+    const issues = (rows || []).filter(isBlocked).length; // includes inventory-only restricted accounts
     const monthly = earningOk.reduce((s, r) => s + monthlyAmt(r), 0);
     const setupsDue = inPayments.filter((r) => !isBlocked(r) && setupDue(r)).length;   // setup fee owed now (24h after login, unpaid)
     const liveBlocked = inPayments.filter(isBlocked).length;
@@ -860,10 +867,12 @@ export default function AdminPipelinePage() {
         <GroupSection key={g.key} title={g.label} tone={g.dot} note={g.note} count={g.items.length}
           subtotal={mode === "live" ? formatMoney(g.items.filter((r) => !isBlocked(r)).reduce((s, r) => s + monthlyAmt(r), 0), "PHP") + "/mo" : ""}>
           {g.items.map((r) => (
-            <Card key={r.id} r={r} busy={busy === r.id} open={open.has(r.id)} onToggle={() => toggle(r.id)}
-              patchApp={patchApp} patchAccount={patchAccount} deleteRestrictionEvent={deleteRestrictionEvent} setStage={changeStatus} workflow={workflow}
-              provisionGologin={provisionGologin} deleteGologin={deleteGologin} emailIssue={emailIssue}
-              logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} onDeleteApp={() => deleteApp(r)} />
+            r.accountOnly
+              ? <AccountOnlyCard key={r.id} r={r} patchAccount={patchAccount} deleteRestrictionEvent={deleteRestrictionEvent} />
+              : <Card key={r.id} r={r} busy={busy === r.id} open={open.has(r.id)} onToggle={() => toggle(r.id)}
+                  patchApp={patchApp} patchAccount={patchAccount} deleteRestrictionEvent={deleteRestrictionEvent} setStage={changeStatus} workflow={workflow}
+                  provisionGologin={provisionGologin} deleteGologin={deleteGologin} emailIssue={emailIssue}
+                  logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} onDeleteApp={() => deleteApp(r)} />
           ))}
         </GroupSection>
       ))}
@@ -1474,6 +1483,37 @@ function ToggleChip({ on, onLabel, offLabel, onClick, href, green }: { on: boole
 // Set the account's earning/restriction state in one tap. Maps to the fields the rest
 // of the app already uses: restrictedAt (temporary), status retired (permanent), status
 // removed (withdrawn). "Active" clears the restriction and puts it back in-hand.
+// Compact card for an inventory-only account (a LinkedIn account we hold with no ambassador
+// application). It carries no onboarding lifecycle, so we show just enough to see what it is
+// and the same Restriction control the full card uses — writing to the account, so a
+// recover/restrict here matches the inventory view exactly.
+function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
+  r: Row;
+  patchAccount: (id: string, accountId: string, patch: Record<string, unknown>, reload?: boolean) => void;
+  deleteRestrictionEvent: (accountId: string, at: string) => void;
+}) {
+  const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
+  const facts = [
+    r.loginEmail && `Login: ${r.loginEmail}`,
+    r.connectionCount != null && `${r.connectionCount} connections`,
+    r.linkedinVerified && "Verified",
+    r.proxyLocation && `Proxy: ${r.proxyLocation}`,
+    r.accountStatus && `Status: ${r.accountStatus}`,
+  ].filter(Boolean) as string[];
+  return (
+    <div style={{ background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, padding: "14px 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+        <span style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)" }}>{r.fullName}</span>
+        <span title="Inventory account with no ambassador application" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--band,#f1f1f2)", color: "var(--muted,#647189)" }}>Inventory only · no application</span>
+        {r.accountRestrictedAt && <span style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ Restricted {fmtDate(r.accountRestrictedAt)}</span>}
+        <a href="/admin/accounts" style={{ marginLeft: "auto", font: `600 11.5px ${F_SANS}`, color: "var(--link,#1a56db)", textDecoration: "none" }}>Open in Inventory →</a>
+      </div>
+      {facts.length > 0 && <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#647189)", marginBottom: 10 }}>{facts.join("  ·  ")}</div>}
+      <RestrictionControl r={r} onAccount={acctSave} onApp={() => {}} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} />
+    </div>
+  );
+}
+
 function RestrictionControl({ r, onAccount, onApp, onDeleteEvent }: { r: Row; onAccount: (patch: Record<string, unknown>, reload?: boolean) => void; onApp: (patch: Record<string, unknown>) => void; onDeleteEvent: (at: string) => void }) {
   const hasAcct = !!r.accountId;
   const issue = (r.accountIssue || "").toLowerCase();

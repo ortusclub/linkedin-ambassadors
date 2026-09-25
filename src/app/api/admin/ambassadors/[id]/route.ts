@@ -5,6 +5,8 @@ import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { sendSetupFeePaidEmail, sendMonthlyPayoutEmail } from "@/services/email";
 import { currencyConfigFor } from "@/lib/referral-currency";
+import { carryAppRestrictionToAccount } from "@/lib/restriction";
+import { deleteApplicationCascade } from "@/lib/application-delete";
 
 const updateSchema = z.object({
   status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarding", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
@@ -245,6 +247,9 @@ export async function PATCH(
         if (existing.status === "under_review") {
           await prisma.linkedInAccount.update({ where: { id: existing.id }, data: { status: "unavailable" } });
         }
+        // If this lead was flagged restricted in the pipeline before the account was
+        // linked, carry that onto the now-linked account so both views agree.
+        await carryAppRestrictionToAccount(existing.id, application);
       } else {
         // Monthly rate follows the referrer's currency (PH ₱500 / non-PH USD $8 — see
         // lib/referral-currency). For PH, offered_amount is unreliable (it sometimes holds
@@ -253,7 +258,7 @@ export async function PATCH(
         const cfg = currencyConfigFor(application.payoutCurrency, application.referredBy);
         const offered = Number(application.offeredAmount) || 0;
         const monthly = cfg.currency === "PHP" && offered >= 100 ? offered : cfg.monthlyAmount;
-        await prisma.linkedInAccount.create({
+        const created = await prisma.linkedInAccount.create({
           data: {
             linkedinName: application.fullName,
             linkedinUrl: application.linkedinUrl || null,
@@ -267,6 +272,8 @@ export async function PATCH(
             notes: `Owner: ${application.email}. Profile email: ${application.linkedinEmail || application.email}.`,
           },
         });
+        // Carry a pre-account pipeline restriction flag onto the freshly-created account.
+        await carryAppRestrictionToAccount(created.id, application);
       }
     }
 
@@ -282,65 +289,16 @@ export async function PATCH(
   }
 }
 
-// Permanently remove a signup (e.g. clearing test data).
-//
-// A plain application deletes directly. A DIY (self-service) application also has
-// a SelfServiceOnboarding row (+ its email setup/deliveries) and a LinkedInAccount
-// that foreign-key it, so a bare delete fails with a FK violation. We cascade those
-// child rows in a transaction. The created LinkedInAccount is only removed when it's
-// safe throwaway test data — not listed in inventory and never rented; a real live
-// account is left in place (its onboarding link is cleared) and we report that back.
+// Permanently remove a signup (e.g. clearing test data). The cascade (onboarding rows,
+// then the account when it's safe throwaway data) lives in deleteApplicationCascade, shared
+// with the referrer portal's own delete.
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAdmin();
     const { id } = await params;
-
-    const onboarding = await prisma.selfServiceOnboarding.findUnique({
-      where: { applicationId: id },
-      select: { id: true, accountId: true },
-    });
-
-    // Simple case: no DIY onboarding attached — delete the application directly.
-    if (!onboarding) {
-      await prisma.ambassadorApplication.delete({ where: { id } });
-      return NextResponse.json({ ok: true });
-    }
-
-    // DIY case: decide whether the created account is safe to remove.
-    const account = await prisma.linkedInAccount.findUnique({
-      where: { id: onboarding.accountId },
-      select: {
-        id: true,
-        listed: true,
-        _count: { select: { rentals: true } },
-      },
-    });
-    const accountSafeToDelete = !!account && !account.listed && account._count.rentals === 0;
-
-    await prisma.$transaction(async (tx) => {
-      // Onboarding email records (session_id -> SelfServiceOnboarding.id).
-      await tx.onboardingEmailDelivery.deleteMany({ where: { sessionId: onboarding.id } });
-      await tx.onboardingEmailSetup.deleteMany({ where: { sessionId: onboarding.id } });
-      // Any per-owner invite that pointed at this session (avoid orphaned invites).
-      await tx.onboardingInvite.deleteMany({ where: { sessionId: onboarding.id } });
-      // The onboarding row itself (FKs the application + the account).
-      await tx.selfServiceOnboarding.delete({ where: { id: onboarding.id } });
-      // Now the application FK is free.
-      await tx.ambassadorApplication.delete({ where: { id } });
-      // Only clear away the created account if it's throwaway test data.
-      if (accountSafeToDelete) {
-        await tx.waitlist.deleteMany({ where: { linkedinAccountId: onboarding.accountId } });
-        await tx.cryptoPayment.deleteMany({ where: { linkedinAccountId: onboarding.accountId } });
-        await tx.linkedInAccount.delete({ where: { id: onboarding.accountId } });
-      }
-    });
-
-    return NextResponse.json({
-      ok: true,
-      accountDeleted: accountSafeToDelete,
-      // Tell the admin when we kept a real account instead of deleting it.
-      accountKept: !accountSafeToDelete,
-    });
+    const { accountDeleted, accountKept } = await deleteApplicationCascade(id);
+    // accountKept tells the admin when we kept a real account instead of deleting it.
+    return NextResponse.json({ ok: true, accountDeleted, accountKept });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
       return NextResponse.json({ error: error.message }, { status: error.message === "Forbidden" ? 403 : 401 });

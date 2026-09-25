@@ -21,12 +21,18 @@ export async function GET(req: NextRequest) {
   if (statusFilter) {
     where.status = statusFilter;
     where.listed = true;
+    // Same guard when explicitly filtering to "available": don't surface restricted /
+    // 2FA-reset accounts that still carry status "available".
+    if (statusFilter === "available") { where.restrictedAt = null; where.twoFactorResetNeeded = false; }
   } else {
     // Available accounts must be listed to appear; rented AND trial accounts show
     // regardless of `listed` — displayed as "Rented" (social proof / real inventory,
     // including off-platform rentals which are held unlisted).
     and.push({ OR: [
-      { status: "available", listed: true },
+      // "Available" must also be genuinely rentable: a restricted (recovering) or
+      // 2FA-reset-needed account keeps status "available" but must NOT be offered —
+      // mirrors the admin canonicalStatus so the catalogue and inventory agree.
+      { status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false },
       { status: { in: ["rented", "trial"] } },
     ] });
   }

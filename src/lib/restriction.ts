@@ -63,3 +63,38 @@ export async function restrictionUpdate(
     creditedDays,
   };
 }
+
+// Restriction can be flagged on an application (accountIssue free-text) BEFORE an account
+// exists — that's the only place to record it for an account-less lead. These helpers move
+// that flag onto the account once one is linked, so the account stays the single source of
+// truth. "permanent" issues mean retired, handled separately, so they don't count here.
+export function appIssueIsRestricted(accountIssue?: string | null): boolean {
+  const s = (accountIssue || "").toLowerCase();
+  return s.includes("restrict") && !s.includes("permanent");
+}
+
+// When an account becomes linked to an application, carry a pending pipeline-side
+// restriction flag onto the account (logging it), then clear the keyword from the
+// application so the two views agree. Safe to call whenever an account is created/linked:
+// it no-ops if the app isn't flagged or the account is already restricted. Pass a tx-bound
+// client (or the default prisma) so it can run inside the caller's transaction.
+export async function carryAppRestrictionToAccount(
+  accountId: string,
+  app: { id: string; accountIssue: string | null } | null | undefined,
+  db: { linkedInAccount: typeof prisma.linkedInAccount; ambassadorApplication: typeof prisma.ambassadorApplication } = prisma,
+): Promise<boolean> {
+  if (!app || !appIssueIsRestricted(app.accountIssue)) return false;
+  const acct = await db.linkedInAccount.findUnique({
+    where: { id: accountId },
+    select: { id: true, restrictedAt: true, restrictionLog: true },
+  });
+  if (!acct || acct.restrictedAt) return false; // no account, or already restricted → nothing to carry
+  const fields = await restrictionUpdate(acct, true, "Carried over from pipeline restriction flag");
+  await db.linkedInAccount.update({
+    where: { id: accountId },
+    data: { restrictedAt: fields.restrictedAt, ...(fields.restrictionLog ? { restrictionLog: fields.restrictionLog } : {}) },
+  });
+  // Remove the restriction keyword from the app now that the account owns the state.
+  await db.ambassadorApplication.update({ where: { id: app.id }, data: { accountIssue: null } });
+  return true;
+}

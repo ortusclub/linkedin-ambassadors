@@ -39,7 +39,7 @@ export async function GET() {
         ambassadorPayment: true, connectionCount: true, status: true,
         restrictedAt: true, restrictionLog: true, notes: true, linkedinVerified: true,
         proxyHost: true, proxyPort: true, proxyUsername: true,
-        proxyPassword: true, proxyLocation: true, provisionStatus: true,
+        proxyPassword: true, proxyLocation: true, provisionStatus: true, createdAt: true,
       },
     });
 
@@ -216,7 +216,61 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ rows });
+    // Inventory-only accounts: LinkedIn accounts we hold that never came through an
+    // ambassador application, so no row above represents them. Surface the RESTRICTED ones
+    // as lightweight "account-only" rows so a restriction set on the inventory side is
+    // visible (and recoverable) here too. They carry accountOnly:true; the pipeline renders
+    // them with a compact card and excludes them from the level/onboarding metrics.
+    const matchedAccountIds = new Set(rows.map((r) => r.accountId).filter(Boolean) as string[]);
+    const orphanRows = accounts
+      .filter((a) => a.restrictedAt && !matchedAccountIds.has(a.id) && a.status !== "retired")
+      .map((a) => ({
+        id: `acct:${a.id}`,
+        accountOnly: true,
+        fullName: a.linkedinName,
+        email: a.loginEmail || "",
+        contactNumber: null, contactChannel: null,
+        linkedinUrl: a.linkedinUrl,
+        location: null,
+        status: "reviewing",
+        createdAt: a.createdAt,
+        onboardedAt: null,
+        accountIssue: null, onboardingFix: null, restrictionReport: null,
+        adminNotes: null, applicationNotes: null, outreachLog: null,
+        nextFollowUp: null, callOutcome: null,
+        referredBy: null, referrer: null, payoutCurrency: null, referralSource: null,
+        industry: null, poc: null, linkedinEmail: null, bookingEmail: null,
+        accountFreshness: null, ownerStatus: null,
+        paymentMethod: null, paymentDetails: null, payoutName: null,
+        verifiedAt: null, qcChecks: null, emailPrimaryAt: null, setupPaidAt: null,
+        bucket: "onboarded" as Bucket, reason: "Inventory account · no application",
+        hasGologin: !!(a.gologinProfileId || a.gologinShareLink),
+        hasLogin: !!(a.loginEmail && a.accountPassword),
+        accountId: a.id,
+        accountName: a.linkedinName,
+        accountStatus: a.status,
+        loginEmail: a.loginEmail || null,
+        personalEmail: a.personalEmail || null,
+        workEmail: a.workEmail || null,
+        hasPassword: !!a.accountPassword, has2fa: !!a.twoFactor,
+        accountPassword: null, twoFactor: null,
+        gologinProfileId: a.gologinProfileId || null,
+        gologinShareLink: a.gologinShareLink || null,
+        proxyHost: a.proxyHost || null, proxyPort: a.proxyPort ?? null,
+        proxyUsername: a.proxyUsername || null, proxyPassword: a.proxyPassword || null,
+        proxyLocation: a.proxyLocation || null,
+        accountRestrictedAt: a.restrictedAt,
+        accountRestrictionLog: a.restrictionLog || null,
+        monthlyPrice: a.monthlyPrice != null ? Number(a.monthlyPrice) : null,
+        ambassadorPayment: a.ambassadorPayment != null ? Number(a.ambassadorPayment) : null,
+        accountNotes: a.notes || null,
+        linkedinVerified: !!a.linkedinVerified,
+        provisionStatus: a.provisionStatus || null,
+        connectionCount: a.connectionCount ?? null,
+        phoneHandoffPending: false,
+      }));
+
+    return NextResponse.json({ rows: [...rows, ...orphanRows] });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
       return NextResponse.json({ error: error.message }, { status: 403 });

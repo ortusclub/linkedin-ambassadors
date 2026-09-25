@@ -20,7 +20,9 @@ export async function POST(req: Request) {
     }
 
     const accounts = await prisma.linkedInAccount.findMany({
-      where: { id: { in: accountIds }, status: "available" },
+      // A restricted (recovering) or 2FA-reset-needed account keeps status "available"
+      // but must not be rentable — exclude it so checkout can't grab one.
+      where: { id: { in: accountIds }, status: "available", restrictedAt: null, twoFactorResetNeeded: false },
     });
 
     if (accounts.length === 0) {

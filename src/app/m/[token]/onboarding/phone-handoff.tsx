@@ -5,10 +5,9 @@ import styles from "./wizard.module.css";
 // Phone hand-off: the referrer can't run GoLogin (desktop-only), so they give us a
 // temporary password and we do the sign-in on our side. The 2FA key was captured in the
 // dedicated two-step-verification step before this, so it's sent along by the wizard.
-export default function PhoneHandoff({ busy, error, submit, hasTwoFactor }: {
+export default function PhoneHandoff({ busy, error, submit }: {
   busy: boolean;
   error?: string;
-  hasTwoFactor: boolean;
   submit: (password: string) => Promise<void>;
 }) {
   const [password, setPassword] = useState("");
@@ -26,7 +25,7 @@ export default function PhoneHandoff({ busy, error, submit, hasTwoFactor }: {
     </label>
     <p className={styles.hint}>Have the owner change their LinkedIn password to this in the app (Settings → Sign in &amp; security → Change password). They can reset it whenever they like after setup.</p>
 
-    <div className={styles.note}>{hasTwoFactor ? "Two-step verification is set up — we'll use the code from the previous step when we sign in." : "No 2FA key was set up. The team will turn on two-step verification when they sign in."}</div>
+    <div className={styles.note}>Two-step verification is set up — we&apos;ll use the code from the previous step when we sign in.</div>
 
     <label className={styles.check}><input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} /><span>The owner agrees to share these so LinkedVelocity can sign in and run the account, and understands they keep full access and can reset the password anytime.</span></label>
 

@@ -11,10 +11,11 @@ import EmailStep, { type EmailSetup } from "./email-step";
 import { CoachTour, type TourStep } from "./coach-tour";
 import TotpCode, { looksLikeTotpKey } from "./totp";
 
-// Per-page coach tours — a referrer gets a short walkthrough of each screen. The tour
-// keeps showing on every fresh onboarding until they've run BOTH a computer AND a phone
-// onboarding at least once (see `experienced`); until then suppression is in-memory only,
-// so it re-appears next time they open the wizard. "Skip tour" quiets it for that run.
+// Per-page coach tours — a referrer gets a short walkthrough of each screen. Tours stop
+// entirely once they've run BOTH a computer AND a phone onboarding (see `experienced`).
+// Before that, each page's tour shows until it's skipped or clicked through, and that
+// dismissal is persisted per token in localStorage (readTourStore / writeTourStore) so it
+// does NOT reappear on every fresh onboarding. "Skip tour" quiets all pages for good.
 const PAGE_TOURS: Record<string, TourStep[]> = {
   before: [
     { title: "Welcome — quick tour", body: "You'll do this virtually with the account owner — you drive the steps, they confirm and do their bits on their own device — in about 10 minutes. Here's the lay of the land." },
@@ -66,7 +67,7 @@ type Session = {
   confirmedAt: string | null; accountFreshness: string | null; setupDueAt: string | null; setupAmount: string;
   monthlyAmount: string; commission: string; verified: boolean;
 };
-type Bootstrap = { emailEnabled: boolean; phoneVerificationEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; doneComputer: boolean; donePhone: boolean; sessions: { id: string; state: string; name: string }[] };
+type Bootstrap = { emailEnabled: boolean; phoneVerificationEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; doneComputer: boolean; donePhone: boolean; sessions: { id: string; state: string; name: string; done: boolean }[] };
 
 const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder: string; help: string }> = {
   GCash: { label: "GCash mobile number", type: "tel", placeholder: "+63 9XX XXX XXXX", help: "Enter the mobile number registered to their GCash account." },
@@ -87,6 +88,24 @@ const PROXY_COUNTRIES = ["IN", "GB", "US", "PH"];
 // adds a few more days once cleared.
 const checkWindow = (_freshness?: string | null) => "about a week";
 
+// The coach tour is a first-run aid. Its "seen / skipped" state is persisted per referrer
+// token in localStorage (best-effort — private mode or blocked storage just falls back to
+// in-memory), so it stops popping up on every fresh onboarding once they've skipped it or
+// clicked through it. Wrapped in try/catch and SSR-guarded; a read that fails reads as "new".
+const tourStoreKey = (token: string) => `lv-ob-tour:${token}`;
+function readTourStore(token: string): { skipped: boolean; seen: string[] } {
+  if (typeof window === "undefined") return { skipped: false, seen: [] };
+  try {
+    const raw = window.localStorage.getItem(tourStoreKey(token));
+    const p = raw ? JSON.parse(raw) : null;
+    return { skipped: !!p?.skipped, seen: Array.isArray(p?.seen) ? p.seen.filter((s: unknown): s is string => typeof s === "string") : [] };
+  } catch { return { skipped: false, seen: [] }; }
+}
+function writeTourStore(token: string, value: { skipped: boolean; seen: string[] }) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(tourStoreKey(token), JSON.stringify(value)); } catch { /* private mode / blocked — fine */ }
+}
+
 export default function SelfServiceWizard({ token, endpoint: endpointProp, selfMode = false }: { token: string; endpoint?: string; selfMode?: boolean }) {
   // selfMode = the public DIY flow: the ambassador drives their OWN session via a per-session
   // token + the /api/self-onboarding mirror. Everything else is shared with the referral flow.
@@ -101,10 +120,13 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const [consent, setConsent] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
-  // In-memory tour suppression (per wizard load): which pages have been seen, and whether
-  // the whole run was skipped. Not persisted — so the tour returns on the next onboarding.
-  const tourSeen = useRef<Set<string>>(new Set());
-  const [tourSkipped, setTourSkipped] = useState(false);
+  // Tour suppression: which pages have been seen, and whether the whole run was skipped.
+  // Seeded once from localStorage (per token) so a tour the referrer has already skipped or
+  // clicked through does NOT return on the next onboarding; endTour writes changes back.
+  const tourInit = useRef<{ skipped: boolean; seen: string[] } | null>(null);
+  if (tourInit.current === null) tourInit.current = readTourStore(token);
+  const tourSeen = useRef<Set<string>>(new Set(tourInit.current.seen));
+  const [tourSkipped, setTourSkipped] = useState(tourInit.current.skipped);
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
   const [phoneBusy, setPhoneBusy] = useState(false);
@@ -117,7 +139,6 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   // there once and reused at sign-in, so the live authenticator code is on hand when
   // LinkedIn asks for it instead of pushing a confirmation to the owner's phone.
   const [twoFactorKey, setTwoFactorKey] = useState("");
-  const [noTwoFactor, setNoTwoFactor] = useState(false);
   const [idCheck, setIdCheck] = useState({ hasGovernmentId: false, nameMatchesId: false });
   const [accountVerified, setAccountVerified] = useState<"" | "yes" | "no" | "unsure">("");
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -162,19 +183,16 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     return () => { cancelled = true; };
   }, [endpoint, loadAttempt]);
 
-  // selfMode: the session was already created by /api/self-onboarding/start, so resume it
-  // automatically (jump straight to the email step) instead of showing the details form.
+  // Resume an existing session automatically instead of restarting at the details form:
+  // - selfMode: the ambassador's own single session (created before they arrived).
+  // - referrer path: the specific session the portal's "Resume onboarding" link targets
+  //   (?session=<id>), so they land where they left off. showSession picks the right step.
   useEffect(() => {
-    if (!selfMode || !bootstrap || session) return;
-    const s0 = bootstrap.sessions[0];
-    if (!s0) return;
-    void run(async () => {
-      const s = (await request("GET", undefined, s0.id)).session as Session;
-      setSession(s);
-      if (s.state === "confirmed") setStep(6);
-      else if (s.emailSetup && s.emailSetup.primaryConfirmed) setStep((p) => Math.max(p, 4));
-      else setStep(3);
-    });
+    if (!bootstrap || session) return;
+    const resumeParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("session") : null;
+    const target = selfMode ? bootstrap.sessions[0] : (resumeParam ? bootstrap.sessions.find((s) => s.id === resumeParam) : undefined);
+    if (!target) return;
+    void run(async () => { showSession((await request("GET", undefined, target.id)).session as Session); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selfMode, bootstrap, session]);
 
@@ -197,6 +215,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     setShowTour(false);
     if (tourKey) tourSeen.current.add(tourKey);
     if (skipped) setTourSkipped(true);
+    // Persist so the tour stays quiet on the next onboarding, not just this load.
+    writeTourStore(token, { skipped: skipped || tourSkipped, seen: [...tourSeen.current] });
   };
 
   async function run(task: () => Promise<void>) {
@@ -239,7 +259,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   async function handoff(password: string) {
     if (!session) return;
     await run(async () => {
-      await request("PATCH", { id: session.id, action: "handoff", password, twoFactorKey: noTwoFactor ? "" : twoFactorKey.trim() });
+      await request("PATCH", { id: session.id, action: "handoff", password, twoFactorKey: twoFactorKey.trim() });
       setHandedOff(true);
     });
   }
@@ -251,14 +271,14 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   async function confirmLogin(password: string) {
     if (!session) return;
     await run(async () => {
-      const data = await request("PATCH", { id: session.id, action: "confirm", password, twoFactorKey: noTwoFactor ? "" : twoFactorKey.trim() });
+      const data = await request("PATCH", { id: session.id, action: "confirm", password, twoFactorKey: twoFactorKey.trim() });
       showSession(data.session);
     });
   }
   // Persist the 2FA key as soon as it's set up (2FA step), so it's recorded even if the
   // onboarding stalls before sign-in. Best-effort; the sign-in confirm/hand-off also send it.
   async function saveTwoFactor() {
-    if (!session || noTwoFactor || !looksLikeTotpKey(twoFactorKey)) return;
+    if (!session || !looksLikeTotpKey(twoFactorKey)) return;
     try { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); } catch { /* best effort */ }
   }
   async function uploadPhoto(file: File) {
@@ -393,7 +413,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             {bootstrap.configured && !bootstrap.autoPurchase && bootstrap.countries.length === 0 && <p className={styles.note}>You can enter the details now. A dedicated proxy will be needed before you can save and continue to sign-in.</p>}
             <button data-tour="start" className={styles.primary} disabled={!consent} onClick={() => setStep(1)}>Start onboarding →</button>
             {bootstrap.sessions.length > 0 && <div className={styles.resume}><h3>Your saved onboardings</h3>{bootstrap.sessions.map((s) => <button key={s.id} disabled={busy} onClick={() => run(async () => showSession((await request("GET", undefined, s.id)).session))}>
-              <span>{s.name}</span><span>{s.state === "confirmed" ? "View summary" : "Resume"} →</span></button>)}</div>}
+              <span>{s.name}</span><span>{s.done ? "View summary" : "Resume"} →</span></button>)}</div>}
           </>}
 
           {step === 1 && <form onSubmit={(e) => { e.preventDefault(); if (bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) { setPhoneError("Verify the mobile number before continuing."); return; } setError(""); setStep(2); }}>
@@ -492,21 +512,19 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <div>Why it matters</div>
               <p>The device prompt is the biggest hold-up in onboarding. Setting this up now means the sign-in — and any future check — asks for a code you can generate here, not a tap on the owner&apos;s phone.</p>
             </div>
-            {!noTwoFactor && <>
-              <ol className={styles.instructions}>
-                <li>In the LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong>.</li>
-                <li>Choose <strong>Authenticator app</strong>. When LinkedIn shows a QR code, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong>.</li>
-                <li>Paste that key below. We&apos;ll show the 6-digit code — type it into LinkedIn to finish turning 2FA on.</li>
-              </ol>
-              <label className={styles.field} data-tour="twofa-key">The 2FA setup key
-                <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
-              </label>
-              <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
-            </>}
-            <label className={styles.check}><input type="checkbox" checked={noTwoFactor} onChange={(e) => { setNoTwoFactor(e.target.checked); if (e.target.checked) setTwoFactorKey(""); }} /><span>We can&apos;t set up 2FA right now — the team will do it at sign-in.</span></label>
+            <ol className={styles.instructions}>
+              <li>In the LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong>.</li>
+              <li>Choose <strong>Authenticator app</strong>. When LinkedIn shows a QR code, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong>.</li>
+              <li>Paste that key below. We&apos;ll show the 6-digit code — type it into LinkedIn to finish turning 2FA on.</li>
+            </ol>
+            <p className={styles.hint} style={{ margin: "0 0 14px" }}>Need the steps with screenshots? Follow the <a href="https://linkedvelocity.com/guide/two-step-verification" target="_blank" rel="noreferrer">two-step verification guide</a>.</p>
+            <label className={styles.field} data-tour="twofa-key">The 2FA setup key
+              <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
+            </label>
+            <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={() => setStep(3)}>Back</button>
-              <button type="button" className={styles.primary} disabled={!noTwoFactor && !looksLikeTotpKey(twoFactorKey)} onClick={() => { void saveTwoFactor(); setStep(5); }}>Continue to sign-in →</button>
+              <button type="button" className={styles.primary} disabled={!looksLikeTotpKey(twoFactorKey)} onClick={() => { void saveTwoFactor(); setStep(5); }}>Continue to sign-in →</button>
             </div>
           </>}
 
@@ -529,14 +547,14 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             </button>
           </> : browserMode === "phone" ? <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
-            <PhoneHandoff busy={busy} error={error} hasTwoFactor={!noTwoFactor && looksLikeTotpKey(twoFactorKey)} submit={handoff} />
+            <PhoneHandoff busy={busy} error={error} submit={handoff} />
           </> : <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
             <div className={styles.infoBlue}><div>This step needs a computer</div><p>The sign-in uses GoLogin desktop software. If you&apos;re on a phone, copy this link and open it on a Windows or Mac computer with the account owner.</p></div>
             <button type="button" className={styles.secondary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Copy / share this link"}</button>
             <WaitNotice primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null} />
             {session.emailSetup && <><div className={styles.emailAddressCard}><span>LinkedIn login email</span><strong>{session.emailSetup.address}</strong><button type="button" onClick={() => { if (session.emailSetup?.address) { navigator.clipboard?.writeText(session.emailSetup.address); setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800); } }}>{emailCopied ? "Copied ✓" : "Copy email"}</button></div><div className={styles.note}>{session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
-            <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={noTwoFactor ? "" : twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+            <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>)}
 
           {step === 6 && session && <>
