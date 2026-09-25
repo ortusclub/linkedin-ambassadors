@@ -132,9 +132,10 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       paymentDetails: input.paymentDetails, payoutName: input.payoutName,
       bankName: input.bankName || null, bankAccountNumber: input.bankAccountNumber || null,
       bankRoutingNumber: input.bankRoutingNumber || null,
-      // Ortus-referred owners are handled by Ton as the LV point of contact; everyone
-      // else keeps their referrer as the PoC.
-      referredBy: referrer.slug, referralSource: "self-service", poc: referrer.type === "ortus" ? "Ton" : referrer.name,
+      // LV PoC is the internal handler (Ardi / Sam), NOT the referrer. Ortus-referred
+      // owners are handled by Ton; everyone else is left Unassigned for an LV handler to
+      // pick up. The referrer is tracked via referredBy, so nothing is lost.
+      referredBy: referrer.slug, referralSource: "self-service", ...(referrer.type === "ortus" ? { poc: "Ton" } : {}),
       status: "onboarding", ownerStatus: "onboarding", onboardingStartedAt: now,
       payoutCurrency: cfg.currency, offeredAmount: cfg.monthlyAmount,
       adminNotes: `Self-service onboarding; owner consent and LinkedIn minimum-age confirmation (16, or older where local law requires) recorded ${now.toISOString()}. Login not yet confirmed.${input.hasGovernmentId ? " Owner confirmed they have a physical government ID." : " Owner did NOT confirm a physical government ID."}${input.nameMatchesId ? " Name confirmed to match their ID." : ""}${input.ownerPhotoUrl ? ` Owner photo: ${input.ownerPhotoUrl}` : ""}`,
