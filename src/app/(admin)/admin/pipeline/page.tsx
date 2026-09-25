@@ -306,7 +306,7 @@ const QC_ITEMS: [keyof NonNullable<Row["qcChecks"]>, string][] = [
   ["about", "About section is filled in"],
   ["experiences", "Has at least two experiences"],
   ["education", "Has education listed"],
-  ["connections", "At least 10 new connections"],
+  ["connections", "Has sent new connection requests"],
 ];
 const eligibleMs = (r: Row): number | null => (r.onboardedAt ? new Date(r.onboardedAt).getTime() + 86400000 : null);
 // Setup fee is "due" only once it's been 24h since login — not the moment they log in.
