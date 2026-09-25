@@ -6,7 +6,7 @@ import { CURRENCY_CONFIG } from "@/lib/referral-currency";
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 type FixIssue = "email_added" | "email_primary" | "twofa" | "password";
-interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; pay: { text: string; sub?: string } | null; }
+interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; pay: { text: string; sub?: string } | null; deletable: boolean; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -148,6 +148,8 @@ export default function Portal({ token }: { token: string }) {
   const [lockName, setLockName] = useState<string | null>(null);
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [reportingId, setReportingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [faqOpen, setFaqOpen] = useState<Set<string>>(new Set());
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -197,6 +199,17 @@ export default function Portal({ token }: { token: string }) {
       setData((d) => d && ({ ...d, signups: d.signups.map((s) => s.id === applicationId ? { ...s, restrictionReport: { type, at: new Date().toISOString() } } : s) }));
       setLockName(null);
     } finally { setReportingId(null); }
+  };
+  // Delete one of the referrer's own signups (only offered before onboarding finishes /
+  // any payment — the server enforces the same). Drops it from the list on success.
+  const deleteApplication = async (applicationId: string) => {
+    setDeletingId(applicationId);
+    try {
+      const res = await fetch(`/api/m/${token}?applicationId=${encodeURIComponent(applicationId)}`, { method: "DELETE" });
+      if (!res.ok) { const b = await res.json().catch(() => ({})); alert(b.error || "Could not delete this signup. Please try again."); return; }
+      setDeleteId(null);
+      setData((d) => d && ({ ...d, signups: d.signups.filter((s) => s.id !== applicationId) }));
+    } finally { setDeletingId(null); }
   };
   const toggleFaq = (k: string) => setFaqOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const go = (t: Tab) => { setTab(t); if (typeof window !== "undefined") window.scrollTo({ top: 0 }); };
@@ -552,6 +565,19 @@ export default function Portal({ token }: { token: string }) {
                   ) : s.action ? (
                     <a href={`/m/${token}/onboarding`} style={{ display: "block", width: "100%", marginTop: 12, textAlign: "center", font: `700 13.5px ${JAK}`, color: "#fff", background: C.dark, padding: 13, borderRadius: 11, textDecoration: "none" }}>{s.action === "resume" ? "Resume onboarding" : "Onboard them now"}</a>
                   ) : null}
+                  {/* Delete — only before onboarding finishes / any payment (the server re-checks). */}
+                  {s.deletable && (deleteId === s.id ? (
+                    <div style={{ marginTop: 10, padding: "11px 12px", background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 11 }}>
+                      <div style={{ font: `700 12px ${JAK}`, color: C.red }}>Delete {s.name}&apos;s signup?</div>
+                      <div style={{ font: `500 11.5px/1.45 ${JAK}`, color: "#8a2b2b", marginTop: 2 }}>This removes it for good. You can&apos;t undo it.</div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                        <button onClick={() => setDeleteId(null)} disabled={deletingId === s.id} style={{ flex: 1, font: `700 12.5px ${JAK}`, color: C.ink, background: "#fff", border: `1px solid ${C.inputBorder}`, padding: 11, borderRadius: 10, cursor: "pointer" }}>Keep it</button>
+                        <button onClick={() => void deleteApplication(s.id)} disabled={deletingId === s.id} style={{ flex: 1, font: `700 12.5px ${JAK}`, color: "#fff", background: C.red, border: "none", padding: 11, borderRadius: 10, cursor: "pointer" }}>{deletingId === s.id ? "Deleting…" : "Delete it"}</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setDeleteId(s.id)} style={{ display: "block", margin: "10px auto 0", font: `600 11.5px ${JAK}`, color: C.muted, background: "none", border: "none", padding: 4, cursor: "pointer", textDecoration: "underline" }}>Delete this signup</button>
+                  ))}
                 </div>
               );
             });

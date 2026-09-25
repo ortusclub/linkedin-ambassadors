@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isReferralEarned, referralCommissionAmount } from "@/lib/referrals";
 import { currencyConfig } from "@/lib/referral-currency";
 import { setupDueDate, monthlyDueDate, setupPaidDate } from "@/lib/payment-schedule";
+import { deleteApplicationCascade } from "@/lib/application-delete";
 
 export const dynamic = "force-dynamic";
 
@@ -112,6 +113,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       const state = a.selfServiceOnboarding?.state || null;
       const paid = !!a.paidAt;
       const onboarded = a.status === "onboarded" || !!a.onboardedAt;
+      // The referrer may delete their OWN signup only while it's still in their hands —
+      // before onboarding finishes (onboarded, or handed off to us) and before any payment.
+      // Server DELETE re-checks the same rule; this flag just drives the UI affordance.
+      const deletable = !paid && !onboarded && state !== "handed_off";
       const amount = referralCommissionAmount(a, t);
       const whoLabel = method === "phone" ? "LV ran it" : (method === "computer" || (isDiy && (onboarded || state === "handed_off"))) ? "You ran it" : isDiy ? "You ran it" : "Form only";
       const path = method === "computer" ? `Guided · computer${a.onboardingVerified ? " · verified" : ""}`
@@ -189,7 +194,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       } else {
         pay = { text: "Setup fee about a week after sign-in", sub: "the exact date is set once they're signed in" };
       }
-      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay };
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, deletable };
     });
 
   return NextResponse.json({
@@ -281,4 +286,39 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
       paymentDetails: updated.paymentDetails,
     },
   });
+}
+
+// The referrer deletes one of their OWN signups from the portal — but only while it's
+// still in their hands. Once onboarding has finished (the account is onboarded, or the
+// sign-in was handed to us) or any payment has landed, deletion is refused: at that point
+// there's a real/near-real account and money in flight, and only the team can unwind it.
+// This saves the referrer having to ask us to clear a mistaken or abandoned signup.
+export async function DELETE(req: Request, { params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const me = await prisma.referrer.findUnique({ where: { token } });
+  if (!me) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const applicationId = new URL(req.url).searchParams.get("applicationId");
+  if (!applicationId) return NextResponse.json({ error: "Missing applicationId" }, { status: 400 });
+
+  const app = await prisma.ambassadorApplication.findUnique({
+    where: { id: applicationId },
+    select: { referredBy: true, status: true, onboardedAt: true, paidAt: true, selfServiceOnboarding: { select: { state: true } } },
+  });
+  // Scope to the referrer's own signups — never let a token touch someone else's.
+  if (!app || (app.referredBy || "").trim() !== me.slug) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Re-check eligibility server-side; the client flag is only a hint. Mirrors GET's `deletable`.
+  const finishedOrPaid = !!app.paidAt || app.status === "onboarded" || !!app.onboardedAt || app.selfServiceOnboarding?.state === "handed_off";
+  if (finishedOrPaid) {
+    return NextResponse.json({ error: "This signup can no longer be deleted — it's finished onboarding or has been paid. Ask the team if you need it removed." }, { status: 409 });
+  }
+
+  try {
+    await deleteApplicationCascade(applicationId);
+  } catch (e) {
+    console.error("Portal application delete failed", e);
+    return NextResponse.json({ error: "Could not delete this signup. Please try again or ask the team." }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
 }
