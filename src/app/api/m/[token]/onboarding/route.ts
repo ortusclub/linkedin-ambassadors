@@ -53,7 +53,7 @@ export async function GET(req: Request, context: Context) {
     if (id) return json({ session: await onboardingSummary(id, me.id) });
     const [countries, sessions, doneMethods] = await Promise.all([
       onboardingCountries(),
-      prisma.selfServiceOnboarding.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, state: true, application: { select: { fullName: true } } } }),
+      prisma.selfServiceOnboarding.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, state: true, application: { select: { fullName: true, status: true, onboardedAt: true, paidAt: true } } } }),
       // Which onboarding paths this referrer has done — the first-timer tour keeps
       // showing until they've completed a computer AND a phone onboarding at least once.
       prisma.ambassadorApplication.findMany({ where: { referredBy: me.slug, onboardingMethod: { not: null } }, select: { onboardingMethod: true } }),
@@ -61,7 +61,10 @@ export async function GET(req: Request, context: Context) {
     const methods = new Set(doneMethods.map((m) => m.onboardingMethod));
     return json({ emailEnabled: emailSetupConfig().enabled, phoneVerificationEnabled: phoneVerificationConfigured(), countries, autoPurchase: proxyPurchaseLimits().enabled, config: currencyConfig(me.slug), configured: !!process.env.GOLOGIN_API_TOKEN_KLABBER,
       doneComputer: methods.has("computer"), donePhone: methods.has("phone"),
-      sessions: sessions.map((s) => ({ id: s.id, state: s.state, name: s.application.fullName })) });
+      // `done` = no longer resumable (signed in / handed to us / onboarded / paid). The saved
+      // list shows these as a summary, not a "Resume" that would restart an onboarded account.
+      sessions: sessions.map((s) => ({ id: s.id, state: s.state, name: s.application.fullName,
+        done: s.state === "confirmed" || s.state === "handed_off" || s.application.status === "onboarded" || !!s.application.onboardedAt || !!s.application.paidAt })) });
   } catch (error) { return failure(error, "load"); }
 }
 

@@ -67,7 +67,7 @@ type Session = {
   confirmedAt: string | null; accountFreshness: string | null; setupDueAt: string | null; setupAmount: string;
   monthlyAmount: string; commission: string; verified: boolean;
 };
-type Bootstrap = { emailEnabled: boolean; phoneVerificationEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; doneComputer: boolean; donePhone: boolean; sessions: { id: string; state: string; name: string }[] };
+type Bootstrap = { emailEnabled: boolean; phoneVerificationEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; doneComputer: boolean; donePhone: boolean; sessions: { id: string; state: string; name: string; done: boolean }[] };
 
 const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder: string; help: string }> = {
   GCash: { label: "GCash mobile number", type: "tel", placeholder: "+63 9XX XXX XXXX", help: "Enter the mobile number registered to their GCash account." },
@@ -413,7 +413,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             {bootstrap.configured && !bootstrap.autoPurchase && bootstrap.countries.length === 0 && <p className={styles.note}>You can enter the details now. A dedicated proxy will be needed before you can save and continue to sign-in.</p>}
             <button data-tour="start" className={styles.primary} disabled={!consent} onClick={() => setStep(1)}>Start onboarding →</button>
             {bootstrap.sessions.length > 0 && <div className={styles.resume}><h3>Your saved onboardings</h3>{bootstrap.sessions.map((s) => <button key={s.id} disabled={busy} onClick={() => run(async () => showSession((await request("GET", undefined, s.id)).session))}>
-              <span>{s.name}</span><span>{s.state === "confirmed" ? "View summary" : "Resume"} →</span></button>)}</div>}
+              <span>{s.name}</span><span>{s.done ? "View summary" : "Resume"} →</span></button>)}</div>}
           </>}
 
           {step === 1 && <form onSubmit={(e) => { e.preventDefault(); if (bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) { setPhoneError("Verify the mobile number before continuing."); return; } setError(""); setStep(2); }}>
