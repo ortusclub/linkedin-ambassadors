@@ -183,19 +183,16 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     return () => { cancelled = true; };
   }, [endpoint, loadAttempt]);
 
-  // selfMode: the session was already created by /api/self-onboarding/start, so resume it
-  // automatically (jump straight to the email step) instead of showing the details form.
+  // Resume an existing session automatically instead of restarting at the details form:
+  // - selfMode: the ambassador's own single session (created before they arrived).
+  // - referrer path: the specific session the portal's "Resume onboarding" link targets
+  //   (?session=<id>), so they land where they left off. showSession picks the right step.
   useEffect(() => {
-    if (!selfMode || !bootstrap || session) return;
-    const s0 = bootstrap.sessions[0];
-    if (!s0) return;
-    void run(async () => {
-      const s = (await request("GET", undefined, s0.id)).session as Session;
-      setSession(s);
-      if (s.state === "confirmed") setStep(6);
-      else if (s.emailSetup && s.emailSetup.primaryConfirmed) setStep((p) => Math.max(p, 4));
-      else setStep(3);
-    });
+    if (!bootstrap || session) return;
+    const resumeParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("session") : null;
+    const target = selfMode ? bootstrap.sessions[0] : (resumeParam ? bootstrap.sessions.find((s) => s.id === resumeParam) : undefined);
+    if (!target) return;
+    void run(async () => { showSession((await request("GET", undefined, target.id)).session as Session); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selfMode, bootstrap, session]);
 

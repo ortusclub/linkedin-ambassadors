@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     prisma.referrer.findMany({ select: { slug: true, name: true } }),
     prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardingFix: true, restrictionReport: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, paidAt: true, createdAt: true, email: true, linkedinUrl: true, accountFreshness: true, monthlyPayouts: true, selfServiceOnboarding: { select: { state: true } } },
+      select: { id: true, fullName: true, referredBy: true, referralSource: true, status: true, verifiedAt: true, accountIssue: true, onboardingFix: true, restrictionReport: true, onboardedAt: true, onboardingMethod: true, onboardingVerified: true, paidAt: true, createdAt: true, email: true, linkedinUrl: true, accountFreshness: true, monthlyPayouts: true, selfServiceOnboarding: { select: { state: true, id: true } } },
     }),
     // For surfacing an active LinkedIn restriction to the referrer we need the linked
     // account's live restriction flag. Match the same way the admin does (below).
@@ -194,7 +194,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       } else {
         pay = { text: "Setup fee about a week after sign-in", sub: "the exact date is set once they're signed in" };
       }
-      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, deletable };
+      // The onboarding session to resume (the portal's "Resume onboarding" link targets it so
+      // the wizard reopens where they left off instead of at the details form).
+      const resumeSessionId = action === "resume" ? a.selfServiceOnboarding?.id ?? null : null;
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, deletable, resumeSessionId };
     });
 
   return NextResponse.json({
