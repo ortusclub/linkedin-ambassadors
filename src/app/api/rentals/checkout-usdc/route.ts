@@ -28,7 +28,9 @@ export async function POST(req: Request) {
     const isShadow = user.isShadowRenter === true || isShadowRenterEmail(user.email);
 
     let accounts = await prisma.linkedInAccount.findMany({
-      where: { id: { in: accountIds }, status: "available" },
+      // A restricted (recovering) or 2FA-reset-needed account keeps status "available"
+      // but must not be rentable (real OR shadow buy) — exclude it here too.
+      where: { id: { in: accountIds }, status: "available", restrictedAt: null, twoFactorResetNeeded: false },
     });
 
     // Each account can be shadow-bought by only ONE shadow renter at a time — drop any
