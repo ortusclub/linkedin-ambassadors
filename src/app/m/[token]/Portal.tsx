@@ -725,7 +725,7 @@ export default function Portal({ token }: { token: string }) {
               {topFive.map((b, i) => (
                 <div key={b.name + i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 10px", borderRadius: 10, marginBottom: 3, background: b.isMe ? C.softGreen : "transparent" }}>
                   <span style={{ font: `600 13px ${GRO}`, color: C.muted2, width: 16, flex: "none" }}>{i + 1}</span>
-                  <span style={{ minWidth: 0, font: `${b.isMe ? 700 : 500} 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}{b.isMe ? " (you)" : ""}</span>
+                  <span style={{ minWidth: 0, font: `${b.isMe ? 700 : 500} 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name.trim().split(/\s+/)[0]}{b.isMe ? " (you)" : ""}</span>
                   <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
                     <strong style={{ display: "block", font: `600 13px ${GRO}`, color: C.greenDk, fontVariantNumeric: "tabular-nums" }}>{moneyText(b.lifetimeEarnings)}</strong>
                     <small style={{ display: "block", font: `500 10.5px ${JAK}`, color: C.muted2, whiteSpace: "nowrap" }}>{b.converted} onboarded · {b.signups} signed up</small>
@@ -735,7 +735,7 @@ export default function Portal({ token }: { token: string }) {
               {myRank > 5 && myBoardRow && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px", borderRadius: 10, marginTop: 4, background: C.softGreen, border: `1px solid ${C.softGreenBorder}` }}>
                   <span style={{ font: `700 13px ${GRO}`, color: C.greenDk, width: 24, flex: "none" }}>#{myRank}</span>
-                  <span style={{ minWidth: 0, font: `700 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myBoardRow.name} (you)</span>
+                  <span style={{ minWidth: 0, font: `700 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myBoardRow.name.trim().split(/\s+/)[0]} (you)</span>
                   <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
                     <strong style={{ display: "block", font: `600 13px ${GRO}`, color: C.greenDk }}>{moneyText(myBoardRow.lifetimeEarnings)}</strong>
                     <small style={{ display: "block", font: `500 10.5px ${JAK}`, color: C.muted2, whiteSpace: "nowrap" }}>{myBoardRow.converted} onboarded · {myBoardRow.signups} signed up</small>
