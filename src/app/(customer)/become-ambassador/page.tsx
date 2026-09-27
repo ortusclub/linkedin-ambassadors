@@ -494,13 +494,13 @@ export default function BecomeAmbassadorPage() {
 
       {/* EARN — flat payout, real public figures with PHP/USD toggle */}
       {(() => {
-        const M = { setup: setupPrice, monthly: monthlyPrice, year: offerPair(112, 7000, currency) };
+        const M = { setup: setupPrice, monthly: monthlyPrice, year: hasReferral ? offerPair(104, 6500, currency) : offerPair(112, 7000, currency) };
         return (
       <section id="earn" style={{ background: "#FBFCFB", padding: "64px 24px 8px", borderBottom: "1px solid #E8E6E1" }}>
         <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 40px" }}>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>What you can earn</div>
-          <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>Simple, flat payouts</h2>
-          <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: "0 0 22px" }}>No tiers, no fine print. Every approved account earns the same — a one-time setup bonus, then a fixed amount every month.</p>
+          <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>Earn more by completing your own setup</h2>
+          <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: "0 0 22px" }}>Choose how much of the setup you do yourself. Complete email and 2FA for a higher setup bonus, or finish the full setup on a computer for the highest bonus. The monthly payout is the same for all three options.</p>
           <CurrencySelector preference={preference} />
           <div style={{ fontSize: 12.5, color: "#5A6473", marginTop: 12 }}>Payouts are made in PHP{currency === "USD" ? " — USD shown for reference." : "."}</div>
         </div>
@@ -508,9 +508,16 @@ export default function BecomeAmbassadorPage() {
         <div style={{ maxWidth: 820, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, alignItems: "stretch" }} className="a-earn-grid">
           <div className="a-earn-card setup" style={{ background: "#fff", border: "1px solid #E7EBE8", borderRadius: 20, padding: "30px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", color: "#067A45", background: "#E7F6EE", padding: "5px 11px", borderRadius: 7 }}>ONE-TIME</span>
-            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 46, lineHeight: 1, letterSpacing: "-0.02em", color: "#0B1220", margin: "20px 0 4px" }}>{M.setup}</div>
-            <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 16, color: "#0B1220", marginBottom: 6 }}>Setup bonus</div>
-            <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid once when your account is approved and set up — just for getting started.</p>
+            <h3 style={{ fontSize: 20, color: "#0B1220", margin: "20px 0 16px" }}>Choose your setup bonus</h3>
+            {[
+              { title: "We set it up", price: M.setup, detail: "Submit your account and book a call. Our team helps you complete the setup." },
+              { title: "You add email + 2FA", price: offerPair(24, 1500, currency), detail: "Add the assigned email and complete two-factor authentication yourself. Our team finishes the browser sign-in." },
+              { title: "Full DIY setup", price: offerPair(32, 2000, currency), detail: "Complete email, 2FA and the GoLogin sign-in yourself. Requires a Windows or Mac laptop or desktop." },
+            ].map((option, index) => <div key={option.title} style={{ padding: "14px 0", borderTop: index ? "1px solid #E7EBE8" : undefined }}>
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8, fontWeight: 700, fontSize: 16, color: "#0B1220" }}><span>{option.title}</span><span style={{ color: "#067A45" }}>{option.price}</span></div>
+              <p style={{ fontSize: 14, lineHeight: 1.6, color: "#5A6473", margin: "6px 0 0" }}>{option.detail}</p>
+            </div>)}
+            <p style={{ fontSize: 13, color: "#5A6473", marginBottom: 0 }}>Paid once after your account is approved and setup is complete.</p>
           </div>
           <div className="a-earn-card month" style={{ position: "relative", background: "#fff", border: "1.5px solid #00A150", borderRadius: 20, padding: "30px", boxShadow: "0 18px 44px rgba(0,161,80,0.16)" }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", color: "#fff", background: "#00A150", padding: "5px 11px", borderRadius: 7 }}>EVERY MONTH</span>
@@ -524,7 +531,11 @@ export default function BecomeAmbassadorPage() {
         </div>
 
         <div style={{ maxWidth: 820, margin: "18px auto 0", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", justifyContent: "center", background: "#F6FAF7", border: "1px solid #E6F0EA", borderRadius: 14, padding: "16px 22px" }}>
-          <span style={{ fontSize: 14.5, color: "#37424F" }}><strong style={{ color: "#0B1220" }}>First year example:</strong> {M.setup} setup + {M.monthly} × 12 months = <strong style={{ color: "#00A150" }}>{M.year}</strong> from a single account.</span>
+          <span style={{ fontSize: 14.5, color: "#37424F" }}><strong style={{ color: "#0B1220" }}>First year with team setup:</strong> {M.setup} setup + {M.monthly} × 12 months = <strong style={{ color: "#00A150" }}>{M.year}</strong> from a single account.</span>
+        </div>
+
+        <div style={{ textAlign: "center", margin: "24px auto" }}>
+          <a href="/onboarding" style={{ display: "inline-flex", padding: "13px 22px", borderRadius: 10, background: "#00A150", color: "#fff", fontSize: 16, fontWeight: 600, textDecoration: "none" }}>Rent us your account →</a>
         </div>
 
         <div style={{ maxWidth: 820, margin: "14px auto 0" }}>
