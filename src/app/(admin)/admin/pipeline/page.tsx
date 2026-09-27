@@ -63,6 +63,7 @@ interface Row {
   applicationReceived?: boolean;
   setupInProgress?: boolean;
   existingAccountSubmission?: boolean;
+  referrerResumeUrl?: string | null;
   fullName: string;
   email: string;
   contactNumber: string | null;
@@ -1164,7 +1165,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
           )}
 
           <div style={{ marginBottom: 16, padding: 12, border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
-            <PipelineIssueActions id={r.id} name={r.fullName} profile={r.linkedinUrl} lvEmail={r.loginEmail}
+            <PipelineIssueActions referrerResumeUrl={r.referrerResumeUrl} id={r.id} name={r.fullName} profile={r.linkedinUrl} lvEmail={r.loginEmail}
               ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)} referrer={r.referrer}
               onSent={() => void workflow(r.id, {})} />
             {!!r.onboardingFix?.issues.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>

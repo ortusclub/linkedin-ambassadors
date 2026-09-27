@@ -48,16 +48,17 @@ export async function GET() {
     // cleared once we sign in, so the "Needs sign-in" badge below also requires that the
     // account hasn't been logged in yet (onboardedAt unset). Once it's logged in, the
     // sign-in is done and the badge must drop.
-    const selfSessions = await prisma.selfServiceOnboarding.findMany({ select: { applicationId: true, accountId: true, state: true } });
+    const selfSessions = await prisma.selfServiceOnboarding.findMany({ select: { id: true, referrerId: true, applicationId: true, accountId: true, state: true } });
     const inProgressAppIds = new Set(selfSessions.filter(s => ["reserved", "needs_help", "ready"].includes(s.state)).map(s => s.applicationId));
     const handoffAppIds = new Set(selfSessions.filter(s => s.state === "handed_off").map(s => s.applicationId));
+    const sessionByApplication = new Map(selfSessions.map(s => [s.applicationId, s]));
     const sessionAccount = new Map(selfSessions.map(s => [s.applicationId, s.accountId]));
     const accountById = new Map(accounts.map(a => [a.id, a]));
 
     // Referrer contact lookup (by slug) — used to build reminder links (WhatsApp
     // click-to-send / Telegram) next to a raised onboarding issue on the pipeline.
     const referrers = await prisma.referrer.findMany({
-      select: { slug: true, name: true, email: true, token: true, contactMethod: true, contactHandle: true, contacts: true },
+      select: { id: true, active: true, slug: true, name: true, email: true, token: true, contactMethod: true, contactHandle: true, contacts: true },
     });
     const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
     // LV PoC = the LinkedVelocity rep who onboards an account. It is NOT the referrer
@@ -152,6 +153,12 @@ export async function GET() {
       return {
         id: app.id,
         setupInProgress: inProgressAppIds.has(app.id),
+        referrerResumeUrl: (() => {
+          const session = sessionByApplication.get(app.id);
+          const ref = refBySlug.get((app.referredBy || "").trim().toLowerCase());
+          return session && ref?.active && ref.id === session.referrerId && inProgressAppIds.has(app.id)
+            ? `https://linkedvelocity.com/m/${encodeURIComponent(ref.token)}/onboarding?session=${encodeURIComponent(session.id)}` : null;
+        })(),
         existingAccountSubmission: !!app.adminNotes?.includes("[Existing account submission]"),
         diyTier: app.diyTier,
         fullName: app.fullName,

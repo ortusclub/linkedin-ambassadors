@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { contactLink, type IssueContact } from "@/lib/issue-contacts";
 import { ONBOARDING_ISSUES, onboardingIssueMessage, type OnboardingIssue } from "@/lib/onboarding-issue-message";
-export function PipelineIssueActions({ id, name, profile, lvEmail, ambassador, referrer, onSent }: { id: string; name: string; profile: string | null; lvEmail: string | null; ambassador: IssueContact; referrer: IssueContact | null; onSent: () => void }) {
+export function PipelineIssueActions({ id, name, profile, lvEmail, referrerResumeUrl, ambassador, referrer, onSent }: { referrerResumeUrl?: string | null; id: string; name: string; profile: string | null; lvEmail: string | null; ambassador: IssueContact; referrer: IssueContact | null; onSent: () => void }) {
   const [issue, setIssue] = useState<OnboardingIssue>("email_added"), [details, setDetails] = useState("");
   const [preview, setPreview] = useState<{ recipient: "ambassador" | "referrer"; channel: keyof IssueContact; subject: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false), [result, setResult] = useState("");
@@ -15,7 +15,7 @@ export function PipelineIssueActions({ id, name, profile, lvEmail, ambassador, r
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{(["email", "whatsapp", "telegram", "viber"] as const).flatMap(channel => (["referrer", "ambassador"] as const).map(recipient => {
       const contact = recipient === "ambassador" ? ambassador : referrer;
       const valid = !!contactLink(channel, contact?.[channel], "") && (issue !== "other" || !!details.trim());
-      return <button key={`${channel}-${recipient}`} style={{ ...button, opacity: valid ? 1 : .45 }} disabled={!valid || busy} title={valid ? "Review the message before sending" : `No ${recipient} ${channel} contact saved, or issue details are missing`} onClick={() => { setResult(""); setPreview({ recipient, channel, ...onboardingIssueMessage(issue, recipient, name, profile, lvEmail, details) }); }}>{({ email: "Email", whatsapp: "WhatsApp", telegram: "Telegram", viber: "Viber" })[channel]} {recipient}</button>;
+      return <button key={`${channel}-${recipient}`} style={{ ...button, opacity: valid ? 1 : .45 }} disabled={!valid || busy} title={valid ? "Review the message before sending" : `No ${recipient} ${channel} contact saved, or issue details are missing`} onClick={() => { setResult(""); setPreview({ recipient, channel, ...onboardingIssueMessage(issue, recipient, name, profile, lvEmail, details, referrerResumeUrl) }); }}>{({ email: "Email", whatsapp: "WhatsApp", telegram: "Telegram", viber: "Viber" })[channel]} {recipient}</button>;
     }))}</div>
     {preview && <div role="dialog" aria-label="Review onboarding issue message" style={{ border: "1px solid var(--line,#d6e4fb)", borderRadius: 12, padding: 16, display: "grid", gap: 10 }}>
       <b>Review message to {preview.recipient}</b><span>To: {(preview.recipient === "ambassador" ? ambassador : referrer)?.[preview.channel]}</span>

@@ -218,7 +218,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   useEffect(() => {
     if (!bootstrap || session) return;
     const resumeParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("session") : null;
-    const target = selfMode ? bootstrap.sessions[0] : (resumeParam ? bootstrap.sessions.find((s) => s.id === resumeParam) : undefined);
+    const target = selfMode ? bootstrap.sessions[0] : (resumeParam ? { id: resumeParam } : undefined);
     if (!target) return;
     void run(async () => { showSession((await request("GET", undefined, target.id)).session as Session); });
     // eslint-disable-next-line react-hooks/exhaustive-deps

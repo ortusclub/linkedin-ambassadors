@@ -8,7 +8,7 @@ export const ONBOARDING_ISSUES = {
   other: { label: "Other", action: "" },
 } as const;
 export type OnboardingIssue = keyof typeof ONBOARDING_ISSUES;
-export function onboardingIssueMessage(issue: OnboardingIssue, recipient: "ambassador" | "referrer", name: string, profile: string | null, lvEmail: string | null, details: string) {
+export function onboardingIssueMessage(issue: OnboardingIssue, recipient: "ambassador" | "referrer", name: string, profile: string | null, lvEmail: string | null, details: string, referrerResumeUrl?: string | null) {
   const item = ONBOARDING_ISSUES[issue];
-  return { subject: `LinkedVelocity onboarding: ${item.label}`, text: `Hi,\n\nWe need help completing onboarding for ${name}${profile ? ` (${profile})` : ""}.\n\nIssue: ${item.label}\n${recipient === "referrer" ? `Please help ${name} complete these steps:\n` : ""}${issue === "other" ? details : item.action}\n\nLinkedVelocity email: ${lvEmail || "Please confirm the assigned email with our team."}\n\nReply when this is done, or let us know where you are stuck. We’ll check the account and continue onboarding.\n\nThank you,\nThe LinkedVelocity team` };
+  return { subject: `LinkedVelocity onboarding: ${item.label}`, text: `Hi,\n\nWe need help completing onboarding for ${name}${profile ? ` (${profile})` : ""}.\n\nIssue: ${item.label}\n${recipient === "referrer" ? `Please help ${name} complete these steps:\n` : ""}${issue === "other" ? details : item.action}${issue === "application_incomplete" && recipient === "referrer" && referrerResumeUrl ? `\n\nContinue onboarding for ${name}:\n${referrerResumeUrl}\nThis private link opens their saved setup where you left off. Keep it private to your referral team.` : ""}\n\nLinkedVelocity email: ${lvEmail || "Please confirm the assigned email with our team."}\n\nReply when this is done, or let us know where you are stuck. We’ll check the account and continue onboarding.\n\nThank you,\nThe LinkedVelocity team` };
 }
