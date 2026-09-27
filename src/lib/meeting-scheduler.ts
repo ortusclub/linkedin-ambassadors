@@ -44,7 +44,7 @@ export async function sendMeetingInvitation(id: string) {
     from: { name: "LinkedVelocity", address: MEETING_HOST },
     to: [...new Set([booking.email, booking.host])], replyTo: booking.host,
     subject: `${booking.sequence > 0 ? "Updated: " : ""}${meetingTitle(booking)}`,
-    text: `${booking.sequence > 0 ? "Your onboarding call has been rescheduled. This invitation replaces the previous time; accept the update to move the existing calendar event.\n\n" : ""}Your onboarding call is booked for ${when} (Philippine time / Asia/Manila). Your calendar will display it in your own time zone.\n\n${meetingDescription(booking)}\n\nAccept this calendar invitation to add or update the meeting. If your mail app does not show invitation controls, open the attached .ics file.`,
+    text: `${booking.sequence > 0 ? "Your onboarding calendar invitation has been updated. This replaces the previous invitation; accept the update to use the current meeting details.\n\n" : ""}Your onboarding call is booked for ${when} (Philippine time / Asia/Manila). Your calendar will display it in your own time zone.\n\n${meetingDescription(booking)}\n\nAccept this calendar invitation to add or update the meeting. If your mail app does not show invitation controls, open the attached .ics file.`,
     icalEvent: { filename: "onboarding.ics", method: "REQUEST", content: meetingInvite(booking) },
     headers: { "Resend-Idempotency-Key": `meeting-invitation/${booking.id}/${booking.sequence}` },
     messageId: `<meeting-${booking.id}-${booking.sequence}@linkedvelocity.com>`,
