@@ -30,7 +30,8 @@ export async function GET() {
     // address we log into the account with), and drop the raw field name.
     const shaped = rentals.map((r) => {
       const { loginEmail, ...account } = r.linkedinAccount;
-      return { ...r, linkedinAccount: { ...account, accountEmail: loginEmail } };
+      const ready = r.status === "active" && !r.paused && !r.handoverAt && !account.restrictedAt;
+      return { ...r, gologinShareIds: undefined, gologinShareLinkId: undefined, gologinShareLinkUrl: ready ? r.gologinShareLinkUrl : null, linkedinAccount: { ...account, gologinShareLink: ready ? account.gologinShareLink : null, accountEmail: loginEmail } };
     });
 
     return NextResponse.json({ rentals: shaped });

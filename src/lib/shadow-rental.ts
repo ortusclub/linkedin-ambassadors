@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { revokeRentalAccess } from "@/lib/rental-access";
-import { sendShadowYieldEmail } from "@/services/email";
+import { scheduleShadowHandover } from "@/lib/shadow-handover";
 
 // Per-renter flat monthly rate. A shadow renter pays this per idle account instead of the
 // account's tier/Sales Nav/verified price. Each shadow email has its OWN rate.
@@ -40,71 +39,8 @@ export async function activeShadowAccountIds(): Promise<Set<string>> {
   return new Set(rows.map((r) => r.linkedinAccountId));
 }
 
-// Called right after a REAL (non-shadow) rental is created for an account. Any active
-// shadow rental on that same account must yield: cut the shadow renter's GoLogin access,
-// end their rental (with an audit note), and email them that we've reclaimed the account.
-// Best-effort throughout — a failure here must never block the real customer's rental.
-export async function yieldShadowRentals(
-  accountId: string,
-  opts?: { reason?: string }
-): Promise<number> {
-  const shadows = await prisma.rental.findMany({
-    where: {
-      linkedinAccountId: accountId,
-      isShadow: true,
-      status: { in: ["active", "pending_access", "payment_failed"] },
-    },
-    include: {
-      user: { select: { email: true } },
-      linkedinAccount: { select: { linkedinName: true } },
-    },
-  });
-
-  for (const s of shadows) {
-    // 1. Remove the shadow renter from the GoLogin profile.
-    try {
-      await revokeRentalAccess(s.id);
-    } catch (e) {
-      console.error("shadow yield: revoke access failed:", s.id, e instanceof Error ? e.message : e);
-    }
-
-    // 2. End the shadow rental with an audit note (kept visible in /admin/rentals).
-    const refund = shadowRateFor(s.user.email) ?? SHADOW_MONTHLY_PRICE;
-    const stamp = new Date().toISOString().slice(0, 10);
-    const yieldNote = `Yielded to a customer rental on ${stamp}${opts?.reason ? ` (${opts.reason})` : ""} — $${refund} refunded as credit`;
-    try {
-      await prisma.rental.update({
-        where: { id: s.id },
-        data: {
-          status: "expired",
-          autoRenew: false,
-          currentPeriodEnd: new Date(),
-          notes: s.notes ? `${s.notes} | ${yieldNote}` : yieldNote,
-        },
-      });
-    } catch (e) {
-      console.error("shadow yield: end rental failed:", s.id, e instanceof Error ? e.message : e);
-    }
-
-    // 3. Refund the flat shadow fee as account credit (their usdcBalance), so it's
-    //    usable toward another shadow rental — "taken away, money back as credit".
-    try {
-      await prisma.user.update({
-        where: { id: s.userId },
-        data: { usdcBalance: { increment: refund } },
-      });
-    } catch (e) {
-      console.error("shadow yield: refund credit failed:", s.id, e instanceof Error ? e.message : e);
-    }
-
-    // 4. Tell the shadow renter we've taken the account back (the sent email is itself
-    //    logged in email_log / /admin/emails, so it doubles as the audit trail).
-    try {
-      await sendShadowYieldEmail(s.user.email, s.linkedinAccount.linkedinName);
-    } catch (e) {
-      console.error("shadow yield: email failed:", s.id, e instanceof Error ? e.message : e);
-    }
-  }
-
-  return shadows.length;
+// Reserve seven days for the current shadow renter. Called after creating a real rental;
+// retries are safe, and the auto-grant job recovers any interrupted checkout scheduling.
+export async function yieldShadowRentals(accountId: string, opts?: { reason?: string }): Promise<number> {
+  return scheduleShadowHandover(accountId, opts?.reason);
 }

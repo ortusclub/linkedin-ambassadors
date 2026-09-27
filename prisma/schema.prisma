@@ -223,6 +223,10 @@ model CryptoPayment {
 }
 
 model Rental {
+  handoverAt DateTime? @map("handover_at")
+  shadowExitAt DateTime? @map("shadow_exit_at")
+  shadowNoticeSentAt DateTime? @map("shadow_notice_sent_at")
+  shadowCreditAt DateTime? @map("shadow_credit_at")
   id                    String       @id @default(uuid()) @db.Uuid
   userId                String       @map("user_id") @db.Uuid
   linkedinAccountId     String       @map("linkedin_account_id") @db.Uuid

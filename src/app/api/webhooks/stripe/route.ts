@@ -370,7 +370,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
 
   // First invoice: checkout.session.completed / auto-renew setup already set the initial period
   // — don't extend it again (the payment above is still recorded).
-  if (invoice.billing_reason === "subscription_create") return;
+  if (invoice.billing_reason === "subscription_create" || rental.handoverAt || rental.shadowExitAt) return;
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
@@ -421,6 +421,8 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     },
   });
 
+  if (rental.shadowExitAt) return; // Handover worker owns the revoke and completion notice.
+
   // Actually cut GoLogin access (not just the DB status), so a saved share link stops working.
   try {
     await revokeRentalAccess(rental.id);
@@ -450,7 +452,8 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     where: { id: rental.id },
     data: {
       autoRenew: !subscription.cancel_at_period_end,
-      currentPeriodEnd: getPeriodEnd(subscription),
+      currentPeriodEnd: rental.handoverAt ? null : getPeriodEnd(subscription),
+      ...(rental.shadowExitAt ? { autoRenew: false } : {}),
     },
   });
 }

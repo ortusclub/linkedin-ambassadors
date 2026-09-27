@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     // For a rental billed to a saved card, this states the exact upcoming charge (amount + card):
     // section 1 will NOT charge a card until this reminder has gone out, so notice always comes first.
     const upcomingAuto = await prisma.rental.findMany({
-      where: { autoRenew: true, status: "active", currentPeriodEnd: { gt: now, lte: new Date(now.getTime() + 3 * DAY) }, linkedinAccount: { restrictedAt: null } },
+      where: { shadowExitAt: null, autoRenew: true, status: "active", currentPeriodEnd: { gt: now, lte: new Date(now.getTime() + 3 * DAY) }, linkedinAccount: { restrictedAt: null } },
       include: { user: true, linkedinAccount: true },
     });
     // Split the un-reminded upcoming renewals: card-on-file ones get ONE consolidated reminder
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     // Charge on/after the due date (lte: now), not a day early — so the ~3-day pre-charge
     // reminder from section 0 always lands before any charge.
     const dueUsdc = await prisma.rental.findMany({
-      where: { usdcPayment: true, stripeSubscriptionId: null, status: "active", autoRenew: true, currentPeriodEnd: { lte: now }, linkedinAccount: { restrictedAt: null } },
+      where: { shadowExitAt: null, usdcPayment: true, stripeSubscriptionId: null, status: "active", autoRenew: true, currentPeriodEnd: { lte: now }, linkedinAccount: { restrictedAt: null } },
       include: { user: true, linkedinAccount: true },
     });
     for (const r of dueUsdc) {
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
 
     // 2) Manual-renewal cadence — auto-renew OFF rentals (active or recently expired).
     const manual = await prisma.rental.findMany({
-      where: { autoRenew: false, status: { in: ["active", "expired"] }, linkedinAccount: { restrictedAt: null } },
+      where: { shadowExitAt: null, autoRenew: false, status: { in: ["active", "expired"] }, linkedinAccount: { restrictedAt: null } },
       include: { user: true, linkedinAccount: true },
     });
     // Emails are CONSOLIDATED per renter + stage — one email listing all of the renter's affected

@@ -53,7 +53,8 @@ async function sendEmail({ to, subject, html, bcc, replyTo, from: fromOverride }
       console.log(`[Email] Would send to ${to}${bcc ? ` (bcc ${bcc})` : ""}: ${subject}`);
       status = "skipped";
     } else {
-      await getResend().emails.send({ from: fromOverride || from, to, subject, html, ...(bcc ? { bcc } : {}), ...(replyTo ? { replyTo } : {}) });
+      const result = await getResend().emails.send({ from: fromOverride || from, to, subject, html, ...(bcc ? { bcc } : {}), ...(replyTo ? { replyTo } : {}) });
+      if (result.error) throw new Error(result.error.message);
     }
   } catch (e) {
     status = "failed";
@@ -508,17 +509,19 @@ export async function sendAccessRevokedEmail(
 // Shadow renter (e.g. Apex Strategy) reclaim notice: a real customer has rented an
 // account the shadow renter was using, so we're taking it back and their GoLogin access
 // to it has been removed. Plain, no celebratory opener.
-export async function sendShadowYieldEmail(email: string, accountName: string) {
-  const acct = accountName ? `<strong>${accountName}</strong>` : "one of your accounts";
+export async function sendShadowYieldEmail(email: string, accountName: string, due: Date, credit: number) {
+  if (!process.env.RESEND_API_KEY) throw new Error("Email delivery is not configured");
+  const acct = accountName.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  const deadline = due.toLocaleString("en-GB", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" }) + " UTC";
   return sendEmail({
     to: email,
-    subject: `An account you were using has been rented`,
+    subject: "Seven-day notice: account handover",
     bcc: billingBcc,
     html: brandWrap(`
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Hi,</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">A customer has just rented ${acct}, so we've taken it back from your shared inventory. Your GoLogin access to that profile has been removed and you won't be billed for it going forward.</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Nothing else on your end changes. Any other accounts you're using are unaffected, and you can pick up another available account from the catalogue whenever you like.</p>
-      <a href="${(process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com")}/catalogue" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Browse available accounts →</a>
+      <p>A customer has rented <strong>${acct}</strong>. You have seven days, until <strong>${deadline}</strong>, to finish your work and exit this account.</p>
+      <p>Your access stays available during this notice period. At the deadline we will remove your access and prepare the account for the new renter. Please stop any campaigns and close the profile before then.</p>
+      <p>${credit > 0 ? `Your latest monthly payment of <strong>US$${credit.toFixed(2)}</strong> has been returned to your LinkedVelocity wallet as credit during this notice period. You can use it towards another account.` : "No paid monthly charge was recorded for this rental, so there is no payment to credit back."} This account will not renew.</p>
+      <p>Your other rentals are unaffected.</p>
     `),
   });
 }

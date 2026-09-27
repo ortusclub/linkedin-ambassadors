@@ -1,3 +1,4 @@
+import { processShadowHandovers } from "@/lib/shadow-handover";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { grantRentalAccess } from "@/lib/rental-access";
@@ -16,9 +17,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  await processShadowHandovers();
+
   const pending = await prisma.rental.findMany({
     where: {
       status: "pending_access",
+      isShadow: false,
+      OR: [{ handoverAt: null }, { handoverAt: { lte: new Date() } }],
       paused: false,
       accessGrantAttempts: { lt: MAX_ATTEMPTS },
       linkedinAccount: { gologinProfileId: { not: null } },

@@ -21,6 +21,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!rental || rental.userId !== user.id) {
       return NextResponse.json({ error: "Rental not found" }, { status: 404 });
     }
+    if (rental.handoverAt || rental.status === "pending_access") {
+      return NextResponse.json({ error: "This account is being prepared. Access will appear after handover." }, { status: 409 });
+    }
     if (rental.linkedinAccount.restrictedAt) {
       return NextResponse.json({ error: "This account is temporarily restricted by LinkedIn — we're recovering it. No action needed; we'll update you." }, { status: 403 });
     }

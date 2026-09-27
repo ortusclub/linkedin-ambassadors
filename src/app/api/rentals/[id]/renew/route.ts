@@ -20,7 +20,7 @@ export async function GET(
       linkedinAccount: { select: { linkedinName: true, monthlyPrice: true } },
     },
   });
-  if (!rental) return NextResponse.redirect(`${appUrl}/dashboard`);
+  if (!rental || rental.shadowExitAt || rental.handoverAt) return NextResponse.redirect(`${appUrl}/dashboard`);
 
   const price = Number(rental.linkedinAccount.monthlyPrice);
   if (!price || price <= 0) return NextResponse.redirect(`${appUrl}/dashboard`);

@@ -21,6 +21,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Rental not found" }, { status: 404 });
     }
 
+    if (rental.shadowExitAt) return NextResponse.json({ error: "This account is scheduled for handover and cannot renew." }, { status: 409 });
+
     // Keep Stripe in sync: auto-renew OFF => stop billing at period end (they keep
     // access until then); ON => resume. No Stripe sub = wallet/manual rental, where
     // the renewals cron honours the autoRenew flag instead.
