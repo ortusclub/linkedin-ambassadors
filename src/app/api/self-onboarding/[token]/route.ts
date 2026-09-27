@@ -50,6 +50,10 @@ export async function PATCH(req: Request, context: Context) {
     // Security: a self-token may only act on its OWN session.
     if (typeof bodyId === "string" && bodyId !== sessionId) throw new OnboardingError("Not found.", 404);
 
+    if ((body as { action?: string })?.action === "activity") {
+      await prisma.selfServiceOnboarding.updateMany({ where: { id: sessionId, state: { in: ["reserved", "needs_help", "ready"] } }, data: { lastActivityAt: new Date() } });
+      return json({ ok: true });
+    }
     if ((body as { action?: string })?.action === "handoff") {
       const handoff = selfServiceHandoff.safeParse({ ...body, id: sessionId });
       if (!handoff.success) return json({ error: "Invalid hand-off details." }, 400);

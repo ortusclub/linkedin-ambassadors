@@ -23,7 +23,7 @@ export async function GET() {
     const submissions = await prisma.ambassadorApplication.findMany({
       where: submittedApplicationsWhere(user),
       orderBy: { createdAt: "desc" },
-      include: { selfServiceOnboarding: { select: { state: true, publicToken: true, account: { select: { gologinShareLink: true } } } }, scheduledMeeting: { select: { id: true, startsAt: true, inviteSentAt: true, sequence: true } } },
+      include: { selfServiceOnboarding: { select: { accountId: true, state: true, publicToken: true, account: { select: { gologinShareLink: true } } } }, scheduledMeeting: { select: { id: true, startsAt: true, inviteSentAt: true, sequence: true } } },
     });
 
     // For onboarded submissions, find the matching LinkedIn account's GoLogin share link
@@ -52,6 +52,7 @@ export async function GET() {
       const inProgress = !!setup?.publicToken && ["reserved", "needs_help", "ready"].includes(setup.state) && !["rejected", "onboarded"].includes(sub.status);
       return {
         ...application,
+        linkedAccountId: setup?.accountId || null,
         setupInProgress: inProgress,
         resumeUrl: inProgress ? `/onboarding/resume/${sub.id}` : null,
         deal: { setupUsd: usd.setupAmount, setupPhp: php.setupAmount, monthlyUsd: usd.monthlyAmount, monthlyPhp: php.monthlyAmount },

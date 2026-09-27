@@ -191,6 +191,26 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     return () => { cancelled = true; };
   }, [endpoint, loadAttempt]);
 
+  // Record interaction rather than treating a forgotten open tab as active forever.
+  useEffect(() => {
+    if (!selfMode || !session || ["confirmed", "handed_off"].includes(session.state)) return;
+    let dirty = true;
+    const mark = () => { dirty = true; };
+    const record = () => {
+      if (!dirty || document.visibilityState !== "visible") return;
+      dirty = false;
+      void fetch(endpoint, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: session.id, action: "activity" }), keepalive: true })
+        .then(r => { if (!r.ok) dirty = true; }).catch(() => { dirty = true; });
+    };
+    record();
+    const timer = window.setInterval(record, 60000);
+    const events = ["pointerdown", "keydown", "scroll", "focus"] as const;
+    for (const event of events) window.addEventListener(event, mark, { passive: true });
+    const visible = () => { if (document.visibilityState === "visible") { mark(); record(); } };
+    document.addEventListener("visibilitychange", visible);
+    return () => { clearInterval(timer); for (const event of events) window.removeEventListener(event, mark); document.removeEventListener("visibilitychange", visible); };
+  }, [selfMode, endpoint, session?.id, session?.state]);
+
   // Resume an existing session automatically instead of restarting at the details form:
   // - selfMode: the ambassador's own single session (created before they arrived).
   // - referrer path: the specific session the portal's "Resume onboarding" link targets
@@ -382,7 +402,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
         </div>
       </header>
       <CurrencySelector preference={preference} />
-      {selfMode && <p className={styles.hint} style={{ padding: "12px 24px", margin: 0 }}>Your completed steps are saved. Return through your LinkedVelocity dashboard and select <strong>Continue setup</strong> under My Submissions.</p>}
+      {selfMode && <p className={styles.hint} style={{ padding: "12px 24px", margin: 0 }}>Your completed steps are saved. Return through your LinkedVelocity dashboard and select <strong>Continue setup</strong> under Accounts I’m Renting Out.</p>}
 
       <div className={styles.content}>
         {error && step !== 4 && <div className={styles.error} role="alert">{error}</div>}

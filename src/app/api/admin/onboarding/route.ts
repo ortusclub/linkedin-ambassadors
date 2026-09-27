@@ -49,6 +49,7 @@ export async function GET() {
     // account hasn't been logged in yet (onboardedAt unset). Once it's logged in, the
     // sign-in is done and the badge must drop.
     const selfSessions = await prisma.selfServiceOnboarding.findMany({ select: { applicationId: true, accountId: true, state: true } });
+    const inProgressAppIds = new Set(selfSessions.filter(s => ["reserved", "needs_help", "ready"].includes(s.state)).map(s => s.applicationId));
     const handoffAppIds = new Set(selfSessions.filter(s => s.state === "handed_off").map(s => s.applicationId));
     const sessionAccount = new Map(selfSessions.map(s => [s.applicationId, s.accountId]));
     const accountById = new Map(accounts.map(a => [a.id, a]));
@@ -150,6 +151,7 @@ export async function GET() {
 
       return {
         id: app.id,
+        setupInProgress: inProgressAppIds.has(app.id),
         existingAccountSubmission: !!app.adminNotes?.includes("[Existing account submission]"),
         diyTier: app.diyTier,
         fullName: app.fullName,

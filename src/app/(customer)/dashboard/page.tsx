@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +98,9 @@ interface AmbassadorAccount {
 }
 
 interface Submission {
+  linkedAccountId?: string | null;
+  ownerAccount?: AmbassadorAccount;
+  accountOnly?: boolean;
   setupInProgress?: boolean;
   resumeUrl?: string | null;
   deal?: { setupUsd: number; setupPhp: number; monthlyUsd: number; monthlyPhp: number };
@@ -354,9 +357,24 @@ function DashboardContent() {
   const pastRentals = rentals.filter((r) => r.status === "expired" || r.status === "cancelled");
   // Adaptive dashboard: lean ambassador-first if they share/submit accounts.
   const profileKey = (url?: string | null) => (url || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split(/[?#]/)[0].replace(/\/$/, "");
-  const submittedAccounts = submissions.filter(sub => ![...ambassadorAccounts, ...removedAccounts].some(account =>
-    sub.linkedinUrl && profileKey(account.linkedinUrl) === profileKey(sub.linkedinUrl)
-  ));
+  const matchedAccounts = new Set<string>();
+  const sharedAccounts: Submission[] = submissions.map(sub => {
+    const account = ambassadorAccounts.find(account => !matchedAccounts.has(account.id) && (sub.linkedAccountId
+      ? sub.linkedAccountId === account.id
+      : !!sub.linkedinUrl && profileKey(account.linkedinUrl) === profileKey(sub.linkedinUrl)));
+    if (account) matchedAccounts.add(account.id);
+    return { ...sub, ownerAccount: account };
+  });
+  for (const account of ambassadorAccounts) {
+    if (matchedAccounts.has(account.id)) continue;
+    sharedAccounts.push({ id: account.id, fullName: account.linkedinName, email: account.notes?.match(/Profile email: ([^\s]+)/)?.[1]?.replace(/\.$/, "") || "", linkedinEmail: null, linkedinUrl: account.linkedinUrl || "", status: account.status, createdAt: account.createdAt, gologinShareLink: null, ownerAccount: account, accountOnly: true });
+  }
+  sharedAccounts.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const isOnboardedAccount = (sub: Submission) => !sub.setupInProgress && (sub.status === "onboarded" || !!sub.ownerAccount && (sub.ownerAccount.rentals.length > 0 || ["available", "rented", "trial"].includes(sub.ownerAccount.status)));
+  const sharedAccountGroups = [
+    { label: "Onboarded accounts", rows: sharedAccounts.filter(isOnboardedAccount) },
+    { label: "Accounts being onboarded", rows: sharedAccounts.filter(sub => !isOnboardedAccount(sub)) },
+  ];
   const isAmbassador = ambassadorAccounts.length > 0 || submissions.length > 0;
   const hasRealRentals = activeRentals.length > 0 || pastRentals.length > 0;
   const showRenterSide = !isAmbassador || hasRealRentals; // pure ambassadors hide renter-only bits
@@ -634,7 +652,7 @@ function DashboardContent() {
       )}
 
       {/* Accounts I'm Renting Out — always shown (empty state when none); ordered to the bottom */}
-        <section className="mb-12 order-3">
+        <section id="shared-accounts" className="mb-12 order-3">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-1.5 h-10 rounded bg-gradient-to-b from-[#00B85C] to-[#007A3D] shrink-0" />
             <div className="min-w-0">
@@ -643,87 +661,119 @@ function DashboardContent() {
             </div>
             <a href="/onboarding" className="ml-auto shrink-0 inline-flex items-center justify-center rounded-lg bg-[#00B85C] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#00A050]" title="Choose from three account setup options">Add Another Account</a>
           </div>
-          {ambassadorAccounts.length > 0 || submittedAccounts.length > 0 ? (
+        {(() => { const sub = submissions.find(s => s.id === meetingSubmissionId); return sub ? <div className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4">
+          <div className="flex items-center justify-between gap-3"><strong>{sub.fullName} · Onboarding meeting</strong><button className="text-sm underline" onClick={() => setMeetingSubmissionId(null)}>Close</button></div>
+          <MeetingBooker key={sub.id} applicationId={sub.id} email={sub.email} startRescheduling={!!sub.scheduledMeeting} onBooked={() => { void fetch("/api/ambassador/my-submissions", { cache: "no-store" }).then(r => r.json()).then(data => { if (Array.isArray(data.submissions)) setSubmissions(data.submissions); }); }} />
+        </div> : null; })()}
+          {sharedAccounts.length > 0 ? (
           <Card>
             <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full whitespace-nowrap text-sm" style={{ minWidth: 980 }}>
                 <thead>
-                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    <th className="px-4 py-3">Profile</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Monthly Payment</th>
-                    <th className="px-4 py-3">Proxy</th>
-                    <th className="px-4 py-3">Created</th>
-                    <th className="px-4 py-3"></th>
+                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-400">
+                    <th className="px-3 py-3">Name</th>
+                    <th className="px-3 py-3">Email</th>
+                    <th className="px-3 py-3">LinkedIn</th>
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">Your Deal</th>
+                    <th className="px-3 py-3">Meeting</th>
+                    <th className="px-3 py-3">Proxy</th>
+                    <th className="px-3 py-3">Added</th>
+                    <th className="px-3 py-3">Access</th>
+                    <th className="px-3 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {submittedAccounts.map(sub => (
-                    <tr key={`submission-${sub.id}`} className="border-b last:border-b-0">
-                      <td className="px-4 py-3"><p className="font-medium text-gray-900">{sub.fullName}</p><p className="text-xs text-gray-500">{sub.linkedinEmail || sub.email}</p></td>
-                      <td className="px-4 py-3"><span className="text-xs font-medium text-amber-700">{sub.status === "pending" || sub.status === "reviewing" ? "Under Review" : sub.status === "onboarding" ? "Being Prepared" : sub.status.replaceAll("_", " ").replace(/^./, c => c.toUpperCase())}</span></td>
-                      <td className="px-4 py-3 text-gray-400">To be confirmed</td>
-                      <td className="px-4 py-3 text-gray-400">—</td>
-                      <td className="px-4 py-3 text-gray-500">{formatDate(sub.createdAt)}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500">Application received</td>
+                  {sharedAccountGroups.filter(group => group.rows.length > 0).map(group => <Fragment key={group.label}>
+                    <tr className="bg-green-50/60 border-b"><th colSpan={10} scope="rowgroup" className="px-3 py-3 text-left text-sm font-semibold text-green-800">{group.label} <span className="font-normal text-gray-500">({group.rows.length})</span></th></tr>
+                  {group.rows.map((sub) => (
+                    <tr key={sub.id} className="border-b last:border-b-0">
+                      <td className="px-3 py-3 font-semibold text-gray-900"><CompactDetail summary={sub.fullName} title={sub.fullName} className="max-w-[120px]">{sub.fullName}</CompactDetail></td>
+                      <td className="px-3 py-3 text-gray-500"><CompactDetail summary={sub.linkedinEmail || sub.email} title={sub.linkedinEmail || sub.email} className="max-w-[180px]"><span className="break-all">{sub.linkedinEmail || sub.email}</span></CompactDetail></td>
+                      <td className="px-3 py-3">
+                        <a href={sub.linkedinUrl} title={sub.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm font-medium truncate block max-w-[100px]">
+                          {sub.linkedinUrl.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//, "").replace(/\/$/, "")}
+                        </a>
+                      </td>
+                      <td className="px-3 py-3">
+                        {sub.setupInProgress && sub.resumeUrl ? <Link href={sub.resumeUrl} title="Continue setup where you left off" className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 whitespace-nowrap">Setup in progress →</Link> : <Badge variant={sub.status === "approved" || sub.status === "onboarded" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
+                          {sub.ownerAccount ? (sub.ownerAccount.rentals.length ? "Rented" : sub.ownerAccount.status === "available" ? "Available" : ["under_construction", "onboarding"].includes(sub.ownerAccount.status) ? "Setup in progress" : sub.ownerAccount.status.replaceAll("_", " ")) : sub.status === "onboarding" ? "Setup in progress" : sub.status}
+                        </Badge>}
+                      </td>
+                      <td className="px-3 py-3">
+                        {sub.deal ? <CompactDetail
+                          summary={<><span className="font-semibold text-gray-900">${sub.deal.setupUsd} bonus</span><span className="text-gray-400"> · </span><span className="font-semibold text-green-700">${sub.deal.monthlyUsd}/mo</span></>}
+                          title={`One-time sign-on bonus: $${sub.deal.setupUsd} (₱${sub.deal.setupPhp.toLocaleString("en-US")}). Monthly rate: $${sub.deal.monthlyUsd} (₱${sub.deal.monthlyPhp.toLocaleString("en-US")}), once onboarding is complete.`}>
+                          <div className="font-semibold"><OnboardingPrice usd={sub.deal.setupUsd} php={sub.deal.setupPhp} /></div><div className="text-gray-500">One-time sign-on bonus</div>
+                          <div className="mt-3 font-semibold text-green-700"><OnboardingPrice usd={sub.deal.monthlyUsd} php={sub.deal.monthlyPhp} /> /month</div><div className="text-gray-500">Once onboarding is complete</div>
+                        </CompactDetail> : sub.ownerAccount && Number(sub.ownerAccount.ambassadorPayment) > 0 ? <span className="font-semibold text-green-700">{formatMoney(Number(sub.ownerAccount.ambassadorPayment), sub.ownerAccount.currency ?? "PHP")}/mo</span> : <span className="text-gray-400">To be confirmed</span>}
+                      </td>
+                      <td className="px-3 py-3">
+                        {!sub.accountOnly ? <button className="inline-flex items-center rounded-lg border border-green-200 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50"
+                          title={sub.scheduledMeeting ? `Reschedule meeting: ${new Date(sub.scheduledMeeting.startsAt).toLocaleString("en-PH", { timeZone: meetingTimeZone, dateStyle: "full", timeStyle: "short" })}. ${meetingTimeZone} · 30 minutes.` : "No meeting booked — book a 30-minute onboarding call"}
+                          aria-label={sub.scheduledMeeting ? "Reschedule meeting" : "Book meeting"}
+                          onClick={() => setMeetingSubmissionId(sub.id)}>
+                          {sub.scheduledMeeting ? <>{new Date(sub.scheduledMeeting.startsAt).toLocaleString("en-PH", { timeZone: meetingTimeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} ↗</> : "Book meeting"}
+                        </button> : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-gray-500">{sub.ownerAccount?.proxyHost ? "Assigned" : "—"}</td>
+                      <td className="px-3 py-3 text-gray-400 text-sm"><time dateTime={sub.createdAt} title={formatDate(sub.createdAt)}>{new Date(sub.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</time></td>
+                      <td className="px-3 py-3">
+                        {sub.setupInProgress && sub.resumeUrl ? <Link href={sub.resumeUrl} className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 whitespace-nowrap">Continue setup →</Link> : sub.gologinShareLink ? (
+                          <button
+                            onClick={() => {
+                              // Extract path from share link and build gologin:// protocol URL
+                              try {
+                                const shareUrl = new URL(sub.gologinShareLink!);
+                                const gologinProto = `gologin:/${shareUrl.pathname}`;
+                                window.location.href = gologinProto;
+                              } catch {
+                                // Fallback: open share link in browser
+                                window.open(sub.gologinShareLink!, "_blank");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
+                          >
+                            GoLogin
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                          </button>
+                        ) : (sub.status === "onboarded" || sub.status === "approved") ? (
+                          <button
+                            onClick={() => {
+                              window.location.href = "gologin://";
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
+                          >
+                            GoLogin
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        {sub.ownerAccount ? <div className="flex items-center justify-end gap-2">
+                          {!sub.ownerAccount.rentals.length && ["available", "unavailable"].includes(sub.ownerAccount.status) && <button onClick={() => handleToggleStatus(sub.ownerAccount!)} className="rounded-md border px-2.5 py-1 text-xs font-medium">{sub.ownerAccount.status === "available" ? "Pause" : "Activate"}</button>}
+                          <button onClick={() => setRemoveAccountId(sub.ownerAccount!.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">Remove</button>
+                        </div> : <button
+                          onClick={async () => {
+                            if (!confirm("Are you sure you want to delete this submission?")) return;
+                            setDeletingSubmission(sub.id);
+                            const res = await fetch(`/api/ambassador/my-submissions/${sub.id}`, { method: "DELETE" });
+                            if (res.ok) {
+                              setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
+                            }
+                            setDeletingSubmission(null);
+                          }}
+                          disabled={deletingSubmission === sub.id}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
+                        >
+                          {deletingSubmission === sub.id ? "Deleting..." : "Delete"}
+                        </button>}
+                      </td>
                     </tr>
                   ))}
-                  {ambassadorAccounts.map((account) => {
-                    const price = typeof account.ambassadorPayment === "string"
-                      ? parseFloat(account.ambassadorPayment)
-                      : account.ambassadorPayment;
-                    const isRented = account.rentals.length > 0;
-                    const initials = account.linkedinName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-                    const emailMatch = account.notes?.match(/Profile email: ([^.]+@[^.]+\.[^.]+)/);
-                    const profileEmail = emailMatch ? emailMatch[1] : null;
-
-                    return (
-                      <tr key={account.id} className="border-b last:border-b-0">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
-                              {account.profilePhotoUrl ? (
-                                <img src={account.profilePhotoUrl} alt={account.linkedinName} className="h-full w-full rounded-full object-cover" />
-                              ) : (
-                                initials
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{account.linkedinName}</p>
-                              {profileEmail && <p className="text-xs text-gray-500">{profileEmail}</p>}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${isRented ? "text-green-600" : account.status === "available" ? "text-green-600" : "text-gray-500"}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${isRented ? "bg-green-500" : account.status === "available" ? "bg-green-500" : "bg-gray-400"}`} />
-                            {isRented ? "Rented" : account.status === "under_review" ? "Under Review" : account.status === "available" ? "Available" : "Not Available"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{price > 0 ? formatMoney(price, account.currency ?? "PHP") : <span className="text-sm text-gray-400 font-normal">To be confirmed</span>}</td>
-                        <td className="px-4 py-3 text-xs text-gray-500">{account.proxyHost ? <span className="text-green-600 font-medium">Assigned</span> : "None"}</td>
-                        <td className="px-4 py-3 text-gray-500">{formatDate(account.createdAt)}</td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center gap-2 justify-end">
-                            {!isRented && account.status !== "under_review" && (
-                              <button
-                                onClick={() => handleToggleStatus(account)}
-                                className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${account.status === "available" ? "border-yellow-300 text-yellow-700 hover:bg-yellow-50" : "border-green-300 text-green-700 hover:bg-green-50"}`}
-                              >
-                                {account.status === "available" ? "Pause" : "Activate"}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setRemoveAccountId(account.id)}
-                              className="text-xs text-red-500 hover:text-red-700 font-medium"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  </Fragment>)}
                 </tbody>
               </table>
             </CardContent>
@@ -982,121 +1032,7 @@ function DashboardContent() {
       </div>
       {/* ===== end reordered account sections ===== */}
 
-      {/* My Submissions — only shown when there are submissions (the green section already
-          covers the empty "share an account" prompt, so no redundant empty-state card here) */}
-      {submissions.length > 0 && (
-      <section className="mb-12">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">My Submissions</h2>
-        {(() => { const sub = submissions.find(s => s.id === meetingSubmissionId); return sub ? <div className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4">
-          <div className="flex items-center justify-between gap-3"><strong>{sub.fullName} · Onboarding meeting</strong><button className="text-sm underline" onClick={() => setMeetingSubmissionId(null)}>Close</button></div>
-          <MeetingBooker key={sub.id} applicationId={sub.id} email={sub.email} startRescheduling={!!sub.scheduledMeeting} onBooked={() => { void fetch("/api/ambassador/my-submissions", { cache: "no-store" }).then(r => r.json()).then(data => { if (Array.isArray(data.submissions)) setSubmissions(data.submissions); }); }} />
-        </div> : null; })()}
-          <Card>
-            <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full whitespace-nowrap text-sm" style={{ minWidth: 980 }}>
-                <thead>
-                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-400">
-                    <th className="px-3 py-3">Name</th>
-                    <th className="px-3 py-3">Email</th>
-                    <th className="px-3 py-3">LinkedIn</th>
-                    <th className="px-3 py-3">Status</th>
-                    <th className="px-3 py-3">Your Deal</th>
-                    <th className="px-3 py-3">Meeting</th>
-                    <th className="px-3 py-3">Added</th>
-                    <th className="px-3 py-3">Access</th>
-                    <th className="px-3 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {submissions.map((sub) => (
-                    <tr key={sub.id} className="border-b last:border-b-0">
-                      <td className="px-3 py-3 font-semibold text-gray-900"><CompactDetail summary={sub.fullName} title={sub.fullName} className="max-w-[120px]">{sub.fullName}</CompactDetail></td>
-                      <td className="px-3 py-3 text-gray-500"><CompactDetail summary={sub.linkedinEmail || sub.email} title={sub.linkedinEmail || sub.email} className="max-w-[180px]"><span className="break-all">{sub.linkedinEmail || sub.email}</span></CompactDetail></td>
-                      <td className="px-3 py-3">
-                        <a href={sub.linkedinUrl} title={sub.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm font-medium truncate block max-w-[100px]">
-                          {sub.linkedinUrl.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//, "").replace(/\/$/, "")}
-                        </a>
-                      </td>
-                      <td className="px-3 py-3">
-                        {sub.setupInProgress && sub.resumeUrl ? <Link href={sub.resumeUrl} title="Continue setup where you left off" className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 whitespace-nowrap">In progress →</Link> : <Badge variant={sub.status === "approved" || sub.status === "onboarded" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
-                          {sub.status}
-                        </Badge>}
-                      </td>
-                      <td className="px-3 py-3">
-                        {sub.deal ? <CompactDetail
-                          summary={<><span className="font-semibold text-gray-900">${sub.deal.setupUsd} bonus</span><span className="text-gray-400"> · </span><span className="font-semibold text-green-700">${sub.deal.monthlyUsd}/mo</span></>}
-                          title={`One-time sign-on bonus: $${sub.deal.setupUsd} (₱${sub.deal.setupPhp.toLocaleString("en-US")}). Monthly rate: $${sub.deal.monthlyUsd} (₱${sub.deal.monthlyPhp.toLocaleString("en-US")}), once onboarding is complete.`}>
-                          <div className="font-semibold"><OnboardingPrice usd={sub.deal.setupUsd} php={sub.deal.setupPhp} /></div><div className="text-gray-500">One-time sign-on bonus</div>
-                          <div className="mt-3 font-semibold text-green-700"><OnboardingPrice usd={sub.deal.monthlyUsd} php={sub.deal.monthlyPhp} /> /month</div><div className="text-gray-500">Once onboarding is complete</div>
-                        </CompactDetail> : <span className="text-gray-400">To be confirmed</span>}
-                      </td>
-                      <td className="px-3 py-3">
-                        <button className="inline-flex items-center rounded-lg border border-green-200 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50"
-                          title={sub.scheduledMeeting ? `Reschedule meeting: ${new Date(sub.scheduledMeeting.startsAt).toLocaleString("en-PH", { timeZone: meetingTimeZone, dateStyle: "full", timeStyle: "short" })}. ${meetingTimeZone} · 30 minutes.` : "No meeting booked — book a 30-minute onboarding call"}
-                          aria-label={sub.scheduledMeeting ? "Reschedule meeting" : "Book meeting"}
-                          onClick={() => setMeetingSubmissionId(sub.id)}>
-                          {sub.scheduledMeeting ? <>{new Date(sub.scheduledMeeting.startsAt).toLocaleString("en-PH", { timeZone: meetingTimeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} ↗</> : "Book meeting"}
-                        </button>
-                      </td>
-                      <td className="px-3 py-3 text-gray-400 text-sm"><time dateTime={sub.createdAt} title={formatDate(sub.createdAt)}>{new Date(sub.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</time></td>
-                      <td className="px-3 py-3">
-                        {sub.setupInProgress && sub.resumeUrl ? <Link href={sub.resumeUrl} className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 whitespace-nowrap">Continue setup →</Link> : sub.gologinShareLink ? (
-                          <button
-                            onClick={() => {
-                              // Extract path from share link and build gologin:// protocol URL
-                              try {
-                                const shareUrl = new URL(sub.gologinShareLink!);
-                                const gologinProto = `gologin:/${shareUrl.pathname}`;
-                                window.location.href = gologinProto;
-                              } catch {
-                                // Fallback: open share link in browser
-                                window.open(sub.gologinShareLink!, "_blank");
-                              }
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
-                          >
-                            GoLogin
-                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                          </button>
-                        ) : (sub.status === "onboarded" || sub.status === "approved") ? (
-                          <button
-                            onClick={() => {
-                              window.location.href = "gologin://";
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
-                          >
-                            GoLogin
-                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <button
-                          onClick={async () => {
-                            if (!confirm("Are you sure you want to delete this submission?")) return;
-                            setDeletingSubmission(sub.id);
-                            const res = await fetch(`/api/ambassador/my-submissions/${sub.id}`, { method: "DELETE" });
-                            if (res.ok) {
-                              setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
-                            }
-                            setDeletingSubmission(null);
-                          }}
-                          disabled={deletingSubmission === sub.id}
-                          className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
-                        >
-                          {deletingSubmission === sub.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-      </section>
-      )}
+
 
       {/* Remove Account Modal */}
       {removeAccountId && (

@@ -60,6 +60,7 @@ interface Row {
   // are excluded from the level / onboarding metrics. See the onboarding route.
   accountOnly?: boolean;
   applicationReceived?: boolean;
+  setupInProgress?: boolean;
   existingAccountSubmission?: boolean;
   fullName: string;
   email: string;
@@ -157,7 +158,8 @@ type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejec
 
 // Account statuses that mean the account is genuinely live and earning (counts as Level 5).
 const EARNING_INVENTORY = new Set(["available", "rented", "trial"]);
-const levelOf = (r: Row): 0 | 1 | 2 | 3 | 4 | 5 => {
+const levelOf = (r: Row): 0 | 0.5 | 1 | 2 | 3 | 4 | 5 => {
+  if (r.setupInProgress && !["rejected", "unreachable", "onboarded"].includes(r.status)) return 0.5;
   if (!isApplicationReceived(r)) return 0;
   if (r.status === "onboarded") return 5;          // matured + paid — live and earning
   // A genuinely live, earning account (available / rented / trial) is Level 5 even when the
@@ -184,7 +186,7 @@ const levelKey = (r: Row): number => levelOf(r);
 const isSelfServeInProgress = (r: Row): boolean => {
   if (r.referralSource !== "self-service") return false;
   const l = levelOf(r);
-  return l >= 1 && l < 5;
+  return l >= 0.5 && l < 5;
 };
 
 const healthOf = (r: Row): Health => {
@@ -200,6 +202,7 @@ const healthOf = (r: Row): Health => {
 };
 
 const LEVEL_GROUPS: { key: number; label: string; dot: string; note: string }[] = [
+  { key: 0.5, label: "Level 0.5 · Setup in progress", dot: "var(--warn-badge-text,#b7791f)", note: "started the wizard — saved details, not yet submitted for completion" },
   { key: 1, label: "Level 1 · Application received", dot: "var(--blue-chip-text,#1a56db)", note: "signed up — our email & 2FA not added yet" },
   { key: 2, label: "Level 2 · Email & 2FA", dot: "var(--blue-chip-text,#1a56db)", note: "our email added & primary, 2FA set — not logged in yet" },
   { key: 3, label: "Level 3 · Logged into GoLogin", dot: "var(--warn-badge-text,#b7791f)", note: "signed in via GoLogin — going through QC checks" },
@@ -216,7 +219,7 @@ const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
   { key: "unreachable", label: "Unreachable", dot: "var(--st-unreach-fg,#c0392b)" },
   { key: "rejected", label: "Rejected", dot: "var(--st-cancel-fg,#c0392b)" },
 ];
-const LEVEL_CHIP: Record<string, string> = { "0": "0 · Not progressing", "1": "1 · Received", "2": "2 · Email & 2FA", "3": "3 · Logged in", "4": "4 · Maturing", "5": "5 · Onboarded" };
+const LEVEL_CHIP: Record<string, string> = { "0.5": "0.5 · Setup in progress", "0": "0 · Not progressing", "1": "1 · Received", "2": "2 · Email & 2FA", "3": "3 · Logged in", "4": "4 · Maturing", "5": "5 · Onboarded" };
 
 // By next action -------------------------------------------------------------
 type ActionKey = "blocked" | "message" | "awaiting" | "noreply" | "replied" | "setup" | "live" | "closed";
@@ -409,6 +412,7 @@ const nextStep = (r: Row): NextStep => {
     if (idle >= 3) return { state: "now", label: `Chase — no reply in ${idle}d`, last };
     return { state: "waiting", label: "Awaiting their reply", timing: idle > 0 ? `${idle}d` : "today", last };
   }
+  if (levelOf(r) === 0.5) return { state: "waiting", label: "Setup in progress — waiting for the applicant to finish the wizard", last };
   if (r.status === "pending") return gate("Reach out — new application", 1);
   if (r.status === "reviewing") return { state: "waiting", label: "In review", last };
   if (r.status === "on_hold") return { state: "waiting", label: "On hold", last };
@@ -1109,7 +1113,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Progress</span>
-            <select value={String(lvlKey)} disabled={busy || lvlKey === 0} title={lvlKey === 0 ? "Not progressing. Mark Application received complete in the workflow to resume." : "Progress on the onboarding ladder — changing it stamps the matching milestones (same as the Workflow steps)."} onClick={(e) => e.stopPropagation()}
+            <select value={String(lvlKey)} disabled={busy || lvlKey === 0 || lvlKey === 0.5} title={lvlKey === 0.5 ? "Setup is saved but the wizard is not complete yet." : lvlKey === 0 ? "Not progressing. Mark Application received complete in the workflow to resume." : "Progress on the onboarding ladder — changing it stamps the matching milestones (same as the Workflow steps)."} onClick={(e) => e.stopPropagation()}
               onChange={(e) => {
                 const n = Number(e.target.value);
                 const now = new Date().toISOString();
@@ -1124,7 +1128,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
                 workflow(r.id, patch);
               }}
               style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, border: "none", cursor: busy ? "wait" : "pointer", outline: "none", background: "var(--band,#f1f1f2)", color: "var(--fg,#333)" }}>
-              {(lvlKey === 0 ? [0, 1, 2, 3, 4, 5] : [1, 2, 3, 4, 5]).map((n) => <option key={n} value={n}>{n === 0 ? "Level 0 · Not progressing" : n === 5 ? "Level 5 · Onboarded" : `Level ${n}`}</option>)}
+              {(lvlKey === 0.5 ? [0.5] : lvlKey === 0 ? [0, 1, 2, 3, 4, 5] : [1, 2, 3, 4, 5]).map((n) => <option key={n} value={n}>{n === 0 ? "Level 0 · Not progressing" : n === 5 ? "Level 5 · Onboarded" : `Level ${n}`}</option>)}
             </select>
             {live && <span style={{ font: `600 13px ${F_GRO}`, color: "var(--fg,#111)", fontVariantNumeric: "tabular-nums" }}>{formatMoney(monthlyAmt(r), cfgOf(r).currency)}/mo</span>}
           </div>

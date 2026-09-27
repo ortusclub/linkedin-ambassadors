@@ -1,0 +1,15 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescript');
+function load(file,mocks={}){const m={exports:{}};new Function('require','exports','module',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(n=>mocks[n]||require(n),m.exports,m);return m.exports}
+for(const scenario of ['send','legacy','returned','claimed','failed'])test(`unfinished onboarding reminder: ${scenario}`,async()=>{
+ const now=new Date('2026-09-28T12:00:00Z');let where,updates=[],sent=[];
+ const prisma={selfServiceOnboarding:{findMany:async q=>{where=q.where;return [{id:'fixture',reminderCount:0}]},updateMany:async q=>{assert.equal(q.where.reminderCount,0);return {count:scenario==='claimed'?0:1}},findFirst:async()=>scenario==='returned'?null:{email:'linkedin@example.test',application:{fullName:'Name <script>',submittedBy:scenario==='legacy'?null:{email:'login@example.test'}}},update:async q=>{updates.push(q.data)}}};
+ const lib=load('src/lib/onboarding-reminders.ts',{'@/lib/prisma':{prisma},resend:{Resend:class{emails={send:async(...args)=>{sent.push(args);return scenario==='failed'?{error:{message:'provider unavailable'}}:{data:{id:'message'}}}}}}});
+ process.env.MEETING_SMTP_API_KEY='fixture';const r=await lib.sendOnboardingReminders(now);
+ assert.equal(where.lastActivityAt.lte.toISOString(),'2026-09-28T08:00:00.000Z');assert.deepEqual(where.OR.map(x=>x.reminderCount),[0,1,2,3]);assert.deepEqual(where.OR.map(x=>(now-x.lastActivityAt.lte)/3600000),[4,24,72,168]);assert.deepEqual(where.state.in,['reserved','needs_help','ready']);assert.ok(!where.application.status.in.includes('rejected'));assert.ok(!where.application.status.in.includes('onboarded'));
+ if(['returned','claimed'].includes(scenario)){assert.equal(sent.length,0);assert.equal(r.sent,0)}else{assert.equal(sent[0][0].to,scenario==='legacy'?'linkedin@example.test':'login@example.test');assert.match(sent[0][0].text,/Accounts I'm Renting Out/);assert.match(sent[0][0].text,/Continue setup/);assert.match(sent[0][0].html,/Name &lt;script&gt;/);assert.equal(sent[0][1].idempotencyKey,'onboarding-reminder/fixture/0');assert.equal(r.sent,scenario==='failed'?0:1);assert.equal(updates.some(x=>x.reminderSentAt),scenario!=='failed')}
+});
+test('cron requires real secret, not a spoofable cron header',async()=>{
+ let calls=0;const route=load('src/app/api/cron/onboarding-reminders/route.ts',{'@/lib/onboarding-reminders':{sendOnboardingReminders:async()=>{calls++;return {sent:0}}}});
+ delete process.env.CRON_SECRET;assert.equal((await route.GET(new Request('https://example.test',{headers:{'x-vercel-cron':'1',authorization:'Bearer undefined'}}))).status,401);
+ process.env.CRON_SECRET='fixture';assert.equal((await route.GET(new Request('https://example.test',{headers:{authorization:'Bearer wrong'}}))).status,401);assert.equal(calls,0);assert.equal((await route.GET(new Request('https://example.test',{headers:{authorization:'Bearer fixture'}}))).status,200);assert.equal(calls,1)
+});

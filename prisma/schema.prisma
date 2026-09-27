@@ -627,6 +627,10 @@ model SelfServiceOnboarding {
   // ONLY their own session via /api/self-onboarding/<token>, without the shared referrer
   // token (which would expose other people's sessions). Null for referrer-driven sessions.
   publicToken String? @unique @map("public_token")
+  lastActivityAt DateTime @default(now()) @map("last_activity_at")
+  reminderCount Int @default(0) @map("reminder_count")
+  reminderSentAt DateTime? @map("reminder_sent_at")
+  reminderClaimedAt DateTime? @map("reminder_claimed_at")
   state String @default("reserved")
   consentAt DateTime @map("consent_at")
   openedAt DateTime? @map("opened_at")
