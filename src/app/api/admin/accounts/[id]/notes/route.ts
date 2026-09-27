@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // Display order is handled by the timeline; concurrent writers don't overwrite.
     const rows = await prisma.$queryRaw<Array<{ notes: string }>>`
       UPDATE linkedin_accounts
-      SET notes = concat_ws(E'\n', nullif(notes, ''), ${entry}), updated_at = ${at}
+      SET notes = concat_ws(E'\n', nullif(notes, ''), ${entry}::text), updated_at = ${at}
       WHERE id = ${id}::uuid
       RETURNING notes
     `;
