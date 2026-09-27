@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { crmOwnerOptions, matchesCrmOwner, ownerKey, type CrmOwner } from "@/lib/crm-owners";
 
 interface Lead {
   id: string;
   ownerEmail: string | null;
-  commsLog?: { ts: string; channel: string; direction?: string; body: string }[] | null;
+  commsLog?: { ts: string; channel: string; direction?: string; authorName?: string; authorEmail?: string; body: string }[] | null;
   channel: string;
   name: string;
   handle: string | null;
@@ -27,13 +27,13 @@ const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
 const PLATFORMS = ["Telegram", "Website", "Call booking", "WhatsApp", "Email", "Other"];
 const TYPES = ["Potential Renter", "Potential Ambassador", "Both", "Other"];
-const STATUSES = ["New", "Replied", "In Conversation", "No Response", "Booked Call", "Converted", "Not Interested", "Cancelled"];
+const STATUSES = ["New", "Replied", "In Conversation", "No Response", "Booked Call", "Converted", "Not Interested / Cancelled"];
 
 // status -> palette key
 const stKey = (s: string): string => ({
   New: "new", Converted: "new", Replied: "replied",
   "In Conversation": "conv", "Booked Call": "conv",
-  "No Response": "none", "Not Interested": "none", Cancelled: "cancel",
+  "No Response": "none", "Not Interested / Cancelled": "cancel",
 } as Record<string, string>)[s] || "none";
 const stStyle = (s: string): React.CSSProperties => ({ background: `var(--st-${stKey(s)}-bg)`, color: `var(--st-${stKey(s)}-fg)` });
 
@@ -58,18 +58,38 @@ export default function AdminInboundPage() {
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [error, setError] = useState("");
   const [reply, setReply] = useState<{ id: string; name: string; text: string } | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [savingNote, setSavingNote] = useState(false);
+  const noteLock = useRef(false);
+  const noteRequest = useRef<{ id: string; text: string; requestId: string } | null>(null);
+  const addNote = async (id: string) => {
+    const text = (noteDrafts[id] || "").trim();
+    if (!text || noteLock.current) return;
+    noteLock.current = true; setSavingNote(true); setError("");
+    if (noteRequest.current?.id !== id || noteRequest.current?.text !== text) noteRequest.current = { id, text, requestId: crypto.randomUUID() };
+    try {
+      const response = await fetch("/api/admin/inbound/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(noteRequest.current) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save the note.");
+      setLeads(prev => prev.map(l => l.id === id ? data.lead : l));
+      setNoteDrafts(prev => ({ ...prev, [id]: "" })); noteRequest.current = null;
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save the note. Your draft has been kept."); }
+    finally { noteLock.current = false; setSavingNote(false); }
+  };
   const [sendingReply, setSendingReply] = useState(false);
   const [replyResult, setReplyResult] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [filter, setFilter] = useState("all");
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
+  const [syncingBookings, setSyncingBookings] = useState(false);
+  const [bookingResult, setBookingResult] = useState("");
   const [copied, setCopied] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ ...blankForm });
   const [saving, setSaving] = useState(false);
 
-  const load = () => fetch("/api/admin/inbound").then((r) => r.json()).then((d) => { setLeads(d.leads || []); setOwners(d.owners || []); }).finally(() => setLoading(false));
+  const load = () => fetch("/api/admin/inbound").then((r) => r.json()).then((d) => { setLeads((d.leads || []).map((lead: Lead) => ({ ...lead, status: ["not interested", "cancelled"].includes(lead.status.toLowerCase()) ? "Not Interested / Cancelled" : lead.status }))); setOwners(d.owners || []); }).finally(() => setLoading(false));
   useEffect(() => {
     load();
     fetch("/api/admin/inbound/export-url").then((r) => r.json())
@@ -153,11 +173,25 @@ export default function AdminInboundPage() {
           <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Everyone who reached out — Telegram logs automatically; add the rest (website, calls, referrals) manually. One source of truth, exportable to your sheet.</p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button style={btnSecondary} disabled={syncingBookings} onClick={async () => {
+            setSyncingBookings(true); setBookingResult("");
+            try {
+              const response = await fetch("/api/admin/inbound/sync-bookings", { method: "POST" });
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.error || "Could not sync bookings.");
+              setBookingResult(`Bookings synced: ${data.created} new, ${data.updated} updated, ${data.unchanged} unchanged.${data.ambiguous ? ` ${data.ambiguous} skipped because multiple leads share the email.` : ""}`);
+              await load();
+            } catch (e) { setBookingResult(e instanceof Error ? e.message : "Could not sync bookings."); }
+            finally { setSyncingBookings(false); }
+          }}>{syncingBookings ? "Syncing…" : "Sync bookings"}</button>
           <button onClick={() => setAdding(true)} style={btnPrimary}>+ Add Lead</button>
           {sheetUrl && <a href={sheetUrl} target="_blank" rel="noopener noreferrer" style={{ ...btnSecondary, textDecoration: "none" }}>Download CSV</a>}
           {sheetUrl && <button onClick={copyFormula} style={btnSecondary}>{copied ? "Copied ✓" : "Copy Sheets formula"}</button>}
         </div>
       </div>
+
+      {bookingResult && <p role="status">{bookingResult}</p>}
+      <p style={{ fontSize: 12, color: "var(--muted)" }}>Google Calendar bookings sync every 10 minutes, after Google updates its calendar feed.</p>
 
       {sheetConfigured === false && (
         <div style={{ font: `500 12px ${F_SANS}`, color: "var(--warn-badge-text)", background: "var(--warn-badge-bg)", borderRadius: 9, padding: "8px 13px", marginBottom: 16 }}>
@@ -167,6 +201,13 @@ export default function AdminInboundPage() {
 
       {error && <p role="alert" style={{ color: "var(--delete-color)" }}>{error}</p>}
 
+      <div aria-label="Filter by LV PoC" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 18 }}>
+        <span style={labelCss}>LV PoC</span>
+        {[{ value: "all", label: "All", count: leads.length }, ...ownerOptions.filter(o => leads.some(l => ownerKey(l.ownerEmail) === o.value)).map(o => ({ ...o, label: o.label.split(" (")[0], count: leads.filter(l => ownerKey(l.ownerEmail) === o.value).length })), { value: "unassigned", label: "Unassigned", count: leads.filter(l => !ownerKey(l.ownerEmail)).length }].map(o =>
+          <button key={o.value} aria-pressed={ownerFilter === o.value} onClick={() => setOwnerFilter(o.value)} style={{ ...btnSecondary, display: "inline-flex", alignItems: "center", gap: 8, borderRadius: 999, background: ownerFilter === o.value ? "var(--chip-active-bg)" : "var(--card)", borderColor: ownerFilter === o.value ? "var(--chip-active-border)" : "var(--card-border)" }}>{o.label}<span style={{ color: "var(--muted)" }}>{o.count}</span></button>
+        )}
+      </div>
+
       {/* pipeline */}
       <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 18, boxShadow: "var(--card-shadow)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 13, flexWrap: "wrap", gap: 8 }}>
@@ -174,12 +215,6 @@ export default function AdminInboundPage() {
             <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{ownerLeads.length}</span>
             <span style={{ font: `600 12px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--label)" }}>leads in pipeline</span>
           </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 10, font: `600 13px ${F_SANS}` }}>LV PoC
-            <select aria-label="Filter by LV PoC" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)} style={{ ...formInput, width: "auto", maxWidth: "100%" }}>
-              <option value="all">All team members</option><option value="unassigned">Unassigned</option>
-              {ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </label>
           <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{counts["New"] || 0} new · {counts["In Conversation"] || 0} in conversation</span>
         </div>
         {ownerLeads.length > 0 && (
@@ -309,18 +344,26 @@ export default function AdminInboundPage() {
                   style={{ width: "100%", resize: "vertical", font: `500 14px/1.5 ${F_SANS}`, color: "var(--text2)", background: "var(--quote-bg)", borderLeft: "3px solid var(--accent)", border: "none", borderLeftWidth: 3, borderLeftStyle: "solid", borderLeftColor: "var(--accent)", padding: "13px 16px", borderRadius: "0 9px 9px 0", outline: "none" }} />
               </div>
 
-              {!!selected.commsLog?.length && <details><summary style={{ cursor: "pointer", ...labelCss }}>Conversation history</summary>
-                {selected.commsLog.map((entry, i) => <div key={`${entry.ts}-${i}`} style={{ padding: "10px 0", borderBottom: "1px solid var(--divider)" }}><small>{entry.direction === "outbound" ? "Team sent" : "Received / logged"} · {entry.channel} · {fmtShort(entry.ts)}</small><p style={{ whiteSpace: "pre-wrap", margin: "5px 0" }}>{entry.body}</p></div>)}
+              {!!selected.commsLog?.some(entry => entry.channel !== "note") && <details><summary style={{ cursor: "pointer", ...labelCss }}>Conversation history</summary>
+                {selected.commsLog!.filter(entry => entry.channel !== "note").map((entry, i) => <div key={`${entry.ts}-${i}`} style={{ padding: "10px 0", borderBottom: "1px solid var(--divider)" }}><small>{entry.direction === "outbound" ? "Team sent" : "Received / logged"} · {entry.channel} · {fmtShort(entry.ts)}</small><p style={{ whiteSpace: "pre-wrap", margin: "5px 0" }}>{entry.body}</p></div>)}
               </details>}
 
               {/* notes */}
               <div>
                 <div style={{ ...labelCss, marginBottom: 8 }}>Notes</div>
-                <textarea defaultValue={selected.notes || ""} placeholder="Add a note…" onBlur={(e) => save(selected.id, { notes: e.target.value })} rows={2}
-                  style={{ width: "100%", resize: "vertical", font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--text2)", background: "var(--quote-bg)", border: "none", padding: "13px 16px", borderRadius: 9, outline: "none" }} />
+                {selected.notes && <div style={{ padding: 12, background: "var(--quote-bg)", borderRadius: 9, marginBottom: 10 }}><small>Previous notes · author and time not recorded</small><p style={{ whiteSpace: "pre-wrap" }}>{selected.notes}</p></div>}
+                {(selected.commsLog || []).filter(entry => entry.channel === "note").map((entry, i) => <div key={`${entry.ts}-${i}`} style={{ padding: 12, borderBottom: "1px solid var(--divider)" }}>
+                  <small>{entry.authorName || entry.authorEmail || "Author not recorded"} · {new Date(entry.ts).toLocaleString()}</small>
+                  <p style={{ whiteSpace: "pre-wrap", margin: "5px 0" }}>{entry.body}</p>
+                </div>)}
+                <textarea aria-label="Add a note" value={noteDrafts[selected.id] || ""} disabled={savingNote} placeholder="Add a note… Enter to save, Shift+Enter for a new line" maxLength={10000} onChange={e => setNoteDrafts(prev => ({ ...prev, [selected.id]: e.target.value }))} onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void addNote(selected.id); }
+                }} rows={2} style={{ ...formInput, marginTop: 10, resize: "vertical" }} />
+                <button style={{ ...btnPrimary, marginTop: 8 }} disabled={savingNote || !(noteDrafts[selected.id] || "").trim()} onClick={() => void addNote(selected.id)}>{savingNote ? "Adding…" : "Add note"}</button>
+                <span style={{ marginLeft: 10, fontSize: 12, color: "var(--muted)" }}>Enter to save · Shift+Enter for a new line</span>
               </div>
 
-              <div style={{ marginTop: "auto", font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>Click any field to edit — changes save automatically.</div>
+              <div style={{ marginTop: "auto", font: `500 11.5px ${F_SANS}`, color: "var(--muted)" }}>Fields save automatically. Press Enter or Add note to save a new note.</div>
             </div>
           )}
         </div>

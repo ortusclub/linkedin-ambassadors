@@ -127,9 +127,10 @@ export async function POST(req: Request) {
         select: { commsLog: true },
       });
       const prior = Array.isArray(existing?.commsLog) ? (existing!.commsLog as Comm[]) : [];
-      const log = [entry, ...prior].slice(0, 50); // newest first, cap stored history
+      const log = [entry, ...prior]; // Keep notes and team replies in the shared history.
       recent = log.slice(0, 3);
-      await prisma.inboundLead.upsert({
+      await prisma.$transaction(async tx => {
+      const saved = await tx.inboundLead.upsert({
         where: { channel_contact: { channel: "telegram", contact } },
         create: {
           channel: "telegram",
@@ -137,17 +138,19 @@ export async function POST(req: Request) {
           handle,
           contact,
           message: body,
-          commsLog: log,
+          commsLog: [],
           status: "New",
         },
         update: {
           name: fromName,
           handle,
           message: body,
-          commsLog: log,
           lastContactAt: new Date(),
           messageCount: { increment: 1 },
         },
+      });
+      const serialized = JSON.stringify([entry]);
+      await tx.$executeRaw`UPDATE inbound_leads SET comms_log = ${serialized}::jsonb || COALESCE(comms_log, '[]'::jsonb) WHERE id = ${saved.id}::uuid`;
       });
     } catch (e) {
       console.error("inbound lead log failed:", e);

@@ -13,8 +13,8 @@ const grotesk = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600"
 const sections = [
   { name: "Overview", items: [
     { href: "/admin/dashboard", label: "Dashboard" },
-    { href: "/admin/crm", label: "CRM" },
     { href: "/admin/inbound", label: "Inbound" },
+    { href: "/admin/crm", label: "CRM" },
     { href: "/admin/content", label: "Content" },
   ] },
   { name: "Renters", items: [

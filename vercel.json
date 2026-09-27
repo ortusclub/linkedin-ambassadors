@@ -46,6 +46,10 @@
     {
       "path": "/api/cron/provision-accounts",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-inbound-bookings",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
