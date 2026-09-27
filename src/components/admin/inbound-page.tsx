@@ -138,7 +138,7 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
   };
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
-  const ownerOptions = useMemo(() => crmOwnerOptions(owners, leads).map(o => o.value === "ardi@linkedvelocity.com" ? { ...o, label: "Ardi (ardi@linkedvelocity.com)" } : o), [owners, leads]);
+  const ownerOptions = useMemo(() => crmOwnerOptions(owners, leads), [owners, leads]);
   const ownerLabels = useMemo(() => new Map(ownerOptions.map(o => [o.value, o.label])), [ownerOptions]);
   const ownerLeads = useMemo(() => leads.filter(l => matchesCrmOwner(l.ownerEmail, ownerFilter)), [leads, ownerFilter]);
   const assignOwner = async (id: string, ownerEmail: string) => {

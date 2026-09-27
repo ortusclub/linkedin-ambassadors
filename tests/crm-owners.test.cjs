@@ -24,9 +24,9 @@ test('owner choices include unassigned team members and preserve legacy owners w
   assert.deepEqual(crmOwnerOptions([
     { email: 'sam@example.com', fullName: 'Sam' }, { email: 'anna@example.com', fullName: 'Anna' },
   ], [{ ownerEmail: ' SAM@example.com ' }, { ownerEmail: 'Former teammate' }, { ownerEmail: null }]), [
-    { value: 'anna@example.com', label: 'Anna (anna@example.com)' },
-    { value: 'former teammate', label: 'Former teammate' },
-    { value: 'sam@example.com', label: 'Sam (sam@example.com)' },
+    { value: 'anna@example.com', label: 'Anna' },
+    { value: 'former teammate', label: 'Former' },
+    { value: 'sam@example.com', label: 'Sam' },
   ]);
 });
 test('owner filtering handles all, unassigned and exact case-insensitive matches', () => {
@@ -42,6 +42,7 @@ test('CRM roster is admin-only and exposes only email and display name', async (
     '@/lib/auth': { requireAdmin: async () => { if (!allowed) throw Error('Forbidden'); } },
     '@/lib/prisma': { prisma: {
       inboundLead: { findMany: async () => [] },
+      inboundBooking: { findMany: async () => [] },
       user: { findMany: async args => { assert.deepEqual(args.where, { role: 'admin' });
         assert.deepEqual(args.select, { email: true, fullName: true }); return [{ email: 'sam@example.com', fullName: 'Sam' }]; } },
     } },
@@ -62,4 +63,8 @@ test('assigning and clearing a PoC writes the existing owner field', async () =>
     assert.equal(res.status, 200);
   }
   assert.deepEqual(writes.map(w => w.data.ownerEmail), ['sam@example.com', null]);
+});
+
+test('assignment labels show first names and the Ardi alias while preserving identity', () => {
+  assert.deepEqual(crmOwnerOptions([{email:'ardi@linkedvelocity.com',fullName:'Milee Melani'},{email:'sam@ortusclub.com',fullName:'Sam Adcock'}],[]),[{value:'ardi@linkedvelocity.com',label:'Ardi'},{value:'sam@ortusclub.com',label:'Sam'}]);
 });

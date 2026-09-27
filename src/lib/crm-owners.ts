@@ -1,15 +1,21 @@
 export type CrmOwner = { email: string; fullName: string | null };
 export const ownerKey = (value: string | null | undefined) => (value || "").trim().toLowerCase();
 
+function firstName(email: string, fullName?: string | null) {
+  if (ownerKey(email) === "ardi@linkedvelocity.com") return "Ardi";
+  const name = (fullName?.trim() || email.split("@")[0]).split(/[\s._-]+/)[0];
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 export function crmOwnerOptions(team: CrmOwner[], leads: { ownerEmail: string | null }[]) {
   const options = new Map<string, { value: string; label: string }>();
   for (const member of team) {
     const value = ownerKey(member.email);
-    if (value) options.set(value, { value, label: member.fullName ? `${member.fullName} (${member.email})` : member.email });
+    if (value) options.set(value, { value, label: firstName(member.email, member.fullName) });
   }
   for (const lead of leads) {
     const value = ownerKey(lead.ownerEmail);
-    if (value && !options.has(value)) options.set(value, { value, label: lead.ownerEmail!.trim() });
+    if (value && !options.has(value)) options.set(value, { value, label: firstName(lead.ownerEmail!.trim()) });
   }
   return [...options.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
