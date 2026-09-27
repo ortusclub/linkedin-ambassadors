@@ -143,6 +143,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const [phoneError, setPhoneError] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
   const [emailCopied, setEmailCopied] = useState(false);
+  const [setupChoice, setSetupChoice] = useState(false);
   const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
   const [handedOff, setHandedOff] = useState(false);
   // 2FA is its own step (step 4) after the email is made primary. The key is captured
@@ -397,12 +398,44 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     setLinkCopied(true);
   }
 
+  function selectSetupMethod(method: "phone" | "pc") {
+    setBrowserMode(method);
+    setSetupChoice(false);
+    setError("");
+    // Choosing a route never skips unfinished email or 2FA setup.
+    setStep(session?.emailSetup && !session.emailSetup.primaryConfirmed ? 3 : session?.twoFactorSaved ? 5 : 4);
+  }
+  function setupOptions() {
+    if (!session) return null;
+    return <>
+            <h1 className={styles.heroTitle}>{selfMode ? "Finish your account setup" : "How would you like to complete setup?"}</h1>
+            <p className={styles.lead}>{selfMode ? "Complete Full DIY on a computer for the larger sign-on bonus, or switch to Email + 2FA and let our team finish the sign-in." : "Choose how much you’ll complete with the owner. Your referral fee depends on the option you finish."}</p>
+            <button type="button" data-tour="signin-choice" className={styles.choiceCard} onClick={() => selectSetupMethod("phone")}>
+              <div className={styles.choiceHead}><strong>{selfMode ? "Hand it to us" : "I’ll do email + 2FA"}</strong><span className={styles.rateChip}>{selfMode ? "$24 (₱1,500) sign-on" : phoneRange}</span></div>
+              <p>{selfMode ? "Switch to Email + 2FA setup. Set a temporary password and our team will complete the sign-in." : "Add the assigned email and complete 2FA with the owner. Works on a phone. Then hand over the sign-in to our team."}</p>
+            </button>
+            <button type="button" className={`${styles.choiceCard} ${styles.choiceHi}`} onClick={() => selectSetupMethod("pc")}>
+              <div className={styles.choiceHead}><strong>Full setup on a laptop</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>{selfMode ? "$32 (₱2,000) sign-on" : computerRange}</span></div>
+              <p>{selfMode ? "Open the protected browser and sign in to your own LinkedIn account. This completes Full DIY setup." : "You open the protected browser and sign in to their LinkedIn with them beside you. Highest rate."}</p>
+              <div className={styles.choiceNote}>Needs a Windows or Mac computer.</div>
+            </button>
+            {!selfMode && <div className={styles.meetingOption}>
+              <strong>Leave the setup to our team · {refBase} referral fee</strong>
+              <p>We can try to contact the owner and arrange setup. This route is usually slower and less likely to complete. Your referral fee is {refBase}, paid only after successful onboarding. Booking a time with the owner is the better way to help this route succeed.</p>
+              {session.meetingRequested ? <p role="status">Submitted for the team to take over. We’ll try to contact the owner using their saved contact details. A meeting is not booked yet.</p> : <button type="button" className={styles.secondary} disabled={busy} onClick={() => run(async () => { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); })}>{busy ? "Saving…" : "Submit for the team to take over"}</button>}
+              <p><a href="https://calendly.com/linkedvelocity-info/30min" aria-disabled={busy} onClick={e => { e.preventDefault(); if (busy) return; void run(async () => { if (!session.meetingRequested) { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); } window.location.assign("https://calendly.com/linkedvelocity-info/30min"); }); }}>Book a meeting for the owner →</a></p>
+            </div>}
+    </>;
+  }
+
   const canGoBack = !!bootstrap && !handedOff && step < 6 && (!selfMode || !!device)
     && (step >= 1 && step <= 5);
   function goBack() {
     if (busy) return;
     setError("");
-    if (step === 5 && browserMode) setBrowserMode("");
+    if (setupChoice) { setSetupChoice(false); setStep(2); }
+    else if (!selfMode && step === 3) setSetupChoice(true);
+    else if (step === 5 && browserMode) setBrowserMode("");
     else if (selfMode && step === 3) chooseDevice("");
     else setStep(step - 1);
   }
@@ -414,7 +447,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           {canGoBack ? <button type="button" className={styles.headerBack} disabled={busy} onClick={goBack}>← Back</button>
             : <Link href={selfMode ? "/dashboard" : `/m/${token}`} className={styles.headerBack}>← Dashboard</Link>}
           <span className={styles.headerTitle}>DIY onboarding</span>
-          {bootstrap && <span className={styles.headerStep}>Step {currentPos + 1} of {wizardSteps.length}</span>}
+          {bootstrap && !setupChoice && <span className={styles.headerStep}>Step {currentPos + 1} of {wizardSteps.length}</span>}
         </div>
         <div className={styles.progress} aria-hidden="true">
           {wizardSteps.map((s, i) => <span key={s.label} style={{ background: i <= currentPos ? "#16a34a" : "rgba(255,255,255,.16)" }} />)}
@@ -463,6 +496,9 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           {showTour && tourKey && PAGE_TOURS[tourKey] && <CoachTour steps={selfMode ? [{ title: activeStep?.label || "Your next step", body: tourKey === "email" ? "Add the managed email to your own LinkedIn account, verify it, and make it primary. The guides below show each step." : tourKey === "twofa" ? "Turn on authenticator-based two-step verification on your account. Paste the setup key here, then use the displayed code to finish in LinkedIn." : "Follow the instructions below for your own account. Your progress is saved, and you can return using this link." }] : PAGE_TOURS[tourKey]} onDone={endTour} />}
 
           {selfMode && !session && !error && <div style={{ padding: 28, textAlign: "center", color: "#5A6473" }}>Loading your onboarding…</div>}
+          {!selfMode && session && !handedOff && step >= 3 && step < 6 && !setupChoice && <button type="button" className={styles.linkBtn} disabled={busy} onClick={() => { setError(""); setSetupChoice(true); }}>← Change setup option</button>}
+          {setupChoice && setupOptions()}
+          <div hidden={setupChoice}>
           {!selfMode && step === 0 && <>
             <h1 className={styles.heroTitle}>Before you begin</h1>
             <p className={styles.lead}>You&apos;re the referrer. You&apos;re onboarding the <strong>account owner</strong> — the person whose LinkedIn this is — virtually, with them on the other end. Six steps, about ten minutes.</p>
@@ -629,23 +665,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup payment follows once the account is verified, <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding. Nothing more to do here.</p>
             {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>}
           </> : browserMode === "" ? <>
-            <h1 className={styles.heroTitle}>{selfMode ? "Finish your account setup" : "Who does the sign-in?"}</h1>
-            <p className={styles.lead}>{selfMode ? "Complete Full DIY on a computer for the larger sign-on bonus, or switch to Email + 2FA and let our team finish the sign-in." : "This is the last step, and it sets your rate: on a laptop you do the sign-in, on a phone we do."}</p>
-            <button type="button" data-tour="signin-choice" className={styles.choiceCard} onClick={() => setBrowserMode("phone")}>
-              <div className={styles.choiceHead}><strong>Hand it to us</strong><span className={styles.rateChip}>{selfMode ? "$24 (₱1,500) sign-on" : phoneRange}</span></div>
-              <p>{selfMode ? "Switch to Email + 2FA setup. Set a temporary password and our team will complete the sign-in." : "Works on a phone. They set a temporary password, our team does the sign-in, and their payment timeline doesn’t change."}</p>
-            </button>
-            <button type="button" className={`${styles.choiceCard} ${styles.choiceHi}`} onClick={() => setBrowserMode("pc")}>
-              <div className={styles.choiceHead}><strong>I&apos;ll do it on a laptop</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>{selfMode ? "$32 (₱2,000) sign-on" : computerRange}</span></div>
-              <p>{selfMode ? "Open the protected browser and sign in to your own LinkedIn account. This completes Full DIY setup." : "You open the protected browser and sign in to their LinkedIn with them beside you. Highest rate."}</p>
-              <div className={styles.choiceNote}>Needs a Windows or Mac computer.</div>
-            </button>
-            {!selfMode && <details className={styles.meetingOption}>
-              <summary>Need the team to arrange a meeting? <span>{refBase} referral fee</span></summary>
-              <p>We can try to contact the owner and arrange setup. This route is usually slower and less likely to complete. Your referral fee is {refBase}, paid only after successful onboarding. Booking a time with the owner is the better way to help this route succeed.</p>
-              {session.meetingRequested ? <p role="status">Your request is saved for the team. A meeting is not booked yet.</p> : <button type="button" className={styles.secondary} disabled={busy} onClick={() => run(async () => { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); })}>{busy ? "Saving…" : "Ask the team to arrange a meeting"}</button>}
-              <p><a href="https://calendly.com/linkedvelocity-info/30min" aria-disabled={busy} onClick={e => { e.preventDefault(); if (busy) return; void run(async () => { if (!session.meetingRequested) { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); } window.location.assign("https://calendly.com/linkedvelocity-info/30min"); }); }}>Book a meeting for the owner →</a></p>
-            </details>}
+            {setupOptions()}
           </> : browserMode === "phone" ? <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
             <PhoneHandoff selfMode={selfMode} busy={busy} error={error} submit={handoff} />
@@ -677,6 +697,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <Link className={styles.primary} href={selfMode ? "/dashboard" : `/m/${token}`}>{selfMode ? "Go to my dashboard →" : "Back to my portal →"}</Link>
             {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard someone else</a>}
           </>}
+          </div>
         </>}
       </div>
     </div>
