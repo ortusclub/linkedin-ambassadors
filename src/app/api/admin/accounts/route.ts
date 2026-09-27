@@ -127,6 +127,16 @@ export async function GET(req: NextRequest) {
     const appMap = new Map(ownerApps.map((x) => [x.email.toLowerCase(), x]));
     const appByUrl = new Map(ownerApps.filter((x) => x.linkedinUrl).map((x) => [normUrl(x.linkedinUrl), x]));
 
+    const referrers = await prisma.referrer.findMany({ select: { slug: true, email: true, contacts: true, contactMethod: true, contactHandle: true } });
+    const refBySlug = new Map(referrers.map(r => [r.slug.toLowerCase(), r]));
+    const issueContactFor = (slug?: string | null) => {
+      const r = refBySlug.get((slug || "").trim().toLowerCase());
+      if (!r) return null;
+      const contacts = (Array.isArray(r.contacts) ? r.contacts : []) as Array<{ method?: string; handle?: string; preferred?: boolean }>;
+      const byMethod = (method: string) => contacts.find(c => c.preferred && c.method?.toLowerCase() === method)?.handle || contacts.find(c => c.method?.toLowerCase() === method)?.handle || (r.contactMethod?.toLowerCase() === method ? r.contactHandle : null);
+      return { email: r.email || byMethod("email"), whatsapp: byMethod("whatsapp"), telegram: byMethod("telegram") };
+    };
+
     const accountsWithOwner = accounts.map((a) => {
       const ownerEmail = (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || "";
       const app = (a.linkedinUrl ? appByUrl.get(normUrl(a.linkedinUrl)) : undefined)
@@ -136,6 +146,8 @@ export async function GET(req: NextRequest) {
         ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
         ownerEmail: ownerEmail || null,
         ownerApplicationId: app?.id || null,
+        issueAmbassadorEmail: app?.email || ownerEmail || null,
+        issueReferrerContact: issueContactFor(app?.referredBy),
         ownerUpdatedAt: app?.updatedAt ?? null,
         ownerOutreachLog: app?.outreachLog ?? null,
         ownerNextFollowUp: app?.nextFollowUp ?? null,

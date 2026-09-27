@@ -6,6 +6,8 @@ import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 import { sortAccountsByLastUpdated, accountLastUpdatedAt } from "@/lib/account-notes";
+import { IssueActions } from "@/components/admin/issue-actions";
+import { ambassadorIssueContact, type IssueContact } from "@/lib/issue-contacts";
 import { AccountNotes } from "@/components/admin/account-notes";
 import { OutreachLog, type Touch } from "@/components/admin/outreach-log";
 
@@ -113,6 +115,8 @@ interface Account {
   ownerName: string | null;
   ownerEmail: string | null;
   ownerPhone: string | null;
+  issueAmbassadorEmail: string | null;
+  issueReferrerContact: IssueContact | null;
   contactChannel: string | null;
   ownerReferredBy: string | null;
   ownerPayoutCurrency: string | null;
@@ -988,6 +992,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                                 <button onClick={() => checkHealth(a.id)} title="Best-effort automated public check. LinkedIn blocks logged-out checks, so this is usually 'Unknown' — verify in GoLogin and use Mark active / Mark restricted instead." style={secBtn}>↻ Re-check (auto)</button>
                                 <button onClick={() => handleDelete(a)} disabled={busy === a.id} style={{ ...outBtn("var(--danger)"), marginLeft: "auto" }}>🗑 Delete</button>
                               </div>
+                              <IssueActions name={formatName(a.linkedinName)} ambassador={ambassadorIssueContact(a.issueAmbassadorEmail, a.ownerPhone, a.contactChannel)} referrer={a.issueReferrerContact} />
                               {Array.isArray(a.restrictionLog) && a.restrictionLog.length > 0 && (() => {
                                 const log = [...a.restrictionLog].sort((x, y) => y.at.localeCompare(x.at));
                                 const times = log.filter((e) => e.event === "restricted").length;
