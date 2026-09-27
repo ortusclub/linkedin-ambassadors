@@ -18,7 +18,8 @@ const SECTIONS = [
 
 const GETTING_IN = [
   <>Sign up for a free <strong>GoLogin</strong> account (app or web) using the email you rented with, then sign in.</>,
-  <>We share the profile to you — find it under <strong>&quot;Shared with me.&quot;</strong> Don&apos;t see it yet? Refresh — it can take a minute or two to appear after renting.</>,
+  <>We share the profile to you — find it under <strong>&quot;Shared with me.&quot;</strong> It can take a minute or two to appear after renting.</>,
+  <>If it is missing, go to your <Link href="/dashboard" style={{ color: "#0A66C2", textDecoration: "underline" }}>dashboard</Link> and click <strong>Reveal GoLogin share link</strong> beside the account. Open that URL in a browser where you are signed in to GoLogin with your rental email. Then refresh GoLogin with <strong>Cmd + R</strong> on Mac or <strong>Ctrl + R</strong> on Windows. The profile should appear under <strong>Shared with me</strong>. Accounts marked <strong>Being prepared</strong> will show their link once access is ready.</>,
   <>Hit <strong>Start</strong> to launch the browser with LinkedIn already logged in. That&apos;s it — you&apos;re in.</>,
 ];
 
@@ -165,6 +166,9 @@ export default function AccountGuideView() {
                     <p style={{ fontSize: 15.5, lineHeight: 1.65, color: "#37424F", margin: 0, paddingTop: 3 }}>{h}</p>
                   </div>
                 ))}
+              </div>
+              <div style={{ marginTop: 22, padding: "16px 18px", background: "#EAF2FC", borderRadius: 12, fontSize: 14.5, lineHeight: 1.6, color: "#37424F" }}>
+                <strong>GoLogin plans.</strong> GoLogin is freemium: its free plan includes 3 profiles of your own. GoLogin also allows free accounts to access profiles shared with them, so renting more than 5 accounts does not automatically mean you need a paid plan. If you need extra capacity or paid features, monthly plans currently start at <strong>US$9/month</strong>. Check <a href="https://gologin.com/pricing/" target="_blank" rel="noopener noreferrer" style={{ color: "#0A66C2", textDecoration: "underline" }}>current pricing</a> and <a href="https://support.gologin.com/en/articles/3871538-faq-team-sharing" target="_blank" rel="noopener noreferrer" style={{ color: "#0A66C2", textDecoration: "underline" }}>shared-profile access</a> before upgrading.
               </div>
               <div style={{ ...amber, marginTop: 22 }}>
                 <span style={{ flexShrink: 0, fontSize: 18 }}>⚠️</span>

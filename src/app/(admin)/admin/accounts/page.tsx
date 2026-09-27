@@ -1,5 +1,7 @@
 "use client";
 
+import { tierPricing } from "@/lib/account-pricing";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatName } from "@/lib/utils";
@@ -179,21 +181,7 @@ const fmt = (d: string | null) => { if (!d) return "—"; const x = new Date(d);
 const fmtS = (d: string | null) => { if (!d) return ""; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
 // Tiered rental pricing by connections + age (matches the public catalogue).
 // Highest qualifying tier wins; the last is the floor. Returns weekly/monthly/daily.
-const tierPricing = (conns: number, ageMonths: number | null, hasSalesNav?: boolean, verified?: boolean): { weekly: number; monthly: number; daily: number } => {
-  const age = ageMonths || 0;
-  let base =
-    conns >= 2000 ? { weekly: 40, monthly: 150, daily: 8 }
-    : conns >= 1000 && age >= 12 ? { weekly: 30, monthly: 110, daily: 6 }
-    : conns >= 500 && age >= 12 ? { weekly: 20, monthly: 75, daily: 4 }
-    : conns >= 100 && age >= 6 ? { weekly: 15, monthly: 50, daily: 3 }
-    : { weekly: 13, monthly: 45, daily: 2.75 };
-  // Verified (blue-check) premium — +$10/mo, +$3/wk, +$0.50/day. A verified profile
-  // gets higher accept/reply rates, so it commands a premium on top of any tier.
-  if (verified) base = { weekly: base.weekly + 3, monthly: base.monthly + 10, daily: base.daily + 0.5 };
-  // Sales Navigator add-on: +$70/mo, +$20/wk, +$4/day on top of the tier.
-  if (hasSalesNav) return { weekly: base.weekly + 20, monthly: base.monthly + 70, daily: base.daily + 4 };
-  return base;
-};
+
 const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 
 // Inventory groups are display-only; rental/billing status stays in the database.

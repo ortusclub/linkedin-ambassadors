@@ -1,3 +1,4 @@
+import { monthlyRentalPrice } from "@/lib/account-pricing";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { maskPublicAccount } from "@/lib/mask";
@@ -77,5 +78,5 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ accounts: accounts.map(maskPublicAccount) });
+  return NextResponse.json({ accounts: accounts.map(a => maskPublicAccount({ ...a, monthlyPrice: monthlyRentalPrice(a) })) });
 }

@@ -1,3 +1,4 @@
+import { monthlyRentalPrice } from "@/lib/account-pricing";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
     let accounts = await prisma.linkedInAccount.findMany({
       // A restricted (recovering) or 2FA-reset-needed account keeps status "available"
       // but must not be rentable (real OR shadow buy) — exclude it here too.
-      where: { id: { in: accountIds }, status: "available", restrictedAt: null, twoFactorResetNeeded: false },
+      where: { id: { in: accountIds }, status: "available", listed: true, inventoryPool: { notIn: ["ortus", "apex"] }, restrictedAt: null, twoFactorResetNeeded: false },
     });
 
     // Each account can be shadow-bought by only ONE shadow renter at a time — drop any
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
       !isShadow && salesNavSet.has(a.id) && !a.hasSalesNav ? SALES_NAV_MONTHLY : 0;
     const shadowRate = new Prisma.Decimal(shadowRateFor(user.email) ?? SHADOW_MONTHLY_PRICE);
     const priceFor = (a: (typeof accounts)[number]) =>
-      isShadow ? shadowRate : a.monthlyPrice.add(addonFor(a));
+      isShadow ? shadowRate : new Prisma.Decimal(monthlyRentalPrice(a)).add(addonFor(a));
 
     const totalPrice = accounts.reduce(
       (sum, a) => sum.add(priceFor(a)),
@@ -96,6 +97,10 @@ export async function POST(req: Request) {
         const arr: { rentalId: string; accountId: string }[] = [];
 
         for (const account of accounts) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${account.id}))`;
+          const current = await tx.linkedInAccount.findFirst({ where: { id: account.id, status: "available", listed: true, inventoryPool: { notIn: ["ortus", "apex"] }, restrictedAt: null, twoFactorResetNeeded: false } });
+          if (!current) throw new Error("Account is no longer available");
+          if (isShadow && await tx.rental.count({ where: { linkedinAccountId: account.id, isShadow: true, status: { in: ["active", "pending_access", "payment_failed"] } } })) throw new Error("Account already has a shadow renter");
           const withSalesNav = addonFor(account) > 0;
           const effectivePrice = priceFor(account);
           // Create as pending_access; we attempt the actual grant right after commit.
@@ -111,7 +116,7 @@ export async function POST(req: Request) {
               // Lock the rate so every renewal bills the same: the flat shadow rate for a
               // shadow renter, or base+Sales Nav add-on otherwise (all billing paths read
               // lockedPrice ?? monthlyPrice).
-              lockedPrice: isShadow ? effectivePrice : withSalesNav ? effectivePrice : null,
+              lockedPrice: effectivePrice,
               notes: isShadow
                 ? `Shadow rental (${SHADOW_MONTHLY_PRICE}/mo) — stays in catalogue; yields to a real rental`
                 : withSalesNav ? "Sales Navigator add-on (+$70/mo)" : null,

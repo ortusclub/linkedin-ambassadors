@@ -1,3 +1,4 @@
+import { monthlyRentalPrice } from "@/lib/account-pricing";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { maskPublicAccount } from "@/lib/mask";
@@ -22,6 +23,7 @@ export async function GET(
       profilePhotoUrl: true,
       accountAgeMonths: true,
       hasSalesNav: true,
+      linkedinVerified: true,
       monthlyPrice: true,
       status: true,
       notes: true,
@@ -35,5 +37,5 @@ export async function GET(
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ account: maskPublicAccount(account) });
+  return NextResponse.json({ account: maskPublicAccount({ ...account, monthlyPrice: monthlyRentalPrice(account) }) });
 }

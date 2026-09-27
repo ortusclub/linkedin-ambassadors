@@ -1,3 +1,4 @@
+import { monthlyRentalPrice } from "@/lib/account-pricing";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { maskName } from "@/lib/mask";
@@ -19,6 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       industry: true,
       location: true,
       monthlyPrice: true,
+      accountAgeMonths: true,
+      linkedinVerified: true,
       hasSalesNav: true,
       status: true,
     },
@@ -27,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!account || account.status !== "available") return {};
 
   const name = maskName(account.linkedinName);
-  const price = Number(account.monthlyPrice);
+  const price = monthlyRentalPrice(account);
 
   return {
     title: `Rent ${name}'s LinkedIn Account — ${account.connectionCount.toLocaleString()} Connections`,
@@ -55,6 +58,8 @@ export default async function AccountLayout({ params, children }: Props) {
         industry: true,
         location: true,
         monthlyPrice: true,
+      accountAgeMonths: true,
+      linkedinVerified: true,
         hasSalesNav: true,
         profilePhotoUrl: true,
         status: true,
@@ -68,7 +73,7 @@ export default async function AccountLayout({ params, children }: Props) {
   if (!account || !account.listed) return <>{children}</>;
 
   const name = maskName(account.linkedinName);
-  const price = Number(account.monthlyPrice);
+  const price = monthlyRentalPrice(account);
 
   const productSchema = {
     "@context": "https://schema.org",

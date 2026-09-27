@@ -52,6 +52,8 @@ interface Rental {
   id: string;
   status: string;
   isShadow?: boolean;
+  handoverAt?: string | null;
+  shadowExitAt?: string | null;
   paused?: boolean;
   startDate: string;
   currentPeriodEnd: string | null;
@@ -656,7 +658,7 @@ function DashboardContent() {
               <h2 className="text-xl font-bold text-[#007A3D] leading-tight">Accounts I&apos;m Renting Out</h2>
               <p className="text-sm text-gray-500 leading-snug">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
             </div>
-            <Link href="/become-ambassador?submit=1" className="ml-auto shrink-0">
+            <Link href="/onboarding" className="ml-auto shrink-0">
               <Button size="sm" className="bg-[#00B85C] text-white hover:bg-[#00A050] border-0">Add Another Account</Button>
             </Link>
           </div>
@@ -739,7 +741,7 @@ function DashboardContent() {
             <Card>
               <CardContent className="py-10 text-center text-sm text-gray-500">
                 You haven&apos;t shared any accounts yet.{" "}
-                <Link href="/become-ambassador?submit=1" className="font-semibold text-[#007A3D] hover:underline">Share an account to start earning →</Link>
+                <Link href="/onboarding" className="font-semibold text-[#007A3D] hover:underline">Share an account to start earning →</Link>
               </CardContent>
             </Card>
           )}
@@ -868,6 +870,7 @@ function DashboardContent() {
                         {rental.linkedinAccount.linkedinHeadline && (
                           <p className="text-xs text-gray-500">{rental.linkedinAccount.linkedinHeadline}</p>
                         )}
+                        {rental.shadowExitAt && <p className="text-xs text-amber-700 mt-1">Exit by {new Date(rental.shadowExitAt).toLocaleString()} — handover notice</p>}
                         {rental.linkedinAccount.accountEmail && (
                           <p className="text-xs text-gray-400 mt-0.5 break-all">{rental.linkedinAccount.accountEmail}</p>
                         )}
@@ -896,7 +899,7 @@ function DashboardContent() {
                     ) : (rental.status === "pending_access" || (rental.isShadow && !rental.linkedinAccount.gologinShareLink)) ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-                        Preparing
+                        Being prepared
                       </span>
                     ) : (
                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${rental.status === "active" ? "text-green-600" : "text-red-600"}`}>
@@ -905,8 +908,8 @@ function DashboardContent() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{formatDate(rental.startDate)}</td>
-                  <td className="px-4 py-3 text-gray-500">{rental.currentPeriodEnd ? formatDate(rental.currentPeriodEnd) : "—"}</td>
+                  <td className="px-4 py-3 text-gray-500">{rental.handoverAt ? "Starts on handover" : formatDate(rental.startDate)}</td>
+                  <td className="px-4 py-3 text-gray-500">{rental.handoverAt ? "One month after handover" : rental.currentPeriodEnd ? formatDate(rental.currentPeriodEnd) : "—"}</td>
                   <td className="px-4 py-3">
                     <button
                       onClick={async () => {
@@ -928,9 +931,8 @@ function DashboardContent() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center gap-2 justify-end">
-                      {/* Links always show when a share link or LinkedIn URL exists —
-                          even while restricted or preparing — so the renter can reach it. */}
-                      {(rental.linkedinAccount.gologinShareLink || rental.linkedinAccount.linkedinUrl) ? (
+                      {/* Access stays hidden until preparation and handover are complete. */}
+                      {rental.status === "active" && !rental.handoverAt && !rental.paused && !rental.linkedinAccount.restrictedAt && rental.linkedinAccount.gologinShareLink ? (
                         <RevealShareLink link={rental.linkedinAccount.gologinShareLink} linkedinUrl={rental.linkedinAccount.linkedinUrl} />
                       ) : rental.linkedinAccount.restrictedAt ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600 whitespace-nowrap" title="LinkedIn restricted this account — we're recovering it. No action needed.">
@@ -941,7 +943,7 @@ function DashboardContent() {
                           Access paused
                         </span>
                       ) : rental.status === "pending_access" ? (
-                        <span className="text-[11px] text-gray-400 whitespace-nowrap">Preparing — ready soon. <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
+                        <span className="text-[11px] text-gray-400 whitespace-nowrap">Being prepared{rental.handoverAt ? ` — expected ${formatDate(rental.handoverAt)}. Your paid month starts when access is ready.` : " — ready soon."} <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
                       ) : null}
                       {rental.autoRenew && (
                         <button

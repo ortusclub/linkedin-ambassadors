@@ -1,3 +1,4 @@
+import { monthlyRentalPrice } from "@/lib/account-pricing";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     const accounts = await prisma.linkedInAccount.findMany({
       // A restricted (recovering) or 2FA-reset-needed account keeps status "available"
       // but must not be rentable — exclude it so checkout can't grab one.
-      where: { id: { in: accountIds }, status: "available", restrictedAt: null, twoFactorResetNeeded: false },
+      where: { id: { in: accountIds }, status: "available", listed: true, inventoryPool: { notIn: ["ortus", "apex"] }, restrictedAt: null, twoFactorResetNeeded: false },
     });
 
     if (accounts.length === 0) {
@@ -51,8 +52,8 @@ export async function POST(req: Request) {
       customer: stripeCustomerId,
       mode: "subscription",
       allow_promotion_codes: true,
-      line_items: accounts.map(() => ({
-        price: process.env.STRIPE_PRICE_ID!,
+      line_items: accounts.map((a) => ({
+        price_data: { currency: "usd", unit_amount: monthlyRentalPrice(a) * 100, recurring: { interval: "month" }, product_data: { name: "LinkedVelocity account rental" } },
         quantity: 1,
       })),
       metadata: {
