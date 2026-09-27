@@ -19,7 +19,7 @@ export function accountIssueMessage(name: string, recipient: "ambassador" | "ref
   const template = ACCOUNT_ISSUES[issue];
   const identifiers = issue === "restricted"
     ? `\nOriginal account email: ${emails?.original?.trim() || "Not recorded"}\nLinkedVelocity login email: ${emails?.lv?.trim() || "Not assigned"}`
-    : profile ? `\nLinkedIn account: ${profile}` : "";
+    : `${!isReferrer ? `\nLinkedVelocity login email: ${emails?.lv?.trim() || "Not recorded — please confirm with our team"}` : ""}${profile ? `\nLinkedIn account: ${profile}` : ""}`;
   const accessChecks = `\n\nComplete ALL of these checks before replying:\n1. The LinkedVelocity email should be ${emails?.lv?.trim() || "confirmed with our team (no LV email is recorded yet)"}. Check that this exact address is added, verified, and set as PRIMARY. Keep your original email as a secondary address.\nEmail setup guide: https://linkedvelocity.com/guide/primary-email\n2. Check that two-step verification is enabled and working with your authenticator app. ${emails?.twoFactorReceivedAt ? `We last received or updated the setup key on ${new Date(emails.twoFactorReceivedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}.` : "We do not have a recorded date for when the current setup key was provided."}\n- If 2FA is not set up or is switched off, follow the guide below to set it up, then send us the new 2FA setup key.\n- If you think the key has changed since we last received it, follow the guide to set up 2FA again, then send us the new setup key.\n- In either case, send the new setup key by replying to this email or through your usual communication channel with the LinkedVelocity team. Send the setup key, not the temporary six-digit code.\n- If 2FA is already enabled and the key has not changed since we last received it, confirm this when you reply.\n2FA setup guide: https://linkedvelocity.com/guide/two-step-verification`;
   const paymentNotice = isReferrer
     ? `Monthly LinkedVelocity payments to ${name}, the account owner, are suspended until the issue is resolved and our team confirms access has been restored.`
@@ -42,6 +42,7 @@ export function accountIssueMessage(name: string, recipient: "ambassador" | "ref
       : `${optionOne}\nFirst, make sure you can sign in to LinkedIn.${issue === "other" ? " Resolve the specific issue described above as well." : ""}${accessChecks}`,
     reply,
     `Option 2: Resolve it together on a call\n${isReferrer ? `Help ${name}, the account owner, book a meeting with our team so we can work through the issue together. You are welcome to join them.` : "Book a meeting with our team and we will work through the issue together."}\n${ACCOUNT_SUPPORT_BOOKING_URL}`,
+    isReferrer ? `Once access is restored and confirmed by our team, ${name} will start receiving payments again on a monthly basis.` : "Once access is restored and confirmed by our team, you will start receiving payments again on a monthly basis.",
     "Thank you,\nThe LinkedVelocity team",
   ].join("\n\n") };
 }
