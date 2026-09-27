@@ -210,7 +210,6 @@ const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
-  { key: "Construction", hint: "onboarding or awaiting readiness checks", dot: "var(--st-construct-fg)" },
   { key: "Construction (Immature)", hint: "warming up — not yet mature enough to rent", dot: "var(--st-construct-fg)" },
   { key: "Maintenance", hint: "restricted or needs fixing — check account badges and notes", dot: "var(--neutral-chip-text)" },
   { key: "Permanently restricted/Inaccessible", hint: "retired — permanently restricted or inaccessible", dot: "var(--st-cancel-fg)" },
@@ -574,22 +573,18 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     setImportResult({ success, failed }); setImporting(false); load();
   };
 
-  // Accounts that belong on the inventory. "Initial" ones (not yet onboarded — no
-  // company login yet, or setup fee unpaid) are excluded entirely: an account only
-  // appears here once we've paid it, which moves it into Construction. Until then it
-  // lives on the Onboarding tab.
-  const shown = useMemo(() => accounts.filter((a) => groupKey(a) !== "Initial"), [accounts]);
+  // Onboarding accounts live in Pipeline; immature construction remains inventory.
+  const shown = useMemo(() => accounts.filter((a) => !["Initial", "Construction"].includes(groupKey(a))), [accounts]);
 
   const counts = useMemo(() => {
     const real = shown.filter((a) => !isDummy(a));
     const c = (label: string) => real.filter((a) => canonicalStatus(a) === label).length;
     return {
-      total: shown.length, // "All" chip (everything on the inventory, excl. Initial)
+      total: shown.length, // "All" chip (everything on the inventory, excl. Initial and Pipeline)
       realTotal: real.length, // headline — sellable inventory, excludes dummies
       Available: c("Available"),
       Trial: c("Trial"),
       Rented: c("Rented"),
-      Construction: c("Construction"),
       "Construction (Immature)": c("Construction (Immature)"),
       Maintenance: c("Maintenance"),
       "Permanently restricted/Inaccessible": c("Permanently restricted/Inaccessible"),
@@ -637,7 +632,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Construction", inventoryStatusLabel("Construction"), counts.Construction, "var(--st-construct-fg)"], ["Construction (Immature)", "Construction (Immature)", counts["Construction (Immature)"], "var(--st-construct-fg)"], ["Maintenance", inventoryStatusLabel("Maintenance"), counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Construction (Immature)", "Construction (Immature)", counts["Construction (Immature)"], "var(--st-construct-fg)"], ["Maintenance", inventoryStatusLabel("Maintenance"), counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>

@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
 
   // Keep the combined Restricted / Maintenance label together in the export.
   const rankByLabel: Record<string, number> = { Available: 0, Trial: 2, Rented: 3, Pipeline: 4, "Construction (Immature)": 4.5, "Restricted / Maintenance": 5, "Permanently restricted/Inaccessible": 6, Removed: 7 };
-  const sorted = [...accounts].sort((a, b) => (rankByLabel[displayStatus(a)] ?? 9) - (rankByLabel[displayStatus(b)] ?? 9));
+  const sorted = accounts.filter(a => displayStatus(a) !== "Pipeline").sort((a, b) => (rankByLabel[displayStatus(a)] ?? 9) - (rankByLabel[displayStatus(b)] ?? 9));
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.
   const headers = [
