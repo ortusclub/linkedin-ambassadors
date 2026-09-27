@@ -190,6 +190,7 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
   // ── style atoms ──
   const btnPrimary: React.CSSProperties = { font: `600 13px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", padding: "9px 16px", borderRadius: 10, border: "none", cursor: "pointer" };
   const btnSecondary: React.CSSProperties = { font: `600 13px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", padding: "9px 15px", borderRadius: 10, cursor: "pointer" };
+  const filterChip = (active: boolean): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 8, font: `600 13px ${F_SANS}`, color: "var(--text)", padding: "8px 14px", borderRadius: 999, cursor: "pointer", border: `1px solid ${active ? "var(--chip-active-border)" : "var(--card-border)"}`, background: active ? "var(--chip-active-bg)" : "transparent" });
   const labelCss: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
   const editInput: React.CSSProperties = { font: `500 13.5px ${F_SANS}`, color: "var(--text)", background: "transparent", border: "1px solid transparent", borderRadius: 6, padding: "3px 6px", margin: "-3px -6px", outline: "none", width: "100%" };
   const formInput: React.CSSProperties = { width: "100%", background: "var(--input-bg)", border: "1px solid var(--input-border)", borderRadius: 9, padding: "9px 12px", font: `500 13px ${F_SANS}`, color: "var(--input-fg)", outline: "none" };
@@ -260,18 +261,17 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
             );
           })}
         </div>
-      </div> : <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 18 }}>
-        <strong style={{ display: "block", fontSize: 20, marginBottom: 16 }}>{ownerLeads.length} inbound contacts</strong>
+      </div> : <div style={{ marginBottom: 18 }}>
         <div role="group" aria-label="Inbound type filters" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 16 }}>
           <span style={{ ...labelCss, minWidth: 54 }}>Type</span>
-          {["all", ...INBOUND_TYPES].map(type => <button key={type} aria-pressed={typeFilter === type} onClick={() => setTypeFilter(type)} style={{ ...btnSecondary, borderRadius: 999, background: typeFilter === type ? "var(--chip-active-bg)" : "transparent" }}>{type === "all" ? "All" : type} <span style={{ color: "var(--muted)" }}>{type === "all" ? ownerLeads.length : ownerLeads.filter(l => inboundType(l.channel) === type).length}</span></button>)}
+          {["all", ...INBOUND_TYPES].map(type => <button key={type} aria-pressed={typeFilter === type} onClick={() => setTypeFilter(type)} style={filterChip(typeFilter === type)}>{type === "all" ? "All" : type} <span style={{ color: "var(--muted)" }}>{type === "all" ? ownerLeads.length : ownerLeads.filter(l => inboundType(l.channel) === type).length}</span></button>)}
         </div>
-        <div role="group" aria-label="Inbound status filters" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-          <span style={{ ...labelCss, minWidth: 54 }}>Status</span>
-          <button aria-pressed={!statusFilters.length} style={{ ...btnSecondary, borderRadius: 999, background: !statusFilters.length ? "var(--chip-active-bg)" : "transparent" }} onClick={() => setStatusFilters([])}>All {typeLeads.length}</button>
-          {[{ key: "new", label: "New" }, ...INBOUND_DESTINATIONS].map(item => <button key={item.key} aria-pressed={statusFilters.includes(item.key)} style={{ ...btnSecondary, borderRadius: 999, background: statusFilters.includes(item.key) ? "var(--chip-active-bg)" : "transparent" }} onClick={() => setStatusFilters(prev => prev.includes(item.key) ? prev.filter(key => key !== item.key) : [...prev, item.key])}>{item.label} <span style={{ color: "var(--muted)" }}>{typeLeads.filter(l => inboundStatuses(l).includes(item.key)).length}</span></button>)}
+        <div role="group" aria-label="Inbound stage filters" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+          <span style={{ ...labelCss, minWidth: 54 }}>Stage</span>
+          <button aria-pressed={!statusFilters.length} style={filterChip(!statusFilters.length)} onClick={() => setStatusFilters([])}>All <span style={{ color: "var(--muted)" }}>{typeLeads.length}</span></button>
+          {[{ key: "new", label: "New" }, ...INBOUND_DESTINATIONS].map(item => <button key={item.key} aria-pressed={statusFilters.includes(item.key)} style={filterChip(statusFilters.includes(item.key))} onClick={() => setStatusFilters(prev => prev.includes(item.key) ? prev.filter(key => key !== item.key) : [...prev, item.key])}>{item.label} <span style={{ color: "var(--muted)" }}>{typeLeads.filter(l => inboundStatuses(l).includes(item.key)).length}</span></button>)}
         </div>
-        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0 }}>Select multiple statuses to show contacts matching any of them. A contact can be added to all three destinations. New means none have been recorded yet.</p>
+        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0 }}>Select multiple stages to show contacts matching any of them. A contact can be added to all three destinations. New means none have been recorded yet.</p>
       </div>}
 
       {/* two-pane inbox */}
