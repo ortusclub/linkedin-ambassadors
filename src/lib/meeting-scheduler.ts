@@ -1,7 +1,7 @@
 import * as ical from "node-ical";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
-import { MEETING_HOST, meetingInvite, meetingSlots, type BusyPeriod } from "@/lib/meeting-time";
+import { MEETING_HOST, meetingInvite, meetingTitle, meetingDescription, meetingSlots, type BusyPeriod } from "@/lib/meeting-time";
 
 export async function calendarBusy(now: Date): Promise<BusyPeriod[]> {
   const url = process.env.CALENDAR_ICAL_URL;
@@ -29,19 +29,28 @@ export async function availableMeetings(now = new Date(), excludeId?: string) {
   return meetingSlots(now, [...busy, ...booked.map(b => ({ start: b.startsAt, end: new Date(b.startsAt.getTime() + 1800000) }))]);
 }
 export async function sendMeetingInvitation(id: string) {
-  const booking = await prisma.scheduledMeeting.findUniqueOrThrow({ where: { id } });
+  const booking = await prisma.scheduledMeeting.findUniqueOrThrow({ where: { id }, include: { application: { select: { linkedinUrl: true, linkedinEmail: true } } } });
   if (booking.inviteSentAt) return;
   if (!process.env.RESEND_API_KEY) throw new Error("Invitation delivery unavailable");
   const when = booking.startsAt.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "full", timeStyle: "short" });
-  const content = Buffer.from(meetingInvite(booking)).toString("base64");
-  const result = await new Resend(process.env.RESEND_API_KEY).emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "LinkedVelocity <noreply@linkedvelocity.com>",
+  // A text/calendar alternative lets calendar clients treat this as an invitation,
+  // rather than an ordinary email with a downloadable file. SMTP preserves MIME.
+  const transport = nodemailer.createTransport({
+    host: "smtp.resend.com", port: 465, secure: true,
+    auth: { user: "resend", pass: process.env.RESEND_API_KEY },
+    connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 20000,
+  });
+  const result = await transport.sendMail({
+    from: { name: "LinkedVelocity", address: MEETING_HOST },
     to: [...new Set([booking.email, booking.host])], replyTo: booking.host,
-    subject: booking.sequence > 0 ? "Updated: your LinkedVelocity onboarding call" : "Your 30-minute LinkedVelocity onboarding call",
-    text: `${booking.sequence > 0 ? "Your onboarding call has been rescheduled. This invitation replaces the previous time.\n\n" : ""}Your onboarding call is booked for ${when} (Philippine time / Asia/Manila).\n\nDuration: 30 minutes.\nWe will contact you using the WhatsApp, Telegram or phone details you provided in your application.\n\nOpen the attached calendar invitation to add the meeting to your calendar.\nFor changes or cancellation, reply to this email.`,
-    attachments: [{ filename: "onboarding.ics", content, contentType: "text/calendar; charset=utf-8; method=REQUEST" }],
-  }, { idempotencyKey: `meeting-invitation/${booking.id}/${booking.sequence}` });
-  if (result.error) throw new Error("Invitation delivery failed");
+    subject: `${booking.sequence > 0 ? "Updated: " : ""}${meetingTitle(booking)}`,
+    text: `${booking.sequence > 0 ? "Your onboarding call has been rescheduled. This invitation replaces the previous time; accept the update to move the existing calendar event.\n\n" : ""}Your onboarding call is booked for ${when} (Philippine time / Asia/Manila). Your calendar will display it in your own time zone.\n\n${meetingDescription(booking)}\n\nAccept this calendar invitation to add or update the meeting. If your mail app does not show invitation controls, open the attached .ics file.`,
+    icalEvent: { filename: "onboarding.ics", method: "REQUEST", content: meetingInvite(booking) },
+    headers: { "Resend-Idempotency-Key": `meeting-invitation/${booking.id}/${booking.sequence}` },
+    messageId: `<meeting-${booking.id}-${booking.sequence}@linkedvelocity.com>`,
+    date: booking.updatedAt,
+  });
+  if (result.rejected.length) throw new Error("Invitation delivery failed");
   await prisma.scheduledMeeting.updateMany({ where: { id, sequence: booking.sequence }, data: { inviteSentAt: new Date() } });
 }
 export async function retryMeetingInvitations() {

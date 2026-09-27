@@ -303,6 +303,7 @@ enum AmbassadorStatus {
 }
 
 model AmbassadorApplication {
+  applicationReceived Boolean @default(true) @map("application_received")
   scheduledMeeting ScheduledMeeting?
   submittedByUserId String? @map("submitted_by_user_id") @db.Uuid
   submittedBy User? @relation("ApplicationSubmitter", fields: [submittedByUserId], references: [id], onDelete: SetNull)

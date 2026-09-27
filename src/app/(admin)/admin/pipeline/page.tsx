@@ -27,6 +27,7 @@ import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 import { formatName } from "@/lib/utils";
 import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions";
 import { ambassadorIssueContact } from "@/lib/issue-contacts";
+import { isApplicationReceived, receiptPatch } from "@/lib/pipeline-received";
 import { useQcChecks } from "@/components/admin/use-qc-checks";
 import { isLikelyTestEmail } from "@/lib/test-mode";
 
@@ -58,6 +59,7 @@ interface Row {
   // application). These are surfaced only when restricted, render as a compact card, and
   // are excluded from the level / onboarding metrics. See the onboarding route.
   accountOnly?: boolean;
+  applicationReceived?: boolean;
   fullName: string;
   email: string;
   contactNumber: string | null;
@@ -155,8 +157,7 @@ type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejec
 // Account statuses that mean the account is genuinely live and earning (counts as Level 5).
 const EARNING_INVENTORY = new Set(["available", "rented", "trial"]);
 const levelOf = (r: Row): 0 | 1 | 2 | 3 | 4 | 5 => {
-  if (r.accountOnly) return 0; // inventory-only account (no application) — sits at the bottom
-  if (r.status === "rejected" || r.status === "unreachable") return 0; // rejected or unreachable — not progressing; grouped at the bottom
+  if (!isApplicationReceived(r)) return 0;
   if (r.status === "onboarded") return 5;          // matured + paid — live and earning
   // A genuinely live, earning account (available / rented / trial) is Level 5 even when the
   // application status lags. A restricted or non-earning account (unavailable, retired,
@@ -1106,11 +1107,12 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Progress</span>
-            <select value={String(lvlKey)} disabled={busy || lvlKey === 0} title={lvlKey === 0 ? "Rejected — not progressing. Set Health status back to Active to resume." : "Progress on the onboarding ladder — changing it stamps the matching milestones (same as the Workflow steps)."} onClick={(e) => e.stopPropagation()}
+            <select value={String(lvlKey)} disabled={busy || lvlKey === 0} title={lvlKey === 0 ? "Not progressing. Mark Application received complete in the workflow to resume." : "Progress on the onboarding ladder — changing it stamps the matching milestones (same as the Workflow steps)."} onClick={(e) => e.stopPropagation()}
               onChange={(e) => {
                 const n = Number(e.target.value);
                 const now = new Date().toISOString();
                 const patch: Record<string, unknown> = {
+                  applicationReceived: n >= 1,
                   emailPrimaryAt: n >= 2 ? (r.emailPrimaryAt || now) : null,
                   onboardedAt: n >= 3 ? (r.onboardedAt || now) : null,
                   verifiedAt: n >= 4 ? (r.verifiedAt || now) : null,
@@ -1346,9 +1348,9 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
 
   const steps: Step[] = [
     {
-      label: "Step 1", title: "Application received", sub: r.createdAt ? `applied ${fmtDate(r.createdAt)}` : "in the pipeline", done: true,
-      render: () => <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-        {doneBadge("Received")}
+      label: "Step 1", title: "Application received", sub: r.createdAt ? `applied ${fmtDate(r.createdAt)}` : "in the pipeline", done: isApplicationReceived(r),
+      render: (isNext) => <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        {isApplicationReceived(r) ? doneCol("Received", receiptPatch(r, false)) : <button onClick={() => workflow(r.id, receiptPatch(r, true))} disabled={busy} style={primaryBtn(isNext)}>Mark received</button>}
         <div style={{ fontSize: 12, lineHeight: 1.5, color: "var(--fg,#111)" }}>
           <b>{r.diyTier === "standard" ? "Option 1 · Form" : r.diyTier === "partial" ? "Option 2 · Email/2FA" : r.diyTier === "full" ? "Option 3 · Full-service" : "Signup option not recorded"}</b>
           {r.diyTier && <div style={{ color: "var(--muted,#8a97ad)", marginTop: 4 }}>{r.diyTier === "standard" ? "Submitted the form for our team to handle setup." : r.diyTier === "partial" ? "Chose to add the LV email and set up 2FA themselves." : "Chose to handle email, 2FA and GoLogin themselves."}</div>}

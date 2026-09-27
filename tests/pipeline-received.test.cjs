@@ -1,0 +1,6 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescript');
+const moduleUnderTest={exports:{}};
+new Function('exports','module',ts.transpileModule(fs.readFileSync('src/lib/pipeline-received.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(moduleUnderTest.exports,moduleUnderTest);
+const {isApplicationReceived,receiptPatch}=moduleUnderTest.exports;
+test('level zero applications show incomplete receipt and can resume',()=>{for(const status of ['rejected','unreachable']){const row={status,applicationReceived:true};assert.equal(isApplicationReceived(row),false);const patch=receiptPatch(row,true);assert.equal(isApplicationReceived({...row,...patch}),true);assert.equal(patch.status,'onboarding')}});
+test('undo receipt preserves status and later milestones; completion restores it',()=>{const row={status:'approved',applicationReceived:true,onboardedAt:'2026-09-27'};const undone={...row,...receiptPatch(row,false)};assert.equal(isApplicationReceived(undone),false);assert.equal(undone.status,'approved');assert.equal(undone.onboardedAt,row.onboardedAt);assert.equal(isApplicationReceived({...undone,...receiptPatch(undone,true)}),true)});

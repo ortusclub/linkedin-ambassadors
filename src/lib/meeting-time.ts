@@ -23,14 +23,21 @@ export function meetingSlots(now: Date, busy: BusyPeriod[]): string[] {
 }
 const escapeICS = (value: string) => value.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,");
 const stamp = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-export function meetingInvite(booking: { id: string; name: string; email: string; contact: string; startsAt: Date; createdAt: Date; sequence?: number; updatedAt?: Date }) {
+export type MeetingInvitation = { id: string; name: string; email: string; contact: string; startsAt: Date; createdAt: Date; sequence?: number; updatedAt?: Date; application?: { linkedinUrl: string; linkedinEmail: string | null } | null };
+export function meetingTitle(booking: MeetingInvitation) {
+  return `LinkedVelocity onboarding — ${booking.name}`;
+}
+export function meetingDescription(booking: MeetingInvitation) {
+  return `30-minute onboarding call with ${booking.name} (${booking.email}) and the LinkedVelocity onboarding team (${MEETING_HOST}).\nLinkedIn account: ${booking.application?.linkedinUrl || "See your submitted application"}${booking.application?.linkedinEmail ? `\nAccount email: ${booking.application.linkedinEmail}` : ""}\nThe team will contact you via ${booking.contact || booking.email}.\nReschedule from My Submissions: https://linkedvelocity.com/dashboard\nFor cancellation, email ${MEETING_HOST}.`;
+}
+export function meetingInvite(booking: MeetingInvitation) {
   // Folding by UTF-8 byte length keeps international names valid in calendar clients.
   const fold = (line: string) => { let result = "", bytes = 0; for (const c of line) { const size = Buffer.byteLength(c); if (bytes + size > 74) { result += "\r\n "; bytes = 1; } result += c; bytes += size; } return result; };
-  const description = `30-minute onboarding call with ${booking.name}. The team will contact you via ${booking.contact || booking.email}. For changes, email ${MEETING_HOST}.`;
-  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//LinkedVelocity//Onboarding//EN", "METHOD:REQUEST", "BEGIN:VEVENT",
+  const description = meetingDescription(booking);
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//LinkedVelocity//Onboarding//EN", "CALSCALE:GREGORIAN", "METHOD:REQUEST", "BEGIN:VEVENT",
     `UID:${booking.id}@linkedvelocity.com`, `DTSTAMP:${stamp(booking.updatedAt || booking.createdAt)}`, `DTSTART:${stamp(booking.startsAt)}`,
     `DTEND:${stamp(new Date(booking.startsAt.getTime() + MEETING_MINUTES * 60000))}`, `SEQUENCE:${booking.sequence || 0}`, "STATUS:CONFIRMED",
-    "SUMMARY:LinkedVelocity onboarding call", `DESCRIPTION:${escapeICS(description)}`,
-    `ORGANIZER;CN=LinkedVelocity:mailto:${MEETING_HOST}`, `ATTENDEE;RSVP=TRUE:mailto:${booking.email}`,
+    `SUMMARY:${escapeICS(meetingTitle(booking))}`, "TRANSP:OPAQUE", `DESCRIPTION:${escapeICS(description)}`,
+    `ORGANIZER;CN=LinkedVelocity:mailto:${MEETING_HOST}`, `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${booking.email}`,
     "END:VEVENT", "END:VCALENDAR", ""].map(fold).join("\r\n");
 }

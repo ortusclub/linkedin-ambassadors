@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatMoney } from "@/lib/referral-currency";
+import { useMeetingTimeZone } from "@/components/use-meeting-time-zone";
+import { CompactDetail } from "@/components/compact-detail";
 import { MeetingBooker } from "@/components/meeting-booker";
 import { OnboardingPrice } from "@/components/onboarding-price";
 import { CardTopUp } from "./card-topup";
@@ -117,6 +119,7 @@ export default function DashboardPage() {
 }
 
 function DashboardContent() {
+  const { timeZone: meetingTimeZone } = useMeetingTimeZone();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [meetingSubmissionId, setMeetingSubmissionId] = useState<string | null>(null);
@@ -686,7 +689,7 @@ function DashboardContent() {
           </div>
           {ambassadorAccounts.length > 0 || submittedAccounts.length > 0 ? (
           <Card>
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -787,7 +790,7 @@ function DashboardContent() {
             <span className="text-xs text-gray-400">Paper trail of removed accounts</span>
           </div>
           <Card>
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -865,7 +868,7 @@ function DashboardContent() {
           </Card>
         ) : (
         <Card>
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -1032,44 +1035,53 @@ function DashboardContent() {
         </div> : null; })()}
           <Card>
             <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-sm" style={{ minWidth: 900 }}>
+              <table className="w-full whitespace-nowrap text-sm" style={{ minWidth: 980 }}>
                 <thead>
                   <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-400">
-                    <th className="px-5 py-4">Account Name</th>
-                    <th className="px-5 py-4">Account Email</th>
-                    <th className="px-5 py-4">LinkedIn URL</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4">Your Deal</th>
-                    <th className="px-5 py-4">Meeting</th>
-                    <th className="px-5 py-4">Submitted</th>
-                    <th className="px-5 py-4">GoLogin</th>
-                    <th className="px-5 py-4"></th>
+                    <th className="px-3 py-3">Name</th>
+                    <th className="px-3 py-3">Email</th>
+                    <th className="px-3 py-3">LinkedIn</th>
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">Your Deal</th>
+                    <th className="px-3 py-3">Meeting</th>
+                    <th className="px-3 py-3">Added</th>
+                    <th className="px-3 py-3">Access</th>
+                    <th className="px-3 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {submissions.map((sub) => (
                     <tr key={sub.id} className="border-b last:border-b-0">
-                      <td className="px-5 py-4 font-semibold text-gray-900">{sub.fullName}</td>
-                      <td className="px-5 py-4 text-gray-500">{sub.linkedinEmail || sub.email}</td>
-                      <td className="px-5 py-4">
-                        <a href={sub.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm font-medium truncate block max-w-[200px]">
+                      <td className="px-3 py-3 font-semibold text-gray-900"><CompactDetail summary={sub.fullName} title={sub.fullName} className="max-w-[120px]">{sub.fullName}</CompactDetail></td>
+                      <td className="px-3 py-3 text-gray-500"><CompactDetail summary={sub.linkedinEmail || sub.email} title={sub.linkedinEmail || sub.email} className="max-w-[180px]"><span className="break-all">{sub.linkedinEmail || sub.email}</span></CompactDetail></td>
+                      <td className="px-3 py-3">
+                        <a href={sub.linkedinUrl} title={sub.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm font-medium truncate block max-w-[100px]">
                           {sub.linkedinUrl.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//, "").replace(/\/$/, "")}
                         </a>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-3 py-3">
                         <Badge variant={sub.status === "approved" || sub.status === "onboarded" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
                           {sub.status}
                         </Badge>
                       </td>
-                      <td className="px-5 py-4 min-w-[200px]">
-                        {sub.deal ? <><div><span className="font-semibold text-gray-900"><OnboardingPrice usd={sub.deal.setupUsd} php={sub.deal.setupPhp} /></span><span className="block text-xs text-gray-500">One-time sign-on bonus</span></div><div className="mt-2"><span className="font-semibold text-green-700"><OnboardingPrice usd={sub.deal.monthlyUsd} php={sub.deal.monthlyPhp} /> /month</span><span className="block text-xs text-gray-500">Once onboarding is complete</span></div></> : <span className="text-gray-400">To be confirmed</span>}
+                      <td className="px-3 py-3">
+                        {sub.deal ? <CompactDetail
+                          summary={<><span className="font-semibold text-gray-900">${sub.deal.setupUsd} bonus</span><span className="text-gray-400"> · </span><span className="font-semibold text-green-700">${sub.deal.monthlyUsd}/mo</span></>}
+                          title={`One-time sign-on bonus: $${sub.deal.setupUsd} (₱${sub.deal.setupPhp.toLocaleString("en-US")}). Monthly rate: $${sub.deal.monthlyUsd} (₱${sub.deal.monthlyPhp.toLocaleString("en-US")}), once onboarding is complete.`}>
+                          <div className="font-semibold"><OnboardingPrice usd={sub.deal.setupUsd} php={sub.deal.setupPhp} /></div><div className="text-gray-500">One-time sign-on bonus</div>
+                          <div className="mt-3 font-semibold text-green-700"><OnboardingPrice usd={sub.deal.monthlyUsd} php={sub.deal.monthlyPhp} /> /month</div><div className="text-gray-500">Once onboarding is complete</div>
+                        </CompactDetail> : <span className="text-gray-400">To be confirmed</span>}
                       </td>
-                      <td className="px-5 py-4 min-w-[210px]">
-                        {sub.scheduledMeeting ? <><time dateTime={sub.scheduledMeeting.startsAt} className="block font-medium">{new Date(sub.scheduledMeeting.startsAt).toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" })}</time><span className="block text-xs text-gray-500">Philippine time · 30 minutes</span></> : <span className="block text-xs text-gray-500">No meeting booked</span>}
-                        <button className="mt-2 rounded-lg border border-green-200 px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-50" onClick={() => setMeetingSubmissionId(sub.id)}>{sub.scheduledMeeting ? "Reschedule meeting" : "Book meeting"}</button>
+                      <td className="px-3 py-3">
+                        <button className="inline-flex items-center rounded-lg border border-green-200 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50"
+                          title={sub.scheduledMeeting ? `Reschedule meeting: ${new Date(sub.scheduledMeeting.startsAt).toLocaleString("en-PH", { timeZone: meetingTimeZone, dateStyle: "full", timeStyle: "short" })}. ${meetingTimeZone} · 30 minutes.` : "No meeting booked — book a 30-minute onboarding call"}
+                          aria-label={sub.scheduledMeeting ? "Reschedule meeting" : "Book meeting"}
+                          onClick={() => setMeetingSubmissionId(sub.id)}>
+                          {sub.scheduledMeeting ? <>{new Date(sub.scheduledMeeting.startsAt).toLocaleString("en-PH", { timeZone: meetingTimeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} ↗</> : "Book meeting"}
+                        </button>
                       </td>
-                      <td className="px-5 py-4 text-gray-400 text-sm">{formatDate(sub.createdAt)}</td>
-                      <td className="px-5 py-4">
+                      <td className="px-3 py-3 text-gray-400 text-sm"><time dateTime={sub.createdAt} title={formatDate(sub.createdAt)}>{new Date(sub.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</time></td>
+                      <td className="px-3 py-3">
                         {sub.gologinShareLink ? (
                           <button
                             onClick={() => {
@@ -1102,7 +1114,7 @@ function DashboardContent() {
                           <span className="text-xs text-gray-300">—</span>
                         )}
                       </td>
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-3 py-3 text-right">
                         <button
                           onClick={async () => {
                             if (!confirm("Are you sure you want to delete this submission?")) return;

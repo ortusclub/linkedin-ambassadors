@@ -9,6 +9,7 @@ import { carryAppRestrictionToAccount } from "@/lib/restriction";
 import { deleteApplicationCascade } from "@/lib/application-delete";
 
 const updateSchema = z.object({
+  applicationReceived: z.boolean().optional(),
   status: z.enum(["pending", "reviewing", "approved", "rejected", "onboarding", "onboarded", "unreachable", "contacted", "on_hold"]).optional(),
   offeredAmount: z.number().optional(),
   adminNotes: z.string().optional(),
