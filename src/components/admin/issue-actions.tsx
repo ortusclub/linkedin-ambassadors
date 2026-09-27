@@ -27,18 +27,22 @@ export function IssueActions({ originalEmail, lvEmail, referralPartner, from, ac
   };
   return <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
     <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", color: "var(--muted)" }}>Access issues</span>
-    <span style={{ fontSize: 12, color: "var(--muted)" }}>Review and edit emails before sending from LinkedVelocity. WhatsApp and Telegram open a message for you to send.</span>
+    <span style={{ fontSize: 12, color: "var(--muted)" }}>Review and edit emails before sending from LinkedVelocity. WhatsApp and Telegram open a message for you to send. Viber copies the message and opens the chat; paste it to send.</span>
     <label style={{ fontSize: 12 }}>Issue <select disabled={busy} value={issue} onChange={e => setIssue(e.target.value as typeof issue)}>{ISSUE_KEYS.map(key => <option key={key} value={key}>{ACCOUNT_ISSUES[key].label}</option>)}</select></label>
     {issue === "other" && <textarea required aria-label="Issue details and required action" disabled={busy} value={details} onChange={e => setDetails(e.target.value)} maxLength={3000} placeholder="Explain the issue and what they need to do to fix it…" rows={3} style={{ width: "100%", boxSizing: "border-box", border: "1px solid var(--card-border)", borderRadius: 8, padding: 10, background: "var(--card)", color: "var(--text)" }} />}
     <details><summary style={{ cursor: "pointer", fontSize: 12 }}>Preview payment-suspension message</summary><pre style={{ whiteSpace: "pre-wrap", font: "inherit", fontSize: 12 }}>{accountIssueMessage(name, "ambassador", issue, details, profile, referralPartner, { original: originalEmail, lv: lvEmail }).subject}{"\n\n"}{accountIssueMessage(name, "ambassador", issue, details, profile, referralPartner, { original: originalEmail, lv: lvEmail }).text}</pre><p style={{ fontSize: 12 }}>The referrer version identifies the referred account and asks them to help the ambassador resolve it.</p></details>
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      {(["email", "whatsapp", "telegram"] as const).flatMap(channel => (["referrer", "ambassador"] as const).map(recipient => {
+      {(["email", "whatsapp", "telegram", "viber"] as const).flatMap(channel => (["referrer", "ambassador"] as const).map(recipient => {
         const contact = recipient === "ambassador" ? ambassador : referrer;
         const message = accountIssueMessage(name, recipient, issue, details, profile, referralPartner, { original: originalEmail, lv: lvEmail }).text;
         const href = validIssue ? contactLink(channel, contact?.[channel], message) : null;
-        const label = `${{ email: "Email", whatsapp: "WhatsApp", telegram: "Telegram" }[channel]} ${recipient}`;
+        const label = `${{ email: "Email", whatsapp: "WhatsApp", telegram: "Telegram", viber: "Viber" }[channel]} ${recipient}`;
         const style = { fontSize: 12, fontWeight: 600, border: "1px solid var(--card-border)", borderRadius: 8, padding: "8px 10px", background: "var(--card)", color: "var(--link)", textDecoration: "none" };
         if (channel === "email") return <button key={label} type="button" disabled={busy || !href} onClick={() => setPreview({ recipient, ...accountIssueMessage(name, recipient, issue, details, profile, referralPartner, { original: originalEmail, lv: lvEmail }) })} title={!validIssue ? "Explain the other issue first" : !href ? `No ${recipient} email saved` : `Review email to ${contact?.email}`} style={{ ...style, cursor: "pointer", opacity: busy || !href ? 0.45 : 1 }}>{busy ? "Sending…" : `Email ${recipient}`}</button>;
+        if (channel === "viber" && href) return <button key={label} type="button" style={{ ...style, cursor: "pointer" }} title="Copy the prepared message and open Viber; paste it into the chat" onClick={async () => {
+          try { await navigator.clipboard.writeText(message); setResult("Message copied. Paste it into the Viber chat and send."); window.location.href = href; }
+          catch { setResult("Could not copy the message. Copy it from the preview, then open Viber."); }
+        }}>{label} ↗</button>;
         return href ? <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={style}>{label} ↗</a>
           : <button key={label} type="button" disabled title={`No usable ${channel} contact saved for this ${recipient}${channel === "whatsapp" ? "; include the country code" : ""}`} style={{ ...style, opacity: 0.45, cursor: "not-allowed" }}>{label} · unavailable</button>;
       }))}

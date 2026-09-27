@@ -134,7 +134,7 @@ export async function GET(req: NextRequest) {
       if (!r) return null;
       const contacts = (Array.isArray(r.contacts) ? r.contacts : []) as Array<{ method?: string; handle?: string; preferred?: boolean }>;
       const byMethod = (method: string) => contacts.find(c => c.preferred && c.method?.toLowerCase() === method)?.handle || contacts.find(c => c.method?.toLowerCase() === method)?.handle || (r.contactMethod?.toLowerCase() === method ? r.contactHandle : null);
-      return { email: r.email || byMethod("email"), whatsapp: byMethod("whatsapp"), telegram: byMethod("telegram") };
+      return { email: r.email || byMethod("email"), whatsapp: byMethod("whatsapp"), telegram: byMethod("telegram"), viber: byMethod("viber") };
     };
 
     const accountsWithOwner = accounts.map((a) => {
