@@ -246,12 +246,13 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   // problem state) or Initial (not started) from connection count alone.
   return "Construction";
 };
+const inventoryStatusLabel = (status: string) => status === "Construction" ? "Pipeline (Construction)" : status;
 const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
   { key: "Restricted", hint: "LinkedIn-restricted — access paused while it recovers", dot: "var(--st-unreach-fg)" },
-  { key: "Construction", hint: "onboarded, being prepped — not yet flipped to Available", dot: "var(--st-construct-fg)" },
+  { key: "Construction", hint: "onboarding, warming up, or awaiting readiness checks", dot: "var(--st-construct-fg)" },
   { key: "Maintenance", hint: "was live, now needs fixing — 2FA/restriction/post-rental, or manually set", dot: "var(--neutral-chip-text)" },
   { key: "Permanently restricted", hint: "retired — permanently restricted, given up on", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
@@ -692,7 +693,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted", "Permanently restricted", counts["Permanently restricted"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Construction", inventoryStatusLabel("Construction"), counts.Construction, "var(--st-construct-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted", "Permanently restricted", counts["Permanently restricted"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
@@ -729,26 +730,24 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
           <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{counts.realTotal}</span>
           <span style={{ font: `600 12px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--label)" }}>accounts</span>
         </div>
-        <span style={{ width: 1, height: 20, background: "var(--divider)" }} />
-        {[["var(--st-active-fg)", `${counts.Available} available`], ["var(--blue-chip-text)", `${counts.Rented} rented`], ["var(--st-unreach-fg)", `${counts.Restricted} restricted`], ["var(--warn-badge-text)", `${counts.checksDue} checks due`], ["var(--blue-chip-text)", `${counts.verified} verified`], ["var(--muted2)", `${counts.Showcase} showcase`]].map(([dot, txt]) => (
-          <span key={txt} style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />{txt}</span>
-        ))}
+
       </div>
 
-      {/* chips + search */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {CHIPS.map(([key, lbl, n, dot]) => (
-            <button key={key} onClick={() => setFilter(key)} style={chip(filter === key)}>
-              {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
-              {lbl}<span style={{ color: "var(--muted)" }}>{n}</span>
-            </button>
-          ))}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, owner, location, industry…" style={{ width: 280, maxWidth: "50vw", ...modalInput }} />
-          <button onClick={expandAll} style={{ ...secBtn, padding: "9px 14px", borderRadius: 9 }}>{allExpanded ? "Collapse all" : "Expand all"}</button>
-        </div>
+      {/* Search and row expansion */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, owner, location, industry…" style={{ width: 280, maxWidth: "50vw", ...modalInput }} />
+        <button onClick={expandAll} style={{ ...secBtn, padding: "9px 14px", borderRadius: 9 }}>{allExpanded ? "Collapse all" : "Expand all"}</button>
+      </div>
+
+      {/* Status filter, alongside the other inventory filters */}
+      <div role="group" aria-label="Filter by status" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <span style={{ ...labelCss, marginRight: 2 }}>Status</span>
+        {CHIPS.map(([key, lbl, n, dot]) => (
+          <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)} style={chip(filter === key)}>
+            {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
+            {lbl}<span style={{ color: "var(--muted)" }}>{n}</span>
+          </button>
+        ))}
       </div>
 
       {/* LV PoC filter (the LinkedVelocity rep who onboarded the account) */}
@@ -810,7 +809,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
             <div key={g.key}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
                 <span style={{ width: 9, height: 9, borderRadius: 999, background: g.dot }} />
-                <span style={{ font: `700 12px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--text)" }}>{g.key}</span>
+                <span style={{ font: `700 12px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--text)" }}>{inventoryStatusLabel(g.key)}</span>
                 <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted)", background: "var(--tag-bg)", padding: "2px 9px", borderRadius: 999 }}>{rows.length}</span>
                 <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2)" }}>{g.hint}</span>
               </div>
@@ -901,7 +900,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           </div>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
-                          <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{st}</span>
+                          <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{inventoryStatusLabel(st)}</span>
                           {a.shadowRenter && <span title={`Shadow-held by ${a.shadowRenter} — still available to rent; a real customer rental takes it back automatically.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>◑ Shadow · Apex</span>}
                           {a.inventoryPool === "ortus" && <span title="Ortus inventory — brought in by an Ortus referrer. Hidden from the public catalogue and auto-owned ($0) by info@ortus.solutions." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#ede9fe", color: "#6d28d9" }}>◆ Ortus</span>}
                           {a.inventoryPool === "apex" && <span title="Apex inventory — brought in by an Apex referrer. Hidden from the public catalogue and auto-owned ($0) by info@apexstrategy.io." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#e0f2fe", color: "#0369a1" }}>◆ Apex</span>}
