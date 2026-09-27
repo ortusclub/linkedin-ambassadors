@@ -2,7 +2,9 @@
 
 ## Handoff status — 2026-09-27
 
-Sam requested a reusable GitHub-based Wise integration so another assistant can continue payment investigations. The read-only CLI is implemented and tested with mocked API responses. **Live access is not yet configured or verified.** Next step: provide a Wise Business read-only token in the runtime, list profiles, select Sam's business profile, then verify a known transfer. Update this section after successful live verification, without recording private payment data.
+Sam requested a reusable GitHub-based Wise integration so another assistant can continue payment investigations. **Live access was verified on 2026-09-27** for the business profile named **Linked Velocity**: profile listing, a transfer-list page, a known transfer lookup, and its recipient lookup all succeeded. The local checkout has `WISE_API_TOKEN` and `WISE_PROFILE_ID` in gitignored `.env.wise.local`; no credentials are stored in GitHub. The CLI only makes GET requests; token write permissions were not probed. Other business and personal profiles are accessible to the token, so retain the selected Linked Velocity profile and do not switch scope without a relevant user request.
+
+To resume on this machine, run the documented commands. In a new environment, provision credentials securely and select the Linked Velocity business profile again. No dashboard or background sync is configured. Keep live payment evidence out of this handoff; query fresh records for each investigation.
 
 This is a command-line integration for assistants with a checkout and command execution, not a new dashboard, automatic sync, or public API. GitHub access supplies the code and instructions; runtime credentials must be granted separately. There are no Wise write operations or database updates.
 
