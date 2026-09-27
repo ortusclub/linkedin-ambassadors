@@ -18,7 +18,7 @@ export async function GET() {
     const apps = await prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
       select: {
-        id: true, fullName: true, email: true, contactNumber: true, contactChannel: true,
+        id: true, fullName: true, email: true, contactNumber: true, contactChannel: true, diyTier: true,
         linkedinUrl: true, connectionCount: true, location: true, status: true,
         createdAt: true, onboardedAt: true, verifiedAt: true, qcChecks: true, emailPrimaryAt: true, paidAt: true,
         accountIssue: true, onboardingFix: true, restrictionReport: true, adminNotes: true, notes: true,
@@ -147,6 +147,7 @@ export async function GET() {
 
       return {
         id: app.id,
+        diyTier: app.diyTier,
         fullName: app.fullName,
         email: app.email,
         contactNumber: app.contactNumber,

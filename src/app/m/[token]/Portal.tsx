@@ -274,6 +274,7 @@ export default function Portal({ token }: { token: string }) {
   const dualRange = (usdLo: number, usdHi: number, phpLo: number, phpHi: number, _primary: string) => offerRange(usdLo, usdHi, phpLo, phpHi, preference.currency);
   const baseD = dualVal(U.referralTiers.referral, P.referralTiers.referral, base);
   const rangeD = dualRange(U.referralTiers.referral, U.referralTiers.computer.verified, P.referralTiers.referral, P.referralTiers.computer.verified, `${base}–${diyHigh}`);
+  const guidedRangeD = dualRange(U.referralTiers.phone.base, U.referralTiers.computer.verified, P.referralTiers.phone.base, P.referralTiers.computer.verified, "");
   const tierRangeD = (key: "phone" | "computer") =>
     dualRange(U.referralTiers[key].base, U.referralTiers[key].verified, P.referralTiers[key].base, P.referralTiers[key].verified, tierRange(tiers[key]));
 
@@ -408,7 +409,7 @@ export default function Portal({ token }: { token: string }) {
                   <span style={{ font: `700 10px ${JAK}`, letterSpacing: ".09em", textTransform: "uppercase", color: "#bbf7d0" }}>Guided onboarding</span>
                   <span style={{ font: `700 9.5px ${JAK}`, letterSpacing: ".05em", textTransform: "uppercase", color: C.ink, background: "#a7f3d0", padding: "3px 7px", borderRadius: 5, whiteSpace: "nowrap" }}>Pays most</span>
                 </div>
-                <div style={{ font: `600 24px/1.2 ${GRO}`, color: "#fff", letterSpacing: "-.015em", marginBottom: 8 }}>{rangeD}<br />per person you onboard</div>
+                <div style={{ font: `600 24px/1.2 ${GRO}`, color: "#fff", letterSpacing: "-.015em", marginBottom: 8 }}>{guidedRangeD}<br />per person you onboard</div>
                 <p style={{ font: `500 13px/1.5 ${JAK}`, color: "rgba(255,255,255,.88)", margin: "0 0 16px" }}>Stay with the account owner and follow the guided steps together. Highest pay, and it&apos;s all recorded to your code as you go.</p>
                 <button onClick={() => setReadyOpen(true)} style={{ width: "100%", font: `700 15.5px ${JAK}`, color: C.greenDk, background: "#fff", border: "none", padding: 16, borderRadius: 13, cursor: "pointer", boxShadow: "0 8px 18px -10px rgba(0,0,0,.4)" }}>Start guided onboarding →</button>
                 <div style={{ display: "flex", gap: 6, marginTop: 13 }}>

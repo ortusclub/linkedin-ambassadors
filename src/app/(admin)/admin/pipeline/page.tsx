@@ -80,6 +80,7 @@ interface Row {
   poc: string | null;
   linkedinEmail: string | null;
   bookingEmail: string | null;
+  diyTier?: string | null;
   accountFreshness: string | null;
   ownerStatus: string | null;
   paymentMethod: string | null;
@@ -1344,6 +1345,19 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
 }
 
 // -- workflow rail (pre-onboarded): 4 sequential step cards -------------------
+function SignupMeeting({ r }: { r: Row }) {
+  const latest = new Map<string, Touch>();
+  for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) latest.set(entry.bookingKey, entry);
+  const meetings = [...latest.values()].sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!));
+  const active = meetings.filter(m => !m.cancelled);
+  const meeting = active.find(m => new Date(m.scheduledAt!).getTime() >= Date.now()) || active[active.length - 1];
+  const when = meeting?.scheduledAt || (!meetings.length && r.call?.stage !== "none" ? r.call?.scheduledAt : null);
+  return <div style={{ padding: 9, borderRadius: 8, background: "var(--link-bg,#eaf1ff)", fontSize: 11, lineHeight: 1.5 }}>
+    <b>{when ? "Meeting booked" : meetings.length ? "Meeting cancelled · no active booking" : "No meeting booking recorded yet"}</b>
+    {when ? <div><time dateTime={when}>{new Date(when).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time><br /><small>{Intl.DateTimeFormat().resolvedOptions().timeZone}</small></div> : <div>Calendar updates can take a few minutes to sync.</div>}
+  </div>;
+}
+
 function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void }) {
   // Maturation only begins once QC (Step 4) is passed — the clock counts from
   // verifiedAt, never before. holdDays picks the window (fresh 1wk / established 3d).
@@ -1359,33 +1373,42 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
   const allQc = qcCount === QC_ITEMS.length;
 
   type Step = { label: string; title: string; sub: string; done: boolean; render: (isNext: boolean) => React.ReactNode };
-  const stepCard = (label: string, title: string, sub: string, isNext: boolean, body: React.ReactNode) => (
-    <div style={{ flex: "1 1 190px", minWidth: 180, background: "var(--card,#fff)", border: `1px solid ${isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--divider,#eee)"}`, borderRadius: 10, padding: "11px 12px" }}>
+  const stepCard = (label: string, title: string, sub: string, isNext: boolean, done: boolean, body: React.ReactNode) => (
+    <div style={{ flex: "1 1 190px", minWidth: 180, background: "var(--card,#fff)", border: `1px solid ${done ? "var(--st-active-fg,#188038)" : isNext ? "#1a56db" : "var(--divider,#eee)"}`, borderRadius: 10, padding: "11px 12px" }}>
       <div style={{ ...labelCss, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 6, color: done ? "var(--st-active-fg,#188038)" : isNext ? "#1a56db" : "var(--muted,#8a97ad)" }}>{done ? "COMPLETED" : isNext ? "NOT COMPLETED · NEXT STEP" : "NOT COMPLETED"}</div>
       <div style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)", marginBottom: 3 }}>{title}</div>
       <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted,#8a97ad)", marginBottom: 8, minHeight: 15 }}>{sub}</div>
       {body}
     </div>
   );
   const doneBadge = (text: string) => <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "var(--st-active-bg,#e6f4ea)", padding: "6px 10px", borderRadius: 7, display: "inline-block" }}>✓ {text}</span>;
-  const undoLink = (patch: Record<string, unknown>) => <span onClick={() => workflow(r.id, patch)} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer" }}>undo</span>;
-  const primaryBtn = (isNext: boolean): React.CSSProperties => ({ ...btnPrimary, width: "100%", background: isNext ? "var(--sheets-btn-bg,#1a56db)" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" });
+  const undoLink = (patch: Record<string, unknown>) => <button disabled={busy} onClick={() => workflow(r.id, patch)} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer", background: "transparent", border: "none", padding: 0, textAlign: "left" }}>Undo completion</button>;
+  const primaryBtn = (isNext: boolean): React.CSSProperties => ({ ...btnPrimary, width: "100%", background: isNext ? "#1a56db" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" });
   const doneCol = (badge: string, undo: Record<string, unknown>) => <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge(badge)}{undoLink(undo)}</div>;
 
   const steps: Step[] = [
     {
       label: "Step 1", title: "Application received", sub: r.createdAt ? `applied ${fmtDate(r.createdAt)}` : "in the pipeline", done: true,
-      render: () => doneBadge("Received"),
+      render: () => <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        {doneBadge("Received")}
+        <div style={{ fontSize: 12, lineHeight: 1.5, color: "var(--fg,#111)" }}>
+          <b>{r.diyTier === "standard" ? "Option 1 · We set it up" : r.diyTier === "partial" ? "Option 2 · Email + 2FA setup" : r.diyTier === "full" ? "Option 3 · Full DIY" : "Signup option not recorded"}</b>
+          {r.diyTier && <div style={{ color: "var(--muted,#8a97ad)", marginTop: 4 }}>{r.diyTier === "standard" ? "Submitted the form for our team to handle setup." : r.diyTier === "partial" ? "Chose to add the LV email and set up 2FA themselves." : "Chose to handle email, 2FA and GoLogin themselves."}</div>}
+          {r.diyTier !== "standard" && r.diyTier && <small>Chosen route — completion is tracked in the steps below.</small>}
+        </div>
+        {r.diyTier === "standard" && <SignupMeeting r={r} />}
+      </div>,
     },
     {
       label: "Step 2", title: "LV email added & primary", sub: r.emailPrimaryAt ? `done ${fmtDate(r.emailPrimaryAt)}` : "our email is on the account & set primary", done: !!r.emailPrimaryAt,
       render: (isNext) => r.emailPrimaryAt ? doneCol("Email primary", { emailPrimaryAt: null })
-        : <button onClick={() => workflow(r.id, { emailPrimaryAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Email added &amp; primary</button>,
+        : <button onClick={() => workflow(r.id, { emailPrimaryAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>Mark email added &amp; primary</button>,
     },
     {
       label: "Step 3", title: "Logged into GoLogin", sub: r.onboardedAt ? `logged in ${fmtDate(r.onboardedAt)}` : "sign in via the GoLogin profile", done: !!r.onboardedAt,
       render: (isNext) => r.onboardedAt ? doneCol("Logged in", { onboardedAt: null })
-        : <button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>✓ Logged in</button>,
+        : <button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>Mark logged in</button>,
     },
     {
       label: "Step 4", title: "Passed checks & QC",
@@ -1403,7 +1426,7 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
                 </label>
               );
             })}
-            <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString(), onboardingStartedAt: new Date().toISOString() })} disabled={busy || !allQc} title={allQc ? "Mark QC as passed" : "Tick all checks first"} style={{ ...primaryBtn(isNext), marginTop: 2, opacity: allQc ? 1 : 0.5, cursor: allQc ? "pointer" : "not-allowed" }}>✓ Passed QC</button>
+            <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString(), onboardingStartedAt: new Date().toISOString() })} disabled={busy || !allQc} title={allQc ? "Mark QC as passed" : "Tick all checks first"} style={{ ...primaryBtn(isNext), marginTop: 2, opacity: allQc ? 1 : 0.5, cursor: allQc ? "pointer" : "not-allowed" }}>Mark QC passed</button>
           </div>),
     },
     {
@@ -1435,7 +1458,7 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
         {steps.map((s, i) => {
           const isNext = !s.done && unlocked && !gated;
           if (!s.done) unlocked = false;
-          return <div key={i} style={{ flex: "1 1 190px", minWidth: 180 }}>{stepCard(s.label, s.title, s.sub, isNext, s.render(isNext))}</div>;
+          return <div key={i} style={{ flex: "1 1 190px", minWidth: 180 }}>{stepCard(s.label, s.title, s.sub, isNext, s.done, s.render(isNext))}</div>;
         })}
       </div>
     </div>
