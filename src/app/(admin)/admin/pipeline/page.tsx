@@ -29,6 +29,7 @@ import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions"
 import { ambassadorIssueContact } from "@/lib/issue-contacts";
 import { isApplicationReceived, receiptPatch } from "@/lib/pipeline-received";
 import { useQcChecks } from "@/components/admin/use-qc-checks";
+import TotpCode from "@/app/m/[token]/onboarding/totp";
 import { isLikelyTestEmail } from "@/lib/test-mode";
 
 const APPLICATION_TYPES = [
@@ -1226,7 +1227,12 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
                 <Edit label="Work / recovery email" value={r.workEmail} placeholder="recovery email on the account" onSave={(v) => acctSave({ workEmail: v })} />
                 <Edit label="GoLogin share link" value={r.gologinShareLink} openHref={r.gologinShareLink} placeholder="https://app.gologin.com/share/…" onSave={(v) => acctSave({ gologinShareLink: v }, true)} />
                 <Edit label="Password" value={r.accountPassword} secret placeholder="set account password" onSave={(v) => acctSave({ accountPassword: v })} />
-                <Edit label="2FA / TOTP" hint="backup code / secret" value={r.twoFactor} secret placeholder="2FA secret / backup" onSave={(v) => acctSave({ twoFactor: v })} />
+                <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "flex-end", flexWrap: "wrap", gap: 14 }}>
+                  <div style={{ flex: "0 1 440px", minWidth: 0 }}>
+                    <Edit label="2FA / TOTP" hint="backup code / secret" value={r.twoFactor} secret placeholder="2FA secret / backup" onSave={(v) => acctSave({ twoFactor: v })} />
+                  </div>
+                  <TotpCode key={r.twoFactor || "empty"} secretKey={r.twoFactor || ""} compact />
+                </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <Edit label="Proxy · host:port:user:pass" value={proxyCombined(r)} placeholder="1.2.3.4:8000:username:password" onSave={(v) => acctSave(parseProxy(v))} />
                 </div>

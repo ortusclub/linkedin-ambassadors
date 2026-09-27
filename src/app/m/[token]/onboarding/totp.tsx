@@ -44,12 +44,14 @@ async function totpCode(secret: Uint8Array, period = 30, digits = 6): Promise<st
   return (code % 10 ** digits).toString().padStart(digits, "0");
 }
 
-export default function TotpCode({ secretKey }: { secretKey: string }) {
+export default function TotpCode({ secretKey, compact = false }: { secretKey: string; compact?: boolean }) {
   const [code, setCode] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(30);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    setCode(null);
+    setCopied(false);
     const secret = base32Decode(secretKey);
     if (!secret || secret.length < 10) { setCode(null); return; }
     let active = true;
@@ -71,11 +73,18 @@ export default function TotpCode({ secretKey }: { secretKey: string }) {
 
   if (!looksLikeTotpKey(secretKey) || !code) return null;
 
-  const copy = () => {
-    navigator.clipboard?.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1600); }
+    catch { setCopied(false); }
   };
+
+  if (compact) return <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+    <button type="button" onClick={copy} title="Copy current 6-digit authentication code" aria-label="Copy authentication code"
+      style={{ border: "1px solid var(--divider,#dce3de)", borderRadius: 8, background: "var(--blue-chip-bg,#e7effd)", color: "var(--blue-chip-text,#1a56db)", padding: "7px 12px", cursor: "pointer", font: "700 20px monospace", letterSpacing: 2, whiteSpace: "nowrap" }}>
+      {code.slice(0, 3)} {code.slice(3)}
+    </button>
+    <span style={{ fontSize: 12, color: "var(--muted,#64748b)" }}>{copied ? "Copied ✓" : `Copy · ${remaining}s`}</span>
+  </div>;
 
   return (
     <div className={styles.totpCard}>
