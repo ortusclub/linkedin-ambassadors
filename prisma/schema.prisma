@@ -801,6 +801,7 @@ model ScheduledMeeting {
   host String
   startsAt DateTime @map("starts_at")
   inviteSentAt DateTime? @map("invite_sent_at")
+  inviteDelivery String? @map("invite_delivery")
   createdAt DateTime @default(now()) @map("created_at")
   @@unique([host, startsAt])
   @@map("scheduled_meetings")

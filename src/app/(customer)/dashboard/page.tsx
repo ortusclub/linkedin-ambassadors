@@ -359,18 +359,6 @@ function DashboardContent() {
   const hasRealRentals = activeRentals.length > 0 || pastRentals.length > 0;
   const showRenterSide = !isAmbassador || hasRealRentals; // pure ambassadors hide renter-only bits
 
-  // Ambassador summary: how many profiles they've shared, how many are still being
-  // reviewed/valued, and what they earn per month from the live ones.
-  const liveSharedCount = ambassadorAccounts.length;
-  const pendingSharedCount = submissions.filter(
-    (s) => s.status !== "rejected"
-  ).length;
-  const totalSharedCount = liveSharedCount + pendingSharedCount;
-  const monthlyEarnings = ambassadorAccounts.reduce((sum, a) => {
-    const p = typeof a.ambassadorPayment === "string" ? parseFloat(a.ambassadorPayment) : a.ambassadorPayment;
-    return sum + (p && p > 0 ? p : 0);
-  }, 0);
-
   const statusBadge = (status: string) => {
     const map: Record<string, "success" | "warning" | "danger" | "default" | "info"> = {
       active: "success",
@@ -432,42 +420,8 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* ===== Adaptive content reordered via flex order: renter actions + lists on top; ambassador summary + guide pushed to the bottom (Sam) ===== */}
+      {/* ===== Adaptive content reordered via flex order: renter actions + lists on top; ambassador guide pushed to the bottom (Sam) ===== */}
       <div className="flex flex-col">
-      {/* Ambassador summary — profiles shared, monthly earnings, next step (ordered to bottom) */}
-      {isAmbassador && (
-        <div className="order-5 mb-8 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/70 to-white p-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Accounts shared</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">{totalSharedCount}</p>
-              <p className="text-xs text-gray-500">
-                {liveSharedCount > 0 ? `${liveSharedCount} live` : "0 live"}
-                {pendingSharedCount > 0 ? ` · ${pendingSharedCount} in review` : ""}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Monthly earnings</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">
-                {monthlyEarnings > 0 ? formatMoney(monthlyEarnings, ambassadorAccounts[0]?.currency ?? "PHP") : <span className="text-gray-400">Being valued</span>}
-              </p>
-              <p className="text-xs text-gray-500">{monthlyEarnings > 0 ? "from your live accounts" : "we'll confirm your rate shortly"}</p>
-            </div>
-            <div className="flex flex-col justify-center gap-2">
-              <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 rounded-md border border-green-300 bg-white px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-50 transition-colors">
-                Book a setup call
-              </a>
-            </div>
-          </div>
-          {pendingSharedCount > 0 && (
-            <p className="mt-4 border-t border-green-100 pt-3 text-sm text-gray-600">
-              <span className="font-medium text-gray-900">We&apos;re reviewing your account.</span>{" "}
-              Once it&apos;s approved we&apos;ll connect it through GoLogin so it&apos;s ready to earn — book a quick call above and we can set it up together.
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Ambassador getting-started — how the programme works */}
       {isAmbassador && (
         <div className="order-6 mb-8 overflow-hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/80 via-white to-white p-6">
@@ -481,7 +435,7 @@ function DashboardContent() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             {[
               { t: "Share your profile", d: "Add your LinkedIn — or several. Takes 2 minutes.", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /> },
-              { t: "Hop on a quick call", d: "We set everything up with you, live.", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /> },
+              { t: "Book a call or do it yourself", d: "We can help you set up on a call, or complete the setup yourself for a larger sign-on bonus.", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /> },
               { t: "We do the work", d: "We run outreach via GoLogin. You keep full control.", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.042 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.746 3.746 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /> },
               { t: "Get paid, every month", d: "Passive income on the 1st — even while you sleep.", icon: <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /> },
             ].map((s, i) => (

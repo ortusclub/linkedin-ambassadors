@@ -139,7 +139,7 @@ export default function HomePage() {
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
           <h2 style={{ font: `700 clamp(28px,4vw,40px) ${POP}`, lineHeight: 1.15, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Find your next account</h2>
           <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 28px" }}>Explore the catalogue to compare accounts and find one that fits your needs.</p>
-          <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", maxWidth: "100%", boxSizing: "border-box", background: "#0A66C2", color: "#fff", fontSize: "clamp(18px,3vw,23px)", fontWeight: 700, padding: "22px 36px", borderRadius: 14, textDecoration: "none", boxShadow: "0 14px 30px -12px rgba(10,102,194,0.6)" }}>See the accounts you can rent →</Link>
+          <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", maxWidth: "100%", boxSizing: "border-box", background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, padding: "14px 24px", borderRadius: 10, textDecoration: "none", boxShadow: "0 4px 12px rgba(10,102,194,0.12)" }}>See the accounts you can rent →</Link>
         </div>
       </section>
 

@@ -19,7 +19,7 @@ async function applicationAccess(req: Request) {
   }
   return { id: meetingApplication(req.headers.get("authorization")?.replace(/^Bearer /, "") || ""), userEmail: (await getSession())?.email || null };
 }
-const view = (booking: { email: string; id: string; startsAt: Date; inviteSentAt: Date | null; sequence?: number }) => ({ email: booking.email, sequence: booking.sequence || 0, id: booking.id, startsAt: booking.startsAt, invitationSent: !!booking.inviteSentAt });
+const view = (booking: { email: string; id: string; startsAt: Date; inviteSentAt: Date | null; inviteDelivery?: string | null; sequence?: number }) => ({ email: booking.email, sequence: booking.sequence || 0, id: booking.id, startsAt: booking.startsAt, invitationSent: !!booking.inviteSentAt, invitationDelivery: booking.inviteDelivery || "calendar" });
 export async function GET(req: Request) {
   try {
     const { id, userEmail } = await applicationAccess(req);
@@ -64,7 +64,7 @@ async function saveMeeting(req: Request, reschedule: boolean) {
         const imported = await tx.inboundBooking.findMany({ where: { ...(duplicate ? { key: { not: duplicate.id } } : {}), cancelled: false, scheduledAt: { gte: new Date(now.getTime() - 1800000) } }, select: { scheduledAt: true, eventId: true } });
         const slots = meetingSlots(new Date(), [...externalBusy, ...imported.map(b => ({ start: b.scheduledAt, end: new Date(b.scheduledAt.getTime() + 1800000) })), ...booked.map(b => ({ start: b.startsAt, end: new Date(b.startsAt.getTime() + 1800000) }))]);
         if (!slots.includes(body.data.startsAt)) throw new Error("SLOT_TAKEN");
-        const created = duplicate && reschedule ? await tx.scheduledMeeting.update({ where: { id: duplicate.id }, data: { startsAt: new Date(body.data.startsAt), sequence: { increment: 1 }, inviteSentAt: null } }) : await tx.scheduledMeeting.create({ data: { applicationId: id, name: app.fullName, email: invitationEmail, contact: app.contactNumber || "", host: MEETING_HOST, startsAt: new Date(body.data.startsAt) } });
+        const created = duplicate && reschedule ? await tx.scheduledMeeting.update({ where: { id: duplicate.id }, data: { startsAt: new Date(body.data.startsAt), sequence: { increment: 1 }, inviteSentAt: null, inviteDelivery: null } }) : await tx.scheduledMeeting.create({ data: { applicationId: id, name: app.fullName, email: invitationEmail, contact: app.contactNumber || "", host: MEETING_HOST, startsAt: new Date(body.data.startsAt) } });
         await tx.ambassadorApplication.update({ where: { id }, data: { bookingEmail: created.email } });
         const when = created.startsAt.toLocaleString("en-PH", { timeZone: MEETING_TIME_ZONE, dateStyle: "medium", timeStyle: "short" });
         const entry = JSON.stringify([{ id: `meeting:${created.id}:${created.sequence}`, ch: "note", by: "Meeting scheduler", at: new Date().toISOString(), text: `30-minute onboarding meeting ${reschedule ? "rescheduled" : "booked"}: ${when} (Philippine time).`, bookingKey: created.id, scheduledAt: created.startsAt.toISOString(), cancelled: false }]);
@@ -80,7 +80,7 @@ async function saveMeeting(req: Request, reschedule: boolean) {
         return created;
       });
     }
-    try { await sendMeetingInvitation(booking.id); booking = { ...booking, inviteSentAt: new Date() }; } catch { /* Durable pending invitation is retried by the booking cron. */ }
+    try { const delivery = await sendMeetingInvitation(booking.id); booking = { ...booking, inviteSentAt: new Date(), inviteDelivery: delivery }; } catch { /* Durable pending invitation is retried by the booking cron. */ }
     return json({ booking: view(booking) });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") return json({ error: "Please sign in." }, 401);

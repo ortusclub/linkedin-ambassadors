@@ -38,7 +38,7 @@ export async function sendMeetingInvitation(id: string) {
 }
 async function deliverMeetingInvitation(id: string) {
   const booking = await prisma.scheduledMeeting.findUniqueOrThrow({ where: { id }, include: { application: { select: { linkedinUrl: true, linkedinEmail: true } } } });
-  if (booking.inviteSentAt) return;
+  if (booking.inviteSentAt) return booking.inviteDelivery || "calendar";
   const smtpKey = (process.env.MEETING_SMTP_API_KEY || process.env.RESEND_API_KEY)?.trim();
   if (!smtpKey) throw new Error("Invitation delivery unavailable");
   const when = booking.startsAt.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "full", timeStyle: "short" });
@@ -49,6 +49,8 @@ async function deliverMeetingInvitation(id: string) {
     auth: { user: "resend", pass: smtpKey },
     connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 20000,
   });
+  let delivery = "calendar";
+  try {
   const result = await transport.sendMail({
     from: { name: "LinkedVelocity", address: MEETING_HOST },
     to: [...new Set([booking.email, booking.host])], replyTo: booking.host,
@@ -60,7 +62,29 @@ async function deliverMeetingInvitation(id: string) {
     date: booking.updatedAt,
   });
   if (result.rejected.length) throw new Error("Invitation delivery failed");
-  await prisma.scheduledMeeting.updateMany({ where: { id, sequence: booking.sequence }, data: { inviteSentAt: new Date() } });
+  } catch {
+    // SMTP/calendar delivery failure must not prevent an ordinary confirmation email.
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST", signal: AbortSignal.timeout(15000),
+      headers: { Authorization: `Bearer ${smtpKey}`, "Content-Type": "application/json", "Idempotency-Key": `meeting-confirmation/${booking.id}/${booking.sequence}` },
+      body: JSON.stringify({
+        from: `LinkedVelocity <${MEETING_HOST}>`, to: [...new Set([booking.email, booking.host])], reply_to: booking.host,
+        subject: `${booking.sequence > 0 ? "Updated booking: " : "Booking confirmed: "}${meetingTitle(booking)}`,
+        text: `Your 30-minute onboarding call is booked for ${when} (Philippine time / Asia/Manila).
+UTC time: ${booking.startsAt.toISOString().replace("T", " ").replace(".000Z", " UTC")}.
+
+${meetingDescription(booking)}
+
+We are likely to contact you at that time using the contact number and channel you provided in your application (WhatsApp, Viber, Telegram or phone).
+
+${booking.sequence > 0 ? "This booking replaces the previous time. Please update your calendar. " : ""}The calendar invitation could not be sent, so please save these details. Your booking is confirmed.`,
+      }),
+    });
+    if (!response.ok) throw new Error(`Booking email failed (${response.status})`);
+    delivery = "email";
+  }
+  await prisma.scheduledMeeting.updateMany({ where: { id, sequence: booking.sequence }, data: { inviteSentAt: new Date(), inviteDelivery: delivery } });
+  return delivery;
 }
 export async function retryMeetingInvitations() {
   const pending = await prisma.scheduledMeeting.findMany({ where: { inviteSentAt: null, startsAt: { gt: new Date() } }, select: { id: true }, take: 20 });

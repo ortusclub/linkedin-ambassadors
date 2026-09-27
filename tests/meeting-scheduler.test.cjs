@@ -35,3 +35,12 @@ test('native calendar email identifies applicant/account and preserves update id
  assert.match(event.description,/test-account/);assert.match(event.description,/LinkedVelocity onboarding team/);
  assert.deepEqual(updated.where,{id:'test-calendar',sequence:2});
 });
+
+test('SMTP failure falls back to a booking email for applicant and host with the original contact details',async()=>{
+ const booking={id:'fallback-booking',name:'Test Owner',email:'owner@example.test',host:time.MEETING_HOST,contact:'Viber:+639123456789',startsAt:new Date('2026-09-30T03:30Z'),createdAt:new Date('2026-09-27T00:00Z'),updatedAt:new Date('2026-09-27T01:00Z'),sequence:1,inviteSentAt:null,application:{linkedinUrl:'https://linkedin.com/in/test',linkedinEmail:'account@example.test'}};
+ let saved,message;const originalFetch=global.fetch,oldKey=process.env.RESEND_API_KEY;process.env.RESEND_API_KEY='mock';
+ const scheduler=load('src/lib/meeting-scheduler.ts',{'@/lib/prisma':{prisma:{scheduledMeeting:{findUniqueOrThrow:async()=>booking,updateMany:async q=>{saved=q}}}},'@/lib/meeting-time':time,nodemailer:{default:{createTransport:()=>({sendMail:async()=>{throw Error('SMTP unavailable')}})}}});
+ global.fetch=async(url,opts)=>{assert.equal(url,'https://api.resend.com/emails');message=JSON.parse(opts.body);return {ok:true}};
+ try{assert.equal(await scheduler.sendMeetingInvitation(booking.id),'email')}finally{global.fetch=originalFetch;if(oldKey)process.env.RESEND_API_KEY=oldKey;else delete process.env.RESEND_API_KEY}
+ assert.deepEqual(message.to,['owner@example.test',time.MEETING_HOST]);assert.match(message.text,/Viber:\+639123456789/);assert.match(message.text,/2026-09-30 03:30:00 UTC/);assert.match(message.text,/replaces the previous time/);assert.equal(saved.data.inviteDelivery,'email');assert.ok(saved.data.inviteSentAt);
+});
