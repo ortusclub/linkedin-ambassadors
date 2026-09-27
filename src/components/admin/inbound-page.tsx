@@ -157,6 +157,17 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
     } catch (e) { setError(e instanceof Error ? e.message : "Could not add the contact."); }
     finally { setRoutingBusy(false); }
   };
+  const toggleContactStage = async (lead: Lead, status: string) => {
+    if (routingBusy) return;
+    setRoutingBusy(true); setError("");
+    try {
+      const response = await fetch("/api/admin/inbound", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: lead.id, status: lead.status === status ? "New" : status }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save the stage.");
+      setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save the stage."); }
+    finally { setRoutingBusy(false); }
+  };
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const l of ownerLeads) c[l.status] = (c[l.status] || 0) + 1;
@@ -269,9 +280,9 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
         <div role="group" aria-label="Inbound stage filters" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
           <span style={{ ...labelCss, minWidth: 54 }}>Stage</span>
           <button aria-pressed={!statusFilters.length} style={filterChip(!statusFilters.length)} onClick={() => setStatusFilters([])}>All <span style={{ color: "var(--muted)" }}>{typeLeads.length}</span></button>
-          {[{ key: "new", label: "New" }, ...INBOUND_DESTINATIONS].map(item => <button key={item.key} aria-pressed={statusFilters.includes(item.key)} style={filterChip(statusFilters.includes(item.key))} onClick={() => setStatusFilters(prev => prev.includes(item.key) ? prev.filter(key => key !== item.key) : [...prev, item.key])}>{item.label} <span style={{ color: "var(--muted)" }}>{typeLeads.filter(l => inboundStatuses(l).includes(item.key)).length}</span></button>)}
+          {[{ key: "new", label: "New" }, ...INBOUND_DESTINATIONS, { key: "unqualified", label: "Unqualified" }, { key: "cold", label: "Unresponsive / Cold" }].map(item => <button key={item.key} aria-pressed={statusFilters.includes(item.key)} style={filterChip(statusFilters.includes(item.key))} onClick={() => setStatusFilters(prev => prev.includes(item.key) ? prev.filter(key => key !== item.key) : [...prev, item.key])}>{item.label} <span style={{ color: "var(--muted)" }}>{typeLeads.filter(l => inboundStatuses(l).includes(item.key)).length}</span></button>)}
         </div>
-        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0 }}>Select multiple stages to show contacts matching any of them. A contact can be added to all three destinations. New means none have been recorded yet.</p>
+        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0 }}>Select multiple stages to show contacts matching any of them. A contact can be added to all three destinations. New means no destinations have been recorded and the contact is not marked unqualified or unresponsive / cold.</p>
       </div>}
 
       {/* two-pane inbox */}
@@ -300,7 +311,7 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
                     <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.message || l.companyEmail || "—"}</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flex: "none" }}>
-                    {(archive ? [l.status] : inboundStatuses(l).map(key => key === "new" ? "New" : INBOUND_DESTINATIONS.find(item => item.key === key)!.label)).map(label => <span key={label} style={{ font: `600 10px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, ...stStyle(archive ? l.status : "New") }}>{label}</span>)}
+                    {(archive ? [l.status] : inboundStatuses(l).map(key => key === "new" ? "New" : key === "unqualified" ? "Unqualified" : key === "cold" ? "Unresponsive / Cold" : INBOUND_DESTINATIONS.find(item => item.key === key)!.label)).map(label => <span key={label} style={{ font: `600 10px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, ...stStyle(archive ? l.status : "New") }}>{label}</span>)}
                     <span style={{ font: `500 11px ${F_SANS}`, color: "var(--date-color)" }}>{fmtShort(l.firstContactAt)}</span>
                   </div>
                 </div>
@@ -344,6 +355,8 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
 
               {!archive && <div aria-label="Add contact to pipelines" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {INBOUND_DESTINATIONS.map(item => <button key={item.key} aria-pressed={!!selected[item.key]} disabled={routingBusy || !!selected[item.key]} onClick={() => void updateDestination(selected, item.key)} style={{ ...btnSecondary, borderRadius: 999, color: selected[item.key] ? "var(--st-new-fg)" : "var(--text)", background: selected[item.key] ? "var(--st-new-bg)" : "var(--card)", opacity: routingBusy ? .6 : 1 }}>{selected[item.key] ? `✓ ${item.label}` : item.key === "addedToAmbassadorPipeline" ? "Add to Ambassador Pipeline" : item.key === "addedToReferralPipeline" ? "Add to Referrers" : "Add to Client CRM"}</button>)}
+                <button aria-pressed={selected.status === "Unqualified"} disabled={routingBusy} onClick={() => void toggleContactStage(selected, "Unqualified")} style={{ ...btnSecondary, borderRadius: 999, ...(selected.status === "Unqualified" ? stStyle("Not Interested / Cancelled") : {}) }}>{selected.status === "Unqualified" ? "✓ Unqualified" : "Mark unqualified"}</button>
+                <button aria-pressed={selected.status === "Unresponsive / Cold"} disabled={routingBusy} onClick={() => void toggleContactStage(selected, "Unresponsive / Cold")} style={{ ...btnSecondary, borderRadius: 999, ...(selected.status === "Unresponsive / Cold" ? stStyle("No Response") : {}) }}>{selected.status === "Unresponsive / Cold" ? "✓ Unresponsive / Cold" : "Mark unresponsive / cold"}</button>
               </div>}
               <label style={{ display: "flex", flexDirection: "column", gap: 6 }}><span style={labelCss}>LV PoC — person handling this contact</span>
                 <select aria-label="Lead LV PoC" value={ownerKey(selected.ownerEmail)} disabled={assigning} onChange={e => void assignOwner(selected.id, e.target.value)} style={formInput}>
