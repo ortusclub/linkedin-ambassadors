@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatMoney } from "@/lib/referral-currency";
+import { MeetingBooker } from "@/components/meeting-booker";
+import { OnboardingPrice } from "@/components/onboarding-price";
 import { CardTopUp } from "./card-topup";
 import { startDashboardTour } from "@/lib/dashboard-tour";
 
@@ -94,6 +96,8 @@ interface AmbassadorAccount {
 }
 
 interface Submission {
+  deal?: { setupUsd: number; setupPhp: number; monthlyUsd: number; monthlyPhp: number };
+  scheduledMeeting?: { id: string; startsAt: string; inviteSentAt: string | null; sequence: number } | null;
   id: string;
   fullName: string;
   email: string;
@@ -115,6 +119,7 @@ export default function DashboardPage() {
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [meetingSubmissionId, setMeetingSubmissionId] = useState<string | null>(null);
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [ambassadorAccounts, setAmbassadorAccounts] = useState<AmbassadorAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1021,6 +1026,10 @@ function DashboardContent() {
       {submissions.length > 0 && (
       <section className="mb-12">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">My Submissions</h2>
+        {(() => { const sub = submissions.find(s => s.id === meetingSubmissionId); return sub ? <div className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4">
+          <div className="flex items-center justify-between gap-3"><strong>{sub.fullName} · Onboarding meeting</strong><button className="text-sm underline" onClick={() => setMeetingSubmissionId(null)}>Close</button></div>
+          <MeetingBooker key={sub.id} applicationId={sub.id} email={sub.email} startRescheduling={!!sub.scheduledMeeting} onBooked={() => { void fetch("/api/ambassador/my-submissions", { cache: "no-store" }).then(r => r.json()).then(data => { if (Array.isArray(data.submissions)) setSubmissions(data.submissions); }); }} />
+        </div> : null; })()}
           <Card>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm" style={{ minWidth: 900 }}>
@@ -1030,6 +1039,8 @@ function DashboardContent() {
                     <th className="px-5 py-4">Account Email</th>
                     <th className="px-5 py-4">LinkedIn URL</th>
                     <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Your Deal</th>
+                    <th className="px-5 py-4">Meeting</th>
                     <th className="px-5 py-4">Submitted</th>
                     <th className="px-5 py-4">GoLogin</th>
                     <th className="px-5 py-4"></th>
@@ -1049,6 +1060,13 @@ function DashboardContent() {
                         <Badge variant={sub.status === "approved" || sub.status === "onboarded" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
                           {sub.status}
                         </Badge>
+                      </td>
+                      <td className="px-5 py-4 min-w-[200px]">
+                        {sub.deal ? <><div><span className="font-semibold text-gray-900"><OnboardingPrice usd={sub.deal.setupUsd} php={sub.deal.setupPhp} /></span><span className="block text-xs text-gray-500">One-time sign-on bonus</span></div><div className="mt-2"><span className="font-semibold text-green-700"><OnboardingPrice usd={sub.deal.monthlyUsd} php={sub.deal.monthlyPhp} /> /month</span><span className="block text-xs text-gray-500">Once onboarding is complete</span></div></> : <span className="text-gray-400">To be confirmed</span>}
+                      </td>
+                      <td className="px-5 py-4 min-w-[210px]">
+                        {sub.scheduledMeeting ? <><time dateTime={sub.scheduledMeeting.startsAt} className="block font-medium">{new Date(sub.scheduledMeeting.startsAt).toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" })}</time><span className="block text-xs text-gray-500">Philippine time · 30 minutes</span></> : <span className="block text-xs text-gray-500">No meeting booked</span>}
+                        <button className="mt-2 rounded-lg border border-green-200 px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-50" onClick={() => setMeetingSubmissionId(sub.id)}>{sub.scheduledMeeting ? "Reschedule meeting" : "Book meeting"}</button>
                       </td>
                       <td className="px-5 py-4 text-gray-400 text-sm">{formatDate(sub.createdAt)}</td>
                       <td className="px-5 py-4">

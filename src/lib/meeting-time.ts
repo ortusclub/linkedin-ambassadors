@@ -23,13 +23,13 @@ export function meetingSlots(now: Date, busy: BusyPeriod[]): string[] {
 }
 const escapeICS = (value: string) => value.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,");
 const stamp = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-export function meetingInvite(booking: { id: string; name: string; email: string; contact: string; startsAt: Date; createdAt: Date }) {
+export function meetingInvite(booking: { id: string; name: string; email: string; contact: string; startsAt: Date; createdAt: Date; sequence?: number; updatedAt?: Date }) {
   // Folding by UTF-8 byte length keeps international names valid in calendar clients.
   const fold = (line: string) => { let result = "", bytes = 0; for (const c of line) { const size = Buffer.byteLength(c); if (bytes + size > 74) { result += "\r\n "; bytes = 1; } result += c; bytes += size; } return result; };
   const description = `30-minute onboarding call with ${booking.name}. The team will contact you via ${booking.contact || booking.email}. For changes, email ${MEETING_HOST}.`;
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//LinkedVelocity//Onboarding//EN", "METHOD:REQUEST", "BEGIN:VEVENT",
-    `UID:${booking.id}@linkedvelocity.com`, `DTSTAMP:${stamp(booking.createdAt)}`, `DTSTART:${stamp(booking.startsAt)}`,
-    `DTEND:${stamp(new Date(booking.startsAt.getTime() + MEETING_MINUTES * 60000))}`, "SEQUENCE:0", "STATUS:CONFIRMED",
+    `UID:${booking.id}@linkedvelocity.com`, `DTSTAMP:${stamp(booking.updatedAt || booking.createdAt)}`, `DTSTART:${stamp(booking.startsAt)}`,
+    `DTEND:${stamp(new Date(booking.startsAt.getTime() + MEETING_MINUTES * 60000))}`, `SEQUENCE:${booking.sequence || 0}`, "STATUS:CONFIRMED",
     "SUMMARY:LinkedVelocity onboarding call", `DESCRIPTION:${escapeICS(description)}`,
     `ORGANIZER;CN=LinkedVelocity:mailto:${MEETING_HOST}`, `ATTENDEE;RSVP=TRUE:mailto:${booking.email}`,
     "END:VEVENT", "END:VCALENDAR", ""].map(fold).join("\r\n");

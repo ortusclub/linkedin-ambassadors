@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
+import { currencyConfigFor } from "@/lib/referral-currency";
 import { submittedApplicationsWhere } from "@/lib/application-ownership";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export async function GET() {
     const submissions = await prisma.ambassadorApplication.findMany({
       where: submittedApplicationsWhere(user),
       orderBy: { createdAt: "desc" },
+      include: { scheduledMeeting: { select: { id: true, startsAt: true, inviteSentAt: true, sequence: true } } },
     });
 
     // For onboarded submissions, find the matching LinkedIn account's GoLogin share link
@@ -42,10 +44,15 @@ export async function GET() {
       }
     }
 
-    const enrichedSubmissions = submissions.map((sub) => ({
-      ...sub,
-      gologinShareLink: gologinLinks[sub.linkedinUrl] || MANUAL_SHARE_LINKS[sub.linkedinUrl] || null,
-    }));
+    const enrichedSubmissions = submissions.map((sub) => {
+      const usd = currencyConfigFor("USD", sub.referredBy, sub);
+      const php = currencyConfigFor("PHP", sub.referredBy, sub);
+      return {
+        ...sub,
+        deal: { setupUsd: usd.setupAmount, setupPhp: php.setupAmount, monthlyUsd: usd.monthlyAmount, monthlyPhp: php.monthlyAmount },
+        gologinShareLink: gologinLinks[sub.linkedinUrl] || MANUAL_SHARE_LINKS[sub.linkedinUrl] || null,
+      };
+    });
 
     return NextResponse.json({ submissions: enrichedSubmissions }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
