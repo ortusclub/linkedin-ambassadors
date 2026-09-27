@@ -14,6 +14,7 @@ const sections = [
   { name: "Overview", items: [
     { href: "/admin/dashboard", label: "Dashboard" },
     { href: "/admin/inbound", label: "Inbound" },
+    { href: "/admin/inbound-archive", label: "Inbound (Archive)" },
     { href: "/admin/crm", label: "CRM" },
     { href: "/admin/content", label: "Content" },
   ] },

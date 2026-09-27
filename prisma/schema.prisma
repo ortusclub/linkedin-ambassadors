@@ -739,3 +739,30 @@ model InboundBooking {
   @@index([leadId])
   @@map("inbound_bookings")
 }
+
+model InboundLeadArchive {
+  id             String   @id @default(uuid()) @db.Uuid
+  channel        String                                  // platform: "telegram" | "website" | "call" | ...
+  name           String                                  // name or @username
+  handle         String?                                 // @username (telegram)
+  contact        String?                                 // telegram chat id (internal dedup key)
+  companyEmail   String?  @map("company_email")           // their company / email
+  type           String?                                 // "Potential Renter" | "Potential Ambassador" | ...
+  message        String?                                 // use case / latest message
+  status         String   @default("new")
+  replied        Boolean  @default(false)
+  followUpDate   DateTime? @map("follow_up_date")
+  outcome        String?
+  source         String?
+  notes          String?
+  stage          String   @default("new")                    // CRM pipeline: new | warm | active | cold | lost
+  ownerEmail     String?  @map("owner_email")                 // who on the team owns this relationship
+  commsLog       Json?    @map("comms_log")                   // timestamped touchbase timeline: [{ ts, channel, body }]
+  messageCount   Int      @default(1)  @map("message_count")
+  firstContactAt DateTime @default(now()) @map("first_contact_at")
+  lastContactAt  DateTime @default(now()) @map("last_contact_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("inbound_leads_archive")
+}

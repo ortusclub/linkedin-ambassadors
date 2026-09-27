@@ -94,7 +94,7 @@ export default function CrmPage() {
     return () => { window.removeEventListener("lv-admin-theme", onEvt); window.removeEventListener("storage", read); };
   }, []);
 
-  const load = () => fetch("/api/admin/inbound").then(async (r) => { if (!r.ok) throw new Error("Could not load CRM contacts."); return r.json(); }).then((d) => { setLeads(d.leads || []); setOwners(d.owners || []); }).finally(() => setLoading(false));
+  const load = () => fetch("/api/admin/inbound").then(async (r) => { if (!r.ok) throw new Error("Could not load CRM contacts."); return r.json(); }).then((d) => { setLeads((d.leads || []).filter((lead: Lead) => lead.source !== "Google Calendar booking")); setOwners(d.owners || []); }).finally(() => setLoading(false));
   useEffect(() => { load().catch(() => setError("Could not load CRM contacts. Please refresh.")); }, []);
   useEffect(() => { fetch("/api/admin/inbound/export-url").then((r) => r.json()).then((d) => { if (d.configured) setSheetUrl(d.url); }).catch(() => {}); }, []);
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 2000); };
