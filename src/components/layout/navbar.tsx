@@ -124,7 +124,6 @@ export function Navbar() {
                 <>
                   <Link href="/catalogue">Browse Accounts</Link>
                   <Link href="/how-it-works">How it works</Link>
-                  <Link href="/become-ambassador" className="kl-cross-rent">Earn with your account →</Link>
                   <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer">Book a Meeting</a>
                 </>
               )}
@@ -181,7 +180,6 @@ export function Navbar() {
             <>
               <Link href="/catalogue">Browse Accounts</Link>
               <Link href="/how-it-works">How it works</Link>
-              <Link href="/become-ambassador">Earn with your account</Link>
               <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer">Book a Meeting</a>
             </>
           )}
