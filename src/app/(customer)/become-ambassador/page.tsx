@@ -481,7 +481,7 @@ export default function BecomeAmbassadorPage() {
           <h1 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 800, fontSize: "clamp(36px,5.8vw,58px)", lineHeight: 1.04, letterSpacing: "-0.03em", margin: "0 auto 22px", color: "#fff", maxWidth: 720 }}>Get paid for your <span style={{ color: "#4FE08C" }}>LinkedIn account</span></h1>
           <p style={{ fontSize: 19, lineHeight: 1.6, color: "#B7D4C4", margin: "0 auto", maxWidth: 600 }}>Every LinkedIn account has value — whether you&apos;re a student, a professional, or barely use it. Companies need real profiles for outreach, and we pay you a <strong style={{ color: "#fff" }}>setup bonus plus a monthly payout</strong> for every account you share.</p>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "center", marginTop: 34 }}>
-            <button type="button" onClick={() => setStep("info")} style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, padding: "15px 26px", borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 14px 32px rgba(0,184,92,0.34)" }}>Get my free valuation →</button>
+            <a href="/onboarding" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 9, background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, padding: "15px 26px", borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 14px 32px rgba(0,184,92,0.34)" }}>Rent us your account →</a>
             <a href="#earn" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "rgba(255,255,255,0.08)", color: "#EAF6EE", border: "1px solid rgba(255,255,255,0.2)", fontSize: 16, fontWeight: 600, padding: "15px 26px", borderRadius: 12, textDecoration: "none" }}>See how it works</a>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 26, flexWrap: "wrap", justifyContent: "center", marginTop: 34, fontSize: 13.5, color: "#9DC4AE" }}>
@@ -759,7 +759,7 @@ export default function BecomeAmbassadorPage() {
             <div style={{ position: "relative" }}>
               <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: "clamp(30px,4.5vw,44px)", letterSpacing: "-0.03em", color: "#fff", margin: "0 0 14px" }}>Ready to start earning?</h2>
               <p style={{ fontSize: 18, color: "#B7D4C4", margin: "0 auto 32px", maxWidth: 440 }}>Get a free, instant valuation — no sign-up needed.</p>
-              <button type="button" onClick={() => setStep("info")} style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", color: "#0B1220", fontSize: 16, fontWeight: 600, padding: "16px 30px", borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 16px 40px rgba(0,0,0,0.28)" }}>Get my free valuation →</button>
+              <a href="/onboarding" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", color: "#0B1220", fontSize: 16, fontWeight: 600, padding: "16px 30px", borderRadius: 12, border: "none", cursor: "pointer", boxShadow: "0 16px 40px rgba(0,0,0,0.28)" }}>Rent us your account →</a>
             </div>
           </section>
         </>
