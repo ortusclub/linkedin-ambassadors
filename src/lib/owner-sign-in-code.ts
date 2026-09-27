@@ -10,7 +10,7 @@ export async function ownerSignInCode(token: string, loginEmail: string) {
   return codeForAccount(id, loginEmail);
 }
 export async function privateOwnerSignInCode(token: string, loginEmail: string) {
-  return codeForAccount(readAccountCodeLink(token), loginEmail);
+  return codeForAccount(await readAccountCodeLink(token), loginEmail);
 }
 async function codeForAccount(id: string, loginEmail: string) {
   const account = await prisma.linkedInAccount.findUnique({ where: { id }, select: { twoFactor: true, loginEmail: true, removedAt: true, status: true, rentals: { where: { status: { in: ["active", "pending_access", "payment_failed"] } }, select: { id: true }, take: 1 } } });

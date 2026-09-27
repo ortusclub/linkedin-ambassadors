@@ -1,4 +1,5 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { prisma } from "@/lib/prisma";
 import { EmailSetupError } from "@/lib/onboarding-email-policy";
 const TTL = 24 * 60 * 60 * 1000;
 function sign(payload: string) {
@@ -6,12 +7,19 @@ function sign(payload: string) {
   if (!secret) throw new EmailSetupError("Account code links are temporarily unavailable.", 503);
   return createHmac("sha256", secret).update(`account-code:v1:${payload}`).digest("base64url");
 }
-export function createAccountCodeLink(id: string, now = Date.now()) {
-  const payload = Buffer.from(JSON.stringify({ id, expires: now + TTL, nonce: randomBytes(16).toString("hex") })).toString("base64url");
-  return `https://linkedvelocity.com/account-code#access=${payload}.${sign(payload)}`;
+export async function createAccountCodeLink(id: string, now = Date.now()) {
+  const token = randomBytes(16).toString("base64url");
+  await prisma.accountCodeLink.create({ data: { tokenHash: createHash("sha256").update(token).digest("hex"), accountId: id, expiresAt: new Date(now + TTL) } });
+  return `https://linkedvelocity.com/c#${token}`;
 }
-export function readAccountCodeLink(token: string, now = Date.now()): string {
+export async function readAccountCodeLink(token: string, now = Date.now()): Promise<string> {
   const deny = () => new EmailSetupError("This private link is invalid or expired. Ask our team for a new link.", 403);
+  if (/^[A-Za-z0-9_-]{22}$/.test(token)) {
+    const row = await prisma.accountCodeLink.findUnique({ where: { tokenHash: createHash("sha256").update(token).digest("hex") } });
+    if (!row || row.expiresAt.getTime() <= now) throw deny();
+    return row.accountId;
+  }
+  // Previously issued signed links remain valid until their original expiry.
   if (token.length > 1000) throw deny();
   const [payload, signature, extra] = token.split(".");
   if (!payload || !signature || extra) throw deny();

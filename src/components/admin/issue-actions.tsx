@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import styles from "./issue-actions.module.css";
 import { accountIssueMessage, ACCOUNT_ISSUES, ISSUE_KEYS, type AccountIssue } from "@/lib/account-issue-message";
+import { includeIssueLoginDetails } from "@/lib/issue-login-details";
 import { contactLink, type IssueContact } from "@/lib/issue-contacts";
 
 export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, referralPartner, from, accountId, name, profile, ambassador, referrer, onSent }: { twoFactorReceivedAt: string | null; originalEmail: string | null; lvEmail: string | null; referralPartner: string | null; from: string; accountId: string; name: string; profile?: string | null; ambassador: IssueContact; referrer?: IssueContact | null; onSent: () => void }) {
@@ -63,14 +64,14 @@ export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, refe
         {preview.channel === "email" && <span>From: {from}</span>}
         <span>To: {preview.recipient === "ambassador" ? ambassador[preview.channel] : referrer?.[preview.channel]}</span>
         {preview.channel === "email" && <label>Subject<input aria-label="Email subject" disabled={busy} value={preview.subject} onChange={e => setPreview({ ...preview, subject: e.target.value })} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 10 }} /></label>}
-        {preview.channel === "whatsapp" && <p>Would you like to include the saved login email, password and private authenticator link at the bottom of this message?</p>}
+        {preview.channel === "whatsapp" && <p>Would you like to include the saved login email, password and private authenticator link beside the sign-in instructions?</p>}
         {<button className={styles.cancel} type="button" disabled={busy || !codeLink || preview.text.includes("Saved login password:")} onClick={async () => {
           setBusy(true); setResult("");
           try {
             const response = await fetch(`/api/admin/accounts/${accountId}/issue-email`, { cache: "no-store" });
             const login = await response.json();
             if (!response.ok) throw new Error(login.error || "Could not load saved login details");
-            setPreview({ ...preview, text: `${preview.text}\n\n${preview.recipient === "referrer" ? `Saved LinkedIn login details for ${name}:` : "Your saved LinkedIn login details:"}\nLogin email: ${login.email}\nSaved login password: ${login.password}\nIf LinkedIn asks for a six-digit code: ${codeLink}\nOpen this private link and enter your login email. No personal-email verification is needed. The code tool is available only while the account is not rented, available or on trial.` });
+            setPreview({ ...preview, text: includeIssueLoginDetails(preview.text, login.email, login.password, codeLink, preview.recipient === "referrer" ? name : undefined) });
           } catch (error) { setResult(error instanceof Error ? error.message : "Could not load saved login details"); }
           finally { setBusy(false); }
         }}>{preview.text.includes("Saved login password:") ? "Login details included" : preview.channel === "whatsapp" ? "Yes, include login details" : "Include saved login details"}</button>}

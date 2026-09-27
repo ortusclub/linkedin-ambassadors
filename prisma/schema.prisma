@@ -108,6 +108,7 @@ model VerificationCode {
 }
 
 model LinkedInAccount {
+  codeLinks AccountCodeLink[]
   primaryEmailRecoveries PrimaryEmailRecovery[]
   proxyPurchaseAttempt ProxyPurchaseAttempt?
   selfServiceOnboarding SelfServiceOnboarding?
@@ -713,4 +714,14 @@ model PrimaryEmailDelivery {
   sentAt DateTime? @map("sent_at")
   @@index([recoveryId])
   @@map("primary_email_deliveries")
+}
+
+model AccountCodeLink {
+  tokenHash String @id @map("token_hash")
+  accountId String @map("account_id") @db.Uuid
+  account LinkedInAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([expiresAt])
+  @@map("account_code_links")
 }

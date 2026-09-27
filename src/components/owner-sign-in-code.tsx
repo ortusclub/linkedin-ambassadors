@@ -11,9 +11,10 @@ export default function OwnerSignInCode() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
-    const privateToken = new URLSearchParams(window.location.hash.slice(1)).get("access");
+    const fragment = window.location.hash.slice(1);
+    const privateToken = /^[A-Za-z0-9_-]{22}$/.test(fragment) ? fragment : new URLSearchParams(fragment).get("access");
     if (privateToken) setAccess(privateToken);
-    if (window.location.hash.includes("access=")) window.history.replaceState(null, "", window.location.pathname);
+    if (privateToken) window.history.replaceState(null, "", window.location.pathname);
     setReady(true);
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
