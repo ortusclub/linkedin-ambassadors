@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import styles from "./issue-actions.module.css";
 import { accountIssueMessage, ACCOUNT_ISSUES, ISSUE_KEYS, type AccountIssue } from "@/lib/account-issue-message";
 import { contactLink, type IssueContact } from "@/lib/issue-contacts";
 
 export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, referralPartner, from, accountId, name, profile, ambassador, referrer, onSent }: { twoFactorReceivedAt: string | null; originalEmail: string | null; lvEmail: string | null; referralPartner: string | null; from: string; accountId: string; name: string; profile?: string | null; ambassador: IssueContact; referrer?: IssueContact | null; onSent: () => void }) {
+  const [codeLink, setCodeLink] = useState("");
+  useEffect(() => {
+    let active = true;
+    setCodeLink("");
+    fetch(`/api/admin/accounts/${accountId}/code-link`, { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(data => { if (active && data?.url) setCodeLink(data.url); }).catch(() => {});
+    return () => { active = false; };
+  }, [accountId]);
+  const prepareMessage = (recipient: "ambassador" | "referrer") => {
+    const message = accountIssueMessage(name, recipient, issue, details, profile, referralPartner, { original: originalEmail, lv: lvEmail, twoFactorReceivedAt });
+    if (recipient === "ambassador" && codeLink) message.text = message.text.replaceAll("https://linkedvelocity.com/account-code", codeLink);
+    return message;
+  };
   const [issue, setIssue] = useState<AccountIssue>("lost_access");
   const [details, setDetails] = useState("");
   const [preview, setPreview] = useState<{ recipient: "ambassador" | "referrer"; subject: string; text: string } | null>(null);
@@ -35,11 +47,11 @@ export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, refe
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
       {(["email", "whatsapp", "telegram", "viber"] as const).flatMap(channel => (["referrer", "ambassador"] as const).map(recipient => {
         const contact = recipient === "ambassador" ? ambassador : referrer;
-        const message = accountIssueMessage(name, recipient, issue, details, profile, referralPartner, { original: originalEmail, lv: lvEmail, twoFactorReceivedAt }).text;
+        const message = prepareMessage(recipient).text;
         const href = validIssue ? contactLink(channel, contact?.[channel], message) : null;
         const label = `${{ email: "Email", whatsapp: "WhatsApp", telegram: "Telegram", viber: "Viber" }[channel]} ${recipient}`;
         const style = { fontSize: 12, fontWeight: 600, border: "1px solid var(--card-border)", borderRadius: 8, padding: "8px 10px", background: "var(--card)", color: "var(--link)", textDecoration: "none" };
-        if (channel === "email") return <button key={label} type="button" disabled={busy || !href} onClick={() => setPreview({ recipient, ...accountIssueMessage(name, recipient, issue, details, profile, referralPartner, { original: originalEmail, lv: lvEmail, twoFactorReceivedAt }) })} title={!validIssue ? "Explain the other issue first" : !href ? `No ${recipient} email saved` : `Review email to ${contact?.email}`} style={{ ...style, cursor: "pointer", opacity: busy || !href ? 0.45 : 1 }}>{busy ? "Sending…" : `Email ${recipient}`}</button>;
+        if (channel === "email") return <button key={label} type="button" disabled={busy || !href} onClick={() => setPreview({ recipient, ...prepareMessage(recipient) })} title={!validIssue ? "Explain the other issue first" : !href ? `No ${recipient} email saved` : `Review email to ${contact?.email}`} style={{ ...style, cursor: "pointer", opacity: busy || !href ? 0.45 : 1 }}>{busy ? "Sending…" : `Email ${recipient}`}</button>;
         if (channel === "viber" && href) return <a key={label} href={href} style={style} title={`Choose ${contact?.viber} in Viber to send this prepared message`}>{label} ↗</a>;
         return href ? <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={style}>{label} ↗</a>
           : <button key={label} type="button" disabled title={`No usable ${channel} contact saved for this ${recipient}${channel === "whatsapp" ? "; include the country code" : ""}`} style={{ ...style, opacity: 0.45, cursor: "not-allowed" }}>{label} · unavailable</button>;
@@ -51,13 +63,13 @@ export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, refe
         <span>From: {from}</span>
         <span>To: {preview.recipient === "ambassador" ? ambassador.email : referrer?.email}</span>
         <label>Subject<input aria-label="Email subject" disabled={busy} value={preview.subject} onChange={e => setPreview({ ...preview, subject: e.target.value })} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 10 }} /></label>
-        {preview.recipient === "ambassador" && <button className={styles.cancel} type="button" disabled={busy || preview.text.includes("Saved login password:")} onClick={async () => {
+        {preview.recipient === "ambassador" && <button className={styles.cancel} type="button" disabled={busy || !codeLink || preview.text.includes("Saved login password:")} onClick={async () => {
           setBusy(true); setResult("");
           try {
             const response = await fetch(`/api/admin/accounts/${accountId}/issue-email`, { cache: "no-store" });
             const login = await response.json();
             if (!response.ok) throw new Error(login.error || "Could not load saved login details");
-            setPreview({ ...preview, text: `${preview.text}\n\nYour saved LinkedIn login details:\nLogin email: ${login.email}\nSaved login password: ${login.password}\nIf LinkedIn asks for a six-digit code: https://linkedvelocity.com/account-code\nEnter your login email and verify your saved personal inbox. The code tool is available only while the account is not rented, available or on trial.` });
+            setPreview({ ...preview, text: `${preview.text}\n\nYour saved LinkedIn login details:\nLogin email: ${login.email}\nSaved login password: ${login.password}\nIf LinkedIn asks for a six-digit code: ${codeLink}\nOpen this private link and enter your login email. No personal-email verification is needed. The code tool is available only while the account is not rented, available or on trial.` });
           } catch (error) { setResult(error instanceof Error ? error.message : "Could not load saved login details"); }
           finally { setBusy(false); }
         }}>Include saved login details</button>}
