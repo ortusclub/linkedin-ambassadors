@@ -1,30 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { maskPublicAccount } from "@/lib/mask";
-import { formatNumber, formatCurrency } from "@/lib/utils";
 import { blogFontVars } from "@/lib/blog-fonts";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
-
-const AVATAR_COLORS = ["#0A66C2", "#0E7C74", "#5747C9", "#B23150", "#946011", "#067A45", "#0D1B2A", "#C2410C"];
-const INDUSTRY_COLORS: Record<string, string> = { Sales: "#5747C9", Marketing: "#B23150", Technology: "#0A66C2", Operations: "#0E7C74", Finance: "#946011" };
-const getAvatarColor = (n: string) => AVATAR_COLORS[(n.charCodeAt(0) + n.length) % AVATAR_COLORS.length];
-const getInitials = (n: string) => n.replace(/\s*\(.*\)\s*$/, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-const shortName = (n: string) => { const p = n.replace(/\s*\(.*\)\s*$/, "").trim().split(/\s+/).filter(Boolean); return p.length < 2 ? (p[0] || "") : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`; };
-
-const SAMPLE = [
-  { id: "1", linkedinName: "Alex Chen", linkedinHeadline: "VP of Engineering", connectionCount: 8500, industry: "Technology", location: "San Francisco, CA", monthlyPrice: 350, status: "available", profilePhotoUrl: null, hasSalesNav: false },
-  { id: "2", linkedinName: "Maria Santos", linkedinHeadline: "Head of Sales", connectionCount: 6200, industry: "Sales", location: "New York, NY", monthlyPrice: 275, status: "available", profilePhotoUrl: null, hasSalesNav: true },
-  { id: "3", linkedinName: "James Wright", linkedinHeadline: "Marketing Director", connectionCount: 5100, industry: "Marketing", location: "Chicago, IL", monthlyPrice: 220, status: "available", profilePhotoUrl: null, hasSalesNav: false },
-];
-
-type PreviewAccount = {
-  id: string; linkedinName: string; linkedinHeadline: string | null; connectionCount: number;
-  industry: string | null; location: string | null; monthlyPrice: number; status: string; hasSalesNav: boolean;
-};
 
 const STEPS = [
   { n: "1", tag: "Browse", title: "Browse & select", body: "Filter accounts by industry, location and connection count. Every account is a real, established profile — verified, with genuine history." },
@@ -47,21 +27,7 @@ const WHY = [
   { title: "Real, consenting people", body: "Every profile is a real professional who has opted in." },
 ];
 
-export default async function HomePage() {
-  let raw: PreviewAccount[];
-  try {
-    raw = (await prisma.linkedInAccount.findMany({
-      where: { status: { in: ["available", "rented"] }, listed: true },
-      orderBy: { connectionCount: "desc" },
-      take: 30,
-    })) as unknown as PreviewAccount[];
-  } catch {
-    raw = SAMPLE as unknown as PreviewAccount[];
-  }
-  const accounts = raw.map((a) => maskPublicAccount(a)) as PreviewAccount[];
-  const availCount = accounts.filter((a) => a.status === "available").length;
-  const preview = accounts.slice(0, 6);
-
+export default function HomePage() {
   return (
     <div className={blogFontVars} style={{ fontFamily: INT, color: "#0B1220", background: "#0D1B2A" }}>
       <style>{`
@@ -168,49 +134,12 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ================= MARKETPLACE PREVIEW ================= */}
-      <section style={{ background: "#FBFCFD", padding: "88px 24px", borderTop: "1px solid #EEF0F3" }}>
-        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
-          <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 16 }}>Marketplace</div>
-          <h2 style={{ font: `700 clamp(30px,4vw,42px) ${POP}`, lineHeight: 1.08, letterSpacing: "-0.03em", margin: "0 0 14px" }}>Browse available accounts</h2>
-          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 44px" }}>Verified, pre-warmed accounts — added regularly.</p>
-          <div className="lvh-3">
-            {preview.map((a) => {
-              const rented = a.status !== "available";
-              const ic = a.industry ? (INDUSTRY_COLORS[a.industry] || "#0A66C2") : "#0A66C2";
-              return (
-                <div key={a.id} className="lvh-lift" style={{ background: "#FFFFFF", border: "1px solid #DFE3E9", borderRadius: 16, padding: 20, boxShadow: "0 8px 24px rgba(16,24,40,0.07)", opacity: rented ? 0.72 : 1 }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 13, marginBottom: 16 }}>
-                    <div style={{ position: "relative", flexShrink: 0 }}>
-                      <span style={{ width: 46, height: 46, borderRadius: "50%", background: getAvatarColor(a.linkedinName), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `600 15px ${POP}` }}>{getInitials(a.linkedinName)}</span>
-                      <span style={{ position: "absolute", bottom: 1, right: 1, width: 12, height: 12, borderRadius: "50%", border: "2px solid #fff", background: rented ? "#E0A43B" : "#00B85C" }} />
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ font: `600 15.5px ${POP}`, color: "#0B1220", lineHeight: 1.2 }}>{shortName(a.linkedinName)}</div>
-                      {a.linkedinHeadline && <div style={{ fontSize: 12.5, color: "#8A93A2", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.linkedinHeadline}</div>}
-                    </div>
-                    <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "4px 11px", color: rented ? "#946011" : "#067A45", background: rented ? "#FBF0DA" : "#E4F6EC" }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: rented ? "#E0A43B" : "#00B85C" }} />{rented ? "Rented" : "Available"}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-                    {a.industry && <span style={{ font: `500 11px ${MONO}`, letterSpacing: "0.04em", color: ic, background: ic + "14", borderRadius: 6, padding: "4px 9px" }}>{a.industry}</span>}
-                    {a.location && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#5A6473" }}><span style={{ color: "#B0B7C2" }}>◍</span>{a.location}</span>}
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 18 }}>
-                    <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}><div style={{ font: `700 15px ${POP}`, color: "#0B1220" }}>{a.connectionCount > 0 ? formatNumber(a.connectionCount) : "—"}</div><div style={{ fontSize: 11, color: "#96A0AD", marginTop: 2 }}>connections</div></div>
-                    <div style={{ background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 10, padding: "11px 13px" }}><div style={{ font: `700 15px ${POP}`, color: a.hasSalesNav ? "#00A150" : "#C2C9D2" }}>{a.hasSalesNav ? "✓ Yes" : "— No"}</div><div style={{ fontSize: 11, color: "#96A0AD", marginTop: 2 }}>Sales Nav</div></div>
-                  </div>
-                  <div style={{ height: 1, background: "#EDEFF2", marginBottom: 14 }} />
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                    <div><span style={{ font: `700 18px ${POP}`, color: "#0B1220" }}>{formatCurrency(Number(a.monthlyPrice))}</span><span style={{ fontSize: 12.5, color: "#96A0AD" }}>/mo</span></div>
-                    <Link href="/catalogue" style={{ fontSize: 13, fontWeight: 600, color: "#0A66C2", background: "#EAF2FC", borderRadius: 9, padding: "9px 15px", textDecoration: "none" }}>View</Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ textAlign: "center", marginTop: 36, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
-            <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #DFE3E9", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 4px 14px rgba(16,24,40,0.06)" }}>View all accounts →</Link>
-          </div>
+      {/* ================= CATALOGUE ================= */}
+      <section style={{ background: "#FBFCFD", padding: "72px 24px", borderTop: "1px solid #EEF0F3", textAlign: "center" }}>
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <h2 style={{ font: `700 clamp(28px,4vw,40px) ${POP}`, lineHeight: 1.15, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Find your next account</h2>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 28px" }}>Explore the catalogue to compare accounts and find one that fits your needs.</p>
+          <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", maxWidth: "100%", boxSizing: "border-box", background: "#0A66C2", color: "#fff", fontSize: "clamp(18px,3vw,23px)", fontWeight: 700, padding: "22px 36px", borderRadius: 14, textDecoration: "none", boxShadow: "0 14px 30px -12px rgba(10,102,194,0.6)" }}>See the accounts you can rent →</Link>
         </div>
       </section>
 
