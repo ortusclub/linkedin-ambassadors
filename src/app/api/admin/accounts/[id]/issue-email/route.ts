@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { ISSUE_KEYS, ACCOUNT_ISSUES } from "@/lib/account-issue-message";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { onboardingMailRequest } from "@/services/onboarding-mail";
 
-const schema = z.object({ recipient: z.enum(["ambassador", "referrer"]), issue: z.enum(["restricted", "lost_access"]), details: z.string().trim().max(3000), subject: z.string().trim().min(1).max(200), text: z.string().trim().min(1).max(15000), requestId: z.string().uuid() });
+const schema = z.object({ recipient: z.enum(["ambassador", "referrer"]), issue: z.enum(ISSUE_KEYS), details: z.string().trim().max(3000), subject: z.string().trim().min(1).max(200), text: z.string().trim().min(1).max(15000), requestId: z.string().uuid() }).refine(input => input.issue !== "other" || !!input.details.trim(), { message: "Explain the other issue" });
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAdmin();
@@ -28,7 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!z.string().email().safeParse(to).success) return NextResponse.json({ error: `No valid ${input.recipient} email is saved.` }, { status: 400 });
     const message = { subject: input.subject, text: input.text };
     await onboardingMailRequest("/emails", { from: process.env.RESEND_FROM_EMAIL || "LinkedVelocity <info@linkedvelocity.com>", reply_to: process.env.ADMIN_NOTIFICATION_EMAIL || "info@linkedvelocity.com", to: [to], ...message }, `account-issue-${id}-${input.requestId}`);
-    const entry = `[${new Date().toISOString()}] Emailed ${input.recipient} (${to}): ${message.subject}. ${input.issue === "restricted" ? "Account restricted" : "Lost access"}. ${input.details}\nMessage sent:\n${message.text}`;
+    const entry = `[${new Date().toISOString()}] Emailed ${input.recipient} (${to}): ${message.subject}. ${ACCOUNT_ISSUES[input.issue].label}. ${input.details}\nMessage sent:\n${message.text}`;
     await prisma.$executeRaw`UPDATE linkedin_accounts SET notes = concat_ws(E'\n', nullif(notes, ''), ${entry}::text), updated_at = NOW() WHERE id = ${id}::uuid`;
     return NextResponse.json({ ok: true, to });
   } catch (error) {

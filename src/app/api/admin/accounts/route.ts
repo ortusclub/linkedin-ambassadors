@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
     const appMap = new Map(ownerApps.map((x) => [x.email.toLowerCase(), x]));
     const appByUrl = new Map(ownerApps.filter((x) => x.linkedinUrl).map((x) => [normUrl(x.linkedinUrl), x]));
 
-    const referrers = await prisma.referrer.findMany({ select: { slug: true, email: true, contacts: true, contactMethod: true, contactHandle: true } });
+    const referrers = await prisma.referrer.findMany({ select: { slug: true, name: true, email: true, contacts: true, contactMethod: true, contactHandle: true } });
     const refBySlug = new Map(referrers.map(r => [r.slug.toLowerCase(), r]));
     const issueContactFor = (slug?: string | null) => {
       const r = refBySlug.get((slug || "").trim().toLowerCase());
@@ -146,6 +146,7 @@ export async function GET(req: NextRequest) {
         ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
         ownerEmail: ownerEmail || null,
         ownerApplicationId: app?.id || null,
+        issueReferrerName: refBySlug.get((app?.referredBy || "").trim().toLowerCase())?.name || null,
         issueEmailFrom: process.env.RESEND_FROM_EMAIL || "LinkedVelocity <info@linkedvelocity.com>",
         issueAmbassadorEmail: app?.email || ownerEmail || null,
         issueReferrerContact: issueContactFor(app?.referredBy),

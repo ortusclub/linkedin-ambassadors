@@ -1,18 +1,19 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { accountIssueMessage } from "@/lib/account-issue-message";
+import { accountIssueMessage, ACCOUNT_ISSUES, ISSUE_KEYS, type AccountIssue } from "@/lib/account-issue-message";
 import { contactLink, type IssueContact } from "@/lib/issue-contacts";
 
-export function IssueActions({ from, accountId, name, profile, ambassador, referrer, onSent }: { from: string; accountId: string; name: string; profile?: string | null; ambassador: IssueContact; referrer?: IssueContact | null; onSent: () => void }) {
-  const [issue, setIssue] = useState<"lost_access" | "restricted">("lost_access");
+export function IssueActions({ referralPartner, from, accountId, name, profile, ambassador, referrer, onSent }: { referralPartner: string | null; from: string; accountId: string; name: string; profile?: string | null; ambassador: IssueContact; referrer?: IssueContact | null; onSent: () => void }) {
+  const [issue, setIssue] = useState<AccountIssue>("lost_access");
   const [details, setDetails] = useState("");
   const [preview, setPreview] = useState<{ recipient: "ambassador" | "referrer"; subject: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
+  const validIssue = issue !== "other" || !!details.trim();
   const request = useRef<{ signature: string; id: string } | null>(null);
   const send = async (recipient: "ambassador" | "referrer") => {
-    if (busy || !preview || !preview.subject.trim() || !preview.text.trim()) return;
+    if (busy || !validIssue || !preview || !preview.subject.trim() || !preview.text.trim()) return;
     setBusy(true); setResult("");
     const signature = JSON.stringify({ recipient, issue, details, subject: preview.subject, text: preview.text });
     if (request.current?.signature !== signature) request.current = { signature, id: crypto.randomUUID() };
@@ -27,17 +28,17 @@ export function IssueActions({ from, accountId, name, profile, ambassador, refer
   return <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
     <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", color: "var(--muted)" }}>Access issues</span>
     <span style={{ fontSize: 12, color: "var(--muted)" }}>Review and edit emails before sending from LinkedVelocity. WhatsApp and Telegram open a message for you to send.</span>
-    <label style={{ fontSize: 12 }}>Issue <select disabled={busy} value={issue} onChange={e => setIssue(e.target.value as typeof issue)}><option value="lost_access">Lost access / email code not arriving</option><option value="restricted">Restricted by LinkedIn</option></select></label>
-    <textarea aria-label="Issue details and required action" disabled={busy} value={details} onChange={e => setDetails(e.target.value)} maxLength={3000} placeholder="Explain the issue and what they need to do to fix it…" rows={3} style={{ width: "100%", boxSizing: "border-box", border: "1px solid var(--card-border)", borderRadius: 8, padding: 10, background: "var(--card)", color: "var(--text)" }} />
-    <details><summary style={{ cursor: "pointer", fontSize: 12 }}>Preview payment-suspension message</summary><pre style={{ whiteSpace: "pre-wrap", font: "inherit", fontSize: 12 }}>{accountIssueMessage(name, "ambassador", issue, details, profile).subject}{"\n\n"}{accountIssueMessage(name, "ambassador", issue, details, profile).text}</pre><p style={{ fontSize: 12 }}>The referrer version identifies the referred account and asks them to help the ambassador resolve it.</p></details>
+    <label style={{ fontSize: 12 }}>Issue <select disabled={busy} value={issue} onChange={e => setIssue(e.target.value as typeof issue)}>{ISSUE_KEYS.map(key => <option key={key} value={key}>{ACCOUNT_ISSUES[key].label}</option>)}</select></label>
+    {issue === "other" && <textarea required aria-label="Issue details and required action" disabled={busy} value={details} onChange={e => setDetails(e.target.value)} maxLength={3000} placeholder="Explain the issue and what they need to do to fix it…" rows={3} style={{ width: "100%", boxSizing: "border-box", border: "1px solid var(--card-border)", borderRadius: 8, padding: 10, background: "var(--card)", color: "var(--text)" }} />}
+    <details><summary style={{ cursor: "pointer", fontSize: 12 }}>Preview payment-suspension message</summary><pre style={{ whiteSpace: "pre-wrap", font: "inherit", fontSize: 12 }}>{accountIssueMessage(name, "ambassador", issue, details, profile, referralPartner).subject}{"\n\n"}{accountIssueMessage(name, "ambassador", issue, details, profile, referralPartner).text}</pre><p style={{ fontSize: 12 }}>The referrer version identifies the referred account and asks them to help the ambassador resolve it.</p></details>
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
       {(["email", "whatsapp", "telegram"] as const).flatMap(channel => (["referrer", "ambassador"] as const).map(recipient => {
         const contact = recipient === "ambassador" ? ambassador : referrer;
-        const message = accountIssueMessage(name, recipient, issue, details, profile).text;
-        const href = contactLink(channel, contact?.[channel], message);
+        const message = accountIssueMessage(name, recipient, issue, details, profile, referralPartner).text;
+        const href = validIssue ? contactLink(channel, contact?.[channel], message) : null;
         const label = `${{ email: "Email", whatsapp: "WhatsApp", telegram: "Telegram" }[channel]} ${recipient}`;
         const style = { fontSize: 12, fontWeight: 600, border: "1px solid var(--card-border)", borderRadius: 8, padding: "8px 10px", background: "var(--card)", color: "var(--link)", textDecoration: "none" };
-        if (channel === "email") return <button key={label} type="button" disabled={busy || !href} onClick={() => setPreview({ recipient, ...accountIssueMessage(name, recipient, issue, details, profile) })} title={!href ? `No ${recipient} email saved` : `Review email to ${contact?.email}`} style={{ ...style, cursor: "pointer", opacity: busy || !href ? 0.45 : 1 }}>{busy ? "Sending…" : `Email ${recipient}`}</button>;
+        if (channel === "email") return <button key={label} type="button" disabled={busy || !href} onClick={() => setPreview({ recipient, ...accountIssueMessage(name, recipient, issue, details, profile, referralPartner) })} title={!validIssue ? "Explain the other issue first" : !href ? `No ${recipient} email saved` : `Review email to ${contact?.email}`} style={{ ...style, cursor: "pointer", opacity: busy || !href ? 0.45 : 1 }}>{busy ? "Sending…" : `Email ${recipient}`}</button>;
         return href ? <a key={label} href={href} target="_blank" rel="noopener noreferrer" style={style}>{label} ↗</a>
           : <button key={label} type="button" disabled title={`No usable ${channel} contact saved for this ${recipient}${channel === "whatsapp" ? "; include the country code" : ""}`} style={{ ...style, opacity: 0.45, cursor: "not-allowed" }}>{label} · unavailable</button>;
       }))}

@@ -115,6 +115,7 @@ interface Account {
   ownerName: string | null;
   ownerEmail: string | null;
   ownerPhone: string | null;
+  issueReferrerName: string | null;
   issueEmailFrom: string;
   issueAmbassadorEmail: string | null;
   issueReferrerContact: IssueContact | null;
@@ -993,7 +994,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                                 <button onClick={() => checkHealth(a.id)} title="Best-effort automated public check. LinkedIn blocks logged-out checks, so this is usually 'Unknown' — verify in GoLogin and use Mark active / Mark restricted instead." style={secBtn}>↻ Re-check (auto)</button>
                                 <button onClick={() => handleDelete(a)} disabled={busy === a.id} style={{ ...outBtn("var(--danger)"), marginLeft: "auto" }}>🗑 Delete</button>
                               </div>
-                              <IssueActions from={a.issueEmailFrom} accountId={a.id} profile={a.linkedinUrl} onSent={() => { void load(); }} name={formatName(a.linkedinName)} ambassador={ambassadorIssueContact(a.issueAmbassadorEmail, a.ownerPhone, a.contactChannel)} referrer={a.issueReferrerContact} />
+                              <IssueActions referralPartner={a.issueReferrerName} from={a.issueEmailFrom} accountId={a.id} profile={a.linkedinUrl} onSent={() => { void load(); }} name={formatName(a.linkedinName)} ambassador={ambassadorIssueContact(a.issueAmbassadorEmail, a.ownerPhone, a.contactChannel)} referrer={a.issueReferrerContact} />
                               {Array.isArray(a.restrictionLog) && a.restrictionLog.length > 0 && (() => {
                                 const log = [...a.restrictionLog].sort((x, y) => y.at.localeCompare(x.at));
                                 const times = log.filter((e) => e.event === "restricted").length;
