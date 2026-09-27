@@ -160,7 +160,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         sub = "The owner clears it on their own phone — usually scanning a QR code. Tell us once it's done or already unrestricted.";
       }
       // Post-sign-in fixes the team raised for this signup (email not primary / 2FA not set).
-      const rawFix = a.onboardingFix as { issues?: ("email_added" | "email_primary" | "twofa" | "password")[]; state?: "open" | "referrer_done" } | null;
+      const rawFix = a.onboardingFix as { issues?: ("application_incomplete" | "email_added" | "email_primary" | "twofa" | "password")[]; state?: "open" | "referrer_done" } | null;
       const fix = rawFix?.issues?.length ? { issues: rawFix.issues, state: rawFix.state === "referrer_done" ? "referrer_done" : "open" } : null;
       // The referrer's own report about this restriction (QR done / says recovered), so we
       // can show "you told us" and hide the buttons until the team clears it. Cleared to

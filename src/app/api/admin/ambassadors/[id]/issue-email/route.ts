@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { onboardingMailRequest } from "@/services/onboarding-mail";
-const schema = z.object({ recipient: z.enum(["ambassador", "referrer"]), issue: z.enum(["email_added", "email_primary", "twofa", "password", "restricted", "other"]), details: z.string().max(3000), subject: z.string().trim().min(1).max(200), text: z.string().trim().min(1).max(15000), requestId: z.string().uuid() }).refine(v => v.issue !== "other" || !!v.details.trim());
+const schema = z.object({ recipient: z.enum(["ambassador", "referrer"]), issue: z.enum(["application_incomplete", "email_added", "email_primary", "twofa", "password", "restricted", "other"]), details: z.string().max(3000), subject: z.string().trim().min(1).max(200), text: z.string().trim().min(1).max(15000), requestId: z.string().uuid() }).refine(v => v.issue !== "other" || !!v.details.trim());
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAdmin();
@@ -22,7 +22,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const logId = `issue:${input.requestId}`;
     const entry = JSON.stringify([{ id: logId, ch: "email", text: `Emailed ${input.recipient} (${to}): ${input.subject}\n\n${input.text}`, by: user.fullName || user.email, at: new Date().toISOString() }]);
     await prisma.$executeRaw`UPDATE ambassador_applications SET outreach_log = COALESCE(outreach_log, '[]'::jsonb) || ${entry}::jsonb, updated_at = NOW() WHERE id = ${id}::uuid AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(outreach_log, '[]'::jsonb)) item WHERE item->>'id' = ${logId})`;
-    if (["email_added", "email_primary", "twofa", "password"].includes(input.issue)) {
+    if (["application_incomplete", "email_added", "email_primary", "twofa", "password"].includes(input.issue)) {
       // Merge issue flags atomically so separate messages cannot overwrite each other.
       await prisma.$executeRaw`UPDATE ambassador_applications SET onboarding_fix = jsonb_build_object('issues', (SELECT jsonb_agg(DISTINCT value) FROM jsonb_array_elements(COALESCE(onboarding_fix->'issues', '[]'::jsonb) || jsonb_build_array(${input.issue}::text))), 'state', 'open', 'raisedAt', COALESCE(onboarding_fix->>'raisedAt', ${new Date().toISOString()}::text)) WHERE id = ${id}::uuid`;
     }

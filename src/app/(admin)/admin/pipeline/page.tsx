@@ -73,7 +73,7 @@ interface Row {
   createdAt: string;
   onboardedAt: string | null;
   accountIssue: string | null;
-  onboardingFix: { issues: ("email_added" | "email_primary" | "twofa" | "password")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
+  onboardingFix: { issues: ("application_incomplete" | "email_added" | "email_primary" | "twofa" | "password")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
   restrictionReport: { type: "qr_done" | "recovered"; at: string; by?: string } | null;
   referrer: { email?: string | null; viber?: string | null; name: string; token: string | null; whatsapp: string | null; telegram: string | null; preferred: string | null } | null;
   reason: string;
@@ -1171,7 +1171,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
               {r.onboardingFix.issues.map(issue => <button key={issue} style={btnSec} disabled={busy} onClick={() => {
                 const remaining = r.onboardingFix!.issues.filter(value => value !== issue);
                 void workflow(r.id, { setOnboardingFix: remaining.length ? { ...r.onboardingFix, issues: remaining } : null });
-              }}>{r.onboardingFix?.state === "referrer_done" ? "Reported fixed" : "Open"}: {({ email_added: "Email not added", email_primary: "Email not primary", twofa: "2FA", password: "Password" })[issue]} · Mark resolved</button>)}
+              }}>{r.onboardingFix?.state === "referrer_done" ? "Reported fixed" : "Open"}: {({ application_incomplete: "Application not complete", email_added: "Email not added", email_primary: "Email not primary", twofa: "2FA", password: "Password" })[issue]} · Mark resolved</button>)}
             </div>}
             {r.referredBy && <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} style={{ display: "inline-block", marginTop: 10, fontSize: 12 }}>View referrer →</a>}
           </div>
