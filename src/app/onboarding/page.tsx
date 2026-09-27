@@ -88,7 +88,7 @@ export default function DIYPage() {
             <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
             <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>You&apos;re in, {form.fullName.split(" ")[0]}!</h2>
             <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: "0 0 22px" }}>
-              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {money(chosen.usd, chosen.php)} sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Choose a 20-minute onboarding call below. It will be linked directly to your signup:
+              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {money(chosen.usd, chosen.php)} sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Choose a 30-minute onboarding call below. It will be linked directly to your signup:
             </p>
             {bookingToken && <MeetingBooker token={bookingToken} email={form.email.trim()} />}
           </div>

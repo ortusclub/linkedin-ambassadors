@@ -28,7 +28,7 @@ export async function GET() {
     const enriched = applications.map(a => ({
       ...a,
       contactNumber: contactMap.get(a.email) || a.contactNumber,
-      call: a.scheduledMeeting ? { stage: a.scheduledMeeting.startsAt > new Date() ? "booked" : "done", scheduledAt: a.scheduledMeeting.startsAt.toISOString(), meetLink: null, channel: "Application contact", title: "20-minute onboarding call", cancelled: false } : pickCall(calls, { email: a.email, bookingEmail: a.bookingEmail, fullName: a.fullName }).call,
+      call: a.scheduledMeeting ? { stage: a.scheduledMeeting.startsAt > new Date() ? "booked" : "done", scheduledAt: a.scheduledMeeting.startsAt.toISOString(), meetLink: null, channel: "Application contact", title: "30-minute onboarding call", cancelled: false } : pickCall(calls, { email: a.email, bookingEmail: a.bookingEmail, fullName: a.fullName }).call,
     }));
 
     return NextResponse.json({ applications: enriched });

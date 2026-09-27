@@ -25,7 +25,7 @@ export function MeetingBooker({ token, email }: { token: string; email: string }
   const button = "rounded-lg bg-[#00A150] px-4 py-3 font-semibold text-white disabled:opacity-50";
   const days = [...new Set(slots.map(dateLabel))];
   return <div className="mt-5 rounded-xl bg-white p-5 text-left text-gray-900">
-    <h3 className="text-lg font-bold">Book your 20-minute onboarding call</h3>
+    <h3 className="text-lg font-bold">Book your 30-minute onboarding call</h3>
     <p className="my-2 text-sm text-gray-600">Monday–Friday, 9 am–5 pm. All times are Philippine time (Asia/Manila). We’ll call using the contact details on your application.</p>
     {booking ? <div role="status" className="mt-4 rounded-lg bg-green-50 p-4"><strong>Booked: {dateLabel(booking.startsAt)}, {timeLabel(booking.startsAt)}</strong><p className="mt-2 text-sm">{booking.invitationSent ? "Calendar invitations have been emailed to you and LinkedVelocity." : "Your time is reserved. Your calendar invitations are queued for delivery."} The booking is linked to your application.</p><p className="mt-2 text-sm">To change or cancel, email <a className="underline" href="mailto:info@linkedvelocity.com">info@linkedvelocity.com</a>.</p></div> : <>
       {loading ? <p>Checking availability…</p> : !slots.length ? <p>No times available right now. <button className="underline" onClick={() => void run(load)}>Check again</button></p> : <>
