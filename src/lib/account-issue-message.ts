@@ -42,7 +42,6 @@ export function accountIssueMessage(name: string, recipient: "ambassador" | "ref
       : `${optionOne}\nFirst, make sure you can sign in to LinkedIn.${issue === "other" ? " Resolve the specific issue described above as well." : ""}${accessChecks}`,
     reply,
     `Option 2: Resolve it together on a call\n${isReferrer ? `Help ${name}, the account owner, book a meeting with our team so we can work through the issue together. You are welcome to join them.` : "Book a meeting with our team and we will work through the issue together."}\n${ACCOUNT_SUPPORT_BOOKING_URL}`,
-    "Please do not send passwords or one-time codes by email. Reply if you need help.",
     "Thank you,\nThe LinkedVelocity team",
   ].join("\n\n") };
 }
