@@ -64,6 +64,7 @@ import { ShareLinks, WaitNotice, type ScriptContext } from "./onboarding-scripts
 
 type Session = {
   emailSetup: EmailSetup | null;
+  diyTier?: string | null;
   country: string | null; proxyAssigned: boolean; proxyPriceLimit: number;
   id: string; name: string; state: string; opened: boolean; shareLink: string | null;
   confirmedAt: string | null; accountFreshness: string | null; setupDueAt: string | null; setupAmount: string;
@@ -116,6 +117,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
   const preference = useDisplayCurrency(selfMode ? "public-diy" : token, selfMode ? undefined : bootstrap?.displayCurrency, selfMode ? undefined : token);
   const [step, setStep] = useState(0);
+  const [device, setDevice] = useState<"" | "pc" | "phone">("");
   const [session, setSession] = useState<Session | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -207,13 +209,13 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     : null;
   // A referrer stops being a first-timer only once they've completed BOTH a computer and a
   // phone onboarding. Until then the tour keeps returning on each fresh wizard load.
-  const experienced = selfMode || (!!bootstrap && bootstrap.doneComputer && bootstrap.donePhone);
+  const experienced = !selfMode && (!!bootstrap && bootstrap.doneComputer && bootstrap.donePhone);
   // Auto-show each page's tour once per load, unless they're experienced or skipped this run.
   useEffect(() => {
-    if (!bootstrap || !tourKey || experienced || tourSkipped) { setShowTour(false); return; }
+    if (!bootstrap || (selfMode && !device) || !tourKey || experienced || tourSkipped) { setShowTour(false); return; }
     if (tourSeen.current.has(tourKey)) { setShowTour(false); return; }
     setShowTour(true);
-  }, [bootstrap, tourKey, experienced, tourSkipped]);
+  }, [bootstrap, tourKey, experienced, tourSkipped, selfMode, device]);
   const endTour = (skipped: boolean) => {
     setShowTour(false);
     if (tourKey) tourSeen.current.add(tourKey);
@@ -243,11 +245,12 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   }
   function showSession(s: Session) {
     setSession(s);
+    if (selfMode && s.diyTier === "partial") setBrowserMode("phone");
     if (s.state === "handed_off") setHandedOff(true);
     // Functional update so we never yank a referrer BACKWARD: once the email is primary the
     // resume point is the 2FA step (4), but if they've already moved on to sign-in (5) a
     // refresh must leave them there. confirmed → done (6); email not primary → email (3).
-    setStep((prev) => s.state === "confirmed" ? 6 : (s.emailSetup && !s.emailSetup.primaryConfirmed) ? 3 : Math.max(prev, 4));
+    setStep((prev) => s.state === "confirmed" ? 6 : s.state === "handed_off" ? 5 : (s.emailSetup && !s.emailSetup.primaryConfirmed) ? 3 : Math.max(prev, 4));
   }
   async function emailAction(body: unknown) {
     if (!session) return;
@@ -309,7 +312,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     { index: 4, label: "Two-step verification", detail: "Turn on authenticator 2FA so sign-in asks for a code, not a device prompt." },
     { index: 5, label: "Prepare & sign in", detail: "The account owner enters their login, codes and completes any checks." },
     { index: 6, label: "Team verification", detail: "We check the saved session before activation and payment." },
-  ];
+  ].filter(item => !selfMode || item.index >= 3);
   const currentPos = Math.max(0, wizardSteps.findIndex((s) => s.index === step));
   const activeStep = wizardSteps[currentPos];
   // Currency follows the referrer (₱ for PH, $ for USD referrers) — everything the
@@ -353,7 +356,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     <div className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headerRow}>
-          {!selfMode && <Link href={`/m/${token}`} className={styles.headerBack}>← Dashboard</Link>}
+          <Link href={selfMode ? "/dashboard" : `/m/${token}`} className={styles.headerBack}>← Dashboard</Link>
           <span className={styles.headerTitle}>DIY onboarding</span>
           {bootstrap && <span className={styles.headerStep}>Step {currentPos + 1} of {wizardSteps.length}</span>}
         </div>
@@ -368,11 +371,18 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
         {!bootstrap && error && <button className={styles.primary} onClick={() => { setError(""); setLoadAttempt((n) => n + 1); }}>Retry loading onboarding</button>}
         {!bootstrap && !error && <p className={styles.loading} role="status">Loading onboarding…</p>}
 
-        {bootstrap && <>
+        {bootstrap && selfMode && !device && <>
+          <h1 className={styles.heroTitle}>Let’s set up your account</h1>
+          <p className={styles.lead}>{session?.diyTier === "partial" ? "We’ll guide you through adding the managed email and turning on 2FA. Then our team completes the browser sign-in." : "We’ll guide you through email, 2FA and the protected-browser sign-in, with help at each step."}</p>
+          <h2>Are you using a phone or a computer?</h2>
+          <button className={styles.choiceCard} onClick={() => setDevice("phone")}><strong>I’m on a phone</strong><p>Add the email and 2FA here. For Full DIY, you can move to a computer for the final sign-in.</p></button>
+          <button className={styles.choiceCard} onClick={() => { setDevice("pc"); if (session?.diyTier !== "partial") setBrowserMode("pc"); }}><strong>I’m on a laptop or desktop</strong><p>Use Windows or Mac to complete the protected-browser sign-in yourself.</p></button>
+        </>}
+        {bootstrap && (!selfMode || device) && <>
           {railOpen ? <div className={styles.railOpen}>
             <div className={styles.railKick}>HOW IT WORKS</div>
             <h2>One setup, {wizardSteps.length} clear steps</h2>
-            <p>It usually takes about 10 minutes. Don&apos;t begin unless the account owner can stay until sign-in is complete.</p>
+            <p>{selfMode ? "Follow each step for your own account. Keep LinkedIn and your email inbox open; your progress is saved." : "It usually takes about 10 minutes. Don’t begin unless the account owner can stay until sign-in is complete."}</p>
             {wizardSteps.map((item, position) => {
               const complete = item.index < step;
               return <div key={item.label} className={styles.railStep}>
@@ -387,7 +397,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <span className={styles.railToggle}>Show all ▼</span>
           </button>}
 
-          {showTour && tourKey && PAGE_TOURS[tourKey] && <CoachTour steps={PAGE_TOURS[tourKey]} onDone={endTour} />}
+          {showTour && tourKey && PAGE_TOURS[tourKey] && <CoachTour steps={selfMode ? [{ title: activeStep?.label || "Your next step", body: tourKey === "email" ? "Add the managed email to your own LinkedIn account, verify it, and make it primary. The guides below show each step." : tourKey === "twofa" ? "Turn on authenticator-based two-step verification on your account. Paste the setup key here, then use the displayed code to finish in LinkedIn." : "Follow the instructions below for your own account. Your progress is saved, and you can return using this link." }] : PAGE_TOURS[tourKey]} onDone={endTour} />}
 
           {selfMode && !session && !error && <div style={{ padding: 28, textAlign: "center", color: "#5A6473" }}>Loading your onboarding…</div>}
           {!selfMode && step === 0 && <>
@@ -506,18 +516,23 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
           </form>}
 
+          {selfMode && session && <div className={styles.note}>
+            <strong>{session.diyTier === "partial" ? "Email + 2FA setup" : "Full DIY setup"}</strong> · Your sign-on bonus: {moneyText(session.setupAmount)} · {moneyText(session.monthlyAmount)}/month after onboarding.
+            <p><a href="/ambassador-guide" target="_blank" rel="noreferrer">Account setup guide</a> · <a href="/guide/two-step-verification" target="_blank" rel="noreferrer">2FA guide</a> · <a href="/guide" target="_blank" rel="noreferrer">GoLogin guide</a></p>
+            <button className={styles.linkBtn} onClick={() => setDevice("")}>Change device</button>
+          </div>}
           {step === 3 && session?.emailSetup && <>
             <div className={styles.stepLabel}>Add secure email</div>
-            <EmailStep key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+            <EmailStep selfMode={selfMode} key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>}
 
           {step === 4 && session && <>
             <div className={styles.stepLabel}>Two-step verification</div>
             <h1 className={styles.heroTitle}>Turn on two-step verification</h1>
-            <p className={styles.lead}>Do this <strong>before</strong> signing in. Without it, signing in makes LinkedIn ping the owner&apos;s phone to approve — and you wait. With authenticator 2FA on, LinkedIn asks for a 6-digit <strong>code</strong> instead, which this page gives you.</p>
+            <p className={styles.lead}>Do this <strong>before</strong> signing in. Without it, signing in makes LinkedIn ping {selfMode ? "your" : "the owner’s"} phone to approve — and you wait. With authenticator 2FA on, LinkedIn asks for a 6-digit <strong>code</strong> instead, which this page gives you.</p>
             <div className={styles.warn}>
               <div>Why it matters</div>
-              <p>The device prompt is the biggest hold-up in onboarding. Setting this up now means the sign-in — and any future check — asks for a code you can generate here, not a tap on the owner&apos;s phone.</p>
+              <p>The device prompt is the biggest hold-up in onboarding. Setting this up now means the sign-in — and any future check — asks for a code you can generate here, not a tap on {selfMode ? "your" : "the owner’s"} phone.</p>
             </div>
             <ol className={styles.instructions}>
               <li>In the LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong>.</li>
@@ -531,7 +546,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={() => setStep(3)}>Back</button>
-              <button type="button" className={styles.primary} disabled={!looksLikeTotpKey(twoFactorKey)} onClick={() => { void saveTwoFactor(); setStep(5); }}>Continue to sign-in →</button>
+              <button type="button" className={styles.primary} disabled={!looksLikeTotpKey(twoFactorKey)} onClick={() => { void saveTwoFactor(); setStep(5); }}>{selfMode && session.diyTier === "partial" ? "Continue to team handoff →" : "Continue to sign-in →"}</button>
             </div>
           </>}
 
@@ -541,46 +556,46 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup payment follows once the account is verified, <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding. Nothing more to do here.</p>
             {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>}
           </> : browserMode === "" ? <>
-            <h1 className={styles.heroTitle}>Who does the sign-in?</h1>
-            <p className={styles.lead}>This is the last step, and it sets your rate: on a laptop you do the sign-in, on a phone we do.</p>
+            <h1 className={styles.heroTitle}>{selfMode ? "Finish your account setup" : "Who does the sign-in?"}</h1>
+            <p className={styles.lead}>{selfMode ? "Complete Full DIY on a computer for the larger sign-on bonus, or switch to Email + 2FA and let our team finish the sign-in." : "This is the last step, and it sets your rate: on a laptop you do the sign-in, on a phone we do."}</p>
             <button type="button" data-tour="signin-choice" className={styles.choiceCard} onClick={() => setBrowserMode("phone")}>
-              <div className={styles.choiceHead}><strong>Hand it to us</strong><span className={styles.rateChip}>{phoneRange}</span></div>
-              <p>Works on a phone. They set a temporary password, our team does the sign-in, and their payment timeline doesn&apos;t change.</p>
+              <div className={styles.choiceHead}><strong>Hand it to us</strong><span className={styles.rateChip}>{selfMode ? "$24 (₱1,500) sign-on" : phoneRange}</span></div>
+              <p>{selfMode ? "Switch to Email + 2FA setup. Set a temporary password and our team will complete the sign-in." : "Works on a phone. They set a temporary password, our team does the sign-in, and their payment timeline doesn’t change."}</p>
             </button>
             <button type="button" className={`${styles.choiceCard} ${styles.choiceHi}`} onClick={() => setBrowserMode("pc")}>
-              <div className={styles.choiceHead}><strong>I&apos;ll do it on a laptop</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>{computerRange}</span></div>
-              <p>You open the protected browser and sign in to their LinkedIn with them beside you. Highest rate.</p>
+              <div className={styles.choiceHead}><strong>I&apos;ll do it on a laptop</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>{selfMode ? "$32 (₱2,000) sign-on" : computerRange}</span></div>
+              <p>{selfMode ? "Open the protected browser and sign in to your own LinkedIn account. This completes Full DIY setup." : "You open the protected browser and sign in to their LinkedIn with them beside you. Highest rate."}</p>
               <div className={styles.choiceNote}>Needs a Windows or Mac computer.</div>
             </button>
           </> : browserMode === "phone" ? <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
-            <PhoneHandoff busy={busy} error={error} submit={handoff} />
+            <PhoneHandoff selfMode={selfMode} busy={busy} error={error} submit={handoff} />
           </> : <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
-            <div className={styles.infoBlue}><div>This step needs a computer</div><p>The sign-in uses GoLogin desktop software. If you&apos;re on a phone, copy this link and open it on a Windows or Mac computer with the account owner.</p></div>
+            <div className={styles.infoBlue}><div>This step needs a computer</div><p>The sign-in uses GoLogin desktop software. If you&apos;re on a phone, copy this link and open it on a Windows or Mac computer {selfMode ? "to continue your setup" : "with the account owner"}.</p></div>
             <button type="button" className={styles.secondary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Copy / share this link"}</button>
             <WaitNotice primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null} />
             {session.emailSetup && <><div className={styles.emailAddressCard}><span>LinkedIn login email</span><strong>{session.emailSetup.address}</strong><button type="button" onClick={() => { if (session.emailSetup?.address) { navigator.clipboard?.writeText(session.emailSetup.address); setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800); } }}>{emailCopied ? "Copied ✓" : "Copy email"}</button></div><div className={styles.note}>{session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
-            <BrowserStep key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+            <BrowserStep selfMode={selfMode} key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>)}
 
           {step === 6 && session && <>
             <div className={styles.success}>✓</div>
-            <h1 className={styles.heroTitle}>That&apos;s them onboarded</h1>
-            <p className={styles.lead}>{session.name}&apos;s account is in our system and linked to your code. Nothing else for either of you to do today.</p>
+            <h1 className={styles.heroTitle}>{selfMode ? "Your setup is complete" : "That’s them onboarded"}</h1>
+            <p className={styles.lead}>{selfMode ? "Your account is ready for the team’s final checks. You can track it from your dashboard." : `${session.name}’s account is in our system and linked to your code. Nothing else for either of you to do today.`}</p>
             <div className={styles.card} data-tour="done-summary">
-              <div className={styles.summaryRow}><span>Their setup payment</span><b>{moneyText(session.setupAmount)}</b></div>
-              <div className={styles.summaryRow}><span>Their monthly payment</span><b>{moneyText(session.monthlyAmount)}/mo</b></div>
-              <div className={styles.summaryRow}><span>Your commission</span><b>{moneyText(session.commission)} · {session.verified ? "Verified" : "Pending"}</b></div>
+              <div className={styles.summaryRow}><span>{selfMode ? "Your sign-on bonus" : "Their setup payment"}</span><b>{moneyText(session.setupAmount)}</b></div>
+              <div className={styles.summaryRow}><span>{selfMode ? "Your monthly payment" : "Their monthly payment"}</span><b>{moneyText(session.monthlyAmount)}/mo</b></div>
+              {!selfMode && <div className={styles.summaryRow}><span>Your commission</span><b>{moneyText(session.commission)} · {session.verified ? "Verified" : "Pending"}</b></div>}
               <div className={styles.summaryRow}><span>Due date</span><b>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "After the check"}</b></div>
             </div>
-            <div className={styles.note} data-tour="done-next"><strong>What we do next.</strong> We test the sign-in over {checkWindow(session.accountFreshness)}. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears, their {moneyText(session.setupAmount)} goes out and your commission lands the following Monday.</div>
+            {selfMode ? <div className={styles.note}>We’ll check your account and contact you if anything else is needed. Payments begin once onboarding is approved.</div> : <div className={styles.note} data-tour="done-next"><strong>What we do next.</strong> We test the sign-in over {checkWindow(session.accountFreshness)}. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears, their {moneyText(session.setupAmount)} goes out and your commission lands the following Monday.</div>}
             <div className={styles.card}>
-              <div className={styles.cardTitle}>Tell them before you go</div>
+              <div className={styles.cardTitle}>{selfMode ? "While your account is being checked" : "Tell them before you go"}</div>
               <p className={styles.cardSub} style={{ marginBottom: 8 }}>Don&apos;t post, message or browse from your own phone while it&apos;s with us — being logged in from two places is what causes restrictions.</p>
-              <p className={styles.cardSub} style={{ margin: 0 }}>And if anything is ever needed on the account, it comes through you — so make sure they&apos;ll pick up when you call.</p>
+              <p className={styles.cardSub} style={{ margin: 0 }}>{selfMode ? "Keep your contact details up to date so our team can reach you if a check is needed." : "And if anything is ever needed on the account, it comes through you — so make sure they’ll pick up when you call."}</p>
             </div>
-            {!selfMode && <Link className={styles.primary} href={`/m/${token}`}>Back to my portal →</Link>}
+            <Link className={styles.primary} href={selfMode ? "/dashboard" : `/m/${token}`}>{selfMode ? "Go to my dashboard →" : "Back to my portal →"}</Link>
             {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard someone else</a>}
           </>}
         </>}

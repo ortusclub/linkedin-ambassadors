@@ -16,7 +16,8 @@ type BrowserSession = {
 
 const MINI_STEPS = ["Prepare browser", "Open GoLogin", "Sign in", "Save session"];
 
-export default function BrowserStep({ session, busy, action, confirm, refresh, error, twoFactorKey }: {
+export default function BrowserStep({ session, busy, action, confirm, refresh, error, twoFactorKey, selfMode = false }: {
+  selfMode?: boolean;
   session: BrowserSession;
   busy: boolean;
   action: (action: "prepare" | "opened") => Promise<void>;
@@ -42,8 +43,8 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
   }
 
   return <>
-    <h2>Prepare and sign in to their browser</h2>
-    <p>We&apos;ll prepare the protected browser, then guide the owner through signing in and saving the session.</p>
+    <h2>{selfMode ? "Prepare your browser and sign in" : "Prepare and sign in to their browser"}</h2>
+    <p>We&apos;ll prepare the protected browser, then guide {selfMode ? "you" : "the owner"} through signing in and saving the session.</p>
     {error && <div className={styles.error} role="alert">{error}</div>}
 
     <ol className={styles.miniSteps} aria-label="Browser setup progress">
@@ -76,24 +77,24 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
         Open the download and installation page in a new tab. Install the GoLogin desktop app, then return here and open the prepared browser.<br />
         <a className={styles.installLink} href="https://gologin.com/download" target="_blank" rel="noopener noreferrer">Open GoLogin installation page ↗</a>
       </div>
-      <a className={styles.primary} href={session.shareLink!} target="_blank" rel="noreferrer" onClick={() => void action("opened")}>Open their GoLogin browser ↗</a>
+      <a className={styles.primary} href={session.shareLink!} target="_blank" rel="noreferrer" onClick={() => void action("opened")}>{selfMode ? "Open your GoLogin browser ↗" : "Open their GoLogin browser ↗"}</a>
     </section>}
 
     {miniStep === 3 && session.state === "ready" && <section className={styles.miniPanel}>
       <div className={styles.stepLabel}>BROWSER STEP 3 OF 4</div>
-      <h3>Ask the owner to sign in to LinkedIn</h3>
+      <h3>{selfMode ? "Sign in to your LinkedIn account" : "Ask the owner to sign in to LinkedIn"}</h3>
       <ol className={styles.instructions}>
         <li>Inside the prepared browser, open <strong>linkedin.com</strong>.</li>
-        <li>The owner enters their password and completes any code, identity or security check LinkedIn requests.</li>
+        <li>{selfMode ? "Enter your password and complete" : "The owner enters their password and completes"} any code, identity or security check LinkedIn requests.</li>
         <li>If LinkedIn asks for a two-step verification code, use the live code below.</li>
-        <li>Check that both their LinkedIn feed and profile open successfully.</li>
+        <li>Check that both {selfMode ? "your" : "their"} LinkedIn feed and profile open successfully.</li>
       </ol>
       {twoFactorKey.trim() && <><p className={styles.hint}>Your two-step verification code — type it in if LinkedIn asks:</p><TotpCode secretKey={twoFactorKey.trim()} /></>}
       <div className={styles.videoComingSoon}>
         <span aria-hidden="true">▶</span>
         <div><strong>LinkedIn sign-in video coming soon</strong><small>A short walkthrough will show how to open the prepared browser, complete the LinkedIn sign-in and save the session.</small></div>
       </div>
-      <label className={styles.check}><input type="checkbox" checked={signedIn} onChange={(event) => setSignedIn(event.target.checked)} /><span>I can see the owner&apos;s LinkedIn feed and profile in the prepared browser.</span></label>
+      <label className={styles.check}><input type="checkbox" checked={signedIn} onChange={(event) => setSignedIn(event.target.checked)} /><span>I can see {selfMode ? "my" : "the owner’s"} LinkedIn feed and profile in the prepared browser.</span></label>
       <button className={styles.primary} disabled={!signedIn} onClick={() => setMiniStep(4)}>Continue to save the session →</button>
       <a className={styles.secondary} href={session.shareLink!} target="_blank" rel="noreferrer">Open the GoLogin browser again ↗</a>
       <button className={styles.secondary} onClick={() => setMiniStep(2)}>← Back to opening GoLogin</button>
@@ -107,8 +108,8 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
 
       <div className={styles.credCapture}>
         <strong>Save the login so the team can keep the account safe</strong>
-        <p className={styles.hint}>We hold the login so we can recover the account if LinkedIn logs it out or asks for verification later. The owner keeps full access and can reset the password anytime.</p>
-        <label className={styles.field}>The account password the owner is using
+        <p className={styles.hint}>We hold the login so we can recover the account if LinkedIn logs it out or asks for verification later. {selfMode ? "You keep" : "The owner keeps"} full access and can reset the password anytime.</p>
+        <label className={styles.field}>{selfMode ? "Your account password" : "The account password the owner is using"}
           <input type="text" autoComplete="off" minLength={6} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="The LinkedIn password you just signed in with" />
         </label>
       </div>

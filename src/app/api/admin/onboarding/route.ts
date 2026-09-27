@@ -48,10 +48,10 @@ export async function GET() {
     // cleared once we sign in, so the "Needs sign-in" badge below also requires that the
     // account hasn't been logged in yet (onboardedAt unset). Once it's logged in, the
     // sign-in is done and the badge must drop.
-    const handoffAppIds = new Set(
-      (await prisma.selfServiceOnboarding.findMany({ where: { state: "handed_off" }, select: { applicationId: true } }))
-        .map((s) => s.applicationId)
-    );
+    const selfSessions = await prisma.selfServiceOnboarding.findMany({ select: { applicationId: true, accountId: true, state: true } });
+    const handoffAppIds = new Set(selfSessions.filter(s => s.state === "handed_off").map(s => s.applicationId));
+    const sessionAccount = new Map(selfSessions.map(s => [s.applicationId, s.accountId]));
+    const accountById = new Map(accounts.map(a => [a.id, a]));
 
     // Referrer contact lookup (by slug) — used to build reminder links (WhatsApp
     // click-to-send / Telegram) next to a raised onboarding issue on the pipeline.
@@ -118,6 +118,7 @@ export async function GET() {
       const appUrl = normUrl(app.linkedinUrl);
       const email = app.email.toLowerCase();
       const acct =
+        accountById.get(sessionAccount.get(app.id) || "") ||
         (appUrl ? byUrl.get(appUrl) : undefined) ||
         (ownerCount.get(email) === 1 ? byOwner.get(email) : undefined) ||
         null;

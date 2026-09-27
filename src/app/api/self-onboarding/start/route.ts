@@ -33,34 +33,23 @@ export async function POST(req: Request) {
     if (!diy) return json({ error: "Onboarding is not available right now." }, 503);
 
     const submitter = await getSession();
-    const duplicateNote = await existingApplicationAccount(parsed.data.email, parsed.data.linkedinUrl);
-    if (duplicateNote) {
-      // Accept repeat accounts for admin review without minting access to an old
-      // provisioning session or allocating another live profile/proxy.
+    let id: string;
+    try { id = await reserveOnboarding(diy, parsed.data, submitter?.id, { publicOwner: true }); }
+    catch (error) {
+      if (!(error instanceof OnboardingError) || error.message !== "An existing setup needs team review.") throw error;
       const input = parsed.data;
-      await prisma.$transaction(async tx => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100901)`;
-        const recent = await tx.ambassadorApplication.findFirst({ where: {
-          email: input.email, linkedinUrl: input.linkedinUrl, submittedByUserId: submitter?.id ?? null,
-          adminNotes: { startsWith: "[Existing account submission]" },
-          createdAt: { gt: new Date(Date.now() - 10 * 60000) },
-        }, select: { id: true } });
-        if (recent) return;
-        await tx.ambassadorApplication.create({ data: {
-          submittedByUserId: submitter?.id ?? null, fullName: input.fullName,
-          email: input.email, linkedinEmail: input.email, linkedinUrl: input.linkedinUrl,
-          contactNumber: input.contactNumber, location: input.country,
-          accountFreshness: input.accountFreshness, paymentMethod: input.paymentMethod,
-          paymentDetails: input.paymentDetails, payoutName: input.payoutName,
-          bankName: input.bankName || null, bankAccountNumber: input.bankAccountNumber || null,
-          bankRoutingNumber: input.bankRoutingNumber || null,
-          referredBy: diy.slug, referralSource: "self-service", diyTier: tier || "full",
-          status: "reviewing", adminNotes: duplicateNote + " Owner consent recorded; duplicate submitted for review.",
-        } });
-      });
-      return json({ lead: true });
+      const duplicateNote = await existingApplicationAccount(input.email, input.linkedinUrl);
+      await prisma.ambassadorApplication.create({ data: {
+        submittedByUserId: submitter?.id ?? null, fullName: input.fullName, email: input.email,
+        linkedinEmail: input.email, linkedinUrl: input.linkedinUrl, contactNumber: input.contactNumber,
+        location: input.country, accountFreshness: input.accountFreshness,
+        paymentMethod: input.paymentMethod, paymentDetails: input.paymentDetails, payoutName: input.payoutName,
+        bankName: input.bankName || null, bankAccountNumber: input.bankAccountNumber || null, bankRoutingNumber: input.bankRoutingNumber || null,
+        referredBy: diy.slug, referralSource: "self-service", diyTier: tier || "full", status: "reviewing",
+        adminNotes: `${duplicateNote || "[Existing account submission]"} Existing provisioning session requires review before another setup can proceed. Owner consent recorded.`,
+      } });
+      return json({ lead: true, reviewReason: "This account has an existing setup. Our team will check it before continuing, so we don’t change an account that is already in use." });
     }
-    const id = await reserveOnboarding(diy, parsed.data, submitter?.id);
     // Record the chosen tier on the freshly-created application so payouts pay the right bonus.
     if (tier) {
       const s = await prisma.selfServiceOnboarding.findUnique({ where: { id }, select: { applicationId: true } });

@@ -13,7 +13,8 @@ export type EmailSetup = {
 
 const MINI_STEPS = ["Code inbox", "Add email", "Verify email", "Make primary"];
 
-export default function EmailStep({ setup, busy, submit, refresh }: {
+export default function EmailStep({ setup, busy, submit, refresh, selfMode = false }: {
+  selfMode?: boolean;
   setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>; refresh: () => Promise<void>;
 }) {
   const initialStep = !setup.forwardingActive ? 1 : (setup.lastForwardedAt || setup.confirmUrl) ? 3 : 2;
@@ -55,7 +56,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
 4. Click Add email address.
 5. Enter: ${setup.address || "(the email we'll share in a moment)"}
 6. Enter your current password when prompted, then click Send verification.
-7. That's it on your end. Let us know once you've added it, and we'll click the verification link from our side to confirm it.
+${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on your signed-in device, and confirm the new email is verified." : "7. That’s it on your end. Let us know once you’ve added it, and we’ll click the verification link from our side to confirm it."}
 8. Once it shows as verified, please set it as your primary email, and we'll take it from there.`;
   function copySteps() {
     navigator.clipboard?.writeText(addEmailMessage);
@@ -64,14 +65,14 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
   }
 
   return <>
-    <h2>Set up their LinkedIn email</h2>
-    <p>The <strong>account owner</strong> adds and verifies the email themselves, on their own phone or laptop where they&apos;re already signed into LinkedIn. <strong>You walk them through each step.</strong> There&apos;s no protected GoLogin browser yet; that only comes at the very end for the final sign-in.</p>
+    <h2>{selfMode ? "Set up your LinkedIn email" : "Set up their LinkedIn email"}</h2>
+    <p>{selfMode ? "Add and verify the email on your own phone or laptop where you’re already signed into LinkedIn. We’ll guide you through each step below." : <>The <strong>account owner</strong> adds and verifies the email on their own signed-in device. You walk them through each step.</>} The protected GoLogin browser comes later for the final sign-in.</p>
 
     {/* People get confused about "whose email" — spell out what this step is FOR. */}
     <div className={styles.why} data-tour="email-why">
       <strong>What this step is for</strong>
-      <p>We&apos;re adding a LinkedVelocity work email to their LinkedIn and making it the primary one — that&apos;s how we manage the account for them. LinkedIn has to <strong>verify</strong> that new email, so its verification message needs to land in an inbox someone can open and click.</p>
-      <p>That receiving inbox can be <strong>yours (the referrer&apos;s) or the owner&apos;s</strong> — it doesn&apos;t matter whose. Yours is usually easiest since you&apos;re driving. We only forward LinkedIn&apos;s messages there, and only for up to an hour.</p>
+      <p>We&apos;re adding a LinkedVelocity work email to {selfMode ? "your" : "their"} LinkedIn and making it the primary one — that&apos;s how we manage the account. LinkedIn has to <strong>verify</strong> that new email, so its verification message needs to land in an inbox someone can open and click.</p>
+      <p>{selfMode ? "Choose an inbox you can open now. We only forward LinkedIn’s verification messages there, for up to one hour." : "The receiving inbox can be yours or the account owner’s. We only forward LinkedIn’s messages there, for up to one hour."}</p>
     </div>
 
     <ol className={styles.miniSteps} aria-label="LinkedIn email setup progress">
@@ -102,15 +103,15 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
       {miniStep === 1 && <section className={styles.miniPanel} data-tour="email-inbox">
         <div className={styles.stepLabel}>EMAIL STEP 1 OF 4</div>
         <h3>Pick an inbox to catch the verification</h3>
-        <p>This is just where LinkedIn&apos;s verification message will land so it can be opened and confirmed. Enter any inbox you can open right now — <strong>your own (the referrer&apos;s) is easiest</strong>, or the account owner&apos;s. We&apos;ll send a six-digit code there first to check it works, then temporarily forward LinkedIn&apos;s verification email to the same inbox so you can read it.</p>
+        <p>Enter an inbox you can open now. We’ll send a six-digit code to verify it, then temporarily forward LinkedIn’s verification message there. This can be different from your account email.</p>
 
         {setup.destinationVerified && !setup.forwardingActive ? <>
           <div className={styles.note}>The previous forwarding window expired. Start again to choose the receiving inbox and get a different LinkedVelocity email.</div>
           <button className={styles.primary} disabled={busy} onClick={() => void restart()}>Start this email step again →</button>
         </> : <>
           <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
-            <label className={styles.field}>Email for the codes (yours or the owner&apos;s)<input type="email" required maxLength={254} value={destination} onChange={e => setDestination(e.target.value)} placeholder="you@example.com" /></label>
-            <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>The account owner agrees to add a LinkedVelocity-managed primary email and to onboarding messages being forwarded to this inbox for up to one hour.</span></label>
+            <label className={styles.field}>{selfMode ? "Your inbox for verification codes" : "Email for the codes (yours or the owner’s)"}<input type="email" required maxLength={254} value={destination} onChange={e => setDestination(e.target.value)} placeholder="you@example.com" /></label>
+            <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>{selfMode ? "I agree" : "The account owner agrees"} to add a LinkedVelocity-managed primary email and to onboarding messages being forwarded to this inbox for up to one hour.</span></label>
             <button className={styles.primary} disabled={busy || !consent}>{setup.verificationCodePending ? "Send another six-digit code" : "Send six-digit code →"}</button>
           </form>
           {setup.verificationCodePending && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>
@@ -123,10 +124,10 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
       {miniStep === 2 && setup.forwardingActive && <section className={styles.miniPanel}>
         <div className={styles.stepLabel}>EMAIL STEP 2 OF 4</div>
         <h3>Add the new email to LinkedIn</h3>
-        <p>The owner does this on their own LinkedIn. Copy the steps below and send them, or read them out.</p>
+        <p>{selfMode ? "Follow these steps in your own LinkedIn account." : "The owner does this on their own LinkedIn. Copy the steps below and send them, or read them out."}</p>
         <div className={styles.scriptCard}>
           <div className={styles.scriptHead}>
-            <strong>Message to send the owner</strong>
+            <strong>{selfMode ? "Steps to follow" : "Message to send the owner"}</strong>
             <button type="button" className={styles.copyButton} onClick={copySteps}>{copiedSteps ? "Copied ✓" : "Copy steps"}</button>
           </div>
           <pre className={styles.scriptText}>{addEmailMessage}</pre>
@@ -139,10 +140,10 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
         <div className={styles.stepLabel}>EMAIL STEP 3 OF 4</div>
         <h3>Verify the email address</h3>
         {setup.confirmUrl ? <>
-          <div className={styles.note}>LinkedIn&apos;s confirmation link came through. Open it here, or copy it and send it to the owner — it has to be opened <strong>on the device where they&apos;re logged into LinkedIn</strong>.</div>
+          <div className={styles.note}>LinkedIn&apos;s confirmation link came through. Open it <strong>on the device where {selfMode ? "you’re" : "the owner is"} logged into LinkedIn</strong>.</div>
           <a className={styles.primary} href={setup.confirmUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>Open LinkedIn&apos;s confirmation link →</a>
-          <button type="button" className={styles.secondary} onClick={copyConfirm}>{confirmCopied ? "Link copied ✓" : "Copy link to send the owner"}</button>
-          <label className={styles.check}><input type="checkbox" checked={linkConfirmed} onChange={e => setLinkConfirmed(e.target.checked)} /><span>The owner opened the link and the new email now shows as verified on LinkedIn.</span></label>
+          <button type="button" className={styles.secondary} onClick={copyConfirm}>{confirmCopied ? "Link copied ✓" : (selfMode ? "Copy verification link" : "Copy link to send the owner")}</button>
+          <label className={styles.check}><input type="checkbox" checked={linkConfirmed} onChange={e => setLinkConfirmed(e.target.checked)} /><span>{selfMode ? "I opened" : "The owner opened"} the link and the new email now shows as verified on LinkedIn.</span></label>
           <button className={styles.primary} disabled={!linkConfirmed} onClick={() => setMiniStep(4)}>Continue to make it primary →</button>
         </> : setup.lastForwardedAt ? <>
           <div className={styles.note}>LinkedIn&apos;s verification message was forwarded to <strong>{setup.destination}</strong>.</div>
@@ -151,10 +152,10 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
             <li>Find the message from LinkedIn and open its verification link.</li>
             <li>Return to LinkedIn and confirm that the new email is shown as verified.</li>
           </ol>
-          <label className={styles.check}><input type="checkbox" checked={linkConfirmed} onChange={e => setLinkConfirmed(e.target.checked)} /><span>The owner opened the LinkedIn verification link and the new email now shows as verified.</span></label>
+          <label className={styles.check}><input type="checkbox" checked={linkConfirmed} onChange={e => setLinkConfirmed(e.target.checked)} /><span>{selfMode ? "I opened" : "The owner opened"} the LinkedIn verification link and the new email now shows as verified.</span></label>
           <button className={styles.primary} disabled={!linkConfirmed} onClick={() => setMiniStep(4)}>Continue to make it primary →</button>
         </> : <>
-          <div className={styles.note}>Waiting for LinkedIn&apos;s confirmation. Once the owner adds the email it usually arrives in a moment — tap to check. If it&apos;s slow, have them tap <strong>resend</strong> on LinkedIn; it&apos;ll come through here whenever it lands, no time limit.</div>
+          <div className={styles.note}>Waiting for LinkedIn&apos;s confirmation. Once {selfMode ? "you add" : "the owner adds"} the email it usually arrives in a moment — tap to check. If it&apos;s slow, {selfMode ? "tap" : "have them tap"} <strong>resend</strong> on LinkedIn; it&apos;ll come through here whenever it lands, no time limit.</div>
           <button className={styles.primary} disabled={busy} onClick={() => void refresh()}>{busy ? "Checking…" : "Check for LinkedIn&apos;s link"}</button>
         </>}
         <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
@@ -175,11 +176,11 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
           <span aria-hidden="true">▶</span>
           <div><strong>Video walkthrough coming soon</strong><small>A short recording will show how to add, verify and make the LinkedVelocity email primary.</small></div>
         </div>
-        <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>I can see <strong>{setup.address}</strong> set as the <strong>primary</strong> email in the owner&apos;s LinkedIn — not just added. The owner agrees to continue.</span></label>
-        <button className={styles.primary} disabled={busy || !primary || !(setup.lastForwardedAt || setup.confirmUrl)} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to GoLogin →</button>
+        <label className={styles.check}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>I can see <strong>{setup.address}</strong> set as the <strong>primary</strong> email in {selfMode ? "my" : "the owner’s"} LinkedIn — not just added. {selfMode ? "I agree" : "The owner agrees"} to continue.</span></label>
+        <button className={styles.primary} disabled={busy || !primary || !(setup.lastForwardedAt || setup.confirmUrl)} onClick={() => void submit({ action: "primary", consent: true })}>Email is primary — continue to 2FA →</button>
         <button className={styles.secondary} disabled={busy} onClick={() => void restart()}>Start again with a different email</button>
       </section>}
     </>}
-    <p className={styles.hint}>Only change the primary email with the owner&apos;s informed agreement. If anything is unclear, pause and contact the team.</p>
+    <p className={styles.hint}>{selfMode ? "Only continue if you understand and agree to the primary email change." : "Only change the primary email with the owner’s informed agreement."} If anything is unclear, pause and contact the team.</p>
   </>;
 }

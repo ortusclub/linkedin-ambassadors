@@ -29,6 +29,7 @@ export default function SelfSetupStart() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [lead, setLead] = useState(false);
+  const [reviewReason, setReviewReason] = useState("");
 
   const set = (k: keyof typeof form, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -88,7 +89,7 @@ export default function SelfSetupStart() {
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "Could not start onboarding.");
       // Provisionable country → live wizard. Anywhere else → captured as a lead.
-      if (d.lead) { setLead(true); return; }
+      if (d.lead) { setReviewReason(d.reviewReason || ""); setLead(true); return; }
       window.location.href = `/onboarding/setup/${encodeURIComponent(d.token)}`;
     } catch (e) { setError(e instanceof Error ? e.message : "Could not start onboarding."); setSubmitting(false); }
   };
@@ -104,7 +105,8 @@ export default function SelfSetupStart() {
           <div style={{ background: "#0D2A1C", borderRadius: 18, padding: "36px 28px", textAlign: "center", color: "#fff" }}>
             <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
             <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>Thanks, {form.fullName.split(" ")[0] || "you're in"}!</h2>
-            <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: 0 }}>Your application has been received for review. Our team will check the account details and reach out by email at <strong style={{ color: "#fff" }}>{form.email}</strong>. You can track your application from your dashboard.</p>
+            {reviewReason && <p style={{ color: "#B7D4C4", marginBottom: 16 }}>{reviewReason}</p>}
+            <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: 0 }}>Your application has been received for review. Our team will check the account details and reach out by email at <strong style={{ color: "#fff" }}>{form.email}</strong>. You can track your application from your dashboard.</p><a href="/dashboard" style={{ display: "inline-block", color: "white", textDecoration: "underline", marginTop: 16 }}>Go to my dashboard →</a>
           </div>
         ) : (<>
         <h1 style={{ fontFamily: "'Poppins','Inter',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", margin: "0 0 6px" }}>Do it yourself — set up now</h1>

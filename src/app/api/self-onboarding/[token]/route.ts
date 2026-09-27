@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { currencyConfig } from "@/lib/referral-currency";
-import { selfServiceAction, selfServiceConfirm } from "@/lib/self-service-input";
+import { selfServiceAction, selfServiceConfirm, selfServiceHandoff } from "@/lib/self-service-input";
 import { proxyPurchaseLimits } from "@/services/proxy-cheap";
 import { emailSetupConfig } from "@/lib/onboarding-email-policy";
 import { requireEmailSetup } from "@/lib/onboarding-email";
-import { OnboardingError, onboardingCountries, onboardingSummary, prepareOnboarding, confirmOnboarding, saveTwoFactorKey, resolveSelfSession } from "@/lib/self-service-onboarding";
+import { OnboardingError, onboardingCountries, onboardingSummary, prepareOnboarding, confirmOnboarding, handoffOnboarding, saveTwoFactorKey, resolveSelfSession } from "@/lib/self-service-onboarding";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -50,6 +50,15 @@ export async function PATCH(req: Request, context: Context) {
     // Security: a self-token may only act on its OWN session.
     if (typeof bodyId === "string" && bodyId !== sessionId) throw new OnboardingError("Not found.", 404);
 
+    if ((body as { action?: string })?.action === "handoff") {
+      const handoff = selfServiceHandoff.safeParse({ ...body, id: sessionId });
+      if (!handoff.success) return json({ error: "Invalid hand-off details." }, 400);
+      await requireEmailSetup(sessionId, referrerId);
+      await handoffOnboarding(sessionId, referrerId, handoff.data);
+      const session = await prisma.selfServiceOnboarding.findUniqueOrThrow({ where: { id: sessionId }, select: { applicationId: true } });
+      await prisma.ambassadorApplication.update({ where: { id: session.applicationId }, data: { diyTier: "partial" } });
+      return json({ session: await onboardingSummary(sessionId, referrerId) });
+    }
     if ((body as { action?: string })?.action === "twofactor") {
       const b = body as { twoFactorKey?: unknown };
       if (typeof b.twoFactorKey !== "string" || b.twoFactorKey.length > 128) return json({ error: "Invalid 2FA key." }, 400);
@@ -61,6 +70,8 @@ export async function PATCH(req: Request, context: Context) {
       if (!confirm.success) return json({ error: "Invalid confirmation details." }, 400);
       await requireEmailSetup(sessionId, referrerId);
       await confirmOnboarding(sessionId, referrerId, { password: confirm.data.password, twoFactorKey: confirm.data.twoFactorKey });
+      const finished = await prisma.selfServiceOnboarding.findUniqueOrThrow({ where: { id: sessionId }, select: { applicationId: true } });
+      await prisma.ambassadorApplication.update({ where: { id: finished.applicationId }, data: { diyTier: "full" } });
       return json({ session: await onboardingSummary(sessionId, referrerId) });
     }
     const parsed = selfServiceAction.safeParse({ ...body, id: sessionId });

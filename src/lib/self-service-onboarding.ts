@@ -82,6 +82,7 @@ export async function onboardingSummary(id: string, referrerId: string) {
   const emailSetup = await emailSetupSummary(id, referrerId);
   return {
     emailSetup,
+    diyTier: s.application.diyTier,
     id: s.id, name: s.application.fullName, state: s.state, opened: !!s.openedAt,
     country: countryCode(s.account.location),
     proxyAssigned: !!s.proxyId,
@@ -98,8 +99,8 @@ export async function onboardingSummary(id: string, referrerId: string) {
   };
 }
 
-export async function reserveOnboarding(referrer: { id: string; slug: string; name: string; type?: string }, input: z.infer<typeof selfServiceInput>, submittedByUserId?: string) {
-  if (phoneVerificationConfigured()) assertPhoneVerificationToken(input.phoneVerificationToken, input.contactNumber, referrer.id);
+export async function reserveOnboarding(referrer: { id: string; slug: string; name: string; type?: string }, input: z.infer<typeof selfServiceInput>, submittedByUserId?: string, options: { publicOwner?: boolean } = {}) {
+  if (!options.publicOwner && phoneVerificationConfigured()) assertPhoneVerificationToken(input.phoneVerificationToken, input.contactNumber, referrer.id);
   const cfg = currencyConfig(referrer.slug);
   const country = countryCode(input.country);
   if (!country) throw new OnboardingError("Choose a valid country.");
@@ -107,8 +108,12 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
   // Short database-only transaction; external provisioning happens after commit.
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100901)`;
-    const existing = await tx.selfServiceOnboarding.findFirst({ where: { OR: [{ email: input.email }, { linkedinUrl: input.linkedinUrl }] } });
-    if (existing) {
+    const existing = await tx.selfServiceOnboarding.findFirst({ where: { OR: [{ email: input.email }, { linkedinUrl: input.linkedinUrl }] }, include: { application: { select: { submittedByUserId: true } } } });
+    if (existing && options.publicOwner) {
+      if (submittedByUserId && existing.application.submittedByUserId === submittedByUserId && existing.referrerId === referrer.id && existing.email === input.email && existing.linkedinUrl === input.linkedinUrl && ["reserved", "needs_help", "ready", "handed_off"].includes(existing.state)) return existing.id;
+      throw new OnboardingError("An existing setup needs team review.", 409);
+    }
+    if (existing && !options.publicOwner) {
       if (existing.referrerId !== referrer.id || existing.email !== input.email || existing.linkedinUrl !== input.linkedinUrl) {
         throw new OnboardingError("This person already has onboarding in progress. Contact the team to locate it.", 409);
       }
@@ -119,7 +124,7 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       tx.ambassadorApplication.findFirst({ where: { OR: [{ email: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true } }),
       tx.linkedInAccount.findFirst({ where: { OR: [{ personalEmail: { equals: input.email, mode: "insensitive" } }, { loginEmail: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true } }),
     ]);
-    if (application || account) throw new OnboardingError("This person is already in our system. Ask the team to continue their existing onboarding.", 409);
+    if (!options.publicOwner && (application || account)) throw new OnboardingError("This person is already in our system. Ask the team to continue their existing onboarding.", 409);
     // Reuse existing capacity before purchasing a new proxy.
     const proxy = reusableProxy(await availableProxies(tx), country, input.linkedinVerified);
     if (!proxy && !proxyPurchaseLimits().enabled) throw new OnboardingError("No dedicated proxy is available for this country yet. Ask the team to add one, then try again.", 409);
@@ -138,7 +143,7 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       referredBy: referrer.slug, referralSource: "self-service", ...(referrer.type === "ortus" ? { poc: "Ton" } : {}),
       status: "onboarding", ownerStatus: "onboarding", onboardingStartedAt: now,
       payoutCurrency: cfg.currency, offeredAmount: cfg.monthlyAmount,
-      adminNotes: `Self-service onboarding; owner consent and LinkedIn minimum-age confirmation (16, or older where local law requires) recorded ${now.toISOString()}. Login not yet confirmed.${input.hasGovernmentId ? " Owner confirmed they have a physical government ID." : " Owner did NOT confirm a physical government ID."}${input.nameMatchesId ? " Name confirmed to match their ID." : ""}${input.ownerPhotoUrl ? ` Owner photo: ${input.ownerPhotoUrl}` : ""}`,
+      adminNotes: `${options.publicOwner && (application || account || existing) ? "[Existing account submission] Review before activation or payout. " + (application ? `Existing application: ${application.id}. ` : "") + (account ? `Existing inventory account: ${account.id}. ` : "") : ""}Self-service onboarding; owner consent and LinkedIn minimum-age confirmation (16, or older where local law requires) recorded ${now.toISOString()}. Login not yet confirmed.${input.hasGovernmentId ? " Owner confirmed they have a physical government ID." : " Owner did NOT confirm a physical government ID."}${input.nameMatchesId ? " Name confirmed to match their ID." : ""}${input.ownerPhotoUrl ? ` Owner photo: ${input.ownerPhotoUrl}` : ""}`,
     } });
     const acc = await tx.linkedInAccount.create({ data: {
       linkedinName: input.fullName, linkedinUrl: input.linkedinUrl, personalEmail: input.email,
