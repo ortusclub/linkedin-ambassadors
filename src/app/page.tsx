@@ -185,7 +185,7 @@ export default function HomePage() {
               <div style={{ font: `700 clamp(24px,3vw,30px) ${POP}`, color: "#fff", marginBottom: 12, letterSpacing: "-0.015em", lineHeight: 1.12 }}>Own a LinkedIn account?<br />Get paid every month.</div>
               <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#DBF3E4", margin: "0 0 26px", maxWidth: 440 }}>Share your account and receive a fixed monthly payment, whether or not it is currently rented. You stay in control and can pause or leave anytime — your password is never shared.</p>
               <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-                <Link href="/onboarding" className="lvh-cta" style={{ background: "#fff", color: "#0A7A45", fontSize: 15, fontWeight: 700, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>Rent us your account →</Link>
+                <Link href="/become-ambassador" className="lvh-cta" style={{ background: "#fff", color: "#0A7A45", fontSize: 15, fontWeight: 700, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>Rent us your account →</Link>
                 <span style={{ fontSize: 13.5, color: "#CFEFDC" }}>Free to join · No commitment</span>
               </div>
             </div>
