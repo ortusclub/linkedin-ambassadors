@@ -23,6 +23,7 @@ const STAGES = [
   { key: "warm", label: "Warm" },
   { key: "active", label: "Active" },
   { key: "cold", label: "Cold" },
+  { key: "previously_active", label: "Previously active" },
   { key: "lost", label: "Lost" },
 ];
 const CHANNELS = ["note", "email", "linkedin", "telegram", "whatsapp", "viber", "call", "meeting"];
@@ -34,6 +35,7 @@ const stageColor = (key: string, dark: boolean) => {
     warm: { fg: "#946011", bg: "#FBF0DA", dot: "#E0A43B" },
     active: { fg: "#067A45", bg: "#E4F6EC", dot: "#00B85C" },
     cold: { fg: "#5A6473", bg: "#EEF1F4", dot: "#96A0AD" },
+    previously_active: { fg: "#6551A4", bg: "#F0EBFA", dot: "#9275CC" },
     lost: { fg: "#B23150", bg: "#FBE7EB", dot: "#D8607A" },
   };
   const dk: Record<string, { fg: string; bg: string; dot: string }> = {
@@ -41,6 +43,7 @@ const stageColor = (key: string, dark: boolean) => {
     warm: { fg: "#E6BE6C", bg: "#3A2E14", dot: "#E0A43B" },
     active: { fg: "#5FD79A", bg: "#123526", dot: "#00B85C" },
     cold: { fg: "#9DA9B6", bg: "#1E2A38", dot: "#7C8A99" },
+    previously_active: { fg: "#C4ADEE", bg: "#2B2043", dot: "#AA8DE0" },
     lost: { fg: "#EC8AA1", bg: "#3A1B24", dot: "#D8607A" },
   };
   return (dark ? dk : light)[key] || (dark ? dk : light).cold;
@@ -181,7 +184,7 @@ export default function CrmPage() {
   const CHIPS = [["all", "All", "#96A0AD"] as const, ...STAGES.map((s) => [s.key, s.label, stageColor(s.key, false).dot] as const)];
 
   // segmented pipeline health bar (design order)
-  const segOrder = [["active", "#00B85C"], ["warm", "#E0A43B"], ["new", "#0A66C2"], ["cold", dark ? "#3A4A5A" : "#B7C0CB"], ["lost", "#D8607A"]] as const;
+  const segOrder = [["active", "#00B85C"], ["warm", "#E0A43B"], ["new", "#0A66C2"], ["cold", dark ? "#3A4A5A" : "#B7C0CB"], ["previously_active", "#9275CC"], ["lost", "#D8607A"]] as const;
   const segs = segOrder.filter(([k]) => counts[k] > 0).map(([k, c]) => ({ w: counts.all ? (counts[k] / counts.all) * 100 : 0, color: c }));
 
   const V = {
