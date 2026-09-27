@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "wise": "node scripts/wise-readonly.mjs",
+    "test:wise": "node --test tests/wise-readonly.test.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

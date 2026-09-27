@@ -1,3 +1,9 @@
+# LinkedVelocity
+
+For coding assistants and session continuity, start with [AGENTS.md](AGENTS.md).
+
+For read-only Wise Business payment lookups and connection setup, see [docs/wise.md](docs/wise.md).
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
