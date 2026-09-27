@@ -677,9 +677,7 @@ function DashboardContent() {
               <h2 className="text-xl font-bold text-[#007A3D] leading-tight">Accounts I&apos;m Renting Out</h2>
               <p className="text-sm text-gray-500 leading-snug">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
             </div>
-            <Link href="/onboarding" className="ml-auto shrink-0">
-              <Button size="sm" className="bg-[#00B85C] text-white hover:bg-[#00A050] border-0">Add Another Account</Button>
-            </Link>
+            <a href="/onboarding" className="ml-auto shrink-0 inline-flex items-center justify-center rounded-lg bg-[#00B85C] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#00A050]" title="Choose from three account setup options">Add Another Account</a>
           </div>
           {ambassadorAccounts.length > 0 || submittedAccounts.length > 0 ? (
           <Card>
@@ -770,7 +768,7 @@ function DashboardContent() {
             <Card>
               <CardContent className="py-10 text-center text-sm text-gray-500">
                 You haven&apos;t shared any accounts yet.{" "}
-                <Link href="/onboarding" className="font-semibold text-[#007A3D] hover:underline">Share an account to start earning →</Link>
+                <a href="/onboarding" className="font-semibold text-[#007A3D] hover:underline">Share an account to start earning →</a>
               </CardContent>
             </Card>
           )}
