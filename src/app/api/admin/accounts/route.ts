@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
         rentals: {
           // "active" = healthy renter; also surface a renter whose charge just
           // failed (payment_failed) so the inventory can show WHO is overdue
-          // rather than "no renter on file". Newest first. Shadow rentals (Apex)
+          // rather than "no renter on file". Newest first. Shadow rentals
           // are excluded here — they don't occupy the account, and are surfaced
           // separately as `shadowRenter` so an "Available" row still reads Available.
           where: { status: { in: ["active", "payment_failed"] }, isShadow: false },
@@ -70,8 +70,8 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Which accounts a shadow renter (Apex) is currently sitting on. These stay
-    // "Available" but the inventory row shows a "Shadow · Apex" badge so the team
+    // Which accounts a shadow renter is currently sitting on. These stay
+    // "Available" but the inventory row identifies the shadow renter so the team
     // knows someone's using it even though it's still rentable.
     const shadowRentals = accounts.length
       ? await prisma.rental.findMany({
