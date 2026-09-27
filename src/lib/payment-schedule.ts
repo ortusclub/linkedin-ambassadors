@@ -116,7 +116,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
       id: true, fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
       paymentMethod: true, paymentDetails: true, referredBy: true, referralSource: true, payoutCurrency: true, verifiedAt: true,
-      status: true, accountIssue: true, onboardingMethod: true, onboardingVerified: true,
+      createdAt: true, diyTier: true, status: true, accountIssue: true, onboardingMethod: true, onboardingVerified: true,
     },
   });
 
@@ -157,7 +157,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     if (total > 0 && (heldByEmail.get(a.email) || 0) >= total) continue;
     // Currency: a per-owner override wins, else it follows the referrer who signed
     // this ambassador up (PH → ₱, else USD).
-    const cfg = currencyConfigFor(a.payoutCurrency, a.referredBy);
+    const cfg = currencyConfigFor(a.payoutCurrency, a.referredBy, a);
     const monthlyAmount = monthlyByEmail.get(a.email) || cfg.monthlyAmount;
     const base = { name: a.fullName || a.email, email: a.email, method: a.paymentMethod, details: a.paymentDetails, currency: cfg.currency, blocked: a.accountIssue || null };
 

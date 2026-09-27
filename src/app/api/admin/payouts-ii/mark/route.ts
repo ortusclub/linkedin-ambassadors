@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { SETUP_FEE } from "@/lib/payment-schedule";
+import { currencyConfigFor } from "@/lib/referral-currency";
 
 // Record an ambassador payout as made. Payout history lives on the owner's
 // ambassadorApplication (monthlyPayouts JSON + paidAt for the one-time setup
@@ -35,11 +35,11 @@ export async function POST(req: Request) {
 
     const app = await prisma.ambassadorApplication.findFirst({
       where: { email: { equals: ownerEmail, mode: "insensitive" } },
-      select: { id: true, monthlyPayouts: true, paidAt: true },
+      select: { id: true, monthlyPayouts: true, paidAt: true, createdAt: true, diyTier: true, payoutCurrency: true, referredBy: true },
     });
     if (!app) return NextResponse.json({ error: "No ambassador application for owner" }, { status: 400 });
 
-    const amount = kind === "setup" ? SETUP_FEE : Number(account.ambassadorPayment || 0);
+    const amount = kind === "setup" ? currencyConfigFor(app.payoutCurrency, app.referredBy, app).setupAmount : Number(account.ambassadorPayment || 0);
     const nowISO = new Date().toISOString();
     const entries = Array.isArray(app.monthlyPayouts) ? [...(app.monthlyPayouts as unknown[])] : [];
     entries.push({ kind, amount, paidAt: nowISO });

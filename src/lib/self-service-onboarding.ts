@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { currencyConfig } from "@/lib/referral-currency";
+import { currencyConfig, currencyConfigFor } from "@/lib/referral-currency";
 import { referralCommissionAmount } from "@/lib/referrals";
 import { setupDueDate } from "@/lib/payment-schedule";
 import { createProfile, createPublicShareLink, findProfileByName, getPublicShareLink } from "@/services/gologin";
@@ -78,7 +78,7 @@ export async function onboardingSummary(id: string, referrerId: string) {
     where: { id, referrerId }, include: { account: true, application: true, referrer: true },
   });
   if (!s) throw new OnboardingError("Onboarding not found.", 404);
-  const cfg = currencyConfig(s.referrer.slug);
+  const cfg = currencyConfigFor(s.application.payoutCurrency, s.referrer.slug, s.application);
   const emailSetup = await emailSetupSummary(id, referrerId);
   return {
     emailSetup,

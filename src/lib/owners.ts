@@ -1,3 +1,4 @@
+import { currencyConfigFor } from "@/lib/referral-currency";
 import { prisma } from "@/lib/prisma";
 
 // ── Single source of truth for the Account Owners view ──
@@ -45,6 +46,7 @@ export interface Owner {
   contactChannel: string | null;
   accountIssue: string | null;
   setupFeePaidAt: Date | null;
+  setupAmount: number;
   monthlyPayouts: MonthlyPayout[];
   onboardingStartedAt: Date | null;
   onboardedAt: Date | null;
@@ -128,6 +130,7 @@ export async function getOwners(): Promise<Owner[]> {
       offeredAmount: true,
       referredBy: true,
       payoutCurrency: true,
+      diyTier: true,
       createdAt: true,
     },
     orderBy: { createdAt: "desc" },
@@ -231,6 +234,7 @@ export async function getOwners(): Promise<Owner[]> {
       contactChannel: app?.contactChannel || null,
       accountIssue: app?.accountIssue || null,
       setupFeePaidAt: app?.paidAt || null,
+      setupAmount: currencyConfigFor(app?.payoutCurrency, app?.referredBy, app).setupAmount,
       monthlyPayouts: Array.isArray(app?.monthlyPayouts) ? (app!.monthlyPayouts as MonthlyPayout[]) : [],
       onboardingStartedAt: app?.onboardingStartedAt || null,
       onboardedAt: app?.onboardedAt || null,

@@ -122,7 +122,6 @@ export default function BecomeAmbassadorPage() {
   const [currencyKey, setCurrencyKey] = useState("ambassador-public");
   const preference = useDisplayCurrency(currencyKey);
   const currency = preference.currency;
-  const setupPrice = offerPair(16, 1000, currency);
   const monthlyPrice = offerPair(8, 500, currency);
   // If the ?ref= belongs to an Ortus referrer, the form adapts: an Ortus-use note + USD-first pricing.
   const [refType, setRefType] = useState<string | null>(null);
@@ -163,6 +162,9 @@ export default function BecomeAmbassadorPage() {
     referralSource: "",
     referredBy: "",
   });
+
+  const hasReferral = !!form.referredBy.trim() && form.referredBy.trim().toLowerCase() !== "diy";
+  const setupPrice = hasReferral ? offerPair(8, 500, currency) : offerPair(16, 1000, currency);
 
   const [accountName, setAccountName] = useState("");
   const [accountEmail, setAccountEmail] = useState("");

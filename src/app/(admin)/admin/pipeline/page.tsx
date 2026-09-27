@@ -273,7 +273,7 @@ const fmtDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString(
 const ageDays = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
 const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
 const liHref = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
-const cfgOf = (r: Row) => currencyConfigFor(r.payoutCurrency, r.referredBy);
+const cfgOf = (r: Row) => currencyConfigFor(r.payoutCurrency, r.referredBy, r);
 const monthlyAmt = (r: Row) => (r.ambassadorPayment && r.ambassadorPayment > 0 ? r.ambassadorPayment : cfgOf(r).monthlyAmount);
 const totalPaid = (r: Row) => (r.monthlyPayouts || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
@@ -740,12 +740,14 @@ export default function AdminPipelinePage() {
     const issues = (rows || []).filter(isBlocked).length; // includes inventory-only restricted accounts
     const monthly = earningOk.reduce((s, r) => s + monthlyAmt(r), 0);
     const setupsDue = inPayments.filter((r) => !isBlocked(r) && setupDue(r)).length;   // setup fee owed now (24h after login, unpaid)
+    const setupTotals = inPayments.filter(r => !isBlocked(r) && setupDue(r)).reduce((sum, r) => { const cfg = cfgOf(r); sum[cfg.currency] += cfg.setupAmount; return sum; }, { PHP: 0, USD: 0 });
+    const setupTotalLabel = (["PHP", "USD"] as const).filter(c => setupTotals[c]).map(c => formatMoney(setupTotals[c], c)).join(" + ") || "₱0";
     const liveBlocked = inPayments.filter(isBlocked).length;
     return {
       total: all.length, live: earningOk.length, monthly, noGologin, issues,
       lvl1: lvl1.filter((r) => !isBlocked(r)).length, lvl1Blocked: lvl1.filter(isBlocked).length,
       lvl2: lvl2.filter((r) => !isBlocked(r)).length, lvl2Blocked: lvl2.filter(isBlocked).length,
-      onboardedTotal: earning.length, setupsDue, liveBlocked,
+      onboardedTotal: earning.length, setupsDue, setupTotalLabel, liveBlocked,
     };
   }, [rows]);
 
@@ -804,7 +806,7 @@ export default function AdminPipelinePage() {
       <div style={{ display: "flex", alignItems: "stretch", flexWrap: "wrap", background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
         {(mode === "live"
           ? [
-              { label: "Setup fees outstanding", value: formatMoney(metrics.setupsDue * 1000, "PHP"), hint: `${metrics.setupsDue} unpaid`, color: metrics.setupsDue ? "var(--warn-badge-text,#b7791f)" : "var(--fg,#111)" },
+              { label: "Setup fees outstanding", value: metrics.setupTotalLabel, hint: `${metrics.setupsDue} unpaid`, color: metrics.setupsDue ? "var(--warn-badge-text,#b7791f)" : "var(--fg,#111)" },
               { label: "Monthly commitment", value: `${formatMoney(metrics.monthly, "PHP")}/mo`, hint: "earning accounts only", color: "var(--fg,#111)" },
               { label: "Blocked — can't pay", value: String(metrics.liveBlocked), hint: metrics.liveBlocked === 1 ? "1 account on hold" : `${metrics.liveBlocked} accounts on hold`, color: metrics.liveBlocked ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" },
             ]

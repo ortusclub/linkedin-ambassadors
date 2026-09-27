@@ -8,7 +8,7 @@
 // referrer (and everyone they refer) to USD.
 //
 // Confirmed USD offer (Sam, 2026-09-02): referrer $8 / accepted signup (uncapped);
-// the ambassador they refer earns $16 set-up + $8/month.
+// New referred owners earn $8 set-up + $8/month (updated September 27, 2026).
 
 export type Currency = "PHP" | "USD";
 
@@ -77,22 +77,38 @@ const USD_TIERS: ReferralTiers = { referral: 8, phone: { base: 10, verified: 13 
 export const CURRENCY_CONFIG: Record<Currency, CurrencyConfig> = {
   // PH options ordered by how often people actually get paid that way (GCash dominant,
   // then Maribank / GoTyme / Maya, then the banks); Bank transfer stays the catch-all.
-  PHP: make("PHP", "₱", 500, PHP_TIERS, 1000, 500, ["GCash", "Maya", "Maribank", "GoTyme", "UnionBank", "BPI", "BDO", "PayPal", "Wise", "Bank transfer"], "GCash"),
-  USD: make("USD", "$", 8, USD_TIERS, 16, 8, ["UPI", "PayPal", "Wise", "Bank transfer", "GCash", "Maya"], "Wise"),
+  PHP: make("PHP", "₱", 500, PHP_TIERS, 500, 500, ["GCash", "Maya", "Maribank", "GoTyme", "UnionBank", "BPI", "BDO", "PayPal", "Wise", "Bank transfer"], "GCash"),
+  USD: make("USD", "$", 8, USD_TIERS, 8, 8, ["UPI", "PayPal", "Wise", "Bank transfer", "GCash", "Maya"], "Wise"),
 };
 
 export function currencyConfig(slug: string | null | undefined): CurrencyConfig {
-  return CURRENCY_CONFIG[referralCurrency(slug)];
+  const cfg = CURRENCY_CONFIG[referralCurrency(slug)];
+  return slug === "diy" ? withSetup(cfg, cfg.currency === "USD" ? 16 : 1000) : cfg;
 }
 
 // Resolve an owner's currency. An explicit per-owner override ("PHP" | "USD") wins;
 // otherwise it falls back to the referrer's currency. This lets an ambassador be
 // pinned to a currency regardless of who referred them.
+export const REFERRED_SETUP_POLICY_START = new Date("2026-09-27T16:12:00Z");
+export interface OwnerSignup { createdAt?: Date | string | null; diyTier?: string | null; }
+function withSetup(cfg: CurrencyConfig, setupAmount: number): CurrencyConfig {
+  return { ...cfg, setupAmount, offer: { ...cfg.offer, setup: cfg.symbol + setupAmount.toLocaleString("en-US") } };
+}
+
+// Historical applications keep their original offer. "diy" is the internal direct
+// self-onboarding referrer, not a commissioned third-party referral.
 export function currencyConfigFor(
   explicit: string | null | undefined,
   slug: string | null | undefined,
+  owner?: OwnerSignup,
 ): CurrencyConfig {
   const ex = (explicit || "").trim().toUpperCase();
-  if (ex === "PHP" || ex === "USD") return CURRENCY_CONFIG[ex as Currency];
-  return currencyConfig(slug);
+  const cfg = ex === "PHP" || ex === "USD" ? CURRENCY_CONFIG[ex as Currency] : CURRENCY_CONFIG[referralCurrency(slug)];
+  const referred = !!slug?.trim() && slug.trim().toLowerCase() !== "diy";
+  const newOffer = !!owner?.createdAt && new Date(owner.createdAt) >= REFERRED_SETUP_POLICY_START;
+  const amount = referred && newOffer ? (cfg.currency === "USD" ? 8 : 500)
+    : owner?.diyTier === "full" ? (cfg.currency === "USD" ? 32 : 2000)
+    : owner?.diyTier === "partial" ? (cfg.currency === "USD" ? 24 : 1500)
+    : (cfg.currency === "USD" ? 16 : 1000);
+  return withSetup(cfg, amount);
 }

@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { currencyConfigFor, formatMoney, type Currency } from "@/lib/referral-currency";
+
+function totalLabel(rows: { owedNum: number; currency?: Currency }[]) {
+  const totals = rows.reduce((out, r) => { const currency = r.currency || "PHP"; out[currency] = (out[currency] || 0) + r.owedNum; return out; }, {} as Record<string, number>);
+  return Object.entries(totals).map(([currency, amount]) => formatMoney(amount, currency as Currency)).join(" + ") || "₱0";
+}
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
-const SETUP_FEE = 1000;
 
 const peso = (n: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(n);
 const fmtDate = (d: string | Date | null | undefined) =>
@@ -59,14 +64,14 @@ const firstMonthlyDue = (setupPaidAt: string | null): Date | null => {
 interface OwnerAccount { status: string; ambassadorPayment: string | number; restrictedAt?: string | null; }
 interface MonthlyPayout { paidAt: string; amount: number; kind?: "setup" | "monthly" | null; }
 interface Owner {
-  email: string; fullName: string; accountCount: number; monthlyPayout: number;
+  email: string; fullName: string; payoutCurrency?: string | null; referredBy?: string | null; accountCount: number; monthlyPayout: number;
   ownerStatus: string | null; accountIssue: string | null;
   paymentMethod: string | null; paymentDetails: string | null;
-  setupFeePaidAt: string | null; monthlyPayouts: MonthlyPayout[];
+  setupFeePaidAt: string | null; setupAmount: number; monthlyPayouts: MonthlyPayout[];
   onboardedAt: string | null; accountFreshness: string | null; accounts: OwnerAccount[];
 }
-interface MarketerDue { name: string; count: number; amount: number; }
-interface MarketerPayment { name: string; amount: number; paidAt: string }
+interface MarketerDue { currency?: Currency; name: string; count: number; amount: number; }
+interface MarketerPayment { currency?: Currency; name: string; amount: number; paidAt: string }
 interface PaymentsDue { marketers: MarketerDue[]; marketerPayments: MarketerPayment[] }
 
 const hasLive = (o: Owner) => o.accounts.some((a) => a.status === "available" || a.status === "rented");
@@ -93,7 +98,7 @@ type FeeKey = "setup" | "monthly" | "referral";
 type StateKey = "paid" | "unpaid" | "processing" | "hold";
 interface Row {
   key: string; name: string; email: string; accounts: number | string;
-  owedNum: number; fee: FeeKey; method: string; methodDetail: string;
+  currency?: Currency; owedNum: number; fee: FeeKey; method: string; methodDetail: string;
   lastPaid: string; lastPaidAgo: string; state: StateKey; dueISO: string | null;
 }
 
@@ -158,6 +163,7 @@ export default function AdminPayoutsPage() {
       const monthlyOwed = payableMonthly(o);
       const blocked = !!o.accountIssue || allHeld;
       const base = {
+        currency: currencyConfigFor(o.payoutCurrency, o.referredBy).currency,
         name: o.fullName, email: o.email, accounts: o.accountCount,
         method: o.paymentMethod || "—", methodDetail: o.paymentDetails || "",
         lastPaid: lastPay ? fmtDate(lastPay.paidAt) : "—", lastPaidAgo: agoLabel(lastPay?.paidAt || null),
@@ -179,7 +185,7 @@ export default function AdminPayoutsPage() {
       const setupPaidDates = o.monthlyPayouts.filter((p) => p.kind === "setup").map((p) => p.paidAt);
       if (setupPaidDates.length === 0 && o.setupFeePaidAt) setupPaidDates.push(o.setupFeePaidAt);
       setupPaidDates.forEach((pd, i) => {
-        if (sameMonth(pd)) out.push({ ...base, key: `${o.email}:sp${i}`, fee: "setup", owedNum: SETUP_FEE, dueISO: pd, state: "paid", lastPaid: fmtDate(pd), lastPaidAgo: agoLabel(pd) });
+        if (sameMonth(pd)) out.push({ ...base, key: `${o.email}:sp${i}`, fee: "setup", owedNum: o.monthlyPayouts.filter(p => p.kind === "setup")[i]?.amount ?? o.setupAmount, dueISO: pd, state: "paid", lastPaid: fmtDate(pd), lastPaidAgo: agoLabel(pd) });
       });
       if (info.setupsRemaining > 0) {
         const sd = setupDueDate(o.onboardedAt, o.accountFreshness);
@@ -187,18 +193,18 @@ export default function AdminPayoutsPage() {
           const today = new Date(); today.setHours(0, 0, 0, 0);
           const overdue = sd < today;
           const showHere = overdue ? isCurrentCycle : (sd.getFullYear() === CY && sd.getMonth() === CM);
-          if (showHere) out.push({ ...base, key: `${o.email}:s`, fee: "setup", owedNum: info.setupsRemaining * SETUP_FEE, dueISO: sd.toISOString(), state: blocked || missing ? "hold" : "unpaid" });
+          if (showHere) out.push({ ...base, key: `${o.email}:s`, fee: "setup", owedNum: info.setupsRemaining * o.setupAmount, dueISO: sd.toISOString(), state: blocked || missing ? "hold" : "unpaid" });
         }
       }
     }
     // Referral commissions PAID in this cycle → ✓ Paid rows (see who's been paid, per cycle).
     marketerPayments.forEach((p, i) => {
-      if (sameMonth(p.paidAt)) out.push({ key: `refp:${p.name}:${i}`, name: p.name, email: "referral · paid", accounts: "—", fee: "referral", owedNum: p.amount, method: "Referral", methodDetail: "", lastPaid: fmtDate(p.paidAt), lastPaidAgo: agoLabel(p.paidAt), state: "paid", dueISO: p.paidAt });
+      if (sameMonth(p.paidAt)) out.push({ key: `refp:${p.name}:${i}`, name: p.name, email: "referral · paid", accounts: "—", fee: "referral", currency: p.currency, owedNum: p.amount, method: "Referral", methodDetail: "", lastPaid: fmtDate(p.paidAt), lastPaidAgo: agoLabel(p.paidAt), state: "paid", dueISO: p.paidAt });
     });
     // Referral commissions still owed (net of what's been paid) — surfaced in the current cycle.
     if (isCurrentCycle) {
       for (const m of marketers) {
-        out.push({ key: `ref:${m.name}`, name: m.name, email: `${m.count} signup${m.count !== 1 ? "s" : ""} · referral`, accounts: "—", fee: "referral", owedNum: m.amount, method: "Referral", methodDetail: "", lastPaid: "—", lastPaidAgo: "ready", state: "unpaid", dueISO: null });
+        out.push({ key: `ref:${m.name}`, name: m.name, email: `${m.count} signup${m.count !== 1 ? "s" : ""} · referral`, accounts: "—", fee: "referral", currency: m.currency, owedNum: m.amount, method: "Referral", methodDetail: "", lastPaid: "—", lastPaidAgo: "ready", state: "unpaid", dueISO: null });
       }
     }
     return out;
@@ -234,9 +240,9 @@ export default function AdminPayoutsPage() {
   }, [visible]);
 
   const stats = [
-    { label: "Owed this cycle", value: peso(totalOwed), hint: `${rows.length} payout${rows.length !== 1 ? "s" : ""} · ${acctSum} accounts`, accent: "var(--link)" },
-    { label: "Paid so far", value: peso(paidSum), hint: `${cnt((r) => r.state === "paid")} of ${rows.length} settled`, accent: "var(--st-active-fg)" },
-    { label: "Still to pay", value: peso(totalOwed - paidSum), hint: `${cnt((r) => r.state !== "paid")} pending`, accent: "var(--warn-badge-text)" },
+    { label: "Owed this cycle", value: totalLabel(rows), hint: `${rows.length} payout${rows.length !== 1 ? "s" : ""} · ${acctSum} accounts`, accent: "var(--link)" },
+    { label: "Paid so far", value: totalLabel(rows.filter(r => r.state === "paid")), hint: `${cnt((r) => r.state === "paid")} of ${rows.length} settled`, accent: "var(--st-active-fg)" },
+    { label: "Still to pay", value: totalLabel(rows.filter(r => r.state !== "paid")), hint: `${cnt((r) => r.state !== "paid")} pending`, accent: "var(--warn-badge-text)" },
     { label: "Needs attention", value: String(holdCount), hint: holdCount ? "missing details / can't log in" : "all details on file", accent: "var(--st-cancel-fg)" },
   ];
   const stateChips: { key: "all" | StateKey; label: string; dot: string | null }[] = [
@@ -264,7 +270,7 @@ export default function AdminPayoutsPage() {
   const pill = (bg: string, fg: string, extra?: React.CSSProperties): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", justifyContent: "center", font: `700 10.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 7, whiteSpace: "nowrap", background: bg, color: fg, ...extra });
   const navBtn: React.CSSProperties = { font: `600 15px ${F_SANS}`, color: "var(--btn-secondary-fg)", background: "var(--btn-secondary-bg)", border: "1px solid var(--btn-secondary-border)", width: 34, height: 34, borderRadius: 9, cursor: "pointer" };
 
-  const footerNote = `Setup ${peso(rows.filter((r) => r.fee === "setup").reduce((s, r) => s + r.owedNum, 0))} · Monthly ${peso(rows.filter((r) => r.fee === "monthly").reduce((s, r) => s + r.owedNum, 0))} · Referral ${peso(rows.filter((r) => r.fee === "referral").reduce((s, r) => s + r.owedNum, 0))}`;
+  const footerNote = `Setup ${totalLabel(rows.filter(r => r.fee === "setup"))} · Monthly ${totalLabel(rows.filter(r => r.fee === "monthly"))} · Referral ${totalLabel(rows.filter(r => r.fee === "referral"))}`;
 
   return (
     <div>
@@ -346,7 +352,7 @@ export default function AdminPayoutsPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 18px", background: "var(--band)", borderBottom: "1px solid var(--divider)", flexWrap: "wrap" }}>
                   <span style={pill(w.soon ? "var(--warn-badge-bg)" : "var(--neutral-chip-bg)", w.soon ? "var(--warn-badge-text)" : "var(--neutral-chip-text)", { font: `700 10px ${F_SANS}`, borderRadius: 999, padding: "4px 10px" })}>{w.label}</span>
                   <span style={{ font: `700 11px ${F_SANS}`, color: "var(--text2)" }}>{ready ? "Ready to pay" : allPaid ? `Paid ${fmtDate(list[0].dueISO!)}` : `Due ${fmtDate(list[0].dueISO!)}`}</span>
-                  <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted)" }}>{list.length} ambassador{list.length !== 1 ? "s" : ""} · {peso(gSum)}</span>
+                  <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted)" }}>{list.length} ambassador{list.length !== 1 ? "s" : ""} · {totalLabel(list)}</span>
                 </div>
                 {list.map((r) => (
                   <div key={r.key} style={{ display: "grid", gridTemplateColumns: GRID, gap: 13, alignItems: "center", padding: "14px 18px", borderBottom: "1px solid var(--divider)" }}>
@@ -355,7 +361,7 @@ export default function AdminPayoutsPage() {
                       <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.email}</div>
                     </div>
                     <span style={{ font: `600 13px ${F_GRO}`, color: "var(--text2)", fontVariantNumeric: "tabular-nums" }}>{r.accounts}</span>
-                    <span style={{ font: `700 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{peso(r.owedNum)}</span>
+                    <span style={{ font: `700 15px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{formatMoney(r.owedNum, r.currency || "PHP")}</span>
                     <span style={pill(FEE_META[r.fee].bg, FEE_META[r.fee].fg)}>{FEE_META[r.fee].label}</span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ font: `600 12.5px ${F_SANS}`, color: "var(--text2)" }}>{r.method}</div>
@@ -389,7 +395,7 @@ export default function AdminPayoutsPage() {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "14px 18px", background: "var(--band)", borderTop: "1px solid var(--divider)", flexWrap: "wrap" }}>
           <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted)" }}>{footerNote}</span>
-          <span style={{ font: `600 14px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>Cycle total {peso(totalOwed)}</span>
+          <span style={{ font: `600 14px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>Cycle total {totalLabel(rows)}</span>
         </div>
       </div>
     </div>

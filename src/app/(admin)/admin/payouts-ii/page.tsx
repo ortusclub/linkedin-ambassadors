@@ -28,7 +28,8 @@ const ageLabel = (m: number | null | undefined) => {
   return y > 0 ? `${y}y${mo ? ` ${mo}m` : ""}` : `${mo}m`;
 };
 
-const SETUP_FEE = 1000;
+const ownerMoney = (n: number, currency: "PHP" | "USD") => currency === "USD" ? `$${n.toLocaleString()}` : peso(n);
+
 type Bucket = "setup" | "overdue" | "due" | "paid" | "na";
 interface Row {
   id: string;
@@ -59,6 +60,7 @@ interface Row {
   lastPaidAmount: number | null;
   nextDueISO: string | null;
   setupAmount: number;
+  payoutCurrency: "PHP" | "USD";
   totalPaid: number;
 }
 
@@ -135,7 +137,7 @@ const D = ({ label, children }: { label: string; children: React.ReactNode }) =>
 function MarkPaidButton({ r, onMarkPaid }: { r: Row; onMarkPaid: (r: Row) => Promise<void> }) {
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const label = r.bucket === "setup" ? `Mark ₱${SETUP_FEE} setup paid` : "Mark paid";
+  const label = r.bucket === "setup" ? `Mark ${r.payoutCurrency === "USD" ? "$" : "₱"}${r.setupAmount} setup paid` : "Mark paid";
   return (
     <span onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex" }}>
       <button
@@ -200,13 +202,13 @@ function AccountRow({ r, onMarkPaid }: { r: Row; onMarkPaid: (r: Row) => Promise
           <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginTop: 6, font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>
             <span>Next: <b style={{ color: r.overdue ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#444)" }}>{r.nextDueISO ? fmtDate(r.nextDueISO) : "—"}{r.overdue && r.daysLate ? ` (${r.daysLate}d late)` : ""}</b></span>
             <span>Last: <b style={{ color: "var(--fg,#444)" }}>{r.lastPaidAt ? fmtDate(r.lastPaidAt) : "none"}</b></span>
-            <span>Total: <b style={{ color: "var(--fg,#444)" }}>{peso(r.totalPaid)}</b></span>
+            <span>Total: <b style={{ color: "var(--fg,#444)" }}>{ownerMoney(r.totalPaid, r.payoutCurrency)}</b></span>
             <span>Method: <b style={{ color: r.paymentMethod ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{r.paymentMethod || "not set"}</b></span>
           </div>
         </div>
         {r.bucket === "setup"
-          ? <span style={{ font: `600 13px ${F_SANS}`, color: "var(--fg,#333)" }}>{peso(r.setupAmount)} one-time</span>
-          : r.monthlyAmount > 0 && <span style={{ font: `600 13px ${F_SANS}`, color: "var(--fg,#333)" }}>{peso(r.monthlyAmount)}/mo</span>}
+          ? <span style={{ font: `600 13px ${F_SANS}`, color: "var(--fg,#333)" }}>{`${r.payoutCurrency === "USD" ? "$" : "₱"}${r.setupAmount}`} one-time</span>
+          : r.monthlyAmount > 0 && <span style={{ font: `600 13px ${F_SANS}`, color: "var(--fg,#333)" }}>{ownerMoney(r.monthlyAmount, r.payoutCurrency)}/mo</span>}
         {missingCreds && <span title="No login email/password stored — cannot access this account" style={{ font: `800 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, background: "var(--st-cancel-fg,#c0392b)", color: "#fff", whiteSpace: "nowrap" }}>⚠ QUERY · no login</span>}
         {!missingCreds && missingGologin && <span title="No GoLogin profile or share link — cannot run this account" style={{ font: `800 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, background: "var(--warn-badge-text,#b7791f)", color: "#fff", whiteSpace: "nowrap" }}>⚠ QUERY · no GoLogin</span>}
         {canMark && <MarkPaidButton r={r} onMarkPaid={onMarkPaid} />}
@@ -217,10 +219,10 @@ function AccountRow({ r, onMarkPaid }: { r: Row; onMarkPaid: (r: Row) => Promise
           {/* Payout (money OUT to ambassador) */}
           <D label="Owner (ambassador)">{r.ownerName || "—"}</D>
           <D label="Payment method">{r.paymentMethod || <span style={{ color: "var(--st-cancel-fg,#c0392b)" }}>not set</span>}{r.paymentDetail ? ` · ${r.paymentDetail}` : ""}</D>
-          <D label="Monthly payout">{r.monthlyAmount > 0 ? peso(r.monthlyAmount) : "—"}</D>
-          <D label="Last payment">{r.lastPaidAt ? `${r.lastPaidAmount != null ? peso(r.lastPaidAmount) + " · " : ""}${fmtDate(r.lastPaidAt)}` : "none yet"}</D>
+          <D label="Monthly payout">{r.monthlyAmount > 0 ? ownerMoney(r.monthlyAmount, r.payoutCurrency) : "—"}</D>
+          <D label="Last payment">{r.lastPaidAt ? `${r.lastPaidAmount != null ? ownerMoney(r.lastPaidAmount, r.payoutCurrency) + " · " : ""}${fmtDate(r.lastPaidAt)}` : "none yet"}</D>
           <D label="Next payment due">{r.nextDueISO ? <span style={{ color: r.overdue ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" }}>{dueLabel}</span> : "—"}</D>
-          <D label="Total paid (to owner)">{peso(r.totalPaid)}</D>
+          <D label="Total paid (to owner)">{ownerMoney(r.totalPaid, r.payoutCurrency)}</D>
           {/* Ambassador contact details (personal — not the account login) */}
           <D label="Contact email">{r.ownerEmail || <span style={{ color: "var(--st-cancel-fg,#c0392b)" }}>not set</span>}</D>
           <D label="Contact number">{r.ownerPhone ? `${r.ownerPhone}${r.contactChannel ? ` · ${r.contactChannel}` : ""}` : <span style={{ color: "var(--st-cancel-fg,#c0392b)" }}>not set</span>}</D>
@@ -276,16 +278,16 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
   // Setup fee is one-time per ambassador → count it once per owner group, not per account.
   const groups = groupByOwner(rows, !!byDue);
   const reasonGroups = byReason ? groupByReason(rows) : [];
-  const total = setup
-    ? groups.length * SETUP_FEE
-    : rows.reduce((s, r) => s + (r.bucket === "na" ? 0 : r.monthlyAmount), 0);
+  const totalRows = setup ? groups.map(g => g.rows[0]) : rows;
+  const totals = totalRows.reduce((out, r) => { const currency = r.payoutCurrency || "PHP"; out[currency] = (out[currency] || 0) + (setup ? r.setupAmount : r.bucket === "na" ? 0 : r.monthlyAmount); return out; }, {} as Record<string, number>);
+  const totalLabel = Object.entries(totals).filter(([,n]) => n > 0).map(([currency,n]) => `${currency === "USD" ? "$" : "₱"}${n.toLocaleString()}`).join(" + ");
   return (
     <section style={{ marginTop: 30 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
         <span style={{ width: 10, height: 10, borderRadius: 999, background: tone }} />
         <h2 style={{ font: `700 17px ${F_GRO}`, margin: 0, color: "var(--fg,#111)" }}>{title}</h2>
         <span style={{ font: `700 13px ${F_SANS}`, color: "var(--muted,#888)" }}>{rows.length}</span>
-        {total > 0 && <span style={{ font: `700 13px ${F_SANS}`, color: tone }}>{peso(total)}{setup ? "" : "/mo"}</span>}
+        {totalLabel && <span style={{ font: `700 13px ${F_SANS}`, color: tone }}>{totalLabel}{setup ? "" : "/mo"}</span>}
         <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#9aa0a6)" }}>{note}</span>
       </div>
       {rows.length === 0 ? (
@@ -315,8 +317,8 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
                     <span style={{ font: `700 14px ${F_GRO}`, color: "var(--fg,#111)" }}>{g.ownerName || "No ambassador"}</span>
                     <span style={{ font: `700 12px ${F_SANS}`, padding: "2px 9px", borderRadius: 999, background: "var(--blue-chip-bg,#eaf1ff)", color: "var(--blue-chip-text,#2b5fd0)" }}>{g.rows.length} accounts</span>
                     {setup
-                      ? <span style={{ font: `700 13px ${F_SANS}`, color: tone }}>pay once · {peso(SETUP_FEE)}</span>
-                      : g.combined > 0 && <span style={{ font: `700 13px ${F_SANS}`, color: tone }}>pay all · {peso(g.combined)}/mo</span>}
+                      ? <span style={{ font: `700 13px ${F_SANS}`, color: tone }}>pay once · {`${g.rows[0].payoutCurrency === "USD" ? "$" : "₱"}${g.rows[0].setupAmount}`}</span>
+                      : g.combined > 0 && <span style={{ font: `700 13px ${F_SANS}`, color: tone }}>pay all · {ownerMoney(g.combined, g.rows[0].payoutCurrency)}/mo</span>}
                     {g.method && <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>via {g.method}</span>}
                   </div>
                 )}
@@ -490,7 +492,7 @@ export default function PayoutsIIPage() {
           {setupNoGologin.length > 0 && (
             <Section title="⚠ Initial payment due — NO GOLOGIN (check)" tone="var(--warn-badge-text,#b7791f)" note="has login but no GoLogin profile/share — account can't be run, verify before paying" rows={setupNoGologin} byDue setup onMarkPaid={onMarkPaid} />
           )}
-          <Section title="Initial payment due" tone="var(--blue-chip-text,#2b5fd0)" note="one-time ₱1,000 setup fee · soonest due first" rows={setup} byDue setup onMarkPaid={onMarkPaid} />
+          <Section title="Initial payment due" tone="var(--blue-chip-text,#2b5fd0)" note="signup bonus based on referral source and onboarding option · soonest due first" rows={setup} byDue setup onMarkPaid={onMarkPaid} />
           <Section title="Payment overdue" tone="var(--st-cancel-fg,#c0392b)" note="monthly due / on hold · most overdue first" rows={overdue} byDue onMarkPaid={onMarkPaid} />
           <Section title="Payment due" tone="var(--warn-badge-text,#b7791f)" note="monthly coming up · soonest due first" rows={due} byDue onMarkPaid={onMarkPaid} />
           <Section title="Paid this cycle" tone="var(--st-active-fg,#1a8a4a)" note="already settled this month" rows={paid} onMarkPaid={onMarkPaid} />

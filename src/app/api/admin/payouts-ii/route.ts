@@ -1,9 +1,10 @@
+import { currencyConfigFor } from "@/lib/referral-currency";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { decryptSecret } from "@/lib/crypto-creds";
 import { isCompanyEmail } from "@/lib/company";
-import { monthlyDueDate, setupPaidDate, setupDueDate, SETUP_FEE } from "@/lib/payment-schedule";
+import { monthlyDueDate, setupPaidDate, setupDueDate } from "@/lib/payment-schedule";
 
 // Payouts II data — money we pay OUT to the ambassador who supplies each account,
 // per account, regardless of whether the account is currently rented. Payout
@@ -39,7 +40,7 @@ export async function GET() {
     const apps = await prisma.ambassadorApplication.findMany({
       select: {
         email: true, fullName: true, linkedinUrl: true, onboardedAt: true,
-        contactNumber: true, contactChannel: true,
+        contactNumber: true, contactChannel: true, createdAt: true, diyTier: true, payoutCurrency: true, referredBy: true,
         accountFreshness: true, paidAt: true,
         monthlyPayouts: true, paymentMethod: true, paypalEmail: true, wiseEmail: true,
         paymentDetails: true, accountIssue: true, status: true,
@@ -109,7 +110,7 @@ export async function GET() {
         bucket = "setup";
         dueISO = setupDue ? setupDue.toISOString() : null;
         overdue = !!setupDue && setupDue.getTime() < startOfToday.getTime();
-        reason = overdue ? "Initial ₱1,000 overdue" : "Initial ₱1,000 due";
+        reason = overdue ? "Initial payment overdue" : "Initial payment due";
       }
       else if (monthlyAmount <= 0) { bucket = "na"; reason = "No monthly rate set"; }
       // Year-month comparison (not raw timestamps) — firstDue is anchored at noon UTC
@@ -154,7 +155,8 @@ export async function GET() {
         lastPaidAt: last?.paidAt || null,
         lastPaidAmount: last?.amount != null ? Number(last.amount) : null,
         nextDueISO: dueISO,
-        setupAmount: SETUP_FEE,
+        setupAmount: currencyConfigFor(app?.payoutCurrency, app?.referredBy, app).setupAmount,
+        payoutCurrency: currencyConfigFor(app?.payoutCurrency, app?.referredBy, app).currency,
         totalPaid,
       };
     });

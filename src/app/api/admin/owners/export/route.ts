@@ -143,7 +143,7 @@ export async function GET(req: NextRequest) {
     const hasSetupRecord = o.monthlyPayouts.some((p) => p.kind === "setup");
     const totalPaid =
       o.monthlyPayouts.reduce((s, p) => s + (Number(p.amount) || 0), 0) +
-      (o.setupFeePaidAt && !hasSetupRecord ? ccfg.setupAmount : 0);
+      (o.setupFeePaidAt && !hasSetupRecord ? o.setupAmount : 0);
     const missing = missingFields(o);
     return [
       // Owner
