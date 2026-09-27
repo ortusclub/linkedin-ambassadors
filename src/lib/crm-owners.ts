@@ -11,11 +11,11 @@ export function crmOwnerOptions(team: CrmOwner[], leads: { ownerEmail: string | 
   const options = new Map<string, { value: string; label: string }>();
   for (const member of team) {
     const value = ownerKey(member.email);
-    if (value) options.set(value, { value, label: firstName(member.email, member.fullName) });
+    if (value) options.set(value, { value, label: `${firstName(member.email, member.fullName)} (${member.email.trim()})` });
   }
   for (const lead of leads) {
     const value = ownerKey(lead.ownerEmail);
-    if (value && !options.has(value)) options.set(value, { value, label: firstName(lead.ownerEmail!.trim()) });
+    if (value && !options.has(value)) options.set(value, { value, label: value.includes("@") ? `${firstName(lead.ownerEmail!.trim())} (${lead.ownerEmail!.trim()})` : firstName(lead.ownerEmail!.trim()) });
   }
   return [...options.values()].sort((a, b) => a.label.localeCompare(b.label));
 }

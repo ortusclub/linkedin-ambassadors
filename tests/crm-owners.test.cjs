@@ -24,9 +24,9 @@ test('owner choices include unassigned team members and preserve legacy owners w
   assert.deepEqual(crmOwnerOptions([
     { email: 'sam@example.com', fullName: 'Sam' }, { email: 'anna@example.com', fullName: 'Anna' },
   ], [{ ownerEmail: ' SAM@example.com ' }, { ownerEmail: 'Former teammate' }, { ownerEmail: null }]), [
-    { value: 'anna@example.com', label: 'Anna' },
+    { value: 'anna@example.com', label: 'Anna (anna@example.com)' },
     { value: 'former teammate', label: 'Former' },
-    { value: 'sam@example.com', label: 'Sam' },
+    { value: 'sam@example.com', label: 'Sam (sam@example.com)' },
   ]);
 });
 test('owner filtering handles all, unassigned and exact case-insensitive matches', () => {
@@ -65,6 +65,6 @@ test('assigning and clearing a PoC writes the existing owner field', async () =>
   assert.deepEqual(writes.map(w => w.data.ownerEmail), ['sam@example.com', null]);
 });
 
-test('assignment labels show first names and the Ardi alias while preserving identity', () => {
-  assert.deepEqual(crmOwnerOptions([{email:'ardi@linkedvelocity.com',fullName:'Milee Melani'},{email:'sam@ortusclub.com',fullName:'Sam Adcock'}],[]),[{value:'ardi@linkedvelocity.com',label:'Ardi'},{value:'sam@ortusclub.com',label:'Sam'}]);
+test('assignment labels show preferred names followed by email', () => {
+  assert.deepEqual(crmOwnerOptions([{email:'ardi@linkedvelocity.com',fullName:'Milee Melani'},{email:'sam@ortusclub.com',fullName:'Sam Adcock'}],[]),[{value:'ardi@linkedvelocity.com',label:'Ardi (ardi@linkedvelocity.com)'},{value:'sam@ortusclub.com',label:'Sam (sam@ortusclub.com)'}]);
 });
