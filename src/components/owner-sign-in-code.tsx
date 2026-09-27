@@ -28,7 +28,7 @@ export default function OwnerSignInCode() {
     finally { setBusy(false); }
   }
   return (
-    <section id="sign-in-code" className={`${styles.card} ${styles.form}`}><h2>Need a LinkedIn sign-in code?</h2><p>Enter the LinkedVelocity login email for your LinkedIn account, then verify your saved personal email. Codes are available only for your matched account and for 10 minutes after verification. A referral partner should ask the owner to complete this step.</p>
+    <section id="sign-in-code" className={`${styles.card} ${styles.form}`}><h2>Need a LinkedIn sign-in code?</h2><p>Enter the LinkedVelocity login email for your LinkedIn account, then verify your saved personal email. Codes are available only for your matched account, while it is not rented, available or on trial, and for 10 minutes after verification. A referral partner should ask the owner to complete this step.</p>
       <label>LinkedIn login email<input type="email" autoComplete="off" value={loginEmail} disabled={!!token} onChange={e=>setLoginEmail(e.target.value)} /></label>
       <label>Personal email<input type="email" autoComplete="email" value={email} disabled={!!token} onChange={e=>setEmail(e.target.value)} /></label>
       <label className={styles.check}><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} disabled={!!token} />I own this LinkedIn account and want a sign-in code.</label>

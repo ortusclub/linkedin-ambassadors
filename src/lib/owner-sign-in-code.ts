@@ -6,8 +6,11 @@ import { EmailSetupError } from "@/lib/onboarding-email-policy";
 
 export async function ownerSignInCode(token: string, loginEmail: string) {
   const id = await verifiedRecoveryOwner(token);
-  const account = await prisma.linkedInAccount.findUnique({ where: { id }, select: { twoFactor: true, loginEmail: true, removedAt: true } });
+  const account = await prisma.linkedInAccount.findUnique({ where: { id }, select: { twoFactor: true, loginEmail: true, removedAt: true, status: true, rentals: { where: { status: { in: ["active", "pending_access", "payment_failed"] } }, select: { id: true }, take: 1 } } });
   if (!account || account.removedAt) throw new EmailSetupError("Please contact our team to check your account.", 403);
+  if (!["under_review", "maintenance", "under_construction", "construction_immature", "unavailable"].includes(account.status) || account.rentals.length > 0) {
+    throw new EmailSetupError("Sign-in codes are unavailable while this account is available, rented, on trial, or no longer in service. Please contact our team.", 403);
+  }
   if (!loginEmail.trim() || account.loginEmail?.trim().toLowerCase() !== loginEmail.trim().toLowerCase()) {
     throw new EmailSetupError("That login email does not match the account linked to your verified personal email. Check the address or contact our team.", 403);
   }

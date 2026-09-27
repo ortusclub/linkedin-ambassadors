@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { decryptSecret } from "@/lib/crypto-creds";
 import { ISSUE_KEYS, ACCOUNT_ISSUES } from "@/lib/account-issue-message";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -36,5 +37,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (error instanceof z.ZodError) return NextResponse.json({ error: "Choose an issue and enter the required action." }, { status: 400 });
     const message = error instanceof Error ? error.message : "Could not send email";
     return NextResponse.json({ error: message }, { status: message === "Unauthorized" ? 401 : message === "Forbidden" ? 403 : 500 });
+  }
+}
+
+// Explicit admin preview action; never sent automatically or logged in account notes.
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const headers = { "Cache-Control": "no-store" };
+  try {
+    await requireAdmin();
+    const { id } = await params;
+    const account = await prisma.linkedInAccount.findUnique({ where: { id }, select: { loginEmail: true, accountPassword: true } });
+    const password = decryptSecret(account?.accountPassword);
+    if (!account?.loginEmail || !password) return NextResponse.json({ error: "Saved login email or password is missing." }, { status: 404, headers });
+    return NextResponse.json({ email: account.loginEmail, password }, { headers });
+  } catch (error) {
+    const status = error instanceof Error && error.message === "Unauthorized" ? 401 : error instanceof Error && error.message === "Forbidden" ? 403 : 500;
+    return NextResponse.json({ error: "Could not load saved login details." }, { status, headers });
   }
 }

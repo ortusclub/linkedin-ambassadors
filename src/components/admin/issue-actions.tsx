@@ -51,6 +51,16 @@ export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, refe
         <span>From: {from}</span>
         <span>To: {preview.recipient === "ambassador" ? ambassador.email : referrer?.email}</span>
         <label>Subject<input aria-label="Email subject" disabled={busy} value={preview.subject} onChange={e => setPreview({ ...preview, subject: e.target.value })} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 10 }} /></label>
+        {preview.recipient === "ambassador" && <button className={styles.cancel} type="button" disabled={busy || preview.text.includes("Saved login password:")} onClick={async () => {
+          setBusy(true); setResult("");
+          try {
+            const response = await fetch(`/api/admin/accounts/${accountId}/issue-email`, { cache: "no-store" });
+            const login = await response.json();
+            if (!response.ok) throw new Error(login.error || "Could not load saved login details");
+            setPreview({ ...preview, text: `${preview.text}\n\nYour saved LinkedIn login details:\nLogin email: ${login.email}\nSaved login password: ${login.password}\nIf LinkedIn asks for a six-digit code: https://linkedvelocity.com/account-code\nEnter your login email and verify your saved personal inbox. The code tool is available only while the account is not rented, available or on trial.` });
+          } catch (error) { setResult(error instanceof Error ? error.message : "Could not load saved login details"); }
+          finally { setBusy(false); }
+        }}>Include saved login details</button>}
         <label>Message<textarea aria-label="Email message" disabled={busy} rows={17} value={preview.text} onChange={e => setPreview({ ...preview, text: e.target.value })} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 10 }} /></label>
         {result && <span role="alert">{result}</span>}
         <div className={styles.actions}>
