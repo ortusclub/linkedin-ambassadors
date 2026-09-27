@@ -102,7 +102,14 @@ export default function DIYPage() {
                     <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginBottom: 3, flexWrap: "wrap" }}>
                       <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: active ? "#fff" : "#0B1220" }}>{money(t.usd, t.php)}</span>
                     </div>
-                    <div style={{ fontSize: 12.5, color: active ? "#9DC4AE" : "#8A93A2", marginBottom: 14 }}>sign-on bonus · then {MONTHLY}/mo</div>
+                    <div style={{ fontSize: 12.5, color: active ? "#9DC4AE" : "#667085", marginBottom: 14 }}>One-time sign-on bonus</div>
+                    <div style={{ borderTop: `1px solid ${active ? "#315443" : "#E6E8EC"}`, paddingTop: 12, marginBottom: 18 }}>
+                      <div style={{ fontSize: 12.5, color: active ? "#9DC4AE" : "#667085", marginBottom: 3 }}>Plus every month</div>
+                      <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 6, color: active ? "#6EE7B7" : "#007A3D" }}>
+                        <span style={{ fontFamily: "'Poppins',sans-serif", fontSize: 27, fontWeight: 800 }}>{MONTHLY}</span>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>/month</span>
+                      </div>
+                    </div>
                     <div style={{ fontSize: 13, lineHeight: 1.5, color: active ? "#D6E7DD" : "#37424F", marginBottom: 10 }}>{t.who}</div>
                     <div style={{ fontSize: 12.5, lineHeight: 1.45, fontWeight: 600, color: t.id === "full" ? (active ? "#6EE7B7" : "#00A150") : (active ? "#9DC4AE" : "#8A93A2") }}>{t.delay}</div>
                   </button>
