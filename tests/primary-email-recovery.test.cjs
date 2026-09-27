@@ -81,3 +81,11 @@ test('new setup forwards confirmation to the verified inbox and completes withou
  await f.forwardPrimaryRecoveryEmail('new-email',{id:'new-email',from:'security@linkedin.com',to:[data.address],created_at:new Date().toISOString(),subject:'Verify email address',text:'Verification code: 123456',html:null});
  assert.deepEqual(f.sent[0].to,['contact@example.com']);await f.completePrimaryRecovery(f.token);assert.ok(f.row.completedAt);assert.equal(f.notes.some(n=>n.some(v=>typeof v==='string'&&v.includes('Owner confirmed'))),false);
 });
+
+test('sign-in code authorization requires fresh verification of a uniquely matched owner',async()=>{
+  const f=fixture();await assert.rejects(f.verifiedRecoveryOwner(f.token));
+  await f.verifyPrimaryRecovery(f.token,'123456');assert.equal(await f.verifiedRecoveryOwner(f.token),'account-1');
+  f.row.verifiedAt=new Date(Date.now()-600001);await assert.rejects(f.verifiedRecoveryOwner(f.token));
+  const unknown=fixture({known:false});await unknown.verifyPrimaryRecovery(unknown.token,'123456');await assert.rejects(unknown.verifiedRecoveryOwner(unknown.token));
+  const changed=fixture();await changed.verifyPrimaryRecovery(changed.token,'123456');changed.row.destination='stranger@example.com';await assert.rejects(changed.verifiedRecoveryOwner(changed.token));
+});

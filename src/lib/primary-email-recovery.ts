@@ -20,7 +20,7 @@ async function resolveOwner(destination: string) {
   return { id: account.id, address };
 }
 
-export async function startPrimaryRecovery(destination: string, ip: string) {
+export async function startPrimaryRecovery(destination: string, ip: string, purpose: "primary-email" | "restriction" = "primary-email") {
   if (!emailSetupConfig().ready) throw new EmailSetupError("Email verification is temporarily unavailable. Please book a call with our team.", 503);
   const token = randomBytes(32).toString("hex"), id = hash(token), ipHash = hash(ip);
   const code = String(randomInt(100000, 1000000));
@@ -39,7 +39,7 @@ export async function startPrimaryRecovery(destination: string, ip: string) {
     await tx.primaryEmailRecovery.create({ data: { id, destination, ipHash, codeHash: hashEmailCode(id, destination, code), expiresAt: new Date(now.getTime() + 600000) } });
   });
   await onboardingMailRequest("/emails", { from: onboardingEmailFrom(), to: [destination], subject: "Verify your email for LinkedVelocity account help",
-      text: `Your LinkedVelocity verification code is ${code}. It expires in 10 minutes. Enter it on the primary-email guide you opened. For supported LV addresses, this lets us forward LinkedIn’s email-address confirmation to this inbox for 30 minutes. The guide will tell you if your address needs help from our team instead. If you did not request this, ignore this email.` }, `primary-email-verify-${id}`);
+      text: purpose === "restriction" ? `Your LinkedVelocity verification code is ${code}. It expires in 10 minutes. Enter it on the restricted-account guide you opened to verify ownership before requesting a LinkedIn sign-in code. If you did not request this, ignore this email.` : `Your LinkedVelocity verification code is ${code}. It expires in 10 minutes. Enter it on the primary-email guide you opened. For supported LV addresses, this lets us forward LinkedIn’s email-address confirmation to this inbox for 30 minutes. The guide will tell you if your address needs help from our team instead. If you did not request this, ignore this email.` }, `primary-email-verify-${id}`);
   return { token, message: "We sent a verification code to your email. Check your inbox and spam folder. The code expires in 10 minutes." };
 }
 
@@ -155,4 +155,14 @@ export async function forwardPrimaryRecoveryEmail(emailId: string, msg: { id: st
     throw new Error("Primary email confirmation needs retry");
   }
   return true;
+}
+
+// A fresh email verification authorizes code access only for a uniquely matched owner.
+// Unmatched/new-email setup sessions never authorize access to an existing account.
+export async function verifiedRecoveryOwner(token: string) {
+  const e = await activeRecovery(hash(token));
+  if (!e.accountId || !e.verifiedAt || e.verifiedAt.getTime() + 600000 <= Date.now()) {
+    throw new EmailSetupError("Verify the personal email saved for your account. If it has changed, book a call with our team.", 403);
+  }
+  return e.accountId;
 }

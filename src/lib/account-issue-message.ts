@@ -24,9 +24,10 @@ export function accountIssueMessage(name: string, recipient: "ambassador" | "ref
   const paymentNotice = isReferrer
     ? `Monthly LinkedVelocity payments to ${name}, the account owner, are suspended until the issue is resolved and our team confirms access has been restored.`
     : "As the account owner, your monthly LinkedVelocity payments are suspended until the issue is resolved and our team confirms access has been restored.";
+  const completedAction = issue === "restricted" ? "cleared the LinkedIn restriction" : "checked that the LinkedVelocity primary email and the 2FA setup key are correct";
   const reply = isReferrer
-    ? `Once ${name} has checked that the LinkedVelocity primary email and the 2FA setup key are correct, please reply to this email or message us through your usual communication channel. Our team will test whether we can access ${name}'s account again. Once we confirm access has been restored, ${name} will start receiving monthly LinkedVelocity payments again.`
-    : "Once you have checked that the LinkedVelocity primary email and the 2FA setup key are correct, reply to this email or message us through your usual communication channel. Our team will test whether we can access your account again. Once we confirm access has been restored, you will start receiving monthly LinkedVelocity payments again.";
+    ? `Once ${name} has ${completedAction}, please reply to this email or message us through your usual communication channel. Our team will test whether we can access ${name}'s account again. Once we confirm access has been restored, ${name} will start receiving monthly LinkedVelocity payments again.`
+    : `Once you have ${completedAction}, reply to this email or message us through your usual communication channel. Our team will test whether we can access your account again. Once we confirm access has been restored, you will start receiving monthly LinkedVelocity payments again.`;
   const optionOne = isReferrer
     ? `Option 1: Ask the account owner to check and resolve it\nPlease share the following instructions with ${name}. These steps are for the account owner to follow:\n\nInstructions for ${name}:`
     : "Option 1: Check and resolve it yourself";
@@ -36,7 +37,9 @@ export function accountIssueMessage(name: string, recipient: "ambassador" | "ref
     `${template.problem}${issue === "other" ? `\n\n${details.trim()}` : ""}`,
     paymentNotice,
     isReferrer ? `Please help ${name} restore access using either option below.` : "You can choose either of these options to restore access:",
-    `${optionOne}\nFirst, make sure you can sign in to LinkedIn.${issue === "restricted" ? " Follow LinkedIn’s recovery instructions to clear the restriction." : ""}${issue === "other" ? " Resolve the specific issue described above as well." : ""}${accessChecks}`,
+    issue === "restricted"
+      ? `${optionOne}\n1. Sign in using your original account email shown above and your existing password, if the email is still attached and the password has not changed. You can also use the LV email shown above if it is still attached.\n2. If LinkedIn asks for a two-step verification code, use your authenticator or open https://linkedvelocity.com/guide/restricted-account#sign-in-code. Verify your saved personal email there to get a current code for your own account.\n3. Follow LinkedIn’s restriction and identity-verification instructions. Our guide explains the steps: https://linkedvelocity.com/guide/restricted-account\n4. Once LinkedIn clears the restriction, reply so our team can check access. If you are stuck, tell us what LinkedIn displays or use Option 2 below.`
+      : `${optionOne}\nFirst, make sure you can sign in to LinkedIn.${issue === "other" ? " Resolve the specific issue described above as well." : ""}${accessChecks}`,
     reply,
     `Option 2: Resolve it together on a call\n${isReferrer ? `Help ${name}, the account owner, book a meeting with our team so we can work through the issue together. You are welcome to join them.` : "Book a meeting with our team and we will work through the issue together."}\n${ACCOUNT_SUPPORT_BOOKING_URL}`,
     "Please do not send passwords or one-time codes by email. Reply if you need help.",
