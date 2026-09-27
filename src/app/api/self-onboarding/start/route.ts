@@ -52,8 +52,8 @@ export async function POST(req: Request) {
     }
     // Record the chosen tier on the freshly-created application so payouts pay the right bonus.
     if (tier) {
-      const s = await prisma.selfServiceOnboarding.findUnique({ where: { id }, select: { applicationId: true } });
-      if (s) await prisma.ambassadorApplication.update({ where: { id: s.applicationId }, data: { diyTier: tier } });
+      const s = await prisma.selfServiceOnboarding.findUnique({ where: { id }, select: { applicationId: true, state: true } });
+      if (s && !["handed_off", "confirmed"].includes(s.state)) await prisma.ambassadorApplication.update({ where: { id: s.applicationId }, data: { diyTier: tier } });
     }
     const token = await mintSelfToken(id);
     return json({ token, session: await onboardingSummary(id, diy.id) });
