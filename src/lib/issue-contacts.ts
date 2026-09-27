@@ -30,3 +30,12 @@ export function ambassadorIssueContact(email: string | null, phone: string | nul
   return { email, viber, whatsapp: /telegram|viber/.test(method) && !/whatsapp/.test(method) ? null : raw,
     telegram: /telegram|t\.me\/|@/.test(method) ? raw : null };
 }
+
+/** Contact cards deliberately contain no account credentials or recovery links. */
+export function viberContactCard(name: string, handle: string | null | undefined): { phone: string; contents: string } | null {
+  const link = contactLink("viber", handle, "");
+  if (!link) return null;
+  const phone = new URL(link).searchParams.get("number")!;
+  const escapedName = name.replace(/\\/g, "\\\\").replace(/\r\n|\r|\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,");
+  return { phone, contents: ["BEGIN:VCARD", "VERSION:3.0", `FN:${escapedName}`, `N:;${escapedName};;;`, `TEL;TYPE=CELL:${phone}`, "END:VCARD", ""].join("\r\n") };
+}

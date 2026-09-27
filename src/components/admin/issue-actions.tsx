@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import styles from "./issue-actions.module.css";
 import { accountIssueMessage, ACCOUNT_ISSUES, ISSUE_KEYS, type AccountIssue } from "@/lib/account-issue-message";
 import { includeIssueLoginDetails } from "@/lib/issue-login-details";
-import { contactLink, type IssueContact } from "@/lib/issue-contacts";
+import { contactLink, viberContactCard, type IssueContact } from "@/lib/issue-contacts";
 
 export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, referralPartner, from, accountId, name, profile, ambassador, referrer, onSent }: { twoFactorReceivedAt: string | null; originalEmail: string | null; lvEmail: string | null; referralPartner: string | null; from: string; accountId: string; name: string; profile?: string | null; ambassador: IssueContact; referrer?: IssueContact | null; onSent: () => void }) {
   const [codeLink, setCodeLink] = useState("");
@@ -23,6 +23,10 @@ export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, refe
   const [details, setDetails] = useState("");
   const [preview, setPreview] = useState<{ channel: "email" | "whatsapp" | "telegram" | "viber"; recipient: "ambassador" | "referrer"; subject: string; text: string } | null>(null);
   const previewChannelName = preview?.channel === "viber" ? "Viber" : preview?.channel === "telegram" ? "Telegram" : "WhatsApp";
+  const contactCard = preview?.channel === "viber" ? viberContactCard(
+    preview.recipient === "ambassador" ? name : referralPartner || "LinkedVelocity referral partner",
+    preview.recipient === "ambassador" ? ambassador.viber : referrer?.viber,
+  ) : null;
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
   const validIssue = issue !== "other" || !!details.trim();
@@ -61,6 +65,24 @@ export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, refe
         <strong>{preview.channel === "email" ? "Review email before sending" : `Review ${previewChannelName} message`}</strong>
         {preview.channel === "email" && <span>From: {from}</span>}
         <span>To: {preview.recipient === "ambassador" ? ambassador[preview.channel] : referrer?.[preview.channel]}</span>
+        {contactCard && <div style={{ border: "1px solid var(--card-border)", borderRadius: 10, padding: 12 }}>
+          <strong>Not in your Viber contacts yet?</strong>
+          <p>Save this contact on the phone you use for Viber, then let Viber sync to your computer. On a computer, download the contact card and transfer it to your phone to open and save it. Saving only to your computer’s contacts may not sync to Viber.</p>
+          <div className={styles.actions}>
+            <button className={styles.cancel} type="button" onClick={() => {
+              const url = URL.createObjectURL(new Blob([contactCard.contents], { type: "text/vcard;charset=utf-8" }));
+              const anchor = document.createElement("a");
+              anchor.href = url; anchor.download = "linkedvelocity-contact.vcf";
+              document.body.appendChild(anchor); anchor.click(); anchor.remove();
+              window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }}>Save contact (.vcf)</button>
+            <button className={styles.cancel} type="button" onClick={async () => {
+              try { await navigator.clipboard.writeText(contactCard.phone); setResult("Number copied. In Viber on your phone, choose More → Add contact, paste the number and save."); }
+              catch { setResult(`Copy this number manually: ${contactCard.phone}`); }
+            }}>Copy number</button>
+          </div>
+          <p>The contact card contains only their name and phone number.</p>
+        </div>}
         {preview.channel === "email" && <label>Subject<input aria-label="Email subject" disabled={busy} value={preview.subject} onChange={e => setPreview({ ...preview, subject: e.target.value })} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 10 }} /></label>}
         {preview.channel !== "email" && <p>Would you like to include the saved login email, password and private authenticator link beside the sign-in instructions?</p>}
         {<button className={styles.cancel} type="button" disabled={busy || !codeLink || preview.text.includes("Saved login password:")} onClick={async () => {
@@ -74,7 +96,7 @@ export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, refe
           finally { setBusy(false); }
         }}>{preview.text.includes("Saved login password:") ? "Login details included" : preview.channel !== "email" ? "Yes, include login details" : "Include saved login details"}</button>}
         <label>Message<textarea aria-label={preview.channel === "email" ? "Email message" : `${previewChannelName} message`} disabled={busy} rows={17} value={preview.text} onChange={e => setPreview({ ...preview, text: e.target.value })} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 10 }} /></label>
-        {preview.channel === "viber" && <p>We’ll copy the complete message and open this person’s Viber chat. Paste the message in Viber, check the recipient, then send. If Viber does not open the chat, find the number shown above in Viber and paste there.</p>}
+        {preview.channel === "viber" && <p>We’ll copy the complete message and try to open this person’s Viber chat. If it does not open, save the contact on your phone using the buttons above, wait for Viber to sync, then select the contact in Viber. Paste the message, check the recipient, then send.</p>}
         {result && <span role="alert">{result}</span>}
         <div className={styles.actions}>
           <button className={styles.cancel} type="button" disabled={busy} onClick={() => setPreview(null)}>Cancel</button>
