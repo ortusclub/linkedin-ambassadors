@@ -186,75 +186,28 @@ const tierPricing = (conns: number, ageMonths: number | null, hasSalesNav?: bool
 };
 const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 
-// ── ONE status per account ───────────────────────────────────────────────
-// The DB keeps its raw enum (available / rented / trial / under_review /
-// maintenance / unavailable / retired / removed) PLUS a separate `restrictedAt`
-// flag. Historically those surfaced as two competing labels (e.g. status
-// "available" while the health pill said "Recovering"). canonicalStatus()
-// collapses them into ONE label, shown identically in the inventory, the CSV
-// export, and the filter chips. DB values are left untouched (billing reads
-// them) — this is display-only.
-// "Construction" vs "Maintenance" both live in the catch-all bucket below, split by
-// size: newer accounts still being warmed up (< CONSTRUCTION_MAX connections) read as
-// Construction; stable accounts that were paused / had something happen read as
-// Maintenance. Display-only, derived from connectionCount — the DB enum is untouched.
+// Inventory groups are display-only; rental/billing status stays in the database.
+// Current restrictions and maintenance share one group. Terminal states stay separate.
 const CONSTRUCTION_MAX = 100;
-// How many times LinkedIn has restricted this account, per its restriction log.
-// A currently-restricted account with no prior entries is on its FIRST restriction —
-// an early stumble while warming up, not an account with a pattern of trouble.
-type RestrictLog = Array<{ at: string; event: string }> | null | undefined;
-const restrictCount = (log: RestrictLog) => (Array.isArray(log) ? log.filter((e) => e?.event === "restricted").length : 0);
-const isFirstRestriction = (a: { restrictedAt: string | null; restrictionLog?: RestrictLog }) => !!a.restrictedAt && restrictCount(a.restrictionLog) <= 1;
-const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; restrictionLog?: RestrictLog; ownerSetupPaidAt?: string | null }): string => {
-  if (a.status === "rented") return "Rented";
-  // Explicitly marked under construction (from the edit page) always reads as
-  // Construction, whatever the connection count — overrides the size-based split below.
-  if (a.status === "under_construction") return "Construction";
-  // A restricted account keeps its real lifecycle group (e.g. Maintenance) and just
-  // shows a "Restricted" badge on the row — so it can be visibly both at once. The one
-  // exception: an otherwise-"available" account gets pulled out of the rentable Available
-  // group into Restricted, so a restricted account never reads as live-and-rentable.
-  // Same idea for 2FA: an "available" account whose 2FA still needs rotating must
-  // never read as live-and-rentable either, so it's pulled into Maintenance instead.
-  if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : a.restrictedAt ? "Restricted" : "Available";
-  if (a.status === "trial") return "Trial";
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; ownerSetupPaidAt?: string | null }): string => {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
   if (a.status === "removed") return "Removed";
-  // Initial — the stage before an account can be built on: we don't yet hold a
-  // usable company login for it. That's any of: no login email at all; a login
-  // that's still the ambassador's own address rather than one we issued; or an
-  // issued address we hold no password for. Restricted accounts are excluded —
-  // they're a lost login, not an unstarted one — and terminal states (removed /
-  // retired) plus showcase dummies are already handled above.
-  if (!a.restrictedAt && (!a.loginEmail || !isCompanyEmail(a.loginEmail) || !a.accountPassword)) return "Initial";
-  // A restricted account is normally not "under construction" — it isn't warming up,
-  // it's waiting on LinkedIn — so it goes to Maintenance regardless of how small it
-  // is. The exception: a small account on its FIRST restriction is still an account
-  // being built, so it stays in Construction (badged "Initial restriction", and sorted
-  // to the bottom of the section). A repeat offender always drops to Maintenance.
-  if (a.restrictedAt) return (isFirstRestriction(a) && (a.connectionCount ?? 0) < CONSTRUCTION_MAX) ? "Construction" : "Maintenance";
-  // Non-restricted catch-all (under_review / unavailable / maintenance). Maintenance is a
-  // PROBLEM state — an account that was live and now needs fixing. Restricted and 2FA are
-  // handled above; the only other way in is an admin explicitly setting DB status
-  // "maintenance". We NEVER derive Maintenance from connection count — a healthy onboarded
-  // account with lots of connections is not "in maintenance", it's just not listed yet.
-  if (a.status === "maintenance") return "Maintenance";
-  // Small accounts still gate on the setup fee: paid = onboarded and warming up
-  // (Construction); unpaid = not started yet (Initial, held out of inventory).
+  if (a.restrictedAt || a.status === "maintenance") return "Maintenance";
+  if (a.status === "rented") return "Rented";
+  if (a.status === "under_construction") return "Construction";
+  if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : "Available";
+  if (a.status === "trial") return "Trial";
+  if (!a.loginEmail || !isCompanyEmail(a.loginEmail) || !a.accountPassword) return "Initial";
   if ((a.connectionCount ?? 0) < CONSTRUCTION_MAX) return a.ownerSetupPaidAt ? "Construction" : "Initial";
-  // A larger account is clearly in-hand inventory being prepped for listing. It reads as
-  // Construction until an admin flips it to Available. We never derive Maintenance (a
-  // problem state) or Initial (not started) from connection count alone.
   return "Construction";
 };
-const inventoryStatusLabel = (status: string) => status === "Construction" ? "Pipeline (Construction)" : status;
+const inventoryStatusLabel = (status: string) => status === "Construction" ? "Pipeline (Construction)" : status === "Maintenance" ? "Restricted / Maintenance" : status;
 const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
-  { key: "Restricted", hint: "LinkedIn-restricted — access paused while it recovers", dot: "var(--st-unreach-fg)" },
   { key: "Construction", hint: "onboarding, warming up, or awaiting readiness checks", dot: "var(--st-construct-fg)" },
-  { key: "Maintenance", hint: "was live, now needs fixing — 2FA/restriction/post-rental, or manually set", dot: "var(--neutral-chip-text)" },
+  { key: "Maintenance", hint: "restricted or needs fixing — check account badges and notes", dot: "var(--neutral-chip-text)" },
   { key: "Permanently restricted/Inaccessible", hint: "retired — permanently restricted or inaccessible", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
   { key: "Showcase", hint: "public-catalogue demo accounts — not real inventory", dot: "var(--warn-badge-text)" },
@@ -264,7 +217,6 @@ const statusChip = (disp: string): React.CSSProperties => {
     Available: ["var(--st-active-bg)", "var(--st-active-fg)"],
     Trial: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
     Rented: ["var(--blue-chip-bg)", "var(--blue-chip-text)"],
-    Restricted: ["var(--st-unreach-bg)", "var(--st-unreach-fg)"],
     Initial: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
     Construction: ["var(--st-construct-bg)", "var(--st-construct-fg)"],
     Maintenance: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"],
@@ -630,11 +582,6 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       Available: c("Available"),
       Trial: c("Trial"),
       Rented: c("Rented"),
-      // Restricted is orthogonal to the lifecycle group — a restricted account can
-      // sit in Construction/Maintenance and still needs to be findable here, so count
-      // EVERY account with restrictedAt set, not just the ones canonicalStatus pulls
-      // out into the "Restricted" group.
-      Restricted: real.filter((a) => a.restrictedAt).length,
       Construction: c("Construction"),
       Maintenance: c("Maintenance"),
       "Permanently restricted/Inaccessible": c("Permanently restricted/Inaccessible"),
@@ -651,11 +598,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const base = shown.filter((a) => {
-      // "Restricted" filters orthogonally by the restrictedAt flag so it catches
-      // restricted accounts in ANY group (incl. Construction / Maintenance). Every
-      // other chip filters by the mutually-exclusive lifecycle group.
-      if (filter === "Restricted") { if (!a.restrictedAt || isDummy(a)) return false; }
-      else if (filter !== "all" && groupKey(a) !== filter) return false;
+      if (filter !== "all" && groupKey(a) !== filter) return false;
       if (verifiedFilter === "yes" && !a.linkedinVerified) return false;
       if (verifiedFilter === "no" && a.linkedinVerified) return false;
       if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
@@ -694,7 +637,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Restricted", "Restricted", counts.Restricted, "var(--st-unreach-fg)"], ["Construction", inventoryStatusLabel("Construction"), counts.Construction, "var(--st-construct-fg)"], ["Maintenance", "Maintenance", counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Construction", inventoryStatusLabel("Construction"), counts.Construction, "var(--st-construct-fg)"], ["Maintenance", inventoryStatusLabel("Maintenance"), counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
@@ -905,9 +848,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           {a.shadowRenter && <span title={`Shadow-held by ${a.shadowRenter} — still available to rent; a real customer rental takes it back automatically.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>◑ Shadow · Apex</span>}
                           {a.inventoryPool === "ortus" && <span title="Ortus inventory — brought in by an Ortus referrer. Hidden from the public catalogue and auto-owned ($0) by info@ortus.solutions." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#ede9fe", color: "#6d28d9" }}>◆ Ortus</span>}
                           {a.inventoryPool === "apex" && <span title="Apex inventory — brought in by an Apex referrer. Hidden from the public catalogue and auto-owned ($0) by info@apexstrategy.io." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#e0f2fe", color: "#0369a1" }}>◆ Apex</span>}
-                          {a.restrictedAt && st !== "Restricted" && (st === "Construction" && isFirstRestriction(a)
-                            ? <span title={`First LinkedIn restriction — ${fmtS(a.restrictedAt)}. Still an account under construction; kept here but sorted to the bottom.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Initial restriction</span>
-                            : <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>)}
+                          {a.restrictedAt && <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>}
                           {!a.restrictedAt && (() => { const rr = recentRestrict(a); return rr ? <span title={`Restricted ${rr.times}× — most recent ${rr.daysAgo === 0 ? "today" : `${rr.daysAgo}d ago`}. Recovered but still fragile — go easy: no activity bursts, verify the proxy is clean PH residential.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Recently restricted{rr.times > 1 ? ` ${rr.times}×` : ""} · recovered</span> : null; })()}
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}

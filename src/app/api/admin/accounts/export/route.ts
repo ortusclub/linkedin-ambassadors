@@ -26,21 +26,19 @@ function fmtDate(d: Date | null): string {
   return d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-// ONE status per account — collapses the raw DB enum + the `restrictedAt` flag
-// into a single label, matching the admin inventory exactly. DB values untouched.
-// Newer accounts still warming up (< 100 connections) read as "Construction";
-// stable-but-paused ones read as "Maintenance". Matches the admin inventory split.
+// CSV labels combine current restrictions and maintenance holds.
+// Terminal accounts remain separate; database rental status is untouched.
 const CONSTRUCTION_MAX = 100;
-function displayStatus(a: { status: string; restrictedAt: Date | null; connectionCount?: number | null }): string {
-  if (a.status === "rented") return "Rented";
-  if (a.status === "under_construction") return "Construction";
-  if (a.restrictedAt) return "Restricted";
-  if (a.status === "available") return "Available";
-  if (a.status === "trial") return "Trial";
+function displayStatus(a: { status: string; restrictedAt: Date | null; connectionCount?: number | null; twoFactorResetNeeded?: boolean }): string {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
   if (a.status === "removed") return "Removed";
+  if (a.restrictedAt || a.status === "maintenance" || (a.status === "available" && a.twoFactorResetNeeded)) return "Restricted / Maintenance";
+  if (a.status === "rented") return "Rented";
+  if (a.status === "under_construction") return "Construction";
+  if (a.status === "available") return "Available";
+  if (a.status === "trial") return "Trial";
   // under_review / maintenance / unavailable / anything else → split by size
-  return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Construction" : "Maintenance";
+  return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Construction" : "Restricted / Maintenance";
 }
 
 export async function GET(req: NextRequest) {
@@ -87,10 +85,8 @@ export async function GET(req: NextRequest) {
   const ownerAppMap = new Map(ownerApps.map((a) => [a.email, a.fullName]));
   const ownerCurrencyMap = new Map(ownerApps.map((a) => [a.email, currencyConfigFor(a.payoutCurrency, a.referredBy).currency]));
 
-  // Group by the single canonical status so it matches the admin view.
-  // Order: Available, then Restricted (just below available), Trial, Rented,
-  // Maintenance, Inaccessible, Removed.
-  const rankByLabel: Record<string, number> = { Available: 0, Restricted: 1, Trial: 2, Rented: 3, Construction: 4, Maintenance: 5, "Permanently restricted/Inaccessible": 6, Removed: 7 };
+  // Keep the combined Restricted / Maintenance label together in the export.
+  const rankByLabel: Record<string, number> = { Available: 0, Trial: 2, Rented: 3, Construction: 4, "Restricted / Maintenance": 5, "Permanently restricted/Inaccessible": 6, Removed: 7 };
   const sorted = [...accounts].sort((a, b) => (rankByLabel[displayStatus(a)] ?? 9) - (rankByLabel[displayStatus(b)] ?? 9));
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.
