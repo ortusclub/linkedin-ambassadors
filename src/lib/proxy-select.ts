@@ -5,10 +5,10 @@ import { getProxies } from "@/lib/proxies";
 // what /admin/proxies shows. Never buys — returns null when nothing fits, and the caller
 // flags the account for a purchase.
 //
-// Capacity per IP (Sam's rules): proxy-cheap residential = 2, Proxy 6 datacenter = 3.
+// Capacity per IP: four accounts, any provider/type; prefer matching country.
 // accountCount from getProxies already counts every non-removed account on the host:port.
 
-const CAP: Record<string, number> = { residential: 2, datacenter: 3 };
+const CAP: Record<string, number> = { residential: 4, datacenter: 4 };
 
 // Map the countries we actually stock (+ common variants) to an ISO2 code so a
 // free-text account location can be compared to a proxy's country. Unknown strings
@@ -53,27 +53,21 @@ export async function pickAvailableProxy(opts: {
   claimed?: Set<string>; // host:port already assigned earlier in this same run
 }): Promise<PickedProxy | null> {
   const rows = await getProxies();
-  const cap = CAP[opts.type.toLowerCase()] ?? 1;
+  const cap = CAP[opts.type.toLowerCase()] ?? 4;
   const wantCountry = canonCountry(opts.country);
   const claimed = opts.claimed ?? new Set<string>();
 
   const candidates = rows.filter((r) => {
-    if (!r.provider || r.provider.toLowerCase() !== opts.provider.toLowerCase()) return false;
-    if (!r.type || r.type.toLowerCase() !== opts.type.toLowerCase()) return false;
+    if (r.proxyString.split(":").length < 4) return false;
     if (r.status && ["retired", "error"].includes(r.status.toLowerCase())) return false;
     const key = `${r.host}:${r.port}`;
     const used = r.accountCount + (claimed.has(key) ? 1 : 0);
     return used < cap;
   });
 
-  let pool = candidates;
-  if (wantCountry) {
-    pool = candidates.filter((r) => canonCountry(r.country) === wantCountry);
-    if (pool.length === 0) return null;
-  }
+  const pool = candidates;
   if (pool.length === 0) return null;
-
-  pool.sort((a, b) => a.accountCount - b.accountCount);
+  pool.sort((a, b) => Number(canonCountry(b.country) === wantCountry) - Number(canonCountry(a.country) === wantCountry) || b.accountCount - a.accountCount);
   const chosen = pool[0];
   claimed.add(`${chosen.host}:${chosen.port}`);
 

@@ -4,7 +4,7 @@ import { provisionAccount } from "@/lib/provision-account";
 
 // Manual "Create GoLogin" button on the pipeline. Runs the same provisioning the
 // cron does for ONE account: link/create the GoLogin profile, assign an available
-// proxy of the right tier (never buys — flags if none free), and create the public
+// proxy from the pool (or buys within the shared budget), and create the public
 // share link. Everything is stored on the account. Idempotent: re-running only fills
 // whatever is still missing.
 export const dynamic = "force-dynamic";

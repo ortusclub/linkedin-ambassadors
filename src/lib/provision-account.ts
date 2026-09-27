@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import * as gologin from "@/services/gologin";
 import { findProfileByName } from "@/lib/gologin-match";
+import { assignAutomaticProxy } from "@/lib/automatic-proxy";
 import { pickAvailableProxy } from "@/lib/proxy-select";
 
 // One-shot provisioning for an account that has a login email: ensure it has a
@@ -8,9 +9,7 @@ import { pickAvailableProxy } from "@/lib/proxy-select";
 // (by tier + country + capacity), and a public g.camp share link — writing it all
 // to the DB so /admin/pipeline + /admin/proxies reflect it. Idempotent: only fills
 // what's missing. Called both by the account-save hook (instant) and the backstop
-// cron. Never buys — when no proxy fits, it flags the account instead.
-//
-// Tier: linkedinVerified → Proxy 6 / datacenter; else proxy-cheap / residential.
+// cron. Reuses any eligible proxy, then purchases within the shared $100 budget.
 
 export type ProvisionResult = {
   accountId: string;
@@ -58,39 +57,22 @@ export async function provisionAccount(
     proxyCreds = { host: acct.proxyHost, port: acct.proxyPort, username: acct.proxyUsername, password: acct.proxyPassword };
     res.proxy = "existing";
   } else {
-    const verified = acct.linkedinVerified;
-    const provider = verified ? "Proxy 6" : "proxy-cheap";
-    const type = verified ? "datacenter" : "residential";
     try {
-      const picked = await pickAvailableProxy({ provider, type, country: acct.location, claimed: opts.claimed });
-      if (picked) {
-        proxyCreds = { host: picked.host, port: picked.port, username: picked.username, password: picked.password };
-        newlyAssigned = true;
-        res.proxy = "assigned";
-        res.provisionStatus = null;
-        if (!dryRun) {
-          await prisma.linkedInAccount.update({
-            where: { id: accountId },
-            data: {
-              proxyHost: picked.host,
-              proxyPort: picked.port,
-              proxyUsername: picked.username,
-              proxyPassword: picked.password,
-              proxyLocation: picked.country || acct.proxyLocation,
-              provisionStatus: null,
-            },
-          });
-        }
+      if (dryRun) {
+        const picked = await pickAvailableProxy({ provider: "", type: "", country: acct.location, claimed: opts.claimed });
+        res.proxy = picked ? "assigned" : "flagged";
+        proxyCreds = picked;
       } else {
-        const flag = verified ? "needs_proxy6" : "ready_to_buy_cheap";
-        res.proxy = "flagged";
-        res.provisionStatus = flag;
-        if (!dryRun) await prisma.linkedInAccount.update({ where: { id: accountId }, data: { provisionStatus: flag } });
+        const assigned = await assignAutomaticProxy(accountId);
+        if (assigned.proxyHost && assigned.proxyPort) {
+          proxyCreds = { host: assigned.proxyHost, port: assigned.proxyPort, username: assigned.proxyUsername, password: assigned.proxyPassword };
+          newlyAssigned = true; res.proxy = "assigned"; res.provisionStatus = null;
+        }
       }
-    } catch (e) {
-      res.errors.push(`proxy: ${msg(e)}`);
-    }
+    } catch (e) { res.proxy = "flagged"; res.errors.push(`proxy: ${msg(e)}`); }
   }
+  // Never create an unprotected browser while proxy allocation is pending.
+  if (!proxyCreds?.username || !proxyCreds.password) return res;
 
   const proxyForGologin =
     proxyCreds && proxyCreds.username && proxyCreds.password

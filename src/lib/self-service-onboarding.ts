@@ -45,33 +45,32 @@ export async function resolveSelfSession(token: string): Promise<{ sessionId: st
   return { sessionId: s.id, referrerId: s.referrerId, referrerSlug: s.referrer.slug };
 }
 
-async function availableProxies(db: Prisma.TransactionClient = prisma) {
+export async function availableProxies(db: Prisma.TransactionClient = prisma) {
   const [proxies, accounts, reservations] = await Promise.all([
     db.proxy.findMany({ orderBy: { createdAt: "asc" } }),
-    db.linkedInAccount.findMany({ where: { proxyHost: { not: null } }, select: { id: true, proxyHost: true, proxyPort: true, proxyUsername: true, proxyPassword: true, proxyLocation: true } }),
+    db.linkedInAccount.findMany({ where: { proxyHost: { not: null }, status: { not: "removed" } }, select: { id: true, proxyHost: true, proxyPort: true, proxyUsername: true, proxyPassword: true, proxyLocation: true } }),
     db.selfServiceOnboarding.findMany({ where: { proxyId: { not: null } }, select: { accountId: true, proxyId: true, proxySlot: true } }),
   ]);
+  // Include usable proxies that exist only on account rows, as in the Proxies page.
+  for (const a of accounts) {
+    if (!a.proxyHost || !a.proxyPort || proxies.some(p => p.host === a.proxyHost && p.port === a.proxyPort)) continue;
+    const p = await db.proxy.upsert({ where: { host_port: { host: a.proxyHost, port: a.proxyPort } }, create: { host: a.proxyHost, port: a.proxyPort, username: a.proxyUsername, password: a.proxyPassword, country: a.proxyLocation, status: "active" }, update: {} });
+    proxies.push(p);
+  }
   return availableProxySlots(proxies, accounts, reservations);
 }
 
 const normType = (t: string | null | undefined) => (t || "").toLowerCase().replace(/[\s_-]/g, "");
 
-// Pick a reusable pool proxy by tier + country. Sam's rule: unverified / fresh
-// accounts go on proxy-cheap RESIDENTIAL (safer for cold accounts); Proxy 6
-// DATACENTER is for verified accounts only. DIY accounts are unverified at
-// onboarding, so this normally restricts to residential.
+// Reuse capacity from any provider/type; prefer the account country.
 function reusableProxy(slots: Awaited<ReturnType<typeof availableProxies>>, accountCountry: string, verified: boolean) {
-  const wantType = verified ? "datacenter" : "residential";
-  const tiered = slots.filter((proxy) => normType(proxy.type) === wantType);
-  return PURCHASE_PROXY_COUNTRIES.includes(accountCountry as typeof PURCHASE_PROXY_COUNTRIES[number])
-    ? tiered.find((proxy) => proxy.country === accountCountry)
-    : tiered.find((proxy) => PURCHASE_PROXY_COUNTRIES.includes(proxy.country as typeof PURCHASE_PROXY_COUNTRIES[number]));
+  return slots.find(proxy => proxy.country === accountCountry) || slots[0];
 }
 
 export async function onboardingCountries() {
   // DIY accounts are unverified at onboarding, so only residential (proxy-cheap)
   // capacity counts toward the countries we can start in right now.
-  return [...new Set((await availableProxies()).filter((p) => normType(p.type) === "residential").map((p) => p.country))].sort();
+  return [...new Set((await availableProxies()).map((p) => p.country).filter((c): c is string => !!c))].sort();
 }
 
 export async function onboardingSummary(id: string, referrerId: string) {
@@ -121,7 +120,7 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       tx.linkedInAccount.findFirst({ where: { OR: [{ personalEmail: { equals: input.email, mode: "insensitive" } }, { loginEmail: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true } }),
     ]);
     if (application || account) throw new OnboardingError("This person is already in our system. Ask the team to continue their existing onboarding.", 409);
-    // Tier the proxy to the account: verified → datacenter (Proxy 6), unverified → residential.
+    // Reuse existing capacity before purchasing a new proxy.
     const proxy = reusableProxy(await availableProxies(tx), country, input.linkedinVerified);
     if (!proxy && !proxyPurchaseLimits().enabled) throw new OnboardingError("No dedicated proxy is available for this country yet. Ask the team to add one, then try again.", 409);
     const now = new Date();
@@ -174,7 +173,7 @@ async function reuseProxy(tx: Prisma.TransactionClient, id: string, referrerId: 
   return true;
 }
 
-async function acquireProxy(id: string, referrerId: string): Promise<boolean> {
+export async function acquireProxy(id: string, referrerId: string): Promise<boolean> {
   const s = await prisma.selfServiceOnboarding.findFirstOrThrow({ where: { id, referrerId }, include: { account: true } });
   if (s.proxyId) return true;
   const country = countryCode(s.account.location);
@@ -206,9 +205,10 @@ async function acquireProxy(id: string, referrerId: string): Promise<boolean> {
       const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
       const spent = await tx.selfServiceOnboarding.aggregate({ where: { OR: [
         { proxyPurchaseAt: { gte: month } },
-        { proxyBudgetReserved: { not: null }, state: { in: ["purchasing", "purchase_unknown"] } },
+        { proxyBudgetReserved: { not: null }, state: { in: ["purchasing", "purchase_unknown", "proxy_pending"] } },
       ] }, _sum: { proxyBudgetReserved: true } });
-      if (limits.monthly !== null && Math.round((Number(spent._sum.proxyBudgetReserved || 0) + quote.price) * 100) > Math.round(limits.monthly * 100)) throw new OnboardingError("The monthly proxy purchase budget has been reached. Ask the team for help.", 409);
+      const manual = await tx.$queryRaw<Array<{ total: number }>>`SELECT COALESCE(SUM(amount),0)::float AS total FROM proxy_purchase_attempts WHERE created_at >= ${month} OR state IN ('purchasing','unknown','pending')`;
+      if (limits.monthly !== null && Math.round((Number(spent._sum.proxyBudgetReserved || 0) + Number(manual[0]?.total || 0) + quote.price) * 100) > Math.round(limits.monthly * 100)) throw new OnboardingError("The monthly proxy purchase budget has been reached. Ask the team for help.", 409);
       const claim = await tx.selfServiceOnboarding.updateMany({ where: { id, referrerId, state: "reserved", proxyId: null, proxyOrderId: null, proxyPurchaseAt: null }, data: { state: "purchasing", proxyBudgetReserved: quote.price, proxyPurchaseAt: now } });
       if (!claim.count) throw new OnboardingError("This proxy purchase is already in progress. Refresh to check it.", 409);
       await tx.linkedInAccount.update({ where: { id: s.accountId }, data: { proxyLocation: quote.order.country } });
@@ -247,12 +247,12 @@ async function acquireProxy(id: string, referrerId: string): Promise<boolean> {
       update: { ...connection, country: proxyCountry, type: "residential", provider: "proxy-cheap", status: "active" },
     });
     const [linked, reservations] = await Promise.all([
-      tx.linkedInAccount.findMany({ where: { proxyHost: connection.host, proxyPort: connection.port }, select: { id: true } }),
+      tx.linkedInAccount.findMany({ where: { proxyHost: connection.host, proxyPort: connection.port, status: { not: "removed" } }, select: { id: true } }),
       tx.selfServiceOnboarding.findMany({ where: { proxyId: proxy.id }, select: { accountId: true, proxySlot: true } }),
     ]);
     const used = new Set([...linked.map((account) => account.id), ...reservations.map((reservation) => reservation.accountId)]);
-    if (used.size >= 2) throw new OnboardingError("The delivered proxy has reached its two-account limit. The team needs to check this order.", 409);
-    const slot = [1, 2].find((candidate) => !reservations.some((reservation) => reservation.proxySlot === candidate));
+    if (used.size >= 4) throw new OnboardingError("The delivered proxy has reached its four-account limit. The team needs to check this order.", 409);
+    const slot = [1, 2, 3, 4].find((candidate) => !reservations.some((reservation) => reservation.proxySlot === candidate));
     if (!slot) throw new OnboardingError("The delivered proxy has no available account slot. The team needs to check this order.", 409);
     await tx.linkedInAccount.update({ where: { id: s.accountId }, data: { proxyHost: connection.host, proxyPort: connection.port, proxyUsername: connection.username, proxyPassword: connection.password, proxyLocation: proxyCountry } });
     await tx.selfServiceOnboarding.update({ where: { id }, data: { proxyId: proxy.id, proxySlot: slot, state: "reserved" } });

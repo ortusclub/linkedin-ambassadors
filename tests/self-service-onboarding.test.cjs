@@ -62,7 +62,7 @@ test("Proxy-Cheap quotes require a matching country and respect the price ceilin
     assert.equal(api.proxyPurchaseLimits().perProxy, 4, "a higher environment value cannot raise the approved cap");
     delete process.env.PROXY_CHEAP_MONTHLY_BUDGET_USD;
     assert.equal(api.proxyPurchaseLimits().enabled, true);
-    assert.equal(api.proxyPurchaseLimits().monthly, null);
+    assert.equal(api.proxyPurchaseLimits().monthly, 100);
     await assert.rejects(api.quoteStaticProxy("DE"), /country/);
     price = 4;
     assert.equal((await api.quoteStaticProxy("PH")).price, 4);
@@ -192,7 +192,7 @@ test("monthly budget exhaustion prevents execute", async () => {
   const prev = process.env.GOLOGIN_API_TOKEN_KLABBER;
   process.env.GOLOGIN_API_TOKEN_KLABBER = "test";
   let purchases = 0;
-  const tx = { $executeRaw: async () => {}, proxy: { findMany: async () => [] }, linkedInAccount: { findMany: async () => [] }, selfServiceOnboarding: { findFirstOrThrow: async () => ({ state: "reserved" }), findMany: async () => [], aggregate: async () => ({ _sum: { proxyBudgetReserved: 49 } }) } };
+  const tx = { $executeRaw: async () => {}, $queryRaw: async () => [{ total: 0 }], proxy: { findMany: async () => [] }, linkedInAccount: { findMany: async () => [] }, selfServiceOnboarding: { findFirstOrThrow: async () => ({ state: "reserved", account: { linkedinVerified: false } }), findMany: async () => [], aggregate: async () => ({ _sum: { proxyBudgetReserved: 49 } }) } };
   const prisma = { $transaction: async (fn) => fn(tx), selfServiceOnboarding: { findFirst: async () => ({ id: "session" }), findFirstOrThrow: async () => ({ state: "reserved", account: { location: "PH" } }) } };
   const provider = { quoteStaticProxy: async () => ({ price: 4, order: { country: "PH" } }), proxyPurchaseLimits: () => ({ monthly: 50 }), purchaseStaticProxy: async () => { purchases++; } };
   try { await assert.rejects(service(prisma, provider).prepareOnboarding("session", "referrer"), /budget/); assert.equal(purchases, 0); }
@@ -207,13 +207,14 @@ test("uncertain purchase is never retried", async () => {
   finally { if (prev === undefined) delete process.env.GOLOGIN_API_TOKEN_KLABBER; else process.env.GOLOGIN_API_TOKEN_KLABBER = prev; }
 });
 
-test("residential and datacenter proxies accept zero or one account, but never a third", () => {
+test("all usable proxy types accept up to four accounts, but never a fifth", () => {
   const { availableProxySlots } = load("src/lib/onboarding-proxy-pool.ts");
   const proxy = { id: "p", host: "proxy.test", port: 8000, username: "test", password: "test", country: "Philippines", type: "residential", status: "active" };
   const account = (id) => ({ id, proxyHost: proxy.host, proxyPort: proxy.port, proxyUsername: null, proxyPassword: null, proxyLocation: "PH" });
   assert.equal(availableProxySlots([proxy], [], []).length, 1);
   assert.equal(availableProxySlots([proxy], [account("a")], []).length, 1);
-  assert.equal(availableProxySlots([proxy], [account("a"), account("b")], []).length, 0);
+  assert.equal(availableProxySlots([proxy], [account("a"), account("b"), account("c")], []).length, 1);
+  assert.equal(availableProxySlots([proxy], [account("a"), account("b"), account("c"), account("d")], []).length, 0);
   assert.equal(availableProxySlots([{ ...proxy, status: "error" }], [], []).length, 0);
   assert.equal(availableProxySlots([{ ...proxy, type: "datacenter" }], [], []).length, 1);
   assert.equal(availableProxySlots([{ ...proxy, type: "Data Center" }], [account("a")], []).length, 1);
@@ -235,7 +236,7 @@ test("reservations are deduplicated against inventory and still reserve capacity
   const slots = availableProxySlots([proxy], [account], [{ accountId: "a", proxyId: "p", proxySlot: 1 }]);
   assert.equal(slots[0].used, 1);
   assert.equal(slots[0].slot, 2);
-  assert.equal(availableProxySlots([proxy], [account], [{ accountId: "other", proxyId: "p", proxySlot: 1 }]).length, 0);
+  assert.equal(availableProxySlots([proxy], [account], [{ accountId: "other", proxyId: "p", proxySlot: 1 }]).length, 1);
 });
 
 test("existing account credentials can supply a reusable proxy", () => {

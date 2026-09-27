@@ -157,7 +157,7 @@ export default function AdminProxiesPage() {
         <div style={{ maxWidth: 720 }}>
           <h1 style={{ font: `600 30px/1 ${F_GRO}`, color: "var(--text)", margin: "0 0 8px", letterSpacing: "-.02em" }}>Proxies</h1>
           <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>
-            Every proxy in use, joined live from the accounts assigned to it. Guided onboarding can use active residential HTTP proxies with a known country and login credentials, up to two accounts per proxy. Static residential proxies purchased during onboarding become reusable here. The Google Sheet mirrors this view.
+            Every proxy in use, joined live from the accounts assigned to it. Onboarding reuses working proxies from any provider, up to four accounts per proxy. Automatic Proxy-Cheap purchases are capped at $4 each and $100 per month. Static residential proxies purchased during onboarding become reusable here. The Google Sheet mirrors this view.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flex: "none" }}>

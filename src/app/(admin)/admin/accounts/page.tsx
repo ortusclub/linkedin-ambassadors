@@ -115,6 +115,7 @@ interface Account {
   ownerName: string | null;
   ownerEmail: string | null;
   ownerPhone: string | null;
+  issueEmailFrom: string;
   issueAmbassadorEmail: string | null;
   issueReferrerContact: IssueContact | null;
   contactChannel: string | null;
@@ -992,7 +993,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                                 <button onClick={() => checkHealth(a.id)} title="Best-effort automated public check. LinkedIn blocks logged-out checks, so this is usually 'Unknown' — verify in GoLogin and use Mark active / Mark restricted instead." style={secBtn}>↻ Re-check (auto)</button>
                                 <button onClick={() => handleDelete(a)} disabled={busy === a.id} style={{ ...outBtn("var(--danger)"), marginLeft: "auto" }}>🗑 Delete</button>
                               </div>
-                              <IssueActions name={formatName(a.linkedinName)} ambassador={ambassadorIssueContact(a.issueAmbassadorEmail, a.ownerPhone, a.contactChannel)} referrer={a.issueReferrerContact} />
+                              <IssueActions from={a.issueEmailFrom} accountId={a.id} profile={a.linkedinUrl} onSent={() => { void load(); }} name={formatName(a.linkedinName)} ambassador={ambassadorIssueContact(a.issueAmbassadorEmail, a.ownerPhone, a.contactChannel)} referrer={a.issueReferrerContact} />
                               {Array.isArray(a.restrictionLog) && a.restrictionLog.length > 0 && (() => {
                                 const log = [...a.restrictionLog].sort((x, y) => y.at.localeCompare(x.at));
                                 const times = log.filter((e) => e.event === "restricted").length;
@@ -1015,12 +1016,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                               })()}
                             </div>
                           </div>
-                          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-                            <span style={labelCss}>Notes &amp; conversations <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--muted2)", fontWeight: 500 }}>· shared with the pipeline</span></span>
-                            {a.ownerApplicationId
-                              ? <OutreachLog log={a.ownerOutreachLog} nextFollowUp={a.ownerNextFollowUp} handler={a.ownerPoc} channel={channelOf(a)} busy={busy === a.id} onLog={(ch, text, by) => logTouch(a, ch, text, by)} onSetFollowUp={(iso) => setFollowUp(a, iso)} onDelete={(at) => deleteTouch(a, at)} />
-                              : <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted2)" }}>No linked onboarding record — this log is shared with the pipeline and appears once the account is matched to an owner application.</span>}
-                          </div>
+
                         </div>
                       )}
                     </div>

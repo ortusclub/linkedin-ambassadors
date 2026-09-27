@@ -108,6 +108,7 @@ model VerificationCode {
 }
 
 model LinkedInAccount {
+  proxyPurchaseAttempt ProxyPurchaseAttempt?
   selfServiceOnboarding SelfServiceOnboarding?
   id                    String        @id @default(uuid()) @db.Uuid
   gologinProfileId      String?       @map("gologin_profile_id")
@@ -663,4 +664,16 @@ model OnboardingInvite {
 
   @@index([referrerId])
   @@map("onboarding_invites")
+}
+
+// Durable purchase ledger for admin provisioning; shared budget includes DIY orders.
+model ProxyPurchaseAttempt {
+  accountId String @id @map("account_id") @db.Uuid
+  account LinkedInAccount @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  state String
+  amount Decimal @db.Decimal(10, 2)
+  country String
+  orderId String? @map("order_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@map("proxy_purchase_attempts")
 }

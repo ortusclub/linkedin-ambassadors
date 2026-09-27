@@ -146,6 +146,7 @@ export async function GET(req: NextRequest) {
         ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
         ownerEmail: ownerEmail || null,
         ownerApplicationId: app?.id || null,
+        issueEmailFrom: process.env.RESEND_FROM_EMAIL || "LinkedVelocity <info@linkedvelocity.com>",
         issueAmbassadorEmail: app?.email || ownerEmail || null,
         issueReferrerContact: issueContactFor(app?.referredBy),
         ownerUpdatedAt: app?.updatedAt ?? null,

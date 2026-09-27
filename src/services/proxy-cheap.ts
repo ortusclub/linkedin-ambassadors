@@ -10,7 +10,7 @@ export class ProxyPurchaseNotSubmitted extends Error {}
 
 export function proxyPurchaseLimits() {
   const perProxy = Math.min(MAX_PROXY_PRICE_USD, Number(process.env.PROXY_CHEAP_MAX_PER_PROXY_USD || MAX_PROXY_PRICE_USD));
-  const monthly = process.env.PROXY_CHEAP_MONTHLY_BUDGET_USD ? Number(process.env.PROXY_CHEAP_MONTHLY_BUDGET_USD) : null;
+  const monthly = Math.min(100, Number(process.env.PROXY_CHEAP_MONTHLY_BUDGET_USD || 100));
   return { perProxy, monthly, enabled: process.env.PROXY_CHEAP_AUTO_BUY === "true" &&
     !!process.env.PROXY_CHEAP_API_KEY && !!process.env.PROXY_CHEAP_API_SECRET &&
     Number.isFinite(perProxy) && perProxy > 0 && (monthly === null || (Number.isFinite(monthly) && monthly > 0)) };
