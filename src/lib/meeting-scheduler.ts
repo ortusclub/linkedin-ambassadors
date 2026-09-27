@@ -32,20 +32,21 @@ export async function sendMeetingInvitation(id: string) {
   try { return await deliverMeetingInvitation(id); }
   catch (error) {
     const detail = error as { name?: string; message?: string; code?: string; command?: string; responseCode?: number };
-    console.error("Calendar invitation send failed", { bookingId: id, name: detail.name, code: detail.code, command: detail.command, responseCode: detail.responseCode, message: detail.message?.replaceAll(process.env.RESEND_API_KEY || "not-configured", "[redacted]").slice(0, 250) });
+    console.error("Calendar invitation send failed", { bookingId: id, name: detail.name, code: detail.code, command: detail.command, responseCode: detail.responseCode, message: detail.message?.replaceAll(process.env.RESEND_API_KEY || "not-configured", "[redacted]").replaceAll(process.env.MEETING_SMTP_API_KEY || "not-configured", "[redacted]").slice(0, 250) });
     throw new Error("Invitation delivery failed");
   }
 }
 async function deliverMeetingInvitation(id: string) {
   const booking = await prisma.scheduledMeeting.findUniqueOrThrow({ where: { id }, include: { application: { select: { linkedinUrl: true, linkedinEmail: true } } } });
   if (booking.inviteSentAt) return;
-  if (!process.env.RESEND_API_KEY) throw new Error("Invitation delivery unavailable");
+  const smtpKey = (process.env.MEETING_SMTP_API_KEY || process.env.RESEND_API_KEY)?.trim();
+  if (!smtpKey) throw new Error("Invitation delivery unavailable");
   const when = booking.startsAt.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "full", timeStyle: "short" });
   // A text/calendar alternative lets calendar clients treat this as an invitation,
   // rather than an ordinary email with a downloadable file. SMTP preserves MIME.
   const transport = nodemailer.createTransport({
     host: "smtp.resend.com", port: 465, secure: true,
-    auth: { user: "resend", pass: process.env.RESEND_API_KEY },
+    auth: { user: "resend", pass: smtpKey },
     connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 20000,
   });
   const result = await transport.sendMail({
