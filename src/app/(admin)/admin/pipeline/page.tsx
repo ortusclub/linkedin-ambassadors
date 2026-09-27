@@ -27,6 +27,15 @@ import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 import { formatName } from "@/lib/utils";
 import { isLikelyTestEmail } from "@/lib/test-mode";
 
+const APPLICATION_TYPES = [
+  { key: "standard", label: "Form" },
+  { key: "partial", label: "Email/2FA" },
+  { key: "full", label: "Full-service" },
+  { key: "unknown", label: "Not recorded" },
+] as const;
+// Do not infer how someone applied from work the team completed afterwards.
+const applicationType = (r: { diyTier?: string | null }) => APPLICATION_TYPES.find(t => t.key === r.diyTier) || APPLICATION_TYPES[3];
+
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
@@ -475,6 +484,7 @@ export default function AdminPipelinePage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [levelFilter, setLevelFilter] = useState<number | "all">("all");
   const [healthFilter, setHealthFilter] = useState<Health | "restricted" | "all">("all");
+  const [applicationTypeFilter, setApplicationTypeFilter] = useState<string>("all");
   const [pocFilter, setPocFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [flagged, setFlagged] = useState(false);
@@ -693,6 +703,7 @@ export default function AdminPipelinePage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return scoped.filter((r) => {
+      if (applicationTypeFilter !== "all" && applicationType(r).key !== applicationTypeFilter) return false;
       if (flagged && !isBlocked(r)) return false;
       if (signInOnly && !r.phoneHandoffPending) return false;
       if (selfServeOnly && !isSelfServeInProgress(r)) return false;
@@ -707,7 +718,7 @@ export default function AdminPipelinePage() {
       return [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc,
         ...(r.outreachLog || []).map((t) => t.text)].some((v) => (v || "").toLowerCase().includes(q));
     });
-  }, [scoped, query, flagged, signInOnly, selfServeOnly, mode, statusFilter, levelFilter, healthFilter, pocFilter]);
+  }, [scoped, query, flagged, signInOnly, selfServeOnly, mode, statusFilter, levelFilter, healthFilter, pocFilter, applicationTypeFilter]);
 
   const groups = useMemo(() => {
     const defs = mode === "stage" ? LEVEL_GROUPS : mode === "live" ? LIVE_GROUPS : ACTION_GROUPS;
@@ -852,7 +863,7 @@ export default function AdminPipelinePage() {
             <span style={{ font: `700 10.5px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 5px", borderRadius: 5, background: "var(--band,#f1f1f2)", color: "var(--muted,#888)" }}>{count}</span>
           </button>
         );
-        const axisLabel = (t: string) => <span style={{ font: `700 9.5px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--muted2,#9aa0a6)", width: 46, flex: "none" }}>{t}</span>;
+        const axisLabel = (t: string) => <span style={{ font: `700 9.5px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--muted2,#9aa0a6)", width: 100, flex: "none" }}>{t}</span>;
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
@@ -888,6 +899,11 @@ export default function AdminPipelinePage() {
                 </div>
               );
             })()}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
+              {axisLabel("Application Type")}
+              {chipBtn(applicationTypeFilter === "all", null, "All", scoped.length, () => setApplicationTypeFilter("all"), "type-all")}
+              {APPLICATION_TYPES.map(type => chipBtn(applicationTypeFilter === type.key, null, type.label, scoped.filter(r => applicationType(r).key === type.key).length, () => setApplicationTypeFilter(type.key), `type-${type.key}`))}
+            </div>
           </div>
         );
       })() : (
@@ -1041,6 +1057,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ font: `700 16px ${F_GRO}`, color: "var(--fg,#111)" }}>{formatName(r.fullName) || "—"}</span>
               {r.linkedinUrl && <a href={liHref(r.linkedinUrl)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 8px", borderRadius: 6 }}>↗ profile</a>}
+              <span title="Application route; workflow steps below show verified completion" style={{ font: `700 10px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: "var(--blue-chip-bg,#e7effd)", color: "var(--blue-chip-text,#1a56db)" }}>{applicationType(r).label}</span>
               {r.linkedinVerified && <span style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)" }}>✓ Verified</span>}
               {r.accountStatus === "removed" && <span title="Ambassador pulled their account back" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--neutral-bg,#eef1f5)", color: "var(--muted,#647189)" }}>↩ Withdrawn</span>}
               {r.accountStatus === "retired" && <span title="LinkedIn permanently restricted — inaccessible" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⛔ Permanently restricted</span>}
@@ -1399,7 +1416,7 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
       render: () => <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {doneBadge("Received")}
         <div style={{ fontSize: 12, lineHeight: 1.5, color: "var(--fg,#111)" }}>
-          <b>{r.diyTier === "standard" ? "Option 1 · We set it up" : r.diyTier === "partial" ? "Option 2 · Email + 2FA setup" : r.diyTier === "full" ? "Option 3 · Full DIY" : "Signup option not recorded"}</b>
+          <b>{r.diyTier === "standard" ? "Option 1 · Form" : r.diyTier === "partial" ? "Option 2 · Email/2FA" : r.diyTier === "full" ? "Option 3 · Full-service" : "Signup option not recorded"}</b>
           {r.diyTier && <div style={{ color: "var(--muted,#8a97ad)", marginTop: 4 }}>{r.diyTier === "standard" ? "Submitted the form for our team to handle setup." : r.diyTier === "partial" ? "Chose to add the LV email and set up 2FA themselves." : "Chose to handle email, 2FA and GoLogin themselves."}</div>}
           {r.diyTier !== "standard" && r.diyTier && <small>Chosen route — completion is tracked in the steps below.</small>}
         </div>

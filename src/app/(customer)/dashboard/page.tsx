@@ -74,6 +74,7 @@ interface Rental {
 
 interface AmbassadorAccount {
   id: string;
+  linkedinUrl?: string | null;
   linkedinName: string;
   linkedinHeadline: string | null;
   notes: string | null;
@@ -199,6 +200,12 @@ function DashboardContent() {
             if (!response.ok) return;
             const data = await response.json();
             if (!stopped && Array.isArray(data.submissions)) setSubmissions(data.submissions);
+          }),
+          fetch("/api/ambassador/my-accounts", { cache: "no-store" }).then(async response => {
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!stopped && Array.isArray(data.accounts)) setAmbassadorAccounts(data.accounts);
+            if (!stopped && Array.isArray(data.removedAccounts)) setRemovedAccounts(data.removedAccounts);
           }),
           fetch("/api/rentals", { cache: "no-store" }).then(async response => {
             if (!response.ok) return;
@@ -336,6 +343,10 @@ function DashboardContent() {
   const activeRentals = rentals.filter((r) => r.status === "active" || r.status === "payment_failed" || r.status === "pending_access");
   const pastRentals = rentals.filter((r) => r.status === "expired" || r.status === "cancelled");
   // Adaptive dashboard: lean ambassador-first if they share/submit accounts.
+  const profileKey = (url?: string | null) => (url || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split(/[?#]/)[0].replace(/\/$/, "");
+  const submittedAccounts = submissions.filter(sub => ![...ambassadorAccounts, ...removedAccounts].some(account =>
+    sub.linkedinUrl && profileKey(account.linkedinUrl) === profileKey(sub.linkedinUrl)
+  ));
   const isAmbassador = ambassadorAccounts.length > 0 || submissions.length > 0;
   const hasRealRentals = activeRentals.length > 0 || pastRentals.length > 0;
   const showRenterSide = !isAmbassador || hasRealRentals; // pure ambassadors hide renter-only bits
@@ -670,7 +681,7 @@ function DashboardContent() {
               <Button size="sm" className="bg-[#00B85C] text-white hover:bg-[#00A050] border-0">Add Another Account</Button>
             </Link>
           </div>
-          {ambassadorAccounts.length > 0 ? (
+          {ambassadorAccounts.length > 0 || submittedAccounts.length > 0 ? (
           <Card>
             <CardContent className="p-0">
               <table className="w-full text-sm">
@@ -685,6 +696,16 @@ function DashboardContent() {
                   </tr>
                 </thead>
                 <tbody>
+                  {submittedAccounts.map(sub => (
+                    <tr key={`submission-${sub.id}`} className="border-b last:border-b-0">
+                      <td className="px-4 py-3"><p className="font-medium text-gray-900">{sub.fullName}</p><p className="text-xs text-gray-500">{sub.linkedinEmail || sub.email}</p></td>
+                      <td className="px-4 py-3"><span className="text-xs font-medium text-amber-700">{sub.status === "pending" || sub.status === "reviewing" ? "Under Review" : sub.status === "onboarding" ? "Being Prepared" : sub.status.replaceAll("_", " ").replace(/^./, c => c.toUpperCase())}</span></td>
+                      <td className="px-4 py-3 text-gray-400">To be confirmed</td>
+                      <td className="px-4 py-3 text-gray-400">—</td>
+                      <td className="px-4 py-3 text-gray-500">{formatDate(sub.createdAt)}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">Application received</td>
+                    </tr>
+                  ))}
                   {ambassadorAccounts.map((account) => {
                     const price = typeof account.ambassadorPayment === "string"
                       ? parseFloat(account.ambassadorPayment)

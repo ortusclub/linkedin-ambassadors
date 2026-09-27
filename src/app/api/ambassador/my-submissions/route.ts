@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
+import { submittedApplicationsWhere } from "@/lib/application-ownership";
+
 export const dynamic = "force-dynamic";
 
 // Manual GoLogin share links for onboarded submissions that don't have
@@ -18,7 +20,7 @@ export async function GET() {
     const user = await requireAuth();
 
     const submissions = await prisma.ambassadorApplication.findMany({
-      where: { email: user.email },
+      where: submittedApplicationsWhere(user),
       orderBy: { createdAt: "desc" },
     });
 

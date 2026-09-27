@@ -1,5 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
 import { z } from "zod";
 import { assessFromApplication } from "@/services/profile-assessor";
 import { sendAmbassadorApplicationLead } from "@/services/email";
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const data = applySchema.parse(body);
+    const submitter = await getSession();
     const linkedinUrl = data.linkedinUrl || "";
     const hasUrl = linkedinUrl.length > 0;
 
@@ -62,6 +64,7 @@ export async function POST(req: Request) {
       where: {
         email: data.email,
         linkedinUrl,
+        submittedByUserId: submitter?.id ?? null,
         createdAt: { gt: new Date(Date.now() - 10 * 60 * 1000) },
       },
       orderBy: { createdAt: "desc" },
@@ -84,6 +87,8 @@ export async function POST(req: Request) {
     const application = await prisma.ambassadorApplication.create({
       data: {
         ...data,
+        submittedByUserId: submitter?.id ?? null,
+        diyTier: data.diyTier ?? "standard",
         linkedinUrl,
         referredBy,
         // Ortus-referred signups are handled by Ton as the LV point of contact.

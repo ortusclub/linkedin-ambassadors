@@ -98,7 +98,7 @@ export async function onboardingSummary(id: string, referrerId: string) {
   };
 }
 
-export async function reserveOnboarding(referrer: { id: string; slug: string; name: string; type?: string }, input: z.infer<typeof selfServiceInput>) {
+export async function reserveOnboarding(referrer: { id: string; slug: string; name: string; type?: string }, input: z.infer<typeof selfServiceInput>, submittedByUserId?: string) {
   if (phoneVerificationConfigured()) assertPhoneVerificationToken(input.phoneVerificationToken, input.contactNumber, referrer.id);
   const cfg = currencyConfig(referrer.slug);
   const country = countryCode(input.country);
@@ -125,6 +125,7 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
     if (!proxy && !proxyPurchaseLimits().enabled) throw new OnboardingError("No dedicated proxy is available for this country yet. Ask the team to add one, then try again.", 409);
     const now = new Date();
     const app = await tx.ambassadorApplication.create({ data: {
+      submittedByUserId: submittedByUserId ?? null,
       fullName: input.fullName, email: input.email, linkedinEmail: input.email,
       linkedinUrl: input.linkedinUrl, location: country, contactNumber: input.contactNumber,
       accountFreshness: input.accountFreshness, paymentMethod: input.paymentMethod,

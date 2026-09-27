@@ -74,6 +74,7 @@ model User {
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
+  submittedApplications AmbassadorApplication[] @relation("ApplicationSubmitter")
   rentals           Rental[]
   waitlistEntries   Waitlist[]
   sessions          Session[]
@@ -302,6 +303,8 @@ enum AmbassadorStatus {
 }
 
 model AmbassadorApplication {
+  submittedByUserId String? @map("submitted_by_user_id") @db.Uuid
+  submittedBy User? @relation("ApplicationSubmitter", fields: [submittedByUserId], references: [id], onDelete: SetNull)
   selfServiceOnboarding SelfServiceOnboarding?
   id                String           @id @default(uuid()) @db.Uuid
   fullName          String           @map("full_name")
@@ -387,6 +390,7 @@ model AmbassadorApplication {
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
+  @@index([submittedByUserId])
   @@map("ambassador_applications")
 }
 

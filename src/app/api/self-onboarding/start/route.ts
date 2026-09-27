@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { selfServiceInput } from "@/lib/self-service-input";
 import { OnboardingError, reserveOnboarding, mintSelfToken, onboardingSummary, DIY_REFERRER_SLUG } from "@/lib/self-service-onboarding";
+import { getSession } from "@/lib/auth";
 import { verifyPermit } from "@/lib/self-onboarding-gate";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,8 @@ export async function POST(req: Request) {
     const diy = await prisma.referrer.findUnique({ where: { slug: DIY_REFERRER_SLUG }, select: { id: true, slug: true, name: true, type: true } });
     if (!diy) return json({ error: "Onboarding is not available right now." }, 503);
 
-    const id = await reserveOnboarding(diy, parsed.data);
+    const submitter = await getSession();
+    const id = await reserveOnboarding(diy, parsed.data, submitter?.id);
     // Record the chosen tier on the freshly-created application so payouts pay the right bonus.
     if (tier) {
       const s = await prisma.selfServiceOnboarding.findUnique({ where: { id }, select: { applicationId: true } });
