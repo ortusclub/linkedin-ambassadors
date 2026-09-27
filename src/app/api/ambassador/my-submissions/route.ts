@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 // Manual GoLogin share links for onboarded submissions that don't have
 // a matching LinkedInAccount record yet
 const MANUAL_SHARE_LINKS: Record<string, string> = {
@@ -43,8 +45,9 @@ export async function GET() {
       gologinShareLink: gologinLinks[sub.linkedinUrl] || MANUAL_SHARE_LINKS[sub.linkedinUrl] || null,
     }));
 
-    return NextResponse.json({ submissions: enrichedSubmissions });
-  } catch {
-    return NextResponse.json({ submissions: [] });
+    return NextResponse.json({ submissions: enrichedSubmissions }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    return NextResponse.json({ error: "Could not load submissions." }, { status: message === "Unauthorized" ? 401 : message === "Forbidden" ? 403 : 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }

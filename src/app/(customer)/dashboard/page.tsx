@@ -170,7 +170,7 @@ function DashboardContent() {
       fetch("/api/ambassador/my-accounts").then((r) => r.json()).catch(() => ({ accounts: [] })),
       fetch("/api/wallet/balance").then((r) => r.json()).catch(() => ({ balance: "0" })),
       fetch("/api/wallet/deposit-address").then((r) => r.json()).catch(() => ({ address: null })),
-      fetch("/api/ambassador/my-submissions").then((r) => r.json()).catch(() => ({ submissions: [] })),
+      fetch("/api/ambassador/my-submissions", { cache: "no-store" }).then((r) => r.json()).catch(() => ({ submissions: [] })),
       fetch("/api/wallet/card").then((r) => r.json()).catch(() => ({ card: null })),
     ]).then(([rentalData, ambassadorData, balanceData, addressData, submissionsData, cardData]) => {
       if (rentalData) setRentals(rentalData.rentals || []);
@@ -183,6 +183,27 @@ function DashboardContent() {
       setLoading(false);
     });
   }, [router]);
+
+  useEffect(() => {
+    if (loading) return;
+    let stopped = false;
+    let refreshing = false;
+    const refreshSubmissions = async () => {
+      if (document.visibilityState !== "visible" || refreshing) return;
+      refreshing = true;
+      try {
+        const response = await fetch("/api/ambassador/my-submissions", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!stopped && Array.isArray(data.submissions)) setSubmissions(data.submissions);
+      } catch { /* Retain the current list while a refresh is unavailable. */ }
+      finally { refreshing = false; }
+    };
+    const timer = window.setInterval(refreshSubmissions, 10000);
+    window.addEventListener("focus", refreshSubmissions);
+    document.addEventListener("visibilitychange", refreshSubmissions);
+    return () => { stopped = true; window.clearInterval(timer); window.removeEventListener("focus", refreshSubmissions); document.removeEventListener("visibilitychange", refreshSubmissions); };
+  }, [loading]);
 
   useEffect(() => {
     if (searchParams.get("topup") === "1") {
