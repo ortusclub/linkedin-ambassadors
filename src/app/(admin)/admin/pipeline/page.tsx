@@ -717,9 +717,13 @@ export default function AdminPipelinePage() {
     const liveKey = (r: Row): LiveKey => blockKind(r) ?? ((setupDue(r) || (dueInfo?.emails.has((r.email || "").toLowerCase()) ?? false)) ? "due" : "ok");
     const keyOf: (r: Row) => string | number = mode === "stage" ? (r: Row) => levelKey(r) : mode === "live" ? liveKey : (r: Row) => actionBucket(r);
     return defs
-      // Within each group, float what needs the admin NOW to the top (then waiting, then
-      // done), and keep newest-first inside each of those bands.
-      .map((d) => ({ ...d, items: filtered.filter((r) => String(keyOf(r)) === String(d.key)).sort((a, b) => (STEP_RANK[nextStep(a).state] - STEP_RANK[nextStep(b).state]) || (+new Date(b.createdAt) - +new Date(a.createdAt))) }))
+      // Pipeline levels follow application date, newest first. Action/payment views
+      // retain their action-priority ordering.
+      .map((d) => ({ ...d, items: filtered.filter((r) => String(keyOf(r)) === String(d.key)).sort((a, b) => {
+        const newestFirst = +new Date(b.createdAt) - +new Date(a.createdAt);
+        if (mode === "stage") return newestFirst;
+        return (STEP_RANK[nextStep(a).state] - STEP_RANK[nextStep(b).state]) || newestFirst;
+      }) }))
       .filter((g) => g.items.length > 0);
   }, [filtered, mode, dueInfo]);
 
