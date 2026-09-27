@@ -1,7 +1,7 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('fs'),ts=require('typescript');
 const contactModule={exports:{}};new Function('exports',ts.transpileModule(fs.readFileSync('src/lib/booking-contact.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(contactModule.exports);
 const moduleObject={exports:{}};const js=ts.transpileModule(fs.readFileSync('src/lib/inbound-bookings.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
-new Function('require','exports','module',js)(n=>n==='@/lib/prisma'?{prisma:{}}:n==='@/lib/booking-contact'?contactModule.exports:require(n),moduleObject.exports,moduleObject);
+new Function('require','exports','module',js)(n=>n==='@/lib/pipeline-booking'?{recordPipelineBooking:async()=>{}}:n==='@/lib/prisma'?{prisma:{}}:n==='@/lib/booking-contact'?contactModule.exports:require(n),moduleObject.exports,moduleObject);
 const {parseInboundBookings}=moduleObject.exports;
 const event=(uid,title,extra='')=>`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTAMP:20260927T100000Z\r\nDTSTART;TZID=Europe/Belgrade:20260928T140000\r\nSUMMARY:${title}\r\nATTENDEE;CN=Test Person:mailto:person@example.com\r\nATTENDEE:mailto:info@linkedvelocity.com\r\n${extra}END:VEVENT\r\n`;
 const feed=s=>`BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${s}END:VCALENDAR`;

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import * as ical from "node-ical";
+import { recordPipelineBooking } from "@/lib/pipeline-booking";
 import { bookingContact } from "@/lib/booking-contact";
 import { prisma } from "@/lib/prisma";
 
@@ -49,6 +50,7 @@ export async function syncInboundBookings(dryRun = false) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(27145000)`;
     const ardi = await tx.user.findFirst({ where: { email: "ardi@linkedvelocity.com", role: "admin" }, select: { email: true } });
     for (const booking of bookings) {
+      await recordPipelineBooking(tx, booking);
       const prior = await tx.inboundBooking.findUnique({ where: { key: booking.key } });
       if (prior?.fingerprint === booking.fingerprint) { result.unchanged++; continue; }
       let lead = prior ? await tx.inboundLead.findUnique({ where: { id: prior.leadId } }) : null;

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { assessFromApplication } from "@/services/profile-assessor";
@@ -102,6 +102,8 @@ export async function POST(req: Request) {
     // No auto-account on signup — the inventory account is created when the team
     // actually onboards them, so a fresh signup stays a clean Initial lead.
 
+    // The lead is saved before responding; email delivery must not delay signup.
+    after(async () => {
     try {
       await sendAmbassadorApplicationLead({
         fullName: data.fullName,
@@ -119,6 +121,7 @@ export async function POST(req: Request) {
     } catch (emailError) {
       console.error("Ambassador lead email failed:", emailError);
     }
+    });
 
     return NextResponse.json({
       application,

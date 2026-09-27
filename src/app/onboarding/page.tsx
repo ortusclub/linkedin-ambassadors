@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
-import { offerPair } from "@/lib/display-currency";
+import { OnboardingPrice } from "@/components/onboarding-price";
 
 // Public DIY landing page — post it anywhere, no referrer needed. Presents the three
 // self-onboarding tiers (sign-on bonus scales with how much the owner does themselves;
@@ -23,8 +22,7 @@ const TIERS: {
 ];
 
 export default function DIYPage() {
-  const preference = useDisplayCurrency("public-diy");
-  const money = (usd: number, php: number) => offerPair(usd, php, preference.currency);
+  const money = (usd: number, php: number) => <OnboardingPrice usd={usd} php={php} />;
   const MONTHLY = money(8, 500);
   const [tier, setTier] = useState<Tier>("full");
   const [form, setForm] = useState({ fullName: "", email: "", contactMethod: "WhatsApp", contactHandle: "", linkedinUrl: "" });
@@ -72,7 +70,6 @@ export default function DIYPage() {
   return (
     <main style={{ minHeight: "100dvh", background: "#F6F8F7", fontFamily: "'Inter',sans-serif", color: "#0B1220" }}>
       <div style={{ maxWidth: 940, margin: "0 auto", padding: "44px 18px 80px" }}>
-        <CurrencySelector preference={preference} />
         {/* Hero */}
         <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 34px" }}>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 12 }}>Earn from your LinkedIn</div>
@@ -88,7 +85,7 @@ export default function DIYPage() {
             <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
             <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>You&apos;re in, {form.fullName.split(" ")[0]}!</h2>
             <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: "0 0 22px" }}>
-              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {money(chosen.usd, chosen.php)} sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Book a quick call to get started fast:
+              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {money(chosen.usd, chosen.php)} sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Book a quick call to get started fast. Use the same email when booking so we can link the meeting to your signup:
             </p>
             <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, padding: "14px 28px", borderRadius: 13, textDecoration: "none" }}>Book my onboarding call →</a>
           </div>
@@ -156,7 +153,7 @@ export default function DIYPage() {
                   {error && <div style={{ fontSize: 13.5, color: "#C0392B", marginBottom: 14 }}>{error}</div>}
 
                   <button onClick={submit} disabled={submitting} style={{ width: "100%", background: submitting ? "#8FD9B4" : "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: submitting ? "not-allowed" : "pointer" }}>
-                    {submitting ? "Sending…" : `Sign up for ${money(chosen.usd, chosen.php)} + ${MONTHLY}/mo →`}
+                    {submitting ? "Sending…" : <>Sign up for {money(chosen.usd, chosen.php)} + {MONTHLY}/mo →</>}
                   </button>
                 </>
               )}

@@ -33,7 +33,7 @@ const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 type Status = "pending" | "reviewing" | "approved" | "rejected" | "onboarding" | "onboarded" | "unreachable" | "contacted" | "on_hold";
 type Stage = "initial" | "processing" | "accepted" | "onboarded" | "unreachable" | "rejected";
 type Mode = "stage" | "action" | "live";
-type Touch = { ch: string; text: string; by?: string; at: string };
+type Touch = { ch: string; text: string; by?: string; at: string; bookingKey?: string; scheduledAt?: string; cancelled?: boolean };
 type Payout = {
   paidAt: string; amount: number; kind?: "setup" | "monthly"; method?: string | null;
   proofUrl?: string | null; note?: string | null; accountId?: string | null; by?: string;
@@ -523,6 +523,37 @@ export default function AdminPipelinePage() {
     } catch { setError(true); }
   };
   useEffect(() => { load(); }, []);
+  // Keep a visible pipeline current as signup forms create new applications.
+  useEffect(() => {
+    let stopped = false;
+    let refreshing = false;
+    const refresh = async () => {
+      if (document.visibilityState !== "visible" || refreshing) return;
+      refreshing = true;
+      try {
+        const response = await fetch("/api/admin/onboarding", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (stopped || !Array.isArray(data.rows)) return;
+        setRows(previous => {
+          const existing = new Map((previous || []).map(row => [row.id, row]));
+          return data.rows.map((row: Row) => {
+            const prior = existing.get(row.id);
+            return { ...row, onboardingStartedAt: prior?.onboardingStartedAt ?? null,
+              paidAt: prior?.paidAt ?? row.setupPaidAt ?? null,
+              verifiedAt: row.verifiedAt ?? prior?.verifiedAt ?? null,
+              monthlyPayouts: prior?.monthlyPayouts ?? null, call: prior?.call ?? null };
+          });
+        });
+      } catch { /* Keep the current pipeline if a background refresh fails. */ }
+      finally { refreshing = false; }
+    };
+    const timer = window.setInterval(refresh, 10000);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); };
+  }, []);
+
 
   // ---- mutations (all reuse existing endpoints) ----
   const patchApp = async (id: string, patch: Record<string, unknown>, reload = false) => {
@@ -1245,6 +1276,17 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
               No account linked yet — link one on Inventory once they&apos;ve handed over the login (matched by LinkedIn URL or an “Owner: email” note), then GoLogin, proxy, 2FA and pricing open up here.
             </div>
           )}
+
+          {(() => {
+            const meetings = new Map<string, Touch>();
+            for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) meetings.set(entry.bookingKey, entry);
+            if (!meetings.size) return null;
+            return <div style={{ padding: 14, marginBottom: 20, border: "1px solid var(--divider,#ddd)", borderRadius: 12 }}>
+              <b>Meeting booked for</b>
+              {[...meetings.values()].sort((a, b) => b.scheduledAt!.localeCompare(a.scheduledAt!)).map(meeting => <div key={meeting.bookingKey} style={{ marginTop: 8 }}><time dateTime={meeting.scheduledAt}>{new Date(meeting.scheduledAt!).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time>{meeting.cancelled && " · Cancelled"}</div>)}
+              <small>Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone}.</small>
+            </div>;
+          })()}
 
           {/* BLOCK 3 — outreach log */}
           <SectionLabel num={3}>Outreach log</SectionLabel>
