@@ -5,7 +5,9 @@ import { crmOwnerOptions, matchesCrmOwner, ownerKey, type CrmOwner } from "@/lib
 
 import { PocFilter } from "@/components/admin/poc-filter";
 
-interface Lead {
+import { INBOUND_TYPES, INBOUND_DESTINATIONS, inboundType, inboundStatuses, matchesInboundStatus, type InboundRouting, type InboundDestination } from "@/lib/inbound-filters";
+
+interface Lead extends InboundRouting {
   id: string;
   ownerEmail: string | null;
   commsLog?: { ts: string; channel: string; direction?: string; authorName?: string; authorEmail?: string; body: string }[] | null;
@@ -27,7 +29,7 @@ interface Lead {
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
-const PLATFORMS = ["Telegram", "Website", "Call booking", "WhatsApp", "Email", "Other"];
+const PLATFORMS = ["Telegram", "Website", "Call booking", "WhatsApp", "Email", "Referral", "Other"];
 const TYPES = ["Potential Renter", "Potential Ambassador", "Both", "Other"];
 const STATUSES = ["New", "Replied", "In Conversation", "No Response", "Booked Call", "Converted", "Not Interested / Cancelled"];
 
@@ -82,6 +84,9 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
   const [sendingReply, setSendingReply] = useState(false);
   const [replyResult, setReplyResult] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [routingBusy, setRoutingBusy] = useState(false);
   const [filter, setFilter] = useState("all");
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
@@ -133,6 +138,25 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
     finally { setAssigning(false); }
   };
 
+  const typeLeads = useMemo(() => ownerLeads.filter(l => typeFilter === "all" || inboundType(l.channel) === typeFilter), [ownerLeads, typeFilter]);
+  const updateDestination = async (lead: Lead, key: InboundDestination) => {
+    if (routingBusy || lead[key]) return;
+    const destination = key === "addedToAmbassadorPipeline" ? "ambassador" : key === "addedToReferralPipeline" ? "referrer" : "crm";
+    let email = lead.companyEmail || "";
+    if (destination === "ambassador" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || destination === "referrer" && !email && !lead.handle) {
+      const entered = window.prompt("Enter the contact’s email so we can add them to this pipeline:", email);
+      if (entered === null) return;
+      email = entered.trim();
+    }
+    setRoutingBusy(true); setError("");
+    try {
+      const response = await fetch("/api/admin/inbound/route-contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: lead.id, destination, email }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not add the contact.");
+      setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not add the contact."); }
+    finally { setRoutingBusy(false); }
+  };
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const l of ownerLeads) c[l.status] = (c[l.status] || 0) + 1;
@@ -142,11 +166,11 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return ownerLeads.filter((l) => {
-      const okS = filter === "all" || l.status === filter;
+      const okS = archive ? filter === "all" || l.status === filter : (typeFilter === "all" || inboundType(l.channel) === typeFilter) && matchesInboundStatus(l, statusFilters);
       const hay = `${l.name} ${l.handle || ""} ${l.companyEmail || ""} ${l.message || ""} ${l.type || ""}`.toLowerCase();
       return okS && (!q || hay.includes(q));
     });
-  }, [ownerLeads, query, filter]);
+  }, [ownerLeads, query, filter, archive, typeFilter, statusFilters]);
 
   // keep a valid selection
   useEffect(() => {
@@ -210,7 +234,7 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
       <div style={{ marginBottom: 18 }}><PocFilter owners={owners} leads={leads} value={ownerFilter} onChange={setOwnerFilter} /></div>
 
       {/* pipeline */}
-      <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 18, boxShadow: "var(--card-shadow)" }}>
+      {archive ? <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 18, boxShadow: "var(--card-shadow)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 13, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
             <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{ownerLeads.length}</span>
@@ -236,7 +260,19 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
             );
           })}
         </div>
-      </div>
+      </div> : <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 18 }}>
+        <strong style={{ display: "block", fontSize: 20, marginBottom: 16 }}>{ownerLeads.length} inbound contacts</strong>
+        <div role="group" aria-label="Inbound type filters" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <span style={{ ...labelCss, minWidth: 54 }}>Type</span>
+          {["all", ...INBOUND_TYPES].map(type => <button key={type} aria-pressed={typeFilter === type} onClick={() => setTypeFilter(type)} style={{ ...btnSecondary, borderRadius: 999, background: typeFilter === type ? "var(--chip-active-bg)" : "transparent" }}>{type === "all" ? "All" : type} <span style={{ color: "var(--muted)" }}>{type === "all" ? ownerLeads.length : ownerLeads.filter(l => inboundType(l.channel) === type).length}</span></button>)}
+        </div>
+        <div role="group" aria-label="Inbound status filters" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+          <span style={{ ...labelCss, minWidth: 54 }}>Status</span>
+          <button aria-pressed={!statusFilters.length} style={{ ...btnSecondary, borderRadius: 999, background: !statusFilters.length ? "var(--chip-active-bg)" : "transparent" }} onClick={() => setStatusFilters([])}>All {typeLeads.length}</button>
+          {[{ key: "new", label: "New" }, ...INBOUND_DESTINATIONS].map(item => <button key={item.key} aria-pressed={statusFilters.includes(item.key)} style={{ ...btnSecondary, borderRadius: 999, background: statusFilters.includes(item.key) ? "var(--chip-active-bg)" : "transparent" }} onClick={() => setStatusFilters(prev => prev.includes(item.key) ? prev.filter(key => key !== item.key) : [...prev, item.key])}>{item.label} <span style={{ color: "var(--muted)" }}>{typeLeads.filter(l => inboundStatuses(l).includes(item.key)).length}</span></button>)}
+        </div>
+        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0 }}>Select multiple statuses to show contacts matching any of them. A contact can be added to all three destinations. New means none have been recorded yet.</p>
+      </div>}
 
       {/* two-pane inbox */}
       <div style={{ display: "flex", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--card-shadow)", minHeight: 560 }}>
@@ -264,7 +300,7 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
                     <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.message || l.companyEmail || "—"}</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flex: "none" }}>
-                    <span style={{ font: `600 10px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, whiteSpace: "nowrap", ...stStyle(l.status) }}>{l.status}</span>
+                    {(archive ? [l.status] : inboundStatuses(l).map(key => key === "new" ? "New" : INBOUND_DESTINATIONS.find(item => item.key === key)!.label)).map(label => <span key={label} style={{ font: `600 10px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, ...stStyle(archive ? l.status : "New") }}>{label}</span>)}
                     <span style={{ font: `500 11px ${F_SANS}`, color: "var(--date-color)" }}>{fmtShort(l.firstContactAt)}</span>
                   </div>
                 </div>
@@ -290,22 +326,25 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                       {selected.handle && selected.name && selected.handle !== selected.name && <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>{selected.name}</span>}
-                      <select value={selected.type || ""} onChange={(e) => save(selected.id, { type: e.target.value })}
+                      {archive && <select value={selected.type || ""} onChange={(e) => save(selected.id, { type: e.target.value })}
                         style={{ font: `600 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 7, background: "var(--tag-bg)", color: "var(--tag-fg)", border: "none", cursor: "pointer" }}>
                         <option value="">— type —</option>{TYPES.map((t) => <option key={t}>{t}</option>)}
-                      </select>
+                      </select>}
                     </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
-                  <select value={STATUSES.includes(selected.status) ? selected.status : "New"} onChange={(e) => save(selected.id, { status: e.target.value })}
+                  {archive && <select value={STATUSES.includes(selected.status) ? selected.status : "New"} onChange={(e) => save(selected.id, { status: e.target.value })}
                     style={{ font: `600 12.5px ${F_SANS}`, padding: "7px 14px", borderRadius: 999, whiteSpace: "nowrap", border: "none", cursor: "pointer", ...stStyle(selected.status) }}>
                     {STATUSES.map((s) => <option key={s}>{s}</option>)}
-                  </select>
+                  </select>}
                   <button onClick={() => del(selected.id)} style={{ font: `600 13px ${F_SANS}`, color: "var(--delete-color)", background: "transparent", border: "none", cursor: "pointer", padding: "6px 4px" }}>Delete</button>
                 </div>
               </div>
 
+              {!archive && <div aria-label="Add contact to pipelines" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {INBOUND_DESTINATIONS.map(item => <button key={item.key} aria-pressed={!!selected[item.key]} disabled={routingBusy || !!selected[item.key]} onClick={() => void updateDestination(selected, item.key)} style={{ ...btnSecondary, borderRadius: 999, color: selected[item.key] ? "var(--st-new-fg)" : "var(--text)", background: selected[item.key] ? "var(--st-new-bg)" : "var(--card)", opacity: routingBusy ? .6 : 1 }}>{selected[item.key] ? `✓ ${item.label}` : item.key === "addedToAmbassadorPipeline" ? "Add to Ambassador Pipeline" : item.key === "addedToReferralPipeline" ? "Add to Referrers" : "Add to Client CRM"}</button>)}
+              </div>}
               <label style={{ display: "flex", flexDirection: "column", gap: 6 }}><span style={labelCss}>LV PoC — person handling this contact</span>
                 <select aria-label="Lead LV PoC" value={ownerKey(selected.ownerEmail)} disabled={assigning} onChange={e => void assignOwner(selected.id, e.target.value)} style={formInput}>
                   <option value="">Unassigned</option>{ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -410,11 +449,11 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <label style={{ gridColumn: "1 / -1", ...labelCss }}>Name / Username *<input style={{ ...formInput, marginTop: 5 }} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="@username or name" /></label>
               <label style={labelCss}>LV PoC<select style={{ ...formInput, marginTop: 5 }} value={form.ownerEmail} onChange={e => setForm({ ...form, ownerEmail: e.target.value })}><option value="">Unassigned</option>{ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
-              <label style={labelCss}>Platform<select style={{ ...formInput, marginTop: 5 }} value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>{PLATFORMS.map((p) => <option key={p}>{p}</option>)}</select></label>
+              <label style={labelCss}>Type / source<select style={{ ...formInput, marginTop: 5 }} value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>{PLATFORMS.map((p) => <option key={p}>{p}</option>)}</select></label>
               <label style={labelCss}>Date<input type="date" style={{ ...formInput, marginTop: 5 }} value={form.firstContactAt} onChange={(e) => setForm({ ...form, firstContactAt: e.target.value })} /></label>
               <label style={labelCss}>Company / Email<input style={{ ...formInput, marginTop: 5 }} value={form.companyEmail} onChange={(e) => setForm({ ...form, companyEmail: e.target.value })} /></label>
-              <label style={labelCss}>Type<select style={{ ...formInput, marginTop: 5 }} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}><option value="">—</option>{TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
-              <label style={labelCss}>Status<select style={{ ...formInput, marginTop: 5 }} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></label>
+              <label style={labelCss}>Interest<select style={{ ...formInput, marginTop: 5 }} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}><option value="">—</option>{TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
+              <div style={labelCss}>Status: New</div>
               <label style={labelCss}>Follow-up date<input type="date" style={{ ...formInput, marginTop: 5 }} value={form.followUpDate} onChange={(e) => setForm({ ...form, followUpDate: e.target.value })} /></label>
               <label style={{ gridColumn: "1 / -1", ...labelCss }}>Use case / message<textarea rows={2} style={{ ...formInput, marginTop: 5, resize: "vertical" }} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} /></label>
               <label style={labelCss}>Outcome<input style={{ ...formInput, marginTop: 5 }} value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} /></label>

@@ -12,7 +12,7 @@ import { PocFilter } from "@/components/admin/poc-filter";
 
 interface Comm { ts: string; channel: string; body: string }
 interface Lead {
-  id: string; channel: string; name: string; handle: string | null; companyEmail: string | null;
+  addedToClientCrm?: boolean; id: string; channel: string; name: string; handle: string | null; companyEmail: string | null;
   type: string | null; message: string | null; status: string; stage: string; ownerEmail: string | null;
   commsLog: Comm[] | null; source: string | null; notes: string | null;
   followUpDate: string | null; firstContactAt: string; lastContactAt: string;
@@ -94,7 +94,7 @@ export default function CrmPage() {
     return () => { window.removeEventListener("lv-admin-theme", onEvt); window.removeEventListener("storage", read); };
   }, []);
 
-  const load = () => fetch("/api/admin/inbound").then(async (r) => { if (!r.ok) throw new Error("Could not load CRM contacts."); return r.json(); }).then((d) => { setLeads((d.leads || []).filter((lead: Lead) => lead.source !== "Google Calendar booking")); setOwners(d.owners || []); }).finally(() => setLoading(false));
+  const load = () => fetch("/api/admin/inbound").then(async (r) => { if (!r.ok) throw new Error("Could not load CRM contacts."); return r.json(); }).then((d) => { setLeads((d.leads || []).filter((lead: Lead) => lead.addedToClientCrm === true)); setOwners(d.owners || []); }).finally(() => setLoading(false));
   useEffect(() => { load().catch(() => setError("Could not load CRM contacts. Please refresh.")); }, []);
   useEffect(() => { fetch("/api/admin/inbound/export-url").then((r) => r.json()).then((d) => { if (d.configured) setSheetUrl(d.url); }).catch(() => {}); }, []);
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 2000); };
@@ -121,7 +121,7 @@ export default function CrmPage() {
   const addContact = async () => {
     if (!form.name.trim()) return;
     setBusy("new");
-    const res = await fetch("/api/admin/inbound", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel: "manual", source: "manual", ...form }) });
+    const res = await fetch("/api/admin/inbound", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel: "manual", source: "manual", ...form, addedToClientCrm: true }) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { setError("Could not add the contact. Please try again."); setBusy(null); return; }
     setForm({ name: "", companyEmail: "", type: "Potential Renter", stage: "new", message: "", ownerEmail: "" });

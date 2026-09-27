@@ -4,6 +4,9 @@ import { requireAdmin } from "@/lib/auth";
 
 // Editable fields shared by manual-create + edit.
 type LeadInput = {
+  addedToAmbassadorPipeline?: boolean;
+  addedToReferralPipeline?: boolean;
+  addedToClientCrm?: boolean;
   channel?: string;
   name?: string;
   handle?: string | null;
@@ -69,6 +72,7 @@ export async function POST(req: NextRequest) {
       data: {
         channel: (body.channel || "website").toString(),
         name: body.name.trim(),
+        addedToClientCrm: body.addedToClientCrm === true,
         ...data,
       },
     });

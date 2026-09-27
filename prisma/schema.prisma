@@ -481,6 +481,11 @@ model Transaction {
 // bookings). One row per person per channel (upserted). Powers the live
 // "Inbound" admin tab + Google Sheet. Signups/customers live elsewhere (not inbound).
 model InboundLead {
+  ambassadorApplicationId String? @map("ambassador_application_id") @db.Uuid
+  referrerId String? @map("referrer_id") @db.Uuid
+  addedToAmbassadorPipeline Boolean @default(false) @map("added_to_ambassador_pipeline")
+  addedToReferralPipeline Boolean @default(false) @map("added_to_referral_pipeline")
+  addedToClientCrm Boolean @default(false) @map("added_to_client_crm")
   id             String   @id @default(uuid()) @db.Uuid
   channel        String                                  // platform: "telegram" | "website" | "call" | ...
   name           String                                  // name or @username
