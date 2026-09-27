@@ -98,6 +98,8 @@ interface AmbassadorAccount {
 }
 
 interface Submission {
+  setupInProgress?: boolean;
+  resumeUrl?: string | null;
   deal?: { setupUsd: number; setupPhp: number; monthlyUsd: number; monthlyPhp: number };
   scheduledMeeting?: { id: string; startsAt: string; inviteSentAt: string | null; sequence: number } | null;
   id: string;
@@ -1016,9 +1018,9 @@ function DashboardContent() {
                         </a>
                       </td>
                       <td className="px-3 py-3">
-                        <Badge variant={sub.status === "approved" || sub.status === "onboarded" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
+                        {sub.setupInProgress && sub.resumeUrl ? <Link href={sub.resumeUrl} title="Continue setup where you left off" className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 whitespace-nowrap">In progress →</Link> : <Badge variant={sub.status === "approved" || sub.status === "onboarded" ? "success" : sub.status === "rejected" ? "danger" : "warning"}>
                           {sub.status}
-                        </Badge>
+                        </Badge>}
                       </td>
                       <td className="px-3 py-3">
                         {sub.deal ? <CompactDetail
@@ -1038,7 +1040,7 @@ function DashboardContent() {
                       </td>
                       <td className="px-3 py-3 text-gray-400 text-sm"><time dateTime={sub.createdAt} title={formatDate(sub.createdAt)}>{new Date(sub.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</time></td>
                       <td className="px-3 py-3">
-                        {sub.gologinShareLink ? (
+                        {sub.setupInProgress && sub.resumeUrl ? <Link href={sub.resumeUrl} className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 whitespace-nowrap">Continue setup →</Link> : sub.gologinShareLink ? (
                           <button
                             onClick={() => {
                               // Extract path from share link and build gologin:// protocol URL

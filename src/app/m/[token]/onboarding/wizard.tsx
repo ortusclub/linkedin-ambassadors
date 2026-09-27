@@ -66,6 +66,7 @@ import { ShareLinks, WaitNotice, type ScriptContext } from "./onboarding-scripts
 type Session = {
   emailSetup: EmailSetup | null;
   diyTier?: string | null;
+  twoFactorSaved?: boolean;
   duplicateWarning?: string | null;
   country: string | null; proxyAssigned: boolean; proxyPriceLimit: number;
   id: string; name: string; state: string; opened: boolean; shareLink: string | null;
@@ -245,14 +246,28 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     } catch (e) { setPhoneError(e instanceof Error ? e.message : "Mobile verification failed."); }
     finally { setPhoneBusy(false); }
   }
+  function chooseDevice(value: "" | "pc" | "phone") {
+    setDevice(value);
+    try { if (selfMode) localStorage.setItem(`lv-setup-device:${token}`, value); } catch { /* Storage is optional. */ }
+    if (value === "pc" && session?.diyTier !== "partial") setBrowserMode("pc");
+  }
   function showSession(s: Session) {
     setSession(s);
+    if (selfMode) {
+      try {
+        const saved = localStorage.getItem(`lv-setup-device:${token}`);
+        if (saved === "pc" || saved === "phone") {
+          setDevice(saved);
+          if (saved === "pc" && s.diyTier !== "partial") setBrowserMode("pc");
+        }
+      } catch { /* Ask for the device when browser storage is unavailable. */ }
+    }
     if (selfMode && s.diyTier === "partial") setBrowserMode("phone");
     if (s.state === "handed_off") setHandedOff(true);
     // Functional update so we never yank a referrer BACKWARD: once the email is primary the
     // resume point is the 2FA step (4), but if they've already moved on to sign-in (5) a
     // refresh must leave them there. confirmed → done (6); email not primary → email (3).
-    setStep((prev) => s.state === "confirmed" ? 6 : s.state === "handed_off" ? 5 : (s.emailSetup && !s.emailSetup.primaryConfirmed) ? 3 : Math.max(prev, 4));
+    setStep((prev) => s.state === "confirmed" ? 6 : s.state === "handed_off" ? 5 : (s.emailSetup && !s.emailSetup.primaryConfirmed) ? 3 : Math.max(prev, s.twoFactorSaved ? 5 : 4));
   }
   async function emailAction(body: unknown) {
     if (!session) return;
@@ -367,6 +382,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
         </div>
       </header>
       <CurrencySelector preference={preference} />
+      {selfMode && <p className={styles.hint} style={{ padding: "12px 24px", margin: 0 }}>Your completed steps are saved. Return through your LinkedVelocity dashboard and select <strong>Continue setup</strong> under My Submissions.</p>}
 
       <div className={styles.content}>
         {error && step !== 4 && <div className={styles.error} role="alert">{error}</div>}
@@ -379,12 +395,12 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           <p className={styles.lead}>{session?.diyTier === "partial" ? "We’ll guide you through adding the managed email and turning on 2FA. Then our team completes the browser sign-in." : "We’ll guide you through email, 2FA and the protected-browser sign-in, with help at each step."}</p>
           <div className={styles.card}>
             <p><strong>Email + 2FA: <OnboardingPrice usd={24} php={1500} /> sign-on bonus.</strong> You add the email and 2FA; our team finishes the browser sign-in.</p>
-            <p><strong>Full DIY: <OnboardingPrice usd={32} php={2000} /> sign-on bonus.</strong> Earn <OnboardingPrice usd={8} php={500} /> more by completing the protected-browser sign-in yourself on a computer.</p>
+            <p><strong>Full DIY: <OnboardingPrice usd={32} php={2000} /> sign-on bonus.</strong> Earn <OnboardingPrice usd={8} php={500} /> more by completing the sign-in yourself. <strong>Full DIY requires a Windows or Mac laptop or desktop with GoLogin installed. You cannot complete Full DIY on a phone.</strong></p>
             <p style={{ marginBottom: 0, color: "#067A45" }}><strong>Both options: <OnboardingPrice usd={8} php={500} /> every month</strong> once onboarding is complete.</p>
           </div>
           <h2>Are you using a phone or a computer?</h2>
-          <button className={styles.choiceCard} onClick={() => setDevice("phone")}><strong>I’m on a phone</strong><p>Add the email and 2FA here. For Full DIY, you can move to a computer for the final sign-in.</p></button>
-          <button className={styles.choiceCard} onClick={() => { setDevice("pc"); if (session?.diyTier !== "partial") setBrowserMode("pc"); }}><strong>I’m on a laptop or desktop</strong><p>Use Windows or Mac to complete the protected-browser sign-in yourself.</p></button>
+          <button className={styles.choiceCard} onClick={() => chooseDevice("phone")}><strong>I’m on a phone</strong><p>Complete the email and 2FA steps on your phone. Full DIY cannot be completed on a phone: you must switch to a Windows or Mac computer to install and use GoLogin.</p></button>
+          <button className={styles.choiceCard} onClick={() => chooseDevice("pc")}><strong>I’m on a laptop or desktop</strong><p>Choose this for Full DIY. You’ll install GoLogin on your Windows or Mac computer and complete the account sign-in yourself.</p></button>
         </>}
         {bootstrap && (!selfMode || device) && <>
           {railOpen ? <div className={styles.railOpen}>
@@ -527,7 +543,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           {selfMode && session && <div className={styles.note}>
             <strong>{session.diyTier === "partial" ? "Email + 2FA setup" : "Full DIY setup"}</strong> · Your sign-on bonus: {moneyText(session.setupAmount)} · {moneyText(session.monthlyAmount)}/month after onboarding.
             <p><a href="/ambassador-guide" target="_blank" rel="noreferrer">Account setup guide</a> · <a href="/guide/two-step-verification" target="_blank" rel="noreferrer">2FA guide</a> · <a href="/guide" target="_blank" rel="noreferrer">GoLogin guide</a></p>
-            <button className={styles.linkBtn} onClick={() => setDevice("")}>Change device</button>
+            <button className={styles.linkBtn} onClick={() => chooseDevice("")}>Change device</button>
           </div>}
           {step === 3 && session?.emailSetup && <>
             <div className={styles.stepLabel}>Add secure email</div>
@@ -554,7 +570,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={() => setStep(3)}>Back</button>
-              <button type="button" className={styles.primary} disabled={!looksLikeTotpKey(twoFactorKey)} onClick={() => { void saveTwoFactor(); setStep(5); }}>{selfMode && session.diyTier === "partial" ? "Continue to team handoff →" : "Continue to sign-in →"}</button>
+              <button type="button" className={styles.primary} disabled={busy || !looksLikeTotpKey(twoFactorKey)} onClick={() => run(async () => { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); setStep(5); })}>{selfMode && session.diyTier === "partial" ? "Continue to team handoff →" : "Continue to sign-in →"}</button>
             </div>
           </>}
 

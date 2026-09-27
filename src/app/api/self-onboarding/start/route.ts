@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { selfServiceInput } from "@/lib/self-service-input";
 import { OnboardingError, reserveOnboarding, mintSelfToken, onboardingSummary, DIY_REFERRER_SLUG } from "@/lib/self-service-onboarding";
-import { getSession } from "@/lib/auth";
+import { createSession, getSession } from "@/lib/auth";
+import { isLikelyTestEmail } from "@/lib/test-mode";
 import { verifyPermit } from "@/lib/self-onboarding-gate";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,16 @@ export async function POST(req: Request) {
     const diy = await prisma.referrer.findUnique({ where: { slug: DIY_REFERRER_SLUG }, select: { id: true, slug: true, name: true, type: true } });
     if (!diy) return json({ error: "Onboarding is not available right now." }, 503);
 
-    const submitter = await getSession();
+    const signedIn = await getSession();
+    // The verified LinkedIn email identifies a user only when no one is signed in.
+    // A signed-in submitter may legitimately provide an account with a different email.
+    const submitter = signedIn || await prisma.user.upsert({
+      where: { email: parsed.data.email },
+      create: { email: parsed.data.email, fullName: parsed.data.fullName, role: "customer", status: "active", emailVerified: new Date(), isTest: isLikelyTestEmail(parsed.data.email) },
+      update: {},
+    });
+    if (submitter.status !== "active") return json({ error: "This LinkedVelocity account is not active. Please contact support." }, 403);
+    if (!signedIn && !submitter.emailVerified) await prisma.user.update({ where: { id: submitter.id }, data: { emailVerified: new Date() } });
     const id = await reserveOnboarding(diy, parsed.data, submitter?.id, { publicOwner: true });
     // Record the chosen tier on the freshly-created application so payouts pay the right bonus.
     if (tier) {
@@ -39,6 +49,7 @@ export async function POST(req: Request) {
       if (s && !["handed_off", "confirmed"].includes(s.state)) await prisma.ambassadorApplication.update({ where: { id: s.applicationId }, data: { diyTier: tier } });
     }
     const token = await mintSelfToken(id);
+    if (!signedIn) await createSession(submitter.id, submitter.role === "admin");
     return json({ token, session: await onboardingSummary(id, diy.id) });
   } catch (error) {
     if (error instanceof OnboardingError) return json({ error: error.message }, error.status);

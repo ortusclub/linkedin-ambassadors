@@ -23,11 +23,12 @@ export async function GET() {
     const submissions = await prisma.ambassadorApplication.findMany({
       where: submittedApplicationsWhere(user),
       orderBy: { createdAt: "desc" },
-      include: { scheduledMeeting: { select: { id: true, startsAt: true, inviteSentAt: true, sequence: true } } },
+      include: { selfServiceOnboarding: { select: { state: true, publicToken: true, account: { select: { gologinShareLink: true } } } }, scheduledMeeting: { select: { id: true, startsAt: true, inviteSentAt: true, sequence: true } } },
     });
 
     // For onboarded submissions, find the matching LinkedIn account's GoLogin share link
     const linkedinUrls = submissions
+      .filter((s) => !s.selfServiceOnboarding)
       .filter((s) => s.status === "onboarded" || s.status === "onboarding" || s.status === "approved")
       .map((s) => s.linkedinUrl);
 
@@ -47,10 +48,14 @@ export async function GET() {
     const enrichedSubmissions = submissions.map((sub) => {
       const usd = currencyConfigFor("USD", sub.referredBy, sub);
       const php = currencyConfigFor("PHP", sub.referredBy, sub);
+      const { selfServiceOnboarding: setup, ...application } = sub;
+      const inProgress = !!setup?.publicToken && ["reserved", "needs_help", "ready"].includes(setup.state) && !["rejected", "onboarded"].includes(sub.status);
       return {
-        ...sub,
+        ...application,
+        setupInProgress: inProgress,
+        resumeUrl: inProgress ? `/onboarding/resume/${sub.id}` : null,
         deal: { setupUsd: usd.setupAmount, setupPhp: php.setupAmount, monthlyUsd: usd.monthlyAmount, monthlyPhp: php.monthlyAmount },
-        gologinShareLink: gologinLinks[sub.linkedinUrl] || MANUAL_SHARE_LINKS[sub.linkedinUrl] || null,
+        gologinShareLink: setup ? (inProgress ? null : setup.account.gologinShareLink) : gologinLinks[sub.linkedinUrl] || MANUAL_SHARE_LINKS[sub.linkedinUrl] || null,
       };
     });
 

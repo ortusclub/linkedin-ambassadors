@@ -16,7 +16,7 @@ test('public onboarding starts a scoped wizard after email verification',async()
  '@/lib/prisma':{prisma:{referrer:{findUnique:async()=>({id:'diy-id',slug:'diy'})},selfServiceOnboarding:{findUnique:async()=>({applicationId:'new-app'})},ambassadorApplication:{update:async()=>{}}}},
   '@/lib/self-service-input':load('src/lib/self-service-input.ts'),
   '@/lib/self-service-onboarding':{OnboardingError:class extends Error{},DIY_REFERRER_SLUG:'diy',reserveOnboarding:async(...args)=>{reserved=args;return 'new-session'},mintSelfToken:async id=>{assert.equal(id,'new-session');return 'new-token'},onboardingSummary:async()=>({id:'new-session'})},
-  '@/lib/auth':{getSession:async()=>({id:'submitter-id'})},'@/lib/self-onboarding-gate':{verifyPermit:()=>true}
+  '@/lib/test-mode':{isLikelyTestEmail:()=>false},'@/lib/auth':{getSession:async()=>({id:'submitter-id',status:'active'})},'@/lib/self-onboarding-gate':{verifyPermit:()=>true}
  });
  const previous=process.env.GOLOGIN_API_TOKEN_KLABBER;process.env.GOLOGIN_API_TOKEN_KLABBER='mock';
  const body={fullName:'Test Owner',email:'owner@example.com',linkedinUrl:'https://linkedin.com/in/person',country:'PH',contactNumber:'WhatsApp:+639123456789',accountFreshness:'established',paymentMethod:'GCash',paymentDetails:'09123456789',payoutName:'Test Owner',consent:true,tier:'partial',permit:'mock'};

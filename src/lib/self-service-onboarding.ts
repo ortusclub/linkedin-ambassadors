@@ -83,6 +83,7 @@ export async function onboardingSummary(id: string, referrerId: string) {
   return {
     emailSetup,
     diyTier: s.application.diyTier,
+    twoFactorSaved: !!s.account.twoFactor,
     duplicateWarning: s.application.adminNotes?.includes("[Existing account submission]") ? "We have already received an application for this account. You can continue, but this duplicate application will likely be rejected during review." : null,
     id: s.id, name: s.application.fullName, state: s.state, opened: !!s.openedAt,
     country: countryCode(s.account.location),
