@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 import { submittedApplicationsWhere } from "@/lib/application-ownership";
 import { meetingApplication } from "@/lib/meeting-token";
 import { verifyPermit } from "@/lib/self-onboarding-gate";
@@ -15,36 +15,37 @@ async function applicationAccess(req: Request) {
   if (requestedId) {
     const user = await requireAuth();
     const owned = await prisma.ambassadorApplication.findFirst({ where: { id: requestedId, ...submittedApplicationsWhere(user) }, select: { id: true } });
-    return { id: owned?.id || null, authenticated: true };
+    return { id: owned?.id || null, userEmail: user.email };
   }
-  return { id: meetingApplication(req.headers.get("authorization")?.replace(/^Bearer /, "") || ""), authenticated: false };
+  return { id: meetingApplication(req.headers.get("authorization")?.replace(/^Bearer /, "") || ""), userEmail: (await getSession())?.email || null };
 }
-const view = (booking: { id: string; startsAt: Date; inviteSentAt: Date | null; sequence?: number }) => ({ sequence: booking.sequence || 0, id: booking.id, startsAt: booking.startsAt, invitationSent: !!booking.inviteSentAt });
+const view = (booking: { email: string; id: string; startsAt: Date; inviteSentAt: Date | null; sequence?: number }) => ({ email: booking.email, sequence: booking.sequence || 0, id: booking.id, startsAt: booking.startsAt, invitationSent: !!booking.inviteSentAt });
 export async function GET(req: Request) {
   try {
-    const { id } = await applicationAccess(req);
+    const { id, userEmail } = await applicationAccess(req);
     if (!id) return json({ error: "Application unavailable. Please sign in or use a current booking link." }, 401);
-    const app = await prisma.ambassadorApplication.findUnique({ where: { id }, select: { id: true } });
+    const app = await prisma.ambassadorApplication.findUnique({ where: { id }, select: { id: true, email: true, bookingEmail: true } });
     if (!app) return json({ error: "Application not found." }, 404);
     const booking = await prisma.scheduledMeeting.findUnique({ where: { applicationId: id } });
-    return json({ slots: booking && !new URL(req.url).searchParams.has("reschedule") ? [] : await availableMeetings(new Date(), booking?.id), booking: booking ? view(booking) : null, duration: MEETING_MINUTES, timeZone: MEETING_TIME_ZONE });
+    return json({ invitationEmail: booking?.email || userEmail || app.bookingEmail || app.email, signedInEmail: userEmail, slots: booking && !new URL(req.url).searchParams.has("reschedule") ? [] : await availableMeetings(new Date(), booking?.id), booking: booking ? view(booking) : null, duration: MEETING_MINUTES, timeZone: MEETING_TIME_ZONE });
   } catch (error) { return json({ error: error instanceof Error && error.message === "Unauthorized" ? "Please sign in." : "We couldn't check the calendar. Please try again shortly." }, error instanceof Error && error.message === "Unauthorized" ? 401 : 503); }
 }
-const schema = z.object({ startsAt: z.string().datetime(), permit: z.string().optional(), sequence: z.number().int().nonnegative().optional() });
+const schema = z.object({ startsAt: z.string().datetime(), email: z.string().trim().email().optional(), permit: z.string().optional(), sequence: z.number().int().nonnegative().optional() });
 export async function POST(req: Request) { return saveMeeting(req, false); }
 export async function PUT(req: Request) { return saveMeeting(req, true); }
 async function saveMeeting(req: Request, reschedule: boolean) {
   const origin = req.headers.get("origin");
   if (origin && origin !== new URL(req.url).origin) return json({ error: "Request origin not allowed." }, 403);
   try {
-    const { id, authenticated } = await applicationAccess(req);
+    const { id, userEmail } = await applicationAccess(req);
     if (!id) return json({ error: "Application unavailable. Please sign in or use a current booking link." }, 401);
     const body = schema.safeParse(await req.json());
     if (!body.success) return json({ error: "Choose a time and verify your email." }, 400);
     const app = await prisma.ambassadorApplication.findUnique({ where: { id } });
     if (!app) return json({ error: "Application not found." }, 404);
-    if (!authenticated && !verifyPermit(body.data.permit || "", app.email)) return json({ error: "Please verify your application email again." }, 403);
     const existing = await prisma.scheduledMeeting.findUnique({ where: { applicationId: id } });
+    const invitationEmail = (existing?.email || body.data.email || userEmail || app.bookingEmail || app.email).trim().toLowerCase();
+    if (userEmail?.toLowerCase() !== invitationEmail && !verifyPermit(body.data.permit || "", invitationEmail)) return json({ error: "Please verify the email for your meeting invitation." }, 403);
     let booking = existing;
     if (reschedule && !booking) return json({ error: "No meeting is booked yet." }, 404);
     if (!booking || reschedule) {
@@ -59,11 +60,12 @@ async function saveMeeting(req: Request, reschedule: boolean) {
         if (reschedule && duplicate?.startsAt.toISOString() === body.data.startsAt) return duplicate;
 
         const booked = await tx.scheduledMeeting.findMany({ where: { ...(duplicate ? { id: { not: duplicate.id } } : {}), host: MEETING_HOST, startsAt: { gte: new Date(now.getTime() - 1800000) } } });
-        if (booked.some(b => b.email.toLowerCase() === app.email.toLowerCase())) throw new Error("ALREADY_BOOKED");
+        if (booked.some(b => b.email.toLowerCase() === invitationEmail)) throw new Error("ALREADY_BOOKED");
         const imported = await tx.inboundBooking.findMany({ where: { ...(duplicate ? { key: { not: duplicate.id } } : {}), cancelled: false, scheduledAt: { gte: new Date(now.getTime() - 1800000) } }, select: { scheduledAt: true, eventId: true } });
         const slots = meetingSlots(new Date(), [...externalBusy, ...imported.map(b => ({ start: b.scheduledAt, end: new Date(b.scheduledAt.getTime() + 1800000) })), ...booked.map(b => ({ start: b.startsAt, end: new Date(b.startsAt.getTime() + 1800000) }))]);
         if (!slots.includes(body.data.startsAt)) throw new Error("SLOT_TAKEN");
-        const created = duplicate && reschedule ? await tx.scheduledMeeting.update({ where: { id: duplicate.id }, data: { startsAt: new Date(body.data.startsAt), sequence: { increment: 1 }, inviteSentAt: null } }) : await tx.scheduledMeeting.create({ data: { applicationId: id, name: app.fullName, email: app.email, contact: app.contactNumber || "", host: MEETING_HOST, startsAt: new Date(body.data.startsAt) } });
+        const created = duplicate && reschedule ? await tx.scheduledMeeting.update({ where: { id: duplicate.id }, data: { startsAt: new Date(body.data.startsAt), sequence: { increment: 1 }, inviteSentAt: null } }) : await tx.scheduledMeeting.create({ data: { applicationId: id, name: app.fullName, email: invitationEmail, contact: app.contactNumber || "", host: MEETING_HOST, startsAt: new Date(body.data.startsAt) } });
+        await tx.ambassadorApplication.update({ where: { id }, data: { bookingEmail: created.email } });
         const when = created.startsAt.toLocaleString("en-PH", { timeZone: MEETING_TIME_ZONE, dateStyle: "medium", timeStyle: "short" });
         const entry = JSON.stringify([{ id: `meeting:${created.id}:${created.sequence}`, ch: "note", by: "Meeting scheduler", at: new Date().toISOString(), text: `30-minute onboarding meeting ${reschedule ? "rescheduled" : "booked"}: ${when} (Philippine time).`, bookingKey: created.id, scheduledAt: created.startsAt.toISOString(), cancelled: false }]);
         await tx.$executeRaw`UPDATE ambassador_applications SET outreach_log = COALESCE(outreach_log, '[]'::jsonb) || ${entry}::jsonb, updated_at = NOW() WHERE id = ${id}::uuid`;
@@ -73,7 +75,7 @@ async function saveMeeting(req: Request, reschedule: boolean) {
           await tx.inboundLead.update({ where: { id: priorInbound.leadId }, data: { firstContactAt: created.startsAt, followUpDate: created.startsAt } });
         } else {
           const lead = await tx.inboundLead.create({ data: { channel: "call", contact: `meeting:${created.id}`, name: app.fullName, phone: app.contactNumber, companyEmail: app.email, source: "LinkedVelocity onboarding booking", status: "Booked Call", stage: "warm", firstContactAt: created.startsAt, followUpDate: created.startsAt, message: `30-minute onboarding call. Application: ${app.id}` } });
-          await tx.inboundBooking.create({ data: { key: created.id, eventId: `${created.id}@linkedvelocity.com`, email: app.email, leadId: lead.id, scheduledAt: created.startsAt, fingerprint: `${created.id}:${created.sequence}` } });
+          await tx.inboundBooking.create({ data: { key: created.id, eventId: `${created.id}@linkedvelocity.com`, email: created.email, leadId: lead.id, scheduledAt: created.startsAt, fingerprint: `${created.id}:${created.sequence}` } });
         }
         return created;
       });

@@ -88,7 +88,7 @@ export default function DIYPage() {
             <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
             <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>You&apos;re in, {form.fullName.split(" ")[0]}!</h2>
             <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: "0 0 22px" }}>
-              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {money(chosen.usd, chosen.php)} sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Choose a 30-minute onboarding call below. It will be linked directly to your signup:
+              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {money(chosen.usd, chosen.php)} sign-on bonus + {MONTHLY}/month. Account email: <strong style={{ color: "#fff" }}>{form.email}</strong>. Choose a 30-minute onboarding call below and confirm where to send the invitation. It will be linked directly to your signup:
             </p>
             {bookingToken && <MeetingBooker token={bookingToken} email={form.email.trim()} />}
           </div>
@@ -143,7 +143,7 @@ export default function DIYPage() {
                   <div style={{ marginBottom: 14 }}>
                     <label style={label} htmlFor="provided-account-email">Email currently on that LinkedIn account *</label>
                     <input id="provided-account-email" style={inp} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="Email linked to the account you are providing" />
-                    <p style={{ fontSize: 12, lineHeight: 1.5, color: "#5A6473", margin: "6px 0 0" }}>Use the account’s current email address. Verification codes and updates will be sent here.</p>
+                    <p style={{ fontSize: 12, lineHeight: 1.5, color: "#5A6473", margin: "6px 0 0" }}>Use the account’s current email address. You can choose a different email for your meeting invitation in the next step.</p>
                   </div>
                   <div style={{ marginBottom: 14 }}>
                     <label style={label}>How can we reach you? *</label>

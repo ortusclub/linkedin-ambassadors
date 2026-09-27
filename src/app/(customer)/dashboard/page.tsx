@@ -1003,22 +1003,24 @@ function DashboardContent() {
       {/* Past Rentals */}
       {pastRentals.length > 0 && (
         <section className="mb-12 order-2">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Past Rentals</h2>
-          <div className="space-y-3">
-            {pastRentals.map((rental) => (
-              <Card key={rental.id}>
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium text-gray-700">{rental.linkedinAccount.linkedinName}</span>
-                      {statusBadge(rental.status)}
-                    </div>
-                    <span className="text-sm text-gray-500">{formatDate(rental.startDate)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <details className="group">
+            <summary className="mb-4 flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 focus-visible:outline-2 focus-visible:outline-blue-500 [&::-webkit-details-marker]:hidden">
+              <h2 className="text-xl font-semibold text-gray-900">Past Rentals <span className="ml-2 text-sm font-normal text-gray-500">({pastRentals.length})</span></h2>
+              <span className="flex items-center gap-2 text-sm font-semibold text-blue-700"><span className="group-open:hidden">Show history</span><span className="hidden group-open:inline">Hide history</span><span aria-hidden="true" className="transition-transform group-open:rotate-180">⌄</span></span>
+            </summary>
+            <Card>
+              <CardContent className="p-0 overflow-x-auto">
+                <table className="w-full whitespace-nowrap text-sm">
+                  <thead><tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-400"><th className="px-5 py-4">Profile</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Started</th></tr></thead>
+                  <tbody>{pastRentals.map(rental => <tr key={rental.id} className="border-b last:border-b-0">
+                    <td className="px-5 py-4 font-semibold text-gray-900">{rental.linkedinAccount.linkedinName}</td>
+                    <td className="px-5 py-4">{statusBadge(rental.status)}</td>
+                    <td className="px-5 py-4 text-gray-500"><time dateTime={rental.startDate}>{formatDate(rental.startDate)}</time></td>
+                  </tr>)}</tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </details>
         </section>
       )}
       </div>
