@@ -39,10 +39,10 @@ export async function allocateOnboardingAddress(tx: Prisma.TransactionClient, na
 export async function emailSetupSummary(id: string, referrerId: string) {
   const config = emailSetupConfig();
   if (!config.enabled) return null;
-  const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, select: { state: true, emailSetup: true } });
+  const s = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, select: { state: true, emailSetup: true, email: true, publicToken: true } });
   if (!s) throw new EmailSetupError("Onboarding not found.", 404);
   const e = s.emailSetup;
-  return { configured: config.ready, domains: config.domains, address: e?.address || null, destination: e?.destination || null,
+  return { previouslyVerifiedEmail: s.publicToken ? s.email : null, configured: config.ready, domains: config.domains, address: e?.address || null, destination: e?.destination || null,
     destinationVerified: !!e?.destinationVerifiedAt, primaryConfirmed: !!e?.primaryConfirmedAt,
     verificationCodePending: !!e?.codeHash && !!e.codeExpiresAt && e.codeExpiresAt > new Date(),
     forwardingActive: !!e && forwardingActive(e, s.state), forwardingUntil: e?.forwardingUntil || null,
@@ -55,7 +55,7 @@ export async function requireEmailSetup(id: string, referrerId: string) {
   if (info && (!info.configured || !info.primaryConfirmed)) throw new EmailSetupError("Complete the primary-email step before opening GoLogin.", 409);
 }
 
-export async function updateEmailSetup(id: string, referrerId: string, input: z.infer<typeof emailAction>) {
+export async function updateEmailSetup(id: string, referrerId: string, input: z.infer<typeof emailAction>, options: { publicOwner?: boolean } = {}) {
   const config = emailSetupConfig();
   if (!config.ready) throw new EmailSetupError("Email setup is not live yet. The team needs to verify receiving and forwarding first.", 503);
   const owner = await prisma.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { application: { select: { fullName: true } } } });
@@ -63,6 +63,20 @@ export async function updateEmailSetup(id: string, referrerId: string, input: z.
   const now = new Date();
   if (input.action === "start") {
     if (config.domains.includes(input.destination.split("@")[1])) throw new EmailSetupError("Use an existing inbox, not an onboarding address.");
+    // Public session tokens are minted only after the original email passes the
+    // signup verification gate. Never trust a client-supplied verification flag.
+    if (options.publicOwner && owner.publicToken && owner.email.toLowerCase() === input.destination) {
+      await prisma.$transaction(async tx => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100902)`;
+        const prior = await tx.onboardingEmailSetup.findUnique({ where: { sessionId: id } });
+        if (prior?.destinationVerifiedAt && prior.destination !== input.destination) throw new EmailSetupError("Restart the email step before changing your forwarding inbox.", 409);
+        const address = prior?.address || await allocateOnboardingAddress(tx, owner.application.fullName, config.domains);
+        const verified = { destination: input.destination, consentAt: now, destinationVerifiedAt: now,
+          forwardingUntil: new Date(now.getTime() + FORWARD_WINDOW_MS), codeHash: null, codeExpiresAt: null, codeAttempts: 0 };
+        await tx.onboardingEmailSetup.upsert({ where: { sessionId: id }, create: { sessionId: id, address, ...verified }, update: verified });
+      }, { timeout: 15000 });
+      return;
+    }
     const code = String(randomInt(100000, 1000000));
     const attempt = await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100902)`;

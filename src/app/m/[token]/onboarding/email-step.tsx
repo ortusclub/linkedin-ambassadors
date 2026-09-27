@@ -5,6 +5,7 @@ import { useState } from "react";
 import styles from "./wizard.module.css";
 
 export type EmailSetup = {
+  previouslyVerifiedEmail?: string | null;
   configured: boolean; domains: string[]; address: string | null; destination: string | null;
   destinationVerified: boolean; verificationCodePending: boolean; primaryConfirmed: boolean; forwardingActive: boolean;
   forwardingUntil: string | null; lastForwardedAt: string | null; primaryConfirmedAt: string | null;
@@ -19,7 +20,9 @@ export default function EmailStep({ setup, busy, submit, refresh, selfMode = fal
 }) {
   const initialStep = !setup.forwardingActive ? 1 : (setup.lastForwardedAt || setup.confirmUrl) ? 3 : 2;
   const [miniStep, setMiniStep] = useState(initialStep);
-  const [destination, setDestination] = useState(setup.destination || "");
+  const [destination, setDestination] = useState(setup.destination || (selfMode ? setup.previouslyVerifiedEmail : "") || "");
+  const [editingInbox, setEditingInbox] = useState(false);
+  const previouslyVerified = !!(selfMode && setup.previouslyVerifiedEmail && destination.trim().toLowerCase() === setup.previouslyVerifiedEmail.toLowerCase());
   const [consent, setConsent] = useState(false);
   const [code, setCode] = useState("");
   const [linkConfirmed, setLinkConfirmed] = useState(false);
@@ -102,19 +105,20 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
     {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before this step can continue.</div> : <>
       {miniStep === 1 && <section className={styles.miniPanel} data-tour="email-inbox">
         <div className={styles.stepLabel}>EMAIL STEP 1 OF 4</div>
-        <h3>Pick an inbox to catch the verification</h3>
-        <p>Enter an inbox you can open now. We’ll send a six-digit code to verify it, then temporarily forward LinkedIn’s verification message there. This can be different from your account email.</p>
+        <h3>{previouslyVerified && !editingInbox ? "Your verification inbox" : "Pick an inbox to catch the verification"}</h3>
+        {previouslyVerified && !editingInbox ? <p>We’ll forward LinkedIn’s verification email to <strong>{destination}</strong>. You’ve already verified this address, so you don’t need another code.</p> : <p>Enter an inbox you can open now. We’ll send a six-digit code to verify a different address, then temporarily forward LinkedIn’s verification message there.</p>}
+        {previouslyVerified && !editingInbox && <button type="button" className={styles.linkBtn} disabled={busy} onClick={() => setEditingInbox(true)}>Change email</button>}
 
         {setup.destinationVerified && !setup.forwardingActive ? <>
           <div className={styles.note}>The previous forwarding window expired. Start again to choose the receiving inbox and get a different LinkedVelocity email.</div>
           <button className={styles.primary} disabled={busy} onClick={() => void restart()}>Start this email step again →</button>
         </> : <>
           <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
-            <label className={styles.field}>{selfMode ? "Your inbox for verification codes" : "Email for the codes (yours or the owner’s)"}<input type="email" required maxLength={254} value={destination} onChange={e => setDestination(e.target.value)} placeholder="you@example.com" /></label>
+            {(!previouslyVerified || editingInbox) && <label className={styles.field}>{selfMode ? "Your inbox for verification codes" : "Email for the codes (yours or the owner’s)"}<input type="email" required maxLength={254} value={destination} onChange={e => { setDestination(e.target.value); setCode(""); }} placeholder="you@example.com" /></label>}
             <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>{selfMode ? "I agree" : "The account owner agrees"} to add a LinkedVelocity-managed primary email and to onboarding messages being forwarded to this inbox for up to one hour.</span></label>
-            <button className={styles.primary} disabled={busy || !consent}>{setup.verificationCodePending ? "Send another six-digit code" : "Send six-digit code →"}</button>
+            <button className={styles.primary} disabled={busy || !consent}>{previouslyVerified ? "Continue with this email →" : setup.verificationCodePending ? "Send another six-digit code" : "Send six-digit code →"}</button>
           </form>
-          {setup.verificationCodePending && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>
+          {setup.verificationCodePending && !previouslyVerified && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>
             <label className={styles.field}>Enter the six-digit code sent to {setup.destination}<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ""))} /></label>
             <button className={styles.primary} disabled={busy || code.length !== 6}>Verify inbox and continue →</button>
           </form>}

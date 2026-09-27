@@ -13,7 +13,7 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
     if (id !== sessionId) throw new EmailSetupError("Not found.", 404);
     const input = emailAction.safeParse(await req.json());
     if (!input.success) throw new EmailSetupError("Check the email details and consent confirmation.");
-    await updateEmailSetup(sessionId, referrerId, input.data);
+    await updateEmailSetup(sessionId, referrerId, input.data, { publicOwner: true });
     return NextResponse.json({ session: await onboardingSummary(sessionId, referrerId) }, { headers });
   } catch (error) {
     const known = error instanceof EmailSetupError || error instanceof OnboardingError;

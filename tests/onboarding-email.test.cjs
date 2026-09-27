@@ -161,3 +161,28 @@ test('webhook signature verification rejects forged requests', () => {
   const api = load('src/services/onboarding-mail.ts');
   assert.throws(() => api.verifyInbound('{"type":"email.received"}', new Headers()), /./);
 });
+
+test('public setup reuses only the original verified signup email; changed inboxes still require a code', async () => {
+  configure();
+  for (const scenario of [
+    { destination: 'owner@inbox.test', publicOwner: true, expectedSends: 0 },
+    { destination: 'different@inbox.test', publicOwner: true, expectedSends: 1 },
+    { destination: 'owner@inbox.test', publicOwner: false, expectedSends: 1 },
+  ]) {
+    let sent=0, saved;
+    const tx = { $executeRaw:async()=>{}, onboardingEmailSetup:{
+      findUnique:async()=>({address:'assigned@example.test',destination:'owner@inbox.test',destinationVerifiedAt:null,codeSends:0}),
+      count:async()=>0,upsert:async q=>{saved=q;return {codeSends:1}},
+    }};
+    const lib=load('src/lib/onboarding-email.ts',{
+      '@/lib/prisma':{prisma:{selfServiceOnboarding:{findFirst:async()=>({state:'reserved',publicToken:'fixture-token',email:'owner@inbox.test',application:{fullName:'Test Owner'}})},$transaction:async fn=>fn(tx)}},
+      '@/lib/primary-email-recovery':{},
+      '@/services/onboarding-mail':{onboardingMailRequest:async()=>{sent++;return {id:'fixture'}}},
+    });
+    await lib.updateEmailSetup(id,'referrer',{action:'start',destination:scenario.destination,consent:true},{publicOwner:scenario.publicOwner});
+    assert.equal(sent,scenario.expectedSends);
+    assert.equal(saved.create.destination,scenario.destination);
+    if(!scenario.expectedSends){assert.ok(saved.create.destinationVerifiedAt);assert.equal(saved.create.codeHash,null);assert.ok(saved.create.forwardingUntil)}
+    else {assert.ok(saved.create.codeHash);assert.equal(saved.create.destinationVerifiedAt,undefined)}
+  }
+});
