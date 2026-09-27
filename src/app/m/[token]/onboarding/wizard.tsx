@@ -68,6 +68,7 @@ type Session = {
   diyTier?: string | null;
   twoFactorSaved?: boolean;
   meetingRequested?: boolean;
+  savedDetails?: { fullName: string; email: string; linkedinUrl: string; contactNumber: string | null; paymentMethod: string | null; paymentDetails: string | null; payoutName: string | null; bankName: string | null; bankAccountNumber: string | null; bankRoutingNumber: string | null };
   duplicateWarning?: string | null;
   country: string | null; proxyAssigned: boolean; proxyPriceLimit: number;
   id: string; name: string; state: string; opened: boolean; shareLink: string | null;
@@ -272,8 +273,14 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     try { if (selfMode) localStorage.setItem(`lv-setup-device:${token}`, value); } catch { /* Storage is optional. */ }
     if (value === "pc" && session?.diyTier !== "partial") setBrowserMode("pc");
   }
+  const hydratedSession = useRef<string | null>(null);
   function showSession(s: Session) {
     setSession(s);
+    if (!selfMode && s.savedDetails && hydratedSession.current !== s.id) {
+      const saved = s.savedDetails;
+      setForm(previous => ({ ...previous, ...Object.fromEntries(Object.entries(saved).map(([key, value]) => [key, value || ""])) }));
+      hydratedSession.current = s.id;
+    }
     if (selfMode) {
       try {
         const saved = localStorage.getItem(`lv-setup-device:${token}`);
@@ -391,7 +398,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   }
 
   const canGoBack = !!bootstrap && !handedOff && step < 6 && (!selfMode || !!device)
-    && (step === 1 || step === 2 || step === 4 || step === 5 || (selfMode && step === 3));
+    && (step >= 1 && step <= 5);
   function goBack() {
     if (busy) return;
     setError("");
@@ -489,7 +496,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <span>{s.name}</span><span>{s.done ? "View summary" : "Resume"} →</span></button>)}</div>}
           </>}
 
-          {step === 1 && <form onSubmit={(e) => { e.preventDefault(); if (bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) { setPhoneError("Verify the mobile number before continuing."); return; } setError(""); setStep(2); }}>
+          {step === 1 && !session && <form onSubmit={(e) => { e.preventDefault(); if (bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) { setPhoneError("Verify the mobile number before continuing."); return; } setError(""); setStep(2); }}>
             <h1 className={styles.heroTitle}>Who&apos;s the account owner?</h1>
             <p className={styles.lead}>Fill these in and confirm each one with the owner as you go — it&apos;s their account.</p>
             <div className={styles.card}>
@@ -552,7 +559,16 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <div className={styles.actions}><button type="button" className={styles.secondary} onClick={() => setStep(0)}>Back</button><button className={styles.primary} disabled={(bootstrap.phoneVerificationEnabled && !form.phoneVerificationToken) || !idCheck.hasGovernmentId || !idCheck.nameMatchesId || !accountVerified}>Continue →</button></div>
           </form>}
 
-          {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck, linkedinVerified: accountVerified === "yes" })).session)); }}>
+          {step === 1 && session && <>
+            <h1 className={styles.heroTitle}>Account details</h1>
+            <div className={styles.card}><p><strong>{session.savedDetails?.fullName || session.name}</strong></p><p>{session.savedDetails?.email}</p><p>{session.savedDetails?.linkedinUrl}</p><p>{session.savedDetails?.contactNumber}</p></div>
+            <p className={styles.hint}>These details identify the saved application. Contact the team if the account details need correcting.</p>
+            <button type="button" className={styles.primary} onClick={() => setStep(2)}>Continue to payout details →</button>
+          </>}
+          {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => {
+              if (session) { const data = await request("PATCH", { ...form, id: session.id, action: "payout" }); setSession(data.session); setStep(3); }
+              else showSession((await request("POST", { ...form, consent, ...idCheck, linkedinVerified: accountVerified === "yes" })).session);
+            }); }}>
             <h1 className={styles.heroTitle}>Where should they get paid?</h1>
             <p className={styles.lead}>This is <strong>their</strong> {setupOffer} and {monthlyOffer} a month. Your own commission goes to the details on your portal.</p>
             <div className={styles.card} data-tour="payout-method">

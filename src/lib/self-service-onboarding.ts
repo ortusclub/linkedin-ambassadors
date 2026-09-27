@@ -82,6 +82,9 @@ export async function onboardingSummary(id: string, referrerId: string) {
   const emailSetup = await emailSetupSummary(id, referrerId);
   return {
     emailSetup,
+    savedDetails: { fullName: s.application.fullName, email: s.email, linkedinUrl: s.linkedinUrl, contactNumber: s.application.contactNumber,
+      paymentMethod: s.application.paymentMethod, paymentDetails: s.application.paymentDetails, payoutName: s.application.payoutName,
+      bankName: s.application.bankName, bankAccountNumber: s.application.bankAccountNumber, bankRoutingNumber: s.application.bankRoutingNumber },
     diyTier: s.application.diyTier,
     meetingRequested: s.application.onboardingMethod === "team_meeting",
     twoFactorSaved: !!s.account.twoFactor,
@@ -465,5 +468,20 @@ export async function requestOnboardingMeeting(id: string, referrerId: string) {
       onboardingMethod: "team_meeting", nextFollowUp: now,
       adminNotes: `${s.application.adminNotes || ""}\nMEETING REQUEST ${now.toISOString()}: Referrer chose team-assisted setup at the standard referral fee. Please contact the owner through their saved contact channel and arrange a setup meeting. No meeting has been booked by this request.`,
     } });
+  });
+}
+
+export async function updateOnboardingPayout(id: string, referrerId: string, payout: Record<string, unknown>) {
+  await prisma.$transaction(async tx => {
+    const s = await tx.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { application: true } });
+    if (!s || s.publicToken) throw new OnboardingError("Referral onboarding not found.", 404);
+    if (!["reserved", "needs_help", "ready"].includes(s.state) || s.application.paidAt || ["onboarded", "rejected"].includes(s.application.status)) throw new OnboardingError("Contact the team to change payout details for this application.", 409);
+    const input = selfServiceInput.safeParse({ ...payout, fullName: s.application.fullName, email: s.email, linkedinUrl: s.linkedinUrl,
+      country: s.application.location || "PH", contactNumber: s.application.contactNumber || "unknown", accountFreshness: s.application.accountFreshness || "unknown", consent: true });
+    if (!input.success) throw new OnboardingError(input.error.issues[0]?.message || "Check the payout details.");
+    const cfg = currencyConfigFor(s.application.payoutCurrency, "", s.application);
+    if (!cfg.payoutMethods.includes(input.data.paymentMethod)) throw new OnboardingError("Choose a supported payout method.");
+    const { paymentMethod, paymentDetails, payoutName, bankName, bankAccountNumber, bankRoutingNumber } = input.data;
+    await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: { paymentMethod, paymentDetails, payoutName, bankName, bankAccountNumber, bankRoutingNumber } });
   });
 }

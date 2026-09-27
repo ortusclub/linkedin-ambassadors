@@ -287,3 +287,10 @@ test('team meeting request rejects foreign, public-owner and completed sessions'
     await assert.rejects(()=>service({$transaction:fn=>fn(tx)}).requestOnboardingMeeting('session','ref'));
   }
 });
+test('returning to payout updates only the existing application and preserves identity', async()=>{
+  let updated;
+  const session={id:'s',applicationId:'app',state:'reserved',publicToken:null,email:'owner@example.test',linkedinUrl:'https://www.linkedin.com/in/owner',application:{fullName:'Owner Example',location:'PH',contactNumber:'+639123456789',accountFreshness:'established',status:'onboarding',payoutCurrency:'PHP'}};
+  const tx={selfServiceOnboarding:{findFirst:async({where})=>{assert.deepEqual(where,{id:'s',referrerId:'r'});return session}},ambassadorApplication:{update:async value=>{updated=value}}};
+  await service({$transaction:fn=>fn(tx)}).updateOnboardingPayout('s','r',{fullName:'Wrong identity',email:'wrong@example.test',paymentMethod:'GCash',paymentDetails:'09123456789',payoutName:'Owner Example'});
+  assert.equal(updated.where.id,'app');assert.equal(updated.data.payoutName,'Owner Example');assert.equal(updated.data.email,undefined);assert.equal(updated.data.fullName,undefined);assert.equal(updated.data.status,undefined);
+});
