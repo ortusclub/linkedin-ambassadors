@@ -5,10 +5,11 @@ import { ownerSignInCode } from "@/lib/owner-sign-in-code";
 import { EmailSetupError } from "@/lib/onboarding-email-policy";
 export const runtime = "nodejs";
 const token = z.string().regex(/^[a-f0-9]{64}$/);
+const loginEmail = z.string().trim().email().max(254).transform(s => s.toLowerCase());
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start"), email: z.string().trim().email().max(254).transform(s => s.toLowerCase()), consent: z.literal(true) }),
-  z.object({ action: z.literal("verify"), token, code: z.string().regex(/^\d{6}$/) }),
-  z.object({ action: z.literal("code"), token }),
+  z.object({ action: z.literal("verify"), token, loginEmail, code: z.string().regex(/^\d{6}$/) }),
+  z.object({ action: z.literal("code"), token, loginEmail }),
 ]);
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
 export async function POST(req: Request) {
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     const input = schema.parse(JSON.parse(raw));
     if (input.action === "start") return json(await startPrimaryRecovery(input.email, req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() || "unknown", "restriction"));
     if (input.action === "verify") await verifyPrimaryRecovery(input.token, input.code);
-    return json(await ownerSignInCode(input.token));
+    return json(await ownerSignInCode(input.token, input.loginEmail));
   } catch (error) {
     if (error instanceof EmailSetupError) return json({ error: error.message }, error.status);
     if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: "Check your email, consent and six-digit verification code." }, 400);

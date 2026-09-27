@@ -9,3 +9,5 @@ Owner email matching is shared with primary-email recovery. If no unique match e
 Sources checked 2026-09-27:
 - https://www.linkedin.com/help/linkedin/answer/a1339720
 - https://www.linkedin.com/help/linkedin/answer/a1376104
+
+The standalone tool is `/account-code` and the same component is embedded in the restriction guide. The owner enters the LV login email plus their saved personal email. After personal-email verification, the requested login email must match the verified account before any code is returned. Login email alone never authorizes code access.
