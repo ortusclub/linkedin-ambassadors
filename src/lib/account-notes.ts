@@ -48,3 +48,9 @@ export function accountLastUpdatedAt(account: Parameters<typeof latestAccountNot
   return Math.max(latestAccountNoteAt(account), ...[account.updatedAt, account.ownerUpdatedAt]
     .map(value => value ? Date.parse(value) : 0).filter(Number.isFinite));
 }
+
+export function sortAccountsByLastUpdated<T extends Parameters<typeof accountLastUpdatedAt>[0]>(accounts: T[], direction: "newest" | "oldest"): T[] {
+  return accounts.map(account => ({ account, at: accountLastUpdatedAt(account) }))
+    .sort((a, b) => !a.at ? (b.at ? 1 : 0) : !b.at ? -1 : direction === "newest" ? b.at - a.at : a.at - b.at)
+    .map(({ account }) => account);
+}

@@ -79,3 +79,10 @@ test('last updated includes account edits, shared owner changes and dated notes'
   assert.equal(notes.accountLastUpdatedAt({ ...a, ownerUpdatedAt: '2026-09-29' }), Date.parse('2026-09-29'));
   assert.equal(notes.accountLastUpdatedAt({ updatedAt: 'invalid' }), 0);
 });
+
+test('last updated sorting switches direction and leaves missing dates last', () => {
+  const accounts = [{ id: 'old', updatedAt: '2026-09-20' }, { id: 'unknown' }, { id: 'new', updatedAt: '2026-09-27' }];
+  assert.deepEqual(notes.sortAccountsByLastUpdated(accounts, 'newest').map(a => a.id), ['new', 'old', 'unknown']);
+  assert.deepEqual(notes.sortAccountsByLastUpdated(accounts, 'oldest').map(a => a.id), ['old', 'new', 'unknown']);
+  assert.deepEqual(accounts.map(a => a.id), ['old', 'unknown', 'new']);
+});

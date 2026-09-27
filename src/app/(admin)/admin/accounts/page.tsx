@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
-import { sortAccountsByLatestNote, accountLastUpdatedAt } from "@/lib/account-notes";
+import { sortAccountsByLastUpdated, accountLastUpdatedAt } from "@/lib/account-notes";
 import { AccountNotes } from "@/components/admin/account-notes";
 import { OutreachLog, type Touch } from "@/components/admin/outreach-log";
 
@@ -370,6 +370,7 @@ const GRID = "minmax(0,1fr) 132px 84px 150px 168px 214px";
 export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updateOrder, setUpdateOrder] = useState<"newest" | "oldest">("newest");
   const [filter, setFilter] = useState("all");
   const [pocFilter, setPocFilter] = useState("all");
   const [verifiedFilter, setVerifiedFilter] = useState<"all" | "yes" | "no">("all");
@@ -615,8 +616,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       // ambassador's contact email and number, the owner name, plus the profile fields.
       return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.loginEmail || ""} ${a.ownerEmail || ""} ${a.ownerName || ""} ${a.ownerPhone || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
     });
-    return sortAccountsByLatestNote(base);
-  }, [shown, filter, verifiedFilter, connFilter, pocFilter, search]);
+    return sortAccountsByLastUpdated(base, updateOrder);
+  }, [shown, filter, verifiedFilter, connFilter, pocFilter, search, updateOrder]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allExpanded = filtered.length > 0 && filtered.every((a) => expanded.has(a.id));
@@ -732,7 +733,12 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         </div>
       </div>
 
-      <p style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", margin: "0 0 14px" }}>Sorted by latest note in each section · newest first · accounts without dated notes last</p>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", margin: "0 0 14px" }}>
+        <button type="button" onClick={() => setUpdateOrder(order => order === "newest" ? "oldest" : "newest")} aria-label={`Last updated: ${updateOrder} first. Click to show ${updateOrder === "newest" ? "oldest" : "newest"} first.`} style={{ font: `600 12px ${F_SANS}`, color: "var(--text)", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 999, padding: "8px 14px", cursor: "pointer" }}>
+          Last updated {updateOrder === "newest" ? "↓" : "↑"} · {updateOrder === "newest" ? "Newest first" : "Oldest first"}
+        </button>
+        <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>Within each section · includes notes and field changes</span>
+      </div>
 
       {/* groups */}
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
@@ -842,6 +848,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           {a.restrictedAt && <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>}
                           {!a.restrictedAt && (() => { const rr = recentRestrict(a); return rr ? <span title={`Restricted ${rr.times}× — most recent ${rr.daysAgo === 0 ? "today" : `${rr.daysAgo}d ago`}. Recovered but still fragile — go easy: no activity bursts, verify the proxy is clean PH residential.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Recently restricted{rr.times > 1 ? ` ${rr.times}×` : ""} · recovered</span> : null; })()}
                           {(() => { const at = accountLastUpdatedAt(a); return <span title="Latest saved account or linked owner update, including notes" style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted)" }}>Last updated: {at ? new Date(at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Unknown"}</span>; })()}
+                          <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted)" }}>LV PoC: {a.ownerPoc?.trim() || "Unassigned"}</span>
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
                           {a.twoFactorResetNeeded && <span title="The last renter had this account's 2FA code — rotate it before making this account available again" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>🔑 2FA reset needed</span>}
