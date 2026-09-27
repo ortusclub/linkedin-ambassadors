@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { spawnBrowser } from "@/lib/spawn-browser";
-import { activeProcesses } from "@/app/api/admin/browser/launch/route";
+import { activeProcesses } from "@/lib/browser-processes";
 import { getNextProxy } from "@/lib/proxy-pool";
 
 const launchSchema = z.object({

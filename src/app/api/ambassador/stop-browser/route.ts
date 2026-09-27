@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth";
-import { activeProcesses } from "@/app/api/admin/browser/launch/route";
+import { activeProcesses } from "@/lib/browser-processes";
 
 const stopSchema = z.object({
   profileId: z.string().min(1),

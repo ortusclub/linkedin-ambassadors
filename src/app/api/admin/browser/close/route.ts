@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { activeProcesses } from "../launch/route";
+import { activeProcesses } from "@/lib/browser-processes";
 import { execCommand } from "@/lib/spawn-browser";
 
 export async function POST(req: Request) {

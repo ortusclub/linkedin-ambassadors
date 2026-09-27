@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { activeProcesses } from "../launch/route";
+import { activeProcesses } from "@/lib/browser-processes";
 import { persistImageUrl } from "@/lib/persist-image";
 
 const stopSchema = z.object({

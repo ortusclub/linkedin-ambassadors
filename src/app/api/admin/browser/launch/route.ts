@@ -5,9 +5,7 @@ import { spawnBrowser } from "@/lib/spawn-browser";
 import { getNextProxy } from "@/lib/proxy-pool";
 import { v4 as uuid } from "uuid";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const activeProcesses: Map<string, any> = new Map();
-export { activeProcesses };
+import { activeProcesses } from "@/lib/browser-processes";
 
 const launchSchema = z.object({
   accountName: z.string().min(1),

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { activeProcesses } from "../launch/route";
+import { activeProcesses } from "@/lib/browser-processes";
 import { spawnBrowser, execCommand } from "@/lib/spawn-browser";
 import { getNextProxy } from "@/lib/proxy-pool";
 
