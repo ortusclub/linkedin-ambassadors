@@ -104,7 +104,7 @@ export default function SelfSetupStart() {
           <div style={{ background: "#0D2A1C", borderRadius: 18, padding: "36px 28px", textAlign: "center", color: "#fff" }}>
             <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
             <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>Thanks, {form.fullName.split(" ")[0] || "you're in"}!</h2>
-            <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: 0 }}>We&apos;re not set up to onboard instantly in your country just yet, so our team will get your account ready and reach out by email at <strong style={{ color: "#fff" }}>{form.email}</strong>. You&apos;ll still get your sign-on bonus and <OnboardingPrice usd={8} php={500} />/month.</p>
+            <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: 0 }}>Your application has been received for review. Our team will check the account details and reach out by email at <strong style={{ color: "#fff" }}>{form.email}</strong>. You can track your application from your dashboard.</p>
           </div>
         ) : (<>
         <h1 style={{ fontFamily: "'Poppins','Inter',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", margin: "0 0 6px" }}>Do it yourself — set up now</h1>
@@ -117,7 +117,7 @@ export default function SelfSetupStart() {
           <div style={row}>
             <label style={lab} htmlFor="provided-account-email">Email currently on that LinkedIn account *</label>
             <div style={{ display: "flex", gap: 8 }}>
-              <input id="provided-account-email" style={inp} type="email" value={form.email} disabled={!!permit} onChange={(e) => { set("email", e.target.value); setPermit(""); setChallenge(""); }} placeholder="Email linked to the account you are providing" />
+              <input id="provided-account-email" style={inp} type="email" value={form.email} disabled={!!permit} onChange={(e) => { set("email", e.target.value); setPermit(""); setChallenge(""); setCode(""); setGateMsg(""); }} placeholder="Email linked to the account you are providing" />
               {!permit && <button type="button" onClick={sendCode} disabled={sending} style={{ flex: "none", padding: "0 14px", borderRadius: 11, border: "1px solid #00A150", background: "#fff", color: "#00A150", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>{sending ? "…" : challenge ? "Resend" : "Send code"}</button>}
             </div>
             <p style={{ fontSize: 12, lineHeight: 1.5, color: "#5A6473", margin: "6px 0 0" }}>Use the account’s current email address. Verification codes and updates will be sent here.</p>
@@ -127,6 +127,7 @@ export default function SelfSetupStart() {
                 <button type="button" onClick={verifyCode} disabled={verifying || code.length < 4} style={{ flex: "none", padding: "0 16px", borderRadius: 11, border: "none", background: "#00B85C", color: "#fff", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>{verifying ? "…" : "Verify"}</button>
               </div>
             )}
+            {!!permit && <button type="button" onClick={() => { setPermit(""); setChallenge(""); setCode(""); setGateMsg(""); setError(""); requestAnimationFrame(() => document.getElementById("provided-account-email")?.focus()); }} style={{ marginTop: 8, background: "none", border: "none", padding: 0, textDecoration: "underline", color: "#0A66C2", cursor: "pointer" }}>Change email</button>}
             {gateMsg && <div style={{ fontSize: 12.5, color: permit ? "#067A45" : "#5A6473", marginTop: 7 }}>{gateMsg}</div>}
           </div>
 

@@ -149,6 +149,7 @@ export async function GET() {
 
       return {
         id: app.id,
+        existingAccountSubmission: !!app.adminNotes?.includes("[Existing account submission]"),
         diyTier: app.diyTier,
         fullName: app.fullName,
         email: app.email,

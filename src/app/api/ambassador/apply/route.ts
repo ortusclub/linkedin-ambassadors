@@ -1,3 +1,4 @@
+import { existingApplicationAccount } from "@/lib/application-duplicates";
 import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { meetingToken } from "@/lib/meeting-token";
@@ -41,19 +42,6 @@ export async function POST(req: Request) {
 
     // Leads without a LinkedIn URL (e.g. a field-day walk-up who skipped the valuation)
     // are captured as "pending" for the team to follow up — no auto-assessment or account.
-    // Only run the duplicate check when we actually have a URL to match on.
-    if (hasUrl) {
-      const existing = await prisma.ambassadorApplication.findFirst({
-        where: { email: data.email, linkedinUrl, status: { in: ["pending", "reviewing", "approved"] } },
-      });
-      if (existing) {
-        return NextResponse.json(
-          { error: "You already have an active application for this account" },
-          { status: 409 }
-        );
-      }
-    }
-
     // Double-submit guard for URL-less leads, which the check above skips — that gap let
     // one field-day walk-up file six identical applications in a single minute. Treat a
     // repeat from the same email within a few minutes as the same submission and hand back
@@ -73,6 +61,8 @@ export async function POST(req: Request) {
     if (recent) {
       return NextResponse.json({ application: recent, meetingToken: meetingToken(recent.id), assessment: null, duplicate: true }, { status: 200 });
     }
+
+    const duplicateNote = await existingApplicationAccount(data.email, linkedinUrl);
 
     // Auto-assess the profile — only when we have a URL to value.
     const assessment = hasUrl
@@ -99,9 +89,9 @@ export async function POST(req: Request) {
         // auto-approval to Level 2.
         status: assessment ? "reviewing" : "pending",
         offeredAmount: assessment?.offeredAmount,
-        adminNotes: assessment
+        adminNotes: (duplicateNote ? duplicateNote + "\n" : "") + (assessment
           ? `Auto-assessed: Score ${assessment.score}/100, Tier: ${assessment.tier}. ${assessment.breakdown.map((b) => `${b.category}: ${b.points}/${b.maxPoints}`).join(", ")}`
-          : "Lead captured without LinkedIn URL — pending follow-up.",
+          : "Lead captured without LinkedIn URL — pending follow-up."),
       },
     });
 
