@@ -267,3 +267,23 @@ test("an available matching second slot is reused before any purchase quote", as
   try { await service(prisma, { quoteStaticProxy: () => { throw new Error("Must not quote when capacity exists"); } }).prepareOnboarding("s", "referrer"); assert.equal(reserved, true); }
   finally { if (prev === undefined) delete process.env.GOLOGIN_API_TOKEN_KLABBER; else process.env.GOLOGIN_API_TOKEN_KLABBER = prev; }
 });
+
+test('team meeting request records a follow-up without completing setup or changing credentials', async () => {
+  const writes=[];
+  const session={id:'session',applicationId:'app',state:'reserved',publicToken:null,application:{status:'pending',adminNotes:'Existing note',onboardingMethod:null}};
+  const tx={selfServiceOnboarding:{findFirst:async ({where})=>{assert.deepEqual(where,{id:'session',referrerId:'ref'});return session},update:async q=>writes.push(q)},ambassadorApplication:{update:async q=>writes.push(q)}};
+  await service({$transaction:fn=>fn(tx)}).requestOnboardingMeeting('session','ref');
+  assert.equal(writes[0].data.state,'needs_help');
+  assert.equal(writes[1].data.onboardingMethod,'team_meeting');
+  assert.ok(writes[1].data.nextFollowUp instanceof Date);
+  assert.match(writes[1].data.adminNotes,/No meeting has been booked/);
+  assert.equal(writes[1].data.status,undefined);
+  const {referralCommissionAmount}=load('src/lib/referrals.ts');
+  assert.equal(referralCommissionAmount({referralSource:'self-service',onboardingMethod:'team_meeting',onboardingVerified:true},{referral:500,phone:{base:600,verified:800},computer:{base:700,verified:1000}}),500);
+});
+test('team meeting request rejects foreign, public-owner and completed sessions', async()=>{
+  for(const session of [null,{publicToken:'private'},{publicToken:null,state:'confirmed',application:{status:'onboarded'}}]){
+    const tx={selfServiceOnboarding:{findFirst:async()=>session}};
+    await assert.rejects(()=>service({$transaction:fn=>fn(tx)}).requestOnboardingMeeting('session','ref'));
+  }
+});

@@ -64,6 +64,7 @@ interface Row {
   setupInProgress?: boolean;
   existingAccountSubmission?: boolean;
   referrerResumeUrl?: string | null;
+  meetingRequested?: boolean;
   fullName: string;
   email: string;
   contactNumber: string | null;
@@ -397,6 +398,7 @@ const nextStep = (r: Row): NextStep => {
     if (r.restrictionReport) return { state: "now", label: `Verify restriction — referrer says ${r.restrictionReport.type === "recovered" ? "it's unrestricted" : "the QR check is done"}`, last };
     return { state: "now", label: "Restricted — chase the owner to clear it", timing: r.accountRestrictedAt ? `since ${fmtDate(r.accountRestrictedAt)}` : undefined, last };
   }
+  if (r.meetingRequested) return { state: "now", label: "Arrange a setup meeting — requested by referrer", last };
   if (r.onboardingFix?.state === "referrer_done") return { state: "now", label: "Recheck — referrer marked the fix done", last };
   if (r.onboardingFix?.issues?.length) return { state: "waiting", label: `Waiting on referrer to fix ${r.onboardingFix.issues.length} issue${r.onboardingFix.issues.length > 1 ? "s" : ""}`, last };
   if (r.nextFollowUp) {

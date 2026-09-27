@@ -23,7 +23,7 @@ export async function GET() {
         applicationReceived: true, createdAt: true, onboardedAt: true, verifiedAt: true, qcChecks: true, emailPrimaryAt: true, paidAt: true,
         accountIssue: true, onboardingFix: true, restrictionReport: true, adminNotes: true, notes: true,
         outreachLog: true, nextFollowUp: true, callOutcome: true,
-        referredBy: true, payoutCurrency: true, referralSource: true, industry: true, poc: true,
+        onboardingMethod: true, referredBy: true, payoutCurrency: true, referralSource: true, industry: true, poc: true,
         linkedinEmail: true, bookingEmail: true, accountFreshness: true,
         paymentMethod: true, paymentDetails: true, payoutName: true,
         paypalEmail: true, wiseEmail: true, ownerStatus: true,
@@ -153,6 +153,7 @@ export async function GET() {
       return {
         id: app.id,
         setupInProgress: inProgressAppIds.has(app.id),
+        meetingRequested: app.onboardingMethod === "team_meeting" && inProgressAppIds.has(app.id),
         referrerResumeUrl: (() => {
           const session = sessionByApplication.get(app.id);
           const ref = refBySlug.get((app.referredBy || "").trim().toLowerCase());

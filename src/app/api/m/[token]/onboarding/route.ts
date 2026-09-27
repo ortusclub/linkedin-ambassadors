@@ -6,7 +6,7 @@ import { selfServiceInput, selfServiceAction, selfServiceHandoff, selfServiceCon
 import { proxyPurchaseLimits } from "@/services/proxy-cheap";
 import { emailSetupConfig, EmailSetupError } from "@/lib/onboarding-email-policy";
 import { requireEmailSetup } from "@/lib/onboarding-email";
-import { OnboardingError, onboardingCountries, onboardingSummary, reserveOnboarding, prepareOnboarding, confirmOnboarding, handoffOnboarding, saveTwoFactorKey } from "@/lib/self-service-onboarding";
+import { OnboardingError, onboardingCountries, onboardingSummary, reserveOnboarding, prepareOnboarding, confirmOnboarding, handoffOnboarding, saveTwoFactorKey, requestOnboardingMeeting } from "@/lib/self-service-onboarding";
 import { phoneVerificationConfigured } from "@/lib/phone-verification";
 
 export const dynamic = "force-dynamic";
@@ -89,6 +89,12 @@ export async function PATCH(req: Request, context: Context) {
       await requireEmailSetup(handoff.data.id, me.id);
       await handoffOnboarding(handoff.data.id, me.id, { password: handoff.data.password, twoFactorKey: handoff.data.twoFactorKey });
       return json({ session: await onboardingSummary(handoff.data.id, me.id) });
+    }
+    if (body && typeof body === "object" && (body as { action?: string }).action === "meeting") {
+      const id = (body as { id?: unknown }).id;
+      if (typeof id !== "string" || !selfServiceAction.shape.id.safeParse(id).success) return json({ error: "Invalid onboarding reference." }, 400);
+      await requestOnboardingMeeting(id, me.id);
+      return json({ session: await onboardingSummary(id, me.id) });
     }
     // Save the 2FA key at the two-step-verification step (before sign-in) so it's recorded
     // even if the onboarding stalls. Not gated on email setup — recording the key is safe.

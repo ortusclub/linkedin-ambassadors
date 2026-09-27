@@ -102,7 +102,7 @@ export function isReferralReadyToPay(a: ReferralGate, now: Date = new Date()): b
 // Self-service rows without a recorded method (only pre-tier rows, since new onboardings
 // always stamp it) fall back to the computer tier so the amount is never understated.
 export function referralCommissionAmount(a: ReferralGate, tiers: ReferralTiers): number {
-  if (a.referralSource !== "self-service") return tiers.referral;
+  if (a.referralSource !== "self-service" || a.onboardingMethod === "team_meeting") return tiers.referral;
   const verified = !!a.onboardingVerified;
   const band = a.onboardingMethod === "phone" ? tiers.phone : tiers.computer;
   return verified ? band.verified : band.base;

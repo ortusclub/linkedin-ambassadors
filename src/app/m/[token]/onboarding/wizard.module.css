@@ -233,3 +233,8 @@
 .scriptHead { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
 .scriptHead strong { font: 700 12px 'Plus Jakarta Sans'; color: #0b1220; }
 .scriptText { white-space: pre-wrap; font: 500 11.5px/1.5 'Plus Jakarta Sans'; color: #5b6779; margin: 0; }
+
+.meetingOption { margin-top: 20px; padding: 16px 18px; border: 1px solid #dfe3e8; border-radius: 12px; color: #647084; background: #f5f6f8; font-size: 13px; line-height: 1.6; }
+.meetingOption summary { cursor: pointer; font-weight: 600; }
+.meetingOption summary span { display: inline-block; margin-left: 8px; font-weight: 400; }
+.meetingOption a { color: #52637a; text-decoration: underline; }

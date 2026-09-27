@@ -67,6 +67,7 @@ type Session = {
   emailSetup: EmailSetup | null;
   diyTier?: string | null;
   twoFactorSaved?: boolean;
+  meetingRequested?: boolean;
   duplicateWarning?: string | null;
   country: string | null; proxyAssigned: boolean; proxyPriceLimit: number;
   id: string; name: string; state: string; opened: boolean; shareLink: string | null;
@@ -389,11 +390,22 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     setLinkCopied(true);
   }
 
+  const canGoBack = !!bootstrap && !handedOff && step < 6 && (!selfMode || !!device)
+    && (step === 1 || step === 2 || step === 4 || step === 5 || (selfMode && step === 3));
+  function goBack() {
+    if (busy) return;
+    setError("");
+    if (step === 5 && browserMode) setBrowserMode("");
+    else if (selfMode && step === 3) chooseDevice("");
+    else setStep(step - 1);
+  }
+
   return <main className={styles.page}>
     <div className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headerRow}>
-          <Link href={selfMode ? "/dashboard" : `/m/${token}`} className={styles.headerBack}>← Dashboard</Link>
+          {canGoBack ? <button type="button" className={styles.headerBack} disabled={busy} onClick={goBack}>← Back</button>
+            : <Link href={selfMode ? "/dashboard" : `/m/${token}`} className={styles.headerBack}>← Dashboard</Link>}
           <span className={styles.headerTitle}>DIY onboarding</span>
           {bootstrap && <span className={styles.headerStep}>Step {currentPos + 1} of {wizardSteps.length}</span>}
         </div>
@@ -587,10 +599,11 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <label className={styles.field} data-tour="twofa-key">The 2FA setup key
               <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
             </label>
+            {session.twoFactorSaved && !twoFactorKey.trim() && <p className={styles.note}>Your 2FA setup is already saved. You can continue, or enter a replacement key if you changed it.</p>}
             <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={() => setStep(3)}>Back</button>
-              <button type="button" className={styles.primary} disabled={busy || !looksLikeTotpKey(twoFactorKey)} onClick={() => run(async () => { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); setStep(5); })}>{selfMode && session.diyTier === "partial" ? "Continue to team handoff →" : "Continue to sign-in →"}</button>
+              <button type="button" className={styles.primary} disabled={busy || (!looksLikeTotpKey(twoFactorKey) && !(session.twoFactorSaved && !twoFactorKey.trim()))} onClick={() => run(async () => { if (twoFactorKey.trim()) { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); setSession({ ...session, twoFactorSaved: true }); } setStep(5); })}>{selfMode && session.diyTier === "partial" ? "Continue to team handoff →" : "Continue to sign-in →"}</button>
             </div>
           </>}
 
@@ -611,6 +624,12 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <p>{selfMode ? "Open the protected browser and sign in to your own LinkedIn account. This completes Full DIY setup." : "You open the protected browser and sign in to their LinkedIn with them beside you. Highest rate."}</p>
               <div className={styles.choiceNote}>Needs a Windows or Mac computer.</div>
             </button>
+            {!selfMode && <details className={styles.meetingOption}>
+              <summary>Need the team to arrange a meeting? <span>{refBase} referral fee</span></summary>
+              <p>We can try to contact the owner and arrange setup. This route is usually slower and less likely to complete. Your referral fee is {refBase}, paid only after successful onboarding. Booking a time with the owner is the better way to help this route succeed.</p>
+              {session.meetingRequested ? <p role="status">Your request is saved for the team. A meeting is not booked yet.</p> : <button type="button" className={styles.secondary} disabled={busy} onClick={() => run(async () => { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); })}>{busy ? "Saving…" : "Ask the team to arrange a meeting"}</button>}
+              <p><a href="https://calendly.com/linkedvelocity-info/30min" aria-disabled={busy} onClick={e => { e.preventDefault(); if (busy) return; void run(async () => { if (!session.meetingRequested) { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); } window.location.assign("https://calendly.com/linkedvelocity-info/30min"); }); }}>Book a meeting for the owner →</a></p>
+            </details>}
           </> : browserMode === "phone" ? <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
             <PhoneHandoff selfMode={selfMode} busy={busy} error={error} submit={handoff} />

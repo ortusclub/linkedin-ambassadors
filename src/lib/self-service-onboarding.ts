@@ -83,6 +83,7 @@ export async function onboardingSummary(id: string, referrerId: string) {
   return {
     emailSetup,
     diyTier: s.application.diyTier,
+    meetingRequested: s.application.onboardingMethod === "team_meeting",
     twoFactorSaved: !!s.account.twoFactor,
     duplicateWarning: s.application.adminNotes?.includes("[Existing account submission]") ? "We have already received an application for this account. You can continue, but this duplicate application will likely be rejected during review." : null,
     id: s.id, name: s.application.fullName, state: s.state, opened: !!s.openedAt,
@@ -446,6 +447,23 @@ export async function handoffOnboarding(id: string, referrerId: string, input: {
       onboardingMethod: "phone", // referrer chased it; LV does the sign-in
       onboardingVerified: s.account.linkedinVerified, // snapshot at onboarding; commission locks to this
       adminNotes: `${s.application.adminNotes || ""}\nPHONE HAND-OFF ${now.toISOString()}: owner on a phone. LV to complete the GoLogin sign-in; login saved on the account.${has2fa ? " 2FA key provided." : " 2FA NOT provided — team to set it up."}`,
+    } });
+  });
+}
+
+// Referrer asks the team to arrange a call; this is not a completed sign-in.
+export async function requestOnboardingMeeting(id: string, referrerId: string) {
+  await prisma.$transaction(async tx => {
+    const s = await tx.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { application: true } });
+    if (!s || s.publicToken) throw new OnboardingError("Referral onboarding not found.", 404);
+    if (!["reserved", "needs_help", "ready"].includes(s.state) || ["onboarded", "rejected", "unreachable"].includes(s.application.status) || s.application.paidAt)
+      throw new OnboardingError("This application cannot be handed over for a meeting.", 409);
+    if (s.application.onboardingMethod === "team_meeting") return;
+    const now = new Date();
+    await tx.selfServiceOnboarding.update({ where: { id }, data: { state: "needs_help" } });
+    await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: {
+      onboardingMethod: "team_meeting", nextFollowUp: now,
+      adminNotes: `${s.application.adminNotes || ""}\nMEETING REQUEST ${now.toISOString()}: Referrer chose team-assisted setup at the standard referral fee. Please contact the owner through their saved contact channel and arrange a setup meeting. No meeting has been booked by this request.`,
     } });
   });
 }
