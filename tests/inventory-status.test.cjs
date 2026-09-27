@@ -10,7 +10,7 @@ new Function('module', 'isCompanyEmail', js)(m, e => e.endsWith('@lotuspost.fyi'
 const { canonicalStatus, inventoryStatusLabel, GROUPS } = m.exports;
 const base = { status: 'available', restrictedAt: null, loginEmail: 'test@lotuspost.fyi', accountPassword: 'test', connectionCount: 200 };
 test('all current nonterminal restrictions join maintenance regardless of lifecycle', () => {
-  for (const status of ['available', 'rented', 'trial', 'under_construction', 'unavailable', 'maintenance', 'under_review']) {
+  for (const status of ['available', 'rented', 'trial', 'under_construction', 'construction_immature', 'unavailable', 'maintenance', 'under_review']) {
     assert.equal(canonicalStatus({ ...base, status, restrictedAt: '2026-09-27', connectionCount: 0 }), 'Maintenance');
   }
 });
@@ -33,4 +33,10 @@ test('one combined section with no separate Restricted group', () => {
   assert.equal(GROUPS.some(g => g.key === 'Restricted'), false);
   const sample = [{ ...base, restrictedAt: '2026-09-27' }, { ...base, status: 'maintenance', restrictedAt: '2026-09-27' }, { ...base, status: 'maintenance' }, base];
   assert.equal(sample.filter(a => canonicalStatus(a) === 'Maintenance').length, 3);
+});
+
+test('immature construction is distinct from renamed pipeline', () => {
+  assert.equal(inventoryStatusLabel('Construction'), 'Pipeline');
+  assert.equal(canonicalStatus({ ...base, status: 'construction_immature' }), 'Construction (Immature)');
+  assert.equal(GROUPS.filter(g => g.key === 'Construction (Immature)').length, 1);
 });

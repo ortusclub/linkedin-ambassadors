@@ -25,7 +25,8 @@ function statusLabel(a: { status: string; restrictedAt: Date | null }): string {
   if (a.restrictedAt) return "Restricted";
   if (a.status === "rented") return "Rented";
   if (a.status === "available") return "Available";
-  if (a.status === "under_construction") return "Construction";
+  if (a.status === "construction_immature") return "Construction (Immature)";
+  if (a.status === "under_construction") return "Pipeline";
   if (a.status === "trial") return "Trial";
   return a.status;
 }

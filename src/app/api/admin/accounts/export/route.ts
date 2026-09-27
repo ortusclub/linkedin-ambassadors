@@ -34,11 +34,12 @@ function displayStatus(a: { status: string; restrictedAt: Date | null; connectio
   if (a.status === "removed") return "Removed";
   if (a.restrictedAt || a.status === "maintenance" || (a.status === "available" && a.twoFactorResetNeeded)) return "Restricted / Maintenance";
   if (a.status === "rented") return "Rented";
-  if (a.status === "under_construction") return "Construction";
+  if (a.status === "construction_immature") return "Construction (Immature)";
+  if (a.status === "under_construction") return "Pipeline";
   if (a.status === "available") return "Available";
   if (a.status === "trial") return "Trial";
   // under_review / maintenance / unavailable / anything else → split by size
-  return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Construction" : "Restricted / Maintenance";
+  return (a.connectionCount ?? 0) < CONSTRUCTION_MAX ? "Pipeline" : "Restricted / Maintenance";
 }
 
 export async function GET(req: NextRequest) {
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
   const showCreds = credKey.length > 0 && ckey === credKey;
 
   const allAccounts = await prisma.linkedInAccount.findMany({
-    where: { status: { in: ["under_review", "available", "rented", "trial", "maintenance", "under_construction", "unavailable", "retired"] } },
+    where: { status: { in: ["under_review", "available", "rented", "trial", "maintenance", "under_construction", "construction_immature", "unavailable", "retired"] } },
     include: {
       rentals: {
         where: { status: "active" },
@@ -86,7 +87,7 @@ export async function GET(req: NextRequest) {
   const ownerCurrencyMap = new Map(ownerApps.map((a) => [a.email, currencyConfigFor(a.payoutCurrency, a.referredBy).currency]));
 
   // Keep the combined Restricted / Maintenance label together in the export.
-  const rankByLabel: Record<string, number> = { Available: 0, Trial: 2, Rented: 3, Construction: 4, "Restricted / Maintenance": 5, "Permanently restricted/Inaccessible": 6, Removed: 7 };
+  const rankByLabel: Record<string, number> = { Available: 0, Trial: 2, Rented: 3, Pipeline: 4, "Construction (Immature)": 4.5, "Restricted / Maintenance": 5, "Permanently restricted/Inaccessible": 6, Removed: 7 };
   const sorted = [...accounts].sort((a, b) => (rankByLabel[displayStatus(a)] ?? 9) - (rankByLabel[displayStatus(b)] ?? 9));
 
   // Grouped left->right: identity/quality, rental state, money, profile detail, access.

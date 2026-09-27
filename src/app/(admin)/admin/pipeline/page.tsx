@@ -455,7 +455,7 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "unreachable", label: "Unreachable" },
   { value: "rejected", label: "Rejected" },
 ];
-const ACCOUNT_STATUS_OPTIONS = ["under_review", "available", "rented", "unavailable", "maintenance", "under_construction", "retired"];
+const ACCOUNT_STATUS_OPTIONS = ["under_review", "available", "rented", "unavailable", "maintenance", "under_construction", "construction_immature", "retired"];
 const OWNER_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Auto" }, { value: "active", label: "Active" }, { value: "waiting_us", label: "Waiting on us" },
   { value: "waiting_them", label: "Waiting on them" }, { value: "offline", label: "Offline" }, { value: "onboarding", label: "Onboarding" },
@@ -1233,7 +1233,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
                   <Edit label="Proxy · host:port:user:pass" value={proxyCombined(r)} placeholder="1.2.3.4:8000:username:password" onSave={(v) => acctSave(parseProxy(v))} />
                 </div>
                 <Edit label="Proxy location" value={r.proxyLocation} placeholder="City, Country" onSave={(v) => acctSave({ proxyLocation: v })} />
-                <EditSelect label="Account status" value={r.accountStatus || "under_review"} options={ACCOUNT_STATUS_OPTIONS.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))} onSave={(v) => acctSave({ status: v }, true)} />
+                <EditSelect label="Account status" value={r.accountStatus || "under_review"} options={ACCOUNT_STATUS_OPTIONS.map((s) => ({ value: s, label: s === "under_construction" ? "Pipeline" : s === "construction_immature" ? "Construction (Immature)" : s.replace(/_/g, " ") }))} onSave={(v) => acctSave({ status: v }, true)} />
                 <Edit label="Rent price ($/mo)" value={r.monthlyPrice} numeric placeholder="e.g. 50" onSave={(v) => acctSave({ monthlyPrice: v ?? 0 })} />
                 <Edit label="Ambassador payout /mo" value={r.ambassadorPayment} numeric placeholder="amount" onSave={(v) => acctSave({ ambassadorPayment: v ?? 0 })} />
                 <EditSelect label="LinkedIn verified" value={r.linkedinVerified ? "yes" : "no"} options={[{ value: "no", label: "No" }, { value: "yes", label: "✓ Yes" }]} onSave={(v) => acctSave({ linkedinVerified: v === "yes" }, true)} />

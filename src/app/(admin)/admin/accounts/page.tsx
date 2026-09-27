@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
-import { sortAccountsByLatestNote } from "@/lib/account-notes";
+import { sortAccountsByLatestNote, accountLastUpdatedAt } from "@/lib/account-notes";
 import { AccountNotes } from "@/components/admin/account-notes";
 import { OutreachLog, type Touch } from "@/components/admin/outreach-log";
 
@@ -143,6 +143,8 @@ interface Account {
   gologinShareLink: string | null;
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
+  updatedAt: string | null;
+  ownerUpdatedAt: string | null;
   restrictedAt: string | null;
   restrictionLog: Array<{ at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }> | null;
   twoFactorResetNeeded: boolean;
@@ -195,6 +197,7 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   if (a.status === "removed") return "Removed";
   if (a.restrictedAt || a.status === "maintenance") return "Maintenance";
   if (a.status === "rented") return "Rented";
+  if (a.status === "construction_immature") return "Construction (Immature)";
   if (a.status === "under_construction") return "Construction";
   if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : "Available";
   if (a.status === "trial") return "Trial";
@@ -202,12 +205,13 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   if ((a.connectionCount ?? 0) < CONSTRUCTION_MAX) return a.ownerSetupPaidAt ? "Construction" : "Initial";
   return "Construction";
 };
-const inventoryStatusLabel = (status: string) => status === "Construction" ? "Pipeline (Construction)" : status === "Maintenance" ? "Restricted / Maintenance" : status;
+const inventoryStatusLabel = (status: string) => status === "Construction" ? "Pipeline" : status === "Maintenance" ? "Restricted / Maintenance" : status;
 const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
-  { key: "Construction", hint: "onboarding, warming up, or awaiting readiness checks", dot: "var(--st-construct-fg)" },
+  { key: "Construction", hint: "onboarding or awaiting readiness checks", dot: "var(--st-construct-fg)" },
+  { key: "Construction (Immature)", hint: "warming up — not yet mature enough to rent", dot: "var(--st-construct-fg)" },
   { key: "Maintenance", hint: "restricted or needs fixing — check account badges and notes", dot: "var(--neutral-chip-text)" },
   { key: "Permanently restricted/Inaccessible", hint: "retired — permanently restricted or inaccessible", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
@@ -219,6 +223,7 @@ const statusChip = (disp: string): React.CSSProperties => {
     Trial: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
     Rented: ["var(--blue-chip-bg)", "var(--blue-chip-text)"],
     Initial: ["var(--warn-badge-bg)", "var(--warn-badge-text)"],
+    "Construction (Immature)": ["var(--st-construct-bg)", "var(--st-construct-fg)"],
     Construction: ["var(--st-construct-bg)", "var(--st-construct-fg)"],
     Maintenance: ["var(--neutral-chip-bg)", "var(--neutral-chip-text)"],
     "Permanently restricted/Inaccessible": ["var(--st-cancel-bg)", "var(--st-cancel-fg)"],
@@ -245,8 +250,8 @@ function healthOf(a: Account): { label: string; bg: string; fg: string; note: st
   if (a.restrictedAt) return { label: "Currently restricted", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)", note: `restricted ${fmtS(a.restrictedAt)}` };
   const h = a.linkedinAccountHealth;
   if (h === "checking") return { label: "Checking…", bg: "var(--blue-chip-bg)", fg: "var(--blue-chip-text)", note: "" };
-  if (h === "active") return { label: "Active", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)", note: a.healthCheckedAt ? `checked ${fmtS(a.healthCheckedAt)}` : "" };
-  if (h === "restricted" || h === "not_found") return { label: h === "not_found" ? "Not found" : "Restricted", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)", note: a.healthCheckedAt ? `checked ${fmtS(a.healthCheckedAt)}` : "" };
+  if (h === "active") return { label: "Active", bg: "var(--st-active-bg)", fg: "var(--st-active-fg)", note: a.healthCheckedAt ? `Health checked ${fmtS(a.healthCheckedAt)}` : "" };
+  if (h === "restricted" || h === "not_found") return { label: h === "not_found" ? "Not found" : "Restricted", bg: "var(--st-cancel-bg)", fg: "var(--st-cancel-fg)", note: a.healthCheckedAt ? `Health checked ${fmtS(a.healthCheckedAt)}` : "" };
   if (h === "unknown" || h === "rate_limited" || h === "error") return { label: "Unknown", bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)", note: "" };
   return { label: "Unchecked", bg: "var(--neutral-chip-bg)", fg: "var(--neutral-chip-text)", note: "not yet checked" };
 }
@@ -390,14 +395,14 @@ export default function AdminAccountsPage() {
 
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard?.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 1800); };
 
-  const patch = async (id: string, body: Record<string, unknown>) => fetch(`/api/admin/accounts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const patch = async (id: string, body: Record<string, unknown>) => { const res = await fetch(`/api/admin/accounts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (res.ok) await load(); return res; };
 
   // ---- Outreach/notes tracker, SHARED with the pipeline ----
   // The account's log IS its owner application's log (same record on
   // /admin/pipeline), so writes go to the ambassadors route and every sibling
   // account pointing at the same application updates in lockstep.
-  const patchApp = (appId: string, body: Record<string, unknown>) =>
-    fetch(`/api/admin/ambassadors/${appId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const patchApp = async (appId: string, body: Record<string, unknown>) =>
+    { const res = await fetch(`/api/admin/ambassadors/${appId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (res.ok) await load(); return res; };
   // Update every account row bound to this application (multi-account owners share one log).
   const setAppLog = (appId: string, fn: (a: Account) => Account) =>
     setAccounts((prev) => prev.map((x) => (x.ownerApplicationId === appId ? fn(x) : x)));
@@ -491,7 +496,7 @@ export default function AdminAccountsPage() {
     const v = value.trim();
     if (!a.ownerApplicationId || v === (a.ownerPoc || "")) return;
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, ownerPoc: v || null } : x)));
-    await fetch(`/api/admin/ambassadors/${a.ownerApplicationId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc: v }) });
+    await patchApp(a.ownerApplicationId, { poc: v });
   };
   // Manual health mark — for when you've verified the account yourself (in GoLogin).
   const markHealth = async (a: Account, health: string) => {
@@ -501,7 +506,7 @@ export default function AdminAccountsPage() {
   const checkHealth = async (id: string) => {
     setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, linkedinAccountHealth: "checking" } : a)));
     const res = await fetch(`/api/admin/accounts/${id}/check-health`, { method: "POST" });
-    if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, linkedinAccountHealth: d.health, healthCheckedAt: d.checkedAt } : a))); }
+    if (res.ok) { await load(); }
     else setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, linkedinAccountHealth: "error" } : a)));
   };
   const setRestricted = async (a: Account, restricted: boolean) => {
@@ -584,6 +589,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       Trial: c("Trial"),
       Rented: c("Rented"),
       Construction: c("Construction"),
+      "Construction (Immature)": c("Construction (Immature)"),
       Maintenance: c("Maintenance"),
       "Permanently restricted/Inaccessible": c("Permanently restricted/Inaccessible"),
       Removed: c("Removed"),
@@ -630,7 +636,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Construction", inventoryStatusLabel("Construction"), counts.Construction, "var(--st-construct-fg)"], ["Maintenance", inventoryStatusLabel("Maintenance"), counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Construction", inventoryStatusLabel("Construction"), counts.Construction, "var(--st-construct-fg)"], ["Construction (Immature)", "Construction (Immature)", counts["Construction (Immature)"], "var(--st-construct-fg)"], ["Maintenance", inventoryStatusLabel("Maintenance"), counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
@@ -835,6 +841,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                           {a.inventoryPool === "apex" && <span title="Apex inventory — brought in by an Apex referrer. Hidden from the public catalogue and auto-owned ($0) by info@apexstrategy.io." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#e0f2fe", color: "#0369a1" }}>◆ Apex</span>}
                           {a.restrictedAt && <span title={`LinkedIn-restricted — ${fmtS(a.restrictedAt)}`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>⚠ Restricted</span>}
                           {!a.restrictedAt && (() => { const rr = recentRestrict(a); return rr ? <span title={`Restricted ${rr.times}× — most recent ${rr.daysAgo === 0 ? "today" : `${rr.daysAgo}d ago`}. Recovered but still fragile — go easy: no activity bursts, verify the proxy is clean PH residential.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⚠ Recently restricted{rr.times > 1 ? ` ${rr.times}×` : ""} · recovered</span> : null; })()}
+                          {(() => { const at = accountLastUpdatedAt(a); return <span title="Latest saved account or linked owner update, including notes" style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted)" }}>Last updated: {at ? new Date(at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Unknown"}</span>; })()}
                           {h.note && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2)" }}>{h.note}</span>}
                           {checkDue(a) && <span title="Rented account — last health check is over a week old" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--warn-badge-bg)", color: "var(--warn-badge-text)" }}>⏱ Check due</span>}
                           {a.twoFactorResetNeeded && <span title="The last renter had this account's 2FA code — rotate it before making this account available again" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-cancel-bg)", color: "var(--st-cancel-fg)" }}>🔑 2FA reset needed</span>}
@@ -963,7 +970,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2", minWidth: 0 }}>
                               <span style={labelCss}>Notes (private){savingProof === a.id ? " · saving…" : ""}</span>
-                              <AccountNotes accountId={a.id} notes={a.notes} proof={a.verificationProof} onNotesSaved={(notes) => setAccounts((prev) => prev.map((x) => x.id === a.id ? { ...x, notes } : x))} onProofSaved={(value) => saveProof(a, value)} />
+                              <AccountNotes accountId={a.id} notes={a.notes} proof={a.verificationProof} onNotesSaved={() => { void load(); }} onProofSaved={(value) => saveProof(a, value)} />
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 8, gridColumn: "span 2" }}>
                               <span style={labelCss}>Health actions</span>

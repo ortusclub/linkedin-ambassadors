@@ -41,3 +41,10 @@ export function sortAccountsByLatestNote<T extends Parameters<typeof latestAccou
     .sort((a, b) => b.at - a.at)
     .map(({ account }) => account);
 }
+
+// Account fields and shared owner fields both appear in inventory. Include both
+// persisted update timestamps, plus dated notes for legacy imports.
+export function accountLastUpdatedAt(account: Parameters<typeof latestAccountNoteAt>[0] & { updatedAt?: string | null; ownerUpdatedAt?: string | null }): number {
+  return Math.max(latestAccountNoteAt(account), ...[account.updatedAt, account.ownerUpdatedAt]
+    .map(value => value ? Date.parse(value) : 0).filter(Number.isFinite));
+}

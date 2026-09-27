@@ -29,7 +29,7 @@ const createAccountSchema = z.object({
   cookies: z.array(z.record(z.string(), z.unknown())).optional(),
   createGologinProfile: z.boolean().default(false),
   gologinShareLink: z.string().optional(),
-  status: z.enum(["under_review", "available", "unavailable", "rented", "maintenance", "retired", "removed"]).default("under_review"),
+  status: z.enum(["under_review", "available", "unavailable", "rented", "maintenance", "under_construction", "construction_immature", "retired", "removed"]).default("under_review"),
 });
 
 export async function GET(req: NextRequest) {
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       where.status = status;
     } else {
       // By default, exclude removed accounts
-      where.status = { in: ["under_review", "available", "rented", "trial", "maintenance", "under_construction", "unavailable", "retired"] };
+      where.status = { in: ["under_review", "available", "rented", "trial", "maintenance", "under_construction", "construction_immature", "unavailable", "retired"] };
     }
 
     const accounts = await prisma.linkedInAccount.findMany({
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
             paypalEmail: true, wiseEmail: true, onboardedAt: true, paidAt: true,
             // Shared outreach/notes tracker: the account view reads/writes the SAME
             // pipeline log (via ownerApplicationId), so both pages stay in sync.
-            outreachLog: true, nextFollowUp: true,
+            outreachLog: true, nextFollowUp: true, updatedAt: true,
           },
         })
       : [];
@@ -136,6 +136,7 @@ export async function GET(req: NextRequest) {
         ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
         ownerEmail: ownerEmail || null,
         ownerApplicationId: app?.id || null,
+        ownerUpdatedAt: app?.updatedAt ?? null,
         ownerOutreachLog: app?.outreachLog ?? null,
         ownerNextFollowUp: app?.nextFollowUp ?? null,
         ownerPhone: app?.contactNumber || null,

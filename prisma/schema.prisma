@@ -25,6 +25,7 @@ enum AccountStatus {
   trial
   maintenance
   under_construction
+  construction_immature
   unavailable
   retired
   removed

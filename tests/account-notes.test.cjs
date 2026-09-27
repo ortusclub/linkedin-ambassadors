@@ -71,3 +71,11 @@ test('backfilled notes and equal timestamps keep chronology and stable ties', ()
   const rows = [{ id: 'a', notes: '[2026-09-27] Recent\n[2026-08-01] Backfill' }, { id: 'b', notes: '[2026-09-27] Same day' }, { id: 'c', notes: '[2026-09-20] Older', ownerOutreachLog: [{ ch: 'note', at: '2026-09-28T00:00:00Z' }] }];
   assert.deepEqual(notes.sortAccountsByLatestNote(rows).map(r => r.id), ['c', 'a', 'b']);
 });
+
+test('last updated includes account edits, shared owner changes and dated notes', () => {
+  const a = { updatedAt: '2026-09-25', ownerUpdatedAt: '2026-09-26', notes: '[2026-09-27] New note' };
+  assert.equal(notes.accountLastUpdatedAt(a), Date.parse('2026-09-27'));
+  assert.equal(notes.accountLastUpdatedAt({ ...a, updatedAt: '2026-09-28' }), Date.parse('2026-09-28'));
+  assert.equal(notes.accountLastUpdatedAt({ ...a, ownerUpdatedAt: '2026-09-29' }), Date.parse('2026-09-29'));
+  assert.equal(notes.accountLastUpdatedAt({ updatedAt: 'invalid' }), 0);
+});
