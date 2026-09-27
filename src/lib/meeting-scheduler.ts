@@ -66,7 +66,7 @@ async function deliverMeetingInvitation(id: string) {
     // SMTP/calendar delivery failure must not prevent an ordinary confirmation email.
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST", signal: AbortSignal.timeout(15000),
-      headers: { Authorization: `Bearer ${smtpKey}`, "Content-Type": "application/json", "Idempotency-Key": `meeting-confirmation/${booking.id}/${booking.sequence}` },
+      headers: { Authorization: `Bearer ${(process.env.RESEND_API_KEY || smtpKey).trim()}`, "Content-Type": "application/json", "Idempotency-Key": `meeting-confirmation/${booking.id}/${booking.sequence}` },
       body: JSON.stringify({
         from: `LinkedVelocity <${MEETING_HOST}>`, to: [...new Set([booking.email, booking.host])], reply_to: booking.host,
         subject: `${booking.sequence > 0 ? "Updated booking: " : "Booking confirmed: "}${meetingTitle(booking)}`,
