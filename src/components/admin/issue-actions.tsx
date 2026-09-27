@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import styles from "./issue-actions.module.css";
 import { accountIssueMessage, ACCOUNT_ISSUES, ISSUE_KEYS, type AccountIssue } from "@/lib/account-issue-message";
 import { contactLink, type IssueContact } from "@/lib/issue-contacts";
 
@@ -52,7 +53,10 @@ export function IssueActions({ twoFactorReceivedAt, originalEmail, lvEmail, refe
         <label>Subject<input aria-label="Email subject" disabled={busy} value={preview.subject} onChange={e => setPreview({ ...preview, subject: e.target.value })} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 10 }} /></label>
         <label>Message<textarea aria-label="Email message" disabled={busy} rows={17} value={preview.text} onChange={e => setPreview({ ...preview, text: e.target.value })} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 10 }} /></label>
         {result && <span role="alert">{result}</span>}
-        <div style={{ display: "flex", gap: 10 }}><button type="button" disabled={busy} onClick={() => setPreview(null)}>Cancel</button><button type="button" disabled={busy || !preview.subject.trim() || !preview.text.trim()} onClick={() => send(preview.recipient)}>{busy ? "Sending…" : "Send email"}</button></div>
+        <div className={styles.actions}>
+          <button className={styles.cancel} type="button" disabled={busy} onClick={() => setPreview(null)}>Cancel</button>
+          <button className={styles.send} type="button" aria-busy={busy} disabled={busy || !preview.subject.trim() || !preview.text.trim()} onClick={() => send(preview.recipient)}>{busy ? "Sending…" : "Send email"}</button>
+        </div>
       </div>
     </div>}
     {result && <span role="status" style={{ fontSize: 12 }}>{result}</span>}

@@ -89,15 +89,15 @@ export default function PrimaryEmailGuide() {
     <div className={styles.sectionLabel}>02 / FOLLOW ALONG ON LINKEDIN · {done.length} OF 5 CHECKED</div>
     <div className={styles.progress}><span style={{ width: `${done.length * 20}%` }} /></div>
     {[
-      { title: "Open Settings & Privacy", body: "Sign in to LinkedIn. On a computer, click Me (your photo), then Settings & Privacy. In the app, tap your photo, then Settings.", image: "/images/guide/2fa/step-1.png", alt: "LinkedIn Me menu and Settings & Privacy" },
-      { title: "Find Email addresses", body: "Choose Sign in & security, then Email addresses under Account access.", image: "/images/guide/2fa/step-2.png", alt: "LinkedIn Sign in & security menu" },
+      { title: "Open Settings & Privacy", body: "Sign in to LinkedIn. On a computer, click Me (your photo), then Settings & Privacy. In the app, tap your photo, then Settings.", image: "/images/guide/primary-email/settings-menu.png", alt: "LinkedIn Me menu and Settings & Privacy" },
+      { title: "Find Email addresses", body: "Choose Sign in & security, then Email addresses under Account access.", image: "/images/guide/primary-email/security-menu.png", alt: "LinkedIn Sign in & security menu" },
       { title: "Add your assigned LV email", body: `Look for ${session?.address || "the exact LinkedVelocity address shown after you verify your personal email above"}. If it is missing, choose Add email address and enter it. If it is already verified, move to step 5. Keep your personal email listed too.` },
       { title: "Confirm the LV email", body: session?.address && !session.forwardingAvailable ? "If this email is not already verified, book a call using the link below so our team can help with the confirmation. Once verified, continue to Make primary." : "Ask LinkedIn to send its confirmation. We’ll forward that email-address confirmation to your verified personal inbox during the 30-minute window. Open the link or enter the code on LinkedIn. Check spam, and use the check button above if it hasn’t arrived. Other login, password-reset, and 2FA codes are not forwarded by this guide." },
       { title: "Make it primary", body: "Next to your verified LV email, choose Make primary. Complete any confirmation LinkedIn asks for, then check that Primary appears beside that exact address.", image: "/images/onboarding/linkedin-make-primary.png", alt: "Make primary option beside a LinkedIn email address" },
     ].map((step, i) => <section key={step.title} className={styles.card}>
       <div className={styles.stepTitle}><span>{String(i + 1).padStart(2, "0")}</span><h2>{step.title}</h2></div>
       <p>{step.body}</p>
-      {step.image && <div className={styles.image}><Image src={step.image} width={900} height={500} alt={step.alt!} style={{ width: "100%", height: "auto" }} /></div>}
+      {step.image && <div className={styles.image} style={i < 2 ? { maxWidth: 400 } : undefined}><Image src={step.image} width={900} height={500} alt={step.alt!} style={{ width: "100%", height: "auto" }} /></div>}
       <label className={styles.check}><input type="checkbox" checked={done.includes(i)} onChange={() => toggle(i)} />I’ve completed this step</label>
     </section>)}
     {session?.address && <section className={styles.card}>
