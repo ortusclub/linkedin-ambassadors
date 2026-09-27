@@ -169,7 +169,7 @@ export default function EmailStep({ setup, busy, submit, refresh }: {
           <p>Don&apos;t just leave it added — it has to be set as the <strong>primary</strong> email. If <strong>{setup.address}</strong> isn&apos;t primary, we can&apos;t sign in and the onboarding can&apos;t finish. Double-check it shows as primary before you continue.</p>
         </div>
         <div className={styles.primaryButtonCrop}>
-          <Image src="/images/onboarding/linkedin-make-primary.png" alt="LinkedIn Make primary button" width={696} height={184} />
+          <Image src="/images/onboarding/linkedin-make-primary-button.png" alt="LinkedIn Make primary button" width={1973} height={797} />
         </div>
         <div className={styles.videoComingSoon}>
           <span aria-hidden="true">▶</span>

@@ -196,8 +196,8 @@
 .videoComingSoon small { display: block; font: 500 11px/1.45 'Plus Jakarta Sans'; color: #a7bcb1; }
 .credCapture { background: #f7f8fa; border: 1px solid #e9ebef; border-radius: 12px; padding: 4px 14px 14px; margin: 14px 0; }
 .credCapture > strong { display: block; font: 700 13px 'Plus Jakarta Sans'; color: #0b1220; margin-top: 14px; }
-.primaryButtonCrop { position: relative; width: min(280px, 100%); height: 92px; overflow: hidden; background: #fff; border: 1px solid #e6e8ec; border-radius: 12px; margin: 14px auto; }
-.primaryButtonCrop img { position: absolute; width: 640px; max-width: none; left: -130px; top: -40px; }
+.primaryButtonCrop { width: min(280px, 100%); overflow: hidden; background: #fff; border: 1px solid #e6e8ec; border-radius: 12px; margin: 14px auto; }
+.primaryButtonCrop img { display: block; width: 100%; height: auto; }
 .verifyButton { border: 1px solid #16a34a; border-radius: 10px; padding: 12px 14px; background: #16a34a; color: #fff; font: 700 13px 'Plus Jakarta Sans'; cursor: pointer; }
 .verifyButton:disabled { opacity: .5; cursor: not-allowed; }
 .verificationRow { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 9px; margin-top: 9px; }
