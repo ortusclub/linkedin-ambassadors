@@ -83,6 +83,7 @@ export async function onboardingSummary(id: string, referrerId: string) {
   return {
     emailSetup,
     diyTier: s.application.diyTier,
+    duplicateWarning: s.application.adminNotes?.includes("[Existing account submission]") ? "We have already received an application for this account. You can continue, but this duplicate application will likely be rejected during review." : null,
     id: s.id, name: s.application.fullName, state: s.state, opened: !!s.openedAt,
     country: countryCode(s.account.location),
     proxyAssigned: !!s.proxyId,
@@ -108,11 +109,17 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
   // Short database-only transaction; external provisioning happens after commit.
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100901)`;
-    const existing = await tx.selfServiceOnboarding.findFirst({ where: { OR: [{ email: input.email }, { linkedinUrl: input.linkedinUrl }] }, include: { application: { select: { submittedByUserId: true } } } });
-    if (existing && options.publicOwner) {
-      if (submittedByUserId && existing.application.submittedByUserId === submittedByUserId && existing.referrerId === referrer.id && existing.email === input.email && existing.linkedinUrl === input.linkedinUrl && ["reserved", "needs_help", "ready", "handed_off"].includes(existing.state)) return existing.id;
-      throw new OnboardingError("An existing setup needs team review.", 409);
+    // Retrying your own unfinished submission resumes it; a different submission
+    // gets isolated application/account/session records, never someone else's access.
+    if (options.publicOwner && submittedByUserId) {
+      const ownSession = await tx.selfServiceOnboarding.findFirst({ where: {
+        referrerId: referrer.id, email: input.email, linkedinUrl: input.linkedinUrl,
+        state: { in: ["reserved", "needs_help", "ready", "handed_off"] },
+        application: { submittedByUserId },
+      }, orderBy: { createdAt: "desc" } });
+      if (ownSession) return ownSession.id;
     }
+    const existing = await tx.selfServiceOnboarding.findFirst({ where: { OR: [{ email: input.email }, { linkedinUrl: input.linkedinUrl }] } });
     if (existing && !options.publicOwner) {
       if (existing.referrerId !== referrer.id || existing.email !== input.email || existing.linkedinUrl !== input.linkedinUrl) {
         throw new OnboardingError("This person already has onboarding in progress. Contact the team to locate it.", 409);
@@ -143,7 +150,7 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       referredBy: referrer.slug, referralSource: "self-service", ...(referrer.type === "ortus" ? { poc: "Ton" } : {}),
       status: "onboarding", ownerStatus: "onboarding", onboardingStartedAt: now,
       payoutCurrency: cfg.currency, offeredAmount: cfg.monthlyAmount,
-      adminNotes: `${options.publicOwner && (application || account || existing) ? "[Existing account submission] Review before activation or payout. " + (application ? `Existing application: ${application.id}. ` : "") + (account ? `Existing inventory account: ${account.id}. ` : "") : ""}Self-service onboarding; owner consent and LinkedIn minimum-age confirmation (16, or older where local law requires) recorded ${now.toISOString()}. Login not yet confirmed.${input.hasGovernmentId ? " Owner confirmed they have a physical government ID." : " Owner did NOT confirm a physical government ID."}${input.nameMatchesId ? " Name confirmed to match their ID." : ""}${input.ownerPhotoUrl ? ` Owner photo: ${input.ownerPhotoUrl}` : ""}`,
+      adminNotes: `${options.publicOwner && (application || account || existing) ? "[Existing account submission] We have already received an application for this account. This duplicate application will likely be rejected during review. Review before activation or payout. " + (application ? `Existing application: ${application.id}. ` : "") + (account ? `Existing inventory account: ${account.id}. ` : "") : ""}Self-service onboarding; owner consent and LinkedIn minimum-age confirmation (16, or older where local law requires) recorded ${now.toISOString()}. Login not yet confirmed.${input.hasGovernmentId ? " Owner confirmed they have a physical government ID." : " Owner did NOT confirm a physical government ID."}${input.nameMatchesId ? " Name confirmed to match their ID." : ""}${input.ownerPhotoUrl ? ` Owner photo: ${input.ownerPhotoUrl}` : ""}`,
     } });
     const acc = await tx.linkedInAccount.create({ data: {
       linkedinName: input.fullName, linkedinUrl: input.linkedinUrl, personalEmail: input.email,

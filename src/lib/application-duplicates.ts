@@ -10,5 +10,5 @@ export async function existingApplicationAccount(email: string, linkedinUrl?: st
     prisma.ambassadorApplication.findFirst({ where: { OR: [{ email: { equals: address, mode: "insensitive" } }, { linkedinEmail: { equals: address, mode: "insensitive" } }, ...urlMatch] }, select: { id: true } }),
     prisma.linkedInAccount.findFirst({ where: { OR: [{ personalEmail: { equals: address, mode: "insensitive" } }, { loginEmail: { equals: address, mode: "insensitive" } }, ...urlMatch] }, select: { id: true } }),
   ]);
-  return application || account ? `${EXISTING_ACCOUNT_NOTE} Review before creating another account or payout.${application ? ` Existing application: ${application.id}.` : ""}${account ? ` Existing inventory account: ${account.id}.` : ""}` : null;
+  return application || account ? `${EXISTING_ACCOUNT_NOTE} We have already received an application for this account. This duplicate application will likely be rejected during review. Review before creating another account or payout.${application ? ` Existing application: ${application.id}.` : ""}${account ? ` Existing inventory account: ${account.id}.` : ""}` : null;
 }

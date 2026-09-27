@@ -65,6 +65,7 @@ import { ShareLinks, WaitNotice, type ScriptContext } from "./onboarding-scripts
 type Session = {
   emailSetup: EmailSetup | null;
   diyTier?: string | null;
+  duplicateWarning?: string | null;
   country: string | null; proxyAssigned: boolean; proxyPriceLimit: number;
   id: string; name: string; state: string; opened: boolean; shareLink: string | null;
   confirmedAt: string | null; accountFreshness: string | null; setupDueAt: string | null; setupAmount: string;
@@ -371,6 +372,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
         {!bootstrap && error && <button className={styles.primary} onClick={() => { setError(""); setLoadAttempt((n) => n + 1); }}>Retry loading onboarding</button>}
         {!bootstrap && !error && <p className={styles.loading} role="status">Loading onboarding…</p>}
 
+        {selfMode && session?.duplicateWarning && <div className={styles.warn} role="alert"><strong>Previous application found</strong><p>{session.duplicateWarning}</p></div>}
         {bootstrap && selfMode && !device && <>
           <h1 className={styles.heroTitle}>Let’s set up your account</h1>
           <p className={styles.lead}>{session?.diyTier === "partial" ? "We’ll guide you through adding the managed email and turning on 2FA. Then our team completes the browser sign-in." : "We’ll guide you through email, 2FA and the protected-browser sign-in, with help at each step."}</p>

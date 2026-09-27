@@ -621,8 +621,8 @@ model SelfServiceOnboarding {
   proxyOrderId String? @unique @map("proxy_order_id")
   proxyBudgetReserved Decimal? @map("proxy_budget_reserved") @db.Decimal(10, 2)
   proxyPurchaseAt DateTime? @map("proxy_purchase_at")
-  email String @unique
-  linkedinUrl String @unique @map("linkedin_url")
+  email String
+  linkedinUrl String @map("linkedin_url")
   // Per-session public token for the DIY self-onboarding flow: lets the ambassador drive
   // ONLY their own session via /api/self-onboarding/<token>, without the shared referrer
   // token (which would expose other people's sessions). Null for referrer-driven sessions.
@@ -636,6 +636,8 @@ model SelfServiceOnboarding {
 
   @@index([referrerId])
   @@unique([proxyId, proxySlot])
+  @@index([email])
+  @@index([linkedinUrl])
   @@map("self_service_onboardings")
 }
 
