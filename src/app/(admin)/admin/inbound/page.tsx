@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { crmOwnerOptions, matchesCrmOwner, ownerKey, type CrmOwner } from "@/lib/crm-owners";
 
 interface Lead {
   id: string;
+  ownerEmail: string | null;
+  commsLog?: { ts: string; channel: string; direction?: string; body: string }[] | null;
   channel: string;
   name: string;
   handle: string | null;
@@ -44,13 +47,20 @@ const fmtFull = (iso: string | null) => { if (!iso) return "—"; const d = new 
 const dInput = (s: string | null) => (s ? new Date(s).toISOString().slice(0, 10) : "");
 const initial = (s: string) => (s || "?").replace(/^@/, "").trim().charAt(0).toUpperCase() || "?";
 
-const blankForm = { name: "", channel: "Website", companyEmail: "", type: "", message: "", status: "New", followUpDate: "", outcome: "", notes: "", firstContactAt: new Date().toISOString().slice(0, 10) };
+const blankForm = { ownerEmail: "", name: "", channel: "Website", companyEmail: "", type: "", message: "", status: "New", followUpDate: "", outcome: "", notes: "", firstContactAt: new Date().toISOString().slice(0, 10) };
 
 export default function AdminInboundPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [owners, setOwners] = useState<CrmOwner[]>([]);
+  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [error, setError] = useState("");
+  const [reply, setReply] = useState<{ id: string; name: string; text: string } | null>(null);
+  const [sendingReply, setSendingReply] = useState(false);
+  const [replyResult, setReplyResult] = useState("");
+  const [assigning, setAssigning] = useState(false);
   const [filter, setFilter] = useState("all");
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
@@ -59,7 +69,7 @@ export default function AdminInboundPage() {
   const [form, setForm] = useState({ ...blankForm });
   const [saving, setSaving] = useState(false);
 
-  const load = () => fetch("/api/admin/inbound").then((r) => r.json()).then((d) => setLeads(d.leads || [])).finally(() => setLoading(false));
+  const load = () => fetch("/api/admin/inbound").then((r) => r.json()).then((d) => { setLeads(d.leads || []); setOwners(d.owners || []); }).finally(() => setLoading(false));
   useEffect(() => {
     load();
     fetch("/api/admin/inbound/export-url").then((r) => r.json())
@@ -86,20 +96,34 @@ export default function AdminInboundPage() {
   };
   const copyFormula = () => { if (!sheetUrl) return; navigator.clipboard.writeText(`=IMPORTDATA("${sheetUrl}")`); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
+  const ownerOptions = useMemo(() => crmOwnerOptions(owners, leads).map(o => o.value === "ardi@linkedvelocity.com" ? { ...o, label: "Ardi (ardi@linkedvelocity.com)" } : o), [owners, leads]);
+  const ownerLabels = useMemo(() => new Map(ownerOptions.map(o => [o.value, o.label])), [ownerOptions]);
+  const ownerLeads = useMemo(() => leads.filter(l => matchesCrmOwner(l.ownerEmail, ownerFilter)), [leads, ownerFilter]);
+  const assignOwner = async (id: string, ownerEmail: string) => {
+    setAssigning(true); setError("");
+    try {
+      const response = await fetch("/api/admin/inbound", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ownerEmail: ownerEmail || null }) });
+      if (!response.ok) throw new Error("Could not save the LV PoC. Please try again.");
+      const data = await response.json();
+      setLeads(prev => prev.map(l => l.id === id ? data.lead : l));
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save the LV PoC."); }
+    finally { setAssigning(false); }
+  };
+
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const l of leads) c[l.status] = (c[l.status] || 0) + 1;
+    for (const l of ownerLeads) c[l.status] = (c[l.status] || 0) + 1;
     return c;
-  }, [leads]);
+  }, [ownerLeads]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return leads.filter((l) => {
+    return ownerLeads.filter((l) => {
       const okS = filter === "all" || l.status === filter;
       const hay = `${l.name} ${l.handle || ""} ${l.companyEmail || ""} ${l.message || ""} ${l.type || ""}`.toLowerCase();
       return okS && (!q || hay.includes(q));
     });
-  }, [leads, query, filter]);
+  }, [ownerLeads, query, filter]);
 
   // keep a valid selection
   useEffect(() => {
@@ -108,7 +132,10 @@ export default function AdminInboundPage() {
   }, [filtered, loading, selectedId]);
 
   const selected = leads.find((l) => l.id === selectedId) || null;
-  const chipStatuses = STATUSES.filter((s) => counts[s] > 0);
+  const telegramUsername = selected?.channel.toLowerCase() === "telegram" ? (selected.handle || "").replace(/^@/, "") : "";
+  const telegramUrl = /^[a-z][a-z0-9_]{3,31}$/i.test(telegramUsername) ? `https://t.me/${telegramUsername}` : null;
+  const canBotReply = selected?.channel.toLowerCase() === "telegram" && /^[1-9]\d*$/.test(selected.contact || "");
+  const chipStatuses = STATUSES.filter((s) => counts[s] > 0 || s === filter);
 
   // ── style atoms ──
   const btnPrimary: React.CSSProperties = { font: `600 13px ${F_SANS}`, color: "#fff", background: "var(--btn-primary-bg)", padding: "9px 16px", borderRadius: 10, border: "none", cursor: "pointer" };
@@ -138,24 +165,32 @@ export default function AdminInboundPage() {
         </div>
       )}
 
+      {error && <p role="alert" style={{ color: "var(--delete-color)" }}>{error}</p>}
+
       {/* pipeline */}
       <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 18, boxShadow: "var(--card-shadow)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 13, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
-            <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{leads.length}</span>
+            <span style={{ font: `600 22px ${F_GRO}`, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{ownerLeads.length}</span>
             <span style={{ font: `600 12px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--label)" }}>leads in pipeline</span>
           </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 10, font: `600 13px ${F_SANS}` }}>LV PoC
+            <select aria-label="Filter by LV PoC" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)} style={{ ...formInput, width: "auto", maxWidth: "100%" }}>
+              <option value="all">All team members</option><option value="unassigned">Unassigned</option>
+              {ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </label>
           <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{counts["New"] || 0} new · {counts["In Conversation"] || 0} in conversation</span>
         </div>
-        {leads.length > 0 && (
+        {ownerLeads.length > 0 && (
           <div style={{ display: "flex", height: 8, borderRadius: 999, overflow: "hidden", background: "var(--track)", marginBottom: 15 }}>
             {STATUSES.filter((s) => counts[s] > 0).map((s) => (
-              <div key={s} style={{ width: `${(counts[s] / leads.length) * 100}%`, background: `var(--st-${stKey(s)}-fg)` }} />
+              <div key={s} style={{ width: `${(counts[s] / ownerLeads.length) * 100}%`, background: `var(--st-${stKey(s)}-fg)` }} />
             ))}
           </div>
         )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {[["all", "All", leads.length] as const, ...chipStatuses.map((s) => [s, s, counts[s]] as const)].map(([val, lbl, n]) => {
+          {[["all", "All", ownerLeads.length] as const, ...chipStatuses.map((s) => [s, s, counts[s] || 0] as const)].map(([val, lbl, n]) => {
             const active = filter === val;
             return (
               <button key={val} onClick={() => setFilter(val)} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: 999, border: "1px solid", borderColor: active ? "var(--chip-active-border)" : "var(--card-border)", background: active ? "var(--chip-active-bg)" : "transparent", cursor: "pointer", font: `600 12px ${F_SANS}`, color: "var(--text)" }}>
@@ -189,6 +224,7 @@ export default function AdminInboundPage() {
                       <span style={{ font: `600 13.5px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.handle || l.name}</span>
                       <span style={{ font: `600 9px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", padding: "2px 6px", borderRadius: 5, flex: "none", background: `var(--pf-${pfKey(l.channel)}-bg)`, color: `var(--pf-${pfKey(l.channel)}-fg)` }}>{platformLabel(l.channel)}</span>
                     </div>
+                    <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted)" }}>LV PoC: {ownerLabels.get(ownerKey(l.ownerEmail)) || "Unassigned"}</span>
                     <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.message || l.companyEmail || "—"}</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flex: "none" }}>
@@ -234,6 +270,18 @@ export default function AdminInboundPage() {
                 </div>
               </div>
 
+              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}><span style={labelCss}>LV PoC — person handling this contact</span>
+                <select aria-label="Lead LV PoC" value={ownerKey(selected.ownerEmail)} disabled={assigning} onChange={e => void assignOwner(selected.id, e.target.value)} style={formInput}>
+                  <option value="">Unassigned</option>{ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </label>
+
+              {selected.channel.toLowerCase() === "telegram" && <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button style={btnPrimary} disabled={!canBotReply} title={canBotReply ? "Reply through the LinkedVelocity Telegram bot" : "No saved private bot chat"} onClick={() => { setReplyResult(""); setReply({ id: selected.id, name: selected.handle || selected.name, text: "Hi! Thanks for contacting LinkedVelocity. Are you looking to rent accounts, earn from your own account, become a referral partner, or get support? Let us know what you need and our team will help." }); }}>Reply on Telegram</button>
+                {telegramUrl && <a href={telegramUrl} target="_blank" rel="noopener noreferrer" style={{ ...btnSecondary, textDecoration: "none" }}>Open Telegram ↗</a>}
+              </div>}
+              {replyResult && <p role="status">{replyResult}</p>}
+
               {/* meta grid */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "18px 26px", padding: "20px 0", borderTop: "1px solid var(--divider)", borderBottom: "1px solid var(--divider)" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -261,6 +309,10 @@ export default function AdminInboundPage() {
                   style={{ width: "100%", resize: "vertical", font: `500 14px/1.5 ${F_SANS}`, color: "var(--text2)", background: "var(--quote-bg)", borderLeft: "3px solid var(--accent)", border: "none", borderLeftWidth: 3, borderLeftStyle: "solid", borderLeftColor: "var(--accent)", padding: "13px 16px", borderRadius: "0 9px 9px 0", outline: "none" }} />
               </div>
 
+              {!!selected.commsLog?.length && <details><summary style={{ cursor: "pointer", ...labelCss }}>Conversation history</summary>
+                {selected.commsLog.map((entry, i) => <div key={`${entry.ts}-${i}`} style={{ padding: "10px 0", borderBottom: "1px solid var(--divider)" }}><small>{entry.direction === "outbound" ? "Team sent" : "Received / logged"} · {entry.channel} · {fmtShort(entry.ts)}</small><p style={{ whiteSpace: "pre-wrap", margin: "5px 0" }}>{entry.body}</p></div>)}
+              </details>}
+
               {/* notes */}
               <div>
                 <div style={{ ...labelCss, marginBottom: 8 }}>Notes</div>
@@ -274,6 +326,28 @@ export default function AdminInboundPage() {
         </div>
       </div>
 
+      {reply && <div role="dialog" aria-modal="true" aria-label="Reply on Telegram" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 60 }}>
+        <div style={{ width: 620, maxWidth: "100%", background: "var(--card)", borderRadius: 16, padding: 24 }}>
+          <h2>Reply to {reply.name}</h2><p>This sends from the LinkedVelocity Telegram bot into their existing bot conversation.</p>
+          <textarea aria-label="Telegram reply message" rows={8} maxLength={4096} value={reply.text} disabled={sendingReply} onChange={e => setReply({ ...reply, text: e.target.value })} style={formInput} />
+          {replyResult && <p role="status">{replyResult}</p>}
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button disabled={sendingReply} style={btnSecondary} onClick={() => setReply(null)}>Cancel</button>
+            <button disabled={sendingReply || !reply.text.trim()} style={btnPrimary} onClick={async () => {
+              setSendingReply(true); setReplyResult("");
+              try {
+                const response = await fetch("/api/admin/inbound/telegram", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: reply.id, text: reply.text }) });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "Could not send the message.");
+                setReplyResult(data.warning || "Telegram message sent."); setReply(null);
+                await load().catch(() => setReplyResult("Message sent. Refresh to update the conversation history."));
+              } catch (e) { setReplyResult(e instanceof Error ? e.message : "Could not confirm delivery. Check the conversation before retrying."); }
+              finally { setSendingReply(false); }
+            }}>{sendingReply ? "Sending…" : "Send Telegram message"}</button>
+          </div>
+        </div>
+      </div>}
+
       {/* add-lead modal */}
       {adding && (
         <div onClick={() => setAdding(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "6vh 16px", zIndex: 50 }}>
@@ -281,6 +355,7 @@ export default function AdminInboundPage() {
             <h2 style={{ font: `600 18px ${F_GRO}`, color: "var(--text)", margin: "0 0 16px" }}>Add a lead</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <label style={{ gridColumn: "1 / -1", ...labelCss }}>Name / Username *<input style={{ ...formInput, marginTop: 5 }} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="@username or name" /></label>
+              <label style={labelCss}>LV PoC<select style={{ ...formInput, marginTop: 5 }} value={form.ownerEmail} onChange={e => setForm({ ...form, ownerEmail: e.target.value })}><option value="">Unassigned</option>{ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
               <label style={labelCss}>Platform<select style={{ ...formInput, marginTop: 5 }} value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>{PLATFORMS.map((p) => <option key={p}>{p}</option>)}</select></label>
               <label style={labelCss}>Date<input type="date" style={{ ...formInput, marginTop: 5 }} value={form.firstContactAt} onChange={(e) => setForm({ ...form, firstContactAt: e.target.value })} /></label>
               <label style={labelCss}>Company / Email<input style={{ ...formInput, marginTop: 5 }} value={form.companyEmail} onChange={(e) => setForm({ ...form, companyEmail: e.target.value })} /></label>
