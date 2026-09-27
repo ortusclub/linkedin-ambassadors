@@ -29,6 +29,14 @@ export async function availableMeetings(now = new Date(), excludeId?: string) {
   return meetingSlots(now, [...busy, ...booked.map(b => ({ start: b.startsAt, end: new Date(b.startsAt.getTime() + 1800000) }))]);
 }
 export async function sendMeetingInvitation(id: string) {
+  try { return await deliverMeetingInvitation(id); }
+  catch (error) {
+    const detail = error as { name?: string; message?: string; code?: string; command?: string; responseCode?: number };
+    console.error("Calendar invitation send failed", { bookingId: id, name: detail.name, code: detail.code, command: detail.command, responseCode: detail.responseCode, message: detail.message?.replaceAll(process.env.RESEND_API_KEY || "not-configured", "[redacted]").slice(0, 250) });
+    throw new Error("Invitation delivery failed");
+  }
+}
+async function deliverMeetingInvitation(id: string) {
   const booking = await prisma.scheduledMeeting.findUniqueOrThrow({ where: { id }, include: { application: { select: { linkedinUrl: true, linkedinEmail: true } } } });
   if (booking.inviteSentAt) return;
   if (!process.env.RESEND_API_KEY) throw new Error("Invitation delivery unavailable");
