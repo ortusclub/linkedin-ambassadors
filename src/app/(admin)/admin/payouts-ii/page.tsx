@@ -376,10 +376,15 @@ export default function PayoutsIIPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accountId: r.id, kind: r.bucket === "setup" ? "setup" : "monthly" }),
     });
+    const d = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
       alert(`Could not record payment: ${d.error || res.status}`);
       return;
+    }
+    // Paying the setup fee releases the account into inventory — tell the admin what happened.
+    if (r.bucket === "setup") {
+      if (d.movedToAvailable) alert(`✓ Setup paid. ${r.linkedinName || "The account"} is now Available in the inventory.`);
+      else if (d.moveBlockedReason) alert(`✓ Setup paid. Note: the account did NOT move to Available because ${d.moveBlockedReason}. Sort that, then set it available.`);
     }
     await load(); // refresh so the row moves to Paid and last-paid / total / next-due update
   };

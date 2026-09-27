@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
     const account = await prisma.linkedInAccount.findUnique({
       where: { id: accountId },
-      select: { notes: true, linkedinUrl: true, ambassadorPayment: true },
+      select: { notes: true, linkedinUrl: true, ambassadorPayment: true, status: true, restrictedAt: true, gologinShareLink: true, twoFactorResetNeeded: true },
     });
     if (!account) return NextResponse.json({ error: "Account not found" }, { status: 404 });
 
@@ -52,7 +52,22 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ ok: true, kind, amount, paidAt: nowISO });
+    // Paying the setup fee releases the account into inventory: an under-construction
+    // account that's otherwise ready (provisioned, not restricted, no 2FA reset) flips to
+    // Available. If it isn't ready we don't move it — we tell the admin why instead.
+    let movedToAvailable = false;
+    let moveBlockedReason: string | null = null;
+    if (kind === "setup" && account.status === "under_construction") {
+      if (account.restrictedAt) moveBlockedReason = "it's currently restricted";
+      else if (account.twoFactorResetNeeded) moveBlockedReason = "its 2FA still needs resetting";
+      else if (!account.gologinShareLink) moveBlockedReason = "it has no GoLogin access link yet";
+      else {
+        await prisma.linkedInAccount.update({ where: { id: accountId }, data: { status: "available", listed: true } });
+        movedToAvailable = true;
+      }
+    }
+
+    return NextResponse.json({ ok: true, kind, amount, paidAt: nowISO, movedToAvailable, moveBlockedReason });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
       return NextResponse.json({ error: error.message }, { status: 403 });
