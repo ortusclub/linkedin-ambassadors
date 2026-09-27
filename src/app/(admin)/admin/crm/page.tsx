@@ -8,6 +8,8 @@ const poppins = Poppins({ subsets: ["latin"], weight: ["500", "600", "700", "800
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--lv-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["500", "600"], variable: "--lv-mono" });
 
+import { PocFilter } from "@/components/admin/poc-filter";
+
 interface Comm { ts: string; channel: string; body: string }
 interface Lead {
   id: string; channel: string; name: string; handle: string | null; companyEmail: string | null;
@@ -223,6 +225,8 @@ export default function CrmPage() {
           </div>
         )}
 
+        <div style={{ marginTop: 18 }}><PocFilter owners={owners} leads={leads} value={activeOwnerFilter} onChange={value => { setOwnerFilter(value); setSelId(null); }} /></div>
+
         {/* pipeline bar */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 18, background: V.surface, border: `1px solid ${V.border}`, borderRadius: 14, padding: "14px 18px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
@@ -245,16 +249,6 @@ export default function CrmPage() {
             })}
           </div>
         </div>
-      </div>
-
-      <div style={{ margin: "0 20px", padding: "14px 18px", background: V.surface, border: `1px solid ${V.border}`, borderRadius: 14 }}>
-        <label style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, fontSize: 13, fontWeight: 600, color: V.body }}>Filter by PoC owner
-          <select value={activeOwnerFilter} onChange={e => { setOwnerFilter(e.target.value); setSelId(null); }} style={{ ...input, width: 280, maxWidth: "100%" }}>
-            <option value="all">All PoC owners</option>
-            <option value="unassigned">Unassigned</option>
-            {filterOwnerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </label>
       </div>
 
       {/* MASTER-DETAIL */}

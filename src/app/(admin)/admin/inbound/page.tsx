@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { crmOwnerOptions, matchesCrmOwner, ownerKey, type CrmOwner } from "@/lib/crm-owners";
 
+import { PocFilter } from "@/components/admin/poc-filter";
+
 interface Lead {
   id: string;
   ownerEmail: string | null;
@@ -201,12 +203,7 @@ export default function AdminInboundPage() {
 
       {error && <p role="alert" style={{ color: "var(--delete-color)" }}>{error}</p>}
 
-      <div aria-label="Filter by LV PoC" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 18 }}>
-        <span style={labelCss}>LV PoC</span>
-        {[{ value: "all", label: "All", count: leads.length }, ...ownerOptions.filter(o => leads.some(l => ownerKey(l.ownerEmail) === o.value)).map(o => ({ ...o, label: o.label.split(" (")[0], count: leads.filter(l => ownerKey(l.ownerEmail) === o.value).length })), { value: "unassigned", label: "Unassigned", count: leads.filter(l => !ownerKey(l.ownerEmail)).length }].map(o =>
-          <button key={o.value} aria-pressed={ownerFilter === o.value} onClick={() => setOwnerFilter(o.value)} style={{ ...btnSecondary, display: "inline-flex", alignItems: "center", gap: 8, borderRadius: 999, background: ownerFilter === o.value ? "var(--chip-active-bg)" : "var(--card)", borderColor: ownerFilter === o.value ? "var(--chip-active-border)" : "var(--card-border)" }}>{o.label}<span style={{ color: "var(--muted)" }}>{o.count}</span></button>
-        )}
-      </div>
+      <div style={{ marginBottom: 18 }}><PocFilter owners={owners} leads={leads} value={ownerFilter} onChange={setOwnerFilter} /></div>
 
       {/* pipeline */}
       <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "18px 22px", marginBottom: 18, boxShadow: "var(--card-shadow)" }}>
