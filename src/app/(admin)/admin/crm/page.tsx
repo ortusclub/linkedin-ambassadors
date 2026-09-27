@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Poppins, Inter, JetBrains_Mono } from "next/font/google";
 import { assignedCrmOwnerOptions, crmOwnerOptions, matchesCrmOwner, ownerKey, type CrmOwner } from "@/lib/crm-owners";
 
@@ -10,7 +10,7 @@ const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["500", "600"], variab
 
 import { PocFilter } from "@/components/admin/poc-filter";
 
-interface Comm { ts: string; channel: string; body: string }
+interface Comm { ts: string; channel: string; body: string; authorName?: string; authorEmail?: string }
 interface Lead {
   addedToClientCrm?: boolean; id: string; channel: string; name: string; handle: string | null; companyEmail: string | null;
   type: string | null; message: string | null; status: string; stage: string; ownerEmail: string | null;
@@ -25,7 +25,7 @@ const STAGES = [
   { key: "cold", label: "Cold" },
   { key: "lost", label: "Lost" },
 ];
-const CHANNELS = ["email", "linkedin", "telegram", "whatsapp", "call", "meeting", "note"];
+const CHANNELS = ["note", "email", "linkedin", "telegram", "whatsapp", "viber", "call", "meeting"];
 
 // ---- design palette helpers (exact from the shared mockup) ----
 const stageColor = (key: string, dark: boolean) => {
@@ -76,6 +76,8 @@ export default function CrmPage() {
   const [error, setError] = useState<string | null>(null);
   const [selId, setSelId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, { channel: string; body: string }>>({});
+  const logLock = useRef(false);
+  const logRequest = useRef<{ id: string; channel: string; text: string; requestId: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", companyEmail: "", type: "Potential Renter", stage: "new", message: "", ownerEmail: "" });
@@ -113,9 +115,19 @@ export default function CrmPage() {
 
   const logComm = async (id: string) => {
     const d = draft[id];
-    if (!d || !d.body.trim()) return;
-    if (!await patch(id, { addNote: { channel: d.channel, body: d.body } })) return;
-    setDraft((p) => ({ ...p, [id]: { channel: d.channel, body: "" } }));
+    if (!d || !d.body.trim() || logLock.current) return;
+    logLock.current = true; setBusy(id); setError(null);
+    const text = d.body.trim();
+    if (logRequest.current?.id !== id || logRequest.current?.text !== text || logRequest.current?.channel !== d.channel) logRequest.current = { id, channel: d.channel, text, requestId: crypto.randomUUID() };
+    try {
+      const response = await fetch("/api/admin/inbound/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(logRequest.current) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save the entry.");
+      setLeads(prev => prev.map(lead => lead.id === id ? data.lead : lead));
+      setDraft(prev => ({ ...prev, [id]: { channel: d.channel, body: "" } }));
+      logRequest.current = null;
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save the entry. Your draft has been kept."); }
+    finally { logLock.current = false; setBusy(null); }
   };
 
   const addContact = async () => {
@@ -218,7 +230,7 @@ export default function CrmPage() {
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={input}>
               <option>Potential Renter</option><option>Potential Ambassador</option><option>Renter</option><option>Partner</option><option>Other</option>
             </select>
-            <select value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value })} style={input}>
+            <select aria-label="CRM state" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value })} style={input}>
               {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
             </select>
             <button onClick={addContact} disabled={busy === "new" || !form.name.trim()} style={{ fontFamily: font.i, fontSize: 13, fontWeight: 600, color: "#fff", background: "#00B85C", border: "none", borderRadius: 10, padding: "9px 18px", cursor: "pointer", opacity: !form.name.trim() ? 0.5 : 1 }}>Save</button>
@@ -231,12 +243,13 @@ export default function CrmPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 18, background: V.surface, border: `1px solid ${V.border}`, borderRadius: 14, padding: "14px 18px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
             <span style={{ fontFamily: font.p, fontWeight: 800, fontSize: 22, color: V.ink }}>{counts.all}</span>
-            <span style={{ ...micro, fontSize: 10.5, color: V.muted2 }}>in pipeline</span>
+            <span style={{ ...micro, fontSize: 10.5, color: V.muted2 }}>in CRM</span>
           </div>
           <div style={{ flex: 1, display: "flex", height: 8, borderRadius: 999, overflow: "hidden", background: V.pillTrack, minWidth: 120 }}>
             {segs.map((s, i) => <div key={i} style={{ width: s.w + "%", background: s.color }} />)}
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", maxWidth: "100%" }}>
+          <div aria-label="CRM states" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", maxWidth: "100%" }}>
+            <span style={{ ...micro, fontSize: 10.5, color: V.muted2 }}>States</span>
             {CHIPS.map(([k, label, dot]) => {
               const on = filter === k;
               const onBg = dark ? "#0A66C2" : "#0B1220";
@@ -307,7 +320,8 @@ export default function CrmPage() {
             // Newest first — entries are appended to the array so raw order isn't reliably
             // chronological; sort by ts descending (ISO strings sort chronologically).
             const log = (Array.isArray(cur.commsLog) ? [...cur.commsLog] : []).sort((a, b) => String(b.ts || "").localeCompare(String(a.ts || "")));
-            const d = draft[cur.id] || { channel: "email", body: "" };
+            if (cur.notes) log.push({ ts: "", channel: "note", body: cur.notes });
+            const d = draft[cur.id] || { channel: "note", body: "" };
             const metaCell = { background: V.surface, padding: "16px 26px" } as const;
             return (
               <>
@@ -323,7 +337,7 @@ export default function CrmPage() {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ position: "relative" }}>
-                      <select value={cur.stage || "new"} onChange={(e) => patch(cur.id, { stage: e.target.value })} style={{ ...input, appearance: "none", WebkitAppearance: "none", padding: "9px 34px 9px 14px", fontWeight: 600, cursor: "pointer", color: sc.fg }}>
+                      <select aria-label="CRM state" value={cur.stage || "new"} onChange={(e) => patch(cur.id, { stage: e.target.value })} style={{ ...input, appearance: "none", WebkitAppearance: "none", padding: "9px 34px 9px 14px", fontWeight: 600, cursor: "pointer", color: sc.fg }}>
                         {STAGES.map((s) => <option key={s.key} value={s.key} style={{ color: V.ink }}>{s.label}</option>)}
                       </select>
                       <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: V.muted2, fontSize: 10 }}>▼</span>
@@ -351,38 +365,31 @@ export default function CrmPage() {
                   </div>
                 </div>
 
-                {/* notes */}
-                <div style={{ padding: "20px 26px", borderBottom: `1px solid ${V.border2}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <span style={{ ...micro, fontSize: 10.5, color: V.muted2 }}>Notes</span>
-                    <span style={{ fontSize: 12, color: V.faint }}>general context — not a dated touchbase</span>
-                  </div>
-                  <textarea key={cur.id + "-notes"} defaultValue={cur.notes || ""} onBlur={(e) => { if (e.target.value !== (cur.notes || "")) patch(cur.id, { notes: e.target.value }); }} placeholder="Background, pricing locked, preferences…" style={{ ...input, width: "100%", minHeight: 78, padding: "13px 15px", fontSize: 14 }} />
-                </div>
-
                 {/* log a touchbase */}
                 <div style={{ padding: "20px 26px", background: V.surface2, borderBottom: `1px solid ${V.border2}` }}>
-                  <div style={{ ...micro, fontSize: 10.5, color: V.muted2, marginBottom: 10 }}>Log a touchbase</div>
+                  <div style={{ ...micro, fontSize: 10.5, color: V.muted2, marginBottom: 10 }}>Notes & conversations</div>
                   <div style={{ display: "flex", gap: 10, alignItems: "stretch", flexWrap: "wrap" }}>
                     <div style={{ position: "relative", flexShrink: 0 }}>
-                      <select value={d.channel} onChange={(e) => setDraft((p) => ({ ...p, [cur.id]: { ...d, channel: e.target.value } }))} style={{ ...input, appearance: "none", WebkitAppearance: "none", height: "100%", padding: "11px 32px 11px 13px", fontWeight: 600, cursor: "pointer" }}>
-                        {CHANNELS.map((c) => <option key={c} value={c}>{c}</option>)}
+                      <select aria-label="Entry type" disabled={busy === cur.id} value={d.channel} onChange={(e) => setDraft((p) => ({ ...p, [cur.id]: { ...d, channel: e.target.value } }))} style={{ ...input, appearance: "none", WebkitAppearance: "none", height: "100%", padding: "11px 32px 11px 13px", fontWeight: 600, cursor: "pointer" }}>
+                        {CHANNELS.map((c) => <option key={c} value={c}>{c === "note" ? "Note" : c === "linkedin" ? "LinkedIn" : c === "whatsapp" ? "WhatsApp" : c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                       </select>
                       <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: V.muted2, fontSize: 10 }}>▼</span>
                     </div>
-                    <textarea value={d.body} onChange={(e) => setDraft((p) => ({ ...p, [cur.id]: { ...d, body: e.target.value } }))} placeholder="What was said / done…" style={{ ...input, flex: 1, minHeight: 46, padding: "12px 14px", fontSize: 14 }} />
-                    <button onClick={() => logComm(cur.id)} disabled={busy === cur.id || !d.body.trim()} style={{ flexShrink: 0, alignSelf: "stretch", background: d.body.trim() ? "#0A66C2" : (dark ? "#274155" : "#B7C7DA"), color: "#fff", border: "none", borderRadius: 10, padding: "0 22px", fontFamily: font.i, fontSize: 14, fontWeight: 600, cursor: d.body.trim() ? "pointer" : "default" }}>Log</button>
+                    <textarea aria-label="Add a note or conversation" disabled={busy === cur.id} maxLength={10000} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void logComm(cur.id); } }} value={d.body} onChange={(e) => setDraft((p) => ({ ...p, [cur.id]: { ...d, body: e.target.value } }))} placeholder="Add a note or record what was said…" style={{ ...input, flex: 1, minHeight: 46, padding: "12px 14px", fontSize: 14 }} />
+                    <button onClick={() => logComm(cur.id)} disabled={busy === cur.id || !d.body.trim()} style={{ flexShrink: 0, alignSelf: "stretch", background: d.body.trim() ? "#0A66C2" : (dark ? "#274155" : "#B7C7DA"), color: "#fff", border: "none", borderRadius: 10, padding: "0 22px", fontFamily: font.i, fontSize: 14, fontWeight: 600, cursor: d.body.trim() ? "pointer" : "default" }}>{busy === cur.id ? "Adding…" : "Add entry"}</button>
                   </div>
                 </div>
+
+                <p style={{ margin: 0, padding: "8px 26px", fontSize: 12, color: V.muted2 }}>Enter to save · Shift+Enter for a new line. Entries are shared with Inbound.</p>
 
                 {/* timeline */}
                 <div style={{ padding: "22px 26px 26px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-                    <span style={{ ...micro, fontSize: 10.5, color: V.muted2 }}>Comms history</span>
+                    <span style={{ ...micro, fontSize: 10.5, color: V.muted2 }}>History</span>
                     <span style={{ fontSize: 12, color: V.faint }}>{log.length} logged</span>
                   </div>
                   {log.length === 0 ? (
-                    <div style={{ fontSize: 12.5, color: V.muted2, fontStyle: "italic" }}>No touchbases logged yet.</div>
+                    <div style={{ fontSize: 12.5, color: V.muted2, fontStyle: "italic" }}>No notes or conversations yet.</div>
                   ) : (
                     <div style={{ position: "relative", paddingLeft: 26 }}>
                       <div style={{ position: "absolute", left: 6, top: 4, bottom: 4, width: 2, background: V.border }} />
@@ -394,7 +401,7 @@ export default function CrmPage() {
                               <span style={{ position: "absolute", left: -26, top: 3, width: 12, height: 12, borderRadius: "50%", background: V.surface, border: `2.5px solid ${tc.fg}` }} />
                               <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5 }}>
                                 <span style={{ fontFamily: font.m, fontSize: 9.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: tc.fg, background: tc.bg, borderRadius: 5, padding: "3px 8px" }}>{c.channel}</span>
-                                <span style={{ fontSize: 12, color: V.faint }}>{fmt(c.ts)}</span>
+                                <span style={{ fontSize: 12, color: V.faint }}>{c.ts ? fmt(c.ts) : "Previous notes · date not recorded"} · {c.authorName?.split(/\s+/)[0] || c.authorEmail?.split("@")[0] || "Author not recorded"}</span>
                               </div>
                               <p style={{ fontSize: 14, lineHeight: 1.6, color: V.body, margin: 0, whiteSpace: "pre-wrap" }}>{c.body}</p>
                             </div>

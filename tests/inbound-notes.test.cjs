@@ -3,3 +3,5 @@ function setup(authorized=true){let entry;const m={exports:{}};const js=ts.trans
 const body={id:'lead',requestId:'11111111-1111-1111-1111-111111111111',text:'A note',authorName:'Imposter'};
 test('note author and timestamp come from server',async()=>{const s=setup();assert.equal((await s.run(body)).status,200);assert.equal(s.entry().authorName,'Sam');assert.equal(s.entry().authorEmail,'sam@example.com');assert.ok(Number.isFinite(Date.parse(s.entry().ts)));});
 test('unauthorized and blank notes rejected',async()=>{assert.equal((await setup(false).run(body)).status,401);assert.equal((await setup().run({...body,text:' '})).status,400)});
+
+test('conversation channels share the attributed timeline; arbitrary channels rejected',async()=>{for(const channel of ['note','email','telegram','whatsapp','viber','call','meeting','linkedin']){const s=setup();assert.equal((await s.run({...body,channel})).status,200);assert.equal(s.entry().channel,channel);assert.equal(s.entry().authorName,'Sam');}assert.equal((await setup().run({...body,channel:'invalid'})).status,400)});
