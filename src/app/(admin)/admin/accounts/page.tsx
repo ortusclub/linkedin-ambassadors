@@ -154,6 +154,7 @@ interface Account {
   restrictedAt: string | null;
   restrictionLog: Array<{ at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }> | null;
   twoFactorResetNeeded: boolean;
+  twoFactorReceivedAt: string | null;
   paymentLinkedAccountId: string | null;
   trialEndsAt: string | null;
   verificationProof: string | null;
@@ -994,7 +995,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                                 <button onClick={() => checkHealth(a.id)} title="Best-effort automated public check. LinkedIn blocks logged-out checks, so this is usually 'Unknown' — verify in GoLogin and use Mark active / Mark restricted instead." style={secBtn}>↻ Re-check (auto)</button>
                                 <button onClick={() => handleDelete(a)} disabled={busy === a.id} style={{ ...outBtn("var(--danger)"), marginLeft: "auto" }}>🗑 Delete</button>
                               </div>
-                              <IssueActions originalEmail={a.personalEmail} lvEmail={a.loginEmail} referralPartner={a.issueReferrerName} from={a.issueEmailFrom} accountId={a.id} profile={a.linkedinUrl} onSent={() => { void load(); }} name={formatName(a.linkedinName)} ambassador={ambassadorIssueContact(a.issueAmbassadorEmail, a.ownerPhone, a.contactChannel, a.location)} referrer={a.issueReferrerContact} />
+                              <IssueActions twoFactorReceivedAt={a.twoFactorReceivedAt} originalEmail={a.personalEmail} lvEmail={a.loginEmail} referralPartner={a.issueReferrerName} from={a.issueEmailFrom} accountId={a.id} profile={a.linkedinUrl} onSent={() => { void load(); }} name={formatName(a.linkedinName)} ambassador={ambassadorIssueContact(a.issueAmbassadorEmail, a.ownerPhone, a.contactChannel, a.location)} referrer={a.issueReferrerContact} />
                               {Array.isArray(a.restrictionLog) && a.restrictionLog.length > 0 && (() => {
                                 const log = [...a.restrictionLog].sort((x, y) => y.at.localeCompare(x.at));
                                 const times = log.filter((e) => e.event === "restricted").length;

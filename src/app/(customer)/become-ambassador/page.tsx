@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
+import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
+import { offerPair, balancePair } from "@/lib/display-currency";
 
 type Step = "choice" | "logged-in-choice" | "info" | "scanning" | "result" | "bank" | "account-details" | "login" | "complete" | "done" | "review" | "scheduled";
 
@@ -118,7 +119,11 @@ const cleanLinkedinUrl = (u: string): string | undefined => {
 export default function BecomeAmbassadorPage() {
   const [step, setStep] = useState<Step | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currency, setCurrency] = useState<"PHP" | "USD">("PHP");
+  const [currencyKey, setCurrencyKey] = useState("ambassador-public");
+  const preference = useDisplayCurrency(currencyKey);
+  const currency = preference.currency;
+  const setupPrice = offerPair(16, 1000, currency);
+  const monthlyPrice = offerPair(8, 500, currency);
   // If the ?ref= belongs to an Ortus referrer, the form adapts: an Ortus-use note + USD-first pricing.
   const [refType, setRefType] = useState<string | null>(null);
   const isOrtusRef = refType === "ortus";
@@ -191,6 +196,7 @@ export default function BecomeAmbassadorPage() {
       const fromUrl = sp.get("ref") || "";
       if (fromUrl) sessionStorage.setItem("lv_ref", fromUrl);
       const ref = fromUrl || sessionStorage.getItem("lv_ref") || "";
+      setCurrencyKey(`ambassador:${ref || "direct"}`);
       if (ref) {
         setForm((prev) => ({
           ...prev,
@@ -203,7 +209,7 @@ export default function BecomeAmbassadorPage() {
           .then((d) => {
             if (d?.referrer) {
               setRefType(d.referrer.type);
-              if (d.referrer.type === "ortus" || d.referrer.type === "apex") setCurrency("USD"); // lead with USD for pool referrers
+
             }
           })
           .catch(() => {});
@@ -486,18 +492,14 @@ export default function BecomeAmbassadorPage() {
 
       {/* EARN — flat payout, real public figures with PHP/USD toggle */}
       {(() => {
-        const M = currency === "PHP" ? { setup: "₱1,000", monthly: "₱500", year: "₱7,000" } : { setup: "$16", monthly: "$8", year: "$112" };
-        const pill = (on: boolean) => ({ cursor: "pointer", border: "none", borderRadius: 999, padding: "7px 18px", fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: on ? "#0B1220" : "#7B8A81", background: on ? "#fff" : "transparent", boxShadow: on ? "0 1px 2px rgba(16,24,40,0.12)" : "none" } as const);
+        const M = { setup: setupPrice, monthly: monthlyPrice, year: offerPair(112, 7000, currency) };
         return (
       <section id="earn" style={{ background: "#FBFCFB", padding: "64px 24px 8px", borderBottom: "1px solid #E8E6E1" }}>
         <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 40px" }}>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 14 }}>What you can earn</div>
           <h2 style={{ fontFamily: "'Poppins','Montserrat',sans-serif", fontWeight: 700, fontSize: "clamp(28px,4vw,40px)", letterSpacing: "-0.03em", margin: "0 0 12px" }}>Simple, flat payouts</h2>
           <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: "0 0 22px" }}>No tiers, no fine print. Every approved account earns the same — a one-time setup bonus, then a fixed amount every month.</p>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#EEF2F0", border: "1px solid #E0E7E2", borderRadius: 999, padding: 4 }}>
-            <button onClick={() => setCurrency("PHP")} style={pill(currency === "PHP")}>PHP</button>
-            <button onClick={() => setCurrency("USD")} style={pill(currency === "USD")}>USD</button>
-          </div>
+          <CurrencySelector preference={preference} />
           <div style={{ fontSize: 12.5, color: "#5A6473", marginTop: 12 }}>Payouts are made in PHP{currency === "USD" ? " — USD shown for reference." : "."}</div>
         </div>
 
@@ -727,7 +729,7 @@ export default function BecomeAmbassadorPage() {
                 { q: "Can I still use my account while it's shared?", a: "Yes. You keep full access to your own account at any time, and you can see exactly how it's being used and who's being messaged. Sharing doesn't mean giving it up." },
                 { q: "Will this affect my LinkedIn account?", a: "Activity is kept human-paced and within LinkedIn's normal limits to protect the account. Your name stays exactly the same. We may update your photo to a cleaner, professional version that still clearly looks like you, and tweak details like your headline, job or About to keep the profile credible for professional outreach." },
                 { q: "What if my account gets restricted?", a: "It's rare — activity is kept human-paced and secure to protect the account. If a restriction ever does happen, we work to recover it, and since it's your own account you're never penalised for it." },
-                { q: "How much will I earn?", a: "A ₱1,000 one-time setup bonus, then ₱500 every month your account stays active — the same for every approved account. Have more than one (yours or family's)? Each earns its own bonus and monthly payout. Higher payouts for stronger profiles are coming soon." },
+                { q: "How much will I earn?", a: `A ${setupPrice} one-time setup bonus, then ${monthlyPrice} every month your account stays active — the same for every approved account. Have more than one (yours or family's)? Each earns its own bonus and monthly payout. Higher payouts for stronger profiles are coming soon.` },
                 { q: "When and how do I get paid?", a: "You're paid every month via bank transfer — even in months your account isn't rented." },
                 { q: "Do I have to do anything day-to-day?", a: "Nothing. It's completely hands-off — you don't run campaigns, reply to messages, or manage anything. We handle it all." },
                 { q: "Can I stop anytime?", a: "Yes. You can withdraw your account at any time with no lock-in and no penalties." },
@@ -990,10 +992,10 @@ export default function BecomeAmbassadorPage() {
                   <div style={{ background: "#0D2A1C", borderRadius: 18, padding: 24 }}>
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6FCF97", marginBottom: 14 }}>What you&apos;ll earn</div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: "#fff" }}>{isPoolRef ? "$8 · ₱500" : "₱500"}</span>
+                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: "#fff" }}>{monthlyPrice}</span>
                       <span style={{ fontSize: 14, color: "#9DC4AE" }}>/month</span>
                     </div>
-                    <div style={{ fontSize: 13.5, color: "#9DC4AE", marginTop: 4 }}>plus a {isPoolRef ? "$16 · ₱1,000" : "₱1,000"} one-time setup bonus.</div>
+                    <div style={{ fontSize: 13.5, color: "#9DC4AE", marginTop: 4 }}>plus a {setupPrice} one-time setup bonus.</div>
                     <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "18px 0" }} />
                     {["Paid every month, guaranteed", "You keep full control of your account", "Cancel anytime, no penalties"].map((t) => (
                       <div key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: "#D6E7DD", lineHeight: 1.45, marginBottom: 12 }}><span style={{ color: "#3EF08A", fontWeight: 700 }}>✓</span>{t}</div>
@@ -1048,6 +1050,7 @@ export default function BecomeAmbassadorPage() {
             </div>
           )}
 
+          <CurrencySelector preference={preference} />
           {/* STEP 3: Result & offer — green design */}
           {step === "result" && offer && (
             <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center", padding: "16px 0 40px" }}>
@@ -1062,10 +1065,10 @@ export default function BecomeAmbassadorPage() {
                 <div style={{ position: "relative" }}>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6FCF97", marginBottom: 16 }}>Based on your profile, we&apos;d like to offer you</div>
                   <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: isPoolRef ? 44 : 64, lineHeight: 1, letterSpacing: "-0.03em", color: "#fff" }}>{isPoolRef ? "$8 · ₱500" : "₱500"}</span>
+                    <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: "clamp(28px, 6vw, 44px)", lineHeight: 1, letterSpacing: "-0.03em", color: "#fff" }}>{monthlyPrice}</span>
                     <span style={{ fontSize: 20, color: "#9DC4AE", fontWeight: 500 }}>/mo</span>
                   </div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ {isPoolRef ? "$16 · ₱1,000" : "₱1,000"} one-time setup bonus</div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ {setupPrice} one-time setup bonus</div>
                   <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via bank transfer on the 1st of each month. Cancel anytime.</p>
                 </div>
               </div>
@@ -1204,7 +1207,7 @@ export default function BecomeAmbassadorPage() {
             <form onSubmit={handleBankSubmit}>
               <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Payment Details</h2>
               <p className="text-center text-gray-500 mb-6">
-                How would you like to receive your {offer ? formatCurrency(offer.amount) : ""}/month payment?
+                How would you like to receive your {offer ? balancePair(offer.amount, "USD", currency) : ""}/month payment?
               </p>
 
               {/* Payment method selection */}

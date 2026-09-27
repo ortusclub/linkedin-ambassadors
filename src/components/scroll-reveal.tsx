@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 // Gently fades/raises page sections into view as you scroll.
 // Skips app/admin/auth pages; respects prefers-reduced-motion; degrades to
 // fully-visible content if JS is off (the CSS is gated on .js-reveal).
-const SKIP_PREFIXES = ["/admin", "/dashboard", "/login", "/register", "/profile", "/checkout"];
+const SKIP_PREFIXES = ["/guide/primary-email", "/admin", "/dashboard", "/login", "/register", "/profile", "/checkout"];
 
 export function ScrollReveal() {
   const pathname = usePathname() || "";

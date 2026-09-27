@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
+import { offerPair } from "@/lib/display-currency";
 
 // DIY self-onboarding entry: verify email (gate), collect the details reserve needs, then
 // POST /api/self-onboarding/start → get a per-session token → hand off to the live wizard.
 
 type Cfg = { countries: string[]; payoutMethods: string[]; defaultPayoutMethod: string; symbol: string };
 
-const TIER_LABEL: Record<string, string> = { full: "Full DIY — $32 (₱2,000) sign-on", partial: "You add email + 2FA — $24 (₱1,500) sign-on" };
 const COUNTRY_NAMES: Record<string, string> = { PH: "Philippines", US: "United States", GB: "United Kingdom", IN: "India" };
 const countryLabel = (c: string) => COUNTRY_NAMES[c] || c;
 
 export default function SelfSetupStart() {
+  const preference = useDisplayCurrency("public-diy");
+  const TIER_LABEL: Record<string, string> = { full: `Full DIY — ${offerPair(32, 2000, preference.currency)} sign-on`, partial: `You add email + 2FA — ${offerPair(24, 1500, preference.currency)} sign-on` };
   const [cfg, setCfg] = useState<Cfg | null>(null);
   const [tier, setTier] = useState("full");
   const [form, setForm] = useState({
@@ -99,11 +102,12 @@ export default function SelfSetupStart() {
   return (
     <main style={{ minHeight: "100dvh", background: "#F6F8F7", fontFamily: "'Inter',sans-serif" }}>
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 18px 70px" }}>
+        <CurrencySelector preference={preference} />
         {lead ? (
           <div style={{ background: "#0D2A1C", borderRadius: 18, padding: "36px 28px", textAlign: "center", color: "#fff" }}>
             <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
             <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>Thanks, {form.fullName.split(" ")[0] || "you're in"}!</h2>
-            <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: 0 }}>We&apos;re not set up to onboard instantly in your country just yet, so our team will get your account ready and reach out by email at <strong style={{ color: "#fff" }}>{form.email}</strong>. You&apos;ll still get your sign-on bonus and {"₱"}500/month.</p>
+            <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: 0 }}>We&apos;re not set up to onboard instantly in your country just yet, so our team will get your account ready and reach out by email at <strong style={{ color: "#fff" }}>{form.email}</strong>. You&apos;ll still get your sign-on bonus and {offerPair(8, 500, preference.currency)}/month.</p>
           </div>
         ) : (<>
         <h1 style={{ fontFamily: "'Poppins','Inter',sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", margin: "0 0 6px" }}>Do it yourself — set up now</h1>

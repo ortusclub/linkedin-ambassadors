@@ -59,7 +59,7 @@ export async function GET(req: Request, context: Context) {
       prisma.ambassadorApplication.findMany({ where: { referredBy: me.slug, onboardingMethod: { not: null } }, select: { onboardingMethod: true } }),
     ]);
     const methods = new Set(doneMethods.map((m) => m.onboardingMethod));
-    return json({ emailEnabled: emailSetupConfig().enabled, phoneVerificationEnabled: phoneVerificationConfigured(), countries, autoPurchase: proxyPurchaseLimits().enabled, config: currencyConfig(me.slug), configured: !!process.env.GOLOGIN_API_TOKEN_KLABBER,
+    return json({ displayCurrency: me.displayCurrency, emailEnabled: emailSetupConfig().enabled, phoneVerificationEnabled: phoneVerificationConfigured(), countries, autoPurchase: proxyPurchaseLimits().enabled, config: currencyConfig(me.slug), configured: !!process.env.GOLOGIN_API_TOKEN_KLABBER,
       doneComputer: methods.has("computer"), donePhone: methods.has("phone"),
       // `done` = no longer resumable (signed in / handed to us / onboarded / paid). The saved
       // list shows these as a summary, not a "Resume" that would restart an onboarded account.

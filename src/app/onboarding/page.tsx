@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
+import { offerPair } from "@/lib/display-currency";
 
 // Public DIY landing page — post it anywhere, no referrer needed. Presents the three
 // self-onboarding tiers (sign-on bonus scales with how much the owner does themselves;
@@ -20,12 +22,10 @@ const TIERS: {
   { id: "full", name: "Full DIY", php: 2000, usd: 32, who: "You do it all yourself — email, 2FA and the GoLogin sign-in.", delay: "Zero delays — you're live straight away.", highlight: true },
 ];
 
-const peso = (n: number) => "₱" + n.toLocaleString("en-US");
-// USD first, PHP in brackets (e.g. "$16 (₱1,000)"). Monthly is $8 (₱500) everywhere.
-const money = (usd: number, php: number) => `$${usd} (${peso(php)})`;
-const MONTHLY = money(8, 500);
-
 export default function DIYPage() {
+  const preference = useDisplayCurrency("public-diy");
+  const money = (usd: number, php: number) => offerPair(usd, php, preference.currency);
+  const MONTHLY = money(8, 500);
   const [tier, setTier] = useState<Tier>("full");
   const [form, setForm] = useState({ fullName: "", email: "", contactMethod: "WhatsApp", contactHandle: "", linkedinUrl: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -72,6 +72,7 @@ export default function DIYPage() {
   return (
     <main style={{ minHeight: "100dvh", background: "#F6F8F7", fontFamily: "'Inter',sans-serif", color: "#0B1220" }}>
       <div style={{ maxWidth: 940, margin: "0 auto", padding: "44px 18px 80px" }}>
+        <CurrencySelector preference={preference} />
         {/* Hero */}
         <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 34px" }}>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#00A150", marginBottom: 12 }}>Earn from your LinkedIn</div>
@@ -87,7 +88,7 @@ export default function DIYPage() {
             <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
             <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>You&apos;re in, {form.fullName.split(" ")[0]}!</h2>
             <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: "0 0 22px" }}>
-              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — ${chosen.usd} ({peso(chosen.php)}) sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Book a quick call to get started fast:
+              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {money(chosen.usd, chosen.php)} sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Book a quick call to get started fast:
             </p>
             <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, padding: "14px 28px", borderRadius: 13, textDecoration: "none" }}>Book my onboarding call →</a>
           </div>
@@ -102,8 +103,7 @@ export default function DIYPage() {
                     {t.highlight && <span style={{ position: "absolute", top: -11, right: 16, background: "#00B85C", color: "#fff", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 9px", borderRadius: 6 }}>Biggest bonus</span>}
                     <div style={{ fontSize: 13.5, fontWeight: 700, color: active ? "#6EE7B7" : "#00A150", marginBottom: 10 }}>{t.name}</div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginBottom: 3, flexWrap: "wrap" }}>
-                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: active ? "#fff" : "#0B1220" }}>${t.usd}</span>
-                      <span style={{ fontSize: 13, color: active ? "#9DC4AE" : "#8A93A2" }}>({peso(t.php)})</span>
+                      <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 800, fontSize: 30, color: active ? "#fff" : "#0B1220" }}>{money(t.usd, t.php)}</span>
                     </div>
                     <div style={{ fontSize: 12.5, color: active ? "#9DC4AE" : "#8A93A2", marginBottom: 14 }}>sign-on bonus · then {MONTHLY}/mo</div>
                     <div style={{ fontSize: 13, lineHeight: 1.5, color: active ? "#D6E7DD" : "#37424F", marginBottom: 10 }}>{t.who}</div>
@@ -116,7 +116,7 @@ export default function DIYPage() {
             {/* Signup */}
             <div style={{ maxWidth: 560, margin: "0 auto", background: "#fff", border: "1px solid #E6E8EC", borderRadius: 20, padding: "28px 28px 30px", boxShadow: "0 6px 20px rgba(16,24,40,0.05)" }}>
               <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 19, marginBottom: 4 }}>Sign up — {chosen.name}</div>
-              <p style={{ fontSize: 13.5, color: "#5A6473", margin: "0 0 20px" }}>${chosen.usd} ({peso(chosen.php)}) sign-on + {MONTHLY}/month. {chosen.delay}</p>
+              <p style={{ fontSize: 13.5, color: "#5A6473", margin: "0 0 20px" }}>{money(chosen.usd, chosen.php)} sign-on + {MONTHLY}/month. {chosen.delay}</p>
 
               {(tier === "full" || tier === "partial") ? (
                 <>
@@ -124,7 +124,7 @@ export default function DIYPage() {
                     You&apos;ll verify your email, add a few details, then go through the quick setup yourself — <strong>zero delays</strong>, you&apos;re live straight away.
                   </p>
                   <a href={`/onboarding/setup?tier=${tier}`} style={{ display: "block", textAlign: "center", width: "100%", boxSizing: "border-box", background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, borderRadius: 12, padding: 15, textDecoration: "none" }}>
-                    Start my setup — ${chosen.usd} ({peso(chosen.php)}) →
+                    Start my setup — {money(chosen.usd, chosen.php)} →
                   </a>
                 </>
               ) : (
@@ -156,7 +156,7 @@ export default function DIYPage() {
                   {error && <div style={{ fontSize: 13.5, color: "#C0392B", marginBottom: 14 }}>{error}</div>}
 
                   <button onClick={submit} disabled={submitting} style={{ width: "100%", background: submitting ? "#8FD9B4" : "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, cursor: submitting ? "not-allowed" : "pointer" }}>
-                    {submitting ? "Sending…" : `Sign up for $${chosen.usd} (${peso(chosen.php)}) + ${MONTHLY}/mo →`}
+                    {submitting ? "Sending…" : `Sign up for ${money(chosen.usd, chosen.php)} + ${MONTHLY}/mo →`}
                   </button>
                 </>
               )}

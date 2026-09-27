@@ -202,6 +202,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   return NextResponse.json({
     me: {
+      displayCurrency: me.displayCurrency,
       name: me.name,
       slug: me.slug,
       type: me.type,
@@ -244,6 +245,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   if (!me) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
+  if (body.action === "displayCurrency") {
+    if (body.currency !== "USD" && body.currency !== "PHP") return NextResponse.json({ error: "Choose USD or PHP" }, { status: 400 });
+    await prisma.referrer.update({ where: { id: me.id }, data: { displayCurrency: body.currency } });
+    return NextResponse.json({ ok: true });
+  }
+
 
   // The referrer marks a raised fix as done from their portal, so the team knows to recheck.
   // Only their own referred signups, and only a fix that's actually open.

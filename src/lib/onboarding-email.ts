@@ -1,3 +1,4 @@
+import { forwardPrimaryRecoveryEmail } from "@/lib/primary-email-recovery";
 import { randomInt } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -128,6 +129,7 @@ export async function forwardOnboardingEmail(emailId: string) {
   const config = emailSetupConfig();
   if (!config.ready) throw new Error("Inbound routing is disabled");
   const msg = incomingEmail.parse(await onboardingMailRequest(`/emails/receiving/${encodeURIComponent(emailId)}`));
+  if (await forwardPrimaryRecoveryEmail(emailId, msg)) return;
   if (msg.id !== emailId || !linkedinSender(msg.from)) return;
   // Never fan out a multi-recipient message across account owners or disclose its contents in logs.
   if (msg.to.length !== 1) return;

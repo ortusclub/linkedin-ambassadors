@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
+import { balanceText, configuredOffer, offerRange } from "@/lib/display-currency";
 import { type CurrencyConfig } from "@/lib/referral-currency";
 import styles from "./wizard.module.css";
 import { countries, countryCode } from "@/lib/countries";
@@ -67,7 +69,7 @@ type Session = {
   confirmedAt: string | null; accountFreshness: string | null; setupDueAt: string | null; setupAmount: string;
   monthlyAmount: string; commission: string; verified: boolean;
 };
-type Bootstrap = { emailEnabled: boolean; phoneVerificationEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; doneComputer: boolean; donePhone: boolean; sessions: { id: string; state: string; name: string; done: boolean }[] };
+type Bootstrap = { displayCurrency?: string; emailEnabled: boolean; phoneVerificationEnabled: boolean; countries: string[]; autoPurchase: boolean; config: CurrencyConfig; configured: boolean; doneComputer: boolean; donePhone: boolean; sessions: { id: string; state: string; name: string; done: boolean }[] };
 
 const PAYOUT_FIELDS: Record<string, { label: string; type?: string; placeholder: string; help: string }> = {
   GCash: { label: "GCash mobile number", type: "tel", placeholder: "+63 9XX XXX XXXX", help: "Enter the mobile number registered to their GCash account." },
@@ -112,6 +114,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const endpoint = endpointProp ?? `/api/m/${encodeURIComponent(token)}/onboarding`;
   const phoneEndpoint = `${endpoint}/phone`;
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
+  const preference = useDisplayCurrency(selfMode ? "public-diy" : token, selfMode ? undefined : bootstrap?.displayCurrency, selfMode ? undefined : token);
   const [step, setStep] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
   const [busy, setBusy] = useState(false);
@@ -312,11 +315,14 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   // Currency follows the referrer (₱ for PH, $ for USD referrers) — everything the
   // wizard shows about money comes from bootstrap.config, never hardcoded pesos.
   const cfg = bootstrap?.config;
-  const fmtMoney = (n: number) => cfg ? `${cfg.symbol}${n.toLocaleString("en-US")}` : "";
+  const fmtMoney = (n: number) => cfg ? configuredOffer(n, cfg.currency, preference.currency) : "";
+  const setupOffer = cfg ? fmtMoney(cfg.setupAmount) : "";
+  const monthlyOffer = cfg ? fmtMoney(cfg.monthlyAmount) : "";
+  const moneyText = (text: string) => balanceText(text, preference.currency);
   const refBase = cfg ? fmtMoney(cfg.referralTiers.referral) : "";
   const refMax = cfg ? fmtMoney(cfg.referralTiers.computer.verified) : "";
-  const phoneRange = cfg ? `${fmtMoney(cfg.referralTiers.phone.base)}–${fmtMoney(cfg.referralTiers.phone.verified)}` : "";
-  const computerRange = cfg ? `${fmtMoney(cfg.referralTiers.computer.base)}–${fmtMoney(cfg.referralTiers.computer.verified)}` : "";
+  const phoneRange = offerRange(10, 13, 600, 800, preference.currency);
+  const computerRange = offerRange(11, 16, 700, 1000, preference.currency);
   const payoutField = PAYOUT_FIELDS[form.paymentMethod] || { label: "Payout details", placeholder: "Account number or payment address", help: "Enter everything needed to send the payment." };
   const scriptCtx: ScriptContext = {
     name: session?.name || form.fullName,
@@ -355,6 +361,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           {wizardSteps.map((s, i) => <span key={s.label} style={{ background: i <= currentPos ? "#16a34a" : "rgba(255,255,255,.16)" }} />)}
         </div>
       </header>
+      <CurrencySelector preference={preference} />
 
       <div className={styles.content}>
         {error && step !== 4 && <div className={styles.error} role="alert">{error}</div>}
@@ -401,7 +408,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <ShareLinks ctx={scriptCtx} />
             <div className={styles.note}>
               <div style={{ font: "700 13px 'Plus Jakarta Sans'", color: "#166534", marginBottom: 8 }}>Who gets what</div>
-              <div className={styles.payRow}><span>They get</span><span className={styles.payAmt}>{bootstrap.config.offer.setup} + {bootstrap.config.offer.monthly}/mo</span></div>
+              <div className={styles.payRow}><span>They get</span><span className={styles.payAmt}>{setupOffer} + {monthlyOffer}/mo</span></div>
               <div className={styles.payRow}><span>You get</span><span className={styles.payAmt}>{refBase}–{refMax}</span></div>
               <p style={{ margin: "10px 0 0", fontWeight: 500 }}>Your exact rate is set at the sign-in step, by who does the final sign-in and whether the account is ID-verified.</p>
             </div>
@@ -481,7 +488,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
 
           {step === 2 && <form onSubmit={(e) => { e.preventDefault(); run(async () => showSession((await request("POST", { ...form, consent, ...idCheck, linkedinVerified: accountVerified === "yes" })).session)); }}>
             <h1 className={styles.heroTitle}>Where should they get paid?</h1>
-            <p className={styles.lead}>This is <strong>their</strong> {bootstrap.config.offer.setup} and {bootstrap.config.offer.monthly} a month. Your own commission goes to the details on your portal.</p>
+            <p className={styles.lead}>This is <strong>their</strong> {setupOffer} and {monthlyOffer} a month. Your own commission goes to the details on your portal.</p>
             <div className={styles.card} data-tour="payout-method">
             <label className={styles.field}>Pay them via<select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value, paymentDetails: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "" })}>{bootstrap.config.payoutMethods.map((p) => <option key={p}>{p}</option>)}</select></label>
             {field("payoutName", "Name registered on that account", "text", "Must match the payment account")}
@@ -495,7 +502,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             </>}
             </div>
             {(!bootstrap.configured || (!bootstrap.autoPurchase && !browserCapacityAvailable)) && <div className={styles.warn}><div>Browser setup isn&apos;t ready yet</div><p>Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access, then try Save &amp; continue.</p></div>}
-            <div className={styles.infoBlue} data-tour="payout-when"><div>When their money arrives</div><p>Once the sign-in is saved, the account counts as onboarded. We then verify it — {checkWindow(form.accountFreshness)}, because we wait about 24 hours before signing in — and their {bootstrap.config.offer.setup} goes out. {bootstrap.config.offer.monthly} follows on the 1st of each month. They need to stay reachable for the odd LinkedIn check.</p></div>
+            <div className={styles.infoBlue} data-tour="payout-when"><div>When their money arrives</div><p>Once the sign-in is saved, the account counts as onboarded. We then verify it — {checkWindow(form.accountFreshness)}, because we wait about 24 hours before signing in — and their {setupOffer} goes out. {monthlyOffer} follows on the 1st of each month. They need to stay reachable for the odd LinkedIn check.</p></div>
             <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
           </form>}
 
@@ -562,12 +569,12 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <h1 className={styles.heroTitle}>That&apos;s them onboarded</h1>
             <p className={styles.lead}>{session.name}&apos;s account is in our system and linked to your code. Nothing else for either of you to do today.</p>
             <div className={styles.card} data-tour="done-summary">
-              <div className={styles.summaryRow}><span>Their setup payment</span><b>{session.setupAmount}</b></div>
-              <div className={styles.summaryRow}><span>Their monthly payment</span><b>{session.monthlyAmount}/mo</b></div>
-              <div className={styles.summaryRow}><span>Your commission</span><b>{session.commission} · {session.verified ? "Verified" : "Pending"}</b></div>
+              <div className={styles.summaryRow}><span>Their setup payment</span><b>{moneyText(session.setupAmount)}</b></div>
+              <div className={styles.summaryRow}><span>Their monthly payment</span><b>{moneyText(session.monthlyAmount)}/mo</b></div>
+              <div className={styles.summaryRow}><span>Your commission</span><b>{moneyText(session.commission)} · {session.verified ? "Verified" : "Pending"}</b></div>
               <div className={styles.summaryRow}><span>Due date</span><b>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "After the check"}</b></div>
             </div>
-            <div className={styles.note} data-tour="done-next"><strong>What we do next.</strong> We test the sign-in over {checkWindow(session.accountFreshness)}. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears, their {session.setupAmount} goes out and your commission lands the following Monday.</div>
+            <div className={styles.note} data-tour="done-next"><strong>What we do next.</strong> We test the sign-in over {checkWindow(session.accountFreshness)}. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears, their {moneyText(session.setupAmount)} goes out and your commission lands the following Monday.</div>
             <div className={styles.card}>
               <div className={styles.cardTitle}>Tell them before you go</div>
               <p className={styles.cardSub} style={{ marginBottom: 8 }}>Don&apos;t post, message or browse from your own phone while it&apos;s with us — being logged in from two places is what causes restrictions.</p>

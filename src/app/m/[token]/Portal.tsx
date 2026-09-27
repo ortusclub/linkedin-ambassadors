@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
+import { balancePair, balanceText, configuredOffer, offerPair, offerRange } from "@/lib/display-currency";
 import { CURRENCY_CONFIG } from "@/lib/referral-currency";
 
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
@@ -11,7 +13,7 @@ interface Payout { id: string; type: string; description: string | null; amount:
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
 interface Data {
-  me: { name: string; slug: string; type: string; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; assignedDay: string | null; assignedLocation: string | null; };
+  me: { displayCurrency: string; name: string; slug: string; type: string; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; assignedDay: string | null; assignedLocation: string | null; };
   stats: { signups: number; converted: number; commission: number; rate: number; };
   config: Config;
   board: BoardRow[];
@@ -137,6 +139,7 @@ const LOCK_STEPS = [
 
 export default function Portal({ token }: { token: string }) {
   const [data, setData] = useState<Data | null>(null);
+  const preference = useDisplayCurrency(token, data?.me.displayCurrency, token);
   const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
   const [tab, setTab] = useState<Tab>("home");
   const [form, setForm] = useState({ contactMethod: "WhatsApp", contactHandle: "", paymentMethod: "GCash", paymentDetails: "" });
@@ -246,8 +249,12 @@ export default function Portal({ token }: { token: string }) {
   );
 
   const { me, stats, board, activity, signups, payouts, config } = data;
-  const money = (n: number) => config.symbol + n.toLocaleString("en-US");
-  const isUSD = config.currency !== "PHP";
+  const actualCurrency = config.currency === "USD" ? "USD" : "PHP";
+  const money = (n: number) => balancePair(n, actualCurrency, preference.currency);
+  const offerMoney = (n: number) => configuredOffer(n, actualCurrency, preference.currency);
+  const moneyText = (text: string) => balanceText(text, preference.currency);
+  const setupOffer = configuredOffer(CURRENCY_CONFIG[actualCurrency].setupAmount, actualCurrency, preference.currency);
+  const monthlyOffer = configuredOffer(CURRENCY_CONFIG[actualCurrency].monthlyAmount, actualCurrency, preference.currency);
   const firstName = me.name.split(" ")[0];
   const initial = (me.name.trim()[0] || "?").toUpperCase();
   // Pool referrers (Ortus / Apex) see the portal branded accordingly; everything else stays
@@ -256,36 +263,27 @@ export default function Portal({ token }: { token: string }) {
   const isPoolRef = me.type === "ortus" || me.type === "apex";
 
   // DIY (guided) onboarding payout tiers: base = referral we onboard, high = DIY verified.
-  const base = money(stats.rate);
-  const diyHigh = money(stats.rate * 2);
+  const base = offerMoney(stats.rate);
+  const diyHigh = offerMoney(stats.rate * 2);
   // Tiered referral commission for display (locked at onboarding by method + verified).
   const tiers = config.referralTiers;
-  const tierRange = (t: Tier) => `${money(t.base)}–${money(t.verified)}`;
+  const tierRange = (t: Tier) => `${offerMoney(t.base)}–${offerMoney(t.verified)}`;
 
-  // Ortus referrers see every earning figure in BOTH currencies, USD first. The PHP and
-  // USD amounts are separately-agreed anchors (not FX-converted), so we read the matching
-  // field from each currency's config rather than converting a number.
-  const showBoth = isPoolRef;
   const P = CURRENCY_CONFIG.PHP, U = CURRENCY_CONFIG.USD;
-  const fmt = (cfg: typeof P, n: number) => cfg.symbol + Math.round(n).toLocaleString("en-US");
-  // A single amount (given each currency's field value): USD · PHP for Ortus, else primary only.
-  const dualVal = (usd: number, php: number, primary: string) =>
-    showBoth ? `${fmt(U, usd)} · ${fmt(P, php)}` : primary;
-  // A range low–high in both currencies: "$8–$16 · ₱500–₱1,000" for Ortus, else primary.
-  const dualRange = (usdLo: number, usdHi: number, phpLo: number, phpHi: number, primary: string) =>
-    showBoth ? `${fmt(U, usdLo)}–${fmt(U, usdHi)} · ${fmt(P, phpLo)}–${fmt(P, phpHi)}` : primary;
+  const dualVal = (usd: number, php: number, _primary: string) => offerPair(usd, php, preference.currency);
+  const dualRange = (usdLo: number, usdHi: number, phpLo: number, phpHi: number, _primary: string) => offerRange(usdLo, usdHi, phpLo, phpHi, preference.currency);
   const baseD = dualVal(U.referralTiers.referral, P.referralTiers.referral, base);
   const rangeD = dualRange(U.referralTiers.referral, U.referralTiers.computer.verified, P.referralTiers.referral, P.referralTiers.computer.verified, `${base}–${diyHigh}`);
   const tierRangeD = (key: "phone" | "computer") =>
     dualRange(U.referralTiers[key].base, U.referralTiers[key].verified, P.referralTiers[key].base, P.referralTiers[key].verified, tierRange(tiers[key]));
 
   // For non-PH (USD) referrers, rewrite the money/method-bearing FAQ answers.
-  const faqOverrides: Record<string, string> = isUSD ? {
+  const faqOverrides: Record<string, string> = {
     "When do I get paid?": `You get ${base} to ${diyHigh} for every sign-up onboarded onto our inventory — you see the exact amount when you choose how to onboard. Commissions release about a week after onboarding, once we've confirmed the account is stable, and are paid the following Monday. A restriction in that window adds a few days.`,
     "What counts as a successful sign-up?": `The person you signed up gets fully onboarded and their account lands on our inventory — usually confirmed about a week after onboarding, once it's passed our checks. That's when your fee (${base} to ${diyHigh}, depending on how it's onboarded) is triggered.`,
     "How do I update my payout details?": `In the Earnings tab — under "Where we send your money", save your ${config.defaultPayoutMethod} / bank info so we can pay you.`,
-    "How much will I earn?": `${config.offer.setup} to start — paid to your account about a week after setup, once the account is confirmed stable. Then ${config.offer.monthly} every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ${config.offer.setup} covers your first partial month, so you're never short-changed.`,
-  } : {};
+    "How much will I earn?": `${setupOffer} to start — paid to your account about a week after setup, once the account is confirmed stable. Then ${monthlyOffer} every full month your account stays active, paid on the 1st. Your monthly payments start on the 1st of your first full month; the ${setupOffer} covers your first partial month, so you're never short-changed.`,
+  };
   const applyFaq = (items: { q: string; a: string }[]) => items.map((f) => faqOverrides[f.q] ? { ...f, a: faqOverrides[f.q] } : f);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -328,7 +326,7 @@ export default function Portal({ token }: { token: string }) {
   const tabDef: { id: Tab; icon: string; label: string }[] = [
     { id: "home", icon: "◆", label: "Today" },
     { id: "jobs", icon: "☰", label: "Signups" },
-    { id: "money", icon: "₱", label: "Earnings" },
+    { id: "money", icon: preference.currency === "USD" ? "$" : "₱", label: "Earnings" },
     { id: "guide", icon: "?", label: "What to say" },
     { id: "you", icon: "☺", label: "For you" },
   ];
@@ -346,6 +344,8 @@ export default function Portal({ token }: { token: string }) {
             <span style={{ width: 26, height: 26, borderRadius: 999, background: "#1e293b", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 11px ${JAK}` }}>{initial}</span>
           </span>
         </div>
+
+        <CurrencySelector preference={preference} />
 
         {/* ============ TODAY ============ */}
         {tab === "home" && (
@@ -526,7 +526,7 @@ export default function Portal({ token }: { token: string }) {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.line2}` }}>
                     <span style={{ font: `500 11.5px ${JAK}`, color: C.muted }}>{s.path}</span>
                     {s.liUrl && !s.restricted && <a href={s.liUrl} target="_blank" rel="noopener noreferrer" style={{ font: `600 11.5px ${JAK}`, color: "#2563eb", textDecoration: "none", whiteSpace: "nowrap" }}>View on LinkedIn ↗</a>}
-                    <span style={{ marginLeft: "auto", font: `700 12.5px ${GRO}`, color: C.ink, whiteSpace: "nowrap" }}>{s.fee}</span>
+                    <span style={{ marginLeft: "auto", font: `700 12.5px ${GRO}`, color: C.ink, textAlign: "right" }}>{moneyText(s.fee)}</span>
                   </div>
                   {s.restricted && (
                     <div style={{ marginTop: 12, background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 12, padding: 13 }}>
@@ -602,7 +602,7 @@ export default function Portal({ token }: { token: string }) {
 
             <div style={{ background: C.dark, borderRadius: 18, padding: 18, marginBottom: 12 }}>
               <div style={{ font: `600 11.5px ${JAK}`, color: "#94a3b8", marginBottom: 4 }}>Estimated, not yet paid</div>
-              <div style={{ font: `600 32px/1 ${GRO}`, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{money(stats.commission)}</div>
+              <div style={{ font: `600 26px/1.25 ${GRO}`, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{money(stats.commission)}</div>
               <div style={{ display: "flex", gap: 22, marginTop: 16, paddingTop: 14, borderTop: "1px solid #1e293b" }}>
                 <div>
                   <div style={{ font: `600 17px ${GRO}`, color: "#6ee7b7", fontVariantNumeric: "tabular-nums" }}>{money(paidTotal)}</div>
@@ -615,14 +615,15 @@ export default function Portal({ token }: { token: string }) {
               </div>
             </div>
 
+            <p style={{ fontSize: 11, color: C.muted }}>Payout currency: {actualCurrency}. ≈ marks an estimate using our reference rate of ₱58 per $1; actual payments keep their saved currency.</p>
             {/* what each onboarding pays */}
             <div style={card}>
               <div style={cardTitle}>What each onboarding pays</div>
               <p style={{ font: `500 12px/1.5 ${JAK}`, color: C.muted, margin: "0 0 8px" }}>Two things move your rate: who does the final sign-in, and whether LinkedIn has ID-verified the account.</p>
               {[
-                { a: money(tiers.referral), t: "You send the form — our team onboards them." },
-                { a: tierRange(tiers.phone), t: "Phone: you chase it, we do the sign-in. Verified pays the top." },
-                { a: tierRange(tiers.computer), t: "Computer: you do the guided sign-in yourself. Verified pays the top." },
+                { a: offerMoney(tiers.referral), t: "You send the form — our team onboards them." },
+                { a: tierRangeD("phone"), t: "Phone: you chase it, we do the sign-in. Verified pays the top." },
+                { a: tierRangeD("computer"), t: "Computer: you do the guided sign-in yourself. Verified pays the top." },
               ].map((p, i) => (
                 <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start", padding: "9px 0", borderTop: `1px solid ${C.line2}` }}>
                   <span style={{ font: `700 13.5px ${GRO}`, color: C.greenDk, flex: "none", minWidth: 62 }}>{p.a}</span>
@@ -725,7 +726,7 @@ export default function Portal({ token }: { token: string }) {
                   <span style={{ font: `600 13px ${GRO}`, color: C.muted2, width: 16, flex: "none" }}>{i + 1}</span>
                   <span style={{ minWidth: 0, font: `${b.isMe ? 700 : 500} 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}{b.isMe ? " (you)" : ""}</span>
                   <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
-                    <strong style={{ display: "block", font: `600 13px ${GRO}`, color: C.greenDk, fontVariantNumeric: "tabular-nums" }}>{b.lifetimeEarnings}</strong>
+                    <strong style={{ display: "block", font: `600 13px ${GRO}`, color: C.greenDk, fontVariantNumeric: "tabular-nums" }}>{moneyText(b.lifetimeEarnings)}</strong>
                     <small style={{ display: "block", font: `500 10.5px ${JAK}`, color: C.muted2, whiteSpace: "nowrap" }}>{b.converted} onboarded · {b.signups} signed up</small>
                   </span>
                 </div>
@@ -735,7 +736,7 @@ export default function Portal({ token }: { token: string }) {
                   <span style={{ font: `700 13px ${GRO}`, color: C.greenDk, width: 24, flex: "none" }}>#{myRank}</span>
                   <span style={{ minWidth: 0, font: `700 13.5px ${JAK}`, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{myBoardRow.name} (you)</span>
                   <span style={{ marginLeft: "auto", textAlign: "right", flex: "none" }}>
-                    <strong style={{ display: "block", font: `600 13px ${GRO}`, color: C.greenDk }}>{myBoardRow.lifetimeEarnings}</strong>
+                    <strong style={{ display: "block", font: `600 13px ${GRO}`, color: C.greenDk }}>{moneyText(myBoardRow.lifetimeEarnings)}</strong>
                     <small style={{ display: "block", font: `500 10.5px ${JAK}`, color: C.muted2, whiteSpace: "nowrap" }}>{myBoardRow.converted} onboarded · {myBoardRow.signups} signed up</small>
                   </span>
                 </div>
@@ -758,12 +759,12 @@ export default function Portal({ token }: { token: string }) {
               <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: `1px solid ${C.line2}` }}>
                   <span style={{ font: `600 12.5px ${JAK}`, color: C.ink, width: 62, flex: "none" }}>One-off</span>
-                  <span style={{ font: `700 14px ${GRO}`, color: C.greenDk, whiteSpace: "nowrap" }}>{config.offer.setup}</span>
+                  <span style={{ font: `700 14px ${GRO}`, color: C.greenDk, whiteSpace: "nowrap" }}>{setupOffer}</span>
                   <span style={{ font: `500 12px ${JAK}`, color: C.slate }}>once the account is confirmed stable</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
                   <span style={{ font: `600 12.5px ${JAK}`, color: C.ink, width: 62, flex: "none" }}>Monthly</span>
-                  <span style={{ font: `700 14px ${GRO}`, color: C.greenDk, whiteSpace: "nowrap" }}>{config.offer.monthly}</span>
+                  <span style={{ font: `700 14px ${GRO}`, color: C.greenDk, whiteSpace: "nowrap" }}>{monthlyOffer}</span>
                   <span style={{ font: `500 12px ${JAK}`, color: C.slate }}>on the 1st, every active month</span>
                 </div>
               </div>

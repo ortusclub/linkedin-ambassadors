@@ -141,7 +141,7 @@ test('forward only to assigned destination; duplicate webhook sends once', async
   configure();
   let delivery = null; let sends = 0;
   const e = setup();
-  const db = { $executeRaw: async () => {}, onboardingEmailSetup: { findUnique: async () => e, update: async () => {} }, onboardingEmailDelivery: {
+  const db = { primaryEmailRecovery: { findMany: async () => [] }, $executeRaw: async () => {}, onboardingEmailSetup: { findUnique: async () => e, update: async () => {} }, onboardingEmailDelivery: {
     findUnique: async () => delivery, count: async () => 0,
     upsert: async ({ create }) => { delivery = { ...create, createdAt: new Date(), status: 'pending' }; },
     update: async ({ data }) => { Object.assign(delivery, data); },
