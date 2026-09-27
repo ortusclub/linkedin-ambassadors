@@ -4,6 +4,13 @@ import { requireAdmin } from "@/lib/auth";
 
 // Editable fields shared by manual-create + edit.
 type LeadInput = {
+  phone?: string | null;
+  company?: string | null;
+  jobTitle?: string | null;
+  website?: string | null;
+  linkedinUrl?: string | null;
+  country?: string | null;
+
   addedToAmbassadorPipeline?: boolean;
   addedToReferralPipeline?: boolean;
   addedToClientCrm?: boolean;
@@ -25,6 +32,9 @@ type LeadInput = {
 
 function toData(b: LeadInput) {
   const d: Record<string, unknown> = {};
+  for (const key of ["phone", "company", "jobTitle", "website", "linkedinUrl", "country"] as const) {
+    if (typeof b[key] === "string" || b[key] === null) d[key] = b[key]?.trim() || null;
+  }
   if (typeof b.channel === "string") d.channel = b.channel;
   if (typeof b.name === "string") d.name = b.name;
   if (b.handle !== undefined) d.handle = b.handle || null;

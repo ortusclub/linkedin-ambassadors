@@ -8,6 +8,13 @@ import { PocFilter } from "@/components/admin/poc-filter";
 import { INBOUND_TYPES, INBOUND_DESTINATIONS, inboundType, inboundStatuses, matchesInboundStatus, type InboundRouting, type InboundDestination } from "@/lib/inbound-filters";
 
 interface Lead extends InboundRouting {
+  phone?: string | null;
+  company?: string | null;
+  jobTitle?: string | null;
+  website?: string | null;
+  linkedinUrl?: string | null;
+  country?: string | null;
+
   id: string;
   ownerEmail: string | null;
   commsLog?: { ts: string; channel: string; direction?: string; authorName?: string; authorEmail?: string; body: string }[] | null;
@@ -51,7 +58,9 @@ const fmtFull = (iso: string | null) => { if (!iso) return "—"; const d = new 
 const dInput = (s: string | null) => (s ? new Date(s).toISOString().slice(0, 10) : "");
 const initial = (s: string) => (s || "?").replace(/^@/, "").trim().charAt(0).toUpperCase() || "?";
 
-const blankForm = { ownerEmail: "", name: "", channel: "Website", companyEmail: "", type: "", message: "", status: "New", followUpDate: "", outcome: "", notes: "", firstContactAt: new Date().toISOString().slice(0, 10) };
+const CONTACT_FIELDS = [{"key": "phone", "label": "Contact number", "type": "tel"}, {"key": "company", "label": "Company", "type": "text"}, {"key": "jobTitle", "label": "Job title", "type": "text"}, {"key": "website", "label": "Website", "type": "url"}, {"key": "linkedinUrl", "label": "LinkedIn profile", "type": "url"}, {"key": "country", "label": "Country", "type": "text"}] as const;
+
+const blankForm = { phone: "", company: "", jobTitle: "", website: "", linkedinUrl: "", country: "", handle: "",  ownerEmail: "", name: "", channel: "Website", companyEmail: "", type: "", message: "", status: "New", followUpDate: "", outcome: "", notes: "", firstContactAt: new Date().toISOString().slice(0, 10) };
 
 export function InboundPage({ archive = false }: { archive?: boolean }) {
   const [bookings, setBookings] = useState<{ key: string; leadId: string; scheduledAt: string; cancelled: boolean }[]>([]);
@@ -106,8 +115,13 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
   }, [archive]);
 
   const save = async (id: string, patch: Record<string, unknown>) => {
-    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-    await fetch("/api/admin/inbound", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...patch }) });
+    setError("");
+    try {
+      const response = await fetch("/api/admin/inbound", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...patch }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save contact details.");
+      setLeads(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save contact details. Please try again."); }
   };
   const addLead = async () => {
     if (!form.name.trim() || saving) return;
@@ -381,13 +395,18 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
               </div>
 
               {/* meta grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "18px 26px", padding: "20px 0", borderTop: "1px solid var(--divider)", borderBottom: "1px solid var(--divider)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "18px 26px", padding: "20px 0", borderTop: "1px solid var(--divider)", borderBottom: "1px solid var(--divider)" }}>
+                {!archive && <>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={labelCss}>Contact name</span><input defaultValue={selected.name} onBlur={e => e.target.value.trim() && save(selected.id, { name: e.target.value.trim() })} style={editInput} /></label>
+                  {CONTACT_FIELDS.map(field => <label key={field.key} style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}><span style={labelCss}>{field.label}</span><input type={field.type} defaultValue={selected[field.key] || ""} placeholder={field.key === "phone" ? "+ country code and number" : "—"} onBlur={e => void save(selected.id, { [field.key]: e.target.value.trim() })} style={editInput} /></label>)}
+                  <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={labelCss}>Messaging handle</span><input defaultValue={selected.handle || ""} placeholder="@username" onBlur={e => void save(selected.id, { handle: e.target.value.trim() })} style={editInput} /></label>
+                </>}
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <span style={labelCss}>Date added</span>
                   <input type="date" defaultValue={dInput(selected.firstContactAt)} onBlur={(e) => e.target.value && save(selected.id, { firstContactAt: e.target.value })} style={editInput} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
-                  <span style={labelCss}>Company / Email</span>
+                  <span style={labelCss}>{archive ? "Company / Email" : "Email"}</span>
                   <input defaultValue={selected.companyEmail || ""} placeholder="—" onBlur={(e) => save(selected.id, { companyEmail: e.target.value.trim() })} style={editInput} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -464,7 +483,9 @@ export function InboundPage({ archive = false }: { archive?: boolean }) {
               <label style={labelCss}>LV PoC<select style={{ ...formInput, marginTop: 5 }} value={form.ownerEmail} onChange={e => setForm({ ...form, ownerEmail: e.target.value })}><option value="">Unassigned</option>{ownerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
               <label style={labelCss}>Type / source<select style={{ ...formInput, marginTop: 5 }} value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>{PLATFORMS.map((p) => <option key={p}>{p}</option>)}</select></label>
               <label style={labelCss}>Date<input type="date" style={{ ...formInput, marginTop: 5 }} value={form.firstContactAt} onChange={(e) => setForm({ ...form, firstContactAt: e.target.value })} /></label>
-              <label style={labelCss}>Company / Email<input style={{ ...formInput, marginTop: 5 }} value={form.companyEmail} onChange={(e) => setForm({ ...form, companyEmail: e.target.value })} /></label>
+              <label style={labelCss}>Email<input style={{ ...formInput, marginTop: 5 }} value={form.companyEmail} onChange={(e) => setForm({ ...form, companyEmail: e.target.value })} /></label>
+              {CONTACT_FIELDS.map(field => <label key={field.key} style={labelCss}>{field.label}<input type={field.type} style={{ ...formInput, marginTop: 5 }} value={form[field.key]} onChange={e => setForm({ ...form, [field.key]: e.target.value })} /></label>)}
+              <label style={labelCss}>Messaging handle<input style={{ ...formInput, marginTop: 5 }} value={form.handle} onChange={e => setForm({ ...form, handle: e.target.value })} /></label>
               <label style={labelCss}>Interest<select style={{ ...formInput, marginTop: 5 }} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}><option value="">—</option>{TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
               <div style={labelCss}>Status: New</div>
               <label style={labelCss}>Follow-up date<input type="date" style={{ ...formInput, marginTop: 5 }} value={form.followUpDate} onChange={(e) => setForm({ ...form, followUpDate: e.target.value })} /></label>

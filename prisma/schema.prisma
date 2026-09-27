@@ -481,6 +481,13 @@ model Transaction {
 // bookings). One row per person per channel (upserted). Powers the live
 // "Inbound" admin tab + Google Sheet. Signups/customers live elsewhere (not inbound).
 model InboundLead {
+  phone String?
+  company String?
+  jobTitle String? @map("job_title")
+  website String?
+  linkedinUrl String? @map("linkedin_url")
+  country String?
+
   ambassadorApplicationId String? @map("ambassador_application_id") @db.Uuid
   referrerId String? @map("referrer_id") @db.Uuid
   addedToAmbassadorPipeline Boolean @default(false) @map("added_to_ambassador_pipeline")
