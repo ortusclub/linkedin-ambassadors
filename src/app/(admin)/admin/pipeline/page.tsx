@@ -1282,8 +1282,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
           {!live ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)", flexWrap: "wrap" }}>
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                {r.status !== "approved" && r.status !== "onboarding" && <button onClick={() => workflow(r.id, { status: "onboarding" })} disabled={busy} title="They've agreed — start onboarding (Level 1 · add email & 2FA)" style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)" }}>✓ Accept → Level 1</button>}
-                {r.status !== "rejected" && <button onClick={() => workflow(r.id, { status: "rejected" })} disabled={busy} style={{ font: `600 12px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e6b4ad)", padding: "8px 13px", borderRadius: 8, cursor: "pointer" }}>Reject</button>}
+                {r.status !== "approved" && r.status !== "onboarding" && <button onClick={() => workflow(r.id, { status: "onboarding", applicationReceived: true })} disabled={busy} title="They've agreed — start onboarding (Level 1 · add email & 2FA)" style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)" }}>✓ Accept → Level 1</button>}
               </div>
               <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Accepting reveals the inventory profile · other states from the status dropdown</span>
             </div>
@@ -1357,6 +1356,7 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
           {r.diyTier !== "standard" && r.diyTier && <small>Chosen route — completion is tracked in the steps below.</small>}
         </div>
         {r.diyTier === "standard" && <SignupMeeting r={r} />}
+        {!isLive(r) && r.status !== "rejected" && <button onClick={() => workflow(r.id, { status: "rejected" })} disabled={busy} style={{ font: `600 12px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e6b4ad)", padding: "8px 13px", borderRadius: 8, cursor: "pointer" }}>Reject</button>}
       </div>,
     },
     {
