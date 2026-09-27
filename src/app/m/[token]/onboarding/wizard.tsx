@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { OnboardingPrice } from "@/components/onboarding-price";
 import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
 import { balanceText, configuredOffer, offerRange } from "@/lib/display-currency";
 import { type CurrencyConfig } from "@/lib/referral-currency";
@@ -376,6 +377,11 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
         {bootstrap && selfMode && !device && <>
           <h1 className={styles.heroTitle}>Let’s set up your account</h1>
           <p className={styles.lead}>{session?.diyTier === "partial" ? "We’ll guide you through adding the managed email and turning on 2FA. Then our team completes the browser sign-in." : "We’ll guide you through email, 2FA and the protected-browser sign-in, with help at each step."}</p>
+          <div className={styles.card}>
+            <p><strong>Email + 2FA: <OnboardingPrice usd={24} php={1500} /> sign-on bonus.</strong> You add the email and 2FA; our team finishes the browser sign-in.</p>
+            <p><strong>Full DIY: <OnboardingPrice usd={32} php={2000} /> sign-on bonus.</strong> Earn <OnboardingPrice usd={8} php={500} /> more by completing the protected-browser sign-in yourself on a computer.</p>
+            <p style={{ marginBottom: 0, color: "#067A45" }}><strong>Both options: <OnboardingPrice usd={8} php={500} /> every month</strong> once onboarding is complete.</p>
+          </div>
           <h2>Are you using a phone or a computer?</h2>
           <button className={styles.choiceCard} onClick={() => setDevice("phone")}><strong>I’m on a phone</strong><p>Add the email and 2FA here. For Full DIY, you can move to a computer for the final sign-in.</p></button>
           <button className={styles.choiceCard} onClick={() => { setDevice("pc"); if (session?.diyTier !== "partial") setBrowserMode("pc"); }}><strong>I’m on a laptop or desktop</strong><p>Use Windows or Mac to complete the protected-browser sign-in yourself.</p></button>
