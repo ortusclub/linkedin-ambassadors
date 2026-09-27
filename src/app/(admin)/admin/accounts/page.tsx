@@ -967,7 +967,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2", minWidth: 0 }}>
                               <span style={labelCss}>Notes (private){savingProof === a.id ? " · saving…" : ""}</span>
-                              <AccountNotes accountId={a.id} notes={a.notes} proof={a.verificationProof} onNotesSaved={() => { void load(); }} onProofSaved={(value) => saveProof(a, value)} />
+                              <AccountNotes sharedLog={a.ownerOutreachLog} accountId={a.id} notes={a.notes} proof={a.verificationProof} onNotesSaved={() => { void load(); }} onProofSaved={(value) => saveProof(a, value)} />
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 8, gridColumn: "span 2" }}>
                               <span style={labelCss}>Health actions</span>

@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 import { formatName } from "@/lib/utils";
+import { AccountNotes } from "@/components/admin/account-notes";
 import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions";
 import { ambassadorIssueContact } from "@/lib/issue-contacts";
 import { isApplicationReceived, receiptPatch } from "@/lib/pipeline-received";
@@ -1285,11 +1286,11 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
             );
           })()}
 
-          {(r.adminNotes || r.applicationNotes || r.accountNotes) && (
+          {(r.accountId || r.adminNotes || r.applicationNotes || r.accountNotes) && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
               {r.adminNotes && <Note label="Admin notes">{r.adminNotes}</Note>}
               {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
-              {r.accountNotes && <Note label="Account notes">{r.accountNotes}</Note>}
+              {r.accountId && <AccountNotes accountId={r.accountId} notes={r.accountNotes} proof={null} sharedLog={r.outreachLog} onNotesSaved={() => void workflow(r.id, {})} onProofSaved={async () => {}} />}
             </div>
           )}
 

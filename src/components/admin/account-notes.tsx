@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { accountNotesTimeline } from "@/lib/account-notes";
 
-export function AccountNotes({ accountId, notes, proof, onNotesSaved, onProofSaved }: {
+export function AccountNotes({ accountId, notes, proof, sharedLog, onNotesSaved, onProofSaved }: {
+  sharedLog?: Array<{ ch: string; text: string; at: string }> | null;
   accountId: string; notes: string | null; proof: string | null;
   onNotesSaved: (notes: string) => void; onProofSaved: (value: string) => Promise<void>;
 }) {
@@ -11,7 +12,8 @@ export function AccountNotes({ accountId, notes, proof, onNotesSaved, onProofSav
   const [proofDraft, setProofDraft] = useState(proof || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const entries = accountNotesTimeline(notes, proof);
+  const sharedText = (sharedLog || []).filter(entry => entry.ch === "note").map(entry => `[${entry.at}] ${entry.text}`).join("\n");
+  const entries = accountNotesTimeline([notes, sharedText].filter(Boolean).join("\n"), proof);
   const fieldStyle = { width: "100%", boxSizing: "border-box" as const, minHeight: 70, padding: 12, borderRadius: 9, border: "1px solid var(--input-border)", background: "var(--input-bg)", color: "var(--text)", font: "inherit", resize: "vertical" as const };
   const buttonStyle = { padding: "8px 13px", borderRadius: 8, border: "1px solid var(--btn-secondary-border)", background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-fg)", cursor: "pointer" };
   async function addNote() {

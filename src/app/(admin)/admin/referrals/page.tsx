@@ -1,11 +1,15 @@
 "use client";
 
+import { AccountNotes } from "@/components/admin/account-notes";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { isReferralEarned, isReferralOnboarded, isReferralReadyToPay, referralMaturesAt, referralCommissionAmount } from "@/lib/referrals";
 import { type Currency, CURRENCY_CONFIG, formatMoney, referralCurrency } from "@/lib/referral-currency";
 
 // A single ambassador application, reduced to what the referral roll-up needs.
 interface App {
+  accountId?: string | null;
+  accountNotes?: string | null;
+  outreachLog?: Array<{ ch: string; text: string; at: string }> | null;
   fullName: string;
   referredBy: string | null;
   status: string;
@@ -365,6 +369,7 @@ export default function AdminReferralsPage() {
           ? (a.onboardingMethod === "phone" ? "You ran it · phone" : a.onboardingMethod === "computer" ? "You ran it · computer" : "You ran it") + (a.onboardingVerified ? " · verified" : "")
           : "Form · LV onboards";
         return {
+          accountId: a.accountId, accountNotes: a.accountNotes, outreachLog: a.outreachLog,
           name: a.fullName || "—",
           counts: isConverted(a), // false = restricted/held-back, shown but not counted
           method, fee, cur,
@@ -876,7 +881,9 @@ export default function AdminReferralsPage() {
                           return (
                             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }} title={c.title || undefined}>
                               <span style={{ width: 7, height: 7, borderRadius: 999, background: tone, flex: "none" }} />
-                              <span style={{ font: `500 13px ${F_SANS}`, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{c.name}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}><span style={{ font: `500 13px ${F_SANS}`, color: "var(--text)" }}>{c.name}</span>
+                                {c.accountId && <details style={{ marginTop: 6 }}><summary style={{ cursor: "pointer", fontSize: 12 }}>Shared account notes</summary><AccountNotes accountId={c.accountId} notes={c.accountNotes || null} proof={null} sharedLog={c.outreachLog} onNotesSaved={notes => setApps(previous => previous.map(app => app.accountId === c.accountId ? { ...app, accountNotes: notes } : app))} onProofSaved={async () => {}} /></details>}
+                              </div>
                               <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2)", whiteSpace: "nowrap" }}>{c.method}</span>
                               <span style={{ font: `700 12px ${F_SANS}`, color: "var(--text2)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", minWidth: 52, textAlign: "right" }}>{formatMoney(c.fee, c.cur)}</span>
                               <span style={{ font: `600 11px ${F_SANS}`, color: tone, whiteSpace: "nowrap", minWidth: 96, textAlign: "right" }}>{c.state}</span>

@@ -86,3 +86,9 @@ test('last updated sorting switches direction and leaves missing dates last', ()
   assert.deepEqual(notes.sortAccountsByLastUpdated(accounts, 'oldest').map(a => a.id), ['old', 'new', 'unknown']);
   assert.deepEqual(accounts.map(a => a.id), ['old', 'unknown', 'new']);
 });
+test('inventory note panel includes shared pipeline notes but not outbound email bodies',()=>{
+  const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
+  const {AccountNotes}=load('src/components/admin/account-notes.tsx',{'@/lib/account-notes':notes});
+  const html=renderToStaticMarkup(React.createElement(AccountNotes,{accountId:'test',notes:'[2026-09-26] Inventory update',proof:null,sharedLog:[{ch:'note',at:'2026-09-27T12:00:00Z',text:'Owner completed verification; recheck account'},{ch:'email',at:'2026-09-27T13:00:00Z',text:'Private email body'}],onNotesSaved(){},async onProofSaved(){}}));
+  assert.ok(html.includes('Owner completed verification; recheck account'));assert.ok(html.indexOf('Owner completed')<html.indexOf('Inventory update'));assert.ok(!html.includes('Private email body'));
+});

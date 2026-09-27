@@ -9,7 +9,7 @@ export async function GET() {
 
     const applications = await prisma.ambassadorApplication.findMany({
       orderBy: { createdAt: "desc" },
-      include: { scheduledMeeting: true },
+      include: { scheduledMeeting: true, selfServiceOnboarding: { select: { accountId: true } } },
     });
 
     // Enrich with current contact number from user profiles
@@ -25,7 +25,20 @@ export async function GET() {
     // Live call status from info@'s Google Calendar (matched by the guest's email).
     const calls = await getCallMaps();
 
+    // Private admin views read the inventory notes from the account itself.
+    const accounts = await prisma.linkedInAccount.findMany({ select: { id: true, linkedinUrl: true, personalEmail: true, notes: true } });
+    const norm = (url: string | null) => (url || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("?")[0].replace(/\/+$/, "");
+    const accountFor = (a: typeof applications[number]) => {
+      if (a.selfServiceOnboarding?.accountId) return accounts.find(account => account.id === a.selfServiceOnboarding!.accountId);
+      const urlMatches = a.linkedinUrl ? accounts.filter(account => norm(account.linkedinUrl) === norm(a.linkedinUrl)) : [];
+      if (urlMatches.length === 1) return urlMatches[0];
+      if (urlMatches.length > 1) return undefined;
+      const emailMatches = accounts.filter(account => account.personalEmail?.toLowerCase() === a.email.toLowerCase());
+      return emailMatches.length === 1 ? emailMatches[0] : undefined;
+    };
     const enriched = applications.map(a => ({
+      accountId: accountFor(a)?.id || null,
+      accountNotes: accountFor(a)?.notes || null,
       ...a,
       contactNumber: contactMap.get(a.email) || a.contactNumber,
       call: a.scheduledMeeting ? { stage: a.scheduledMeeting.startsAt > new Date() ? "booked" : "done", scheduledAt: a.scheduledMeeting.startsAt.toISOString(), meetLink: null, channel: "Application contact", title: "30-minute onboarding call", cancelled: false } : pickCall(calls, { email: a.email, bookingEmail: a.bookingEmail, fullName: a.fullName }).call,
