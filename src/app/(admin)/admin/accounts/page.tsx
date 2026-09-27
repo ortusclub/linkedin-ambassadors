@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
+import { AccountNotes } from "@/components/admin/account-notes";
 import { OutreachLog, type Touch } from "@/components/admin/outreach-log";
 
 // LinkedIn 2FA for an account: shows the secret KEY plus the live TOTP code.
@@ -507,7 +508,7 @@ export default function AdminAccountsPage() {
   const saveProof = async (a: Account, value: string) => {
     if (value === (a.verificationProof || "")) return;
     setSavingProof(a.id);
-    try { await patch(a.id, { verificationProof: value || null }); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, verificationProof: value || null } : x))); }
+    try { const res = await patch(a.id, { verificationProof: value || null }); if (!res.ok) throw new Error("Could not save private notes"); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, verificationProof: value || null } : x))); }
     finally { setSavingProof(null); }
   };
   // Set account age from an "opened" month (YYYY-MM) → stores accountAgeMonths.
@@ -1036,7 +1037,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2", minWidth: 0 }}>
                               <span style={labelCss}>Notes (private){savingProof === a.id ? " · saving…" : ""}</span>
-                              <textarea defaultValue={a.verificationProof || ""} placeholder="Notes — restriction reasons, verification/proof links, anything about this account…" onBlur={(e) => saveProof(a, e.target.value.trim())} style={{ width: "100%", minHeight: 52, resize: "vertical", ...modalInput, font: `500 12.5px ${F_SANS}` }} />
+                              <AccountNotes accountId={a.id} notes={a.notes} proof={a.verificationProof} onNotesSaved={(notes) => setAccounts((prev) => prev.map((x) => x.id === a.id ? { ...x, notes } : x))} onProofSaved={(value) => saveProof(a, value)} />
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: 8, gridColumn: "span 2" }}>
                               <span style={labelCss}>Health actions</span>

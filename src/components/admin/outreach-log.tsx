@@ -69,7 +69,7 @@ export function OutreachLog({
         </div>
       </div>
       <div style={{ padding: "8px 14px" }}>
-        {log && log.length ? [...log].reverse().map((t, i) => (
+        {log && log.length ? [...log].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).map((t, i) => (
           <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "6px 0" }}>
             <span style={touchChipStyle(t.ch)}>{touchLabel(t.ch)}</span>
             <span style={{ flex: 1, font: `500 12.5px ${F_SANS}`, color: "var(--text2,#333)", lineHeight: 1.4 }}>{t.text}</span>
