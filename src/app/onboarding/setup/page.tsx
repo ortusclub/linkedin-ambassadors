@@ -111,15 +111,16 @@ export default function SelfSetupStart() {
         <p style={{ fontSize: 14.5, color: "#5A6473", margin: "0 0 22px" }}>{TIER_LABEL[tier] || TIER_LABEL.full}. Verify your email, add a few details, then you&apos;ll go through the quick setup yourself — zero delays.</p>
 
         <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 18, padding: "24px 24px 26px" }}>
-          <div style={row}><label style={lab}>Your name *</label><input style={inp} value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Full name" /></div>
+          <div style={row}><label style={lab} htmlFor="provided-account-name">Name on the LinkedIn account *</label><input id="provided-account-name" style={inp} value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Full name shown on the LinkedIn profile" /></div>
 
           {/* Email + gate */}
           <div style={row}>
-            <label style={lab}>Email *</label>
+            <label style={lab} htmlFor="provided-account-email">Email currently on that LinkedIn account *</label>
             <div style={{ display: "flex", gap: 8 }}>
-              <input style={inp} type="email" value={form.email} disabled={!!permit} onChange={(e) => { set("email", e.target.value); setPermit(""); setChallenge(""); }} placeholder="you@example.com" />
+              <input id="provided-account-email" style={inp} type="email" value={form.email} disabled={!!permit} onChange={(e) => { set("email", e.target.value); setPermit(""); setChallenge(""); }} placeholder="Email linked to the account you are providing" />
               {!permit && <button type="button" onClick={sendCode} disabled={sending} style={{ flex: "none", padding: "0 14px", borderRadius: 11, border: "1px solid #00A150", background: "#fff", color: "#00A150", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>{sending ? "…" : challenge ? "Resend" : "Send code"}</button>}
             </div>
+            <p style={{ fontSize: 12, lineHeight: 1.5, color: "#5A6473", margin: "6px 0 0" }}>Use the account’s current email address. Verification codes and updates will be sent here.</p>
             {challenge && !permit && (
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <input style={inp} value={code} onChange={(e) => setCode(e.target.value)} placeholder="6-digit code" inputMode="numeric" />

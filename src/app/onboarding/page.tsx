@@ -137,12 +137,13 @@ export default function DIYPage() {
               ) : (
                 <>
                   <div style={{ marginBottom: 14 }}>
-                    <label style={label}>Your name *</label>
-                    <input style={inp} value={form.fullName} onChange={(e) => update("fullName", e.target.value)} placeholder="Full name" />
+                    <label style={label} htmlFor="provided-account-name">Name on the LinkedIn account *</label>
+                    <input id="provided-account-name" style={inp} value={form.fullName} onChange={(e) => update("fullName", e.target.value)} placeholder="Full name shown on the LinkedIn profile" />
                   </div>
                   <div style={{ marginBottom: 14 }}>
-                    <label style={label}>Email *</label>
-                    <input style={inp} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="you@example.com" />
+                    <label style={label} htmlFor="provided-account-email">Email currently on that LinkedIn account *</label>
+                    <input id="provided-account-email" style={inp} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="Email linked to the account you are providing" />
+                    <p style={{ fontSize: 12, lineHeight: 1.5, color: "#5A6473", margin: "6px 0 0" }}>Use the account’s current email address. Verification codes and updates will be sent here.</p>
                   </div>
                   <div style={{ marginBottom: 14 }}>
                     <label style={label}>How can we reach you? *</label>
