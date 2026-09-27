@@ -58,7 +58,7 @@ export async function syncInboundBookings(dryRun = false) {
       if (!lead && booking.cancelled) { result.skippedCancelled++; continue; }
       const entry = { ts: new Date().toISOString(), channel: "booking", body: `${booking.cancelled ? "Call cancelled" : prior ? "Call booking updated" : "Call booked"}: ${booking.scheduledAt.toISOString()}\n${booking.title}${booking.description ? `\n${booking.description}` : ""}` };
       if (!lead) {
-        lead = await tx.inboundLead.create({ data: { channel: "call", contact: `calendar:${booking.key}`, name: booking.name, companyEmail: booking.email, source: "Google Calendar booking", status: "Booked Call", stage: "warm", ownerEmail: ardi?.email || null, followUpDate: booking.scheduledAt, message: booking.description || booking.title } });
+        lead = await tx.inboundLead.create({ data: { channel: "call", contact: `calendar:${booking.key}`, name: booking.name, companyEmail: booking.email, source: "Google Calendar booking", status: "Booked Call", stage: "warm", firstContactAt: booking.scheduledAt, ownerEmail: ardi?.email || null, followUpDate: booking.scheduledAt, message: booking.description || booking.title } });
         result.created++;
       } else {
         // Keep manual outcomes and assignments. A cancelled call is not a lost customer.
@@ -71,6 +71,10 @@ export async function syncInboundBookings(dryRun = false) {
       await tx.$executeRaw`UPDATE inbound_leads SET comms_log = ${json}::jsonb || COALESCE(comms_log, '[]'::jsonb) WHERE id = ${lead.id}::uuid`;
       const data = { leadId: lead.id, eventId: booking.eventId, email: booking.email, scheduledAt: booking.scheduledAt, cancelled: booking.cancelled, fingerprint: booking.fingerprint };
       await tx.inboundBooking.upsert({ where: { key: booking.key }, create: { key: booking.key, ...data }, update: data });
+      if (lead.source === "Google Calendar booking") {
+        const latest = await tx.inboundBooking.findFirst({ where: { leadId: lead.id }, orderBy: [{ cancelled: "asc" }, { scheduledAt: "desc" }] });
+        if (latest) await tx.inboundLead.update({ where: { id: lead.id }, data: { firstContactAt: latest.scheduledAt } });
+      }
     }
   }, { timeout: 45000 });
   return result;
