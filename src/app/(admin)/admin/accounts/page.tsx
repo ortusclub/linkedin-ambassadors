@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
+import { sortAccountsByLatestNote } from "@/lib/account-notes";
 import { AccountNotes } from "@/components/admin/account-notes";
 import { OutreachLog, type Touch } from "@/components/admin/outreach-log";
 
@@ -608,15 +609,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       // ambassador's contact email and number, the owner name, plus the profile fields.
       return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.loginEmail || ""} ${a.ownerEmail || ""} ${a.ownerName || ""} ${a.ownerPhone || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
     });
-    // Combined-billing pairs: keep a secondary right after its primary instead
-    // of wherever createdAt happens to place it, so they read as one unit.
-    const indexOf = new Map(shown.map((a, i) => [a.id, i]));
-    const anchor = (a: Account) => (a.paymentLinkedAccountId ? indexOf.get(a.paymentLinkedAccountId) ?? indexOf.get(a.id)! : indexOf.get(a.id)!);
-    return [...base].sort((a, b) => {
-      const rankA = anchor(a) + (a.paymentLinkedAccountId ? 0.5 : 0);
-      const rankB = anchor(b) + (b.paymentLinkedAccountId ? 0.5 : 0);
-      return rankA - rankB;
-    });
+    return sortAccountsByLatestNote(base);
   }, [shown, filter, verifiedFilter, connFilter, pocFilter, search]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -733,21 +726,15 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         </div>
       </div>
 
+      <p style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", margin: "0 0 14px" }}>Sorted by latest note in each section · newest first · accounts without dated notes last</p>
+
       {/* groups */}
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
         {filtered.length === 0 ? (
           <div style={{ padding: 44, textAlign: "center", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, font: `500 13.5px ${F_SANS}`, color: "var(--muted)" }}>No accounts match.</div>
         ) : GROUPS.map((g) => {
-          const groupRows = filtered.filter((a) => groupKey(a) === g.key);
-          // Within Maintenance/Construction: surface accounts that need a 2FA
-          // rotation first (they're the ones blocking a re-list), then the healthy
-          // ones still warming up, then recovered-but-fragile "recently restricted"
-          // ones kept together, and currently-restricted ones last (not actionable
-          // until LinkedIn clears them). Sort is stable, so order is otherwise kept.
-          const rows = (g.key !== "Maintenance" && g.key !== "Construction") ? groupRows : [...groupRows].sort((a, b) => {
-            const rank = (x: Account) => (x.twoFactorResetNeeded ? 0 : x.restrictedAt ? 3 : recentRestrict(x) ? 2 : 1);
-            return rank(a) - rank(b);
-          });
+          // Filtering retains the global latest-note order within each section.
+          const rows = filtered.filter((a) => groupKey(a) === g.key);
           if (rows.length === 0) return null;
           return (
             <div key={g.key}>
@@ -760,9 +747,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {rows.map((a, idx) => {
                   const open = expanded.has(a.id);
-                  // Combined-billing pairs are pre-sorted adjacent (see `filtered`) —
-                  // fuse the two cards into one visual block instead of two separate
-                  // cards that merely mention each other.
+                  // Fuse linked billing cards only when note ordering places them adjacent.
                   const fusedWithNext = rows[idx + 1]?.paymentLinkedAccountId === a.id;
                   const fusedWithPrev = idx > 0 && a.paymentLinkedAccountId === rows[idx - 1].id;
                   const st = groupKey(a);

@@ -20,3 +20,24 @@ export function accountNotesTimeline(notes?: string | null, proof?: string | nul
     (b.at ? Date.parse(b.at) : -Infinity) - (a.at ? Date.parse(a.at) : -Infinity) || b.order - a.order
   ).map(({ order: _order, ...note }) => note);
 }
+
+// Shared pipeline notes also count; outbound messages and unrelated account edits
+// don't move an account ahead of one with a more recent note.
+export function latestAccountNoteAt(account: {
+  notes?: string | null;
+  verificationProof?: string | null;
+  ownerOutreachLog?: Array<{ at: string; ch: string }> | null;
+}): number {
+  const datedNotes = accountNotesTimeline(account.notes, account.verificationProof)
+    .flatMap(note => note.at ? [Date.parse(note.at)] : []);
+  const sharedNotes = (account.ownerOutreachLog || [])
+    .filter(touch => touch.ch === "note")
+    .map(touch => Date.parse(touch.at));
+  return Math.max(0, ...datedNotes.concat(sharedNotes).filter(Number.isFinite));
+}
+
+export function sortAccountsByLatestNote<T extends Parameters<typeof latestAccountNoteAt>[0]>(accounts: T[]): T[] {
+  return accounts.map(account => ({ account, at: latestAccountNoteAt(account) }))
+    .sort((a, b) => b.at - a.at)
+    .map(({ account }) => account);
+}

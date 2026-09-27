@@ -54,3 +54,20 @@ test('database errors report failure instead of a successful save', async () => 
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { error: 'Could not save note' });
 });
+test('account ordering uses the latest private or shared note, not other activity', () => {
+  const rows = [
+    { id: 'undated', notes: 'Old note without date' },
+    { id: 'private', verificationProof: '[2026-09-26] Private update' },
+    { id: 'shared', ownerOutreachLog: [{ ch: 'note', at: '2026-09-27T12:00:00Z' }] },
+    { id: 'account', notes: '[2026-09-27T13:00:00Z] Email issue' },
+    { id: 'message', ownerOutreachLog: [{ ch: 'email', at: '2026-09-28T12:00:00Z' }] },
+    { id: 'invalid', ownerOutreachLog: [{ ch: 'note', at: 'invalid' }] },
+  ];
+  const ordered = notes.sortAccountsByLatestNote(rows);
+  assert.deepEqual(ordered.map(r => r.id), ['account', 'shared', 'private', 'undated', 'message', 'invalid']);
+  assert.equal(rows[0].id, 'undated');
+});
+test('backfilled notes and equal timestamps keep chronology and stable ties', () => {
+  const rows = [{ id: 'a', notes: '[2026-09-27] Recent\n[2026-08-01] Backfill' }, { id: 'b', notes: '[2026-09-27] Same day' }, { id: 'c', notes: '[2026-09-20] Older', ownerOutreachLog: [{ ch: 'note', at: '2026-09-28T00:00:00Z' }] }];
+  assert.deepEqual(notes.sortAccountsByLatestNote(rows).map(r => r.id), ['c', 'a', 'b']);
+});
