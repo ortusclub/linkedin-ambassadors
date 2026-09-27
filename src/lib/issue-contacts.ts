@@ -8,7 +8,7 @@ export function contactLink(channel: keyof IssueContact, handle: string | null |
     const phone = value.replace(/^viber:\s*/i, "");
     if (!/^\+?[\d\s().-]+$/.test(phone)) return null;
     const digits = phone.replace(/\D/g, "");
-    return /^[1-9]\d{7,14}$/.test(digits) ? `viber://chat?number=${encodeURIComponent("+" + digits)}` : null;
+    return /^[1-9]\d{7,14}$/.test(digits) ? `viber://forward?text=${encodeURIComponent(message)}` : null;
   }
   if (channel === "whatsapp") {
     const phone = value.replace(/^(?:whatsapp|phone):\s*/i, "");

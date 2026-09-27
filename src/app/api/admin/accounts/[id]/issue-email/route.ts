@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!z.string().email().safeParse(to).success) return NextResponse.json({ error: `No valid ${input.recipient} email is saved.` }, { status: 400 });
     const message = { subject: input.subject, text: input.text };
     await onboardingMailRequest("/emails", { from: process.env.RESEND_FROM_EMAIL || "LinkedVelocity <info@linkedvelocity.com>", reply_to: process.env.ADMIN_NOTIFICATION_EMAIL || "info@linkedvelocity.com", to: [to], ...message }, `account-issue-${id}-${input.requestId}`);
-    const entry = `[${new Date().toISOString()}] Emailed ${input.recipient} (${to}): ${message.subject}. ${ACCOUNT_ISSUES[input.issue].label}. ${input.details}\nMessage sent:\n${message.text}`;
+    const entry = `[${new Date().toISOString()}] Emailed ${input.recipient} (${to}): ${message.subject}. ${ACCOUNT_ISSUES[input.issue].label}. ${input.details}`;
     await prisma.$executeRaw`UPDATE linkedin_accounts SET notes = concat_ws(E'\n', nullif(notes, ''), ${entry}::text), updated_at = NOW() WHERE id = ${id}::uuid`;
     return NextResponse.json({ ok: true, to });
   } catch (error) {
