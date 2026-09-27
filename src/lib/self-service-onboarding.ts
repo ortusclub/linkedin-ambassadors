@@ -485,3 +485,23 @@ export async function updateOnboardingPayout(id: string, referrerId: string, pay
     await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: { paymentMethod, paymentDetails, payoutName, bankName, bankAccountNumber, bankRoutingNumber } });
   });
 }
+
+export async function undoOnboardingMeeting(id: string, referrerId: string) {
+  await prisma.$transaction(async tx => {
+    const s = await tx.selfServiceOnboarding.findFirst({ where: { id, referrerId }, include: { application: true } });
+    if (!s || s.publicToken) throw new OnboardingError("Referral onboarding not found.", 404);
+    if (!["reserved", "needs_help", "ready"].includes(s.state) || ["onboarded", "rejected", "unreachable"].includes(s.application.status) || s.application.paidAt)
+      throw new OnboardingError("Contact the team to change this completed handoff.", 409);
+    if (s.application.onboardingMethod !== "team_meeting") return;
+    const notes = s.application.adminNotes || "";
+    const requests = [...notes.matchAll(/MEETING REQUEST ([^:]+T[^ ]+): Referrer/g)];
+    const requestedAt = requests.at(-1)?.[1];
+    const clearFollowUp = requestedAt && s.application.nextFollowUp?.getTime() === new Date(requestedAt).getTime();
+    await tx.selfServiceOnboarding.update({ where: { id }, data: { state: s.state === "needs_help" ? "reserved" : s.state } });
+    await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: {
+      onboardingMethod: null,
+      ...(clearFollowUp ? { nextFollowUp: null } : {}),
+      adminNotes: `${notes}\nMEETING REQUEST WITHDRAWN ${new Date().toISOString()}: Referrer undid the team takeover and will continue self-onboarding. Saved setup progress is retained.`,
+    } });
+  });
+}

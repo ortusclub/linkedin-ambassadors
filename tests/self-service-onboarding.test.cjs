@@ -294,3 +294,12 @@ test('returning to payout updates only the existing application and preserves id
   await service({$transaction:fn=>fn(tx)}).updateOnboardingPayout('s','r',{fullName:'Wrong identity',email:'wrong@example.test',paymentMethod:'GCash',paymentDetails:'09123456789',payoutName:'Owner Example'});
   assert.equal(updated.where.id,'app');assert.equal(updated.data.payoutName,'Owner Example');assert.equal(updated.data.email,undefined);assert.equal(updated.data.fullName,undefined);assert.equal(updated.data.status,undefined);
 });
+test('undoing team takeover preserves progress and removes only its own follow-up',async()=>{
+  for(const customFollowUp of [false,true]){
+    const writes=[],at='2026-09-27T21:05:00.000Z';
+    const s={applicationId:'app',state:'needs_help',publicToken:null,application:{status:'onboarding',onboardingMethod:'team_meeting',adminNotes:`Earlier note\nMEETING REQUEST ${at}: Referrer chose team-assisted setup.`,nextFollowUp:new Date(customFollowUp?'2026-09-29T00:00:00Z':at)}};
+    const tx={selfServiceOnboarding:{findFirst:async({where})=>{assert.equal(where.referrerId,'ref');return s},update:async q=>writes.push(q)},ambassadorApplication:{update:async q=>writes.push(q)}};
+    await service({$transaction:fn=>fn(tx)}).undoOnboardingMeeting('s','ref');
+    assert.equal(writes[0].data.state,'reserved');assert.equal(writes[1].data.onboardingMethod,null);assert.match(writes[1].data.adminNotes,/WITHDRAWN/);assert.match(writes[1].data.adminNotes,/Earlier note/);assert.equal(writes[1].data.nextFollowUp,customFollowUp?undefined:null);
+  }
+});

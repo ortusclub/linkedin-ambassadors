@@ -6,7 +6,7 @@ import { selfServiceInput, selfServiceAction, selfServiceHandoff, selfServiceCon
 import { proxyPurchaseLimits } from "@/services/proxy-cheap";
 import { emailSetupConfig, EmailSetupError } from "@/lib/onboarding-email-policy";
 import { requireEmailSetup } from "@/lib/onboarding-email";
-import { OnboardingError, onboardingCountries, onboardingSummary, reserveOnboarding, prepareOnboarding, confirmOnboarding, handoffOnboarding, saveTwoFactorKey, requestOnboardingMeeting, updateOnboardingPayout } from "@/lib/self-service-onboarding";
+import { OnboardingError, onboardingCountries, onboardingSummary, reserveOnboarding, prepareOnboarding, confirmOnboarding, handoffOnboarding, saveTwoFactorKey, requestOnboardingMeeting, updateOnboardingPayout, undoOnboardingMeeting } from "@/lib/self-service-onboarding";
 import { phoneVerificationConfigured } from "@/lib/phone-verification";
 
 export const dynamic = "force-dynamic";
@@ -100,6 +100,12 @@ export async function PATCH(req: Request, context: Context) {
       const id = (body as { id?: unknown }).id;
       if (typeof id !== "string" || !selfServiceAction.shape.id.safeParse(id).success) return json({ error: "Invalid onboarding reference." }, 400);
       await updateOnboardingPayout(id, me.id, body as Record<string, unknown>);
+      return json({ session: await onboardingSummary(id, me.id) });
+    }
+    if (body && typeof body === "object" && (body as { action?: string }).action === "undo_meeting") {
+      const id = (body as { id?: unknown }).id;
+      if (typeof id !== "string" || !selfServiceAction.shape.id.safeParse(id).success) return json({ error: "Invalid onboarding reference." }, 400);
+      await undoOnboardingMeeting(id, me.id);
       return json({ session: await onboardingSummary(id, me.id) });
     }
     // Save the 2FA key at the two-step-verification step (before sign-in) so it's recorded
