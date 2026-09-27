@@ -1,5 +1,6 @@
 "use client";
 
+import { MeetingBooker } from "@/components/meeting-booker";
 import { useState } from "react";
 import { OnboardingPrice } from "@/components/onboarding-price";
 
@@ -9,7 +10,6 @@ import { OnboardingPrice } from "@/components/onboarding-price";
 // hidden "diy" system referrer. Stage 1: capture + book a call. The live self-onboarding
 // wizard (Full/Partial DIY) is wired in Stage 2 behind an email/phone verification gate.
 
-const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
 
 type Tier = "standard" | "partial" | "full";
 
@@ -27,6 +27,7 @@ export default function DIYPage() {
   const [tier, setTier] = useState<Tier>("full");
   const [form, setForm] = useState({ fullName: "", email: "", contactMethod: "WhatsApp", contactHandle: "", linkedinUrl: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [bookingToken, setBookingToken] = useState("");
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
@@ -54,6 +55,8 @@ export default function DIYPage() {
         }),
       });
       if (!res.ok) throw new Error("apply failed");
+      const data = await res.json();
+      setBookingToken(data.meetingToken || "");
       setDone(true);
     } catch {
       setError("Something went wrong — please try again, or message us.");
@@ -85,9 +88,9 @@ export default function DIYPage() {
             <div style={{ fontSize: 34, marginBottom: 10 }}>✓</div>
             <h2 style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 24, margin: "0 0 10px" }}>You&apos;re in, {form.fullName.split(" ")[0]}!</h2>
             <p style={{ fontSize: 15, lineHeight: 1.6, color: "#B7D4C4", margin: "0 0 22px" }}>
-              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {money(chosen.usd, chosen.php)} sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Book a quick call to get started fast. Use the same email when booking so we can link the meeting to your signup:
+              You chose <strong style={{ color: "#fff" }}>{chosen.name}</strong> — {money(chosen.usd, chosen.php)} sign-on bonus + {MONTHLY}/month. We&apos;ll send your next steps to <strong style={{ color: "#fff" }}>{form.email}</strong>. Choose a 20-minute onboarding call below. It will be linked directly to your signup:
             </p>
-            <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", background: "#00B85C", color: "#fff", fontSize: 16, fontWeight: 600, padding: "14px 28px", borderRadius: 13, textDecoration: "none" }}>Book my onboarding call →</a>
+            {bookingToken && <MeetingBooker token={bookingToken} email={form.email.trim()} />}
           </div>
         ) : (
           <>

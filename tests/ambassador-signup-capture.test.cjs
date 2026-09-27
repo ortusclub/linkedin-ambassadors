@@ -4,6 +4,7 @@ test('each signup tier is persisted before success without waiting for notificat
   let saved,sent=false;const tasks=[];const m={exports:{}};
   const mocks={
    'next/server':{NextResponse:{json:(body,options)=>({body,status:options?.status||200})},after:fn=>tasks.push(fn)},
+   '@/lib/meeting-token':{meetingToken:id=>'signed-'+id},
    '@/lib/auth':{getSession:async()=>({id:'logged-in-user'})},
    '@/lib/prisma':{prisma:{ambassadorApplication:{findFirst:async()=>null,create:async({data})=>(saved={id:'application',...data})}}},
    '@/services/profile-assessor':{assessFromApplication:()=>null},

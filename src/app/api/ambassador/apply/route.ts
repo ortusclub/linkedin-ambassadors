@@ -1,5 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { meetingToken } from "@/lib/meeting-token";
 import { getSession } from "@/lib/auth";
 import { z } from "zod";
 import { assessFromApplication } from "@/services/profile-assessor";
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
       orderBy: { createdAt: "desc" },
     });
     if (recent) {
-      return NextResponse.json({ application: recent, assessment: null, duplicate: true }, { status: 200 });
+      return NextResponse.json({ application: recent, meetingToken: meetingToken(recent.id), assessment: null, duplicate: true }, { status: 200 });
     }
 
     // Auto-assess the profile — only when we have a URL to value.
@@ -130,6 +131,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       application,
+      meetingToken: meetingToken(application.id),
       assessment: assessment
         ? {
             score: assessment.score,

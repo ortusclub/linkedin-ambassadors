@@ -303,6 +303,7 @@ enum AmbassadorStatus {
 }
 
 model AmbassadorApplication {
+  scheduledMeeting ScheduledMeeting?
   submittedByUserId String? @map("submitted_by_user_id") @db.Uuid
   submittedBy User? @relation("ApplicationSubmitter", fields: [submittedByUserId], references: [id], onDelete: SetNull)
   selfServiceOnboarding SelfServiceOnboarding?
@@ -785,4 +786,19 @@ model InboundLeadArchive {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@map("inbound_leads_archive")
+}
+
+model ScheduledMeeting {
+  id String @id @default(uuid()) @db.Uuid
+  applicationId String? @unique @map("application_id") @db.Uuid
+  application AmbassadorApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  name String
+  email String
+  contact String
+  host String
+  startsAt DateTime @map("starts_at")
+  inviteSentAt DateTime? @map("invite_sent_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([host, startsAt])
+  @@map("scheduled_meetings")
 }
