@@ -1,8 +1,10 @@
 # Primary email guide
 
-`/guide/primary-email` is an unlisted mobile guide for existing ambassadors. The owner enters their saved personal/contact email, verifies a six-digit code, and sees the account's existing assigned login email. No new email address is allocated and no account login secret is disclosed.
+`/guide/primary-email` accepts any personal email. It sends a six-digit verification code regardless of inventory membership. A successful verification proves access to that inbox; matching an existing account is a separate step.
 
-The owner must match exactly one active inventory account, using the linked application (session, normalized profile URL, or existing Owner note) or saved personal email. Ambiguous matches fail closed. The LV inbox itself is not accepted as a personal verification destination. Ownership and the assigned address are checked again before forwarding and status access.
+After verification, a uniquely matched existing inventory account can restore its assigned LV email. Matching uses the linked application (session, normalized profile URL, or existing Owner note) or saved personal email. Ambiguous matches do not disclose or reroute an existing address. Ownership and the assigned address are checked again before forwarding.
+
+If no account matches, the verified person can explicitly create a fresh LV address for their setup. This uses an isolated `setup-<random identifier>` address on a configured receiving domain, checks collisions under the allocation lock, and only forwards confirmations to the verified inbox. It does not create an inventory account or alter existing account details. Existing LV addresses cannot be claimed by typing them into the public guide.
 
 Verification is limited to five attempts per challenge, five sends per destination per day, one per minute, 20 per IP per hour and 200 globally per hour. Challenges expire in ten minutes. A verified route lasts thirty minutes. The browser keeps its random bearer token in sessionStorage; only its SHA-256 hash is stored server-side. Codes are HMACed using the existing onboarding email secret and are never logged.
 
