@@ -22,6 +22,10 @@ export interface ReferralGate {
   verifiedAt?: Date | string | null;
   accountIssue?: string | null;
   onboardedAt?: Date | string | null;
+  // The setup fee's paid date, and the payout ledger that may hold a "setup" entry.
+  // "Onboarded" means the setup fee is PAID — see isReferralOnboarded.
+  paidAt?: Date | string | null;
+  monthlyPayouts?: unknown;
   referralSource?: string | null;
   // For the tiered DIY commission: how the onboarding was done, and whether the
   // account was ID-verified AT onboarding (a snapshot — NOT the live linkedinVerified,
@@ -34,13 +38,22 @@ export interface ReferralGate {
   createdAt?: Date | string | null;
 }
 
-// Whether the referred account is onboarded. The `status` string is the intended signal,
-// but some write paths (paying the setup fee, the owners-page onboarded-date field) set
-// onboarded_at without flipping status off "approved"/"onboarding" — which used to make a
-// genuinely-onboarded referral silently drop out of the referrer's converted/owed totals.
-// onboarded_at set is an equally valid signal, so honour either.
+// Whether the setup fee for a referred account has been PAID (the "Onboarded = paid"
+// milestone). Prefers a "setup" entry in the payout ledger; falls back to legacy paidAt.
+function setupFeePaid(a: ReferralGate): boolean {
+  if (a.paidAt) return true;
+  const arr = Array.isArray(a.monthlyPayouts) ? (a.monthlyPayouts as Array<{ kind?: string; paidAt?: string }>) : [];
+  return arr.some((p) => p?.kind === "setup" && !!p.paidAt);
+}
+
+// Whether the referred account is onboarded. Canonical rule (see the onboarding stage
+// semantics): "Onboarded" means the setup fee is PAID — NOT merely logged in. `onboardedAt`
+// is the LOGIN moment (pipeline Level 3), so it must NOT count here or a logged-in-but-
+// unpaid account inflates the referrer's converted/owed totals. status "onboarded" is the
+// deliberate Level-5 marker; a paid setup fee is the other true signal (covers a paid
+// account whose status write lagged behind).
 export function isReferralOnboarded(a: ReferralGate): boolean {
-  return a.status === "onboarded" || !!a.onboardedAt;
+  return a.status === "onboarded" || setupFeePaid(a);
 }
 
 export function isReferralEarned(a: ReferralGate): boolean {

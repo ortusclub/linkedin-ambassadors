@@ -12,6 +12,9 @@ interface App {
   verifiedAt?: string | null;
   accountIssue?: string | null;
   onboardedAt?: string | null;
+  // "Onboarded" for referral purposes means the setup fee is PAID (see isReferralOnboarded).
+  paidAt?: string | null;
+  monthlyPayouts?: unknown;
   referralSource?: string | null;
   onboardingMethod?: string | null;
   onboardingVerified?: boolean | null;
@@ -89,9 +92,8 @@ const curFor = (referredBy: string) => referralCurrency(referredBy);
 // A referrer is "top" once this many of their signups convert.
 const TOP_THRESHOLD = 5;
 
-// "Onboarded" = the referred account made it onto inventory. Honours onboarded_at too, not
-// just the status string, so a referral whose status lagged (setup paid via a path that
-// didn't flip status) still counts. See isReferralOnboarded.
+// "Onboarded" = the setup fee is PAID (or status "onboarded"), NOT merely logged in.
+// onboarded_at is the login moment (pipeline Level 3) and does NOT count. See isReferralOnboarded.
 const isOnboarded = (a: App) => isReferralOnboarded(a);
 // "Converted" = a SUCCESSFUL onboarding. An account that's onboarded but currently
 // sidelined by an account issue (restricted / can't log in) is NOT a real conversion, so

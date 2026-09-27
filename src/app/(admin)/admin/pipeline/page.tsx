@@ -163,6 +163,15 @@ const levelOf = (r: Row): 0 | 1 | 2 | 3 | 4 | 5 => {
 };
 const levelKey = (r: Row): number => levelOf(r);
 
+// Self-service (referrer is driving the DIY wizard themselves) AND not yet onboarded — i.e.
+// still working through Levels 1-4. Level 5 (onboarded) is done; Level 0 (rejected/unreachable)
+// is not "in progress". Lets the admin see which DIY onboardings are still on the referrer.
+const isSelfServeInProgress = (r: Row): boolean => {
+  if (r.referralSource !== "self-service") return false;
+  const l = levelOf(r);
+  return l >= 1 && l < 5;
+};
+
 const healthOf = (r: Row): Health => {
   switch (r.status) {
     case "rejected": return "rejected";
@@ -469,6 +478,7 @@ export default function AdminPipelinePage() {
   const [query, setQuery] = useState("");
   const [flagged, setFlagged] = useState(false);
   const [signInOnly, setSignInOnly] = useState(false);
+  const [selfServeOnly, setSelfServeOnly] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [dueInfo, setDueInfo] = useState<{ emails: Set<string>; items: { email: string; amount: number; currency: "PHP" | "USD"; kind: string; blocked: boolean }[] } | null>(null);
@@ -647,11 +657,13 @@ export default function AdminPipelinePage() {
   // the other modes exclude them (they live in the payments view).
   const scoped = useMemo(() => (rows || []).filter((r) => (mode === "live" ? isLive(r) : mode === "stage" ? true : r.status !== "onboarded")), [rows, mode]);
   const signInCount = useMemo(() => scoped.filter((r) => r.phoneHandoffPending).length, [scoped]);
+  const selfServeCount = useMemo(() => scoped.filter(isSelfServeInProgress).length, [scoped]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return scoped.filter((r) => {
       if (flagged && !isBlocked(r)) return false;
       if (signInOnly && !r.phoneHandoffPending) return false;
+      if (selfServeOnly && !isSelfServeInProgress(r)) return false;
       // Stage mode filters on the two axes (level + health); other modes on status.
       if (mode === "stage") {
         if (levelFilter !== "all" && levelKey(r) !== levelFilter) return false;
@@ -663,7 +675,7 @@ export default function AdminPipelinePage() {
       return [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc,
         ...(r.outreachLog || []).map((t) => t.text)].some((v) => (v || "").toLowerCase().includes(q));
     });
-  }, [scoped, query, flagged, signInOnly, mode, statusFilter, levelFilter, healthFilter, pocFilter]);
+  }, [scoped, query, flagged, signInOnly, selfServeOnly, mode, statusFilter, levelFilter, healthFilter, pocFilter]);
 
   const groups = useMemo(() => {
     const defs = mode === "stage" ? LEVEL_GROUPS : mode === "live" ? LIVE_GROUPS : ACTION_GROUPS;
@@ -857,6 +869,7 @@ export default function AdminPipelinePage() {
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact, account or referrer…" style={{ ...inputCss, flex: "1 1 280px", padding: "11px 14px", font: `500 13.5px ${F_SANS}` }} />
         <button onClick={() => setFlagged((f) => !f)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(flagged ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>⚠ Problems only</button>
         {signInCount > 0 && <button onClick={() => setSignInOnly((v) => !v)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(signInOnly ? { background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)", borderColor: "var(--purple-chip-text,#6b3fd4)" } : {}) }}>📱 Needs sign-in ({signInCount})</button>}
+        {selfServeCount > 0 && <button onClick={() => setSelfServeOnly((v) => !v)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(selfServeOnly ? { background: "var(--blue-chip-bg,#e7effd)", color: "var(--blue-chip-text,#1a56db)", borderColor: "var(--blue-chip-text,#1a56db)" } : {}) }}>🙋 Self-serve in progress ({selfServeCount})</button>}
         <button onClick={() => setOpen(anyOpen ? new Set() : new Set(filtered.map((r) => r.id)))} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px" }}>{anyOpen ? "Collapse all" : "Expand all"}</button>
       </div>
 
@@ -996,6 +1009,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
               {r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={`Restricted ${fmtDate(r.accountRestrictedAt)} — flagged by LinkedIn, may recover`} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ Restricted</span>}
               {missingGologin(r) && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No GoLogin — account can't be run until one is added" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin</span>}
               {r.accountIssue && !r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={r.accountIssue} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ {r.accountIssue.length > 22 ? "login issue" : r.accountIssue}</span>}
+              {isSelfServeInProgress(r) && <span title="Self-service — the referrer is onboarding this owner themselves via the DIY wizard, and it's not onboarded yet" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--blue-chip-bg,#e7effd)", color: "var(--blue-chip-text,#1a56db)" }}>🙋 Self-serve</span>}
               {r.phoneHandoffPending && <span title="DIY phone hand-off — the owner is on a phone, so the team must do the GoLogin sign-in" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--purple-chip-bg,#efe7fd)", color: "var(--purple-chip-text,#6b3fd4)" }}>📱 Needs sign-in</span>}
               {isLikelyTestEmail(r.email) && <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
               {r.provisionStatus === "ready_to_buy_cheap" && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No proxy-cheap residential free for this account — buy one to finish auto-provisioning" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>🛒 Ready to buy proxy-cheap</span>}
