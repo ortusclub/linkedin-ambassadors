@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOwners, type Owner } from "@/lib/owners";
 import { decryptSecret } from "@/lib/crypto-creds";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
+import { setupFeeReadyDate } from "@/lib/referrals";
 
 // CSV export of Account Owners for Google Sheets via
 // =IMPORTDATA("https://linkedvelocity.com/api/admin/owners/export?key=XXXX").
@@ -33,21 +34,6 @@ function fmtDate(d: Date | string | null | undefined): string {
   return dt.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-// Roll a date forward off weekends (mirrors lib/payment-schedule / the admin page).
-function nextBusinessDay(d: Date): Date {
-  const r = new Date(d);
-  const day = r.getUTCDay();
-  if (day === 6) r.setUTCDate(r.getUTCDate() + 2);
-  else if (day === 0) r.setUTCDate(r.getUTCDate() + 1);
-  return r;
-}
-// Setup fee clears after the 3/7-day post-onboarding verification window.
-function setupDueDate(onboardedAt: Date | null, freshness?: string | null): Date | null {
-  if (!onboardedAt) return null;
-  const d = new Date(onboardedAt);
-  d.setUTCDate(d.getUTCDate() + (freshness === "fresh" || freshness === "unknown" ? 7 : 3));
-  return nextBusinessDay(d);
-}
 
 // Relationship buckets — mirror the admin page's ownerStatus() / STATUS_META.
 type OwnerStatus = "active" | "onboarding" | "paused" | "lost";
@@ -82,7 +68,7 @@ function missingFields(o: Owner): string[] {
 
 function setupStatus(o: Owner): string {
   if (o.setupFeePaidAt) return `Paid ${fmtDate(o.setupFeePaidAt)}`;
-  const due = setupDueDate(o.onboardedAt, o.accountFreshness);
+  const due = setupFeeReadyDate(o.verifiedAt);
   if (!due) return "Not scheduled";
   const overdue = due.getTime() < Date.now();
   return `Due ${fmtDate(due)}${overdue ? " · overdue" : ""}`;

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { isReferralEarned, isReferralMatured, referralMaturesAt, referralCommissionAmount } from "@/lib/referrals";
+import { isReferralEarned, isReferralMatured, referralMaturesAt, referralCommissionAmount, setupFeeReadyDate } from "@/lib/referrals";
 import { type Currency, currencyConfig, currencyConfigFor } from "@/lib/referral-currency";
 
 // Ambassador payout schedule + "who's due to be paid" computation, shared by the
@@ -161,9 +161,12 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     const monthlyAmount = monthlyByEmail.get(a.email) || cfg.monthlyAmount;
     const base = { name: a.fullName || a.email, email: a.email, method: a.paymentMethod, details: a.paymentDetails, currency: cfg.currency, blocked: a.accountIssue || null };
 
-    // Setup fee — only if not yet marked paid
+    // Setup fee — only if not yet marked paid. Due one week after QC (the same maturation
+    // clock the pipeline and referrer portal show), so every view agrees on the date.
     if (!a.paidAt) {
-      const due = setupDueDate(a.onboardedAt, a.accountFreshness);
+      // Fall back to the onboard date for the rare onboarded account with no QC date, so an
+      // owed fee still appears rather than dropping out of the digest.
+      const due = setupFeeReadyDate(a.verifiedAt) || (a.onboardedAt ? new Date(a.onboardedAt) : null);
       if (due) {
         const item: DueItem = { ...base, kind: "setup", amount: cfg.setupAmount, dueDate: due.toISOString(), overdue: due < startOfToday };
         if (due.getTime() <= now) setup.push(item);

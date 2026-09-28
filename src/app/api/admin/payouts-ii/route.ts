@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { decryptSecret } from "@/lib/crypto-creds";
 import { isCompanyEmail } from "@/lib/company";
-import { monthlyDueDate, setupPaidDate, setupDueDate } from "@/lib/payment-schedule";
+import { monthlyDueDate, setupPaidDate } from "@/lib/payment-schedule";
+import { setupFeeReadyDate } from "@/lib/referrals";
 
 // Payouts II data — money we pay OUT to the ambassador who supplies each account,
 // per account, regardless of whether the account is currently rented. Payout
@@ -41,7 +42,7 @@ export async function GET() {
       select: {
         email: true, fullName: true, linkedinUrl: true, onboardedAt: true,
         contactNumber: true, contactChannel: true, createdAt: true, diyTier: true, payoutCurrency: true, referredBy: true,
-        accountFreshness: true, paidAt: true,
+        accountFreshness: true, paidAt: true, verifiedAt: true,
         monthlyPayouts: true, paymentMethod: true, paypalEmail: true, wiseEmail: true,
         paymentDetails: true, accountIssue: true, status: true,
       },
@@ -85,7 +86,10 @@ export async function GET() {
       // One-time ₱1,000 setup fee (per ambassador). Paid if the application's
       // paidAt is set OR a "setup" payout entry was logged.
       const setupPaid = !!app?.paidAt || payouts.some((p) => p?.kind === "setup");
-      const setupDue = onboardedAt ? setupDueDate(onboardedAt, app?.accountFreshness) : null;
+      // Setup fee is due one week after QC (same clock as the pipeline / referrer portal).
+      // Fall back to the onboard date for the rare onboarded account with no QC date recorded,
+      // so an owed fee still shows a date rather than dropping out.
+      const setupDue = setupFeeReadyDate(app?.verifiedAt || null) || (onboardedAt ? new Date(onboardedAt) : null);
 
       // Categorise. Bucket meaning:
       //  setup   → one-time ₱1,000 initial payment still outstanding
