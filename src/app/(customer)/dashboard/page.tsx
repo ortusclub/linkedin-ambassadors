@@ -14,6 +14,7 @@ import { CompactDetail } from "@/components/compact-detail";
 import { MeetingBooker } from "@/components/meeting-booker";
 import { OnboardingPrice } from "@/components/onboarding-price";
 import { CardTopUp } from "./card-topup";
+import { canShowRentalShareLink, isRentalBeingPrepared } from "@/lib/rental-dashboard-access";
 import { startDashboardTour } from "@/lib/dashboard-tour";
 
 // Renter action: reveal the two links for a rented account, each clearly
@@ -932,12 +933,12 @@ function DashboardContent() {
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                         Paused
                       </span>
-                    ) : rental.linkedinAccount.gologinShareLink && rental.status !== "pending_access" ? (
+                    ) : canShowRentalShareLink(rental) && rental.linkedinAccount.gologinShareLink ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                         Active
                       </span>
-                    ) : (rental.status === "pending_access" || (rental.isShadow && !rental.linkedinAccount.gologinShareLink)) ? (
+                    ) : isRentalBeingPrepared(rental) ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
                         Being prepared
@@ -945,7 +946,7 @@ function DashboardContent() {
                     ) : (
                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${rental.status === "active" ? "text-green-600" : "text-red-600"}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${rental.status === "active" ? "bg-green-500" : "bg-red-500"}`} />
-                        {rental.status === "active" ? "Active" : rental.status.replace("_", " ")}
+                        {rental.status === "active" ? "Active" : rental.status === "pending_access" ? "Awaiting access" : rental.status.replace("_", " ")}
                       </span>
                     )}
                   </td>
@@ -972,8 +973,8 @@ function DashboardContent() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center gap-2 justify-end">
-                      {/* Access stays hidden until preparation and handover are complete. */}
-                      {rental.status === "active" && !rental.handoverAt && !rental.paused && !rental.linkedinAccount.restrictedAt && rental.linkedinAccount.gologinShareLink ? (
+                      {/* Shadow renters can use an existing share link while email sharing is pending. */}
+                      {canShowRentalShareLink(rental) && rental.linkedinAccount.gologinShareLink ? (
                         <RevealShareLink link={rental.linkedinAccount.gologinShareLink} linkedinUrl={rental.linkedinAccount.linkedinUrl} />
                       ) : rental.linkedinAccount.restrictedAt ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600 whitespace-nowrap" title="LinkedIn restricted this account — we're recovering it. No action needed.">
@@ -984,7 +985,7 @@ function DashboardContent() {
                           Access paused
                         </span>
                       ) : rental.status === "pending_access" ? (
-                        <span className="text-[11px] text-gray-400 whitespace-nowrap">Being prepared{rental.handoverAt ? ` — expected ${formatDate(rental.handoverAt)}. Your paid month starts when access is ready.` : " — ready soon."} <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
+                        <span className="text-[11px] text-gray-400 whitespace-nowrap">{isRentalBeingPrepared(rental) ? "Being prepared" : "Awaiting access"}{isRentalBeingPrepared(rental) && rental.handoverAt ? ` — expected ${formatDate(rental.handoverAt)}. Your paid month starts when access is ready.` : " — share link not available yet."} <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
                       ) : null}
                       {rental.autoRenew && (
                         <button

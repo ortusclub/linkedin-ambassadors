@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { canShowRentalShareLink } from "@/lib/rental-dashboard-access";
 import { requireAuth } from "@/lib/auth";
 
 export async function GET() {
@@ -20,6 +21,7 @@ export async function GET() {
             connectionCount: true,
             gologinShareLink: true,
             restrictedAt: true,
+            twoFactorResetNeeded: true,
           },
         },
       },
@@ -30,7 +32,7 @@ export async function GET() {
     // address we log into the account with), and drop the raw field name.
     const shaped = rentals.map((r) => {
       const { loginEmail, ...account } = r.linkedinAccount;
-      const ready = r.status === "active" && !r.paused && !r.handoverAt && !account.restrictedAt;
+      const ready = canShowRentalShareLink(r);
       return { ...r, gologinShareIds: undefined, gologinShareLinkId: undefined, gologinShareLinkUrl: ready ? r.gologinShareLinkUrl : null, linkedinAccount: { ...account, gologinShareLink: ready ? account.gologinShareLink : null, accountEmail: loginEmail } };
     });
 

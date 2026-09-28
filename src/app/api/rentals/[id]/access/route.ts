@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { canShowRentalShareLink, isRentalBeingPrepared } from "@/lib/rental-dashboard-access";
 import { requireAuth } from "@/lib/auth";
 import { grantRentalAccess, type ShareRef } from "@/lib/rental-access";
 
@@ -15,19 +16,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       where: { id },
       include: {
         user: { select: { email: true } },
-        linkedinAccount: { select: { gologinShareLink: true, gologinProfileId: true, restrictedAt: true } },
+        linkedinAccount: { select: { gologinShareLink: true, gologinProfileId: true, restrictedAt: true, twoFactorResetNeeded: true } },
       },
     });
     if (!rental || rental.userId !== user.id) {
       return NextResponse.json({ error: "Rental not found" }, { status: 404 });
     }
-    if (rental.handoverAt || rental.status === "pending_access") {
+    if (isRentalBeingPrepared(rental)) {
       return NextResponse.json({ error: "This account is being prepared. Access will appear after handover." }, { status: 409 });
     }
     if (rental.linkedinAccount.restrictedAt) {
       return NextResponse.json({ error: "This account is temporarily restricted by LinkedIn — we're recovering it. No action needed; we'll update you." }, { status: 403 });
     }
-    if (rental.paused || rental.status === "cancelled" || rental.status === "expired" || rental.status === "payment_failed") {
+    if (!canShowRentalShareLink(rental)) {
       return NextResponse.json({ error: "Access to this account is paused. Please contact support." }, { status: 403 });
     }
 
