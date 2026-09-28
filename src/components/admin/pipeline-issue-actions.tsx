@@ -2,15 +2,17 @@
 import { useRef, useState } from "react";
 import { contactLink, type IssueContact } from "@/lib/issue-contacts";
 import { ONBOARDING_ISSUES, onboardingIssueMessage, type OnboardingIssue } from "@/lib/onboarding-issue-message";
-export function PipelineIssueActions({ id, name, profile, lvEmail, referrerResumeUrl, ambassador, referrer, onSent }: { referrerResumeUrl?: string | null; id: string; name: string; profile: string | null; lvEmail: string | null; ambassador: IssueContact; referrer: IssueContact | null; onSent: () => void }) {
+export function PipelineIssueActions({ id, name, profile, lvEmail, referrerResumeUrl, ambassador, referrer, onSent, onboarded = false }: { referrerResumeUrl?: string | null; id: string; name: string; profile: string | null; lvEmail: string | null; ambassador: IssueContact; referrer: IssueContact | null; onSent: () => void; onboarded?: boolean }) {
+  // Once the account is onboarded, these are live-account problems, not onboarding steps.
+  const heading = onboarded ? "Account issues" : "Onboarding issues";
   const [issue, setIssue] = useState<OnboardingIssue>("email_added"), [details, setDetails] = useState("");
   const [preview, setPreview] = useState<{ recipient: "ambassador" | "referrer"; channel: keyof IssueContact; subject: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false), [result, setResult] = useState("");
   const request = useRef({ signature: "", id: "" });
   const button = { border: "1px solid var(--line,#d6e4fb)", borderRadius: 8, padding: "8px 12px", background: "var(--card,#fff)", color: "var(--link,#0a66c2)", cursor: "pointer", fontSize: 12 };
   return <div style={{ display: "grid", gap: 10 }}>
-    <b style={{ fontSize: 12 }}>Onboarding issues</b>
-    <label>Issue <select aria-label="Onboarding issue" disabled={busy || !!preview} style={{ ...button, marginLeft: 8 }} value={issue} onChange={e => setIssue(e.target.value as OnboardingIssue)}>{Object.entries(ONBOARDING_ISSUES).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label>
+    <b style={{ fontSize: 12 }}>{heading}</b>
+    <label>Issue <select aria-label={heading} disabled={busy || !!preview} style={{ ...button, marginLeft: 8 }} value={issue} onChange={e => setIssue(e.target.value as OnboardingIssue)}>{Object.entries(ONBOARDING_ISSUES).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label>
     {issue === "other" && <textarea aria-label="Issue details" disabled={busy || !!preview} placeholder="Explain the issue and what they need to do…" value={details} onChange={e => setDetails(e.target.value)} maxLength={3000} rows={3} style={button} />}
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{(["email", "whatsapp", "telegram", "viber"] as const).flatMap(channel => (["referrer", "ambassador"] as const).map(recipient => {
       const contact = recipient === "ambassador" ? ambassador : referrer;

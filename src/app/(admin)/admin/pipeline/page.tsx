@@ -1173,7 +1173,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
           <div style={{ marginBottom: 16, padding: 12, border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
             <PipelineIssueActions referrerResumeUrl={r.referrerResumeUrl} id={r.id} name={r.fullName} profile={r.linkedinUrl} lvEmail={r.loginEmail}
               ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)} referrer={r.referrer}
-              onSent={() => void workflow(r.id, {})} />
+              onboarded={onboarded} onSent={() => void workflow(r.id, {})} />
             {!!r.onboardingFix?.issues.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
               {r.onboardingFix.issues.map(issue => <button key={issue} style={btnSec} disabled={busy} onClick={() => {
                 const remaining = r.onboardingFix!.issues.filter(value => value !== issue);
