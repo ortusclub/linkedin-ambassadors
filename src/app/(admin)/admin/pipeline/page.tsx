@@ -428,7 +428,9 @@ const nextStep = (r: Row): NextStep => {
   if (lvl === 2) return gate("Log in via GoLogin", 1);
   if (lvl === 3) { const done = QC_ITEMS.filter(([k]) => r.qcChecks?.[k]).length; return gate(`Run QC checks (${done}/${QC_ITEMS.length} done)`, 1); }
   if (lvl === 4) {
-    const matureAt = r.onboardedAt ? new Date(r.onboardedAt).getTime() + holdDays(r) * 86400000 : null;
+    // Maturation counts from QC-passed (verifiedAt), same as the Step 5 card — NOT from
+    // onboardedAt (the login moment), or the header and the workflow card disagree.
+    const matureAt = r.verifiedAt ? new Date(r.verifiedAt).getTime() + holdDays(r) * 86400000 : null;
     if (matureAt && Date.now() < matureAt) return { state: "waiting", label: "Maturing", timing: `${daysUntil(matureAt)} day${daysUntil(matureAt) === 1 ? "" : "s"} left · ready ${fmtDate(new Date(matureAt).toISOString())}`, last };
     return { state: "now", label: setupPaid(r) ? "Matured — mark onboarded (live)" : "Matured — pay setup fee & mark onboarded", last };
   }
