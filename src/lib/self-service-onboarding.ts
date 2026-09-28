@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { currencyConfig, currencyConfigFor } from "@/lib/referral-currency";
-import { referralCommissionAmount } from "@/lib/referrals";
-import { setupDueDate } from "@/lib/payment-schedule";
+import { referralCommissionAmount, setupFeeReadyDate } from "@/lib/referrals";
 import { createProfile, createPublicShareLink, findProfileByName, getPublicShareLink } from "@/services/gologin";
 import { selfServiceInput } from "@/lib/self-service-input";
 import { z } from "zod";
@@ -97,7 +96,10 @@ export async function onboardingSummary(id: string, referrerId: string) {
     shareLink: s.state === "ready" && (!emailSetup || emailSetup.primaryConfirmed) ? s.account.gologinShareLink : null,
     confirmedAt: s.confirmedAt,
     accountFreshness: s.application.accountFreshness,
-    setupDueAt: s.confirmedAt ? setupDueDate(s.confirmedAt, s.application.accountFreshness) : null,
+    // The setup fee is due one week after QC (the same clock the pipeline, portal and payouts
+    // show). Null until QC passes — so the done screen honestly says "after the check" rather
+    // than a made-up date the referrer would repeat to the owner.
+    setupDueAt: setupFeeReadyDate(s.application.verifiedAt),
     setupAmount: cfg.offer.setup, monthlyAmount: cfg.offer.monthly,
     // Actual tiered commission for this onboarding (method + verified snapshot), not a flat double.
     commission: `${cfg.symbol}${referralCommissionAmount({ status: s.application.status, referralSource: s.application.referralSource, onboardingMethod: s.application.onboardingMethod, onboardingVerified: s.application.onboardingVerified }, cfg.referralTiers).toLocaleString("en-US")}`,
