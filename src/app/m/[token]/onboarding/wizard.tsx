@@ -663,7 +663,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           {step === 5 && session && (handedOff ? <>
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>Handed off to the team</h1>
-            <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup payment follows once the account is verified, <strong>{checkWindow(session.accountFreshness)}</strong> after onboarding. Nothing more to do here.</p>
+            <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup fee follows <strong>{checkWindow(session.accountFreshness)}</strong> after we sign in and the account passes our checks (QC), and your commission the Monday after. Nothing more to do here.</p>
             {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>}
           </> : browserMode === "" ? <>
             {setupOptions()}
@@ -687,9 +687,9 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <div className={styles.summaryRow}><span>{selfMode ? "Your sign-on bonus" : "Their setup payment"}</span><b>{moneyText(session.setupAmount)}</b></div>
               <div className={styles.summaryRow}><span>{selfMode ? "Your monthly payment" : "Their monthly payment"}</span><b>{moneyText(session.monthlyAmount)}/mo</b></div>
               {!selfMode && <div className={styles.summaryRow}><span>Your commission</span><b>{moneyText(session.commission)} · {session.verified ? "Verified" : "Pending"}</b></div>}
-              <div className={styles.summaryRow}><span>Due date</span><b>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "After the check"}</b></div>
+              <div className={styles.summaryRow}><span>Due date</span><b>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "~1 week after QC"}</b></div>
             </div>
-            {selfMode ? <div className={styles.note}>We’ll check your account and contact you if anything else is needed. Payments begin once onboarding is approved.</div> : <div className={styles.note} data-tour="done-next"><strong>What we do next.</strong> We test the sign-in over {checkWindow(session.accountFreshness)}. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears, their {moneyText(session.setupAmount)} goes out and your commission lands the following Monday.</div>}
+            {selfMode ? <div className={styles.note}>We’ll check your account and contact you if anything else is needed. Payments begin once onboarding is approved.</div> : <div className={styles.note} data-tour="done-next"><strong>What we do next.</strong> We run our checks (QC) and hold the account about a week. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears — {checkWindow(session.accountFreshness)} after QC — their {moneyText(session.setupAmount)} goes out and your commission lands the following Monday.</div>}
             <div className={styles.card}>
               <div className={styles.cardTitle}>{selfMode ? "While your account is being checked" : "Tell them before you go"}</div>
               <p className={styles.cardSub} style={{ marginBottom: 8 }}>Don&apos;t post, message or browse from your own phone while it&apos;s with us — being logged in from two places is what causes restrictions.</p>
