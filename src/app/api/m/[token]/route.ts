@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isReferralEarned, referralCommissionAmount } from "@/lib/referrals";
+import { isReferralEarned, referralCommissionAmount, referralMaturesAt } from "@/lib/referrals";
 import { currencyConfig } from "@/lib/referral-currency";
-import { setupDueDate, monthlyDueDate, setupPaidDate } from "@/lib/payment-schedule";
+import { monthlyDueDate, setupPaidDate } from "@/lib/payment-schedule";
 import { deleteApplicationCascade } from "@/lib/application-delete";
 
 export const dynamic = "force-dynamic";
@@ -172,9 +172,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       const rawLi = acct?.linkedinUrl || a.linkedinUrl || "";
       const liUrl = rawLi ? (rawLi.startsWith("http") ? rawLi : `https://${rawLi}`) : null;
 
-      // When the PERSON THEY REFERRED gets paid — referrers get asked this. The account
-      // owner's setup fee clears ~a week after sign-in (setupDueDate, next business day),
-      // then monthly on the 1st. Shown so the referrer can answer "when's my payment?".
+      // When the PERSON THEY REFERRED gets paid — referrers get asked this. Setup fee + the
+      // referrer's commission both clear ~a week AFTER QC (the same maturation clock the admin
+      // pipeline shows via referralMaturesAt), then monthly on the 1st. Using the same clock
+      // keeps this date identical to the admin view.
       let pay: { text: string; sub?: string } | null = null;
       if (accountRestricted) {
         pay = { text: "Payment paused while restricted", sub: "the timer resumes once the account is cleared" };
@@ -183,12 +184,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         const nm = monthlyDueDate(setupPaidDate(a.paidAt, a.monthlyPayouts), paidCount);
         pay = { text: "Setup fee paid ✓", sub: nm ? `next monthly around ${fmtDate(nm.toISOString())}` : "monthly payouts continue on the 1st" };
       } else if (onboarded) {
-        const due = setupDueDate(a.onboardedAt, a.accountFreshness);
-        pay = due
-          ? (due.getTime() <= Date.now()
-            ? { text: "Setup fee is due now", sub: "we're processing it — usually paid within a couple of business days; your commission follows" }
-            : { text: `Setup fee expected around ${fmtDate(due.toISOString())}`, sub: "once the account clears our checks; your commission follows" })
-          : { text: "Setup fee is due now", sub: "we're processing it; your commission follows" };
+        const ready = referralMaturesAt(a); // QC + 1 week; null when not QC'd yet or already matured
+        if (!a.verifiedAt) {
+          pay = { text: "Setup fee about a week after it passes our checks", sub: "we set the date once the account passes QC; your commission follows" };
+        } else if (!ready || ready.getTime() <= Date.now()) {
+          pay = { text: "Setup fee is due now", sub: "we're processing it — usually within a couple of business days; your commission follows" };
+        } else {
+          pay = { text: `Setup fee expected around ${fmtDate(ready.toISOString())}`, sub: "once the account clears the 1-week maturation hold; your commission follows" };
+        }
       } else if (state === "handed_off") {
         pay = { text: "Setup fee about a week after sign-in", sub: "we set the exact date once we've signed in" };
       } else {
