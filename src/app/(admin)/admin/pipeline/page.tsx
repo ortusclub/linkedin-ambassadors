@@ -1340,8 +1340,9 @@ function SignupMeeting({ r }: { r: Row }) {
 }
 
 function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void }) {
-  // Maturation only begins once QC (Step 4) is passed — the clock counts from
-  // verifiedAt, never before. holdDays picks the window (fresh 1wk / established 3d).
+  // Maturation only begins once QC (Step 4) is passed — the clock counts from verifiedAt,
+  // never before, and the hold is a flat 1 week (holdDays) — the same clock the referrer
+  // portal shows, so the "ready" date matches everywhere.
   const qcPassed = !!r.verifiedAt;
   const matureStartMs = r.verifiedAt ? new Date(r.verifiedAt).getTime() : null;
   const matureDue = matureStartMs !== null ? matureStartMs + holdDays(r) * 86400000 : null;

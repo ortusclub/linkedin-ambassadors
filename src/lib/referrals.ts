@@ -66,15 +66,12 @@ export function isReferralEarned(a: ReferralGate): boolean {
 // fully-onboarded (Level 5) account is treated as already matured, so marking Level 5 is the
 // manual lever to make a referral payable immediately.
 //
-// POLICY CUTOVER: applications from 2026-09-23 (PH) use a flat one-week hold for every
-// account. Applications already in flight before then keep the old split — 3 days for an
-// established account, a week for a new/unknown one (matching the owner's setup-fee window).
-// Kept in step with the payouts digest (lib/payment-schedule), which uses the same rule.
-const FLAT_HOLD_FROM = new Date("2026-09-23T00:00:00+08:00");
-export function referralMatureDays(a: Pick<ReferralGate, "accountFreshness" | "createdAt">): number {
-  const created = a.createdAt ? new Date(a.createdAt) : null;
-  if (created && !Number.isNaN(created.getTime()) && created.getTime() >= FLAT_HOLD_FROM.getTime()) return 7;
-  return a.accountFreshness === "established" ? 3 : 7;
+// The maturation hold is a FLAT one week after QC for every account — the single clock the
+// pipeline, the referrer portal and the owners views all read from, so a signup's "ready"
+// date is the same everywhere. (Older accounts once used a 3-day established / 1-week split;
+// that split is gone as of 2026-09-28 so the admin and portal dates never diverge.)
+export function referralMatureDays(_a: Pick<ReferralGate, "accountFreshness" | "createdAt">): number {
+  return 7;
 }
 export function referralMaturesAt(a: ReferralGate): Date | null {
   if (a.status === "onboarded" || !a.verifiedAt) return null; // null = already matured / n/a
