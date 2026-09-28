@@ -167,10 +167,13 @@ const levelOf = (r: Row): 0 | 0.5 | 1 | 2 | 3 | 4 | 5 => {
   if (!isApplicationReceived(r)) return 0;
   if (r.status === "onboarded") return 5;          // matured + paid — live and earning
   // A genuinely live, earning account (available / rented / trial) is Level 5 even when the
-  // application status lags. A restricted or non-earning account (unavailable, retired,
-  // maintenance) is NOT onboarded: it stays at its real milestone level and shows a
-  // restricted or problem badge instead, so it never inflates the Onboarded count.
-  if (r.accountStatus && EARNING_INVENTORY.has(r.accountStatus) && !r.accountRestrictedAt) return 5;
+  // application status lags — but ONLY once the setup fee is paid. An account listed available
+  // before the fee is paid is still maturing, not onboarded ("Onboarded = paid"); promoting it
+  // here contradicts the workflow rail (which stays on maturing) and shows "Pay setup fee" under
+  // a Level-5 header. A restricted or non-earning account (unavailable, retired, maintenance)
+  // stays at its real milestone level with a restricted/problem badge, never inflating Onboarded.
+  const feePaidLevel = !!r.paidAt || !!r.setupPaidAt || (r.monthlyPayouts || []).some((p) => p.kind === "setup");
+  if (r.accountStatus && EARNING_INVENTORY.has(r.accountStatus) && !r.accountRestrictedAt && feePaidLevel) return 5;
   // Milestone-derived progress (the timestamps are the source of truth when present).
   let n = 1;
   if (r.verifiedAt) n = 4;                          // passed QC — maturing
