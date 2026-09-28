@@ -510,6 +510,9 @@ export default function AdminPipelinePage() {
   const [signInOnly, setSignInOnly] = useState(false);
   const [selfServeOnly, setSelfServeOnly] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  // Save feedback so edits never fail silently: "Saved ✓" on success, an error on failure.
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const flashSave = (ok: boolean, text: string) => { setSaveMsg({ ok, text }); window.setTimeout(() => setSaveMsg((m) => (m && m.text === text ? null : m)), ok ? 1800 : 6000); };
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [dueInfo, setDueInfo] = useState<{ emails: Set<string>; items: { email: string; amount: number; currency: "PHP" | "USD"; kind: string; blocked: boolean }[] } | null>(null);
   const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -588,13 +591,28 @@ export default function AdminPipelinePage() {
   // ---- mutations (all reuse existing endpoints) ----
   const patchApp = async (id: string, patch: Record<string, unknown>, reload = false) => {
     setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, ...patch } : r)) : prev));
-    try { await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); } catch {}
-    if (reload) await load();
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Save failed (${res.status})`);
+      flashSave(true, "Saved ✓");
+      if (reload) await load();
+    } catch (e) {
+      // Never leave a false "saved" on screen: surface the error and re-load to the real values.
+      flashSave(false, e instanceof Error ? e.message : "Save failed — not saved. Please retry.");
+      await load();
+    }
   };
   const patchAccount = async (id: string, accountId: string, patch: Record<string, unknown>, reload = false) => {
     setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, ...patch } : r)) : prev));
-    try { await fetch(`/api/admin/accounts/${accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); } catch {}
-    if (reload) await load();
+    try {
+      const res = await fetch(`/api/admin/accounts/${accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Save failed (${res.status})`);
+      flashSave(true, "Saved ✓");
+      if (reload) await load();
+    } catch (e) {
+      flashSave(false, e instanceof Error ? e.message : "Save failed — not saved. Please retry.");
+      await load();
+    }
   };
   // Delete one mistaken entry from an account's restriction history (by its `at` timestamp).
   const deleteRestrictionEvent = async (accountId: string, at: string) => {
@@ -821,6 +839,7 @@ export default function AdminPipelinePage() {
 
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: "8px 4px 60px" }}>
+      {saveMsg && <div role="status" onClick={() => setSaveMsg(null)} style={{ position: "fixed", top: 14, left: "50%", transform: "translateX(-50%)", zIndex: 100, cursor: "pointer", font: `700 13px ${F_SANS}`, padding: "10px 16px", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,.14)", background: saveMsg.ok ? "var(--st-active-bg,#e6f4ea)" : "var(--st-cancel-bg,#fdecea)", color: saveMsg.ok ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)", border: `1px solid ${saveMsg.ok ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)"}` }}>{saveMsg.ok ? saveMsg.text : `⚠ ${saveMsg.text}`}</div>}
       {/* title */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, flexWrap: "wrap", marginBottom: 16 }}>
         <div style={{ maxWidth: 700 }}>
