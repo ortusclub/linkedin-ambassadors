@@ -650,7 +650,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <li>Choose <strong>Authenticator app</strong>. On the QR screen, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong> — don&apos;t scan the QR.</li>
               <li><strong>Copy that key and paste it in the box below</strong> (this is the step people miss). We&apos;ll show the live 6-digit code — type that into LinkedIn to finish turning 2FA on.</li>
             </ol>
-            <p className={styles.hint} style={{ margin: "0 0 14px" }}>Need the steps with screenshots? Follow the <a href="https://linkedvelocity.com/guide/two-step-verification" target="_blank" rel="noreferrer">two-step verification guide</a>.</p>
+            <a href={`https://linkedvelocity.com/guide/two-step-verification?for=${selfMode ? "owner" : "referrer"}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, margin: "0 0 14px", padding: "10px 14px", borderRadius: 10, border: "1px solid #bbf7d0", background: "#f0faf4", color: "#15803d", font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none" }}>📖 Full step-by-step guide with screenshots ↗</a>
             <label className={styles.field} data-tour="twofa-key">Paste LinkedIn&apos;s 2FA setup key here <span style={{ fontWeight: 400, opacity: 0.8 }}>— this is what lets us generate your sign-in codes</span>
               <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
             </label>
