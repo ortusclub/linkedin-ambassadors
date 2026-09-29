@@ -44,8 +44,8 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   twofa: [
     { title: "Turn on two-step verification", body: "Do this before you sign in. It's the fix for the biggest hold-up: without it, signing in makes LinkedIn ping the owner's phone to approve — and you're stuck waiting. With it, LinkedIn asks for a 6-digit code instead, which this page gives you." },
-    { target: "twofa-key", title: "Paste LinkedIn's setup key", body: "In the LinkedIn app: Settings → Sign in & security → Two-step verification → Authenticator app → \"Can't scan the QR code?\" reveals a key. Paste it here." },
-    { target: "twofa-code", title: "This is your authenticator", body: "Once the key's in, we show the live 6-digit code — no separate app. Type it into LinkedIn to finish turning 2FA on. The same code appears at sign-in whenever LinkedIn asks." },
+    { target: "twofa-key", title: "Copy the KEY here — don't scan it", body: "In the LinkedIn app: Settings → Sign in & security → Two-step verification → Authenticator app. On the QR screen tap \"Can't scan the QR code?\" to reveal the KEY, and paste it here. The mistake people make: scanning the QR into their own authenticator app instead — then we don't have the key and can't generate the code, and you're stuck. Paste the key here so this page becomes the authenticator." },
+    { target: "twofa-code", title: "This is your authenticator", body: "Once the key's pasted here, we show the live 6-digit code — no separate app. Type it into LinkedIn to finish turning 2FA on. The same code appears at sign-in whenever LinkedIn asks." },
   ],
   signinPc: [
     { title: "You're doing the sign-in", body: "This is the highest-rate path. You'll open the protected GoLogin browser and sign in to their LinkedIn together — the steps below walk you through it. You're not finished until you've signed in and confirmed." },
@@ -642,19 +642,20 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <h1 className={styles.heroTitle}>Turn on two-step verification</h1>
             <p className={styles.lead}>Do this <strong>before</strong> signing in. Without it, signing in makes LinkedIn ping {selfMode ? "your" : "the owner’s"} phone to approve — and you wait. With authenticator 2FA on, LinkedIn asks for a 6-digit <strong>code</strong> instead, which this page gives you.</p>
             <div className={styles.warn}>
-              <div>Why it matters</div>
-              <p>The device prompt is the biggest hold-up in onboarding. Setting this up now means the sign-in — and any future check — asks for a code you can generate here, not a tap on {selfMode ? "your" : "the owner’s"} phone.</p>
+              <div>Copy the KEY to us — don&apos;t scan it into your own app</div>
+              <p>This is the step people miss. On LinkedIn&apos;s QR screen, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong>, then paste that key in the box below. Do <strong>not</strong> scan the QR or add it to your own authenticator app (Google Authenticator, Authy, etc.) — if you do, {selfMode ? "we" : "the team"} won&apos;t have the key and can&apos;t generate the sign-in code, and you&apos;ll be stuck. Pasting it here makes this page the authenticator.</p>
             </div>
             <ol className={styles.instructions}>
               <li>In the LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong>.</li>
-              <li>Choose <strong>Authenticator app</strong>. When LinkedIn shows a QR code, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong>.</li>
-              <li>Paste that key below. We&apos;ll show the 6-digit code — type it into LinkedIn to finish turning 2FA on.</li>
+              <li>Choose <strong>Authenticator app</strong>. On the QR screen, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong> — don&apos;t scan the QR.</li>
+              <li><strong>Copy that key and paste it in the box below</strong> (this is the step people miss). We&apos;ll show the live 6-digit code — type that into LinkedIn to finish turning 2FA on.</li>
             </ol>
             <p className={styles.hint} style={{ margin: "0 0 14px" }}>Need the steps with screenshots? Follow the <a href="https://linkedvelocity.com/guide/two-step-verification" target="_blank" rel="noreferrer">two-step verification guide</a>.</p>
-            <label className={styles.field} data-tour="twofa-key">The 2FA setup key
+            <label className={styles.field} data-tour="twofa-key">Paste LinkedIn&apos;s 2FA setup key here <span style={{ fontWeight: 400, opacity: 0.8 }}>— this is what lets us generate your sign-in codes</span>
               <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
             </label>
             {session.twoFactorSaved && !twoFactorKey.trim() && <p className={styles.note}>Your 2FA setup is already saved. You can continue, or enter a replacement key if you changed it.</p>}
+            {looksLikeTotpKey(twoFactorKey) && <p className={styles.note} style={{ color: "#15803d" }}>✓ Key captured on our side — this is what we needed. It saves automatically, and the live code appears below.</p>}
             <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={goBack}>Back</button>
