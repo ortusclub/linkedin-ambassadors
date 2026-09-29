@@ -33,10 +33,12 @@ import { useQcChecks } from "@/components/admin/use-qc-checks";
 import TotpCode from "@/app/m/[token]/onboarding/totp";
 import { isLikelyTestEmail } from "@/lib/test-mode";
 
-// How someone applied — the route in, not how far the team has since taken them:
+// How someone applied — the route in, not how far the team has since taken them.
+// A referrer OR the person themselves (signing up from the website) can drive the
+// Email/2FA and Full-service routes; whoever does the onboarding collects the fees.
 //   Form         → signed up via a referrer's QR code, or filled the form themselves
-//   Email/2FA    → the referrer onboarded them but stopped before the GoLogin step
-//   Full-service → the referrer took them all the way past the GoLogin step
+//   Email/2FA    → onboarded up to email + 2FA, but stopped before the GoLogin step
+//   Full-service → taken all the way past the GoLogin step
 const APPLICATION_TYPES = [
   { key: "standard", label: "Form" },
   { key: "partial", label: "Email/2FA" },
@@ -1082,7 +1084,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", gridRow: 1 }}>
               <span style={{ font: `700 16px ${F_GRO}`, color: "var(--fg,#111)" }}>{formatName(r.fullName) || "—"}</span>
               {r.linkedinUrl && <a href={liHref(r.linkedinUrl)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 8px", borderRadius: 6 }}>↗ profile</a>}
-              <span title={"How they applied. Form: signed up via a referrer's QR code or filled the form themselves. Email/2FA: the referrer onboarded them but stopped before the GoLogin step. Full-service: the referrer took them all the way past the GoLogin step."} style={{ font: `700 10px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: "var(--blue-chip-bg,#e7effd)", color: "var(--blue-chip-text,#1a56db)" }}>{applicationType(r).label}</span>
+              <span title={"How they applied. Form: signed up via a referrer's QR code or filled the form themselves. Email/2FA: onboarded up to email + 2FA but stopped before the GoLogin step. Full-service: taken all the way past the GoLogin step. A referrer or the person themselves (self-serve from the website) can do the Email/2FA and Full-service routes — whoever does collects the fees."} style={{ font: `700 10px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: "var(--blue-chip-bg,#e7effd)", color: "var(--blue-chip-text,#1a56db)" }}>{applicationType(r).label}</span>
 
             </div>
             <div style={{ gridRow: 2, font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
