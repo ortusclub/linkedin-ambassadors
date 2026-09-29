@@ -633,7 +633,7 @@ export default function AdminPipelinePage() {
       const res = await fetch("/api/admin/onboarding/provision-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { alert(typeof d.error === "string" ? d.error : `Could not create GoLogin (${res.status}).`); }
-      else if (d.result?.proxy === "flagged") { alert(`GoLogin profile created, but no free proxy of the right type — the account is flagged "${d.result.provisionStatus}". Add a proxy and it'll finish (share link included) on the next run.`); }
+      else if (d.result?.proxy === "flagged") { const why = d.result?.errors?.length ? d.result.errors.join("; ") : "no proxy could be assigned (reuse pool empty or a purchase is mid-flight)"; alert(`Couldn't attach a proxy — ${why}. The account still needs one; resolve the cause (or assign a proxy manually) and re-run "Create GoLogin".`); }
       else if (d.result?.errors?.length) { alert(`Partly done: ${d.result.errors.join("; ")}`); }
       await load();
     } finally { setBusy(null); }
