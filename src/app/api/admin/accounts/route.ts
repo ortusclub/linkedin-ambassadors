@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             email: true, linkedinUrl: true, fullName: true, contactNumber: true, contactChannel: true,
-            referredBy: true, referralSource: true, poc: true, ownerStatus: true, payoutCurrency: true,
+            referredBy: true, referralSource: true, poc: true, ownerStatus: true, payoutCurrency: true, status: true,
             paymentMethod: true, paymentDetails: true, payoutName: true,
             paypalEmail: true, wiseEmail: true, onboardedAt: true, paidAt: true,
             // Shared outreach/notes tracker: the account view reads/writes the SAME
@@ -165,6 +165,9 @@ export async function GET(req: NextRequest) {
         ownerPayoutName: app?.payoutName || null,
         ownerOnboardedAt: app?.onboardedAt || null,
         ownerSetupPaidAt: app?.paidAt || null,
+        // "Onboarded" = the owner's application was explicitly marked onboarded (which
+        // only happens after the setup fee is paid). Drives inventory Pipeline visibility.
+        ownerOnboarded: app?.status === "onboarded",
         shadowRenter: shadowByAccount.get(a.id) || null,
       };
     });

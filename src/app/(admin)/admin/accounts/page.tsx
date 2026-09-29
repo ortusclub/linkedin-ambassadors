@@ -133,6 +133,7 @@ interface Account {
   ownerPayoutName: string | null;
   ownerOnboardedAt: string | null;
   ownerSetupPaidAt: string | null;
+  ownerOnboarded: boolean;
   shadowRenter: string | null;
   inventoryPool?: string | null;
   personalEmail: string | null;
@@ -186,22 +187,23 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 
 // Inventory groups are display-only; rental/billing status stays in the database.
 // Current restrictions and maintenance share one group. Terminal states stay separate.
-const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; ownerSetupPaidAt?: string | null }): string => {
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; ownerOnboarded?: boolean }): string => {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
   if (a.status === "removed") return "Removed";
   if (a.restrictedAt || a.status === "maintenance") return "Maintenance";
   if (a.status === "rented") return "Rented";
-  // Warming-up stages (Pipeline) only belong in inventory once the owner is ONBOARDED
-  // (setup fee paid, `ownerSetupPaidAt`). DIY / auto-provisioning stamps under_construction
+  // Warming-up stages (Pipeline) only belong in inventory once the owner is ONBOARDED —
+  // i.e. their application was explicitly marked onboarded, which only happens after the
+  // setup fee is paid (`ownerOnboarded`). DIY / auto-provisioning stamps under_construction
   // on an account the moment someone signs up, so without this gate a lot of not-yet-onboarded
-  // accounts (often 0-conn placeholders, or logged-in-but-unpaid) flood the pipeline. An
-  // unpaid warming account reads as Initial and is held out of inventory until it's onboarded.
-  if (a.status === "construction_immature") return a.ownerSetupPaidAt ? "Construction (Immature)" : "Initial";
-  if (a.status === "under_construction") return a.ownerSetupPaidAt ? "Construction" : "Initial";
+  // accounts (0-conn placeholders, logged-in-but-unpaid, paid-but-not-yet-marked) flood the
+  // pipeline. A not-onboarded warming account reads as Initial and is held out of inventory.
+  if (a.status === "construction_immature") return a.ownerOnboarded ? "Construction (Immature)" : "Initial";
+  if (a.status === "under_construction") return a.ownerOnboarded ? "Construction" : "Initial";
   if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : "Available";
   if (a.status === "trial") return "Trial";
   if (!a.loginEmail || !isCompanyEmail(a.loginEmail) || !a.accountPassword) return "Initial";
-  return a.ownerSetupPaidAt ? "Construction" : "Initial";
+  return a.ownerOnboarded ? "Construction" : "Initial";
 };
 const inventoryStatusLabel = (status: string) => status === "Construction" ? "Pipeline" : status === "Maintenance" ? "Restricted / Maintenance" : status;
 const GROUPS: { key: string; hint: string; dot: string }[] = [
