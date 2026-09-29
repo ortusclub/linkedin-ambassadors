@@ -25,7 +25,7 @@ const STEPS: StepDef[] = [
   { part: 1, title: "Choose Authenticator App", body: "Select Authenticator App (not phone number), then Continue.", imgs: [["step-6.png", "Authenticator App selected"]] },
   { part: 1, title: "Enter the password", body: "Type the LinkedIn password and click Submit.", imgs: [["step-7.png", "Enter Password prompt"]] },
   {
-    part: 2, title: "Copy the setup key", body: "Under the QR code is a setup key — a long string of letters and numbers. Click the copy icon next to it. In the app, tap “Can’t scan the QR code?” to reveal it. You don’t need to scan the QR.", imgs: [["step-8.png", "Authenticator setup screen"]],
+    part: 2, title: "Copy the setup key", body: "Under the QR code is the setup key — a long line of letters and numbers. Tap Copy and paste it as text. A screenshot of the QR won’t work. In the app, tap “Can’t scan the QR code?” to reveal it. You don’t need to scan the QR.", imgs: [["step-8.png", "Authenticator setup screen"]],
     example: true,
     warnTitle: "Send it to whoever is onboarding you", warn: "That’s your referrer, or the LinkedVelocity team if you signed up directly. Send it now in the same chat — without it we can’t keep the account signed in, and LinkedIn won’t show it again.",
     ref: { warnTitle: "Paste it into your portal now", warn: "Put it in “The 2FA setup key” field on this owner’s onboarding. That’s how it’s recorded against the account — without it we can’t sign in. LinkedIn won’t show the key again." },
@@ -299,6 +299,7 @@ export default function Guide2FA() {
             <div style={{ font: `700 15px ${JAK}`, marginBottom: 3 }}>Still stuck?</div>
             <div style={{ font: `500 13px/1.5 ${JAK}`, color: "#5b6779" }}>Message the person onboarding you and tell them the step number. They&apos;ll walk you through it.</div>
           </div>
+          <a href="https://t.me/linkedvelocity_support_bot" target="_blank" rel="noreferrer" style={{ font: `700 13px ${JAK}`, color: "#fff", background: "#15803d", borderRadius: 10, padding: "11px 16px", textDecoration: "none" }}>Chat on Telegram</a>
         </div>
       </div>
     </div>
