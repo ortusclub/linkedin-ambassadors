@@ -6,75 +6,68 @@ import { Footer } from "@/components/layout/footer";
 import { SupportBubble } from "@/components/layout/support-bubble";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { JsonLd } from "@/components/seo/json-ld";
+import { getBrand } from "@/lib/brand";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: {
-    default: "LinkedVelocity — Rent Premium LinkedIn Accounts for Outreach",
-    template: "%s | LinkedVelocity",
-  },
-  description:
-    "Rent pre-warmed, verified LinkedIn accounts for outreach, lead generation, and networking. Instant access via GoLogin browser. Cancel anytime. From $45/month.",
-  keywords: [
-    "rent LinkedIn account",
-    "LinkedIn account rental",
-    "LinkedIn outreach",
-    "LinkedIn lead generation",
-    "buy LinkedIn accounts",
-    "LinkedIn account marketplace",
-    "GoLogin LinkedIn",
-    "LinkedIn automation",
-    "B2B outreach",
-    "sales prospecting LinkedIn",
-  ],
-  authors: [{ name: "LinkedVelocity" }],
-  creator: "LinkedVelocity",
-  publisher: "LinkedVelocity",
-  metadataBase: new URL("https://linkedvelocity.com"),
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: "https://linkedvelocity.com",
-    siteName: "LinkedVelocity",
-    title: "LinkedVelocity — Rent Premium LinkedIn Accounts for Outreach",
-    description:
-      "Rent pre-warmed, verified LinkedIn accounts for outreach and lead generation. Instant access, cancel anytime. From $45/month.",
-    images: [
-      {
-        url: "/og-image.png?v=2",
-        width: 1200,
-        height: 630,
-        alt: "LinkedVelocity — Scale LinkedIn outreach without the limits",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "LinkedVelocity — Rent Premium LinkedIn Accounts",
-    description:
-      "Rent pre-warmed LinkedIn accounts for outreach and lead gen. Instant access, cancel anytime.",
-    images: ["/og-image.png?v=2"],
-  },
-  icons: {
-    icon: "/favicon.svg",
-  },
-  manifest: "/manifest.json",
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+// Per-brand metadata: resolved from the request host so linkedvelocity.com and
+// linkedreps.io each get their own title, description, canonical/OG domain and icons.
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getBrand();
+  const m = brand.meta;
+  return {
+    title: {
+      default: m.titleDefault,
+      template: m.titleTemplate,
+    },
+    description: m.description,
+    keywords: m.keywords,
+    authors: [{ name: brand.name }],
+    creator: brand.name,
+    publisher: brand.name,
+    metadataBase: new URL(brand.url),
+    alternates: {
+      canonical: "/",
+    },
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      url: brand.url,
+      siteName: brand.name,
+      title: m.ogTitle,
+      description: m.ogDescription,
+      images: [
+        {
+          url: brand.ogImage,
+          width: 1200,
+          height: 630,
+          alt: m.ogImageAlt,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: m.twitterTitle,
+      description: m.twitterDescription,
+      images: [brand.ogImage],
+    },
+    icons: {
+      icon: brand.favicon,
+    },
+    manifest: "/manifest.json",
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-};
+  };
+}
 
 export default function RootLayout({
   children,
