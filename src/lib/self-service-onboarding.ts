@@ -182,7 +182,11 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
 async function reuseProxy(tx: Prisma.TransactionClient, id: string, referrerId: string, country: string) {
   const current = await tx.selfServiceOnboarding.findFirstOrThrow({ where: { id, referrerId }, include: { account: { select: { linkedinVerified: true } } } });
   if (current.proxyId) return true;
-  if (current.state !== "reserved" || current.proxyPurchaseAt || current.proxyOrderId) return false;
+  // Reuse is safe in any state as long as no purchase is mid-flight — an account
+  // can reach a later state (e.g. handed_off) without ever getting a proxy, and
+  // must still be able to claim free pool capacity. The reserved-only gate stays
+  // on the PURCHASE path (the double-buy guard), not here.
+  if (current.proxyPurchaseAt || current.proxyOrderId) return false;
   const proxy = reusableProxy(await availableProxies(tx), country, current.account.linkedinVerified);
   if (!proxy) return false;
   await tx.linkedInAccount.update({ where: { id: current.accountId }, data: {
@@ -201,12 +205,15 @@ export async function acquireProxy(id: string, referrerId: string): Promise<bool
   let proxyCountry = countryCode(s.account.proxyLocation);
   let orderId = s.proxyOrderId;
   if (!orderId) {
-    if (s.state !== "reserved") throw new OnboardingError("The proxy purchase is running or needs a team check. Your progress is saved.", 409);
+    // Try free pool capacity first, in any state — a handed_off (or otherwise
+    // advanced) account with no proxy must still be able to claim one.
     const reused = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(69100901)`;
       return reuseProxy(tx, id, referrerId, country);
     });
     if (reused) return true;
+    // Only a clean "reserved" session may kick off a paid purchase (double-buy guard).
+    if (s.state !== "reserved") throw new OnboardingError("The proxy purchase is running or needs a team check. Your progress is saved.", 409);
     let quote;
     try {
       quote = PURCHASE_PROXY_COUNTRIES.includes(country as typeof PURCHASE_PROXY_COUNTRIES[number])
