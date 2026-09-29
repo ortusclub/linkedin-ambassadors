@@ -48,7 +48,7 @@ const DOS = ["Be friendly, casual and quick", "Get them to finish the form or th
 const DONTS = ["Pressure anyone — encourage, never force", "Promise cash on the spot", "Collect passwords, PINs or 2FA codes yourself", "Guarantee earnings beyond the offer", "Sign up anyone below LinkedIn's applicable minimum age"];
 
 const TIPS = [
-  "They can remove their account at any time.",
+  "They can remove their account any time after a light 6-month minimum — and keep access throughout.",
   "They can view their account any time and see exactly how it's being used.",
   "Their password is never shared with renters — only we have access.",
   "We vet every renter to make sure they're a legitimate business.",
@@ -80,14 +80,14 @@ const AMBASSADOR_FAQ = [
   { q: "Why would a business want to use my account?", a: "LinkedIn limits how many people one account can message or connect with. Businesses need lots of real, established accounts to reach potential clients — so they pay to use accounts like yours." },
   { q: "What will my account be used for?", a: "Two things: sending connection requests and messages to potential clients (outreach), and gathering public professional info like company names and job titles (research). Nothing is ever posted as you." },
   { q: "Is this a scam or illegal?", a: "No — it's completely legal. It's your account and your choice to share access. It does go against LinkedIn's own rules, but that isn't the same as illegal, and everything is consent-based. We only work with vetted, legitimate businesses doing normal professional outreach." },
-  { q: "Is it safe? Can you steal my account?", a: "No. You keep recovery access to your own account at all times and can take it back whenever you want. It's used for professional outreach only." },
+  { q: "Is it safe? Can you steal my account?", a: "No. You keep recovery access to your own account at all times, and after a light 6-month minimum you can take it back whenever you want — and sooner if you're ever worried about its safety. It's used for professional outreach only." },
   { q: "Will you change anything on my profile?", a: "Your name stays exactly the same, and we never change that. We may polish your profile photo into a cleaner, professional version that still clearly looks like you, and update details like your job title, location, or headline / About to keep the profile credible for professional outreach. It's still your profile." },
   { q: "How much will I earn?", a: "₱500 ($8) to start for a new referred account — paid about a week after setup, once the account is confirmed stable. Then ₱500 ($8) every full month your account stays active, paid on the 1st. Direct self-onboarding has separate signup bonuses based on the setup option chosen." },
   { q: "Can I use a brand-new LinkedIn account?", a: "Yes — new accounts are welcome. It just needs to be about a week old before we pay the setup fee." },
   { q: "Can I still use my account?", a: "Yes. You keep full access, you can see exactly how it's being used, and you can use it yourself any time it isn't being rented." },
   { q: "Do I have to share my password?", a: "Your password is never shared with the renter — they only access the account through our software. We keep it secure so we can quickly sort out any issue with your account for you." },
   { q: "Can my friends or family do it too?", a: "Yes, provided they meet LinkedIn's minimum age: 16, or older where local law requires. Each eligible account earns its own set-up bonus and monthly payout." },
-  { q: "What if I want my account back later?", a: "No problem — reclaim it anytime, and the monthly payments simply stop." },
+  { q: "What if I want my account back later?", a: "After a light 6-month minimum, reclaim it anytime and the monthly payments simply stop. You keep your login and access the whole time, and can step in sooner if you're ever worried about your account's safety." },
 ];
 
 const READY_CHECKS = [
@@ -757,7 +757,7 @@ export default function Portal({ token }: { token: string }) {
             {/* the offer */}
             <div style={{ ...card, padding: 17 }}>
               <div style={cardTitle}>The offer, in their words</div>
-              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate, margin: "0 0 13px" }}>&ldquo;You lend us your LinkedIn account for business outreach. You keep your login, we pay you monthly, and you can take it back any time.&rdquo;</p>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate, margin: "0 0 13px" }}>&ldquo;You lend us your LinkedIn account for business outreach. You keep your login, we pay you monthly, and after a light 6-month minimum you can take it back any time.&rdquo;</p>
               <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: `1px solid ${C.line2}` }}>
                   <span style={{ font: `600 12.5px ${JAK}`, color: C.ink, width: 62, flex: "none" }}>One-off</span>

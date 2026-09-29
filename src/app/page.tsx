@@ -183,10 +183,10 @@ export default function HomePage() {
             <div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `500 11px ${MONO}`, letterSpacing: "0.14em", textTransform: "uppercase", color: "#D3F5E0", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 999, padding: "6px 13px", marginBottom: 18 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />For professionals</div>
               <div style={{ font: `700 clamp(24px,3vw,30px) ${POP}`, color: "#fff", marginBottom: 12, letterSpacing: "-0.015em", lineHeight: 1.12 }}>Own a LinkedIn account?<br />Get paid every month.</div>
-              <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#DBF3E4", margin: "0 0 26px", maxWidth: 440 }}>Share your account and receive a fixed monthly payment, whether or not it is currently rented. You stay in control and can pause or leave anytime — your password is never shared.</p>
+              <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#DBF3E4", margin: "0 0 26px", maxWidth: 440 }}>Share your account and receive a fixed monthly payment, whether or not it is currently rented. You stay in control and can leave anytime after a light 6-month minimum — your password is never shared.</p>
               <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                 <Link href="/become-ambassador" className="lvh-cta" style={{ background: "#fff", color: "#0A7A45", fontSize: 15, fontWeight: 700, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>Rent us your account →</Link>
-                <span style={{ fontSize: 13.5, color: "#CFEFDC" }}>Free to join · No commitment</span>
+                <span style={{ fontSize: 13.5, color: "#CFEFDC" }}>Free to join · Cancel anytime after 6 months</span>
               </div>
             </div>
             <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 18, padding: "26px 28px" }}>
@@ -197,7 +197,7 @@ export default function HomePage() {
                 <div style={{ textAlign: "right" }}><div style={{ font: `800 22px ${POP}`, color: "#fff", lineHeight: 1.15 }}>Setup bonus<br />+ fixed monthly payment</div><div style={{ fontSize: 12.5, color: "#CFEFDC", marginTop: 6 }}>the more accounts, the more you earn</div></div>
               </div>
               <div style={{ height: 1, background: "rgba(255,255,255,0.18)", margin: "20px 0" }} />
-              {["Pause or leave anytime", "Password never shared"].map((t) => (
+              {["Leave anytime after 6 months", "Password never shared"].map((t) => (
                 <div key={t} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: "#EAFBF0", marginBottom: 11 }}><span style={{ fontWeight: 700 }}>✓</span>{t}</div>
               ))}
             </div>
