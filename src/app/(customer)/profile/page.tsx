@@ -67,6 +67,8 @@ export default function ProfilePage() {
   const [addressCopied, setAddressCopied] = useState(false);
   const [showCryptoTopUp, setShowCryptoTopUp] = useState(false);
   const [showCardTopUp, setShowCardTopUp] = useState(false);
+  // Previous credit top-ups (with a PDF receipt each).
+  const [payments, setPayments] = useState<{ id: string; amount: string; method: string; reference: string; createdAt: string }[]>([]);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAddress, setWithdrawAddress] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -75,6 +77,13 @@ export default function ProfilePage() {
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState("crypto_wallet");
   const [currentPaymentDetails, setCurrentPaymentDetails] = useState("");
+
+  useEffect(() => {
+    fetch("/api/wallet/payments")
+      .then((r) => (r.ok ? r.json() : { payments: [] }))
+      .then((d) => setPayments(d.payments || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -251,7 +260,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Personal Info Section */}
-        {activeSection === "personal" && (
+        {activeSection === "personal" && (<>
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-[#1D1B16]">Personal Information</h2>
@@ -327,7 +336,35 @@ export default function ProfilePage() {
               </form>
             </div>
           </div>
-        )}
+
+          {/* Previous payments — credit top-ups, each with a PDF receipt */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mt-6">
+            <div className="px-6 py-5 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-[#1D1B16]" style={{ fontFamily: "'Montserrat', sans-serif" }}>Previous Payments</h2>
+              <p className="text-sm text-gray-400 mt-0.5">Receipts for your credit top-ups.</p>
+            </div>
+            <div className="px-6 py-5">
+              {payments.length === 0 ? (
+                <p className="text-sm text-gray-400">No payments yet. Top-ups you make will appear here.</p>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {payments.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#1D1B16]">${p.amount} <span className="font-normal text-gray-400">· {p.method}</span></p>
+                        <p className="text-xs text-gray-400 mt-0.5">{new Date(p.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+                      </div>
+                      <a href={`/api/wallet/receipt/${p.id}`} target="_blank" rel="noopener noreferrer" className="flex-none inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" /></svg>
+                        Receipt (PDF)
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>)}
 
         {/* Wallet Section */}
         {activeSection === "wallet" && (
