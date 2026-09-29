@@ -168,7 +168,7 @@ export default function DIYPage() {
                   </button>
                 </>
               )}
-              <div style={{ textAlign: "center", fontSize: 12.5, color: "#8A93A2", marginTop: 12 }}>Consent-based · you keep full control · cancel anytime</div>
+              <div style={{ textAlign: "center", fontSize: 12.5, color: "#8A93A2", marginTop: 12 }}>Consent-based · you keep full control · cancel anytime after 6 months</div>
             </div>
           </>
         )}

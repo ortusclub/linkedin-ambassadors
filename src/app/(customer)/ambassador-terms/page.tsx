@@ -35,9 +35,10 @@ export default function AmbassadorTermsPage() {
         <p className="mt-4 text-[15px] leading-relaxed text-gray-600">
           This Agreement is between you (the &ldquo;Ambassador&rdquo;) and LinkedVelocity (the &ldquo;Company&rdquo;).
           It sets out the terms on which you share access to a LinkedIn account with the Company for B2B sales
-          outreach, what the Company pays you, and the control you keep over the account. Fees below are shown
-          in their US-dollar equivalent; the underlying amounts are set in Philippine pesos (PHP) and may be paid
-          in any currency you prefer (see Clause&nbsp;5).
+          outreach, what the Company pays you, and the control you keep over the account. It asks for a minimum
+          six-month commitment, during which you keep your login and full access throughout (see Clause&nbsp;3.5).
+          Fees below are shown in their US-dollar equivalent; the underlying amounts are set in Philippine pesos
+          (PHP) and may be paid in any currency you prefer (see Clause&nbsp;5).
         </p>
       </div>
 
@@ -80,8 +81,8 @@ export default function AmbassadorTermsPage() {
         <p>3.1 The Account shall remain mutually accessible to both Parties at all times.</p>
         <p>3.2 To maintain the security and stability of the Account, the Company will access and operate the Account using a secure anti-detect browser/login program (such as GoLogin or equivalent). This ensures that LinkedIn does not flag the Account as being accessed from multiple locations or devices, thereby reducing the risk of verification checks, restriction, or suspension, and helping to keep the Account safe.</p>
         <p>3.3 <strong>Email.</strong> The Company will set its own email address as the primary email on the Account, so that LinkedIn security and verification codes are received by the Company. This is what allows the Company to keep the Account logged in and stable, and to restore access quickly when LinkedIn periodically logs accounts out as a matter of routine policy. The account holder&apos;s own email is retained on the Account as a secondary email.</p>
-        <p>3.4 <strong>Password.</strong> The Company will not ordinarily change the Account password. This means the Ambassador (or account holder) keeps their login and retains access to the Account at all times, and can reclaim it at any point.</p>
-        <p>3.5 The Ambassador is entitled to reclaim sole control of the Account and/or terminate this Agreement at any time, without prior warning or notice, subject to the payment terms in Clause 5.</p>
+        <p>3.4 <strong>Password.</strong> The Company will not ordinarily change the Account password. This means the Ambassador (or account holder) keeps their login and retains access to the Account at all times, and can step in whenever needed for the Account&apos;s safety (see Clauses 3.5 and 3.6).</p>
+        <p>3.5 <strong>Minimum term.</strong> Because the Company invests up front in setting up, warming up, and maintaining the Account, the Ambassador agrees to keep the Account with the Company for a minimum of six (6) months from the date access is handed over (the &ldquo;Minimum Term&rdquo;). The Ambassador keeps their login and full access throughout, and may step in at any time — without penalty — for the Account&apos;s safety, security, or any concern about misuse. If the Ambassador instead withdraws the Account or terminates this Agreement before the end of the Minimum Term for any other reason, the one-time Initial Payment (Clause 5.1(a)) and any Referral Fee paid in respect of that Account (Clause 9) become repayable to the Company, and no further Monthly Fee is due. After the Minimum Term, the Ambassador is entitled to reclaim sole control of the Account and/or terminate this Agreement at any time, without prior warning or notice, subject to the payment terms in Clause 5.</p>
         <p>3.6 <strong>Your access is guaranteed at all times.</strong> Occasionally, for the Account&apos;s own protection, for example if LinkedIn flags a possible compromise or a security issue requires it, the Company may need to change the password. If that happens, the Company will promptly share the new password (and details of any related change) with the Ambassador, so that the Ambassador never loses access to the Account.</p>
         <p>3.7 <strong>We never receive your ID.</strong> The Company never receives or holds the Ambassador&apos;s personal identification. Where LinkedIn requires identity verification, the account holder completes this themselves. The only thing the Company ever has access to is the LinkedIn Account itself, never the Ambassador&apos;s ID or identity documents.</p>
       </Clause>
@@ -111,7 +112,7 @@ export default function AmbassadorTermsPage() {
       <Clause id="partnership" title="7. Working Together, Vetting &amp; Risk">
         <p>7.1 <strong>A two-way partnership.</strong> This is intended as a long-term, good-faith partnership. The Company works to keep the Account safe, and the Ambassador is free, and encouraged, to report anything they notice on the Account at any time. The Company is on the Ambassador&apos;s side and will act on anything raised.</p>
         <p>7.2 <strong>Vetting.</strong> The Company does its best to vet the businesses it partners with, and only permits legitimate B2B professional outreach on the Account.</p>
-        <p>7.3 <strong>Good faith &amp; risk.</strong> Even with careful vetting, lending an account carries an inherent risk that cannot be fully guaranteed against. In the rare event a renter misuses the Account, the Company acts in good faith to prevent and remedy this, but is not liable for a renter&apos;s misuse; the Ambassador acknowledges this as part of the ordinary risk of lending an account. The Ambassador&apos;s ultimate protection is their own control: they retain access at all times and can pause or reclaim the Account whenever they wish (Clauses 3.1, 3.4 to 3.6).</p>
+        <p>7.3 <strong>Good faith &amp; risk.</strong> Even with careful vetting, lending an account carries an inherent risk that cannot be fully guaranteed against. In the rare event a renter misuses the Account, the Company acts in good faith to prevent and remedy this, but is not liable for a renter&apos;s misuse; the Ambassador acknowledges this as part of the ordinary risk of lending an account. The Ambassador&apos;s ultimate protection is their own control: they retain access at all times, can always step in for the Account&apos;s safety, and may reclaim the Account after the Minimum Term (Clauses 3.1, 3.4 to 3.6).</p>
       </Clause>
 
       <Clause id="benefits" title="8. Benefits to the Ambassador">

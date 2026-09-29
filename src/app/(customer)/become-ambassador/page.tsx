@@ -485,7 +485,7 @@ export default function BecomeAmbassadorPage() {
             <a href="#earn" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "rgba(255,255,255,0.08)", color: "#EAF6EE", border: "1px solid rgba(255,255,255,0.2)", fontSize: 16, fontWeight: 600, padding: "15px 26px", borderRadius: 12, textDecoration: "none" }}>See how it works</a>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 26, flexWrap: "wrap", justifyContent: "center", marginTop: 34, fontSize: 13.5, color: "#9DC4AE" }}>
-            {["No cost to join", "You stay in control", "Cancel anytime"].map((t) => (
+            {["No cost to join", "You stay in control", "Cancel anytime after 6 months"].map((t) => (
               <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ color: "#4FE08C" }}>✓</span>{t}</span>
             ))}
           </div>
@@ -526,7 +526,7 @@ export default function BecomeAmbassadorPage() {
               <span style={{ fontSize: 16, color: "#8A93A2", fontWeight: 500 }}>/month</span>
             </div>
             <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 16, color: "#0B1220", marginBottom: 6 }}>Monthly payout</div>
-            <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid every month your account stays active — even in months it isn&apos;t rented. Cancel anytime.</p>
+            <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: 0 }}>Paid every month your account stays active — even in months it isn&apos;t rented. Cancel anytime after a light 6-month minimum.</p>
           </div>
         </div>
 
@@ -616,7 +616,7 @@ export default function BecomeAmbassadorPage() {
               {[
                 { c: "#E7F6EE", ic: "💰", title: "Earn monthly income", body: "Predictable recurring payouts every month your account is active." },
                 { c: "#EAF2FC", ic: "🖐️", title: "Completely hands-off", body: "You don't run campaigns, reply to messages, or manage anything — we handle it all." },
-                { c: "#E7F6EE", ic: "🎚️", title: "Stay in full control", body: "Pause or withdraw whenever you want. No lock-in, no penalties." },
+                { c: "#E7F6EE", ic: "🎚️", title: "Stay in full control", body: "You stay in control the whole time. After a light 6-month minimum, withdraw whenever you want — no penalties." },
                 { c: "#EAF2FC", ic: "🛡️", title: "Safe & protected", body: "Human-paced activity within LinkedIn's limits. Your profile stays protected." },
                 { c: "#E7F6EE", ic: "🌐", title: "Grow your network", body: "Real, relevant connections get added as outreach runs on your behalf." },
                 { c: "#EAF2FC", ic: "🌙", title: "Even idle accounts pay", body: "Barely use LinkedIn? Accounts you — or family — don't use still earn." },
@@ -642,7 +642,7 @@ export default function BecomeAmbassadorPage() {
                 { title: "You stay in control", body: "Your name and photo never change. The account is used for professional outreach only." },
                 { title: "Protected access", body: "Every account runs through a dedicated proxy and a secure anti-detect browser (GoLogin)." },
                 { title: "Nothing posted as you", body: "Renters can't change your profile or post on your behalf." },
-                { title: "Stop whenever", body: "Withdraw your account at any time. No lock-in, no penalties." },
+                { title: "Low commitment", body: "Just a light 6-month minimum. After that, withdraw your account whenever you want — no penalties." },
               ].map((s) => (
                 <div key={s.title} className="a-lift" style={{ display: "flex", gap: 15, alignItems: "flex-start", background: "#fff", border: "1px solid #E7EBE8", borderRadius: 16, padding: "22px 24px", boxShadow: "0 1px 3px rgba(16,24,40,0.04)" }}>
                   <span style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 11, background: "linear-gradient(150deg,#E4F6EC,#C9EED8)", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -735,9 +735,9 @@ export default function BecomeAmbassadorPage() {
             </div>
             <div style={{ maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }}>
               {[
-                { q: "Is this allowed? Is it legal?", a: "Completely legal — it's your account, and it's your choice to share access to it if you want to. Everything is consent-based and secure: you decide to take part, you stay in full control, and you can stop anytime. We only work with vetted businesses using accounts for normal professional outreach." },
+                { q: "Is this allowed? Is it legal?", a: "Completely legal — it's your account, and it's your choice to share access to it if you want to. Everything is consent-based and secure: you decide to take part, you stay in full control, and after a light 6-month minimum you can stop anytime. We only work with vetted businesses using accounts for normal professional outreach." },
                 { q: "Is it safe to share my account?", a: "Yes. Access runs through a dedicated proxy and a secure anti-detect browser (GoLogin), and your password is never exposed to renters. They use the account for outreach only — they can never see your login, change your profile, or post as you." },
-                { q: "Do I have to share my password?", a: "Your login is only ever used to keep your account secure and running — it's stored safely and never shared with renters, who access the account only through our software. You stay in full control and can change it or withdraw your account at any time. We'll walk you through exactly how access works when you get started." },
+                { q: "Do I have to share my password?", a: "Your login is only ever used to keep your account secure and running — it's stored safely and never shared with renters, who access the account only through our software. You stay in full control, can change it at any time, and can withdraw your account after a light 6-month minimum. We'll walk you through exactly how access works when you get started." },
                 { q: "What will renters use my account for?", a: "Normal B2B outreach — sending connection requests and messages to potential clients. Renters are vetted businesses, and they can never change your profile, post as you, or touch your settings. It's used for outreach only." },
                 { q: "Can I still use my account while it's shared?", a: "Yes. You keep full access to your own account at any time, and you can see exactly how it's being used and who's being messaged. Sharing doesn't mean giving it up." },
                 { q: "Will this affect my LinkedIn account?", a: "Activity is kept human-paced and within LinkedIn's normal limits to protect the account. Your name stays exactly the same. We may update your photo to a cleaner, professional version that still clearly looks like you, and tweak details like your headline, job or About to keep the profile credible for professional outreach." },
@@ -745,7 +745,7 @@ export default function BecomeAmbassadorPage() {
                 { q: "How much will I earn?", a: `A ${setupPrice} one-time setup bonus, then ${monthlyPrice} every month your account stays active — the same for every approved account. Have more than one (yours or family's)? Each earns its own bonus and monthly payout. Higher payouts for stronger profiles are coming soon.` },
                 { q: "When and how do I get paid?", a: "You're paid every month via bank transfer — even in months your account isn't rented." },
                 { q: "Do I have to do anything day-to-day?", a: "Nothing. It's completely hands-off — you don't run campaigns, reply to messages, or manage anything. We handle it all." },
-                { q: "Can I stop anytime?", a: "Yes. You can withdraw your account at any time with no lock-in and no penalties." },
+                { q: "Can I stop anytime?", a: "We ask for a light 6-month minimum to cover the up-front setup and warm-up we invest in your account. After that, you can withdraw your account at any time — no penalties. You keep your login and full access the whole time, and can always step in sooner if you're ever worried about your account's safety." },
                 { q: "Can I submit accounts that aren't mine?", a: "You can submit accounts belonging to family members with their consent — siblings, parents, aunties, uncles. Each approved account earns its own setup bonus and monthly payout." },
               ].map((f, i) => {
                 const open = faqOpen === i;
@@ -1010,7 +1010,7 @@ export default function BecomeAmbassadorPage() {
                     </div>
                     <div style={{ fontSize: 13.5, color: "#9DC4AE", marginTop: 4 }}>plus a {setupPrice} one-time setup bonus.</div>
                     <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "18px 0" }} />
-                    {["Paid every month, guaranteed", "You keep full control of your account", "Cancel anytime, no penalties"].map((t) => (
+                    {["Paid every month, guaranteed", "You keep full control of your account", "Cancel anytime after a 6-month minimum"].map((t) => (
                       <div key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: "#D6E7DD", lineHeight: 1.45, marginBottom: 12 }}><span style={{ color: "#3EF08A", fontWeight: 700 }}>✓</span>{t}</div>
                     ))}
                   </div>
@@ -1082,7 +1082,7 @@ export default function BecomeAmbassadorPage() {
                     <span style={{ fontSize: 20, color: "#9DC4AE", fontWeight: 500 }}>/mo</span>
                   </div>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ {setupPrice} one-time setup bonus</div>
-                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via bank transfer on the 1st of each month. Cancel anytime.</p>
+                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via bank transfer on the 1st of each month. Cancel anytime after a 6-month minimum.</p>
                 </div>
               </div>
 
@@ -1124,7 +1124,7 @@ export default function BecomeAmbassadorPage() {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, flexWrap: "wrap", marginTop: 22 }}>
-                {["Takes ~10 minutes", "No cost, no commitment"].map((t) => (
+                {["Takes ~10 minutes", "No cost to apply"].map((t) => (
                   <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, color: "#8A93A2" }}><span style={{ color: "#00A150", fontWeight: 700 }}>✓</span>{t}</span>
                 ))}
               </div>
@@ -1150,7 +1150,7 @@ export default function BecomeAmbassadorPage() {
                   <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
                   Book a call
                 </a>
-                <p className="mt-2.5 text-xs text-gray-500">About 10 minutes. No cost, no commitment.</p>
+                <p className="mt-2.5 text-xs text-gray-500">About 10 minutes. No cost to apply.</p>
               </div>
 
               <p className="text-center text-sm text-gray-500 mb-4">Or reach us another way:</p>
@@ -1733,8 +1733,8 @@ export default function BecomeAmbassadorPage() {
                         </svg>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">Cancel anytime</p>
-                        <p className="text-sm text-gray-500">You can withdraw your account at any time with 30 days notice.</p>
+                        <p className="font-medium text-gray-900">Cancel anytime after 6 months</p>
+                        <p className="text-sm text-gray-500">A light 6-month minimum covers the up-front setup, then you can withdraw your account at any time.</p>
                       </div>
                     </div>
                   </div>
@@ -1772,7 +1772,7 @@ export default function BecomeAmbassadorPage() {
                 { q: "Is my account safe?", a: "Yes. Your account is accessed through a secure, isolated browser profile with its own fingerprint and proxy. It looks like normal usage to LinkedIn." },
                 { q: "Do I lose access to my own account?", a: "No. Both you and the renter have access to the account at any time through our proprietary software. You can see what they're using it for and who they're messaging. You don't lose access to anything." },
                 { q: "How do I get paid?", a: "We pay via bank transfer to a bank of your choice. We pay out on the 1st of every month." },
-                { q: "Can I stop at any time?", a: "Yes. You can withdraw your account anytime — just change your password or remove it. You won't be paid for the following month, and we'd appreciate a heads up, but it's completely up to you. You always have full access to your account, just like anybody else." },
+                { q: "Can I stop at any time?", a: "We ask for a light 6-month minimum to cover the up-front setup and warm-up we invest in your account. After that, you can withdraw anytime — just change your password or remove it — and you simply stop being paid for the following month. We'd appreciate a heads up. You always have full access to your account throughout, just like anybody else, and can step in sooner if you're ever worried about its safety." },
               ].map((faq) => (
                 <div key={faq.q}>
                   <h3 className="text-lg font-semibold text-gray-900">{faq.q}</h3>
