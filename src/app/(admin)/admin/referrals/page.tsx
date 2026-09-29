@@ -49,7 +49,7 @@ const cardMarkup = (origin: string, r: { slug: string; name: string }) => {
   return `<div class="card">
     <div class="brandrow"><span class="brand">&#10022; LinkedVelocity</span><span class="badge">For students &amp; professionals</span></div>
     <h1 class="hl">Get paid for your LinkedIn</h1>
-    <p class="lead">Earn every month just by lending us your account. It stays yours &mdash; take it back anytime.</p>
+    <p class="lead">Earn every month just by lending us your account. It stays yours &mdash; take it back anytime after a light 6-month minimum.</p>
     <div class="tiles">
       <div class="tile"><b>&#8369;1,000</b><span>to start</span></div>
       <div class="tile dark"><b>&#8369;500</b><span>every month</span></div>
@@ -64,13 +64,13 @@ const cardMarkup = (origin: string, r: { slug: string; name: string }) => {
     <div class="steps">
       <div class="step"><span class="num">1</span><span class="st">Scan the code and sign up &mdash; takes 2 minutes.</span></div>
       <div class="step"><span class="num">2</span><span class="st">We set it up and rent it to a vetted business. Your <b>name &amp; password stay yours</b>, and we polish your photo to look professional.</span></div>
-      <div class="step"><span class="num">3</span><span class="st">Get <b>&#8369;500 every month</b> &mdash; take it back anytime, no penalties.</span></div>
+      <div class="step"><span class="num">3</span><span class="st">Get <b>&#8369;500 every month</b> &mdash; after a light 6-month minimum, take it back anytime, no penalties.</span></div>
     </div>
     <div class="sect sm">Why people say yes</div>
     <div class="whygrid">
       <div class="why"><i>&#10003;</i><span>Name &amp; photo never change</span></div>
       <div class="why"><i>&#10003;</i><span>You keep full access anytime</span></div>
-      <div class="why"><i>&#10003;</i><span>Cancel anytime &mdash; no penalties</span></div>
+      <div class="why"><i>&#10003;</i><span>Cancel anytime after a 6-month minimum</span></div>
       <div class="why"><i>&#10003;</i><span>Vetted, legitimate businesses</span></div>
       <div class="why"><i>&#10003;</i><span>Password is never shared</span></div>
       <div class="why"><i>&#10003;</i><span>Add accounts to earn more</span></div>

@@ -471,7 +471,7 @@ function DashboardContent() {
           </div>
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-green-100 pt-4 text-xs font-medium text-gray-600">
             <span className="inline-flex items-center gap-1"><span className="text-[#00B85C]">✓</span> You keep full control</span>
-            <span className="inline-flex items-center gap-1"><span className="text-[#00B85C]">✓</span> Cancel anytime</span>
+            <span className="inline-flex items-center gap-1"><span className="text-[#00B85C]">✓</span> Cancel anytime after 6 months</span>
             <span className="inline-flex items-center gap-1"><span className="text-[#00B85C]">✓</span> Paid monthly, guaranteed</span>
             <span className="inline-flex items-center gap-1"><span className="text-[#00B85C]">✓</span> Your network grows with high-level execs</span>
           </div>

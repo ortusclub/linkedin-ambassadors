@@ -56,7 +56,7 @@ const FAQ_GROUPS: FaqGroup[] = [
       },
       {
         q: "Is this compliant and safe for the account owner?",
-        a: "Every account is shared with the owner's explicit, ongoing consent, and they can withdraw at any time. We secure access, mask credentials, and never expose the owner's password to renters.",
+        a: "Every account is shared with the owner's explicit, ongoing consent. Owners commit to a light 6-month minimum and can withdraw after that (or sooner if they're ever concerned about their account). We secure access, mask credentials, and never expose the owner's password to renters.",
       },
       {
         q: "What sending limits should I stay within?",
