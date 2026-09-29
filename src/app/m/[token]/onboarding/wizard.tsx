@@ -228,8 +228,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   }, [selfMode, bootstrap, session]);
 
   // Which page's coach tour applies right now (null = no tour for this screen).
-  const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : step === 3 ? "email"
-    : step === 4 ? "twofa"
+  const tourKey = step === 0 ? "before" : step === 1 ? "details" : step === 2 ? "payout" : step === 3 ? "twofa"
+    : step === 4 ? "email"
     : step === 6 ? "donePc"
     : step === 5 ? (handedOff ? "donePhone" : browserMode === "" ? "signin" : browserMode === "phone" ? "handoffPhone" : "signinPc")
     : null;
@@ -293,10 +293,12 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     }
     if (selfMode && s.diyTier === "partial") setBrowserMode("phone");
     if (s.state === "handed_off") setHandedOff(true);
-    // Functional update so we never yank a referrer BACKWARD: once the email is primary the
-    // resume point is the 2FA step (4), but if they've already moved on to sign-in (5) a
-    // refresh must leave them there. confirmed → done (6); email not primary → email (3).
-    setStep((prev) => s.state === "confirmed" ? 6 : s.state === "handed_off" ? 5 : (s.emailSetup && !s.emailSetup.primaryConfirmed) ? 3 : Math.max(prev, s.twoFactorSaved ? 5 : 4));
+    // Order is 2FA (step 3) → secure email (step 4) → sign-in (5). 2FA goes first so LinkedIn's
+    // 2FA-setup verification hits the OWNER's inbox (they still hold the primary email); the email
+    // swap only happens after. Functional update so we never yank a referrer BACKWARD: 2FA not
+    // saved → 2FA (3); 2FA done but email not primary → email (4); otherwise sign-in (5); a refresh
+    // once they've moved on leaves them there. confirmed → done (6).
+    setStep((prev) => s.state === "confirmed" ? 6 : s.state === "handed_off" ? 5 : !s.twoFactorSaved ? 3 : Math.max(prev, (s.emailSetup && !s.emailSetup.primaryConfirmed) ? 4 : 5));
   }
   async function emailAction(body: unknown) {
     if (!session) return;
@@ -305,7 +307,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Email setup failed.");
       showSession(data.session);
-      if ((body as { action?: string }).action !== "primary") setStep(3);
+      if ((body as { action?: string }).action !== "primary") setStep(4);
     });
   }
   async function handoff(password: string) {
@@ -354,8 +356,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     { index: 0, label: "Start with them", detail: "The account owner must stay with you for the entire setup." },
     { index: 1, label: "Owner details", detail: "Add their LinkedIn and contact details." },
     { index: 2, label: "Payout", detail: "Record where the account owner should be paid." },
-    ...(bootstrap?.emailEnabled ? [{ index: 3, label: "Add secure email", detail: "The account owner approves a LinkedVelocity-managed email on LinkedIn." }] : []),
-    { index: 4, label: "Two-step verification", detail: "Turn on authenticator 2FA so sign-in asks for a code, not a device prompt." },
+    { index: 3, label: "Two-step verification", detail: "Turn on authenticator 2FA so sign-in asks for a code, not a device prompt." },
+    ...(bootstrap?.emailEnabled ? [{ index: 4, label: "Add secure email", detail: "The account owner approves a LinkedVelocity-managed email on LinkedIn." }] : []),
     { index: 5, label: "Prepare & sign in", detail: "The account owner enters their login, codes and completes any checks." },
     { index: 6, label: "Team verification", detail: "We check the saved session before activation and payment." },
   ].filter(item => !selfMode || item.index >= 3);
@@ -402,8 +404,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     setBrowserMode(method);
     setSetupChoice(false);
     setError("");
-    // Choosing a route never skips unfinished email or 2FA setup.
-    setStep(session?.emailSetup && !session.emailSetup.primaryConfirmed ? 3 : session?.twoFactorSaved ? 5 : 4);
+    // Choosing a route never skips unfinished 2FA or email setup (2FA first, then email).
+    setStep(!session?.twoFactorSaved ? 3 : (session?.emailSetup && !session.emailSetup.primaryConfirmed) ? 4 : 5);
   }
   function setupOptions() {
     if (!session) return null;
@@ -630,12 +632,12 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <p><a href="/ambassador-guide" target="_blank" rel="noreferrer">Account setup guide</a> · <a href="/guide/two-step-verification" target="_blank" rel="noreferrer">2FA guide</a> · <a href="/guide" target="_blank" rel="noreferrer">GoLogin guide</a></p>
             <button className={styles.linkBtn} onClick={() => chooseDevice("")}>Change device</button>
           </div>}
-          {step === 3 && session?.emailSetup && <>
+          {step === 4 && session?.emailSetup && <>
             <div className={styles.stepLabel}>Add secure email</div>
             <EmailStep selfMode={selfMode} key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>}
 
-          {step === 4 && session && <>
+          {step === 3 && session && <>
             <div className={styles.stepLabel}>Two-step verification</div>
             <h1 className={styles.heroTitle}>Turn on two-step verification</h1>
             <p className={styles.lead}>Do this <strong>before</strong> signing in. Without it, signing in makes LinkedIn ping {selfMode ? "your" : "the owner’s"} phone to approve — and you wait. With authenticator 2FA on, LinkedIn asks for a 6-digit <strong>code</strong> instead, which this page gives you.</p>
@@ -655,8 +657,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             {session.twoFactorSaved && !twoFactorKey.trim() && <p className={styles.note}>Your 2FA setup is already saved. You can continue, or enter a replacement key if you changed it.</p>}
             <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
             <div className={styles.actions}>
-              <button type="button" className={styles.secondary} onClick={() => setStep(3)}>Back</button>
-              <button type="button" className={styles.primary} disabled={busy || (!looksLikeTotpKey(twoFactorKey) && !(session.twoFactorSaved && !twoFactorKey.trim()))} onClick={() => run(async () => { if (twoFactorKey.trim()) { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); setSession({ ...session, twoFactorSaved: true }); } setStep(5); })}>{selfMode && session.diyTier === "partial" ? "Continue to team handoff →" : "Continue to sign-in →"}</button>
+              <button type="button" className={styles.secondary} onClick={goBack}>Back</button>
+              <button type="button" className={styles.primary} disabled={busy || (!looksLikeTotpKey(twoFactorKey) && !(session.twoFactorSaved && !twoFactorKey.trim()))} onClick={() => run(async () => { if (twoFactorKey.trim()) { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); setSession({ ...session, twoFactorSaved: true }); } setStep(session.emailSetup && !session.emailSetup.primaryConfirmed ? 4 : 5); })}>{session.emailSetup && !session.emailSetup.primaryConfirmed ? "Continue to secure email →" : selfMode && session.diyTier === "partial" ? "Continue to team handoff →" : "Continue to sign-in →"}</button>
             </div>
           </>}
 
@@ -675,7 +677,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <div className={styles.infoBlue}><div>This step needs a computer</div><p>The sign-in uses GoLogin desktop software. If you&apos;re on a phone, copy this link and open it on a Windows or Mac computer {selfMode ? "to continue your setup" : "with the account owner"}.</p></div>
             <button type="button" className={styles.secondary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Copy / share this link"}</button>
             <WaitNotice primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null} />
-            {session.emailSetup && <><div className={styles.emailAddressCard}><span>LinkedIn login email</span><strong>{session.emailSetup.address}</strong><button type="button" onClick={() => { if (session.emailSetup?.address) { navigator.clipboard?.writeText(session.emailSetup.address); setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800); } }}>{emailCopied ? "Copied ✓" : "Copy email"}</button></div><div className={styles.note}>{session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(3)}>Manage onboarding email</button></>}
+            {session.emailSetup && <><div className={styles.emailAddressCard}><span>LinkedIn login email</span><strong>{session.emailSetup.address}</strong><button type="button" onClick={() => { if (session.emailSetup?.address) { navigator.clipboard?.writeText(session.emailSetup.address); setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800); } }}>{emailCopied ? "Copied ✓" : "Copy email"}</button></div><div className={styles.note}>{session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(4)}>Manage onboarding email</button></>}
             <BrowserStep selfMode={selfMode} key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>)}
 
