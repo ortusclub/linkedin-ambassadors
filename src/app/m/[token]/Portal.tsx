@@ -8,7 +8,7 @@ import { CURRENCY_CONFIG } from "@/lib/referral-currency";
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 type FixIssue = "application_incomplete" | "email_added" | "email_primary" | "twofa" | "password";
-interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; pay: { text: string; sub?: string } | null; deletable: boolean; resumeSessionId: string | null; }
+interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; pay: { text: string; sub?: string } | null; deletable: boolean; resumeSessionId: string | null; codeSessionId: string | null; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -160,6 +160,11 @@ export default function Portal({ token }: { token: string }) {
   const [confirmName, setConfirmName] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [confirmErr, setConfirmErr] = useState("");
+  // The one signup whose "latest sign-in code" panel is expanded, plus the code we
+  // fetched for it. Codes are pulled on demand from the onboarding session, so the
+  // referrer can grab one without walking the wizard.
+  const [codeOpenId, setCodeOpenId] = useState<string | null>(null);
+  const [codeInfo, setCodeInfo] = useState<{ code: string | null; at: string | null; loading: boolean; error: string; copied: boolean }>({ code: null, at: null, loading: false, error: "", copied: false });
 
   useEffect(() => {
     fetch(`/api/m/${token}`)
@@ -214,6 +219,25 @@ export default function Portal({ token }: { token: string }) {
       setDeleteId(null);
       setData((d) => d && ({ ...d, signups: d.signups.filter((s) => s.id !== applicationId) }));
     } finally { setDeletingId(null); }
+  };
+  // Pull the latest LinkedIn sign-in code for one signup's onboarding session. Reuses the
+  // onboarding GET, which only returns a code while forwarding is live (pre-onboarding).
+  const loadCode = async (sessionId: string) => {
+    setCodeInfo((c) => ({ ...c, loading: true, error: "", copied: false }));
+    try {
+      const r = await fetch(`/api/m/${token}/onboarding?id=${encodeURIComponent(sessionId)}`, { cache: "no-store" });
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok) { setCodeInfo({ code: null, at: null, loading: false, error: b.error || "Couldn't load the code. Please try again.", copied: false }); return; }
+      const es = b.session?.emailSetup;
+      setCodeInfo({ code: es?.latestCode ?? null, at: es?.latestCodeAt ?? null, loading: false, error: "", copied: false });
+    } catch {
+      setCodeInfo({ code: null, at: null, loading: false, error: "Check your connection and try again.", copied: false });
+    }
+  };
+  const toggleCode = (sessionId: string, signupId: string) => {
+    if (codeOpenId === signupId) { setCodeOpenId(null); return; }
+    setCodeOpenId(signupId);
+    void loadCode(sessionId);
   };
   const toggleFaq = (k: string) => setFaqOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const go = (t: Tab) => { setTab(t); if (typeof window !== "undefined") window.scrollTo({ top: 0 }); };
@@ -600,6 +624,33 @@ export default function Portal({ token }: { token: string }) {
                   ) : s.action ? (
                     <a href={s.action === "resume" && s.resumeSessionId ? `/m/${token}/onboarding?session=${encodeURIComponent(s.resumeSessionId)}` : `/m/${token}/onboarding`} style={{ display: "block", width: "100%", marginTop: 12, textAlign: "center", font: `700 13.5px ${JAK}`, color: "#fff", background: C.dark, padding: 13, borderRadius: 11, textDecoration: "none" }}>{s.action === "resume" ? "Resume onboarding" : "Onboard them now"}</a>
                   ) : null}
+                  {/* Get the latest LinkedIn sign-in code for this person, without walking the
+                      wizard. Only shown while codes can still flow (pre-onboarding). */}
+                  {s.codeSessionId && (codeOpenId === s.id ? (
+                    <div style={{ marginTop: 12, background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 12, padding: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ font: `700 10.5px ${JAK}`, letterSpacing: ".08em", color: C.greenDk, textTransform: "uppercase" }}>Latest code from LinkedIn</span>
+                        <button onClick={() => setCodeOpenId(null)} style={{ font: `600 11px ${JAK}`, color: C.muted, background: "none", border: "none", cursor: "pointer" }}>Hide</button>
+                      </div>
+                      {codeInfo.loading ? (
+                        <div style={{ font: `600 13px ${JAK}`, color: C.muted, marginTop: 8 }}>Checking…</div>
+                      ) : codeInfo.error ? (
+                        <div style={{ font: `600 12.5px ${JAK}`, color: C.red, marginTop: 8 }}>{codeInfo.error}</div>
+                      ) : codeInfo.code ? (<>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                          <span style={{ font: `700 26px ${GRO}`, letterSpacing: ".16em", color: "#0b1220" }}>{codeInfo.code}</span>
+                          <button onClick={() => { navigator.clipboard?.writeText(codeInfo.code!); setCodeInfo((c) => ({ ...c, copied: true })); }} style={{ font: `700 12px ${JAK}`, color: "#0b1220", background: "#a7f3d0", border: "none", borderRadius: 8, padding: "8px 12px", cursor: "pointer" }}>{codeInfo.copied ? "Copied" : "Copy"}</button>
+                          <button onClick={() => void loadCode(s.codeSessionId!)} style={{ font: `700 12px ${JAK}`, color: C.greenDk, background: "none", border: "none", cursor: "pointer" }}>Refresh</button>
+                        </div>
+                        <div style={{ font: `500 11px/1.45 ${JAK}`, color: "#5b7a68", marginTop: 8 }}>For {s.name}. Codes expire fast — if LinkedIn rejects it, tap resend on LinkedIn, then Refresh here.</div>
+                      </>) : (<>
+                        <div style={{ font: `600 12.5px/1.5 ${JAK}`, color: "#5b7a68", marginTop: 8 }}>No code yet. On LinkedIn, start the sign-in or tap “Send code”, then Refresh here.</div>
+                        <button onClick={() => void loadCode(s.codeSessionId!)} style={{ font: `700 12px ${JAK}`, color: C.greenDk, background: "#fff", border: `1px solid ${C.softGreenBorder}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer", marginTop: 10 }}>Refresh</button>
+                      </>)}
+                    </div>
+                  ) : (
+                    <button onClick={() => toggleCode(s.codeSessionId!, s.id)} style={{ display: "block", width: "100%", marginTop: 10, font: `700 13px ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, padding: 12, borderRadius: 11, cursor: "pointer" }}>Get sign-in code</button>
+                  ))}
                   {/* Delete — only before onboarding finishes / any payment (the server re-checks). */}
                   {s.deletable && (deleteId === s.id ? (
                     <div style={{ marginTop: 10, padding: "11px 12px", background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 11 }}>
