@@ -345,6 +345,12 @@ model AmbassadorApplication {
   // Set when the account can't be logged into (restricted / wrong password / etc.) —
   // holds the reason and blocks payouts until resolved. Null = fine.
   accountIssue      String?          @map("account_issue")
+  // Manual hold on the referrer's commission for this signup: when set, the referral drops
+  // out of "due now" on the payouts view into a Held section (with this reason) until released,
+  // without un-earning it. For blockers like a restricted referred account or a referrer with
+  // no payout method saved. Cleared to put it back on the due list.
+  referralHoldReason String?         @map("referral_hold_reason")
+  referralHeldAt    DateTime?         @map("referral_held_at")
   // Free-text payout handle (e.g. a GCash number) shown alongside paymentMethod.
   paymentDetails    String?          @map("payment_details")
   // Legal/registered account-holder name for the payout method — must match the name

@@ -334,12 +334,13 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
   );
 }
 
-type ReferralDue = { applicationId: string; person: string; url: string | null; referrerName: string; referrerId: string | null; referrerSlug: string | null; amount: number; currency: "PHP" | "USD"; dueDate: string; status: "ready" | "upcoming"; payVia: string | null };
+type ReferralDue = { applicationId: string; person: string; url: string | null; referrerName: string; referrerId: string | null; referrerSlug: string | null; amount: number; currency: "PHP" | "USD"; dueDate: string; status: "ready" | "upcoming"; payVia: string | null; holdReason?: string | null };
 
 export default function PayoutsIIPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [onboarding, setOnboarding] = useState<{ count: number; names: string[] }>({ count: 0, names: [] });
   const [referralsDue, setReferralsDue] = useState<ReferralDue[]>([]);
+  const [referralsHeld, setReferralsHeld] = useState<ReferralDue[]>([]);
   const [markingRef, setMarkingRef] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
@@ -356,7 +357,20 @@ export default function PayoutsIIPage() {
     try {
       const due = await fetch("/api/admin/payments-due").then((r) => (r.ok ? r.json() : null)).catch(() => null);
       setReferralsDue(Array.isArray(due?.referralsDue) ? due.referralsDue : []);
+      setReferralsHeld(Array.isArray(due?.referralsHeld) ? due.referralsHeld : []);
     } catch { /* referral block is best-effort */ }
+  };
+  // Hold moves a referral out of "due now" into Held (with a reason); release puts it back.
+  const setHold = async (d: ReferralDue, reason: string | null) => {
+    setMarkingRef(d.applicationId);
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${d.applicationId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralHoldReason: reason }),
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Could not update hold: ${j.error || res.status}`); return; }
+      await load();
+    } finally { setMarkingRef(null); }
   };
   useEffect(() => { load(); }, []);
 
@@ -458,6 +472,7 @@ export default function PayoutsIIPage() {
                 ? <span style={{ font: `700 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", whiteSpace: "nowrap" }}>maturing</span>
                 : <ReferralMarkButton d={d} busy={markingRef === d.applicationId} onMark={markReferral} />}
               {!up && <span style={{ font: `700 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, background: "var(--blue-chip-bg,#eaf1ff)", color: "var(--blue-chip-text,#2b5fd0)", whiteSpace: "nowrap" }}>{money(d.amount, d.currency)} due</span>}
+              {!up && <button disabled={markingRef === d.applicationId} onClick={() => { const reason = (window.prompt("Hold this referral (moves it out of 'due now' until you release it). Reason:", d.payVia ? "account restricted" : "referrer payout not set") || "").trim(); if (reason) setHold(d, reason); }} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 999, background: "transparent", border: "1px solid var(--border,#dcdce0)", color: "var(--muted,#8a9099)", cursor: "pointer", whiteSpace: "nowrap" }}>Hold</button>}
             </div>
           </div>
         );
@@ -483,6 +498,30 @@ export default function PayoutsIIPage() {
           </section>
         );
       })()}
+
+      {referralsHeld.length > 0 && (
+        <section style={{ marginTop: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+            <span style={{ width: 10, height: 10, borderRadius: 999, background: "var(--muted,#9aa0a6)" }} />
+            <h2 style={{ font: `700 17px ${F_GRO}`, margin: 0, color: "var(--fg,#111)" }}>Held — not chasing</h2>
+            <span style={{ font: `700 13px ${F_SANS}`, color: "var(--muted,#888)" }}>{referralsHeld.length}</span>
+            <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#9aa0a6)" }}>still owed, out of the due list until you release them</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+            {referralsHeld.map((d) => (
+              <div key={d.applicationId} style={{ border: "1px dashed var(--border,#e0e0e4)", borderRadius: 12, background: "var(--panel,#fafafa)", display: "flex", alignItems: "center", gap: 14, padding: "13px 16px" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)" }}>{d.url ? <a href={d.url} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{d.person} ↗</a> : d.person}</div>
+                  <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 2 }}>referrer: <b style={{ color: "var(--fg,#444)" }}>{d.referrerName}</b></div>
+                  <div style={{ font: `600 12px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)", marginTop: 6 }}>⏸ On hold: {d.holdReason}</div>
+                </div>
+                <span style={{ font: `800 16px ${F_GRO}`, color: "var(--muted,#8a9099)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{d.currency === "USD" ? "$" : "₱"}{Math.round(d.amount).toLocaleString("en-US")}</span>
+                <button disabled={markingRef === d.applicationId} onClick={() => setHold(d, null)} style={{ font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "transparent", border: "1px solid var(--border,#dcdce0)", color: "var(--fg,#444)", cursor: "pointer", whiteSpace: "nowrap" }}>Release</button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {rows && (
         <>

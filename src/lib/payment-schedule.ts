@@ -82,6 +82,7 @@ export interface ReferralDue {
   dueDate: string;         // maturation date (past for ready, future for upcoming)
   status: "ready" | "upcoming";
   payVia: string | null;   // referrer's payout method · details
+  holdReason?: string | null; // set only on held items (see referralsHeld)
 }
 export interface PaymentsDue {
   setup: DueItem[];        // setup fees due now / overdue (unpaid)
@@ -90,6 +91,7 @@ export interface PaymentsDue {
   marketers: MarketerDue[];// commissions ready to pay (onboarded + verified + matured)
   marketersUpcoming: MarketerUpcoming[]; // earned but still maturing (Level 4→5) — due later
   referralsDue: ReferralDue[]; // per-person referral commissions still owed (ready + upcoming)
+  referralsHeld: ReferralDue[]; // earned but manually held (blocked) — out of "due now" with a reason
   marketerPayments: MarketerPayment[]; // referral commissions actually paid (drives ✓ Paid rows)
   totalDueNow: number;     // setup + monthly + marketer, due now (PH ₱ only — legacy)
   totalsByCurrency: Record<Currency, number>; // due-now totals split by currency
@@ -108,6 +110,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
       paymentMethod: true, paymentDetails: true, referredBy: true, referralSource: true, payoutCurrency: true, verifiedAt: true,
       createdAt: true, diyTier: true, status: true, accountIssue: true, onboardingMethod: true, onboardingVerified: true,
+      referralHoldReason: true,
     },
   });
 
@@ -216,6 +219,7 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
 
   // Per-person referral dues — one row per still-owed referral, tied to its applicationId.
   const referralsDue: ReferralDue[] = [];
+  const referralsHeld: ReferralDue[] = [];
   for (const [slug, list] of earnedByRefSlug) {
     const r = refBySlug.get(slug);
     const cfg = currencyConfig(r?.slug || slug);
@@ -228,14 +232,18 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
       if (legacyRemaining >= amt - 0.001) { legacyRemaining -= amt; continue; } // covered by a legacy lump payout
       const matured = isMatured(a);
       const dueMs = referralMaturesAt(a)?.getTime() ?? Date.now(); // null → already matured/onboarded → due now
-      referralsDue.push({
+      const row: ReferralDue = {
         applicationId: a.id, person: a.fullName, url: a.linkedinUrl,
         referrerName: r?.name || slug, referrerId: r?.id || null, referrerSlug: r?.slug || null,
         amount: amt, currency: cfg.currency, dueDate: new Date(dueMs).toISOString(),
         status: matured ? "ready" : "upcoming", payVia,
-      });
+      };
+      // Manually held (blocked) → out of "due now" and totals, into the Held list with its reason.
+      if (a.referralHoldReason) { referralsHeld.push({ ...row, holdReason: a.referralHoldReason }); continue; }
+      referralsDue.push(row);
     }
   }
+  referralsHeld.sort((a, b) => a.referrerName.localeCompare(b.referrerName));
   referralsDue.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
   // Aggregate per referrer (backward-compat for the digest) from the per-person dues.
@@ -267,5 +275,5 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   for (const i of monthly) totalsByCurrency[i.currency] += i.amount;
   for (const m of marketers) totalsByCurrency[m.currency] += m.amount;
 
-  return { setup, monthly, upcoming, marketers, marketersUpcoming, referralsDue, marketerPayments, totalDueNow: totalsByCurrency.PHP, totalsByCurrency, horizonDays };
+  return { setup, monthly, upcoming, marketers, marketersUpcoming, referralsDue, referralsHeld, marketerPayments, totalDueNow: totalsByCurrency.PHP, totalsByCurrency, horizonDays };
 }
