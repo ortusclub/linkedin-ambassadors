@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { decryptSecret } from "@/lib/crypto-creds";
+import { forwardingActive } from "@/lib/onboarding-email-policy";
 
 // Onboarding pipeline — every ambassador application, bucketed by how far along it
 // is. The one non-obvious rule: an application only counts as ONBOARDED once the
@@ -48,7 +49,14 @@ export async function GET() {
     // cleared once we sign in, so the "Needs sign-in" badge below also requires that the
     // account hasn't been logged in yet (onboardedAt unset). Once it's logged in, the
     // sign-in is done and the badge must drop.
-    const selfSessions = await prisma.selfServiceOnboarding.findMany({ select: { id: true, referrerId: true, applicationId: true, accountId: true, state: true } });
+    const selfSessions = await prisma.selfServiceOnboarding.findMany({ select: { id: true, referrerId: true, applicationId: true, accountId: true, state: true, emailSetup: { select: { lastCode: true, lastCodeAt: true, forwardingUntil: true, destinationVerifiedAt: true, consentAt: true } } } });
+    // Latest LinkedIn code per application — shown to the team ONLY while forwarding is active
+    // (session not confirmed / not onboarded) and fresh (<15 min); mirrors the referrer wizard.
+    const latestCodeByApp = new Map<string, string>();
+    for (const s of selfSessions) {
+      const e = s.emailSetup;
+      if (e?.lastCode && e.lastCodeAt && forwardingActive(e, s.state) && Date.now() - e.lastCodeAt.getTime() < 15 * 60000) latestCodeByApp.set(s.applicationId, e.lastCode);
+    }
     const inProgressAppIds = new Set(selfSessions.filter(s => ["reserved", "needs_help", "ready"].includes(s.state)).map(s => s.applicationId));
     const handoffAppIds = new Set(selfSessions.filter(s => s.state === "handed_off").map(s => s.applicationId));
     const sessionByApplication = new Map(selfSessions.map(s => [s.applicationId, s]));
@@ -229,6 +237,7 @@ export async function GET() {
         // DIY phone hand-off: owner is on a phone, so LinkedVelocity must do the sign-in.
         // Only "pending" until the account is actually logged in (onboardedAt stamped).
         phoneHandoffPending: handoffAppIds.has(app.id) && !app.onboardedAt,
+        latestCode: latestCodeByApp.get(app.id) || null,
       };
     });
 
@@ -284,6 +293,7 @@ export async function GET() {
         provisionStatus: a.provisionStatus || null,
         connectionCount: a.connectionCount ?? null,
         phoneHandoffPending: false,
+        latestCode: null,
       }));
 
     return NextResponse.json({ rows: [...rows, ...orphanRows] });

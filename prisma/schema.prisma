@@ -661,6 +661,12 @@ model OnboardingEmailSetup {
   // LinkedIn's "confirm this email" link, captured from the forwarded message so the wizard
   // can show it directly (copy / open) instead of depending on the forwarded email arriving.
   confirmUrl String? @map("confirm_url")
+  // Latest LinkedIn verification/OTP code parsed from a forwarded message, surfaced to the
+  // account's referrer (in the wizard) and the team (admin) during onboarding ONLY. Written
+  // solely while forwarding is active (session not confirmed) and cleared the moment the
+  // session is confirmed / the account is onboarded, so codes are never retrievable after.
+  lastCode String? @map("last_code")
+  lastCodeAt DateTime? @map("last_code_at")
   primaryConfirmedAt DateTime? @map("primary_confirmed_at")
   lastForwardedAt DateTime? @map("last_forwarded_at")
   createdAt DateTime @default(now()) @map("created_at")

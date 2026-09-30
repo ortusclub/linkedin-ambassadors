@@ -10,6 +10,7 @@ export type EmailSetup = {
   destinationVerified: boolean; verificationCodePending: boolean; primaryConfirmed: boolean; forwardingActive: boolean;
   forwardingUntil: string | null; lastForwardedAt: string | null; primaryConfirmedAt: string | null;
   confirmUrl: string | null;
+  latestCode: string | null; latestCodeAt: string | null;
 };
 
 const MINI_STEPS = ["Code inbox", "Add email", "Verify email", "Make primary"];

@@ -420,6 +420,8 @@ export async function confirmOnboarding(id: string, referrerId: string, creds?: 
     } });
     // Pooled (Ortus/Apex) accounts are auto-owned by their pool account on onboard.
     if (acc.inventoryPool === "ortus" || acc.inventoryPool === "apex") await ensurePoolOwnership(tx, s.accountId, acc.inventoryPool);
+    // Onboarded now — purge any captured LinkedIn code so it's never retrievable post-onboarding.
+    await tx.onboardingEmailSetup.updateMany({ where: { sessionId: s.id }, data: { lastCode: null, lastCodeAt: null } });
   });
 }
 
