@@ -36,7 +36,7 @@ export default function AmbassadorLayout({
           <li>We assess your account based on connections, age, industry, and Sales Navigator status</li>
           <li>Receive your monthly earning estimate instantly</li>
           <li>Choose your payout method: USDC, PayPal, Wise, or bank transfer</li>
-          <li>Start earning on the 1st of every month — guaranteed</li>
+          <li>Get paid in the first few days of every month your account is active</li>
         </ol>
         <h3>What Determines Your Account Value?</h3>
         <ul>

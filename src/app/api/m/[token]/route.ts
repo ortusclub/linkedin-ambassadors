@@ -182,7 +182,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       } else if (paid) {
         const paidCount = Array.isArray(a.monthlyPayouts) ? (a.monthlyPayouts as { kind?: string }[]).filter((p) => p?.kind !== "setup").length : 0;
         const nm = monthlyDueDate(setupPaidDate(a.paidAt, a.monthlyPayouts), paidCount);
-        pay = { text: "Setup fee paid ✓", sub: nm ? `next monthly around ${fmtDate(nm.toISOString())}` : "monthly payouts continue on the 1st" };
+        pay = { text: "Setup fee paid ✓", sub: nm ? `next monthly around ${fmtDate(nm.toISOString())}` : "monthly payouts continue in the first few days of each month" };
       } else if (onboarded) {
         const ready = referralMaturesAt(a); // QC + 1 week; null when not QC'd yet or already matured
         if (!a.verifiedAt) {

@@ -623,7 +623,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             </>}
             </div>
             {(!bootstrap.configured || (!bootstrap.autoPurchase && !browserCapacityAvailable)) && <div className={styles.warn}><div>Browser setup isn&apos;t ready yet</div><p>Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access, then try Save &amp; continue.</p></div>}
-            <div className={styles.infoBlue} data-tour="payout-when"><div>When their money arrives</div><p>Once the sign-in is saved, the account counts as onboarded. We then verify it — {checkWindow(form.accountFreshness)}, because we wait about 24 hours before signing in — and their {setupOffer} goes out. {monthlyOffer} follows on the 1st of each month. They need to stay reachable for the odd LinkedIn check.</p></div>
+            <div className={styles.infoBlue} data-tour="payout-when"><div>When their money arrives</div><p>Once the sign-in is saved, the account counts as onboarded. We then verify it — {checkWindow(form.accountFreshness)}, because we wait about 24 hours before signing in — and their {setupOffer} goes out. {monthlyOffer} follows in the first few days of each month (the first working day if the 1st is a weekend), each month the account stays active and stable. They need to stay reachable for the odd LinkedIn check.</p></div>
             <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
           </form>}
 
