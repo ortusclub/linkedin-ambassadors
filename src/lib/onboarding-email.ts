@@ -47,7 +47,11 @@ export async function emailSetupSummary(id: string, referrerId: string) {
     verificationCodePending: !!e?.codeHash && !!e.codeExpiresAt && e.codeExpiresAt > new Date(),
     forwardingActive: !!e && forwardingActive(e, s.state), forwardingUntil: e?.forwardingUntil || null,
     lastForwardedAt: e?.lastForwardedAt || null, primaryConfirmedAt: e?.primaryConfirmedAt || null,
-    confirmUrl: e?.confirmUrl || null };
+    confirmUrl: e?.confirmUrl || null,
+    // Latest LinkedIn code — shown ONLY while forwarding is active (session not confirmed /
+    // not onboarded) and only if fresh (<15 min). Auto-hides after onboarding and when stale.
+    latestCode: e && forwardingActive(e, s.state) && e.lastCode && e.lastCodeAt && (Date.now() - e.lastCodeAt.getTime() < 15 * 60000) ? e.lastCode : null,
+    latestCodeAt: e && forwardingActive(e, s.state) && e.lastCode && e.lastCodeAt && (Date.now() - e.lastCodeAt.getTime() < 15 * 60000) ? e.lastCodeAt : null };
 }
 
 export async function requireEmailSetup(id: string, referrerId: string) {
@@ -172,6 +176,15 @@ export async function forwardOnboardingEmail(emailId: string) {
   // slow/failed forward never hides the link from the referrer.
   if (confirmUrl) {
     try { await prisma.onboardingEmailSetup.update({ where: { sessionId: e.sessionId }, data: { confirmUrl } }); } catch { /* best effort */ }
+  }
+  // Capture LinkedIn's 6-digit verification/OTP code so the referrer (wizard) and team (admin)
+  // can read it directly during setup — no relaying through the team. Only ever written here,
+  // inside the forwardingActive-gated path (session not confirmed), and cleared on confirm/onboard.
+  const labeledCode = content.match(/(?:code|pin|verification|security)[^0-9]{0,24}(\d{6})\b/i)?.[1];
+  const allSix = content.match(/\b\d{6}\b/g);
+  const code = labeledCode || (allSix && new Set(allSix).size === 1 ? allSix[0] : null);
+  if (code) {
+    try { await prisma.onboardingEmailSetup.update({ where: { sessionId: e.sessionId }, data: { lastCode: code, lastCodeAt: new Date() } }); } catch { /* best effort */ }
   }
   try {
     const current = await prisma.onboardingEmailSetup.findUnique({ where: { sessionId: e.sessionId }, include: { session: { select: { state: true } } } });

@@ -502,6 +502,17 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           {!selfMode && session && !handedOff && step >= 3 && step < 6 && !setupChoice && <button type="button" className={styles.linkBtn} disabled={busy} onClick={() => { setError(""); setSetupChoice(true); }}>← Change setup option</button>}
           {setupChoice && setupOptions()}
           <div hidden={setupChoice}>
+          {session?.emailSetup?.latestCode && step >= 3 && step < 6 && (
+            <div style={{ margin: "0 0 14px", border: "2px solid #15803d", background: "#f0faf4", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#15803d", marginBottom: 4 }}>Latest code from LinkedIn</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: ".16em", color: "#0b1220" }}>{session.emailSetup.latestCode}</span>
+                <button type="button" onClick={() => { navigator.clipboard?.writeText(session.emailSetup!.latestCode!); }} style={{ fontSize: 12, fontWeight: 700, color: "#0b1220", background: "#a7f3d0", border: "none", borderRadius: 8, padding: "8px 12px", cursor: "pointer" }}>Copy</button>
+                <button type="button" disabled={busy} onClick={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} style={{ fontSize: 12, fontWeight: 600, color: "#15803d", background: "none", border: "none", cursor: "pointer" }}>Refresh</button>
+              </div>
+              <div style={{ fontSize: 11.5, lineHeight: 1.45, fontWeight: 500, color: "#166534", marginTop: 6 }}>Sent to {session.emailSetup.address} for this account. Codes expire fast — if LinkedIn rejects it, tap resend on LinkedIn, then Refresh here.</div>
+            </div>
+          )}
           {!selfMode && step === 0 && <>
             <h1 className={styles.heroTitle}>Before you begin</h1>
             <p className={styles.lead}>You&apos;re the referrer. You&apos;re onboarding the <strong>account owner</strong> — the person whose LinkedIn this is — virtually, with them on the other end. Six steps, about ten minutes.</p>

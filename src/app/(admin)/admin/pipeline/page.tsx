@@ -87,6 +87,7 @@ interface Row {
   referrer: { email?: string | null; viber?: string | null; name: string; token: string | null; whatsapp: string | null; telegram: string | null; preferred: string | null } | null;
   reason: string;
   phoneHandoffPending?: boolean;
+  latestCode?: string | null;
   hasGologin: boolean;
   hasLogin: boolean;
   accountId: string | null;
@@ -1110,6 +1111,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
               {missingGologin(r) && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No GoLogin — account can't be run until one is added" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin</span>}
               {r.accountIssue && !r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={r.accountIssue} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ {r.accountIssue.length > 22 ? "login issue" : r.accountIssue}</span>}
               {isLikelyTestEmail(r.email) && <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
+              {r.latestCode && <span title="Latest LinkedIn code forwarded during onboarding — expires fast. Clears once onboarded." style={{ font: `800 11px ${F_SANS}`, letterSpacing: ".08em", padding: "2px 9px", borderRadius: 999, background: "var(--st-active-bg,#e6f4ea)", color: "var(--st-active-fg,#188038)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(r.latestCode!); }}>🔑 {r.latestCode}</span>}
               {r.provisionStatus === "ready_to_buy_cheap" && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No proxy-cheap residential free for this account — buy one to finish auto-provisioning" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>🛒 Ready to buy proxy-cheap</span>}
               {r.provisionStatus === "needs_proxy6" && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No Proxy 6 datacenter IP free for this verified account — buy one (no Proxy 6 API)" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ Needs Proxy 6</span>}
             </div>
