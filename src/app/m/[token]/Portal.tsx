@@ -431,6 +431,36 @@ export default function Portal({ token }: { token: string }) {
               </div>
             </div>
 
+            {/* what sets the rate — method × verified, right under the hero tiles */}
+            <div style={card}>
+              <div style={cardTitle}>What sets your rate</div>
+              <p style={{ font: `500 12px/1.5 ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Two things decide the amount, locked in when the account is onboarded.</p>
+              <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", font: `600 10.5px ${JAK}`, color: C.muted, padding: "0 6px 7px", borderBottom: `1px solid ${C.line}` }}>Who signs in</th>
+                    <th style={{ textAlign: "right", font: `600 10.5px ${JAK}`, color: C.muted, padding: "0 6px 7px", borderBottom: `1px solid ${C.line}` }}>Not verified</th>
+                    <th style={{ textAlign: "right", font: `600 10.5px ${JAK}`, color: C.muted, padding: "0 6px 7px", borderBottom: `1px solid ${C.line}` }}>Verified</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={{ font: `600 12px ${JAK}`, color: C.ink, padding: "9px 6px", borderBottom: `1px solid ${C.line2}` }}>Phone — we sign in</td>
+                    <td style={{ font: `600 12.5px ${JAK}`, color: C.slate, textAlign: "right", padding: "9px 6px", borderBottom: `1px solid ${C.line2}` }}>{cellD("phone", "base")}</td>
+                    <td style={{ font: `700 12.5px ${JAK}`, color: C.greenDk, textAlign: "right", padding: "9px 6px", borderBottom: `1px solid ${C.line2}` }}>{cellD("phone", "verified")}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ font: `600 12px ${JAK}`, color: C.ink, padding: "9px 6px" }}>Computer — you sign in</td>
+                    <td style={{ font: `600 12.5px ${JAK}`, color: C.slate, textAlign: "right", padding: "9px 6px" }}>{cellD("computer", "base")}</td>
+                    <td style={{ font: `700 12.5px ${JAK}`, color: C.greenDk, textAlign: "right", padding: "9px 6px" }}>{cellD("computer", "verified")}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div style={{ font: `500 11.5px/1.5 ${JAK}`, color: C.muted, marginTop: 11 }}>
+                <strong style={{ color: C.slate }}>Sign-in method:</strong> doing the final sign-in yourself on a computer pays more than handing it to us on a phone. <strong style={{ color: C.slate }}>Verified:</strong> the account has passed LinkedIn&apos;s ID verification — verified accounts rent for more and are safer from restrictions, so they pay the higher amount.
+              </div>
+            </div>
+
             {/* send the form */}
             <div style={card}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 5 }}>
@@ -796,36 +826,6 @@ export default function Portal({ token }: { token: string }) {
                 </div>
               ))}
               <div style={{ background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 11, padding: 12, font: `500 12.5px/1.45 ${JAK}`, color: C.blueInk }}>Only the last step needs a computer — the protected browser doesn&apos;t run on phones. No computer today? Choose &ldquo;hand it to us&rdquo; and our team does the sign-in. They still get paid; you earn a little less.</div>
-            </div>
-
-            {/* what sets the rate — the method × verified table */}
-            <div style={{ ...card, padding: 17 }}>
-              <div style={cardTitle}>What sets your rate</div>
-              <p style={{ font: `500 12px/1.5 ${JAK}`, color: C.muted, margin: "0 0 12px" }}>Two things decide the amount, locked in when the account is onboarded.</p>
-              <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", font: `600 10.5px ${JAK}`, color: C.muted, padding: "0 6px 7px", borderBottom: `1px solid ${C.line}` }}>Who signs in</th>
-                    <th style={{ textAlign: "right", font: `600 10.5px ${JAK}`, color: C.muted, padding: "0 6px 7px", borderBottom: `1px solid ${C.line}` }}>Not verified</th>
-                    <th style={{ textAlign: "right", font: `600 10.5px ${JAK}`, color: C.muted, padding: "0 6px 7px", borderBottom: `1px solid ${C.line}` }}>Verified</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={{ font: `600 12px ${JAK}`, color: C.ink, padding: "9px 6px", borderBottom: `1px solid ${C.line2}` }}>Phone — we sign in</td>
-                    <td style={{ font: `600 12.5px ${JAK}`, color: C.slate, textAlign: "right", padding: "9px 6px", borderBottom: `1px solid ${C.line2}` }}>{cellD("phone", "base")}</td>
-                    <td style={{ font: `700 12.5px ${JAK}`, color: C.greenDk, textAlign: "right", padding: "9px 6px", borderBottom: `1px solid ${C.line2}` }}>{cellD("phone", "verified")}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ font: `600 12px ${JAK}`, color: C.ink, padding: "9px 6px" }}>Computer — you sign in</td>
-                    <td style={{ font: `600 12.5px ${JAK}`, color: C.slate, textAlign: "right", padding: "9px 6px" }}>{cellD("computer", "base")}</td>
-                    <td style={{ font: `700 12.5px ${JAK}`, color: C.greenDk, textAlign: "right", padding: "9px 6px" }}>{cellD("computer", "verified")}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div style={{ font: `500 11.5px/1.5 ${JAK}`, color: C.muted, marginTop: 11 }}>
-                <strong style={{ color: C.slate }}>Sign-in method:</strong> doing the final sign-in yourself on a computer pays more than handing it to us on a phone. <strong style={{ color: C.slate }}>Verified:</strong> the account has passed LinkedIn&apos;s ID verification — verified accounts rent for more and are safer from restrictions, so they pay the higher amount.
-              </div>
             </div>
 
             {/* do / don't */}
