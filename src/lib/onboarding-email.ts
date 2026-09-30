@@ -163,7 +163,9 @@ export async function forwardOnboardingEmail(emailId: string) {
     const prior = await tx.onboardingEmailDelivery.findUnique({ where: { emailId } });
     if (prior && (prior.status === "sent" || prior.createdAt.getTime() < now.getTime() - 23 * 3600000)) return false;
     if (prior?.leaseUntil && prior.leaseUntil > now) throw new Error("Delivery is in progress");
-    if (!prior && await tx.onboardingEmailDelivery.count({ where: { sessionId: e.sessionId } }) >= 20) return false;
+    // Rolling 24h cap (not lifetime) — anti-abuse without permanently locking a long/retried
+    // onboarding out of receiving new codes once it has forwarded 20 emails over its lifetime.
+    if (!prior && await tx.onboardingEmailDelivery.count({ where: { sessionId: e.sessionId, createdAt: { gt: new Date(now.getTime() - 86400000) } } }) >= 20) return false;
     await tx.onboardingEmailDelivery.upsert({ where: { emailId }, create: { emailId, sessionId: e.sessionId, leaseUntil: new Date(now.getTime() + 60000) }, update: { leaseUntil: new Date(now.getTime() + 60000) } });
     return true;
   });
