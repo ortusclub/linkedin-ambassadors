@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { blogFontVars } from "@/lib/blog-fonts";
+import { getBrand } from "@/lib/brand";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
@@ -27,7 +28,52 @@ const WHY = [
   { title: "Real, consenting people", body: "Every profile is a real professional who has opted in." },
 ];
 
-export default function HomePage() {
+// Per-brand hero + steps. LinkedVelocity copy is unchanged; LinkedArmy gets the
+// "hire an ambassador" framing. Everything below the steps is shared for now.
+const HERO = {
+  linkedvelocity: {
+    h1a: "Scale LinkedIn outreach",
+    h1b: "without the limits",
+    sub: "Rent verified, pre-warmed LinkedIn accounts with real connections and established histories — run parallel campaigns and hit pipeline targets in weeks, not quarters.",
+    cta: "Browse Available Accounts →",
+    trust: "Real, aged & verified · GoLogin-protected · Cancel anytime",
+    tiles: [
+      ["#4B9BEA", "Verified", "real, consenting professionals"],
+      ["#4B9BEA", "Protected", "GoLogin anti-detect sessions"],
+      ["#26C879", "Flexible", "cancel anytime, no contracts"],
+    ],
+    ownLead: "Own a LinkedIn account?",
+    ownCta: "Earn passive income sharing it →",
+  },
+  linkedarmy: {
+    h1a: "Don't build a network.",
+    h1b: "Hire an army.",
+    sub: "Hire a whole team of real LinkedIn professionals with established networks — they put your outreach in front of the right people, at scale, from day one.",
+    cta: "Meet the team →",
+    trust: "Real professionals · Vetted networks · Month to month",
+    tiles: [
+      ["#4B9BEA", "Real people", "vetted, consenting professionals"],
+      ["#4B9BEA", "Established", "aged networks, genuine history"],
+      ["#26C879", "At scale", "one seat or a whole team"],
+    ],
+    ownLead: "Have a strong LinkedIn network?",
+    ownCta: "Earn as an ambassador →",
+  },
+} as const;
+
+const STEPS_BY_BRAND = {
+  linkedvelocity: STEPS,
+  linkedarmy: [
+    { n: "1", tag: "Meet", title: "Meet the team", body: "Browse vetted professionals by industry, location and network size. Every one is a real, established profile — with genuine history." },
+    { n: "2", tag: "Hire", title: "Hire monthly", body: "Add one professional or a whole team for a flat monthly fee. No contracts, no setup fees. Scale up or down anytime." },
+    { n: "3", tag: "Launch", title: "Launch campaigns", body: "Run outreach through established, credible profiles — multiply your reach, not your risk." },
+  ],
+} as const;
+
+export default async function HomePage() {
+  const brand = await getBrand();
+  const hero = HERO[brand.id];
+  const steps = STEPS_BY_BRAND[brand.id];
   return (
     <div className={blogFontVars} style={{ fontFamily: INT, color: "#0B1220", background: "#0D1B2A" }}>
       <style>{`
@@ -53,21 +99,17 @@ export default function HomePage() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: 9, fontSize: 13, fontWeight: 600, color: "#DCE7F5", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", padding: "8px 16px", borderRadius: 999, marginBottom: 26 }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00B85C", boxShadow: "0 0 5px 1px rgba(0,184,92,0.5), 0 0 12px 4px rgba(0,184,92,0.25)" }} />For growth &amp; outreach teams
           </div>
-          <h1 style={{ font: `800 clamp(38px,7vw,68px) ${POP}`, lineHeight: 1.02, letterSpacing: "-0.03em", margin: "0 0 22px", color: "#fff" }}>Scale LinkedIn outreach<br /><span style={{ color: "#26C879" }}>without the limits</span></h1>
-          <p style={{ fontSize: 19, lineHeight: 1.55, color: "#AFC0D6", margin: "0 auto 32px", maxWidth: 620 }}>Rent verified, pre-warmed LinkedIn accounts with real connections and established histories — run parallel campaigns and hit pipeline targets in weeks, not quarters.</p>
+          <h1 style={{ font: `800 clamp(38px,7vw,68px) ${POP}`, lineHeight: 1.02, letterSpacing: "-0.03em", margin: "0 0 22px", color: "#fff" }}>{hero.h1a}<br /><span style={{ color: "#26C879" }}>{hero.h1b}</span></h1>
+          <p style={{ fontSize: 19, lineHeight: 1.55, color: "#AFC0D6", margin: "0 auto 32px", maxWidth: 620 }}>{hero.sub}</p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 18 }}>
-            <Link href="/catalogue" className="lvh-cta" style={{ fontSize: 16, fontWeight: 600, color: "#fff", background: "#0A66C2", padding: "15px 28px", borderRadius: 12, textDecoration: "none", boxShadow: "0 14px 30px -12px rgba(10,102,194,0.75)" }}>Browse Available Accounts →</Link>
+            <Link href="/catalogue" className="lvh-cta" style={{ fontSize: 16, fontWeight: 600, color: "#fff", background: "#0A66C2", padding: "15px 28px", borderRadius: 12, textDecoration: "none", boxShadow: "0 14px 30px -12px rgba(10,102,194,0.75)" }}>{hero.cta}</Link>
             <Link href="/how-it-works" className="lvh-cta" style={{ fontSize: 16, fontWeight: 600, color: "#EAF0FA", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", padding: "15px 26px", borderRadius: 12, textDecoration: "none" }}>See how it works</Link>
           </div>
-          <div style={{ fontSize: 13, color: "#8CA0BC", marginBottom: 44 }}>Real, aged &amp; verified · GoLogin-protected · Cancel anytime</div>
+          <div style={{ fontSize: 13, color: "#8CA0BC", marginBottom: 44 }}>{hero.trust}</div>
 
           {/* honest trust tiles (no invented counts) */}
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", maxWidth: 760, margin: "0 auto" }}>
-            {[
-              ["#4B9BEA", "Verified", "real, consenting professionals"],
-              ["#4B9BEA", "Protected", "GoLogin anti-detect sessions"],
-              ["#26C879", "Flexible", "cancel anytime, no contracts"],
-            ].map(([c, t, s]) => (
+            {hero.tiles.map(([c, t, s]) => (
               <div key={t} style={{ flex: "1 1 200px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.11)", borderTop: `3px solid ${c}`, borderRadius: 14, padding: "22px 16px" }}>
                 <div style={{ font: `700 22px ${POP}`, color: c === "#26C879" ? "#26C879" : "#fff" }}>{t}</div>
                 <div style={{ fontSize: 12.5, color: "#93A6C0", marginTop: 6 }}>{s}</div>
@@ -75,7 +117,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          <div style={{ marginTop: 34, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,0.08)", fontSize: 15, color: "#AFC0D6" }}>Own a LinkedIn account? <Link href="/become-ambassador" style={{ color: "#26C879", fontWeight: 600, textDecoration: "none" }}>Earn passive income sharing it →</Link></div>
+          <div style={{ marginTop: 34, paddingTop: 26, borderTop: "1px solid rgba(255,255,255,0.08)", fontSize: 15, color: "#AFC0D6" }}>{hero.ownLead} <Link href="/become-ambassador" style={{ color: "#26C879", fontWeight: 600, textDecoration: "none" }}>{hero.ownCta}</Link></div>
         </div>
       </section>
 
@@ -86,7 +128,7 @@ export default function HomePage() {
           <h2 style={{ font: `700 clamp(30px,4vw,42px) ${POP}`, lineHeight: 1.08, letterSpacing: "-0.03em", margin: "0 auto 14px", maxWidth: 600 }}>Three steps to unlimited LinkedIn outreach</h2>
           <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 auto 64px", maxWidth: 520 }}>No warm-up period. No building profiles from scratch. No ceiling on your growth.</p>
           <div className="lvh-3">
-            {STEPS.map((s) => (
+            {steps.map((s) => (
               <div key={s.n} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                 <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(150deg,#12C169,#059748)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 24px ${POP}`, boxShadow: "0 10px 24px rgba(5,151,72,0.32)", border: "5px solid #F6F5F1", marginBottom: 24 }}>{s.n}</div>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `500 11px ${MONO}`, letterSpacing: "0.1em", textTransform: "uppercase", color: "#059748", background: "#E4F6EC", padding: "4px 11px", borderRadius: 999, marginBottom: 16 }}>{s.tag}</div>
