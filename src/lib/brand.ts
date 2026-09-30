@@ -196,11 +196,27 @@ export function brandForHost(host?: string | null): Brand {
   return DEFAULT_BRAND;
 }
 
+const CANONICAL_HOSTS = new Set(["linkedvelocity.com", "linkedreps.io"]);
+
+function isCanonicalHost(host?: string | null): boolean {
+  return CANONICAL_HOSTS.has(normalizeHost(host));
+}
+
 // Server-component / metadata resolver. Reads the incoming host from request headers.
+// On a real brand domain the host always wins (SEO-safe). On any OTHER host (Vercel
+// preview, localhost) a `?brand=` override — carried as the x-brand-override header set
+// by middleware, or the brand_override cookie — lets us demo either brand.
 export async function getBrand(): Promise<Brand> {
-  const { headers } = await import("next/headers");
+  const { headers, cookies } = await import("next/headers");
   const h = await headers();
-  return brandForHost(h.get("x-forwarded-host") ?? h.get("host"));
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!isCanonicalHost(host)) {
+    const fromHeader = h.get("x-brand-override");
+    if (fromHeader && fromHeader in BRANDS) return BRANDS[fromHeader as BrandId];
+    const fromCookie = (await cookies()).get("brand_override")?.value;
+    if (fromCookie && fromCookie in BRANDS) return BRANDS[fromCookie as BrandId];
+  }
+  return brandForHost(host);
 }
 
 // Brand for a route-handler Request (API routes get the raw Request).
