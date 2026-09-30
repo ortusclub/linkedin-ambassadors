@@ -57,7 +57,7 @@ const HERO = {
       ["#26C879", "At scale", "one seat or a whole team"],
     ],
     ownLead: "Have a strong LinkedIn network?",
-    ownCta: "Earn as an ambassador →",
+    ownCta: "Earn with your network →",
   },
 } as const;
 

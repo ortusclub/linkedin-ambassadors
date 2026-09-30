@@ -111,7 +111,7 @@ const linkedvelocity: Brand = {
   },
 };
 
-// LinkedArmy — the "hire a team" front. Same product, ambassador wrapping, "your outreach
+// LinkedArmy — the "hire a team" front. Same product, "hire a rep" wrapping, "your outreach
 // army" framing (army = scale + real people, NOT military; keep copy/visuals modern and
 // corporate, avoid deploy/troops/ranks/camo).
 // TODO(assets): add /public/linkedarmy-mark.png, /public/linkedarmy-favicon.svg and
@@ -155,14 +155,14 @@ const linkedarmy: Brand = {
   term: {
     verb: "Hire",
     verbLower: "hire",
-    noun: "ambassador",
-    nounPlural: "ambassadors",
+    noun: "rep",
+    nounPlural: "reps",
     catalogue: "Roster",
     browse: "Meet the Team",
     slogan: "Your outreach army",
     footerBlurb:
       "Hire a team of real LinkedIn professionals who run your outreach at scale — or join the network and earn.",
-    earnCta: "Earn as an ambassador",
+    earnCta: "Earn with your network",
     tagline: "Your outreach army.",
   },
 };
