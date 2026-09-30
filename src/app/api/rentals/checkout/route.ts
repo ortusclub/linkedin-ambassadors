@@ -9,8 +9,8 @@ export async function POST(req: Request) {
   try {
     const user = await requireAuth();
     const body = await req.json();
-    // Return to the SAME domain the checkout was started on, so a linkedreps.io
-    // customer lands back on linkedreps.io (not the LinkedVelocity fallback).
+    // Return to the SAME domain the checkout was started on, so a linkedarmy.com
+    // customer lands back on linkedarmy.com (not the LinkedVelocity fallback).
     const baseUrl = baseUrlFromRequest(req);
 
     // Support both single accountId and array of accountIds

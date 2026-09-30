@@ -11,7 +11,7 @@ import { getBrand } from "@/lib/brand";
 const inter = Inter({ subsets: ["latin"] });
 
 // Per-brand metadata: resolved from the request host so linkedvelocity.com and
-// linkedreps.io each get their own title, description, canonical/OG domain and icons.
+// linkedarmy.com each get their own title, description, canonical/OG domain and icons.
 export async function generateMetadata(): Promise<Metadata> {
   const brand = await getBrand();
   const m = brand.meta;

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const VALID_BRANDS = new Set(["linkedvelocity", "linkedreps"]);
-const CANONICAL_HOSTS = new Set(["linkedvelocity.com", "linkedreps.io"]);
+const VALID_BRANDS = new Set(["linkedvelocity", "linkedarmy"]);
+const CANONICAL_HOSTS = new Set(["linkedvelocity.com", "linkedarmy.com"]);
 
 function normHost(h: string | null): string {
   return (h || "").split(",")[0].trim().replace(/:\d+$/, "").replace(/^www\./, "").toLowerCase();
@@ -32,8 +32,8 @@ export function middleware(request: NextRequest) {
   }
 
   // Brand override — for previews and localhost only. On the real linkedvelocity.com /
-  // linkedreps.io domains the host always decides (this block is skipped), so SEO and
-  // production behaviour are unaffected. Elsewhere, `?brand=linkedreps` themes the whole
+  // linkedarmy.com domains the host always decides (this block is skipped), so SEO and
+  // production behaviour are unaffected. Elsewhere, `?brand=linkedarmy` themes the whole
   // session (via a request header for this render + a cookie to persist across pages).
   const host = normHost(request.headers.get("host"));
   if (!CANONICAL_HOSTS.has(host)) {

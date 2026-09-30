@@ -1,15 +1,15 @@
 // Brand config — one app, two public fronts, one backend.
 //
-// The same klabber app serves linkedvelocity.com AND linkedreps.io. The DATA layer
+// The same klabber app serves linkedvelocity.com AND linkedarmy.com. The DATA layer
 // (accounts, catalogue, rentals, admin) is shared and un-branded; only the WRAPPING
 // differs per host: name, logo, colours, sender email, SEO metadata, and the
-// rent-vs-ambassador terminology. Resolve the brand from the request host and read
+// rent-vs-hire terminology. Resolve the brand from the request host and read
 // everything customer-facing from the object this returns — never hardcode a brand
 // string in a page again.
 //
 // Adding a third front later is a new entry in BRANDS + HOST_TO_BRAND, nothing else.
 
-export type BrandId = "linkedvelocity" | "linkedreps";
+export type BrandId = "linkedvelocity" | "linkedarmy";
 
 export interface BrandMeta {
   titleDefault: string;
@@ -111,44 +111,46 @@ const linkedvelocity: Brand = {
   },
 };
 
-// LinkedReps — the ambassador-front brand. Same product, "hire an ambassador" wrapping.
-// TODO(assets): add /public/linkedreps-mark.png, /public/linkedreps-favicon.svg and
-// /public/linkedreps-og.png before pointing DNS live, or these fall back to 404.
-const linkedreps: Brand = {
-  id: "linkedreps",
-  name: "LinkedReps",
-  legalName: "LinkedReps",
-  domain: "linkedreps.io",
-  url: "https://linkedreps.io",
-  fromEmail: "LinkedReps <noreply@linkedreps.io>",
-  adminEmail: "info@linkedreps.io",
-  supportTelegram: "@linkedreps_support_bot",
-  logo: "/linkedreps-mark.png",
-  favicon: "/linkedreps-favicon.svg",
-  ogImage: "/linkedreps-og.png",
-  palette: { primary: "#0B7285", ink: "#161A1D" },
+// LinkedArmy — the "hire a team" front. Same product, ambassador wrapping, "your outreach
+// army" framing (army = scale + real people, NOT military; keep copy/visuals modern and
+// corporate, avoid deploy/troops/ranks/camo).
+// TODO(assets): add /public/linkedarmy-mark.png, /public/linkedarmy-favicon.svg and
+// /public/linkedarmy-og.png before pointing DNS live, or these fall back to 404.
+const linkedarmy: Brand = {
+  id: "linkedarmy",
+  name: "LinkedArmy",
+  legalName: "LinkedArmy",
+  domain: "linkedarmy.com",
+  url: "https://linkedarmy.com",
+  fromEmail: "LinkedArmy <noreply@linkedarmy.com>",
+  adminEmail: "info@linkedarmy.com",
+  supportTelegram: "@linkedarmy_support_bot",
+  logo: "/linkedarmy-mark.png",
+  favicon: "/linkedarmy-favicon.svg",
+  ogImage: "/linkedarmy-og.png",
+  palette: { primary: "#4338CA", ink: "#141326" },
   meta: {
-    titleDefault: "LinkedReps — Hire LinkedIn Ambassadors for B2B Outreach",
-    titleTemplate: "%s | LinkedReps",
+    titleDefault: "LinkedArmy — Hire a LinkedIn Outreach Team at Scale",
+    titleTemplate: "%s | LinkedArmy",
     description:
-      "Hire real LinkedIn ambassadors with established networks who run your outreach. One seat or a whole team, month to month.",
+      "Hire a whole team of real LinkedIn professionals who run your outreach at scale — established networks, from day one, month to month.",
     keywords: [
-      "hire LinkedIn ambassador",
+      "hire LinkedIn outreach team",
       "LinkedIn SDR",
-      "LinkedIn outreach service",
       "outsourced LinkedIn outreach",
+      "LinkedIn outreach at scale",
       "LinkedIn lead generation",
       "done for you LinkedIn",
       "B2B outreach",
-      "LinkedIn outreach partners",
+      "LinkedIn outreach agency",
     ],
-    ogTitle: "LinkedReps — Hire LinkedIn Ambassadors for B2B Outreach",
+    ogTitle: "LinkedArmy — Hire a LinkedIn Outreach Team at Scale",
     ogDescription:
-      "Hire real LinkedIn ambassadors with established networks who run your outreach. One seat or a whole team, month to month.",
-    ogImageAlt: "LinkedReps — Don't build a network. Hire one.",
-    twitterTitle: "LinkedReps — Hire LinkedIn Ambassadors",
+      "Hire a whole team of real LinkedIn professionals who run your outreach at scale — established networks, from day one.",
+    ogImageAlt: "LinkedArmy — Your outreach army",
+    twitterTitle: "LinkedArmy — Hire a LinkedIn Outreach Team",
     twitterDescription:
-      "Hire real LinkedIn ambassadors with established networks who run your outreach. Month to month.",
+      "Hire a team of real LinkedIn professionals who run your outreach at scale. Month to month.",
   },
   term: {
     verb: "Hire",
@@ -156,16 +158,16 @@ const linkedreps: Brand = {
     noun: "ambassador",
     nounPlural: "ambassadors",
     catalogue: "Roster",
-    browse: "Meet Ambassadors",
-    slogan: "Your outreach, handled",
+    browse: "Meet the Team",
+    slogan: "Your outreach army",
     footerBlurb:
-      "Hire real LinkedIn ambassadors with established networks who run your outreach — or join the network and earn.",
+      "Hire a team of real LinkedIn professionals who run your outreach at scale — or join the network and earn.",
     earnCta: "Earn as an ambassador",
-    tagline: "Don't build a network. Hire one.",
+    tagline: "Your outreach army.",
   },
 };
 
-export const BRANDS: Record<BrandId, Brand> = { linkedvelocity, linkedreps };
+export const BRANDS: Record<BrandId, Brand> = { linkedvelocity, linkedarmy };
 
 // Unknown hosts (previews, localhost, vercel.app) fall back to LinkedVelocity so
 // existing behaviour is unchanged everywhere except the two known public domains.
@@ -173,7 +175,7 @@ export const DEFAULT_BRAND: Brand = linkedvelocity;
 
 const HOST_TO_BRAND: Record<string, BrandId> = {
   "linkedvelocity.com": "linkedvelocity",
-  "linkedreps.io": "linkedreps",
+  "linkedarmy.com": "linkedarmy",
 };
 
 function normalizeHost(host?: string | null): string {
@@ -186,17 +188,17 @@ function normalizeHost(host?: string | null): string {
 }
 
 // Pure resolver: host string -> Brand. Exact match first, then a loose "contains" so
-// preview URLs like linkedreps-io-xxx.vercel.app still theme correctly during testing.
+// preview URLs like linkedarmy-com-xxx.vercel.app still theme correctly during testing.
 export function brandForHost(host?: string | null): Brand {
   const h = normalizeHost(host);
   const exact = HOST_TO_BRAND[h];
   if (exact) return BRANDS[exact];
-  if (h.includes("linkedreps")) return linkedreps;
+  if (h.includes("linkedarmy")) return linkedarmy;
   if (h.includes("linkedvelocity")) return linkedvelocity;
   return DEFAULT_BRAND;
 }
 
-const CANONICAL_HOSTS = new Set(["linkedvelocity.com", "linkedreps.io"]);
+const CANONICAL_HOSTS = new Set(["linkedvelocity.com", "linkedarmy.com"]);
 
 function isCanonicalHost(host?: string | null): boolean {
   return CANONICAL_HOSTS.has(normalizeHost(host));
@@ -225,7 +227,7 @@ export function brandFromRequest(req: Request): Brand {
 }
 
 // Absolute base URL for the SAME domain the request came in on. Use this for Stripe
-// return URLs, email links, etc. so a linkedreps.io customer is never bounced to
+// return URLs, email links, etc. so a linkedarmy.com customer is never bounced to
 // linkedvelocity.com. Falls back to env, then the default brand.
 export function baseUrlFromRequest(req: Request): string {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");

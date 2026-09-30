@@ -28,7 +28,7 @@ const WHY = [
   { title: "Real, consenting people", body: "Every profile is a real professional who has opted in." },
 ];
 
-// Per-brand hero + steps. LinkedVelocity copy is unchanged; LinkedReps gets the
+// Per-brand hero + steps. LinkedVelocity copy is unchanged; LinkedArmy gets the
 // "hire an ambassador" framing. Everything below the steps is shared for now.
 const HERO = {
   linkedvelocity: {
@@ -45,16 +45,16 @@ const HERO = {
     ownLead: "Own a LinkedIn account?",
     ownCta: "Earn passive income sharing it →",
   },
-  linkedreps: {
+  linkedarmy: {
     h1a: "Don't build a network.",
-    h1b: "Hire one.",
-    sub: "Hire real LinkedIn ambassadors with established networks and credibility — they put your outreach in front of the right people, from day one, no three-year warm-up.",
-    cta: "Meet the ambassadors →",
+    h1b: "Hire an army.",
+    sub: "Hire a whole team of real LinkedIn professionals with established networks — they put your outreach in front of the right people, at scale, from day one.",
+    cta: "Meet the team →",
     trust: "Real professionals · Vetted networks · Month to month",
     tiles: [
       ["#4B9BEA", "Real people", "vetted, consenting professionals"],
       ["#4B9BEA", "Established", "aged networks, genuine history"],
-      ["#26C879", "Flexible", "month to month, no contracts"],
+      ["#26C879", "At scale", "one seat or a whole team"],
     ],
     ownLead: "Have a strong LinkedIn network?",
     ownCta: "Earn as an ambassador →",
@@ -63,10 +63,10 @@ const HERO = {
 
 const STEPS_BY_BRAND = {
   linkedvelocity: STEPS,
-  linkedreps: [
-    { n: "1", tag: "Meet", title: "Meet the ambassadors", body: "Browse vetted professionals by industry, location and network size. Every ambassador is a real, established profile — with genuine history." },
-    { n: "2", tag: "Hire", title: "Hire monthly", body: "Add an ambassador for a flat monthly fee. No contracts, no setup fees. Scale your team up or down anytime." },
-    { n: "3", tag: "Launch", title: "Launch campaigns", body: "Run outreach through an established, credible profile — multiply your reach, not your risk." },
+  linkedarmy: [
+    { n: "1", tag: "Meet", title: "Meet the team", body: "Browse vetted professionals by industry, location and network size. Every one is a real, established profile — with genuine history." },
+    { n: "2", tag: "Hire", title: "Hire monthly", body: "Add one professional or a whole team for a flat monthly fee. No contracts, no setup fees. Scale up or down anytime." },
+    { n: "3", tag: "Launch", title: "Launch campaigns", body: "Run outreach through established, credible profiles — multiply your reach, not your risk." },
   ],
 } as const;
 
