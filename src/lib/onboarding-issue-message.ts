@@ -6,6 +6,7 @@ export const ONBOARDING_ISSUES = {
   twofa_incorrect: { label: "2FA incorrect", action: "The two-step verification key we have isn’t generating a working code for this account. Please redo the authenticator step at https://linkedvelocity.com/guide/two-step-verification and send us the exact setup key — the long string of letters and numbers shown under the QR code (tap “Can’t scan the QR code?” to reveal it), not a 6-digit code. That’s what lets us generate the correct sign-in code." },
   password: { label: "Password missing / wrong", action: "Check you can sign in to LinkedIn. If needed, reset the password using LinkedIn’s official recovery process, then contact our team to arrange a secure update." },
   restricted: { label: "Account restricted", action: "Open LinkedIn on your own phone and follow its identity-verification steps. See https://linkedvelocity.com/guide/restricted-account, then let our team know when the restriction is cleared." },
+  unresponsive: { label: "Unresponsive", action: "We’ve tried to reach you to continue onboarding but haven’t heard back yet. Please reply here so we can pick up where we left off — it only takes a few minutes to finish. If we don’t hear from you, we may pause this account’s onboarding." },
   other: { label: "Other", action: "" },
 } as const;
 export type OnboardingIssue = keyof typeof ONBOARDING_ISSUES;
