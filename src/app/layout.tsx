@@ -69,11 +69,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const brand = await getBrand();
   return (
     <html lang="en">
       <head>
@@ -81,11 +82,11 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://4h5iwfncny2cdhck.public.blob.vercel-storage.com" />
       </head>
       <body className={`${inter.className} antialiased bg-gray-50`}>
-        <JsonLd />
-        <Navbar />
+        <JsonLd brand={brand} />
+        <Navbar brand={brand} />
         <ScrollReveal />
         <main>{children}</main>
-        <Footer />
+        <Footer brand={brand} />
         <SupportBubble />
       </body>
     </html>

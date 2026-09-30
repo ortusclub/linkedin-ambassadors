@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { getBrand } from "@/lib/brand";
 
 const DISALLOWED_PATHS = ["/admin/", "/dashboard/", "/profile/", "/checkout/", "/api/"];
 
@@ -27,7 +28,8 @@ const AI_CRAWLERS = [
   "Diffbot",
 ];
 
-export default function robots(): MetadataRoute.Robots {
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const brand = await getBrand();
   return {
     rules: [
       ...AI_CRAWLERS.map((userAgent) => ({
@@ -41,7 +43,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: DISALLOWED_PATHS,
       },
     ],
-    sitemap: "https://linkedvelocity.com/sitemap.xml",
-    host: "https://linkedvelocity.com",
+    sitemap: `${brand.url}/sitemap.xml`,
+    host: brand.url,
   };
 }

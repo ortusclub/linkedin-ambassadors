@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import type { Brand } from "@/lib/brand";
 
 interface User {
   id: string;
@@ -14,9 +15,10 @@ interface User {
 const CALENDAR_URL =
   "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
 
-export function Navbar() {
+export function Navbar({ brand }: { brand: Brand }) {
   const router = useRouter();
   const pathname = usePathname();
+  const brandSuffix = brand.name.replace(/^Linked/, ""); // "Velocity" | "Reps"
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<string | null>(null);
@@ -106,9 +108,9 @@ export function Navbar() {
           <Link href={isAmb ? "/become-ambassador" : "/"} className="kl-logo">
             <span className="kl-logo-mark" aria-hidden="true">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/linkedvelocity-mark.png" alt="" width={36} height={36} style={{ borderRadius: 8 }} />
+              <img src={brand.logo} alt="" width={36} height={36} style={{ borderRadius: 8 }} />
             </span>
-            <span>Linked<span className="kl-word-velo">Velocity</span></span>
+            <span>Linked<span className="kl-word-velo">{brandSuffix}</span></span>
             <span className={`kl-tag ${isAmb ? "kl-tag-amb" : "kl-tag-rent"}`}>{isAmb ? "for Ambassadors" : "for Teams"}</span>
           </Link>
           <div className="kl-nav-right">
@@ -118,11 +120,11 @@ export function Navbar() {
                 <>
                   <a href="#how">How it works</a>
                   <a href="#earn">Earnings</a>
-                  <Link href="/catalogue" className="kl-cross-amb">← Rent a profile</Link>
+                  <Link href="/catalogue" className="kl-cross-amb">← {brand.term.verb} a profile</Link>
                 </>
               ) : (
                 <>
-                  <Link href="/catalogue">Browse Accounts</Link>
+                  <Link href="/catalogue">{brand.term.browse}</Link>
                   <Link href="/how-it-works">How it works</Link>
                   <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer">Book a Meeting</a>
                 </>
@@ -174,11 +176,11 @@ export function Navbar() {
             <>
               <a href="#how">How it works</a>
               <a href="#earn">Earnings</a>
-              <Link href="/catalogue">← Rent a profile</Link>
+              <Link href="/catalogue">← {brand.term.verb} a profile</Link>
             </>
           ) : (
             <>
-              <Link href="/catalogue">Browse Accounts</Link>
+              <Link href="/catalogue">{brand.term.browse}</Link>
               <Link href="/how-it-works">How it works</Link>
               <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer">Book a Meeting</a>
             </>

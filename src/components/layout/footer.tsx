@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Brand } from "@/lib/brand";
 
 // Marketing footer — shown on public/landing pages, hidden on app/admin/auth pages.
 const HIDE_PREFIXES = ["/guide/primary-email", "/admin", "/dashboard", "/login", "/register", "/profile", "/checkout", "/m"];
 
 const CALENDAR_URL =
   "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
-const TELEGRAM_URL = "https://t.me/linkedvelocity_support_bot";
 
-export function Footer() {
+export function Footer({ brand }: { brand: Brand }) {
   const pathname = usePathname() || "";
   if (HIDE_PREFIXES.some((p) => pathname.startsWith(p))) return null;
+  const telegramUrl = `https://t.me/${brand.supportTelegram.replace(/^@/, "")}`;
+  const brandSuffix = brand.name.replace(/^Linked/, "");
 
   return (
     <footer className="lv-footer">
@@ -40,12 +42,12 @@ export function Footer() {
         <div>
           <div className="lv-foot-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/linkedvelocity-mark.png" alt="LinkedVelocity" width={32} height={32} style={{ borderRadius: 8 }} />
-            <span>Linked<span className="lv-foot-velo">Velocity</span></span>
+            <img src={brand.logo} alt={brand.name} width={32} height={32} style={{ borderRadius: 8 }} />
+            <span>Linked<span className="lv-foot-velo">{brandSuffix}</span></span>
           </div>
-          <p className="lv-foot-slogan">Accelerate your network</p>
-          <p className="lv-foot-tag">Rent warmed-up LinkedIn accounts for outreach — or earn by sharing one you no longer use.</p>
-          <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="lv-foot-chat">💬 Chat with us on Telegram</a>
+          <p className="lv-foot-slogan">{brand.term.slogan}</p>
+          <p className="lv-foot-tag">{brand.term.footerBlurb}</p>
+          <a href={telegramUrl} target="_blank" rel="noopener noreferrer" className="lv-foot-chat">💬 Chat with us on Telegram</a>
         </div>
         <div className="lv-foot-cols">
           <div className="lv-foot-col">
@@ -66,13 +68,13 @@ export function Footer() {
           <div className="lv-foot-col">
             <b>Company</b>
             <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer">Book a meeting</a>
-            <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">Contact</a>
+            <a href={telegramUrl} target="_blank" rel="noopener noreferrer">Contact</a>
             <a href="#">About</a>
           </div>
         </div>
       </div>
       <div className="lv-foot-bottom">
-        <span>© 2026 LinkedVelocity. All rights reserved.</span>
+        <span>© 2026 {brand.name}. All rights reserved.</span>
         <div className="lv-foot-legal"><a href="#">Privacy</a><a href="#">Terms</a></div>
       </div>
     </footer>

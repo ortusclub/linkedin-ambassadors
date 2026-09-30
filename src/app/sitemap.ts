@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { getAllBlogPosts } from "@/lib/blog-posts";
+import { getBrand } from "@/lib/brand";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://linkedvelocity.com";
+  const baseUrl = (await getBrand()).url;
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [

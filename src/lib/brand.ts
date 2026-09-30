@@ -32,6 +32,10 @@ export interface BrandTerm {
   noun: string; // "account" | "ambassador"
   nounPlural: string; // "accounts" | "ambassadors"
   catalogue: string; // "Catalogue" | "Roster"
+  browse: string; // nav label: "Browse Accounts" | "Meet Ambassadors"
+  slogan: string; // footer small-caps line
+  footerBlurb: string; // footer one-liner
+  earnCta: string; // "Earn passive income sharing it" | "Earn as an ambassador"
   tagline: string;
 }
 
@@ -98,6 +102,11 @@ const linkedvelocity: Brand = {
     noun: "account",
     nounPlural: "accounts",
     catalogue: "Catalogue",
+    browse: "Browse Accounts",
+    slogan: "Accelerate your network",
+    footerBlurb:
+      "Rent warmed-up LinkedIn accounts for outreach — or earn by sharing one you no longer use.",
+    earnCta: "Earn passive income sharing it",
     tagline: "Scale LinkedIn outreach without the limits",
   },
 };
@@ -147,6 +156,11 @@ const linkedreps: Brand = {
     noun: "ambassador",
     nounPlural: "ambassadors",
     catalogue: "Roster",
+    browse: "Meet Ambassadors",
+    slogan: "Your outreach, handled",
+    footerBlurb:
+      "Hire real LinkedIn ambassadors with established networks who run your outreach — or join the network and earn.",
+    earnCta: "Earn as an ambassador",
     tagline: "Don't build a network. Hire one.",
   },
 };
