@@ -663,7 +663,7 @@ export default function BecomeAmbassadorPage() {
             </div>
             <div className="a-4grid" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
               {[
-                { icon: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M9 15l2 2 4-4" /></>, bg: "#E7F6EE", fg: "#067A45", label: "Paid monthly", body: "On the 1st of every month, like clockwork." },
+                { icon: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M9 15l2 2 4-4" /></>, bg: "#E7F6EE", fg: "#067A45", label: "Paid monthly", body: "In the first few days of every month — the first working day, since the 1st can fall on a weekend." },
                 { icon: <path d="M3 21h18M4 10h16M5 10l7-6 7 6M6 10v11M18 10v11M10 10v11M14 10v11" />, bg: "#EAF2FC", fg: "#0A66C2", label: "Your choice", body: "Bank transfer, straight to an account of your choice." },
                 { icon: <><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></>, bg: "#E7F6EE", fg: "#067A45", label: "Guaranteed", body: "Paid even in months your account isn't rented." },
                 { icon: <path d="M12 5v14M5 12h14" />, bg: "#EAF2FC", fg: "#0A66C2", label: "Scale up", body: "Add more accounts (yours or family's) for more income." },
@@ -743,7 +743,7 @@ export default function BecomeAmbassadorPage() {
                 { q: "Will this affect my LinkedIn account?", a: "Activity is kept human-paced and within LinkedIn's normal limits to protect the account. Your name stays exactly the same. We may update your photo to a cleaner, professional version that still clearly looks like you, and tweak details like your headline, job or About to keep the profile credible for professional outreach." },
                 { q: "What if my account gets restricted?", a: "It's rare — activity is kept human-paced and secure to protect the account. If a restriction ever does happen, we work to recover it, and since it's your own account you're never penalised for it." },
                 { q: "How much will I earn?", a: `A ${setupPrice} one-time setup bonus, then ${monthlyPrice} every month your account stays active — the same for every approved account. Have more than one (yours or family's)? Each earns its own bonus and monthly payout. Higher payouts for stronger profiles are coming soon.` },
-                { q: "When and how do I get paid?", a: "You're paid every month via bank transfer — even in months your account isn't rented." },
+                { q: "When and how do I get paid?", a: "You're paid every month via bank transfer, in the first few days of the month — on the first working day, since the 1st can fall on a weekend — for as long as your account stays active and stable, even in months it isn't rented." },
                 { q: "Do I have to do anything day-to-day?", a: "Nothing. It's completely hands-off — you don't run campaigns, reply to messages, or manage anything. We handle it all." },
                 { q: "Can I stop anytime?", a: "We ask for a light 6-month minimum to cover the up-front setup and warm-up we invest in your account. After that, you can withdraw your account at any time — no penalties. You keep your login and full access the whole time, and can always step in sooner if you're ever worried about your account's safety." },
                 { q: "Can I submit accounts that aren't mine?", a: "You can submit accounts belonging to family members with their consent — siblings, parents, aunties, uncles. Each approved account earns its own setup bonus and monthly payout." },
@@ -1082,7 +1082,7 @@ export default function BecomeAmbassadorPage() {
                     <span style={{ fontSize: 20, color: "#9DC4AE", fontWeight: 500 }}>/mo</span>
                   </div>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px", fontSize: 13, color: "#D6E7DD" }}>+ {setupPrice} one-time setup bonus</div>
-                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via bank transfer on the 1st of each month. Cancel anytime after a 6-month minimum.</p>
+                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#9DC4AE", margin: "20px 0 0" }}>Paid via bank transfer in the first few days of each month. Cancel anytime after a 6-month minimum.</p>
                 </div>
               </div>
 
@@ -1697,7 +1697,7 @@ export default function BecomeAmbassadorPage() {
               </div>
               <h2 className="text-3xl font-bold text-gray-900">Start Getting Paid</h2>
               <p className="mt-4 text-lg text-gray-600">
-                Once your account is approved, you&apos;ll start getting paid on the 1st of every month.
+                Once your account is approved, you&apos;ll start getting paid in the first few days of every month.
               </p>
 
               <Card className="mt-6 text-left">
@@ -1711,8 +1711,8 @@ export default function BecomeAmbassadorPage() {
                         </svg>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">Paid monthly on the 1st</p>
-                        <p className="text-sm text-gray-500">Your agreed amount is paid on the 1st of every month, directly to your preferred payment method.</p>
+                        <p className="font-medium text-gray-900">Paid at the start of each month</p>
+                        <p className="text-sm text-gray-500">Your agreed amount is paid in the first few days of every month — the first working day, since the 1st can fall on a weekend — for every month your account stays active and stable, directly to your preferred payment method.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -1771,7 +1771,7 @@ export default function BecomeAmbassadorPage() {
               {[
                 { q: "Is my account safe?", a: "Yes. Your account is accessed through a secure, isolated browser profile with its own fingerprint and proxy. It looks like normal usage to LinkedIn." },
                 { q: "Do I lose access to my own account?", a: "No. Both you and the renter have access to the account at any time through our proprietary software. You can see what they're using it for and who they're messaging. You don't lose access to anything." },
-                { q: "How do I get paid?", a: "We pay via bank transfer to a bank of your choice. We pay out on the 1st of every month." },
+                { q: "How do I get paid?", a: "We pay via bank transfer to a bank of your choice, in the first few days of every month — on the first working day, since the 1st can fall on a weekend — for as long as your account stays active and stable." },
                 { q: "Can I stop at any time?", a: "We ask for a light 6-month minimum to cover the up-front setup and warm-up we invest in your account. After that, you can withdraw anytime — just change your password or remove it — and you simply stop being paid for the following month. We'd appreciate a heads up. You always have full access to your account throughout, just like anybody else, and can step in sooner if you're ever worried about its safety." },
               ].map((faq) => (
                 <div key={faq.q}>

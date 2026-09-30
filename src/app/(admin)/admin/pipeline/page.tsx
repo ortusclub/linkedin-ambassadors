@@ -1507,7 +1507,7 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
         {schedRow(
           "monthly",
           `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
-          "On the 1st, after one full month of service",
+          "In the first few days of the month, after one full month of service",
           false, () => logPayment(r, "monthly"), `+ Log ${formatMoney(monthlyAmt(r), cfg.currency)}`
         )}
       </div>

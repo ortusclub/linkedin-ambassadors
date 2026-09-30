@@ -52,7 +52,7 @@ export default function AmbassadorTermsPage() {
         <div className="rounded-xl border border-green-100 bg-green-50/60 p-4">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Each month after</p>
           <p className="mt-1 text-2xl font-bold text-gray-900">{FEES.monthly.usd}</p>
-          <p className="text-xs text-gray-500">≈ {FEES.monthly.php} · paid on the 1st</p>
+          <p className="text-xs text-gray-500">≈ {FEES.monthly.php} · paid in the first few days of each month</p>
         </div>
         <div className="rounded-xl border border-green-100 bg-green-50/60 p-4">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Referral fee</p>
@@ -98,7 +98,7 @@ export default function AmbassadorTermsPage() {
         <p>5.1 <strong>Default Fees.</strong> Unless otherwise agreed in writing, the default fees for each Account are: (a) <strong>Month 1 (Initial Payment): {FEES.initial.usd}</strong> (≈ {FEES.initial.php}), paid once the Account is confirmed stable — approximately one week after the Account is logged in and passes the Company&apos;s quality checks. If LinkedIn restricts the Account during this period, the stability check restarts and the Initial Payment follows approximately three days after the restriction is cleared; and (b) <strong>Each month thereafter (Monthly Fee): {FEES.monthly.usd}</strong> (≈ {FEES.monthly.php}).</p>
         <p>5.2 <strong>Currency.</strong> Fees may be paid in PHP or the equivalent amount in any currency the Ambassador prefers, calculated at the prevailing exchange rate at the time of payment.</p>
         <p>5.3 <strong>Default Pricing &amp; Floor.</strong> The above are the assumed prices and apply unless a different figure is stipulated in writing. The Company occasionally pays more for more mature accounts, or for accounts that meet criteria the Company is specifically looking for. The price will never go lower than the default fees set out above.</p>
-        <p>5.4 <strong>Monthly Payment Date.</strong> The Monthly Fee is a payment for a full calendar month. The Initial Payment covers the Ambassador from the date of handover to the end of the first full calendar month following handover. Thereafter, the {FEES.monthly.php} Monthly Fee falls due on the 1st day of each subsequent calendar month, for as long as the Account remains active and accessible. This avoids paying a full monthly fee for only a few days where access is handed over close to the end of a month.</p>
+        <p>5.4 <strong>Monthly Payment Date.</strong> The Monthly Fee is a payment for a full calendar month. The Initial Payment covers the Ambassador from the date of handover to the end of the first full calendar month following handover. Thereafter, the {FEES.monthly.php} Monthly Fee falls due at the start of each subsequent calendar month and is paid within the first few working days of that month (payment moves to the first working day where the 1st falls on a weekend or public holiday), for as long as the Account remains active and accessible. This avoids paying a full monthly fee for only a few days where access is handed over close to the end of a month.</p>
         <p>5.5 <strong>Payment Method.</strong> All payments shall be made via a method of the Ambassador&apos;s choosing, including bank transfer, GCash, PayPal, or other widely-used payment platforms.</p>
       </Clause>
 
