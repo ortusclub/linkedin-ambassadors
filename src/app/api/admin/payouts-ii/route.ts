@@ -33,7 +33,7 @@ export async function GET() {
         location: true, connectionCount: true, accountAgeMonths: true,
         loginEmail: true, accountPassword: true, twoFactor: true,
         gologinProfileId: true, gologinShareLink: true,
-        status: true, restrictedAt: true, monthlyPrice: true, ambassadorPayment: true,
+        status: true, restrictedAt: true, payoutHoldReason: true, monthlyPrice: true, ambassadorPayment: true,
         notes: true,
       },
     });
@@ -102,6 +102,9 @@ export async function GET() {
       let dueISO: string | null = nextDue ? new Date(nextDue).toISOString() : null;
 
       if (a.restrictedAt) { bucket = "na"; reason = "Restricted"; }
+      // Admin payout hold: inaccessible / paused (not a LinkedIn restriction). Held out of
+      // the due/overdue chase until released; the specific reason rides along in holdReason.
+      else if (a.payoutHoldReason) { bucket = "na"; reason = "On hold"; }
       else if (a.status === "retired") { bucket = "na"; reason = "Inaccessible"; }
       else if (!ownerEmail || isCompanyEmail(ownerEmail)) { bucket = "na"; reason = "Company-owned · no ambassador"; }
       // Still in the onboarding pipeline — no onboarding date means nothing is owed
@@ -150,6 +153,7 @@ export async function GET() {
         monthlyPrice: a.monthlyPrice,
         bucket,
         reason,
+        holdReason: a.payoutHoldReason || null,
         overdue,
         daysLate,
         ownerName,

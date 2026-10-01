@@ -40,6 +40,9 @@ const updateSchema = z.object({
   // string to mark it, or null to clear. Held accounts are excluded from the
   // owner's setup/monthly payouts on the Account Owners view.
   restrictedAt: z.string().nullable().optional(),
+  // Admin payout hold (account inaccessible / paused — not a LinkedIn restriction). Pass a
+  // reason string to hold the owner's payout, or null to release it.
+  payoutHoldReason: z.string().nullable().optional(),
   twoFactorResetNeeded: z.boolean().optional(),
   paymentLinkedAccountId: z.string().uuid().nullable().optional(),
   gologinProfileId: z.string().nullable().optional(),
@@ -167,6 +170,13 @@ export async function PATCH(
     // A manual health mark stamps the check date server-side.
     if (data.linkedinAccountHealth !== undefined) {
       (data as Record<string, unknown>).healthCheckedAt = new Date();
+    }
+
+    // Setting/clearing a payout hold stamps (or clears) the held-at date server-side.
+    if (data.payoutHoldReason !== undefined) {
+      const reason = data.payoutHoldReason?.trim() || null;
+      (data as Record<string, unknown>).payoutHoldReason = reason;
+      (data as Record<string, unknown>).payoutHeldAt = reason ? new Date() : null;
     }
 
     // A restriction change (restrictedAt set or cleared) is recorded to the shared

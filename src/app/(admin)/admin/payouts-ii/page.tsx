@@ -47,6 +47,7 @@ interface Row {
   monthlyPrice: string | number;
   bucket: Bucket;
   reason: string;
+  holdReason: string | null;
   overdue: boolean;
   daysLate: number;
   ownerName: string | null;
@@ -188,10 +189,15 @@ function ReferralMarkButton({ d, busy, onMark }: { d: ReferralDue; busy: boolean
   );
 }
 
-function AccountRow({ r, onMarkPaid, onUpdatePayout }: { r: Row; onMarkPaid: (r: Row) => Promise<void>; onUpdatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void> }) {
+function AccountRow({ r, onMarkPaid, onUpdatePayout, onHold }: { r: Row; onMarkPaid: (r: Row) => Promise<void>; onUpdatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>; onHold: (r: Row, reason: string | null) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [busyIdx, setBusyIdx] = useState<number | null>(null);
+  const [holdBusy, setHoldBusy] = useState(false);
+  const doHold = async (reason: string | null) => {
+    setHoldBusy(true);
+    try { await onHold(r, reason); } finally { setHoldBusy(false); }
+  };
   const sym = r.payoutCurrency === "USD" ? "$" : "₱";
   const payFmt = (n: number) => `${sym}${(Number(n) || 0).toLocaleString()}`;
   const doUpdate = async (index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => {
@@ -254,6 +260,16 @@ function AccountRow({ r, onMarkPaid, onUpdatePayout }: { r: Row; onMarkPaid: (r:
         <span style={{ font: `700 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, background: chip.bg, color: chip.fg, whiteSpace: "nowrap" }}>{r.reason}</span>
       </button>
       {open && (<>
+        {/* Payout hold — pause an inaccessible / problem account (NOT a LinkedIn restriction)
+            so it drops out of the due chase, with a reason, until resumed. */}
+        <div style={{ borderTop: "1px solid var(--border,#eee)", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", background: r.holdReason ? "var(--warn-badge-bg,#fef3e2)" : "var(--panel,#fafafa)" }}>
+          {r.holdReason
+            ? <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⏸ Payout on hold — {r.holdReason}</span>
+            : <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Account inaccessible or paused? Hold the payout so it drops out of the due list.</span>}
+          {r.holdReason
+            ? <button disabled={holdBusy} onClick={() => void doHold(null)} style={{ font: `700 12px ${F_SANS}`, padding: "7px 13px", borderRadius: 8, border: "none", cursor: holdBusy ? "wait" : "pointer", whiteSpace: "nowrap", background: "var(--st-active-fg,#188038)", color: "#fff", opacity: holdBusy ? 0.6 : 1 }}>▶ Resume payouts</button>
+            : <button disabled={holdBusy} onClick={() => { const reason = prompt("Why is this payout on hold? (e.g. Inaccessible — can't log in)"); if (reason && reason.trim()) void doHold(reason.trim()); }} style={{ font: `700 12px ${F_SANS}`, padding: "7px 13px", borderRadius: 8, border: "1px solid var(--warn-badge-text,#b7791f)", cursor: holdBusy ? "wait" : "pointer", whiteSpace: "nowrap", background: "transparent", color: "var(--warn-badge-text,#b7791f)", opacity: holdBusy ? 0.6 : 1 }}>⏸ Put payout on hold</button>}
+        </div>
         <div style={{ borderTop: "1px solid var(--border,#eee)", padding: "16px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 16, background: "var(--panel,#fafafa)" }}>
           {/* Payout (money OUT to ambassador) */}
           <D label="Owner (ambassador)">{r.ownerName || "—"}</D>
@@ -342,7 +358,7 @@ function groupByOwner(rows: Row[], byDue: boolean): OwnerGroup[] {
 }
 
 // Order for the "not applicable" reason sub-groups.
-const REASON_ORDER = ["Restricted", "Inaccessible", "Company-owned · no ambassador", "No monthly rate set"];
+const REASON_ORDER = ["On hold", "Restricted", "Inaccessible", "Company-owned · no ambassador", "No monthly rate set"];
 function groupByReason(rows: Row[]): { reason: string; rows: Row[] }[] {
   const map = new Map<string, Row[]>();
   for (const r of rows) { if (!map.has(r.reason)) map.set(r.reason, []); map.get(r.reason)!.push(r); }
@@ -352,7 +368,7 @@ function groupByReason(rows: Row[]): { reason: string; rows: Row[] }[] {
   return groups;
 }
 
-function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid, onUpdatePayout }: { title: string; tone: string; note: string; rows: Row[]; byDue?: boolean; setup?: boolean; byReason?: boolean; onMarkPaid: (r: Row) => Promise<void>; onUpdatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void> }) {
+function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid, onUpdatePayout, onHold }: { title: string; tone: string; note: string; rows: Row[]; byDue?: boolean; setup?: boolean; byReason?: boolean; onMarkPaid: (r: Row) => Promise<void>; onUpdatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>; onHold: (r: Row, reason: string | null) => Promise<void> }) {
   // Setup fee is one-time per ambassador → count it once per owner group, not per account.
   const groups = groupByOwner(rows, !!byDue);
   const reasonGroups = byReason ? groupByReason(rows) : [];
@@ -379,7 +395,7 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid, 
                 <span style={{ font: `700 11px ${F_SANS}`, padding: "1px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#f1f1f2)", color: "var(--warn-badge-text,#6b7280)" }}>{g.rows.length}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {g.rows.map((r) => <AccountRow key={r.id} r={r} onMarkPaid={onMarkPaid} onUpdatePayout={onUpdatePayout} />)}
+                {g.rows.map((r) => <AccountRow key={r.id} r={r} onMarkPaid={onMarkPaid} onUpdatePayout={onUpdatePayout} onHold={onHold} />)}
               </div>
             </div>
           ))}
@@ -401,7 +417,7 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid, 
                   </div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {g.rows.map((r) => <AccountRow key={r.id} r={r} onMarkPaid={onMarkPaid} onUpdatePayout={onUpdatePayout} />)}
+                  {g.rows.map((r) => <AccountRow key={r.id} r={r} onMarkPaid={onMarkPaid} onUpdatePayout={onUpdatePayout} onHold={onHold} />)}
                 </div>
               </div>
             );
@@ -493,6 +509,17 @@ export default function PayoutsIIPage() {
       body: JSON.stringify({ updateMonthlyPayout: { index, ...patch } }),
     });
     if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Could not update payment: ${j.error || res.status}`); return; }
+    await load();
+  };
+
+  // Put an account's payout on hold (inaccessible / paused — NOT a LinkedIn restriction) or
+  // release it. Held accounts drop out of the due/overdue chase into "On hold" until resumed.
+  const setAccountHold = async (r: Row, reason: string | null) => {
+    const res = await fetch(`/api/admin/accounts/${r.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payoutHoldReason: reason }),
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Could not update hold: ${j.error || res.status}`); return; }
     await load();
   };
 
@@ -617,16 +644,16 @@ export default function PayoutsIIPage() {
       {rows && (
         <>
           {setupNoCreds.length > 0 && (
-            <Section title="⚠ Initial payment due — NO CREDENTIALS (check)" tone="var(--st-cancel-fg,#c0392b)" note="setup fee showing due but no login stored — verify before paying" rows={setupNoCreds} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} />
+            <Section title="⚠ Initial payment due — NO CREDENTIALS (check)" tone="var(--st-cancel-fg,#c0392b)" note="setup fee showing due but no login stored — verify before paying" rows={setupNoCreds} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           )}
           {setupNoGologin.length > 0 && (
-            <Section title="⚠ Initial payment due — NO GOLOGIN (check)" tone="var(--warn-badge-text,#b7791f)" note="has login but no GoLogin profile/share — account can't be run, verify before paying" rows={setupNoGologin} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} />
+            <Section title="⚠ Initial payment due — NO GOLOGIN (check)" tone="var(--warn-badge-text,#b7791f)" note="has login but no GoLogin profile/share — account can't be run, verify before paying" rows={setupNoGologin} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           )}
-          <Section title="Initial payment due" tone="var(--blue-chip-text,#2b5fd0)" note="signup bonus based on referral source and onboarding option · soonest due first" rows={setup} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} />
-          <Section title="Payment overdue" tone="var(--st-cancel-fg,#c0392b)" note="monthly due / on hold · most overdue first" rows={overdue} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} />
-          <Section title="Payment due" tone="var(--warn-badge-text,#b7791f)" note="monthly coming up · soonest due first" rows={due} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} />
-          <Section title="Paid this cycle" tone="var(--st-active-fg,#1a8a4a)" note="already settled this month" rows={paid} onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} />
-          <Section title="Payment not applicable" tone="#9aa0a6" note="grouped by reason" rows={na} byReason onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} />
+          <Section title="Initial payment due" tone="var(--blue-chip-text,#2b5fd0)" note="signup bonus based on referral source and onboarding option · soonest due first" rows={setup} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          <Section title="Payment overdue" tone="var(--st-cancel-fg,#c0392b)" note="monthly due / on hold · most overdue first" rows={overdue} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          <Section title="Payment due" tone="var(--warn-badge-text,#b7791f)" note="monthly coming up · soonest due first" rows={due} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          <Section title="Paid this cycle" tone="var(--st-active-fg,#1a8a4a)" note="already settled this month" rows={paid} onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          <Section title="Payment not applicable" tone="#9aa0a6" note="grouped by reason" rows={na} byReason onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
         </>
       )}
     </div>
