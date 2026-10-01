@@ -23,7 +23,7 @@ const updateSchema = z.object({
   referralSource: z.string().nullable().optional(),
   referredBy: z.string().nullable().optional(),
   bookingEmail: z.string().nullable().optional(),
-  poc: z.string().optional(),
+  poc: z.string().nullable().optional(),
   nextFollowUp: z.string().datetime().nullable().optional(),
   callOutcome: z.enum(["no_show", "completed"]).nullable().optional(),
   accountFreshness: z.enum(["established", "fresh"]).nullable().optional(),
