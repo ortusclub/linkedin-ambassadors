@@ -1467,10 +1467,35 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
   updatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>;
 }) {
   const [okPay, setOkPay] = useState<{ setup: boolean; monthly: boolean }>({ setup: false, monthly: false });
+  const [copied, setCopied] = useState(false);
   const cfg = cfgOf(r);
   const pays = r.monthlyPayouts || [];
   const setupDone = setupPaid(r);
   const verified = !!r.verifiedAt;
+
+  // Copy the whole schedule + payment history as plain text (tab-separated rows, so it
+  // pastes cleanly into a message or a spreadsheet) for records / sharing.
+  const copyHistory = () => {
+    const who = r.payoutName?.trim() || r.fullName;
+    const setupLine = setupDone ? `Paid ${fmtDate(pays.find((p) => p.kind === "setup")?.paidAt || r.paidAt)}` : "Not paid";
+    const lines = [
+      `${who} — Payment history`,
+      `Setup fee · ${formatMoney(cfg.setupAmount, cfg.currency)} — ${setupLine}`,
+      `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
+      `Total paid: ${formatMoney(totalPaid(r), cfg.currency)}`,
+      "",
+      ["Date", "Payment", "By", "Notified", "Acknowledged", "Proof"].join("\t"),
+      ...(pays.length ? pays.map((p) => [
+        fmtDate(p.paidAt),
+        `${formatMoney(Number(p.amount) || 0, cfg.currency)} · ${p.kind === "setup" ? "Setup fee" : "Monthly"}`,
+        p.by || "—",
+        p.notified ? "Notified" : "Not notified",
+        p.acknowledged ? (p.acknowledgedAt ? `Ack ${fmtDate(p.acknowledgedAt)}` : "Acknowledged") : "Awaiting ack",
+        p.proofUrl || "—",
+      ].join("\t")) : ["No payments logged yet."]),
+    ];
+    navigator.clipboard?.writeText(lines.join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+  };
 
   const schedRow = (key: "setup" | "monthly", title: string, sub: string, done: boolean, onLog: () => void, logLabel: string, confirm?: { ok: boolean; onToggle: () => void; label: string }) => {
     const ok = confirm ? confirm.ok : okPay[key];
@@ -1523,7 +1548,10 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <span style={labelCss}>Payment record</span>
-        <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Total paid <b style={{ color: "var(--st-active-fg,#188038)" }}>{formatMoney(totalPaid(r), cfg.currency)}</b></span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Total paid <b style={{ color: "var(--st-active-fg,#188038)" }}>{formatMoney(totalPaid(r), cfg.currency)}</b></span>
+          <button onClick={copyHistory} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 7, border: "1px solid var(--divider,#ddd)", cursor: "pointer", whiteSpace: "nowrap", background: copied ? "var(--st-active-bg,#e6f4ea)" : "transparent", color: copied ? "var(--st-active-fg,#188038)" : "var(--fg,#444)" }}>{copied ? "✓ Copied" : "⧉ Copy history"}</button>
+        </div>
       </div>
       <div style={{ border: "1px solid var(--divider,#eee)", borderRadius: 11, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 108px 116px 128px", gap: 10, padding: "9px 14px", background: "var(--band,#f6f7f8)", borderBottom: "1px solid var(--divider,#eee)" }}>
