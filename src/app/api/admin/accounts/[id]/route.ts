@@ -8,6 +8,7 @@ import { decryptSecret } from "@/lib/crypto-creds";
 import { provisionAccount } from "@/lib/provision-account";
 import * as gologin from "@/services/gologin";
 import { restrictionUpdate } from "@/lib/restriction";
+import { setupPaidDate } from "@/lib/payment-schedule";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -122,6 +123,44 @@ export async function PATCH(
           { error: "This account's 2FA was exposed to the last renter and needs to be rotated before it can go back to Available." },
           { status: 409 }
         );
+      }
+    }
+
+    // Guard: don't let an account be flipped to "available" (listed for rent) while its
+    // linked ambassador's setup fee is still unpaid. Recording the setup fee payment is
+    // what should list the account (that path sets available in prisma directly, so it
+    // isn't affected here); flipping the status by hand skips it and puts an unpaid
+    // account on the market. LV-owned inventory (no linked application) is exempt.
+    if (data.status === "available") {
+      const cur = await prisma.linkedInAccount.findUnique({
+        where: { id },
+        select: { status: true, notes: true, linkedinUrl: true },
+      });
+      if (!cur) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      // Only guard an actual flip INTO available — not a no-op re-save of an account
+      // that is already available.
+      if (cur.status !== "available") {
+        const ownerEmail = (cur.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || null;
+        const url = cur.linkedinUrl?.replace(/\/$/, "") || null;
+        if (ownerEmail || url) {
+          const app = await prisma.ambassadorApplication.findFirst({
+            where: {
+              OR: [
+                ...(ownerEmail ? [{ email: { equals: ownerEmail, mode: "insensitive" as const } }] : []),
+                ...(url ? [{ linkedinUrl: url }, { linkedinUrl: `${url}/` }] : []),
+              ],
+            },
+            select: { paidAt: true, monthlyPayouts: true },
+          });
+          if (app && !setupPaidDate(app.paidAt, app.monthlyPayouts)) {
+            return NextResponse.json(
+              { error: "Setup fee not paid — record the setup fee payment first (that auto-lists the account). Use the payouts page to mark it paid." },
+              { status: 409 }
+            );
+          }
+        }
       }
     }
 
