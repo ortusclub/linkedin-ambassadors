@@ -83,9 +83,13 @@ export async function GET() {
       const nextDue = monthlyDueDate(setupPaidAt, paidCount);
       const firstDue = monthlyDueDate(setupPaidAt, 0);
 
-      // One-time ₱1,000 setup fee (per ambassador). Paid if the application's
-      // paidAt is set OR a "setup" payout entry was logged.
-      const setupPaid = !!app?.paidAt || payouts.some((p) => p?.kind === "setup");
+      // One-time ₱1,000 setup fee (per ambassador). "Logged" = marked paid (paidAt set or a
+      // setup entry exists); "receipted" = that setup entry has a proof attached. Like the
+      // monthly flow, it isn't fully settled — and doesn't leave the Initial-payment section —
+      // until the receipt is on it (which is also what emails the owner).
+      const setupEntry = payouts.find((p) => p?.kind === "setup");
+      const setupLogged = !!app?.paidAt || !!setupEntry;
+      const setupReceipted = !!setupEntry?.proofUrl;
       // Setup fee is due one week after QC (same clock as the pipeline / referrer portal).
       // No QC date → not due yet; the account is still in onboarding (handled below).
       const setupDue = setupFeeReadyDate(app?.verifiedAt || null);
@@ -117,13 +121,19 @@ export async function GET() {
       // Logged in but not yet QC'd: the setup fee isn't due until a week after QC, so it
       // isn't payable yet. Keep it in the onboarding group (tracked on /admin/onboarding)
       // instead of showing a false "overdue" off the login date.
-      else if (!setupPaid && !app?.verifiedAt) { bucket = "na"; reason = "Still onboarding"; }
-      else if (!setupPaid) {
-        // Initial ₱1,000 not yet settled → its own section, regardless of monthly.
+      else if (!setupLogged && !app?.verifiedAt) { bucket = "na"; reason = "Still onboarding"; }
+      else if (!setupReceipted) {
+        // Initial ₱1,000 not yet fully settled → its own section, regardless of monthly.
         bucket = "setup";
-        dueISO = setupDue ? setupDue.toISOString() : null;
-        overdue = !!setupDue && setupDue.getTime() < startOfToday.getTime();
-        reason = overdue ? "Initial payment overdue" : "Initial payment due";
+        if (setupLogged) {
+          // Marked paid but no receipt yet — keep it here as "attach receipt" instead of
+          // silently leaving the section; attaching the receipt emails the owner and moves it on.
+          reason = "Paid · attach receipt"; awaitingReceipt = true; dueISO = null; overdue = false;
+        } else {
+          dueISO = setupDue ? setupDue.toISOString() : null;
+          overdue = !!setupDue && setupDue.getTime() < startOfToday.getTime();
+          reason = overdue ? "Initial payment overdue" : "Initial payment due";
+        }
       }
       else if (monthlyAmount <= 0) { bucket = "na"; reason = "No monthly rate set"; }
       // Year-month comparison (not raw timestamps) — firstDue is anchored at noon UTC
