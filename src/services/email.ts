@@ -559,7 +559,7 @@ export async function sendSetupFeePaidEmail(email: string, fullName: string, amo
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>${formatMoney(amount, currency)} setup fee</strong> via Wise. ✅</p>
       ${receiptBlock(receiptUrl)}
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Your <strong>${formatMoney(cfg.monthlyAmount, currency)} monthly payout</strong> will start from your first full month — that's <strong>${firstMonthlyPayoutLabel(setupPaidAt)}</strong>, and then the first of each month after, for as long as the account stays active.</p>
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Also — if you know anyone else who'd like to join, please send them our way! You'll earn a <strong>${formatMoney(cfg.rate, currency)} referral fee</strong> for each one that comes on board. Ideally people who can get their account verified like yours (with a passport for the blue checkmark) — those accounts are much more stable and easier to work with. 🙌</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Also — if you know anyone else who'd like to join, please send them our way! You'll earn <strong>up to ${formatMoney(cfg.referralTiers.computer.verified, currency)} referral fee</strong> for each one that comes on board — the exact amount depends on how they're onboarded. Ideally people who can get their account verified like yours (with a passport for the blue checkmark) — those accounts are much more stable and easier to work with. Just reply here if you'd like more info and we'll walk you through it! 🙌</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Thanks so much for partnering with us! And a small reminder — please try not to log into the account yourself so it stays nice and stable on our end. Let us know if you have any questions! 🙏</p>
     `),
   });
@@ -598,7 +598,7 @@ export async function sendReferralPayoutEmail(email: string, fullName: string, a
       <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>${formatMoney(amount, currency)} referral fee</strong> via Wise${forWhat}. ✅ 🙌</p>
       ${receiptBlock(receiptUrl)}
-      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Keep them coming — you earn ${formatMoney(cfg.rate, currency)} for every new person who joins through you! Thank you so much. 🙏</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Keep them coming — you can earn up to ${formatMoney(cfg.referralTiers.computer.verified, currency)} for every new person who joins through you (the exact amount depends on how they're onboarded). Just message us if you'd like the details. Thank you so much. 🙏</p>
     `),
   });
 }
