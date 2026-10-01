@@ -200,7 +200,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       // The onboarding session to resume (the portal's "Resume onboarding" link targets it so
       // the wizard reopens where they left off instead of at the details form).
       const resumeSessionId = action === "resume" ? a.selfServiceOnboarding?.id ?? null : null;
-      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, deletable, resumeSessionId };
+      // The onboarding session a referrer can pull the latest LinkedIn sign-in code from,
+      // without walking the wizard. Codes flow only while forwarding is live — from reserve
+      // through hand-off — and stop once the session is confirmed or the account onboarded/paid.
+      const codeSessionId = a.selfServiceOnboarding?.id && !onboarded && !paid && state !== "confirmed" ? a.selfServiceOnboarding.id : null;
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, deletable, resumeSessionId, codeSessionId };
     });
 
   return NextResponse.json({

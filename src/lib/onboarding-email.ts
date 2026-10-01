@@ -49,9 +49,11 @@ export async function emailSetupSummary(id: string, referrerId: string) {
     lastForwardedAt: e?.lastForwardedAt || null, primaryConfirmedAt: e?.primaryConfirmedAt || null,
     confirmUrl: e?.confirmUrl || null,
     // Latest LinkedIn code — shown ONLY while forwarding is active (session not confirmed /
-    // not onboarded) and only if fresh (<15 min). Auto-hides after onboarding and when stale.
-    latestCode: e && forwardingActive(e, s.state) && e.lastCode && e.lastCodeAt && (Date.now() - e.lastCodeAt.getTime() < 15 * 60000) ? e.lastCode : null,
-    latestCodeAt: e && forwardingActive(e, s.state) && e.lastCode && e.lastCodeAt && (Date.now() - e.lastCodeAt.getTime() < 15 * 60000) ? e.lastCodeAt : null };
+    // not onboarded) and only if reasonably fresh (<60 min). Auto-hides after onboarding and
+    // when stale. The window is generous so the code doesn't vanish while the referrer is
+    // toggling between LinkedIn and the portal; the UI notes it may be expired.
+    latestCode: e && forwardingActive(e, s.state) && e.lastCode && e.lastCodeAt && (Date.now() - e.lastCodeAt.getTime() < 60 * 60000) ? e.lastCode : null,
+    latestCodeAt: e && forwardingActive(e, s.state) && e.lastCode && e.lastCodeAt && (Date.now() - e.lastCodeAt.getTime() < 60 * 60000) ? e.lastCodeAt : null };
 }
 
 export async function requireEmailSetup(id: string, referrerId: string) {
