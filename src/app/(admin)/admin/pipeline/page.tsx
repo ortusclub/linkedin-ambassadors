@@ -1211,6 +1211,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
             <Edit label="Booking email" value={r.bookingEmail} placeholder="if booked with another email" onSave={(v) => patchApp(r.id, { bookingEmail: v })} />
             <Edit label="Connections" value={r.connectionCount} numeric placeholder="e.g. 500" onSave={(v) => patchApp(r.id, { connectionCount: v })} />
             <Edit label="Referred by" value={r.referredBy} placeholder="marketer code" onSave={(v) => patchApp(r.id, { referredBy: v })} />
+            <Edit label="LV handler (POC)" value={r.poc} placeholder="who's handling this — e.g. Ardi / Sam / a name" onSave={(v) => patchApp(r.id, { poc: v })} />
             <Edit label="Referral source" value={r.referralSource} placeholder="flyer / FB / referral" onSave={(v) => patchApp(r.id, { referralSource: v })} />
             <Edit label="Payout method" value={r.paymentMethod} placeholder="Wise / PayPal / GCash" onSave={(v) => patchApp(r.id, { paymentMethod: v })} />
             <Edit label="Payout handle / account no." value={r.paymentDetails} placeholder="email / number / account" onSave={(v) => patchApp(r.id, { paymentDetails: v })} />
