@@ -48,6 +48,7 @@ interface Row {
   bucket: Bucket;
   reason: string;
   holdReason: string | null;
+  awaitingReceipt: boolean;
   overdue: boolean;
   daysLate: number;
   ownerName: string | null;
@@ -224,7 +225,9 @@ function AccountRow({ r, onMarkPaid, onUpdatePayout, onHold }: { r: Row; onMarkP
   const chip = CHIP[r.bucket];
   const conn = r.connectionCount != null ? `${r.connectionCount}${r.connectionCount >= 100 ? "+" : ""}` : "";
   const dueLabel = r.overdue && r.nextDueISO ? `${fmtDate(r.nextDueISO)} · ${r.daysLate}d late` : fmtDate(r.nextDueISO);
-  const canMark = r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due";
+  // A payout already logged this cycle but awaiting its receipt shouldn't offer "Mark paid"
+  // again (that would double-log) — the next step is attaching the receipt in the record below.
+  const canMark = (r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due") && !r.awaitingReceipt;
   // Something's wrong: a payment is being asked for on an account we can't log
   // into (no credentials) or can't run (no GoLogin profile/share).
   const payable = r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due";

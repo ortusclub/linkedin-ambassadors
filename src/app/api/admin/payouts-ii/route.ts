@@ -99,6 +99,9 @@ export async function GET() {
       let bucket: Bucket = "due";
       let reason = "Up to date";
       let overdue = false;
+      // A payout logged this cycle but with no receipt yet — "paid" doesn't count until the
+      // receipt is attached (that's also what emails the owner), so it stays out of "Paid".
+      let awaitingReceipt = false;
       let dueISO: string | null = nextDue ? new Date(nextDue).toISOString() : null;
 
       if (a.restrictedAt) { bucket = "na"; reason = "Restricted"; }
@@ -126,8 +129,12 @@ export async function GET() {
       // Year-month comparison (not raw timestamps) — firstDue is anchored at noon UTC
       // on the 1st, so a same-day timezone offset must not hide a monthly due this cycle.
       else if (firstDue && (CY * 12 + CM) >= (firstDue.getUTCFullYear() * 12 + firstDue.getUTCMonth())) {
-        const paidThisCycle = monthlyEntries.some((p) => p.paidAt && sameMonth(p.paidAt, CY, CM));
-        if (paidThisCycle) { bucket = "paid"; reason = "Paid this cycle"; }
+        // "Paid this cycle" requires a receipt on this cycle's payout. A payout logged
+        // without a receipt yet sits in "Paid · attach receipt" (not chased, not yet paid)
+        // until the receipt is attached — attaching it also emails the owner.
+        const cycleEntry = monthlyEntries.find((p) => p.paidAt && sameMonth(p.paidAt, CY, CM));
+        if (cycleEntry?.proofUrl) { bucket = "paid"; reason = "Paid this cycle"; }
+        else if (cycleEntry) { bucket = "due"; reason = "Paid · attach receipt"; awaitingReceipt = true; }
         else if (app?.accountIssue || (!method)) { bucket = "overdue"; reason = app?.accountIssue ? "On hold · login issue" : "On hold · no payment method"; overdue = true; }
         else { bucket = "overdue"; reason = "Payment due"; overdue = true; }
       } else {
@@ -154,6 +161,7 @@ export async function GET() {
         bucket,
         reason,
         holdReason: a.payoutHoldReason || null,
+        awaitingReceipt,
         overdue,
         daysLate,
         ownerName,
