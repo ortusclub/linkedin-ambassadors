@@ -2,7 +2,7 @@
 
 import { AccountNotes } from "@/components/admin/account-notes";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { isReferralEarned, isReferralOnboarded, isReferralReadyToPay, referralMaturesAt, referralCommissionAmount } from "@/lib/referrals";
+import { isReferralEarned, isReferralOnboarded, isReferralReadyToPay, isReferralHeld, referralMaturesAt, referralCommissionAmount } from "@/lib/referrals";
 import { type Currency, CURRENCY_CONFIG, formatMoney, referralCurrency } from "@/lib/referral-currency";
 
 // A single ambassador application, reduced to what the referral roll-up needs.
@@ -24,6 +24,7 @@ interface App {
   onboardingVerified?: boolean | null;
   accountFreshness?: string | null;
   createdAt?: string | null;
+  referralHoldReason?: string | null;
 }
 
 interface RefContact { method: string; handle: string; preferred?: boolean }
@@ -374,10 +375,11 @@ export default function AdminReferralsPage() {
           counts: isConverted(a), // false = restricted/held-back, shown but not counted
           method, fee, cur,
           state: readyToPay ? "Ready to pay"
+            : isReferralHeld(a) ? `On hold · ${a.referralHoldReason}`
             : earned ? `Maturing · until ${maturesAt ? maturesAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "the check clears"}`
             : issueLabel ? `In hold · ${issueLabel}` : "In hold · verifying",
-          tone: readyToPay ? "ready" : issueLabel ? "issue" : "hold",
-          title: a.accountIssue || "",
+          tone: readyToPay ? "ready" : (isReferralHeld(a) || issueLabel) ? "issue" : "hold",
+          title: a.referralHoldReason || a.accountIssue || "",
         };
       })
       // ready first, then counted (verifying) above not-counted (restricted), then name

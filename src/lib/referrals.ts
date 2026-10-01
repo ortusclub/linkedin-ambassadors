@@ -36,6 +36,15 @@ export interface ReferralGate {
   accountFreshness?: string | null;
   // When the application came in — decides which maturing policy applies (see below).
   createdAt?: Date | string | null;
+  // Admin-set manual hold on THIS referral's commission (e.g. referred account restricted,
+  // referrer payout details missing). While set, the commission is held — not ready to pay —
+  // without un-earning it. Cleared by releasing the hold.
+  referralHoldReason?: string | null;
+}
+
+// A manual hold parks an earned commission out of "ready to pay" until it's released.
+export function isReferralHeld(a: ReferralGate): boolean {
+  return !!(a.referralHoldReason && a.referralHoldReason.trim());
 }
 
 // Whether the setup fee for a referred account has been PAID (the "Onboarded = paid"
@@ -96,9 +105,10 @@ export function isReferralMatured(a: ReferralGate, now: Date = new Date()): bool
   const at = referralMaturesAt(a);
   return !!at && now.getTime() >= at.getTime();
 }
-// Payable now = earned (onboarded + QC-passed) AND past its maturing window.
+// Payable now = earned (onboarded + QC-passed), past its maturing window, and not on a
+// manual hold. A held commission stays earned/counted but is not ready to pay.
 export function isReferralReadyToPay(a: ReferralGate, now: Date = new Date()): boolean {
-  return isReferralEarned(a) && isReferralMatured(a, now);
+  return isReferralEarned(a) && isReferralMatured(a, now) && !isReferralHeld(a);
 }
 
 // Tiered referral commission. A plain referral (LV onboards) pays the base `referral`
