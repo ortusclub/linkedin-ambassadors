@@ -14,7 +14,7 @@ import { setupFeeReadyDate } from "@/lib/referrals";
 // expandable inventory-style row, same as /api/admin/accounts.
 
 type PayoutEntry = { paidAt?: string; amount?: number; kind?: string; by?: string | null; proofUrl?: string | null; notified?: boolean; notifiedAt?: string | null; acknowledged?: boolean; acknowledgedAt?: string | null };
-type Bucket = "setup" | "overdue" | "due" | "awaiting" | "paid" | "na";
+type Bucket = "setup" | "overdue" | "due" | "paid" | "na";
 
 const sameMonth = (iso: string, y: number, m: number) => {
   const d = new Date(iso);
@@ -144,7 +144,10 @@ export async function GET() {
         // until the receipt is attached — attaching it also emails the owner.
         const cycleEntry = monthlyEntries.find((p) => p.paidAt && sameMonth(p.paidAt, CY, CM));
         if (cycleEntry?.proofUrl) { bucket = "paid"; reason = "Paid this cycle"; }
-        else if (cycleEntry) { bucket = "awaiting"; reason = "Paid · attach receipt"; awaitingReceipt = true; }
+        // Marked paid but no receipt yet — keep it right here in the overdue list (so it
+        // doesn't vanish), labelled "attach receipt" and NOT chased as late, until the
+        // receipt is attached (which then moves it to Paid this cycle).
+        else if (cycleEntry) { bucket = "overdue"; reason = "Paid · attach receipt"; awaitingReceipt = true; overdue = false; }
         else if (app?.accountIssue || (!method)) { bucket = "overdue"; reason = app?.accountIssue ? "On hold · login issue" : "On hold · no payment method"; overdue = true; }
         else { bucket = "overdue"; reason = "Payment due"; overdue = true; }
       } else {
