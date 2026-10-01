@@ -87,9 +87,8 @@ export async function GET() {
       // paidAt is set OR a "setup" payout entry was logged.
       const setupPaid = !!app?.paidAt || payouts.some((p) => p?.kind === "setup");
       // Setup fee is due one week after QC (same clock as the pipeline / referrer portal).
-      // Fall back to the onboard date for the rare onboarded account with no QC date recorded,
-      // so an owed fee still shows a date rather than dropping out.
-      const setupDue = setupFeeReadyDate(app?.verifiedAt || null) || (onboardedAt ? new Date(onboardedAt) : null);
+      // No QC date → not due yet; the account is still in onboarding (handled below).
+      const setupDue = setupFeeReadyDate(app?.verifiedAt || null);
 
       // Categorise. Bucket meaning:
       //  setup   → one-time ₱1,000 initial payment still outstanding
@@ -109,6 +108,10 @@ export async function GET() {
       // yet and no schedule exists. These belong on the Onboarding page, not here, so
       // they're filtered out below rather than shown as an unpayable "na" row.
       else if (!onboardedAt) { bucket = "na"; reason = "Still onboarding"; }
+      // Logged in but not yet QC'd: the setup fee isn't due until a week after QC, so it
+      // isn't payable yet. Keep it in the onboarding group (tracked on /admin/onboarding)
+      // instead of showing a false "overdue" off the login date.
+      else if (!setupPaid && !app?.verifiedAt) { bucket = "na"; reason = "Still onboarding"; }
       else if (!setupPaid) {
         // Initial ₱1,000 not yet settled → its own section, regardless of monthly.
         bucket = "setup";
