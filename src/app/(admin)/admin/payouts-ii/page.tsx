@@ -30,7 +30,7 @@ const ageLabel = (m: number | null | undefined) => {
 
 const ownerMoney = (n: number, currency: "PHP" | "USD") => currency === "USD" ? `$${n.toLocaleString()}` : peso(n);
 
-type Bucket = "setup" | "overdue" | "due" | "paid" | "na";
+type Bucket = "setup" | "overdue" | "due" | "awaiting" | "paid" | "na";
 interface Row {
   id: string;
   linkedinName: string;
@@ -84,6 +84,7 @@ const CHIP: Record<Bucket, { bg: string; fg: string }> = {
   setup: { bg: "var(--blue-chip-bg,#eaf1ff)", fg: "var(--blue-chip-text,#2b5fd0)" },
   overdue: { bg: "var(--st-cancel-bg,#fdecea)", fg: "var(--st-cancel-fg,#c0392b)" },
   due: { bg: "var(--warn-badge-bg,#fef3e2)", fg: "var(--warn-badge-text,#b7791f)" },
+  awaiting: { bg: "var(--blue-chip-bg,#eaf1ff)", fg: "var(--blue-chip-text,#2b5fd0)" },
   paid: { bg: "var(--st-active-bg,#e6f6ec)", fg: "var(--st-active-fg,#1a8a4a)" },
   na: { bg: "var(--warn-badge-bg,#f1f1f2)", fg: "var(--warn-badge-text,#6b7280)" },
 };
@@ -541,6 +542,7 @@ export default function PayoutsIIPage() {
   const setup = useMemo(() => setupAll.filter((r) => hasCreds(r) && hasGologin(r)), [setupAll]);
   const overdue = useMemo(() => filtered.filter((r) => r.bucket === "overdue"), [filtered]);
   const due = useMemo(() => filtered.filter((r) => r.bucket === "due"), [filtered]);
+  const awaiting = useMemo(() => filtered.filter((r) => r.bucket === "awaiting"), [filtered]);
   const paid = useMemo(() => filtered.filter((r) => r.bucket === "paid"), [filtered]);
   const na = useMemo(() => filtered.filter((r) => r.bucket === "na"), [filtered]);
 
@@ -655,6 +657,7 @@ export default function PayoutsIIPage() {
           <Section title="Initial payment due" tone="var(--blue-chip-text,#2b5fd0)" note="signup bonus based on referral source and onboarding option · soonest due first" rows={setup} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           <Section title="Payment overdue" tone="var(--st-cancel-fg,#c0392b)" note="monthly due / on hold · most overdue first" rows={overdue} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           <Section title="Payment due" tone="var(--warn-badge-text,#b7791f)" note="monthly coming up · soonest due first" rows={due} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          <Section title="Paid · awaiting receipt" tone="var(--blue-chip-text,#2b5fd0)" note="marked paid — attach the receipt (in the row) to finish & email the owner, then it moves to Paid this cycle" rows={awaiting} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           <Section title="Paid this cycle" tone="var(--st-active-fg,#1a8a4a)" note="already settled this month" rows={paid} onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           <Section title="Payment not applicable" tone="#9aa0a6" note="grouped by reason" rows={na} byReason onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
         </>

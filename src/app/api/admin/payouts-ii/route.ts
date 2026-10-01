@@ -14,7 +14,7 @@ import { setupFeeReadyDate } from "@/lib/referrals";
 // expandable inventory-style row, same as /api/admin/accounts.
 
 type PayoutEntry = { paidAt?: string; amount?: number; kind?: string; by?: string | null; proofUrl?: string | null; notified?: boolean; notifiedAt?: string | null; acknowledged?: boolean; acknowledgedAt?: string | null };
-type Bucket = "setup" | "overdue" | "due" | "paid" | "na";
+type Bucket = "setup" | "overdue" | "due" | "awaiting" | "paid" | "na";
 
 const sameMonth = (iso: string, y: number, m: number) => {
   const d = new Date(iso);
@@ -144,7 +144,7 @@ export async function GET() {
         // until the receipt is attached — attaching it also emails the owner.
         const cycleEntry = monthlyEntries.find((p) => p.paidAt && sameMonth(p.paidAt, CY, CM));
         if (cycleEntry?.proofUrl) { bucket = "paid"; reason = "Paid this cycle"; }
-        else if (cycleEntry) { bucket = "due"; reason = "Paid · attach receipt"; awaitingReceipt = true; }
+        else if (cycleEntry) { bucket = "awaiting"; reason = "Paid · attach receipt"; awaitingReceipt = true; }
         else if (app?.accountIssue || (!method)) { bucket = "overdue"; reason = app?.accountIssue ? "On hold · login issue" : "On hold · no payment method"; overdue = true; }
         else { bucket = "overdue"; reason = "Payment due"; overdue = true; }
       } else {
