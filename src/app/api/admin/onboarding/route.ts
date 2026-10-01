@@ -69,12 +69,11 @@ export async function GET() {
       select: { id: true, active: true, slug: true, name: true, email: true, token: true, contactMethod: true, contactHandle: true, contacts: true },
     });
     const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
-    // LV PoC = the LinkedVelocity rep who onboards an account. It is NOT the referrer
-    // (the marketer who sent the lead) nor the ambassador. Older data sometimes has a
-    // referrer/applicant name in the poc field, so we blank any poc that matches one —
-    // only a genuine LV-rep name survives as a PoC.
+    // LV PoC = the LinkedVelocity rep who onboards an account, set by hand. We only blank a
+    // poc that matches the ambassador's OWN name (self-referential bad data). A name that also
+    // belongs to a referrer is allowed — an LV handler can be a referrer too, and the PoC is
+    // now assigned deliberately (not the old DIY auto-set-from-referrer that this once guarded).
     const notPocNames = new Set<string>();
-    for (const rf of referrers) if (rf.name) notPocNames.add(rf.name.trim().toLowerCase());
     for (const ap of apps) if (ap.fullName) notPocNames.add(ap.fullName.trim().toLowerCase());
     const cleanPoc = (poc?: string | null) => {
       const p = (poc || "").trim();
