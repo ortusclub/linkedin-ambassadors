@@ -351,6 +351,11 @@ type StepState = "now" | "waiting" | "done";
 type NextStep = { state: StepState; label: string; timing?: string; last?: string };
 const STEP_RANK: Record<StepState, number> = { now: 0, waiting: 1, done: 2 };
 const daysUntil = (ms: number) => Math.max(1, Math.ceil((ms - Date.now()) / 86400000));
+// Maturation is a DATE threshold, not a precise time: an account is "matured" once the
+// Manila calendar date reaches its ready date, so it reads ready all day on that date
+// (not "1 day left" until the exact QC time-of-day). Compare whole Manila days.
+const manilaDay = (ms: number) => Math.floor((ms + 8 * 3600000) / 86400000);
+const matureDaysLeft = (matureAtMs: number) => manilaDay(matureAtMs) - manilaDay(Date.now());
 
 // The most recent thing that happened to this row, so the admin can tell whether they've
 // already touched it. Prefers the last real outreach touch, else the latest milestone.
@@ -432,7 +437,7 @@ const nextStep = (r: Row): NextStep => {
     // Maturation counts from QC-passed (verifiedAt), same as the Step 5 card — NOT from
     // onboardedAt (the login moment), or the header and the workflow card disagree.
     const matureAt = r.verifiedAt ? new Date(r.verifiedAt).getTime() + holdDays(r) * 86400000 : null;
-    if (matureAt && Date.now() < matureAt) return { state: "waiting", label: "Maturing", timing: `${daysUntil(matureAt)} day${daysUntil(matureAt) === 1 ? "" : "s"} left · ready ${fmtDate(new Date(matureAt).toISOString())}`, last };
+    if (matureAt && matureDaysLeft(matureAt) > 0) { const d = matureDaysLeft(matureAt); return { state: "waiting", label: "Maturing", timing: `${d} day${d === 1 ? "" : "s"} left · ready ${fmtDate(new Date(matureAt).toISOString())}`, last }; }
     return { state: "now", label: setupPaid(r) ? "Matured — mark onboarded (live)" : "Matured — pay setup fee & mark onboarded", last };
   }
   if (!setupPaid(r)) return { state: "now", label: "Pay setup fee", last };
@@ -1354,7 +1359,7 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
   const qcPassed = !!r.verifiedAt;
   const matureStartMs = r.verifiedAt ? new Date(r.verifiedAt).getTime() : null;
   const matureDue = matureStartMs !== null ? matureStartMs + holdDays(r) * 86400000 : null;
-  const matured = matureDue !== null && Date.now() >= matureDue;
+  const matured = matureDue !== null && matureDaysLeft(matureDue) <= 0;
   const gated = false;                             // level ladder isn't gated behind "accept"
 
   // QC checklist state (Step 4). All items must be ticked before QC can pass.
