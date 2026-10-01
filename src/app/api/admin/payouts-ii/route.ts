@@ -13,7 +13,7 @@ import { setupFeeReadyDate } from "@/lib/referrals";
 // an owner's accounts shares that ledger. Admin-only; returns credentials for the
 // expandable inventory-style row, same as /api/admin/accounts.
 
-type PayoutEntry = { paidAt?: string; amount?: number; kind?: string };
+type PayoutEntry = { paidAt?: string; amount?: number; kind?: string; by?: string | null; proofUrl?: string | null; notified?: boolean; notifiedAt?: string | null; acknowledged?: boolean; acknowledgedAt?: string | null };
 type Bucket = "setup" | "overdue" | "due" | "paid" | "na";
 
 const sameMonth = (iso: string, y: number, m: number) => {
@@ -40,7 +40,7 @@ export async function GET() {
 
     const apps = await prisma.ambassadorApplication.findMany({
       select: {
-        email: true, fullName: true, linkedinUrl: true, onboardedAt: true,
+        id: true, email: true, fullName: true, linkedinUrl: true, onboardedAt: true,
         contactNumber: true, contactChannel: true, createdAt: true, diyTier: true, payoutCurrency: true, referredBy: true,
         accountFreshness: true, paidAt: true, verifiedAt: true,
         monthlyPayouts: true, paymentMethod: true, paypalEmail: true, wiseEmail: true,
@@ -162,6 +162,16 @@ export async function GET() {
         setupAmount: currencyConfigFor(app?.payoutCurrency, app?.referredBy, app).setupAmount,
         payoutCurrency: currencyConfigFor(app?.payoutCurrency, app?.referredBy, app).currency,
         totalPaid,
+        // Owner's application id + full payout ledger, so the whole payment record can be
+        // viewed and managed (receipt → auto-email, notified, acknowledged) here instead of
+        // having to go back to the pipeline after onboarding.
+        applicationId: app?.id || null,
+        payouts: payouts.map((p) => ({
+          paidAt: p.paidAt || null, amount: Number(p.amount) || 0, kind: p.kind === "setup" ? "setup" : "monthly",
+          by: p.by || null, proofUrl: p.proofUrl || null,
+          notified: !!p.notified, notifiedAt: p.notifiedAt || null,
+          acknowledged: !!p.acknowledged, acknowledgedAt: p.acknowledgedAt || null,
+        })),
       };
     });
 
