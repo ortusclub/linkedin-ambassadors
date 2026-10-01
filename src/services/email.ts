@@ -568,6 +568,7 @@ export async function sendSetupFeePaidEmail(email: string, fullName: string, amo
 // Monthly payout paid.
 export async function sendMonthlyPayoutEmail(email: string, fullName: string, amount: number, receiptUrl: string, monthLabel: string, currency: Currency = "PHP") {
   const firstName = (fullName || "").trim().split(" ")[0] || "there";
+  const cfg = CURRENCY_CONFIG[currency];
   return sendEmail({
     to: email,
     subject: `Your ${formatMoney(amount, currency)} monthly payout is on its way! 🎉`,
@@ -575,6 +576,7 @@ export async function sendMonthlyPayoutEmail(email: string, fullName: string, am
       <p style="font-size:16px;margin:0 0 16px;">Hi ${firstName},</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">Good news — we've just sent your <strong>${formatMoney(amount, currency)} payout for ${monthLabel}</strong> via Wise. ✅</p>
       ${receiptBlock(receiptUrl)}
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">And if you know anyone else who'd like to join, send them our way — you'll earn <strong>up to ${formatMoney(cfg.referralTiers.computer.verified, currency)} referral fee</strong> for each one that comes on board (the exact amount depends on how they're onboarded). Just reply here if you'd like more info and we'll walk you through it! 🙌</p>
       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0;">Thanks so much for partnering with us — and the same small reminder, please try not to log into the account yourself so it stays nice and stable on our end. Let us know if you have any questions! 🙏</p>
     `),
   });
