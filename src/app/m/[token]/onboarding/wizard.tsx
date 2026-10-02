@@ -45,7 +45,7 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   twofa: [
     { title: "Why 2FA first", body: "Without it, LinkedIn pings the owner's phone and you're stuck waiting. With it, you just type the code this page gives you." },
     { target: "twofa-key", title: "Copy the key — don't scan it", body: "LinkedIn app: Settings → Sign in & security → Two-step verification → Authenticator app. Copy the long key (the sample below shows what it looks like) and paste it below — not the QR." },
-    { target: "twofa-code", title: "This is your authenticator", body: "Once the key's pasted here, we show the live 6-digit code — no separate app. Type it into LinkedIn to finish turning 2FA on. The same code appears at sign-in whenever LinkedIn asks." },
+    { target: "twofa-code", title: "This is your authenticator", body: "No separate app needed. Type this code into LinkedIn to turn 2FA on — it changes every 30 seconds." },
   ],
   signinPc: [
     { title: "You're doing the sign-in", body: "This is the highest-rate path. You'll open the protected GoLogin browser and sign in to their LinkedIn together — the steps below walk you through it. You're not finished until you've signed in and confirmed." },

@@ -89,7 +89,7 @@ export default function TotpCode({ secretKey, compact = false }: { secretKey: st
   return (
     <div className={styles.totpCard}>
       <div className={styles.totpHead}>
-        <span className={styles.totpLabel}>TYPE THIS CODE INTO LINKEDIN · NEW CODE IN {remaining}S</span>
+        <span className={styles.totpLabel}>Type into LinkedIn · new code in {remaining}s</span>
       </div>
       <div className={styles.totpRow}>
         <span className={styles.totpCode}>{code.slice(0, 3)} {code.slice(3)}</span>
