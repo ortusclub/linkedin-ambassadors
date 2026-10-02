@@ -292,7 +292,15 @@ const setupPaid = (r: Row) => (r.monthlyPayouts || []).some((p) => p.kind === "s
 // Formatting -----------------------------------------------------------------
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—");
 const fmtDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
-const ageDays = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+// Whole-CALENDAR-days ago, in local time — so it agrees with fmtDate (which shows the local
+// calendar date). A raw 24h-bucket floor would call a late-yesterday timestamp "today" the
+// next morning (e.g. "Oct 1 (today)" when it's already Oct 2).
+const ageDays = (iso: string) => {
+  const d = new Date(iso), n = new Date();
+  const d0 = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const n0 = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
+  return Math.max(0, Math.round((n0 - d0) / 86400000));
+};
 const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
 const liHref = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
 const cfgOf = (r: Row) => currencyConfigFor(r.payoutCurrency, r.referredBy, r);
