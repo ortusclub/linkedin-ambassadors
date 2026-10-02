@@ -651,18 +651,19 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           {step === 3 && session && <>
             <div className={styles.stepLabel}>Two-step verification</div>
             <h1 className={styles.heroTitle}>Turn on two-step verification</h1>
-            <p className={styles.lead}>Do this <strong>before</strong> signing in. Without it, signing in makes LinkedIn ping {selfMode ? "your" : "the owner’s"} phone to approve — and you wait. With authenticator 2FA on, LinkedIn asks for a 6-digit <strong>code</strong> instead, which this page gives you.</p>
+            <p className={styles.lead}>Do this <strong>before</strong> signing in, so LinkedIn asks for a code instead of pinging {selfMode ? "your" : "the owner’s"} phone.</p>
             <div className={styles.warn}>
-              <div>Copy the KEY to us — don&apos;t scan it into your own app</div>
-              <p>This is the step people miss. On LinkedIn&apos;s QR screen, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong>, then paste that key in the box below. Do <strong>not</strong> scan the QR or add it to your own authenticator app (Google Authenticator, Authy, etc.) — if you do, {selfMode ? "we" : "the team"} won&apos;t have the key and can&apos;t generate the sign-in code, and you&apos;ll be stuck. Pasting it here makes this page the authenticator.</p>
+              <div>Copy the key — don&apos;t scan the QR</div>
+              <p>If you scan it into your own app, {selfMode ? "we" : "the team"} can&apos;t make sign-in codes and you&apos;ll be stuck.</p>
             </div>
             <ol className={styles.instructions}>
-              <li>In the LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong>.</li>
-              <li>Choose <strong>Authenticator app</strong>. On the QR screen, tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> to reveal the setup <strong>key</strong> — don&apos;t scan the QR.</li>
-              <li><strong>Copy that key and paste it in the box below</strong> (this is the step people miss). We&apos;ll show the live 6-digit code — type that into LinkedIn to finish turning 2FA on.</li>
+              <li>LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong></li>
+              <li>Choose <strong>Authenticator app</strong></li>
+              <li>Tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> and copy the key</li>
+              <li>Paste it below, then type the 6-digit code into LinkedIn</li>
             </ol>
-            <a href={`https://linkedvelocity.com/guide/two-step-verification?for=${selfMode ? "owner" : "referrer"}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, margin: "0 0 14px", padding: "10px 14px", borderRadius: 10, border: "1px solid #bbf7d0", background: "#f0faf4", color: "#15803d", font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none" }}>📖 Full step-by-step guide with screenshots ↗</a>
-            <label className={styles.field} data-tour="twofa-key">Paste LinkedIn&apos;s 2FA setup key here <span style={{ fontWeight: 400, opacity: 0.8 }}>— this is what lets us generate your sign-in codes</span>
+            <a href={`https://linkedvelocity.com/guide/two-step-verification?for=${selfMode ? "owner" : "referrer"}`} target="_blank" rel="noreferrer" style={{ display: "inline-block", margin: "0 0 14px", color: "#15803d", font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none" }}>Step-by-step guide with screenshots ↗</a>
+            <label className={styles.field} data-tour="twofa-key">2FA setup key
               <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
             </label>
             {session.twoFactorSaved && !twoFactorKey.trim() && <p className={styles.note}>Your 2FA setup is already saved. You can continue, or enter a replacement key if you changed it.</p>}
