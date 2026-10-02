@@ -37,6 +37,7 @@ const CSS = `
 .pp-lg.v{color:var(--verified)}.pp-lg.u{color:var(--muted)}
 .pp-main{padding-top:34px;padding-bottom:64px}
 .pp-hero{margin-bottom:34px}
+.pp-for{display:block;margin:0 0 10px;color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 .pp-hero h1{font-family:var(--font-poppins),var(--font-inter),sans-serif;font-weight:700;font-size:clamp(28px,5vw,40px);letter-spacing:-.02em;margin:0 0 8px;text-wrap:balance}
 .pp-hero p{margin:0;color:var(--muted);max-width:62ch;font-size:15px}
 .pp-group{margin-bottom:40px}
@@ -136,6 +137,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
       </div>
       <main className="pp-main">
         <div className="pp-hero">
+          <span className="pp-for">Prepared for Profile Partner</span>
           <h1>Available accounts</h1>
           <p>Aged, warmed LinkedIn profiles ready for outreach. Pricing is per account, per month: unverified $30 (or $40 at 200+ connections), verified $50. Open any profile to review it.</p>
         </div>
