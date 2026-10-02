@@ -43,7 +43,7 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: "signin-choice", title: "Who signs in?", body: "On a laptop you do the sign-in and earn the most. No computer? \"Hand it to us\" and the team does it — they still get paid, you earn a little less." },
   ],
   twofa: [
-    { title: "Turn on two-step verification", body: "Do this before you sign in. It's the fix for the biggest hold-up: without it, signing in makes LinkedIn ping the owner's phone to approve — and you're stuck waiting. With it, LinkedIn asks for a 6-digit code instead, which this page gives you." },
+    { title: "Why 2FA first", body: "Without it, LinkedIn pings the owner's phone and you're stuck waiting. With it, you just type the code this page gives you." },
     { target: "twofa-key", title: "Copy the KEY here — don't scan it", body: "In the LinkedIn app: Settings → Sign in & security → Two-step verification → Authenticator app. On the QR screen tap \"Can't scan the QR code?\" to reveal the KEY, and paste it here. The mistake people make: scanning the QR into their own authenticator app instead — then we don't have the key and can't generate the code, and you're stuck. Paste the key here so this page becomes the authenticator." },
     { target: "twofa-code", title: "This is your authenticator", body: "Once the key's pasted here, we show the live 6-digit code — no separate app. Type it into LinkedIn to finish turning 2FA on. The same code appears at sign-in whenever LinkedIn asks." },
   ],
