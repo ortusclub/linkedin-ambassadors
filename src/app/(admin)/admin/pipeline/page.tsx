@@ -518,6 +518,7 @@ export default function AdminPipelinePage() {
   const [pocFilter, setPocFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [flagged, setFlagged] = useState(false);
+  const [actionNowOnly, setActionNowOnly] = useState(false);
   const [bulkPoc, setBulkPoc] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   // Save feedback so edits never fail silently: "Saved ✓" on success, an error on failure.
@@ -750,6 +751,7 @@ export default function AdminPipelinePage() {
     return scoped.filter((r) => {
       if (applicationTypeFilter !== "all" && applicationType(r).key !== applicationTypeFilter) return false;
       if (flagged && !isBlocked(r)) return false;
+      if (actionNowOnly && nextStep(r).state !== "now") return false;
       // Stage mode filters on the two axes (level + health); other modes on status.
       if (mode === "stage") {
         if (levelFilter !== "all" && levelKey(r) !== levelFilter) return false;
@@ -761,7 +763,11 @@ export default function AdminPipelinePage() {
       return [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc,
         ...(r.outreachLog || []).map((t) => t.text)].some((v) => (v || "").toLowerCase().includes(q));
     });
-  }, [scoped, query, flagged, mode, statusFilter, levelFilter, healthFilter, pocFilter, applicationTypeFilter]);
+  }, [scoped, query, flagged, actionNowOnly, mode, statusFilter, levelFilter, healthFilter, pocFilter, applicationTypeFilter]);
+
+  // Count of rows that need acting on NOW (past their grace) within the current scope —
+  // the handler's live to-do count for the "Action now" filter.
+  const actionNowCount = useMemo(() => scoped.filter((r) => nextStep(r).state === "now").length, [scoped]);
 
   // Bulk-assign the LV handler to every application currently shown (whatever the filters
   // are). Lets a batch — e.g. all Level 1 — be handed to one person in a click.
@@ -985,6 +991,7 @@ export default function AdminPipelinePage() {
       {/* search + toggles */}
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 22, flexWrap: "wrap" }}>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact, account or referrer…" style={{ ...inputCss, flex: "1 1 280px", padding: "11px 14px", font: `500 13.5px ${F_SANS}` }} />
+        <button onClick={() => setActionNowOnly((a) => !a)} title="Only rows that need acting on now — past their 1-day grace and not waiting/maturing. Your live to-do list." style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(actionNowOnly ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>● Action now{actionNowCount ? ` (${actionNowCount})` : ""}</button>
         <button onClick={() => setFlagged((f) => !f)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(flagged ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>⚠ Problems only</button>
         <button onClick={() => setOpen(anyOpen ? new Set() : new Set(filtered.map((r) => r.id)))} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px" }}>{anyOpen ? "Collapse all" : "Expand all"}</button>
       </div>
