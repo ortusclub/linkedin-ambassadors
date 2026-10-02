@@ -217,6 +217,7 @@ const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
+  { key: "Construction", hint: "onboarded & paid — warming up in the pipeline before going live", dot: "var(--st-construct-fg)" },
   { key: "Construction (Immature)", hint: "warming up — not yet mature enough to rent", dot: "var(--st-construct-fg)" },
   { key: "Maintenance", hint: "restricted or needs fixing — check account badges and notes", dot: "var(--neutral-chip-text)" },
   { key: "Permanently restricted/Inaccessible", hint: "retired — permanently restricted or inaccessible", dot: "var(--st-cancel-fg)" },
