@@ -44,7 +44,7 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   twofa: [
     { title: "Why 2FA first", body: "Without it, LinkedIn pings the owner's phone and you're stuck waiting. With it, you just type the code this page gives you." },
-    { target: "twofa-key", title: "Copy the KEY here — don't scan it", body: "In the LinkedIn app: Settings → Sign in & security → Two-step verification → Authenticator app. On the QR screen tap \"Can't scan the QR code?\" to reveal the KEY, and paste it here. The mistake people make: scanning the QR into their own authenticator app instead — then we don't have the key and can't generate the code, and you're stuck. Paste the key here so this page becomes the authenticator." },
+    { target: "twofa-key", title: "Copy the key — don't scan it", body: "LinkedIn app: Settings → Sign in & security → Two-step verification → Authenticator app. Copy the long key (the sample below shows what it looks like) and paste it below — not the QR." },
     { target: "twofa-code", title: "This is your authenticator", body: "Once the key's pasted here, we show the live 6-digit code — no separate app. Type it into LinkedIn to finish turning 2FA on. The same code appears at sign-in whenever LinkedIn asks." },
   ],
   signinPc: [
@@ -729,8 +729,17 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <li>Tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> and copy the key</li>
               <li>Paste it below, then type the 6-digit code into LinkedIn</li>
             </ol>
+            <div data-tour="twofa-key" style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 14px", margin: "0 0 14px", background: "#fafafa" }}>
+              <div style={{ font: "700 12px var(--font-sans), system-ui, sans-serif", color: "#6b7280", marginBottom: 6 }}>What the key looks like in LinkedIn</div>
+              <p style={{ font: "500 12.5px/1.5 var(--font-sans), system-ui, sans-serif", color: "#4b5563", margin: "0 0 8px" }}>You may also enter the key manually and use <strong>&ldquo;LinkedIn&rdquo;</strong> as the account name.</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #fca5a5", borderRadius: 8, padding: "8px 10px", background: "#fff" }}>
+                <code style={{ flex: 1, font: "600 13px ui-monospace, SFMono-Regular, Menlo, monospace", color: "#0b1220", letterSpacing: ".04em", wordBreak: "break-all" }}>K7QXM2VD4HJNP3WLR6TZY8BCE5GS</code>
+                <span aria-hidden="true" style={{ color: "#9ca3af", fontSize: 15 }}>📋</span>
+              </div>
+              <p style={{ font: "600 11.5px var(--font-sans), system-ui, sans-serif", color: "#b45309", margin: "8px 0 0" }}>Copy this line — not the QR above it.</p>
+            </div>
             <a href={`https://linkedvelocity.com/guide/two-step-verification?for=${selfMode ? "owner" : "referrer"}`} target="_blank" rel="noreferrer" style={{ display: "inline-block", margin: "0 0 14px", color: "#15803d", font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none" }}>Step-by-step guide with screenshots ↗</a>
-            <label className={styles.field} data-tour="twofa-key">2FA setup key
+            <label className={styles.field}>2FA setup key
               <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
             </label>
             {session.twoFactorSaved && !twoFactorKey.trim() && <p className={styles.note}>Your 2FA setup is already saved. You can continue, or enter a replacement key if you changed it.</p>}
