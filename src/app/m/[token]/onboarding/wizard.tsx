@@ -37,7 +37,7 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   payout: [
     { target: "payout-method", title: "Where THEY get paid", body: "These are the account owner's payout details. Your own commission uses the details on your portal, not this." },
-    { target: "payout-when", title: "When the money moves", body: "We verify the account, then their setup fee goes out — your commission follows the Monday after." },
+    { target: "payout-when", title: "When the money moves", body: "We verify the account, then their setup fee goes out — your commission at the same time." },
   ],
   signin: [
     { target: "signin-choice", title: "Who signs in?", body: "On a laptop you do the sign-in and earn the most. No computer? \"Hand it to us\" and the team does it — they still get paid, you earn a little less." },
@@ -54,11 +54,11 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
     { title: "Handing it to us", body: "No computer, so you're handing the sign-in to our team. Set a temporary password with the owner below. They still get paid the same; you earn a little less than the laptop path." },
   ],
   donePhone: [
-    { target: "done-phone", title: "That's your part done", body: "Nothing more for you here. Our team sets up the protected browser and signs in after about 24 hours, then verifies the account. The setup payment follows, and your commission the Monday after — we'll message you if anything is needed." },
+    { target: "done-phone", title: "That's your part done", body: "Nothing more for you here. Our team sets up the protected browser and signs in after about 24 hours, then verifies the account. The setup payment follows, and your commission at the same time — we'll message you if anything is needed." },
   ],
   donePc: [
     { target: "done-summary", title: "Onboarded — here's the deal", body: "Their setup and monthly payments, and your commission, are now locked to your code. This is what everyone gets for this account." },
-    { target: "done-next", title: "What happens next", body: "We test the sign-in over the next few days. If LinkedIn asks for a check, WE message you — not them — so keep your phone on. Once it clears, they're paid and your commission lands the following Monday. That's it, you're done." },
+    { target: "done-next", title: "What happens next", body: "We test the sign-in over the next few days. If LinkedIn asks for a check, WE message you — not them — so keep your phone on. Once it clears, they're paid and your commission goes out at the same time. That's it, you're done." },
   ],
 };
 import { ShareLinks, WaitNotice, type ScriptContext } from "./onboarding-scripts";
@@ -745,7 +745,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           {step === 5 && session && (handedOff ? <>
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>Handed off to the team</h1>
-            <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup fee follows <strong>{checkWindow(session.accountFreshness)}</strong> after we sign in and the account passes our checks (QC), and your commission the Monday after. Nothing more to do here.</p>
+            <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup fee follows <strong>{checkWindow(session.accountFreshness)}</strong> after we sign in and the account passes our checks (QC), and your commission at the same time. Nothing more to do here.</p>
             {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>}
           </> : browserMode === "" ? <>
             {setupOptions()}
@@ -771,7 +771,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               {!selfMode && <div className={styles.summaryRow}><span>Your commission</span><b>{moneyText(session.commission)} · {session.verified ? "Verified" : "Pending"}</b></div>}
               <div className={styles.summaryRow}><span>Due date</span><b>{session.setupDueAt ? new Date(session.setupDueAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "~1 week after QC"}</b></div>
             </div>
-            {selfMode ? <div className={styles.note}>We’ll check your account and contact you if anything else is needed. Payments begin once onboarding is approved.</div> : <div className={styles.note} data-tour="done-next"><strong>What we do next.</strong> We run our checks (QC) and hold the account about a week. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears — {checkWindow(session.accountFreshness)} after QC — their {moneyText(session.setupAmount)} goes out and your commission lands the following Monday.</div>}
+            {selfMode ? <div className={styles.note}>We’ll check your account and contact you if anything else is needed. Payments begin once onboarding is approved.</div> : <div className={styles.note} data-tour="done-next"><strong>What we do next.</strong> We run our checks (QC) and hold the account about a week. If LinkedIn asks for a check in that time, <strong>we message you</strong>, not them — you&apos;re our contact for this account, so keep your phone on. Once it clears — {checkWindow(session.accountFreshness)} after QC — their {moneyText(session.setupAmount)} goes out, and your commission with it.</div>}
             <div className={styles.card}>
               <div className={styles.cardTitle}>{selfMode ? "While your account is being checked" : "Tell them before you go"}</div>
               <p className={styles.cardSub} style={{ marginBottom: 8 }}>Don&apos;t post, message or browse from your own phone while it&apos;s with us — being logged in from two places is what causes restrictions.</p>
