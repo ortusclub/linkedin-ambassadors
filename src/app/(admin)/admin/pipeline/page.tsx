@@ -510,6 +510,7 @@ export default function AdminPipelinePage() {
   const [pocFilter, setPocFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [flagged, setFlagged] = useState(false);
+  const [bulkPoc, setBulkPoc] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   // Save feedback so edits never fail silently: "Saved ✓" on success, an error on failure.
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -754,6 +755,26 @@ export default function AdminPipelinePage() {
     });
   }, [scoped, query, flagged, mode, statusFilter, levelFilter, healthFilter, pocFilter, applicationTypeFilter]);
 
+  // Bulk-assign the LV handler to every application currently shown (whatever the filters
+  // are). Lets a batch — e.g. all Level 1 — be handed to one person in a click.
+  const bulkAssign = async () => {
+    const name = bulkPoc.trim();
+    const ids = filtered.map((r) => r.id);
+    if (!name || ids.length === 0) return;
+    if (!confirm(`Assign ${ids.length} application${ids.length === 1 ? "" : "s"} (everything shown) to "${name}" as LV handler? This replaces any current handler on them.`)) return;
+    const idSet = new Set(ids);
+    setRows((prev) => (prev ? prev.map((r) => (idSet.has(r.id) ? { ...r, poc: name } : r)) : prev));
+    try {
+      const res = await fetch("/api/admin/ambassadors/bulk-poc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, poc: name }) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Failed (${res.status})`);
+      flashSave(true, `Assigned ${ids.length} to ${name} ✓`);
+      setBulkPoc("");
+    } catch (e) {
+      flashSave(false, e instanceof Error ? e.message : "Bulk assign failed — not saved.");
+      await load();
+    }
+  };
+
   const groups = useMemo(() => {
     const defs = mode === "stage" ? LEVEL_GROUPS : mode === "live" ? LIVE_GROUPS : ACTION_GROUPS;
     // "Owes money" = setup fee not yet paid (they've logged in — the fee is due), OR a
@@ -959,6 +980,16 @@ export default function AdminPipelinePage() {
         <button onClick={() => setFlagged((f) => !f)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(flagged ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>⚠ Problems only</button>
         <button onClick={() => setOpen(anyOpen ? new Set() : new Set(filtered.map((r) => r.id)))} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px" }}>{anyOpen ? "Collapse all" : "Expand all"}</button>
       </div>
+
+      {/* Bulk-assign handler — acts on exactly what the current filters show. */}
+      {rows && filtered.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap", padding: "11px 14px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 11 }}>
+          <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--muted,#555)" }}>Assign all <b style={{ color: "var(--fg,#111)" }}>{filtered.length}</b> shown to handler</span>
+          <input value={bulkPoc} onChange={(e) => setBulkPoc(e.target.value)} placeholder="handler name — e.g. Giana" style={{ ...inputCss, flex: "0 1 220px", padding: "8px 11px", font: `500 13px ${F_SANS}` }} />
+          <button onClick={bulkAssign} disabled={!bulkPoc.trim()} style={{ ...btnPrimary, padding: "9px 15px", whiteSpace: "nowrap", opacity: bulkPoc.trim() ? 1 : 0.5, cursor: bulkPoc.trim() ? "pointer" : "not-allowed" }}>Assign {filtered.length}</button>
+          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", flex: "1 1 200px" }}>Narrow with the Level / PoC filters first (e.g. Level 1 + PoC: Unassigned) to hand just those to a new teammate.</span>
+        </div>
+      )}
 
       {error && <p style={{ color: "var(--st-cancel-fg,#b00)", font: `600 14px ${F_SANS}` }}>Failed to load.</p>}
       {!rows && !error && <p style={{ font: `500 14px ${F_SANS}`, color: "var(--muted,#888)" }}>Loading…</p>}
