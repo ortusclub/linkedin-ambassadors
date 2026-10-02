@@ -205,8 +205,9 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   // on an account the moment someone signs up, so without this gate a lot of not-yet-onboarded
   // accounts (0-conn placeholders, logged-in-but-unpaid, paid-but-not-yet-marked) flood the
   // pipeline. A not-onboarded warming account reads as Initial and is held out of inventory.
-  if (a.status === "construction_immature") return a.ownerOnboarded ? "Construction (Immature)" : "Initial";
-  if (a.status === "under_construction") return a.ownerOnboarded ? "Construction" : "Initial";
+  // Both warming statuses live in one "Construction" bucket; immature accounts (very new /
+  // thin) are flagged with an "immature" badge on the row rather than a separate section.
+  if (a.status === "construction_immature" || a.status === "under_construction") return a.ownerOnboarded ? "Construction" : "Initial";
   if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : "Available";
   if (a.status === "trial") return "Trial";
   if (!a.loginEmail || !isCompanyEmail(a.loginEmail) || !a.accountPassword) return "Initial";
@@ -218,7 +219,6 @@ const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
   { key: "Construction", hint: "onboarded & paid — warming up before going live", dot: "var(--st-construct-fg)" },
-  { key: "Construction (Immature)", hint: "warming up — not yet mature enough to rent", dot: "var(--st-construct-fg)" },
   { key: "Maintenance", hint: "restricted or needs fixing — check account badges and notes", dot: "var(--neutral-chip-text)" },
   { key: "Permanently restricted/Inaccessible", hint: "retired — permanently restricted or inaccessible", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
@@ -601,7 +601,6 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       Trial: c("Trial"),
       Rented: c("Rented"),
       Construction: c("Construction"),
-      "Construction (Immature)": c("Construction (Immature)"),
       Maintenance: c("Maintenance"),
       "Permanently restricted/Inaccessible": c("Permanently restricted/Inaccessible"),
       Removed: c("Removed"),
@@ -652,7 +651,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Construction (Immature)", "Construction (Immature)", counts["Construction (Immature)"], "var(--st-construct-fg)"], ["Maintenance", inventoryStatusLabel("Maintenance"), counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Maintenance", inventoryStatusLabel("Maintenance"), counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
@@ -868,6 +867,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
                           <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{inventoryStatusLabel(st)}</span>
+                          {a.status === "construction_immature" && <span title="Immature — very new / few connections; needs more warm-up before it's ready to rent" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-construct-bg)", color: "var(--st-construct-fg)" }}>⏳ immature</span>}
                           {a.shadowRenter && <span title={`Shadow-held by ${a.shadowRenter} — still available to rent; a real customer rental takes it back automatically.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>◑ Shadow · {({ "info@ortus.solutions": "Ortus", "info@apexstrategy.io": "Apex" } as Record<string, string>)[a.shadowRenter.trim().toLowerCase()] || a.shadowRenter}</span>}
                           {a.inventoryPool === "ortus" && <span title="Ortus inventory — brought in by an Ortus referrer. Hidden from the public catalogue and auto-owned ($0) by info@ortus.solutions." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#ede9fe", color: "#6d28d9" }}>◆ Ortus</span>}
                           {a.inventoryPool === "apex" && <span title="Apex inventory — brought in by an Apex referrer. Hidden from the public catalogue and auto-owned ($0) by info@apexstrategy.io." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#e0f2fe", color: "#0369a1" }}>◆ Apex</span>}
