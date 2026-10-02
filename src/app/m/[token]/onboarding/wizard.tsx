@@ -123,6 +123,9 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   // token + the /api/self-onboarding mirror. Everything else is shared with the referral flow.
   const endpoint = endpointProp ?? `/api/m/${encodeURIComponent(token)}/onboarding`;
   const phoneEndpoint = `${endpoint}/phone`;
+  // In demo, every "leave this flow" link loops back to a fresh demo run instead
+  // of dropping the ?demo=1 param (which would dead-end on the real invalid-token flow).
+  const demoHome = `/m/${token}/onboarding?demo=1`;
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
   const preference = useDisplayCurrency(selfMode ? "public-diy" : token, selfMode ? undefined : bootstrap?.displayCurrency, selfMode ? undefined : token);
   const [step, setStep] = useState(0);
@@ -509,7 +512,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
       <header className={styles.header}>
         <div className={styles.headerRow}>
           {canGoBack ? <button type="button" className={styles.headerBack} disabled={busy} onClick={goBack}>← Back</button>
-            : <Link href={selfMode ? "/dashboard" : `/m/${token}`} className={styles.headerBack}>← Dashboard</Link>}
+            : <Link href={demo ? demoHome : selfMode ? "/dashboard" : `/m/${token}`} className={styles.headerBack}>← Dashboard</Link>}
           <span className={styles.headerTitle}>DIY onboarding</span>
           {bootstrap && !setupChoice && <span className={styles.headerStep}>Step {currentPos + 1} of {wizardSteps.length}</span>}
         </div>
@@ -755,7 +758,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>Handed off to the team</h1>
             <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup fee follows <strong>{checkWindow(session.accountFreshness)}</strong> after we sign in and the account passes our checks (QC), and your commission at the same time. Nothing more to do here.</p>
-            {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>}
+            {!selfMode && <a className={styles.secondary} href={demo ? demoHome : `/m/${token}/onboarding`}>Onboard another account owner</a>}
           </> : browserMode === "" ? <>
             {setupOptions()}
           </> : browserMode === "phone" ? <>
@@ -786,8 +789,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <p className={styles.cardSub} style={{ marginBottom: 8 }}>Don&apos;t post, message or browse from your own phone while it&apos;s with us — being logged in from two places is what causes restrictions.</p>
               <p className={styles.cardSub} style={{ margin: 0 }}>{selfMode ? "Keep your contact details up to date so our team can reach you if a check is needed." : "And if anything is ever needed on the account, it comes through you — so make sure they’ll pick up when you call."}</p>
             </div>
-            <Link className={styles.primary} href={selfMode ? "/dashboard" : `/m/${token}`}>{selfMode ? "Go to my dashboard →" : "Back to my portal →"}</Link>
-            {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard someone else</a>}
+            <Link className={styles.primary} href={demo ? demoHome : selfMode ? "/dashboard" : `/m/${token}`}>{selfMode ? "Go to my dashboard →" : "Back to my portal →"}</Link>
+            {!selfMode && <a className={styles.secondary} href={demo ? demoHome : `/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard someone else</a>}
           </>}
           </div>
         </>}
