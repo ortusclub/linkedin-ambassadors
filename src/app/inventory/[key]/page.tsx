@@ -13,7 +13,7 @@ const SLUG = "iv-7h2k9x3mqp";
 
 // Partner wholesale pricing, floor held at $40: verified $50; unverified $45 at
 // 200+ connections, else $40.
-const priceOf = (v: boolean, cc: number) => (v ? 50 : cc >= 200 ? 45 : 40);
+const priceOf = (v: boolean, cc: number) => (v ? 50 : cc >= 200 ? 40 : 30);
 
 type Row = { id: string; name: string; url: string; cc: number; v: boolean; price: number };
 
@@ -128,8 +128,8 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
         <div className="pp-top-in">
           <div className="pp-brand"><b>LinkedVelocity</b><span>Account inventory</span></div>
           <div className="pp-legend">
-            <span className="pp-lg u">Unverified &lt;200 <i>$40/mo</i></span>
-            <span className="pp-lg u">Unverified 200+ <i>$45/mo</i></span>
+            <span className="pp-lg u">Unverified &lt;200 <i>$30/mo</i></span>
+            <span className="pp-lg u">Unverified 200+ <i>$40/mo</i></span>
             <span className="pp-lg v">✓ Verified <i>$50/mo</i></span>
           </div>
         </div>
@@ -137,7 +137,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
       <main className="pp-main">
         <div className="pp-hero">
           <h1>Available accounts</h1>
-          <p>Aged, warmed LinkedIn profiles ready for outreach. Pricing is per account, per month: unverified $40 (or $45 at 200+ connections), verified $50. Open any profile to review it.</p>
+          <p>Aged, warmed LinkedIn profiles ready for outreach. Pricing is per account, per month: unverified $30 (or $40 at 200+ connections), verified $50. Open any profile to review it.</p>
         </div>
         {now.length > 0 && (
           <Group eyebrow="Ready today" title="Available now" hint="Live and rentable right now. We can release these the moment you order." items={now} />
