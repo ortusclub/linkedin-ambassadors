@@ -1,0 +1,449 @@
+"use client";
+
+// Pipeline (New) — v2 triage view. Same data + same endpoints as /admin/pipeline
+// (nothing here writes anywhere the live pipeline doesn't), reorganised around
+// WHOSE TURN it is: To action / Waiting on them / Maturing / Onboarded / Stopped,
+// with a handler lens, claim/bulk-assign, and the same expanded-row panel.
+import { useEffect, useMemo, useState } from "react";
+import { formatMoney } from "@/lib/referral-currency";
+import { formatName } from "@/lib/utils";
+import { isLikelyTestEmail } from "@/lib/test-mode";
+import { CardDetail, AccountOnlyCard } from "@/components/admin/pipeline-panel";
+import {
+  type Row, type Status, type Turn, F_SANS, F_GRO, labelCss, inputCss,
+  applicationType, APPLICATION_TYPES, levelOf, levelKey, LEVEL_CHIP, LEVEL_GROUPS,
+  healthOf, HEALTH_OPTIONS, isRestricted, turnOf,
+  cfgOf, monthlyAmt, fmtDate, ageDays, initialsOf,
+} from "@/lib/pipeline-model";
+
+// Tile / turn-chip vocabulary.
+const TURN_META: Record<Turn, { tile: string; chip: string; bg: string; fg: string; dot: string; sub: string }> = {
+  us:    { tile: "To action",       chip: "ACTION",    bg: "var(--warn-badge-bg,#fef3e2)", fg: "var(--warn-badge-text,#b7791f)", dot: "var(--warn-badge-text,#b7791f)", sub: "needs us now" },
+  them:  { tile: "Waiting on them", chip: "WAITING",   bg: "var(--blue-chip-bg,#e8f0fe)",  fg: "var(--blue-chip-text,#1a56db)",  dot: "var(--blue-chip-text,#1a56db)",  sub: "applicant or referrer" },
+  timer: { tile: "Maturing",        chip: "MATURING",  bg: "var(--st-conv-bg,#efe8fd)",    fg: "var(--st-conv-fg,#6d28d9)",      dot: "var(--st-conv-fg,#6d28d9)",      sub: "1-week hold" },
+  live:  { tile: "Onboarded",       chip: "ONBOARDED", bg: "var(--st-active-bg,#e6f4ea)",  fg: "var(--st-active-fg,#188038)",    dot: "var(--st-active-fg,#188038)",    sub: "live & earning" },
+  dead:  { tile: "Stopped",         chip: "STOPPED",   bg: "var(--st-cancel-bg,#fdecea)",  fg: "var(--st-cancel-fg,#c0392b)",    dot: "var(--st-cancel-fg,#c0392b)",    sub: "not progressing" },
+};
+const TURN_ORDER: Turn[] = ["us", "them", "timer", "live", "dead"];
+const GROUP_OPTS: { key: string; label: string }[] = [
+  { key: "level", label: "Level" }, { key: "handler", label: "Handler" }, { key: "referrer", label: "Referrer" }, { key: "none", label: "None" },
+];
+
+export default function PipelineNewPage() {
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const [error, setError] = useState(false);
+  const [me, setMe] = useState<string>("");
+  const [turnF, setTurnF] = useState<Turn | "all">("us");
+  const [whoF, setWhoF] = useState<string>("all"); // "all" | "__me" | "__unassigned" | <poc>
+  const [levelF, setLevelF] = useState<number | "all">("all");
+  const [healthF, setHealthF] = useState<string>("all");
+  const [typeF, setTypeF] = useState<string>("all");
+  const [groupBy, setGroupBy] = useState<string>("level");
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const flashSave = (ok: boolean, text: string) => { setSaveMsg({ ok, text }); window.setTimeout(() => setSaveMsg((m) => (m && m.text === text ? null : m)), ok ? 1800 : 6000); };
+  const toggle = (id: string) => setOpen((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleGroup = (k: string) => setClosed((p) => { const n = new Set(p); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  const toggleSel = (id: string) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const load = async () => {
+    try {
+      const [onb, amb] = await Promise.all([
+        fetch("/api/admin/onboarding", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { rows: [] })),
+        fetch("/api/admin/ambassadors", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { applications: [] })),
+      ]);
+      const overlay = new Map<string, Pick<Row, "onboardingStartedAt" | "paidAt" | "verifiedAt" | "monthlyPayouts" | "call">>();
+      for (const a of (amb.applications || [])) {
+        overlay.set(a.id, {
+          onboardingStartedAt: a.onboardingStartedAt ?? null,
+          paidAt: a.paidAt ?? null,
+          verifiedAt: a.verifiedAt ?? null,
+          monthlyPayouts: Array.isArray(a.monthlyPayouts) ? a.monthlyPayouts : null,
+          call: a.call ? { stage: a.call.stage, scheduledAt: a.call.scheduledAt ?? null, meetLink: a.call.meetLink ?? null } : null,
+        });
+      }
+      const merged: Row[] = (onb.rows || []).map((r: Row) => {
+        const o = overlay.get(r.id);
+        return { ...r, onboardingStartedAt: o?.onboardingStartedAt ?? null, paidAt: o?.paidAt ?? r.setupPaidAt ?? null, verifiedAt: o?.verifiedAt ?? r.verifiedAt ?? null, monthlyPayouts: o?.monthlyPayouts ?? null, call: o?.call ?? null };
+      });
+      setRows(merged);
+    } catch { setError(true); }
+  };
+  useEffect(() => { load(); }, []);
+  useEffect(() => { fetch("/api/auth/me", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.user) setMe(d.user.fullName || d.user.email || ""); }).catch(() => {}); }, []);
+  // Background refresh — keep the pipeline current, preserve overlay fields.
+  useEffect(() => {
+    let stopped = false; let refreshing = false;
+    const refresh = async () => {
+      if (document.visibilityState !== "visible" || refreshing) return;
+      refreshing = true;
+      try {
+        const res = await fetch("/api/admin/onboarding", { cache: "no-store" });
+        if (!res.ok) return; const data = await res.json(); if (stopped || !Array.isArray(data.rows)) return;
+        setRows((previous) => {
+          const existing = new Map((previous || []).map((row) => [row.id, row]));
+          return data.rows.map((row: Row) => { const prior = existing.get(row.id); return { ...row, onboardingStartedAt: prior?.onboardingStartedAt ?? null, paidAt: prior?.paidAt ?? row.setupPaidAt ?? null, verifiedAt: row.verifiedAt ?? prior?.verifiedAt ?? null, monthlyPayouts: prior?.monthlyPayouts ?? null, call: prior?.call ?? null }; });
+        });
+      } catch { /* keep current */ } finally { refreshing = false; }
+    };
+    const timer = window.setInterval(refresh, 10000);
+    document.addEventListener("visibilitychange", refresh); window.addEventListener("focus", refresh);
+    return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); };
+  }, []);
+
+  // ---- mutations (identical endpoints to the live pipeline) ----
+  const patchApp = async (id: string, patch: Record<string, unknown>, reload = false) => {
+    setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, ...patch } : r)) : prev));
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Save failed (${res.status})`);
+      flashSave(true, "Saved ✓"); if (reload) await load();
+    } catch (e) { flashSave(false, e instanceof Error ? e.message : "Save failed — not saved. Please retry."); await load(); }
+  };
+  const patchAccount = async (id: string, accountId: string, patch: Record<string, unknown>, reload = false) => {
+    setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, ...patch } : r)) : prev));
+    try {
+      const res = await fetch(`/api/admin/accounts/${accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Save failed (${res.status})`);
+      flashSave(true, "Saved ✓"); if (reload) await load();
+    } catch (e) { flashSave(false, e instanceof Error ? e.message : "Save failed — not saved. Please retry."); await load(); }
+  };
+  const deleteRestrictionEvent = async (accountId: string, at: string) => {
+    try { await fetch(`/api/admin/accounts/${accountId}/restricted`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at }) }); } catch {}
+    await load();
+  };
+  const setStage = async (r: Row, status: Status) => {
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, status }) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(typeof d.error === "string" ? d.error : `Could not update status (${res.status}).`); return; }
+      await load();
+    } finally { setBusy(null); }
+  };
+  const workflow = async (id: string, patch: Record<string, unknown>) => { setBusy(id); try { await patchApp(id, patch, true); } finally { setBusy(null); } };
+  const provisionGologin = async (r: Row) => {
+    if (!r.accountId) return; setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/provision-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not create GoLogin (${res.status}).`);
+      else if (d.result?.proxy === "flagged") { const why = d.result?.errors?.length ? d.result.errors.join("; ") : "no proxy could be assigned"; alert(`Couldn't attach a proxy — ${why}.`); }
+      else if (d.result?.errors?.length) alert(`Partly done: ${d.result.errors.join("; ")}`);
+      await load();
+    } finally { setBusy(null); }
+  };
+  const deleteGologin = async (r: Row) => {
+    if (!r.accountId) return;
+    if (!confirm(`Delete the GoLogin profile for ${r.accountName || r.fullName || "this account"}?\n\nThis removes the browser profile, clears the share link, and unassigns the proxy.`)) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/delete-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
+      const d = await res.json().catch(() => ({})); if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not delete GoLogin (${res.status}).`); else if (d.warning) alert(d.warning);
+      await load();
+    } finally { setBusy(null); }
+  };
+  const emailIssue = async (r: Row, issue: string) => {
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/email-issue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, issue, loginEmail: r.loginEmail, ambassadorName: r.fullName, referrerSlug: r.referredBy }) });
+      const d = await res.json().catch(() => ({})); if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not send (${res.status}).`); else { alert(`Sent to ${d.to}.`); await load(); }
+    } finally { setBusy(null); }
+  };
+  const logTouch = async (id: string, ch: string, text: string, by: string) => {
+    const body = text || (({ whatsapp: "WhatsApp message sent", viber: "Viber message sent", telegram: "Telegram message sent", email: "Email sent", call: "Call attempted — no answer", text: "Text message sent", note: "Note added" } as Record<string, string>)[ch] || "Note added");
+    setBusy(id);
+    setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, outreachLog: [...(r.outreachLog || []), { ch, text: body, by: by || "You", at: new Date().toISOString() }] } : r)) : prev));
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ addTouch: { ch, text: body, by: by || undefined } }) });
+      if (res.ok) { const d = await res.json(); if (d.application?.outreachLog) setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, outreachLog: d.application.outreachLog } : r)) : prev)); }
+    } catch {} finally { setBusy(null); }
+  };
+  const logPayment = async (r: Row, kind: "setup" | "monthly") => {
+    const cfg = cfgOf(r); const amount = kind === "setup" ? cfg.setupAmount : monthlyAmt(r);
+    const payout: Record<string, unknown> = { amount, kind, method: r.paymentMethod || undefined };
+    if (kind === "setup" && r.accountId) payout.accountId = r.accountId;
+    const patch: Record<string, unknown> = { addMonthlyPayout: payout };
+    if (kind === "setup") patch.paidAt = new Date().toISOString();
+    await workflow(r.id, patch);
+  };
+  const updatePayout = async (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => {
+    await workflow(r.id, { updateMonthlyPayout: { index, ...patch } });
+  };
+  const deleteApp = async (r: Row) => {
+    if (!confirm(`Delete ${formatName(r.fullName) || r.email}'s application permanently? This cannot be undone.`)) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${r.id}`, { method: "DELETE" }); const data = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(`Couldn't delete: ${data.error || res.statusText}`); return; }
+      if (data.accountKept) alert("Application deleted. The linked LinkedIn account was kept because it's listed or has been rented.");
+      await load();
+    } finally { setBusy(null); }
+  };
+  // Assign a handler (POC) to a set of rows — app rows via bulk-poc, inventory-only via account PATCH.
+  const assignMany = async (ids: string[], poc: string | null) => {
+    if (!ids.length) return;
+    const byId = new Map((rows || []).map((r) => [r.id, r]));
+    const picked = ids.map((id) => byId.get(id)).filter(Boolean) as Row[];
+    const appIds = picked.filter((r) => !r.accountOnly).map((r) => r.id);
+    const acctRows = picked.filter((r) => r.accountOnly && r.accountId);
+    const idSet = new Set(ids);
+    setRows((prev) => (prev ? prev.map((r) => (idSet.has(r.id) ? { ...r, poc: poc || null } : r)) : prev));
+    try {
+      if (appIds.length) { const res = await fetch("/api/admin/ambassadors/bulk-poc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: appIds, poc }) }); if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Failed (${res.status})`); }
+      if (acctRows.length) await Promise.all(acctRows.map((r) => fetch(`/api/admin/accounts/${r.accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc }) }).then((res) => { if (!res.ok) throw new Error("account PoC save failed"); })));
+      flashSave(true, `${poc ? "Assigned" : "Unassigned"} ${ids.length} ${ids.length === 1 ? "row" : "rows"}${poc ? " → " + poc : ""} ✓`);
+    } catch (e) { flashSave(false, e instanceof Error ? e.message : "Assign failed — not saved."); await load(); }
+  };
+  const claim = (r: Row) => { if (me) assignMany([r.id], me); };
+
+  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
+
+  // Distinct handlers present (for chips + bulk menu).
+  const handlerNames = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of rows || []) { const p = (r.poc || "").trim(); if (p) s.add(p); }
+    if (me) s.add(me);
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [rows, me]);
+
+  const withTurn = useMemo(() => (rows || []).map((r) => ({ r, t: turnOf(r) })), [rows]);
+
+  // Tile counts — over everything (ignores the who/level/search filters, like a scoreboard).
+  const tileCounts = useMemo(() => {
+    const c: Record<Turn, number> = { us: 0, them: 0, timer: 0, live: 0, dead: 0 };
+    for (const { t } of withTurn) c[t.turn]++;
+    return c;
+  }, [withTurn]);
+  // Per-handler open-action load (turn === us), including resurfaced chases.
+  const handlerLoad = useMemo(() => {
+    const m = new Map<string, number>(); let unclaimed = 0;
+    for (const { r, t } of withTurn) if (t.turn === "us") { const p = (r.poc || "").trim(); if (p) m.set(p, (m.get(p) || 0) + 1); else unclaimed++; }
+    return { m, unclaimed, total: withTurn.filter((x) => x.t.turn === "us").length };
+  }, [withTurn]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return withTurn.filter(({ r, t }) => {
+      if (turnF !== "all" && t.turn !== turnF) return false;
+      if (whoF !== "all") { const p = (r.poc || "").trim(); if (whoF === "__unassigned" ? p !== "" : whoF === "__me" ? p !== me : p !== whoF) return false; }
+      if (levelF !== "all" && levelKey(r) !== levelF) return false;
+      if (healthF !== "all") { if (healthF === "restricted") { if (!isRestricted(r)) return false; } else if (healthOf(r) !== healthF) return false; }
+      if (typeF !== "all" && applicationType(r).key !== typeF) return false;
+      if (!q) return true;
+      return [r.fullName, r.email, r.contactNumber, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc, ...(r.outreachLog || []).map((x) => x.text)].some((v) => (v || "").toLowerCase().includes(q));
+    });
+  }, [withTurn, turnF, whoF, me, levelF, healthF, typeF, query]);
+
+  type Grp = { key: string; title: string; dot: string; note: string; items: { r: Row; t: ReturnType<typeof turnOf> }[] };
+  const groups: Grp[] = useMemo(() => {
+    const byNewest = (a: { r: Row }, b: { r: Row }) => +new Date(b.r.createdAt) - +new Date(a.r.createdAt);
+    const sorted = [...filtered].sort(byNewest);
+    if (groupBy === "none") return [{ key: "all", title: "All", dot: "var(--fg,#111)", note: "newest first", items: sorted }];
+    if (groupBy === "handler") {
+      const defs = [...handlerNames.map((n) => ({ k: n, t: n, c: "var(--blue-chip-text,#1a56db)" })), { k: "__un", t: "Unclaimed", c: "var(--warn-badge-text,#b7791f)" }];
+      return defs.map((d) => ({ key: "h" + d.k, title: d.t, dot: d.c, note: "", items: sorted.filter(({ r }) => (d.k === "__un" ? !(r.poc || "").trim() : (r.poc || "").trim() === d.k)) })).filter((g) => g.items.length);
+    }
+    if (groupBy === "referrer") {
+      const refs = [...new Set(sorted.map(({ r }) => (r.referredBy || "—")))].sort();
+      return refs.map((rf) => ({ key: "r" + rf, title: rf, dot: "var(--blue-chip-text,#1a56db)", note: "", items: sorted.filter(({ r }) => (r.referredBy || "—") === rf) })).filter((g) => g.items.length);
+    }
+    // level
+    return LEVEL_GROUPS.map((d) => ({ key: "l" + d.key, title: d.label, dot: d.dot, note: d.note, items: sorted.filter(({ r }) => levelKey(r) === d.key) })).filter((g) => g.items.length);
+  }, [filtered, groupBy, handlerNames]);
+
+  const selArr = [...sel];
+  const totalLive = useMemo(() => (rows || []).filter((r) => levelOf(r) === 5).length, [rows]);
+
+  if (error) return <div style={{ padding: 40, font: `500 14px ${F_SANS}`, color: "var(--muted,#777)" }}>Couldn’t load the pipeline. Refresh to retry.</div>;
+
+  return (
+    <div style={{ maxWidth: 1320, margin: "0 auto", padding: "8px 4px 60px" }}>
+      {saveMsg && <div role="status" onClick={() => setSaveMsg(null)} style={{ position: "fixed", top: 14, left: "50%", transform: "translateX(-50%)", zIndex: 100, cursor: "pointer", font: `700 13px ${F_SANS}`, padding: "10px 16px", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,.14)", background: saveMsg.ok ? "var(--st-active-bg,#e6f4ea)" : "var(--st-cancel-bg,#fdecea)", color: saveMsg.ok ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)", border: `1px solid ${saveMsg.ok ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)"}` }}>{saveMsg.ok ? saveMsg.text : `⚠ ${saveMsg.text}`}</div>}
+
+      {/* title + viewing-as */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
+        <div>
+          <h1 style={{ font: `800 28px ${F_GRO}`, margin: "0 0 4px", color: "var(--fg,#111)" }}>Pipeline</h1>
+          <p style={{ font: `500 13.5px ${F_SANS}`, color: "var(--muted,#777)", margin: 0 }}>Who needs what, and who’s on it. {(rows || []).length} in pipeline · {totalLive} live.</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, font: `600 13px ${F_SANS}`, color: "var(--muted,#777)" }}>
+          Viewing as
+          <span style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 999, padding: "4px 11px 4px 4px", color: "var(--fg,#111)" }}>
+            <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--st-conv-fg,#6d28d9)", color: "#fff", font: `700 10px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{me ? initialsOf(me) : "?"}</span>
+            {me || "—"}
+          </span>
+        </div>
+      </div>
+
+      {/* turn tiles */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, marginBottom: 14 }}>
+        {TURN_ORDER.map((k) => {
+          const m = TURN_META[k]; const active = turnF === k;
+          return (
+            <button key={k} onClick={() => { setTurnF(active ? "all" : k); setOpen(new Set()); }} style={{ textAlign: "left", cursor: "pointer", background: active ? "var(--card,#fff)" : "var(--band,#f6f7f9)", border: `1.5px solid ${active ? m.dot : "var(--card-border,#e3e3e6)"}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 3 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 7, font: `700 11px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: m.fg }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: m.dot }} />{m.tile}</span>
+              <span style={{ font: `800 24px ${F_GRO}`, color: "var(--fg,#111)" }}>{tileCounts[k]}</span>
+              <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>{k === "us" ? `${handlerLoad.unclaimed} unclaimed` : m.sub}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* handler chips */}
+      <div style={{ background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, padding: "11px 14px", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ ...labelCss, marginRight: 4 }}>Handled by</span>
+          {([{ k: "all", label: "Everyone", cnt: handlerLoad.total }, ...(me ? [{ k: "__me", label: "Me", cnt: handlerLoad.m.get(me) || 0 }] : []), ...handlerNames.filter((n) => n !== me).map((n) => ({ k: n, label: n, cnt: handlerLoad.m.get(n) || 0 })), { k: "__unassigned", label: "Unclaimed", cnt: handlerLoad.unclaimed }]).map((c) => {
+            const active = whoF === c.k;
+            return (
+              <button key={c.k} onClick={() => setWhoF(active ? "all" : c.k)} style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", border: `1.5px solid ${active ? "var(--fg,#111)" : "var(--card-border,#e3e3e6)"}`, background: active ? "var(--band,#f1f3f6)" : "var(--card,#fff)", borderRadius: 999, padding: "4px 11px", font: `700 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap" }}>
+                {c.label}
+                <span style={{ font: `700 11px ${F_GRO}`, color: c.cnt ? "var(--warn-badge-text,#b7791f)" : "var(--muted2,#9aa0a6)", background: c.cnt ? "var(--warn-badge-bg,#fef3e2)" : "var(--band,#f1f3f6)", borderRadius: 999, padding: "1px 7px" }}>{c.cnt}</span>
+              </button>
+            );
+          })}
+          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", marginLeft: "auto" }}>Count = open actions</span>
+        </div>
+        {/* filters */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", borderTop: "1px solid var(--divider,#f0f2f5)", paddingTop: 10 }}>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact or referrer…" style={{ ...inputCss, flex: 1, minWidth: 220 }} />
+          <select value={String(levelF)} onChange={(e) => setLevelF(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ ...inputCss, width: "auto", cursor: "pointer" }}>
+            <option value="all">All levels</option>
+            {[0.5, 1, 2, 3, 4, 5, 0].map((n) => <option key={n} value={n}>Level {LEVEL_CHIP[String(n)]}</option>)}
+          </select>
+          <select value={healthF} onChange={(e) => setHealthF(e.target.value)} style={{ ...inputCss, width: "auto", cursor: "pointer" }}>
+            <option value="all">Any status</option>
+            <option value="restricted">Restricted</option>
+            {HEALTH_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+          <select value={typeF} onChange={(e) => setTypeF(e.target.value)} style={{ ...inputCss, width: "auto", cursor: "pointer" }}>
+            <option value="all">All types</option>
+            {APPLICATION_TYPES.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+          <div style={{ display: "flex", gap: 3, background: "var(--band,#eef0f4)", borderRadius: 10, padding: 3 }}>
+            <span style={{ font: `600 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", padding: "0 6px", alignSelf: "center" }}>Group</span>
+            {GROUP_OPTS.map((g) => <button key={g.key} onClick={() => setGroupBy(g.key)} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 11px", whiteSpace: "nowrap", font: `700 12px ${F_SANS}`, background: groupBy === g.key ? "var(--card,#fff)" : "transparent", color: groupBy === g.key ? "var(--fg,#111)" : "var(--muted,#8a9099)" }}>{g.label}</button>)}
+          </div>
+        </div>
+      </div>
+
+      {/* bulk assign bar */}
+      {sel.size > 0 && (
+        <div style={{ position: "sticky", top: 10, zIndex: 5, background: "var(--btn-dark-bg,#0b1220)", color: "#fff", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", boxShadow: "0 10px 30px rgba(11,18,32,.25)", marginBottom: 12 }}>
+          <span style={{ font: `700 13.5px ${F_SANS}` }}>{sel.size} selected</span>
+          <span style={{ font: `500 13px ${F_SANS}`, color: "#a7b0bf" }}>Assign to</span>
+          {(me ? [me, ...handlerNames.filter((n) => n !== me)] : handlerNames).map((n) => (
+            <button key={n} onClick={() => { void assignMany(selArr, n); setSel(new Set()); }} style={{ border: "1px solid #2a3344", background: "#151d2c", color: "#fff", borderRadius: 8, padding: "6px 10px", font: `700 12px ${F_SANS}`, cursor: "pointer" }}>{n === me ? "Me" : n}</button>
+          ))}
+          <button onClick={() => { void assignMany(selArr, null); setSel(new Set()); }} style={{ border: "1px solid #2a3344", background: "#151d2c", color: "#fff", borderRadius: 8, padding: "6px 10px", font: `700 12px ${F_SANS}`, cursor: "pointer" }}>Unassign</button>
+          <button onClick={() => setSel(new Set())} style={{ marginLeft: "auto", border: "none", background: "none", color: "#a7b0bf", font: `700 12.5px ${F_SANS}`, cursor: "pointer" }}>Clear</button>
+        </div>
+      )}
+
+      {/* table */}
+      {rows === null ? (
+        <div style={{ padding: 40, textAlign: "center", font: `500 13px ${F_SANS}`, color: "var(--muted,#777)" }}>Loading…</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {groups.map((g) => {
+            const gClosed = closed.has(g.key);
+            const stale = g.items.filter(({ t }) => t.chaseDue).length;
+            const uncl = g.items.filter(({ r, t }) => t.turn === "us" && !(r.poc || "").trim()).length;
+            return (
+              <div key={g.key} style={{ background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, overflow: "hidden" }}>
+                <button onClick={() => toggleGroup(g.key)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, border: "none", background: "var(--band,#f6f7f9)", borderBottom: "1px solid var(--divider,#eef0f4)", padding: "9px 16px", cursor: "pointer", textAlign: "left" }}>
+                  <span style={{ font: `700 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", display: "inline-block", transform: gClosed ? "none" : "rotate(90deg)", transition: "transform .15s" }}>›</span>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: g.dot }} />
+                  <span style={{ font: `700 13.5px ${F_SANS}`, color: "var(--fg,#111)" }}>{g.title}</span>
+                  <span style={{ font: `700 11.5px ${F_GRO}`, color: "var(--muted,#888)", background: "var(--band,#e9ecf1)", borderRadius: 999, padding: "1px 8px" }}>{g.items.length}</span>
+                  <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>{g.note}</span>
+                  <span style={{ marginLeft: "auto", font: `700 11.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>{stale ? `${stale} to chase` : uncl ? `${uncl} unclaimed` : ""}</span>
+                </button>
+                {!gClosed && (
+                  <div style={{ overflowX: "auto" }}>
+                    <div style={{ minWidth: 1180 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "32px minmax(0,1.7fr) 104px 96px 70px 60px 112px minmax(0,2fr) 150px 84px 22px", gap: 12, alignItems: "center", padding: "8px 16px", borderBottom: "1px solid var(--divider,#eef0f4)", font: `700 9.5px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>
+                        <span /><span>Ambassador</span><span>Referrer</span><span>Type</span><span>Applied</span><span>Verified</span><span>Level</span><span>Next step</span><span>Handler</span><span>Last touch</span><span />
+                      </div>
+                      {g.items.map(({ r, t }) => (
+                        <Rowline key={r.id} r={r} t={t} open={open.has(r.id)} selected={sel.has(r.id)} me={me} handlerNames={handlerNames}
+                          onToggle={() => toggle(r.id)} onSel={() => toggleSel(r.id)} onClaim={() => claim(r)} onAssign={(p) => assignMany([r.id], p)} handlers={handlers} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {!groups.length && <div style={{ padding: 40, textAlign: "center", font: `600 14px ${F_SANS}`, color: "var(--muted,#777)" }}>Nothing here.</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onClaim, onAssign, handlers }: {
+  r: Row; t: ReturnType<typeof turnOf>; open: boolean; selected: boolean; me: string; handlerNames: string[];
+  onToggle: () => void; onSel: () => void; onClaim: () => void; onAssign: (poc: string | null) => void;
+  handlers: Parameters<typeof CardDetail>[0]["h"];
+}) {
+  const m = TURN_META[t.turn];
+  const lvl = levelKey(r);
+  const applied = ageDays(r.createdAt);
+  const h = (r.poc || "").trim();
+  const touches = (r.outreachLog || []).filter((x) => x.ch !== "note");
+  const lastTouch = touches.length ? ageDays(touches[touches.length - 1].at) : null;
+  const restricted = isRestricted(r);
+  return (
+    <div style={{ borderBottom: "1px solid var(--divider,#f0f2f5)", background: open ? "var(--band,#fafbfc)" : "var(--card,#fff)" }}>
+      <div onClick={onToggle} style={{ display: "grid", gridTemplateColumns: "32px minmax(0,1.7fr) 104px 96px 70px 60px 112px minmax(0,2fr) 150px 84px 22px", gap: 12, alignItems: "center", padding: "9px 16px", cursor: "pointer", boxShadow: `inset 3px 0 0 ${t.chaseDue ? "var(--st-cancel-fg,#c0392b)" : t.turn === "us" && !h ? "var(--warn-badge-text,#f59e0b)" : "transparent"}` }}>
+        <input type="checkbox" checked={selected} onClick={(e) => e.stopPropagation()} onChange={onSel} style={{ width: 16, height: 16, cursor: "pointer" }} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+            <span style={{ font: `700 14px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatName(r.fullName) || "—"}</span>
+            {restricted && <span style={{ flex: "none", font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>Restricted</span>}
+            {r.linkedinVerified && <span style={{ flex: "none", font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)" }}>✓</span>}
+            {isLikelyTestEmail(r.email) && <span style={{ flex: "none", font: `700 9px ${F_SANS}`, padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
+          </div>
+          <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.email}{r.contactNumber ? ` · ${r.contactNumber}` : ""}</div>
+        </div>
+        {r.referredBy ? <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} style={{ font: `700 12.5px ${F_SANS}`, color: "var(--link,#0a66c2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.referredBy}</a> : <span style={{ color: "var(--muted2,#b6bbc2)" }}>—</span>}
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 7, background: "var(--band,#f1f3f6)", color: "var(--fg,#444)", whiteSpace: "nowrap" }}>{applicationType(r).label}</span>
+        <div style={{ display: "flex", flexDirection: "column" }}><span style={{ font: `700 12.5px ${F_GRO}`, color: applied >= 14 && !["live", "dead"].includes(t.turn) ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" }}>{applied === 0 ? "Today" : applied + "d"}</span><span style={{ font: `500 10px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>{fmtDate(r.createdAt)}</span></div>
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: r.linkedinVerified ? "var(--st-active-bg,#e6f4ea)" : "var(--band,#f1f3f6)", color: r.linkedinVerified ? "var(--st-active-fg,#188038)" : "var(--muted2,#9aa0a6)" }}>{r.linkedinVerified ? "Yes" : "No"}</span>
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--band,#f1f3f6)", color: "var(--fg,#444)", whiteSpace: "nowrap" }}>{LEVEL_CHIP[String(lvl)]}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span style={{ flex: "none", font: `800 9px ${F_SANS}`, letterSpacing: ".05em", padding: "3px 7px", borderRadius: 6, background: m.bg, color: m.fg }}>{m.chip}</span>
+          <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.label}</span>
+        </div>
+        <div onClick={(e) => e.stopPropagation()} style={{ minWidth: 0 }}>
+          {!h ? (
+            <button onClick={onClaim} disabled={!me} style={{ border: "1.5px dashed var(--input-border,#c5cbd3)", background: "var(--card,#fff)", color: "var(--fg,#111)", borderRadius: 999, padding: "4px 12px", font: `700 12px ${F_SANS}`, cursor: me ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}>+ Claim</button>
+          ) : (
+            <label style={{ position: "relative", display: "flex", alignItems: "center", gap: 7, cursor: "pointer", minWidth: 0 }}>
+              <span style={{ flex: "none", width: 24, height: 24, borderRadius: "50%", background: "var(--st-conv-fg,#6d28d9)", color: "#fff", font: `700 10px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{initialsOf(h)}</span>
+              <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap" }}>{h === me ? "Me" : h}</span>
+              <span style={{ font: `600 10px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>▾</span>
+              <select value={h} onChange={(e) => onAssign(e.target.value || null)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}>
+                {[...(me && !handlerNames.includes(me) ? [me] : []), ...handlerNames].map((n) => <option key={n} value={n}>{n === me ? "Me (" + n + ")" : n}</option>)}
+                <option value="">Unassign</option>
+              </select>
+            </label>
+          )}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}><span style={{ font: `700 12.5px ${F_GRO}`, color: t.chaseDue ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" }}>{lastTouch === null ? "—" : lastTouch === 0 ? "Today" : lastTouch + "d"}</span><span style={{ font: `600 10px ${F_SANS}`, color: t.chaseDue ? "var(--st-cancel-fg,#c0392b)" : "var(--muted2,#9aa0a6)" }}>{t.chaseDue ? "chase due" : t.turn === "us" && !h ? "unclaimed" : ""}</span></div>
+        <span style={{ font: `700 14px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", display: "inline-block", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
+      </div>
+      {open && (r.accountOnly ? (
+        <div style={{ padding: 16 }}><AccountOnlyCard r={r} patchAccount={handlers.patchAccount} deleteRestrictionEvent={handlers.deleteRestrictionEvent} /></div>
+      ) : (
+        <CardDetail r={r} h={handlers} />
+      ))}
+    </div>
+  );
+}

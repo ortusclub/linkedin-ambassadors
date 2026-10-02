@@ -27,6 +27,7 @@ const sections = [
   { name: "Ambassadors", items: [
     // Pipeline replaces the old Applications / Ambassadors(owners) / Onboarding tabs.
     { href: "/admin/pipeline", label: "Pipeline" },
+    { href: "/admin/pipeline-new", label: "Pipeline (New)" },
     { href: "/admin/referrals", label: "Referrals" },
     { href: "/admin/balances", label: "Payouts" },
     { href: "/admin/accounts", label: "Inventory" },
@@ -120,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               key={item.href}
               href={item.href}
               className={cn("rounded-full px-3 py-1.5 text-sm font-medium transition-colors")}
-              style={pathname.startsWith(item.href)
+              style={(pathname === item.href || pathname.startsWith(item.href + "/"))
                 ? { background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }
                 : { background: "var(--card)", color: "var(--muted)", border: "1px solid var(--card-border)" }}
             >
