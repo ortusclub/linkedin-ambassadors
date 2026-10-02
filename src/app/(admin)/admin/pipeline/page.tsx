@@ -773,15 +773,24 @@ export default function AdminPipelinePage() {
   // are). Lets a batch — e.g. all Level 1 — be handed to one person in a click.
   const bulkAssign = async () => {
     const name = bulkPoc.trim();
-    const ids = filtered.map((r) => r.id);
-    if (!name || ids.length === 0) return;
-    if (!confirm(`Assign ${ids.length} application${ids.length === 1 ? "" : "s"} (everything shown) to "${name}" as LV handler? This replaces any current handler on them.`)) return;
-    const idSet = new Set(ids);
+    const shown = filtered;
+    if (!name || shown.length === 0) return;
+    if (!confirm(`Assign ${shown.length} ${shown.length === 1 ? "row" : "rows"} (everything shown) to "${name}" as LV handler? This replaces any current handler on them.`)) return;
+    // Application rows carry the PoC on the application; inventory-only rows carry it on the
+    // account (they have no application), so they go to the accounts endpoint instead.
+    const appIds = shown.filter((r) => !r.accountOnly).map((r) => r.id);
+    const acctRows = shown.filter((r) => r.accountOnly && r.accountId);
+    const idSet = new Set(shown.map((r) => r.id));
     setRows((prev) => (prev ? prev.map((r) => (idSet.has(r.id) ? { ...r, poc: name } : r)) : prev));
     try {
-      const res = await fetch("/api/admin/ambassadors/bulk-poc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, poc: name }) });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Failed (${res.status})`);
-      flashSave(true, `Assigned ${ids.length} to ${name} ✓`);
+      if (appIds.length) {
+        const res = await fetch("/api/admin/ambassadors/bulk-poc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: appIds, poc: name }) });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Failed (${res.status})`);
+      }
+      if (acctRows.length) {
+        await Promise.all(acctRows.map((r) => fetch(`/api/admin/accounts/${r.accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc: name }) }).then((res) => { if (!res.ok) throw new Error("account PoC save failed"); })));
+      }
+      flashSave(true, `Assigned ${shown.length} to ${name} ✓`);
       setBulkPoc("");
     } catch (e) {
       flashSave(false, e instanceof Error ? e.message : "Bulk assign failed — not saved.");
@@ -1257,7 +1266,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
             <Edit label="Booking email" value={r.bookingEmail} placeholder="if booked with another email" onSave={(v) => patchApp(r.id, { bookingEmail: v })} />
             <Edit label="Connections" value={r.connectionCount} numeric placeholder="e.g. 500" onSave={(v) => patchApp(r.id, { connectionCount: v })} />
             <Edit label="Referred by" value={r.referredBy} placeholder="marketer code" onSave={(v) => patchApp(r.id, { referredBy: v })} />
-            <Edit label="LV handler (POC)" value={r.poc} placeholder="who's handling this — e.g. Ardi / Sam / a name" onSave={(v) => patchApp(r.id, { poc: v })} />
+            <Edit label="LV handler (POC)" value={r.poc} placeholder="who's handling this — e.g. Ardi / Sam / a name" onSave={(v) => (r.accountOnly && r.accountId ? patchAccount(r.id, r.accountId, { poc: v }) : patchApp(r.id, { poc: v }))} />
             <Edit label="Referral source" value={r.referralSource} placeholder="flyer / FB / referral" onSave={(v) => patchApp(r.id, { referralSource: v })} />
             <Edit label="Payout method" value={r.paymentMethod} placeholder="Wise / PayPal / GCash" onSave={(v) => patchApp(r.id, { paymentMethod: v })} />
             <Edit label="Payout handle / account no." value={r.paymentDetails} placeholder="email / number / account" onSave={(v) => patchApp(r.id, { paymentDetails: v })} />

@@ -43,6 +43,8 @@ const updateSchema = z.object({
   // Admin payout hold (account inaccessible / paused — not a LinkedIn restriction). Pass a
   // reason string to hold the owner's payout, or null to release it.
   payoutHoldReason: z.string().nullable().optional(),
+  // LV handler (PoC) for an inventory-only account with no ambassador application.
+  poc: z.string().nullable().optional(),
   twoFactorResetNeeded: z.boolean().optional(),
   paymentLinkedAccountId: z.string().uuid().nullable().optional(),
   gologinProfileId: z.string().nullable().optional(),

@@ -41,6 +41,7 @@ export async function GET() {
         restrictedAt: true, restrictionLog: true, notes: true, linkedinVerified: true,
         proxyHost: true, proxyPort: true, proxyUsername: true,
         proxyPassword: true, proxyLocation: true, provisionStatus: true, createdAt: true,
+        poc: true,
       },
     });
 
@@ -263,7 +264,7 @@ export async function GET() {
         adminNotes: null, applicationNotes: null, outreachLog: null,
         nextFollowUp: null, callOutcome: null,
         referredBy: null, referrer: null, payoutCurrency: null, referralSource: null,
-        industry: null, poc: null, linkedinEmail: null, bookingEmail: null,
+        industry: null, poc: a.poc || null, linkedinEmail: null, bookingEmail: null,
         accountFreshness: null, ownerStatus: null,
         paymentMethod: null, paymentDetails: null, payoutName: null,
         verifiedAt: null, qcChecks: null, emailPrimaryAt: null, setupPaidAt: null,
