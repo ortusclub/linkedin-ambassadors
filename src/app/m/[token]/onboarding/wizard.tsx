@@ -33,7 +33,7 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   email: [
     { target: "email-why", title: "Why add an email?", body: "LinkedIn's routine security checks go to the primary email. Making ours primary means they come to us — not the owner. The owner keeps full access and their own email stays on the account." },
-    { target: "email-inbox", title: "Whose email goes here?", body: "This inbox just catches LinkedIn's verification message so it can be opened. It can be yours (the referrer's) or the owner's — whichever you can open right now. Yours is usually easiest." },
+    { target: "email-inbox", title: "Whose email goes here?", body: "Any inbox you can open right now — yours or the owner's. Yours is usually easiest." },
   ],
   payout: [
     { target: "payout-method", title: "Where THEY get paid", body: "These are the account owner's payout details. Your own commission uses the details on your portal, not this." },
