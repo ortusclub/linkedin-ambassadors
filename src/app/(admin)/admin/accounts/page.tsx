@@ -509,7 +509,8 @@ export default function AdminAccountsPage() {
     const v = value.trim();
     if (!a.ownerApplicationId || v === (a.ownerPoc || "")) return;
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, ownerPoc: v || null } : x)));
-    await patchApp(a.ownerApplicationId, { poc: v });
+    // Write POC to both the application and the account so the two stores stay in sync.
+    await Promise.all([patchApp(a.ownerApplicationId, { poc: v }), patch(a.id, { poc: v })]);
   };
   // Manual health mark — for when you've verified the account yourself (in GoLogin).
   const markHealth = async (a: Account, health: string) => {

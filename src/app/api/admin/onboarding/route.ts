@@ -192,7 +192,9 @@ export async function GET() {
         payoutCurrency: app.payoutCurrency,
         referralSource: app.referralSource,
         industry: app.industry,
-        poc: cleanPoc(app.poc),
+        // POC is stored on the application AND (for some paths) on the linked account —
+        // read a coalesce so an assignment made against either sticks regardless of level.
+        poc: cleanPoc(app.poc) ?? cleanPoc(acct?.poc),
         linkedinEmail: app.linkedinEmail,
         bookingEmail: app.bookingEmail,
         accountFreshness: app.accountFreshness,
