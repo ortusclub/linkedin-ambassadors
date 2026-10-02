@@ -5,7 +5,7 @@ import Link from "next/link";
 import { OnboardingPrice } from "@/components/onboarding-price";
 import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
 import { balanceText, configuredOffer, offerRange } from "@/lib/display-currency";
-import { type CurrencyConfig } from "@/lib/referral-currency";
+import { type CurrencyConfig, currencyConfig } from "@/lib/referral-currency";
 import styles from "./wizard.module.css";
 import { countries, countryCode } from "@/lib/countries";
 import BrowserStep from "./browser-step";
@@ -114,7 +114,11 @@ function writeTourStore(token: string, value: { skipped: boolean; seen: string[]
   try { window.localStorage.setItem(tourStoreKey(token), JSON.stringify(value)); } catch { /* private mode / blocked — fine */ }
 }
 
-export default function SelfServiceWizard({ token, endpoint: endpointProp, selfMode = false }: { token: string; endpoint?: string; selfMode?: boolean }) {
+export default function SelfServiceWizard({ token, endpoint: endpointProp, selfMode = false, demo = false }: { token: string; endpoint?: string; selfMode?: boolean; demo?: boolean }) {
+  // demo = a safe, read-only PREVIEW (`?demo=1`): every field auto-fills and every
+  // server call is faked client-side, so the whole wizard can be clicked through
+  // without creating an application/account/GoLogin profile/proxy or spending money.
+  // Guarded at each network chokepoint below; when demo is false nothing changes.
   // selfMode = the public DIY flow: the ambassador drives their OWN session via a per-session
   // token + the /api/self-onboarding mirror. Everything else is shared with the referral flow.
   const endpoint = endpointProp ?? `/api/m/${encodeURIComponent(token)}/onboarding`;
@@ -156,7 +160,41 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const [photoError, setPhotoError] = useState("");
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "", ownerPhotoUrl: "" });
 
+  // --- Demo mode: fabricate everything the UI would otherwise fetch, with no writes. ---
+  const demoProgress = useRef<{ twoFa: boolean; email: "add" | "verify" | "primary" | "done"; confirmed: boolean }>({ twoFa: false, email: "add", confirmed: false });
+  function demoBootstrap(): Bootstrap {
+    return { displayCurrency: "PHP", emailEnabled: true, phoneVerificationEnabled: false, countries: ["Philippines"], autoPurchase: true, config: currencyConfig("demo"), configured: true, doneComputer: false, donePhone: false, sessions: [] };
+  }
+  function demoEmailSetup(stage: "add" | "verify" | "primary" | "done"): EmailSetup {
+    const base = { configured: true, domains: ["linkedvelocity.com"], address: "owner.demo@linkedvelocity.com", destination: "owner.personal@gmail.com", previouslyVerifiedEmail: null, forwardingUntil: null, primaryConfirmedAt: null, latestCodeAt: new Date().toISOString() };
+    if (stage === "add") return { ...base, forwardingActive: false, destinationVerified: false, verificationCodePending: false, lastForwardedAt: null, confirmUrl: null, latestCode: null, primaryConfirmed: false };
+    if (stage === "verify") return { ...base, forwardingActive: true, destinationVerified: false, verificationCodePending: true, lastForwardedAt: null, confirmUrl: "https://linkedvelocity.com/confirm/demo", latestCode: "483920", primaryConfirmed: false };
+    if (stage === "primary") return { ...base, forwardingActive: true, destinationVerified: true, verificationCodePending: false, lastForwardedAt: new Date().toISOString(), confirmUrl: null, latestCode: "712398", primaryConfirmed: false };
+    return { ...base, forwardingActive: true, destinationVerified: true, verificationCodePending: false, lastForwardedAt: new Date().toISOString(), confirmUrl: null, latestCode: null, primaryConfirmed: true, primaryConfirmedAt: new Date().toISOString() };
+  }
+  function demoSession(over: Partial<Session> = {}): Session {
+    const cfg = currencyConfig("demo");
+    const p = demoProgress.current;
+    return {
+      emailSetup: demoEmailSetup(p.email), diyTier: null, twoFactorSaved: p.twoFa, meetingRequested: false,
+      savedDetails: { fullName: form.fullName, email: form.email, linkedinUrl: form.linkedinUrl, contactNumber: form.contactNumber, paymentMethod: form.paymentMethod, paymentDetails: form.paymentDetails, payoutName: form.payoutName, bankName: form.bankName, bankAccountNumber: form.bankAccountNumber, bankRoutingNumber: form.bankRoutingNumber },
+      duplicateWarning: null, country: "PH", proxyAssigned: true, proxyPriceLimit: 10,
+      id: "demo", name: form.fullName || "Demo Owner", state: p.confirmed ? "confirmed" : "reserved", opened: true,
+      shareLink: "https://app.gologin.com/share/demo-profile", confirmedAt: p.confirmed ? new Date().toISOString() : null,
+      accountFreshness: form.accountFreshness, setupDueAt: null, setupAmount: cfg.offer.setup, monthlyAmount: cfg.offer.monthly,
+      commission: cfg.symbol + (800).toLocaleString("en-US"), verified: accountVerified === "yes", ...over,
+    };
+  }
+
   async function request(method: string, body?: unknown, id?: string) {
+    if (demo) {
+      const act = body && typeof body === "object" ? (body as { action?: string }).action : undefined;
+      if (act === "twofactor") demoProgress.current.twoFa = true;
+      if (act === "confirm") { demoProgress.current.twoFa = true; demoProgress.current.confirmed = true; }
+      if (act === "meeting") return { session: demoSession({ meetingRequested: true }) };
+      if (act === "undo_meeting") return { session: demoSession({ meetingRequested: false }) };
+      return { session: demoSession(), ok: true };
+    }
     const response = await fetch(endpoint + (id ? `?id=${encodeURIComponent(id)}` : ""), {
       method, headers: { "Content-Type": "application/json" }, cache: "no-store",
       ...(body ? { body: JSON.stringify(body) } : {}),
@@ -167,6 +205,15 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   }
 
   useEffect(() => {
+    if (demo) {
+      setBootstrap(demoBootstrap());
+      setForm((f) => ({ ...f, fullName: "Demo Owner", email: "demo.owner@example.com", linkedinUrl: "https://www.linkedin.com/in/demo-owner", country: "PH", contactNumber: "+63 912 345 6789", accountFreshness: "established", paymentMethod: "GCash", paymentDetails: "0912 345 6789", payoutName: "Demo Owner" }));
+      setConsent(true);
+      setIdCheck({ hasGovernmentId: true, nameMatchesId: true });
+      setAccountVerified("yes");
+      setTwoFactorKey("JBSWY3DPEHPK3PXP");
+      return;
+    }
     let cancelled = false;
     async function load() {
       for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
@@ -192,7 +239,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     }
     void load();
     return () => { cancelled = true; };
-  }, [endpoint, loadAttempt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpoint, loadAttempt, demo]);
 
   // Record interaction rather than treating a forgotten open tab as active forever.
   useEffect(() => {
@@ -256,6 +304,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     finally { setBusy(false); }
   }
   async function verifyPhone(action: "send" | "check") {
+    if (demo) { if (action === "send") setPhoneCodeSent(true); else setForm((c) => ({ ...c, phoneVerificationToken: "demo-token" })); return; }
     setPhoneBusy(true); setPhoneError("");
     try {
       const response = await fetch(phoneEndpoint, {
@@ -302,6 +351,16 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   }
   async function emailAction(body: unknown) {
     if (!session) return;
+    if (demo) {
+      const a = (body as { action?: string }).action;
+      if (a === "start") demoProgress.current.email = "verify";
+      else if (a === "verify") demoProgress.current.email = "primary";
+      else if (a === "primary") demoProgress.current.email = "done";
+      else if (a === "restart") demoProgress.current.email = "add";
+      showSession(demoSession());
+      if (a !== "primary") setStep(4);
+      return;
+    }
     await run(async () => {
       const res = await fetch(`${endpoint}/${session.id}/email`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
@@ -336,6 +395,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     try { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); } catch { /* best effort */ }
   }
   async function uploadPhoto(file: File) {
+    if (demo) { setForm((f) => ({ ...f, ownerPhotoUrl: "https://dummyimage.com/300x380/e5e7eb/9ca3af&text=Demo+ID+photo" })); return; }
     setPhotoBusy(true); setPhotoError("");
     try {
       const body = new FormData();
@@ -445,6 +505,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
 
   return <main className={styles.page}>
     <div className={styles.shell}>
+      {demo && <div style={{ background: "#fde68a", color: "#78350f", font: "700 13px var(--font-sans), system-ui, sans-serif", textAlign: "center", padding: "8px 16px", letterSpacing: ".02em" }}>👁️ DEMO PREVIEW — every field is pre-filled and nothing is saved. No account, proxy or email is created.</div>}
       <header className={styles.header}>
         <div className={styles.headerRow}>
           {canGoBack ? <button type="button" className={styles.headerBack} disabled={busy} onClick={goBack}>← Back</button>
