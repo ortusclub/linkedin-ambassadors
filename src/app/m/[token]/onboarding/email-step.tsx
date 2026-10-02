@@ -75,8 +75,8 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
     {/* People get confused about "whose email" — spell out what this step is FOR. */}
     <div className={styles.why} data-tour="email-why">
       <strong>What this step is for</strong>
-      <p>We&apos;re adding a LinkedVelocity work email to {selfMode ? "your" : "their"} LinkedIn and making it the primary one — that&apos;s how we manage the account. LinkedIn has to <strong>verify</strong> that new email, so its verification message needs to land in an inbox someone can open and click.</p>
-      <p>{selfMode ? "Choose an inbox you can open now. We only forward LinkedIn’s verification messages there, for up to one hour." : "The receiving inbox can be yours or the account owner’s. We only forward LinkedIn’s messages there, for up to one hour."}</p>
+      <p>LinkedIn emails a code to confirm the new address. We forward it to the inbox below.</p>
+      <div className={styles.note} style={{ margin: "8px 0 0" }}>✉️ {selfMode ? "Use an inbox you can open now" : "The inbox can be yours or the owner’s"}. We only forward LinkedIn’s messages, for up to one hour.</div>
     </div>
 
     <ol className={styles.miniSteps} aria-label="LinkedIn email setup progress">

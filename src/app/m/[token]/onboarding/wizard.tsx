@@ -32,7 +32,7 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: "verified", title: "Is it verified?", body: "Check their profile for a Verified badge. A verified account pays you the top rate, so check rather than guess." },
   ],
   email: [
-    { target: "email-why", title: "Why an email at all?", body: "This trips people up. We're adding a LinkedVelocity work email to their LinkedIn and making it primary — that's how we manage the account. LinkedIn has to verify that new email first." },
+    { target: "email-why", title: "Why add an email?", body: "LinkedIn's routine security checks go to the primary email. Making ours primary means they come to us — not the owner. The owner keeps full access and their own email stays on the account." },
     { target: "email-inbox", title: "Whose email goes here?", body: "This inbox just catches LinkedIn's verification message so it can be opened. It can be yours (the referrer's) or the owner's — whichever you can open right now. Yours is usually easiest." },
   ],
   payout: [
