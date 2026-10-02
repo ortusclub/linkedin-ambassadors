@@ -11,14 +11,15 @@ export const dynamic = "force-dynamic";
 // The unlisted key. Change this to rotate the link.
 const SLUG = "iv-7h2k9x3mqp";
 
-// Partner wholesale pricing: flat by verification, floor held at $40.
-const priceOf = (v: boolean) => (v ? 50 : 40);
+// Partner wholesale pricing, floor held at $40: verified $50; unverified $45 at
+// 200+ connections, else $40.
+const priceOf = (v: boolean, cc: number) => (v ? 50 : cc >= 200 ? 45 : 40);
 
 type Row = { id: string; name: string; url: string; cc: number; v: boolean; price: number };
 
 const cleanUrl = (u: string | null) => (u || "").split("?")[0].replace(/\/$/, "");
 const toRow = (a: { id: string; linkedinName: string; linkedinUrl: string | null; connectionCount: number; linkedinVerified: boolean }): Row =>
-  ({ id: a.id, name: (a.linkedinName || "").trim(), url: cleanUrl(a.linkedinUrl), cc: a.connectionCount || 0, v: a.linkedinVerified, price: priceOf(a.linkedinVerified) });
+  ({ id: a.id, name: (a.linkedinName || "").trim(), url: cleanUrl(a.linkedinUrl), cc: a.connectionCount || 0, v: a.linkedinVerified, price: priceOf(a.linkedinVerified, a.connectionCount || 0) });
 const sortVC = (a: Row, b: Row) => (Number(b.v) - Number(a.v)) || (b.cc - a.cc);
 
 const CSS = `
@@ -127,7 +128,8 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
         <div className="pp-top-in">
           <div className="pp-brand"><b>LinkedVelocity</b><span>Account inventory</span></div>
           <div className="pp-legend">
-            <span className="pp-lg u">Unverified <i>$40/mo</i></span>
+            <span className="pp-lg u">Unverified &lt;200 <i>$40/mo</i></span>
+            <span className="pp-lg u">Unverified 200+ <i>$45/mo</i></span>
             <span className="pp-lg v">✓ Verified <i>$50/mo</i></span>
           </div>
         </div>
@@ -135,7 +137,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
       <main className="pp-main">
         <div className="pp-hero">
           <h1>Available accounts</h1>
-          <p>Aged, warmed LinkedIn profiles ready for outreach. Pricing is per account, per month: $40 unverified, $50 verified. Open any profile to review it.</p>
+          <p>Aged, warmed LinkedIn profiles ready for outreach. Pricing is per account, per month: unverified $40 (or $45 at 200+ connections), verified $50. Open any profile to review it.</p>
         </div>
         {now.length > 0 && (
           <Group eyebrow="Ready today" title="Available now" hint="Live and rentable right now. We can release these the moment you order." items={now} />
