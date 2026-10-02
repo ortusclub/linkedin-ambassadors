@@ -190,6 +190,11 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; ownerOnboarded?: boolean }): string => {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
   if (a.status === "removed") return "Removed";
+  // A not-yet-onboarded warming account belongs in the pipeline, not inventory. Keep it
+  // "Initial" (held out of inventory) even if restricted — otherwise a restricted lead that
+  // is still being onboarded leaks into inventory as Maintenance instead of staying in the
+  // pipeline where its recovery is handled.
+  if (!a.ownerOnboarded && (a.status === "under_construction" || a.status === "construction_immature")) return "Initial";
   if (a.restrictedAt || a.status === "maintenance") return "Maintenance";
   if (a.status === "rented") return "Rented";
   // Warming-up stages (Pipeline) only belong in inventory once the owner is ONBOARDED —
@@ -363,6 +368,10 @@ const CONN_BUCKETS: { key: string; label: string; test: (n: number) => boolean }
   { key: "1k", label: "1k+", test: (n) => n >= 1000 },
 ];
 const connBucketOf = (n: number | null | undefined) => CONN_BUCKETS.find((b) => b.test(n ?? 0))?.key || "lt50";
+// Shadow-held = quietly rented by Apex/Ortus while still showing as Available.
+const isShadowHeld = (a: { shadowRenter: string | null }) => !!(a.shadowRenter && a.shadowRenter.trim());
+// Available-to-offer = the real sellable set: live & rentable, not shadow-held, not a showcase dummy.
+const isOfferable = (a: Account) => !isDummy(a) && canonicalStatus(a) === "Available" && !isShadowHeld(a);
 
 const GRID = "minmax(0,1fr) 132px 84px 150px 168px 214px";
 
@@ -374,6 +383,7 @@ export default function AdminAccountsPage() {
   const [pocFilter, setPocFilter] = useState("all");
   const [verifiedFilter, setVerifiedFilter] = useState<"all" | "yes" | "no">("all");
   const [connFilter, setConnFilter] = useState("all");
+  const [supplyFilter, setSupplyFilter] = useState<"all" | "shadow" | "offerable">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [savingProof, setSavingProof] = useState<string | null>(null);
@@ -596,6 +606,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       checksDue: shown.filter(checkDue).length,
       verified: real.filter((a) => a.linkedinVerified).length,
       unverified: real.filter((a) => !a.linkedinVerified).length,
+      shadow: real.filter(isShadowHeld).length,
+      offerable: real.filter(isOfferable).length,
       // per-connection-bucket counts over real (non-showcase) inventory
       conn: Object.fromEntries(CONN_BUCKETS.map((b) => [b.key, real.filter((a) => b.test(a.connectionCount ?? 0)).length])) as Record<string, number>,
     };
@@ -608,6 +620,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       if (verifiedFilter === "yes" && !a.linkedinVerified) return false;
       if (verifiedFilter === "no" && a.linkedinVerified) return false;
       if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
+      if (supplyFilter === "shadow" && !isShadowHeld(a)) return false;
+      if (supplyFilter === "offerable" && !isOfferable(a)) return false;
       if (pocFilter !== "all") { const p = (a.ownerPoc || "").trim(); if (pocFilter === "__unassigned" ? p !== "" : p !== pocFilter) return false; }
       if (!q) return true;
       // Every identifier someone might paste in: the login email we issued, the
@@ -615,7 +629,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.loginEmail || ""} ${a.ownerEmail || ""} ${a.ownerName || ""} ${a.ownerPhone || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
     });
     return sortAccountsByLastUpdated(base, updateOrder);
-  }, [shown, filter, verifiedFilter, connFilter, pocFilter, search, updateOrder]);
+  }, [shown, filter, verifiedFilter, connFilter, supplyFilter, pocFilter, search, updateOrder]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allExpanded = filtered.length > 0 && filtered.every((a) => expanded.has(a.id));
@@ -728,6 +742,17 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
               {b.label}<span style={{ color: "var(--muted)" }}>{counts.conn[b.key] || 0}</span>
             </button>
           ))}
+        </div>
+        <span style={{ width: 1, height: 22, background: "var(--divider)" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ ...labelCss, marginRight: 2 }}>Supply</span>
+          <button onClick={() => setSupplyFilter("all")} style={chip(supplyFilter === "all")}>All<span style={{ color: "var(--muted)" }}>{counts.realTotal}</span></button>
+          <button onClick={() => setSupplyFilter("offerable")} style={chip(supplyFilter === "offerable")} title="Live & rentable right now, excluding shadow-held — the real set you can hand to a renter.">
+            <span style={{ width: 7, height: 7, borderRadius: 999, background: "var(--st-active-fg)" }} />Available to offer<span style={{ color: "var(--muted)" }}>{counts.offerable}</span>
+          </button>
+          <button onClick={() => setSupplyFilter("shadow")} style={chip(supplyFilter === "shadow")} title="Shadow-held by Apex/Ortus — still shown as available but quietly in use.">
+            ◑ Shadow<span style={{ color: "var(--muted)" }}>{counts.shadow}</span>
+          </button>
         </div>
       </div>
 
