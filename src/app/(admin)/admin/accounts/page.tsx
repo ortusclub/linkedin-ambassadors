@@ -187,14 +187,16 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 
 // Inventory groups are display-only; rental/billing status stays in the database.
 // Current restrictions and maintenance share one group. Terminal states stay separate.
-const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; ownerOnboarded?: boolean }): string => {
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; ownerOnboarded?: boolean; ownerSetupPaidAt?: string | null; ownerApplicationId?: string | null }): string => {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
   if (a.status === "removed") return "Removed";
-  // A not-yet-onboarded warming account belongs in the pipeline, not inventory. Keep it
-  // "Initial" (held out of inventory) even if restricted — otherwise a restricted lead that
-  // is still being onboarded leaks into inventory as Maintenance instead of staying in the
-  // pipeline where its recovery is handled.
-  if (!a.ownerOnboarded && (a.status === "under_construction" || a.status === "construction_immature")) return "Initial";
+  // INVENTORY = ONBOARDED **and** SETUP-FEE PAID. An account tied to an application that
+  // isn't onboarded yet, or whose setup fee is still unpaid, belongs in the pipeline, not
+  // inventory — held as "Initial" even if it's been marked available or is restricted.
+  // (Rented accounts are live and always shown; accounts with NO linked application — e.g.
+  // Ortus / direct inventory — aren't subject to the ambassador onboard+pay flow, so they
+  // keep their status.)
+  if (a.status !== "rented" && a.ownerApplicationId && !(a.ownerOnboarded && !!a.ownerSetupPaidAt)) return "Initial";
   if (a.restrictedAt || a.status === "maintenance") return "Maintenance";
   if (a.status === "rented") return "Rented";
   // Warming-up stages (Pipeline) only belong in inventory once the owner is ONBOARDED —
