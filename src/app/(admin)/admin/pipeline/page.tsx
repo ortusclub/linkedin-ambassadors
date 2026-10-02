@@ -28,6 +28,7 @@ import { formatName } from "@/lib/utils";
 import { AccountNotes } from "@/components/admin/account-notes";
 import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions";
 import { ambassadorIssueContact } from "@/lib/issue-contacts";
+import { ONBOARDING_ISSUES } from "@/lib/onboarding-issue-message";
 import { isApplicationReceived, receiptPatch } from "@/lib/pipeline-received";
 import { useQcChecks } from "@/components/admin/use-qc-checks";
 import TotpCode from "@/app/m/[token]/onboarding/totp";
@@ -415,7 +416,7 @@ const nextStep = (r: Row): NextStep => {
   }
   if (r.meetingRequested) return { state: "now", label: "Arrange a setup meeting — requested by referrer", last };
   if (r.onboardingFix?.state === "referrer_done") return { state: "now", label: "Recheck — referrer marked the fix done", last };
-  if (r.onboardingFix?.issues?.length) return { state: "waiting", label: `Waiting on referrer to fix ${r.onboardingFix.issues.length} issue${r.onboardingFix.issues.length > 1 ? "s" : ""}`, last };
+  if (r.onboardingFix?.issues?.length) return { state: "waiting", label: `Waiting on referrer: ${r.onboardingFix.issues.map((i) => ONBOARDING_ISSUES[i]?.label || i).join(", ")}`, last };
   if (r.nextFollowUp) {
     const t = new Date(r.nextFollowUp).getTime();
     if (Date.now() >= t) return { state: "now", label: "Follow-up due", timing: `set for ${fmtDate(r.nextFollowUp)}`, last };
