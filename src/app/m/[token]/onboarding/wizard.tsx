@@ -37,7 +37,7 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   payout: [
     { target: "payout-method", title: "Where THEY get paid", body: "These are the account owner's payout details. Your own commission uses the details on your portal, not this." },
-    { target: "payout-when", title: "When the money moves", body: "Once signed in, the account is onboarded; we verify it, then their fee goes out and yours follows the next Monday." },
+    { target: "payout-when", title: "When the money moves", body: "We verify the account, then their setup fee goes out — your commission follows the Monday after." },
   ],
   signin: [
     { target: "signin-choice", title: "Who signs in?", body: "On a laptop you do the sign-in and earn the most. No computer? \"Hand it to us\" and the team does it — they still get paid, you earn a little less." },
@@ -695,7 +695,13 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             </>}
             </div>
             {(!bootstrap.configured || (!bootstrap.autoPurchase && !browserCapacityAvailable)) && <div className={styles.warn}><div>Browser setup isn&apos;t ready yet</div><p>Your entries are only held on this page until you successfully save. Keep this tab open while the team configures browser access, then try Save &amp; continue.</p></div>}
-            <div className={styles.infoBlue} data-tour="payout-when"><div>When their money arrives</div><p>Once the sign-in is saved, the account counts as onboarded. We then verify it — {checkWindow(form.accountFreshness)}, because we wait about 24 hours before signing in — and their {setupOffer} goes out. {monthlyOffer} follows in the first few days of each month (the first working day if the 1st is a weekend), each month the account stays active and stable. They need to stay reachable for the odd LinkedIn check.</p></div>
+            <div className={styles.infoBlue} data-tour="payout-when">
+              <div>When they get paid</div>
+              <div style={{ display: "flex", gap: 12, margin: "4px 0 2px" }}><strong style={{ minWidth: 72, color: "#1e3a8a", font: "700 13px 'Plus Jakarta Sans'" }}>{setupOffer}</strong><span style={{ font: "500 12.5px/1.5 'Plus Jakarta Sans'", color: "#1e3a8a" }}>About a week after sign-in, once we&apos;ve verified the account.</span></div>
+              <div style={{ display: "flex", gap: 12, margin: "4px 0 2px" }}><strong style={{ minWidth: 72, color: "#1e3a8a", font: "700 13px 'Plus Jakarta Sans'" }}>{monthlyOffer}/mo</strong><span style={{ font: "500 12.5px/1.5 'Plus Jakarta Sans'", color: "#1e3a8a" }}>First weekday of each month, while the account stays active.</span></div>
+              <p style={{ marginTop: 8 }}>They just need to stay reachable for the odd LinkedIn check.</p>
+              <div className={styles.note} style={{ marginBottom: 0, marginTop: 10 }}><strong>No need to check in.</strong> Payments go out during the day on payday and we&apos;ll send a receipt. Not there by end of day? Message us then.</div>
+            </div>
             <div className={styles.actions}><button type="button" disabled={busy} className={styles.secondary} onClick={() => setStep(1)}>Back</button><button className={styles.primary} disabled={busy}>{busy ? "Saving…" : "Save & continue →"}</button></div>
           </form>}
 
