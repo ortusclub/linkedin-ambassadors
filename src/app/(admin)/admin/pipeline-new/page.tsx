@@ -28,6 +28,26 @@ const TURN_ORDER: Turn[] = ["us", "them", "timer", "live", "dead"];
 const GROUP_OPTS: { key: string; label: string }[] = [
   { key: "level", label: "Level" }, { key: "handler", label: "Handler" }, { key: "referrer", label: "Referrer" }, { key: "none", label: "None" },
 ];
+// A distinct, stable colour per handler so the "Handled by" chips read at a glance.
+// Known handlers get fixed colours; anyone else is hashed into the palette.
+const HANDLER_PALETTE = ["#2563eb", "#db2777", "#059669", "#d97706", "#7c3aed", "#0891b2", "#dc2626", "#4f46e5", "#ca8a04", "#be185d"];
+const HANDLER_FIXED: Record<string, string> = { ardi: "#2563eb", giana: "#db2777", sam: "#059669", ton: "#d97706", milee: "#7c3aed" };
+const handlerColor = (name: string): string => {
+  const key = (name || "").trim().toLowerCase().split(/\s+/)[0];
+  if (HANDLER_FIXED[key]) return HANDLER_FIXED[key];
+  let h = 0; for (const ch of key) h = (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0;
+  return HANDLER_PALETTE[h % HANDLER_PALETTE.length];
+};
+// Application-type pill colours (matches the mock: Form grey, Email/2FA blue, Full-service purple).
+const TYPE_COLOR: Record<string, [string, string]> = {
+  standard: ["#eef1f5", "#334155"], partial: ["#e0f2fe", "#075985"], full: ["#ede9fe", "#5b21b6"], unknown: ["#f1f3f6", "#9aa0a6"],
+};
+const typeColor = (r: Row) => TYPE_COLOR[applicationType(r).key] || TYPE_COLOR.unknown;
+// Level pill colours by ladder stage (matches the mock STAGES palette).
+const LEVEL_PILL: Record<string, [string, string]> = {
+  "0.5": ["#fef3c7", "#92400e"], "1": ["#dbeafe", "#1e40af"], "2": ["#dbeafe", "#1e40af"], "3": ["#ffedd5", "#9a3412"], "4": ["#ede9fe", "#5b21b6"], "5": ["#dcfce7", "#166534"], "0": ["#fee2e2", "#991b1b"],
+};
+const levelPill = (lvl: number) => LEVEL_PILL[String(lvl)] || LEVEL_PILL["1"];
 
 export default function PipelineNewPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -245,7 +265,7 @@ export default function PipelineNewPage() {
     const sorted = [...filtered].sort(byNewest);
     if (groupBy === "none") return [{ key: "all", title: "All", dot: "var(--fg,#111)", note: "newest first", items: sorted }];
     if (groupBy === "handler") {
-      const defs = [...handlerNames.map((n) => ({ k: n, t: n, c: "var(--blue-chip-text,#1a56db)" })), { k: "__un", t: "Unclaimed", c: "var(--warn-badge-text,#b7791f)" }];
+      const defs = [...handlerNames.map((n) => ({ k: n, t: n, c: handlerColor(n) })), { k: "__un", t: "Unclaimed", c: "var(--warn-badge-text,#b7791f)" }];
       return defs.map((d) => ({ key: "h" + d.k, title: d.t, dot: d.c, note: "", items: sorted.filter(({ r }) => (d.k === "__un" ? !(r.poc || "").trim() : (r.poc || "").trim() === d.k)) })).filter((g) => g.items.length);
     }
     if (groupBy === "referrer") {
@@ -274,7 +294,7 @@ export default function PipelineNewPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, font: `600 13px ${F_SANS}`, color: "var(--muted,#777)" }}>
           Viewing as
           <span style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 999, padding: "4px 11px 4px 4px", color: "var(--fg,#111)" }}>
-            <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--st-conv-fg,#6d28d9)", color: "#fff", font: `700 10px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{me ? initialsOf(me) : "?"}</span>
+            <span style={{ width: 22, height: 22, borderRadius: "50%", background: me ? handlerColor(me) : "var(--muted2,#9aa0a6)", color: "#fff", font: `700 10px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{me ? initialsOf(me) : "?"}</span>
             {me || "—"}
           </span>
         </div>
@@ -298,10 +318,14 @@ export default function PipelineNewPage() {
       <div style={{ background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, padding: "11px 14px", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ ...labelCss, marginRight: 4 }}>Handled by</span>
-          {([{ k: "all", label: "Everyone", cnt: handlerLoad.total }, ...(me ? [{ k: "__me", label: "Me", cnt: handlerLoad.m.get(me) || 0 }] : []), ...handlerNames.filter((n) => n !== me).map((n) => ({ k: n, label: n, cnt: handlerLoad.m.get(n) || 0 })), { k: "__unassigned", label: "Unclaimed", cnt: handlerLoad.unclaimed }]).map((c) => {
+          {([{ k: "all", label: "Everyone", cnt: handlerLoad.total, color: "var(--muted,#8a9099)", ini: null as string | null }, ...(me ? [{ k: "__me", label: "Me", cnt: handlerLoad.m.get(me) || 0, color: handlerColor(me), ini: initialsOf(me) as string | null }] : []), ...handlerNames.filter((n) => n !== me).map((n) => ({ k: n, label: n, cnt: handlerLoad.m.get(n) || 0, color: handlerColor(n), ini: initialsOf(n) as string | null })), { k: "__unassigned", label: "Unclaimed", cnt: handlerLoad.unclaimed, color: "var(--warn-badge-text,#b7791f)", ini: null as string | null }]).map((c) => {
             const active = whoF === c.k;
+            const tint = c.color.startsWith("#") ? c.color + "22" : "var(--band,#f1f3f6)";
             return (
-              <button key={c.k} onClick={() => setWhoF(active ? "all" : c.k)} style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", border: `1.5px solid ${active ? "var(--fg,#111)" : "var(--card-border,#e3e3e6)"}`, background: active ? "var(--band,#f1f3f6)" : "var(--card,#fff)", borderRadius: 999, padding: "4px 11px", font: `700 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap" }}>
+              <button key={c.k} onClick={() => setWhoF(active ? "all" : c.k)} style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", border: `1.5px solid ${active ? c.color : "var(--card-border,#e3e3e6)"}`, background: active ? tint : "var(--card,#fff)", borderRadius: 999, padding: "4px 11px 4px 5px", font: `700 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap" }}>
+                {c.ini
+                  ? <span style={{ width: 18, height: 18, borderRadius: "50%", background: c.color, color: "#fff", font: `700 8.5px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{c.ini}</span>
+                  : <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flex: "none" }} />}
                 {c.label}
                 <span style={{ font: `700 11px ${F_GRO}`, color: c.cnt ? "var(--warn-badge-text,#b7791f)" : "var(--muted2,#9aa0a6)", background: c.cnt ? "var(--warn-badge-bg,#fef3e2)" : "var(--band,#f1f3f6)", borderRadius: 999, padding: "1px 7px" }}>{c.cnt}</span>
               </button>
@@ -338,7 +362,7 @@ export default function PipelineNewPage() {
           <span style={{ font: `700 13.5px ${F_SANS}` }}>{sel.size} selected</span>
           <span style={{ font: `500 13px ${F_SANS}`, color: "#a7b0bf" }}>Assign to</span>
           {(me ? [me, ...handlerNames.filter((n) => n !== me)] : handlerNames).map((n) => (
-            <button key={n} onClick={() => { void assignMany(selArr, n); setSel(new Set()); }} style={{ border: "1px solid #2a3344", background: "#151d2c", color: "#fff", borderRadius: 8, padding: "6px 10px", font: `700 12px ${F_SANS}`, cursor: "pointer" }}>{n === me ? "Me" : n}</button>
+            <button key={n} onClick={() => { void assignMany(selArr, n); setSel(new Set()); }} style={{ display: "flex", alignItems: "center", gap: 6, border: "1px solid #2a3344", background: "#151d2c", color: "#fff", borderRadius: 8, padding: "6px 10px", font: `700 12px ${F_SANS}`, cursor: "pointer" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: handlerColor(n), flex: "none" }} />{n === me ? "Me" : n}</button>
           ))}
           <button onClick={() => { void assignMany(selArr, null); setSel(new Set()); }} style={{ border: "1px solid #2a3344", background: "#151d2c", color: "#fff", borderRadius: 8, padding: "6px 10px", font: `700 12px ${F_SANS}`, cursor: "pointer" }}>Unassign</button>
           <button onClick={() => setSel(new Set())} style={{ marginLeft: "auto", border: "none", background: "none", color: "#a7b0bf", font: `700 12.5px ${F_SANS}`, cursor: "pointer" }}>Clear</button>
@@ -413,10 +437,10 @@ function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onCl
           <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.email}{r.contactNumber ? ` · ${r.contactNumber}` : ""}</div>
         </div>
         {r.referredBy ? <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} style={{ font: `700 12.5px ${F_SANS}`, color: "var(--link,#0a66c2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.referredBy}</a> : <span style={{ color: "var(--muted2,#b6bbc2)" }}>—</span>}
-        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 7, background: "var(--band,#f1f3f6)", color: "var(--fg,#444)", whiteSpace: "nowrap" }}>{applicationType(r).label}</span>
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 7, background: typeColor(r)[0], color: typeColor(r)[1], whiteSpace: "nowrap" }}>{applicationType(r).label}</span>
         <div style={{ display: "flex", flexDirection: "column" }}><span style={{ font: `700 12.5px ${F_GRO}`, color: applied >= 14 && !["live", "dead"].includes(t.turn) ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" }}>{applied === 0 ? "Today" : applied + "d"}</span><span style={{ font: `500 10px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>{fmtDate(r.createdAt)}</span></div>
-        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: r.linkedinVerified ? "var(--st-active-bg,#e6f4ea)" : "var(--band,#f1f3f6)", color: r.linkedinVerified ? "var(--st-active-fg,#188038)" : "var(--muted2,#9aa0a6)" }}>{r.linkedinVerified ? "Yes" : "No"}</span>
-        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: "var(--band,#f1f3f6)", color: "var(--fg,#444)", whiteSpace: "nowrap" }}>{LEVEL_CHIP[String(lvl)]}</span>
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: r.linkedinVerified ? "#dcfce7" : "#f1f3f6", color: r.linkedinVerified ? "#15803d" : "#9aa0a6", whiteSpace: "nowrap" }}>{r.linkedinVerified ? "✓ Yes" : "No"}</span>
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: levelPill(lvl)[0], color: levelPill(lvl)[1], whiteSpace: "nowrap" }}>{LEVEL_CHIP[String(lvl)]}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span style={{ flex: "none", font: `800 9px ${F_SANS}`, letterSpacing: ".05em", padding: "3px 7px", borderRadius: 6, background: m.bg, color: m.fg }}>{m.chip}</span>
           <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.label}</span>
@@ -426,7 +450,7 @@ function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onCl
             <button onClick={onClaim} disabled={!me} style={{ border: "1.5px dashed var(--input-border,#c5cbd3)", background: "var(--card,#fff)", color: "var(--fg,#111)", borderRadius: 999, padding: "4px 12px", font: `700 12px ${F_SANS}`, cursor: me ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}>+ Claim</button>
           ) : (
             <label style={{ position: "relative", display: "flex", alignItems: "center", gap: 7, cursor: "pointer", minWidth: 0 }}>
-              <span style={{ flex: "none", width: 24, height: 24, borderRadius: "50%", background: "var(--st-conv-fg,#6d28d9)", color: "#fff", font: `700 10px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{initialsOf(h)}</span>
+              <span style={{ flex: "none", width: 24, height: 24, borderRadius: "50%", background: handlerColor(h), color: "#fff", font: `700 10px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{initialsOf(h)}</span>
               <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap" }}>{h === me ? "Me" : h}</span>
               <span style={{ font: `600 10px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>▾</span>
               <select value={h} onChange={(e) => onAssign(e.target.value || null)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}>
