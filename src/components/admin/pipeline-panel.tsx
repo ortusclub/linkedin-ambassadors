@@ -367,12 +367,12 @@ function OutreachLog({ r, busy, onLog, onSetFollowUp, onDelete }: { r: Row; busy
           {[chan, "email", "text", "note"].map((ch) => <button key={ch} onClick={() => send(ch)} disabled={busy} style={btnSec}>+ {touchLabel(ch)}</button>)}
         </div>
       </div>
-      <div style={{ borderTop: "1px solid var(--divider,#eee)", paddingTop: 6 }}>
+      <div style={{ borderTop: "1px solid var(--divider,#eee)", paddingTop: 6, maxHeight: 300, overflowY: "auto" }}>
         {log && log.length ? [...log].reverse().map((t, i) => (
           <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "6px 0" }}>
             <span style={touchChipStyle(t.ch)}>{touchLabel(t.ch)}</span>
-            <span style={{ flex: 1, font: `500 12.5px ${F_SANS}`, color: "var(--text2,#333)", lineHeight: 1.4 }}>{t.text}</span>
-            <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap" }}>{(t.by ? t.by + " · " : "") + fmtDateTime(t.at)}</span>
+            <span title={t.text} style={{ flex: 1, minWidth: 0, font: `500 12.5px ${F_SANS}`, color: "var(--text2,#333)", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word" }}>{t.text}</span>
+            <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap", flex: "none" }}>{(t.by ? t.by + " · " : "") + fmtDateTime(t.at)}</span>
             <span onClick={() => { if (confirm("Delete this outreach entry?")) onDelete(t.at); }} title="Delete entry" style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", cursor: "pointer", flex: "none", lineHeight: 1.2 }}>×</span>
           </div>
         )) : <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#777)" }}>No outreach logged yet.</span>}
@@ -542,7 +542,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
           <PanelCard title="Activity">
             {meetings.size > 0 && <div style={{ padding: "8px 10px", background: "var(--link-bg,#eaf1ff)", borderRadius: 8, font: `500 11.5px ${F_SANS}`, color: "var(--fg,#111)" }}>
               <b>Meeting booked</b>
-              {[...meetings.values()].sort((a, b) => b.scheduledAt!.localeCompare(a.scheduledAt!)).map(meeting => <div key={meeting.bookingKey} style={{ marginTop: 4 }}><time dateTime={meeting.scheduledAt}>{new Date(meeting.scheduledAt!).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time>{meeting.cancelled && " · Cancelled"}</div>)}
+              {(() => { const ms = [...meetings.values()].sort((a, b) => b.scheduledAt!.localeCompare(a.scheduledAt!)); return <>{ms.slice(0, 3).map(meeting => <div key={meeting.bookingKey} style={{ marginTop: 4 }}><time dateTime={meeting.scheduledAt}>{new Date(meeting.scheduledAt!).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time>{meeting.cancelled && " · Cancelled"}</div>)}{ms.length > 3 && <div style={{ marginTop: 4, color: "var(--muted2,#9aa0a6)" }}>+{ms.length - 3} earlier</div>}</>; })()}
             </div>}
             <OutreachLog r={r} busy={busy} onLog={logTouch} onSetFollowUp={(iso) => patchApp(r.id, { nextFollowUp: iso })} onDelete={(at) => patchApp(r.id, { removeTouch: at }, true)} />
           </PanelCard>
@@ -570,7 +570,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
 
           {(r.accountId || r.adminNotes || r.applicationNotes || r.accountNotes) && (
             <PanelCard title="Admin notes" tone="notes">
-              {r.adminNotes && <Note label="Admin notes">{r.adminNotes}</Note>}
+              {r.adminNotes && <div style={{ font: `500 12.5px/1.55 ${F_SANS}`, color: "var(--fg,#444)", whiteSpace: "pre-wrap" }}>{r.adminNotes}</div>}
               {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
               {r.accountId && <AccountNotes accountId={r.accountId} notes={r.accountNotes} proof={null} sharedLog={r.outreachLog} onNotesSaved={() => void workflow(r.id, {})} onProofSaved={async () => {}} />}
             </PanelCard>
