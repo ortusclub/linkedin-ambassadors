@@ -13,7 +13,7 @@ import {
   type Row, type Status, type Turn, F_SANS, F_GRO, labelCss, inputCss,
   applicationType, effectiveType, effectiveTypeKey, APPLICATION_TYPES, levelOf, levelKey, LEVEL_CHIP, LEVEL_GROUPS,
   healthOf, HEALTH_OPTIONS, isRestricted, turnOf,
-  cfgOf, monthlyAmt, fmtDate, ageDays, initialsOf,
+  cfgOf, monthlyAmt, fmtDate, ageDays, initialsOf, lastTouchActivity,
 } from "@/lib/pipeline-model";
 
 // Tile / turn-chip vocabulary.
@@ -420,8 +420,8 @@ function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onCl
   const lvl = levelKey(r);
   const applied = ageDays(r.createdAt);
   const h = (r.poc || "").trim();
-  const touches = (r.outreachLog || []).filter((x) => x.ch !== "note");
-  const lastTouch = touches.length ? ageDays(touches[touches.length - 1].at) : null;
+  const lt = lastTouchActivity(r);
+  const lastTouch = lt ? ageDays(lt) : null;
   const restricted = isRestricted(r);
   return (
     <div style={{ borderBottom: "1px solid var(--divider,#f0f2f5)", background: open ? "var(--band,#fafbfc)" : "var(--card,#fff)" }}>

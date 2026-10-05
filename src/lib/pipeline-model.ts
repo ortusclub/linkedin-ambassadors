@@ -275,6 +275,16 @@ export const messagingChannel = (r: Row): "viber" | "telegram" | "whatsapp" => {
 };
 export const lastTouchAt = (log: Touch[] | null) => (log && log.length ? fmtDateTime(log[log.length - 1].at) : "");
 export const touchCount = (log: Touch[] | null) => (log || []).filter((t) => t.ch !== "note").length;
+// "Last touch" for the pipeline column = the last time ANYTHING was done on this record:
+// any outreach/note/meeting entry, OR a milestone stamp (email & 2FA set, logged into
+// GoLogin, QC passed, onboarded, setup paid). Null only when nothing has happened yet.
+export const lastTouchActivity = (r: Row): string | null => {
+  let best: string | null = null;
+  const bump = (d: string | null | undefined) => { if (d && (!best || +new Date(d) > +new Date(best))) best = d; };
+  for (const t of r.outreachLog || []) bump(t.at);
+  for (const d of [r.emailPrimaryAt, r.onboardedAt, r.verifiedAt, r.paidAt, r.onboardingStartedAt]) bump(d);
+  return best;
+};
 
 export const holdDays = (_r: Row) => 7;
 
