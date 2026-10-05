@@ -3,9 +3,10 @@
 // Shared pipeline detail components — the expanded-row panel (workflow rail, payments,
 // restriction control, outreach log, credential fields). Drives the exact same behaviour
 // and endpoints as the live pipeline; only the /admin/pipeline-new layout is restyled to
-// the Pipeline v2 mock (workflow bar on top, then a 3-column card grid).
+// the Pipeline v2 mock (workflow bar on top, then a 3-column card grid with per-card
+// read/edit toggles and a compact payments summary).
 import { useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, ReactNode, MouseEvent } from "react";
 import { formatMoney } from "@/lib/referral-currency";
 import { formatName } from "@/lib/utils";
 import { AccountNotes } from "@/components/admin/account-notes";
@@ -102,6 +103,55 @@ function PanelCard({ title, right, children, tone }: { title: string; right?: Re
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>
     </div>
+  );
+}
+
+const editLinkStyle: CSSProperties = { font: `700 12px ${F_SANS}`, color: "var(--link,#2563eb)", background: "none", border: "none", cursor: "pointer", padding: 0, flex: "none" };
+
+// Read-only value display with copy-on-click, link, and secret reveal. Used in view mode.
+function ReadField({ label, value, href, secret, mono }: { label: string; value: string | number | null; href?: string | null; secret?: boolean; mono?: boolean }) {
+  const [reveal, setReveal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const empty = value == null || value === "";
+  const text = empty ? "" : String(value);
+  const copy = (e: MouseEvent) => { e.stopPropagation(); if (empty) return; navigator.clipboard?.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1200); };
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ ...labelCss, marginBottom: 3 }}>{label}</div>
+      {empty ? <span style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2,#b6bbc2)" }}>—</span>
+        : href ? <a href={liHref(href)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 13px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none", wordBreak: "break-word" }}>{text} ↗</a>
+          : <span onClick={copy} title="Click to copy" style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", maxWidth: "100%" }}>
+              <span style={{ font: mono ? `600 12.5px ${F_GRO}` : `600 13px ${F_SANS}`, color: "var(--fg,#111)", wordBreak: "break-word" }}>{secret && !reveal ? "••••••••••" : text}</span>
+              {secret && <button onClick={(e) => { e.stopPropagation(); setReveal((s) => !s); }} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "none", border: "none", cursor: "pointer", padding: 0, flex: "none" }}>{reveal ? "Hide" : "Show"}</button>}
+              <span style={{ font: `600 10.5px ${F_SANS}`, color: copied ? "var(--st-active-fg,#15803d)" : "var(--muted2,#98a2b3)", flex: "none" }}>{copied ? "✓" : "⧉"}</span>
+            </span>}
+    </div>
+  );
+}
+
+type FieldSpec = { k: string; label: string; value: string | number | null; onSave: (v: string | number | null) => void; kind?: "text" | "numeric" | "secret" | "link" | "select"; options?: { value: string; label: string }[]; placeholder?: string; hint?: string };
+
+function renderField(f: FieldSpec, editing: boolean) {
+  if (editing) {
+    if (f.kind === "select") return <EditSelect key={f.k} label={f.label} value={String(f.value ?? "")} options={f.options || []} onSave={(v) => f.onSave(v)} />;
+    return <Edit key={f.k} label={f.label} value={f.value} onSave={f.onSave} placeholder={f.placeholder} numeric={f.kind === "numeric"} secret={f.kind === "secret"} hint={f.hint} openHref={f.kind === "link" ? (f.value as string | null) : undefined} />;
+  }
+  if (f.kind === "select") { const lbl = f.options?.find((o) => o.value === String(f.value ?? ""))?.label ?? ""; return <ReadField key={f.k} label={f.label} value={lbl || null} />; }
+  return <ReadField key={f.k} label={f.label} value={f.value} href={f.kind === "link" ? (f.value as string | null) : undefined} secret={f.kind === "secret"} mono={f.kind === "secret"} />;
+}
+
+// In view mode: show filled fields (and all selects); collapse empty text fields into a
+// single "+ Add <fields>" affordance that enters edit mode.
+function ToggleFields({ fields, editing, onEdit }: { fields: FieldSpec[]; editing: boolean; onEdit: () => void }) {
+  const empties = fields.filter((f) => f.kind !== "select" && (f.value == null || f.value === ""));
+  const names = empties.slice(0, 3).map((f) => f.label.replace(/ \(.*/, "").toLowerCase()).join(", ");
+  return (
+    <>
+      {fields.map((f) => editing ? renderField(f, true) : (f.kind === "select" || !(f.value == null || f.value === "") ? renderField(f, false) : null))}
+      {!editing && empties.length > 0 && (
+        <button onClick={onEdit} style={{ alignSelf: "flex-start", font: `600 12px ${F_SANS}`, color: "var(--muted,#5b6779)", background: "var(--inset,#fafbfc)", border: "1px dashed var(--input-border,#d5d9e0)", borderRadius: 8, padding: "6px 10px", cursor: "pointer", textAlign: "left" }}>+ Add {names}{empties.length > 3 ? ` +${empties.length - 3}` : ""}</button>
+      )}
+    </>
   );
 }
 
@@ -223,124 +273,6 @@ export function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; wor
           if (!s.done) unlocked = false;
           return <div key={i} style={{ flex: "1 1 190px", minWidth: 180 }}>{stepCard(s.label, s.title, s.sub, isNext, s.done, s.render(isNext))}</div>;
         })}
-      </div>
-    </div>
-  );
-}
-
-function ToggleChip({ on, onLabel, offLabel, onClick, href, green }: { on: boolean; onLabel: string; offLabel: string; onClick: () => void; href?: string; green?: boolean }) {
-  const style: CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "5px 9px", borderRadius: 7, border: "none", cursor: "pointer", textAlign: "center", whiteSpace: "nowrap", background: on ? (green ? "var(--st-active-bg,#e6f4ea)" : "var(--blue-chip-bg,#e8f0fe)") : "var(--tag-bg,#f1f1f2)", color: on ? (green ? "var(--st-active-fg,#188038)" : "var(--blue-chip-text,#1a56db)") : "var(--muted,#8a97ad)" };
-  if (on && href) return <a href={href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ ...style, display: "inline-block", textDecoration: "none" }}>{onLabel}</a>;
-  return <button onClick={(e) => { e.stopPropagation(); onClick(); }} style={style}>{on ? onLabel : offLabel}</button>;
-}
-
-function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
-  r: Row; busy: boolean;
-  workflow: (id: string, patch: Record<string, unknown>) => void;
-  logPayment: (r: Row, kind: "setup" | "monthly") => Promise<void>;
-  updatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>;
-}) {
-  const [okPay, setOkPay] = useState<{ setup: boolean; monthly: boolean }>({ setup: false, monthly: false });
-  const [copied, setCopied] = useState(false);
-  const cfg = cfgOf(r);
-  const pays = r.monthlyPayouts || [];
-  const setupDone = setupPaid(r);
-  const verified = !!r.verifiedAt;
-
-  const copyHistory = () => {
-    const who = r.payoutName?.trim() || r.fullName;
-    const setupLine = setupDone ? `Paid ${fmtDate(pays.find((p) => p.kind === "setup")?.paidAt || r.paidAt)}` : "Not paid";
-    const lines = [
-      `${who} — Payment history`,
-      `Setup fee · ${formatMoney(cfg.setupAmount, cfg.currency)} — ${setupLine}`,
-      `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
-      `Total paid: ${formatMoney(totalPaid(r), cfg.currency)}`,
-      "",
-      ["Date", "Payment", "By", "Notified", "Acknowledged", "Proof"].join("\t"),
-      ...(pays.length ? pays.map((p) => [
-        fmtDate(p.paidAt),
-        `${formatMoney(Number(p.amount) || 0, cfg.currency)} · ${p.kind === "setup" ? "Setup fee" : "Monthly"}`,
-        p.by || "—",
-        p.notified ? "Notified" : "Not notified",
-        p.acknowledged ? (p.acknowledgedAt ? `Ack ${fmtDate(p.acknowledgedAt)}` : "Acknowledged") : "Awaiting ack",
-        p.proofUrl || "—",
-      ].join("\t")) : ["No payments logged yet."]),
-    ];
-    navigator.clipboard?.writeText(lines.join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
-  };
-
-  const schedRow = (key: "setup" | "monthly", title: string, sub: string, done: boolean, onLog: () => void, logLabel: string, confirm?: { ok: boolean; onToggle: () => void; label: string }) => {
-    const ok = confirm ? confirm.ok : okPay[key];
-    const onToggle = confirm ? confirm.onToggle : () => setOkPay((p) => ({ ...p, [key]: !p[key] }));
-    const confirmText = confirm ? confirm.label : (ok ? "● Ok to pay" : "○ Confirm ok to pay");
-    return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 11, padding: "12px 14px", flexWrap: "wrap" }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ font: `600 14px ${F_SANS}`, color: "var(--fg,#111)" }}>{title}</div>
-        <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)", marginTop: 2 }}>{sub}</div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
-        {done ? <span style={{ font: `700 11.5px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "var(--st-active-bg,#e6f4ea)", padding: "8px 12px", borderRadius: 8 }}>✓ Paid</span>
-          : (<>
-              <button onClick={onToggle} style={{ font: `700 11.5px ${F_SANS}`, padding: "8px 12px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: ok ? "var(--st-active-bg,#e6f4ea)" : "var(--warn-badge-bg,#fef3e2)", color: ok ? "var(--st-active-fg,#188038)" : "var(--warn-badge-text,#b7791f)" }}>{confirmText}</button>
-              <button onClick={onLog} disabled={busy || !ok} style={{ font: `600 12px ${F_SANS}`, padding: "8px 13px", borderRadius: 8, border: "1px solid var(--divider,#ddd)", cursor: ok ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: ok ? 1 : 0.55, background: ok ? "var(--btn-dark-bg,#111)" : "transparent", color: ok ? "#fff" : "var(--muted2,#9aa0a6)" }}>{logLabel}</button>
-            </>)}
-      </div>
-    </div>
-    );
-  };
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-        <span style={labelCss}>Payment schedule</span>
-        <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Total paid <b style={{ color: "var(--st-active-fg,#188038)" }}>{formatMoney(totalPaid(r), cfg.currency)}</b></span>
-      </div>
-      {!verified && <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)", marginBottom: 8 }}>⚠ Stability check not done yet — confirm the account is good to go (Step 3) before paying.</div>}
-      <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 18 }}>
-        {schedRow(
-          "setup",
-          `Setup fee · ${formatMoney(cfg.setupAmount, cfg.currency)}`,
-          setupDone ? `Paid ${fmtDate(pays.find((p) => p.kind === "setup")?.paidAt || r.paidAt)}` : `Due 24h after login · ${r.onboardedAt ? "logged in " + fmtDate(r.onboardedAt) : "not logged in yet"}`,
-          setupDone, () => logPayment(r, "setup"), `+ Log ${formatMoney(cfg.setupAmount, cfg.currency)}`,
-          { ok: verified, onToggle: () => workflow(r.id, { verifiedAt: verified ? null : new Date().toISOString() }), label: verified ? "● Account OK" : "○ Mark account OK" }
-        )}
-        {schedRow(
-          "monthly",
-          `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
-          "In the first few days of the month, after one full month of service",
-          false, () => logPayment(r, "monthly"), `+ Log ${formatMoney(monthlyAmt(r), cfg.currency)}`
-        )}
-      </div>
-
-      {setupDone && r.status !== "onboarded" && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "var(--st-active-bg,#e6f4ea)", border: "1px solid var(--st-active-fg,#188038)", borderRadius: 11, padding: "10px 14px", marginBottom: 18, flexWrap: "wrap" }}>
-          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--st-active-fg,#188038)" }}>Setup fee paid. Finish attaching the receipt and details, then mark them onboarded.</span>
-          <button onClick={() => workflow(r.id, { status: "onboarded" })} style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)", flex: "none" }}>✓ Mark onboarded</button>
-        </div>
-      )}
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={labelCss}>Payment record</span>
-        <button onClick={copyHistory} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 7, border: "1px solid var(--divider,#ddd)", cursor: "pointer", whiteSpace: "nowrap", background: copied ? "var(--st-active-bg,#e6f4ea)" : "transparent", color: copied ? "var(--st-active-fg,#188038)" : "var(--fg,#444)" }}>{copied ? "✓ Copied" : "⧉ Copy history"}</button>
-      </div>
-      <div style={{ border: "1px solid var(--divider,#eee)", borderRadius: 11, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 108px 116px 128px", gap: 10, padding: "9px 14px", background: "var(--band,#f6f7f8)", borderBottom: "1px solid var(--divider,#eee)" }}>
-          {["Date", "Payment", "Proof", "Notified", "Acknowledged"].map((h) => <span key={h} style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>{h}</span>)}
-        </div>
-        {pays.length ? pays.map((p, i) => (
-          <div key={i} style={{ display: "grid", gridTemplateColumns: "100px 1fr 108px 116px 128px", gap: 10, alignItems: "center", padding: "11px 14px", borderBottom: "1px solid var(--divider,#eee)" }}>
-            <span style={{ font: `500 12px ${F_SANS}`, color: "var(--fg,#444)", whiteSpace: "nowrap" }}>{fmtDate(p.paidAt)}</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)" }}>{formatMoney(Number(p.amount) || 0, cfg.currency)} <span style={{ fontWeight: 500, color: "var(--muted,#8a97ad)" }}>· {p.kind === "setup" ? "Setup fee" : "Monthly"}</span></div>
-              {p.by && <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>by {p.by}</div>}
-            </div>
-            <ToggleChip on={!!p.proofUrl} onLabel="↗ Receipt" offLabel="+ Attach" href={p.proofUrl || undefined}
-              onClick={() => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) updatePayout(r, i, { proofUrl: url.trim() }); }} />
-            <ToggleChip on={!!p.notified} onLabel="Notified" offLabel="Mark notified" onClick={() => updatePayout(r, i, { notified: !p.notified })} />
-            <ToggleChip on={!!p.acknowledged} green onLabel={p.acknowledgedAt ? `Ack ${fmtDate(p.acknowledgedAt)}` : "Acknowledged"} offLabel="Awaiting ack" onClick={() => updatePayout(r, i, { acknowledged: !p.acknowledged })} />
-          </div>
-        )) : <div style={{ padding: 16, textAlign: "center", font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>No payments logged yet.</div>}
       </div>
     </div>
   );
@@ -477,11 +409,12 @@ export function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
   );
 }
 
-// The full expanded-row detail — Pipeline v2 layout: workflow bar on top, then a
-// 3-column card grid (Applicant + Credentials · Chase + Activity · Payout + Payments + Notes),
-// with payments and the footer actions full-width below. Same wiring as the live pipeline.
+// The full expanded-row detail — Pipeline v2 layout: workflow bar on top, then a 3-column
+// card grid. Applicant / Sign-in & credentials / Payout cards have a per-card read↔edit
+// toggle; Payments is a compact summary that links out to the Payouts page. Same wiring.
 export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
-  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, provisionGologin, deleteGologin, logTouch, logPayment, updatePayout, onDeleteApp } = h;
+  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, provisionGologin, deleteGologin, logTouch, onDeleteApp } = h;
+  const [editSec, setEditSec] = useState<string | null>(null);
   const live = isLive(r);
   const onboarded = r.status === "onboarded";
   const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
@@ -490,6 +423,64 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
   const meetings = new Map<string, Touch>();
   for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) meetings.set(entry.bookingKey, entry);
 
+  const applicantFields: FieldSpec[] = [
+    { k: "linkedinUrl", label: "LinkedIn URL", value: r.linkedinUrl, kind: "link", placeholder: "linkedin.com/in/…", onSave: (v) => patchApp(r.id, { linkedinUrl: v }) },
+    { k: "linkedinEmail", label: "Applied with (LinkedIn email)", value: r.linkedinEmail, placeholder: "same as owner", onSave: (v) => patchApp(r.id, { linkedinEmail: v }) },
+    { k: "contactNumber", label: "Contact number / handle", value: r.contactNumber, placeholder: "phone / handle", onSave: (v) => patchApp(r.id, { contactNumber: v }) },
+    { k: "contactChannel", label: "Contact channel", value: r.contactChannel, placeholder: "Viber / Telegram / WhatsApp", onSave: (v) => patchApp(r.id, { contactChannel: v }) },
+    { k: "location", label: "Location", value: r.location, placeholder: "city / country", onSave: (v) => patchApp(r.id, { location: v }) },
+    { k: "industry", label: "Industry", value: r.industry, placeholder: "—", onSave: (v) => patchApp(r.id, { industry: v }) },
+    { k: "connections", label: "Connections", value: r.connectionCount, kind: "numeric", placeholder: "e.g. 500", onSave: (v) => patchApp(r.id, { connectionCount: v }) },
+    { k: "referralSource", label: "Found us via", value: r.referralSource, placeholder: "flyer / FB / referral", onSave: (v) => patchApp(r.id, { referralSource: v }) },
+    { k: "referredBy", label: "Referred by", value: r.referredBy, placeholder: "marketer code", onSave: (v) => patchApp(r.id, { referredBy: v }) },
+    { k: "bookingEmail", label: "Booking email", value: r.bookingEmail, placeholder: "if booked with another email", onSave: (v) => patchApp(r.id, { bookingEmail: v }) },
+    { k: "poc", label: "LV handler (POC)", value: r.poc, placeholder: "who's handling this", onSave: (v) => { if (!r.accountOnly) patchApp(r.id, { poc: v }); if (r.accountId) patchAccount(r.id, r.accountId, { poc: v }); } },
+    { k: "ownerStatus", label: "Owner status", value: r.ownerStatus || "", kind: "select", options: OWNER_STATUS_OPTIONS, onSave: (v) => patchApp(r.id, { ownerStatus: (v as string) || null }) },
+    { k: "accountIssue", label: "Account issue", value: r.accountIssue, placeholder: "login problem, restriction…", onSave: (v) => patchApp(r.id, { accountIssue: v }) },
+  ];
+  const credFields: FieldSpec[] = r.accountId ? [
+    { k: "loginEmail", label: "Login email (work)", value: r.loginEmail, placeholder: "klabber address we sign in with", onSave: (v) => acctSave({ loginEmail: v }) },
+    { k: "personalEmail", label: "Personal email (on account)", value: r.personalEmail, placeholder: "ambassador's own", onSave: (v) => acctSave({ personalEmail: v }) },
+    { k: "workEmail", label: "Work / recovery email", value: r.workEmail, placeholder: "recovery email on the account", onSave: (v) => acctSave({ workEmail: v }) },
+    { k: "password", label: "Password", value: r.accountPassword, kind: "secret", placeholder: "set account password", onSave: (v) => acctSave({ accountPassword: v }) },
+    { k: "twofa", label: "2FA / TOTP", value: r.twoFactor, kind: "secret", hint: "backup code / secret", placeholder: "2FA secret / backup", onSave: (v) => acctSave({ twoFactor: v }) },
+    { k: "gologin", label: "GoLogin share link", value: r.gologinShareLink, kind: "link", placeholder: "https://app.gologin.com/share/…", onSave: (v) => acctSave({ gologinShareLink: v }, true) },
+    { k: "proxy", label: "Proxy · host:port:user:pass", value: proxyCombined(r), placeholder: "1.2.3.4:8000:username:password", onSave: (v) => acctSave(parseProxy(v)) },
+    { k: "proxyLocation", label: "Proxy location", value: r.proxyLocation, placeholder: "City, Country", onSave: (v) => acctSave({ proxyLocation: v }) },
+    { k: "accountStatus", label: "Account status", value: r.accountStatus || "under_review", kind: "select", options: ACCOUNT_STATUS_OPTIONS.map((s) => ({ value: s, label: s === "under_construction" ? "Pipeline" : s === "construction_immature" ? "Construction (Immature)" : s.replace(/_/g, " ") })), onSave: (v) => acctSave({ status: v }, true) },
+    { k: "verified", label: "LinkedIn verified", value: r.linkedinVerified ? "yes" : "no", kind: "select", options: [{ value: "no", label: "No" }, { value: "yes", label: "✓ Yes" }], onSave: (v) => acctSave({ linkedinVerified: v === "yes" }, true) },
+  ] : [];
+  const payoutFields: FieldSpec[] = [
+    { k: "method", label: "Method", value: r.paymentMethod, placeholder: "Wise / PayPal / GCash", onSave: (v) => patchApp(r.id, { paymentMethod: v }) },
+    { k: "details", label: "Account no. / handle", value: r.paymentDetails, placeholder: "email / number / account", onSave: (v) => patchApp(r.id, { paymentDetails: v }) },
+    { k: "payoutName", label: "Name on account", value: r.payoutName, placeholder: "name on the account", onSave: (v) => patchApp(r.id, { payoutName: v }) },
+    { k: "currency", label: "Currency", value: r.payoutCurrency || "", kind: "select", options: [{ value: "", label: "Auto" }, { value: "PHP", label: "PHP ₱" }, { value: "USD", label: "USD $" }], onSave: (v) => patchApp(r.id, { payoutCurrency: (v as string) || null }) },
+    ...(r.accountId ? [
+      { k: "payoutMo", label: "Payout /mo", value: r.ambassadorPayment, kind: "numeric" as const, placeholder: "amount", onSave: (v: string | number | null) => acctSave({ ambassadorPayment: v ?? 0 }) },
+      { k: "rentMo", label: "Rent /mo ($)", value: r.monthlyPrice, kind: "numeric" as const, placeholder: "e.g. 50", onSave: (v: string | number | null) => acctSave({ monthlyPrice: v ?? 0 }) },
+    ] : []),
+  ];
+
+  const appEditing = editSec === "applicant";
+  const credEditing = editSec === "cred";
+  const payEditing = editSec === "payout";
+  const editToggle = (sec: string, on: boolean) => <button onClick={(e) => { e.stopPropagation(); setEditSec(on ? null : sec); }} style={editLinkStyle}>{on ? "Done" : "Edit"}</button>;
+
+  const cfg = cfgOf(r);
+  const setupDone = setupPaid(r);
+  const setupPay = (r.monthlyPayouts || []).find((p) => p.kind === "setup");
+  const monthlyStarted = (r.monthlyPayouts || []).some((p) => p.kind === "monthly");
+  const pill = (text: string, green?: boolean): CSSProperties => ({ font: `700 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap", flex: "none", background: green ? "var(--st-active-bg,#dcfce7)" : "var(--band,#f1f3f6)", color: green ? "var(--st-active-fg,#15803d)" : "var(--muted,#5b6779)" });
+  const payRow = (title: string, sub: string, pillNode: ReactNode) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ font: `700 13px ${F_SANS}`, color: "var(--fg,#111)" }}>{title}</div>
+        <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>{sub}</div>
+      </div>
+      {pillNode}
+    </div>
+  );
+
   return (
     <div style={{ borderTop: "1px solid var(--divider,#eee)", background: "var(--panel,#fafafa)", padding: 16 }}>
       {!onboarded && <WorkflowRail r={r} busy={busy} workflow={workflow} />}
@@ -497,7 +488,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "flex-start" }}>
         {/* ── Left column: Applicant · Sign-in & credentials ── */}
         <div style={col}>
-          <PanelCard title="Applicant" right={r.linkedinUrl ? <a href={liHref(r.linkedinUrl)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>View profile ↗</a> : undefined}>
+          <PanelCard title="Applicant" right={<div style={{ display: "flex", alignItems: "center", gap: 10 }}>{r.linkedinUrl && <a href={liHref(r.linkedinUrl)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>View profile ↗</a>}{editToggle("applicant", appEditing)}</div>}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 10, background: "var(--inset,#f8f9fb)", borderRadius: 12 }}>
               {photoUrl
                 ? <a href={photoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ flex: "none" }}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={photoUrl} alt="Owner photo" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 12, border: "1px solid var(--line,#e6e8ec)", display: "block" }} /></a>
@@ -508,46 +499,25 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
                 {photoUrl && <a href={photoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>Open full size ↗</a>}
               </div>
             </div>
-            <Edit label="LinkedIn URL" value={r.linkedinUrl} openHref={r.linkedinUrl} placeholder="linkedin.com/in/…" onSave={(v) => patchApp(r.id, { linkedinUrl: v })} />
-            <Edit label="Applied with (LinkedIn email)" value={r.linkedinEmail} placeholder="same as owner" onSave={(v) => patchApp(r.id, { linkedinEmail: v })} />
-            <Edit label="Contact number / handle" value={r.contactNumber} placeholder="phone / handle" onSave={(v) => patchApp(r.id, { contactNumber: v })} />
-            <Edit label="Contact channel" value={r.contactChannel} placeholder="Viber / Telegram / WhatsApp" onSave={(v) => patchApp(r.id, { contactChannel: v })} />
-            <Edit label="Location" value={r.location} placeholder="city / country" onSave={(v) => patchApp(r.id, { location: v })} />
-            <Edit label="Industry" value={r.industry} placeholder="—" onSave={(v) => patchApp(r.id, { industry: v })} />
-            <Edit label="Connections" value={r.connectionCount} numeric placeholder="e.g. 500" onSave={(v) => patchApp(r.id, { connectionCount: v })} />
-            <Edit label="Found us via" value={r.referralSource} placeholder="flyer / FB / referral" onSave={(v) => patchApp(r.id, { referralSource: v })} />
-            <Edit label="Referred by" value={r.referredBy} placeholder="marketer code" onSave={(v) => patchApp(r.id, { referredBy: v })} />
-            <Edit label="Booking email" value={r.bookingEmail} placeholder="if booked with another email" onSave={(v) => patchApp(r.id, { bookingEmail: v })} />
-            <Edit label="LV handler (POC)" value={r.poc} placeholder="who's handling this — e.g. Ardi / Sam" onSave={(v) => { if (!r.accountOnly) patchApp(r.id, { poc: v }); if (r.accountId) patchAccount(r.id, r.accountId, { poc: v }); }} />
-            <EditSelect label="Owner status" value={r.ownerStatus || ""} options={OWNER_STATUS_OPTIONS} onSave={(v) => patchApp(r.id, { ownerStatus: v || null })} />
-            <Edit label="Account issue" value={r.accountIssue} placeholder="login problem, restriction…" onSave={(v) => patchApp(r.id, { accountIssue: v })} />
+            <ToggleFields fields={applicantFields} editing={appEditing} onEdit={() => setEditSec("applicant")} />
           </PanelCard>
 
           <PanelCard title="Sign-in & credentials" right={
-            !r.accountId ? <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>no account linked</span>
-              : !r.hasGologin ? (
-                <button onClick={(e) => { e.stopPropagation(); void provisionGologin(r); }} disabled={busy} title="Create the GoLogin profile, assign a proxy, and generate the share link" style={{ font: `700 11px ${F_SANS}`, color: "#fff", background: "var(--st-active-fg,#188038)", border: "none", padding: "5px 10px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Creating…" : "+ Create GoLogin"}</button>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {r.gologinShareLink ? <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>↗ Open</a> : <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin ready</span>}
-                  <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin profile, clear its share link, unassign the proxy" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "none", padding: 0, cursor: busy ? "wait" : "pointer" }}>Delete</button>
-                </div>
-              )
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {!r.accountId ? <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>no account linked</span>
+                : !r.hasGologin ? <button onClick={(e) => { e.stopPropagation(); void provisionGologin(r); }} disabled={busy} title="Create the GoLogin profile, assign a proxy, and generate the share link" style={{ font: `700 11px ${F_SANS}`, color: "#fff", background: "var(--st-active-fg,#188038)", border: "none", padding: "5px 10px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Creating…" : "+ Create GoLogin"}</button>
+                  : <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {r.gologinShareLink ? <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>↗ Open</a> : <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin ready</span>}
+                      <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin profile, clear its share link, unassign the proxy" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "none", padding: 0, cursor: busy ? "wait" : "pointer" }}>Delete</button>
+                    </div>}
+              {r.accountId && editToggle("cred", credEditing)}
+            </div>
           }>
             <div><div style={{ ...labelCss, marginBottom: 6 }}>Status</div><RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} /></div>
             {r.accountId ? (<>
               {needsGologin(r) && !r.hasGologin && <div style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin — this account cannot be run</div>}
-              <Edit label="Login email (work)" value={r.loginEmail} placeholder="klabber address we sign in with" onSave={(v) => acctSave({ loginEmail: v })} />
-              <Edit label="Personal email (on account)" value={r.personalEmail} placeholder="ambassador's own" onSave={(v) => acctSave({ personalEmail: v })} />
-              <Edit label="Work / recovery email" value={r.workEmail} placeholder="recovery email on the account" onSave={(v) => acctSave({ workEmail: v })} />
-              <Edit label="Password" value={r.accountPassword} secret placeholder="set account password" onSave={(v) => acctSave({ accountPassword: v })} />
-              <Edit label="2FA / TOTP" hint="backup code / secret" value={r.twoFactor} secret placeholder="2FA secret / backup" onSave={(v) => acctSave({ twoFactor: v })} />
-              <TotpCode key={r.twoFactor || "empty"} secretKey={r.twoFactor || ""} compact />
-              <Edit label="GoLogin share link" value={r.gologinShareLink} openHref={r.gologinShareLink} placeholder="https://app.gologin.com/share/…" onSave={(v) => acctSave({ gologinShareLink: v }, true)} />
-              <Edit label="Proxy · host:port:user:pass" value={proxyCombined(r)} placeholder="1.2.3.4:8000:username:password" onSave={(v) => acctSave(parseProxy(v))} />
-              <Edit label="Proxy location" value={r.proxyLocation} placeholder="City, Country" onSave={(v) => acctSave({ proxyLocation: v })} />
-              <EditSelect label="Account status" value={r.accountStatus || "under_review"} options={ACCOUNT_STATUS_OPTIONS.map((s) => ({ value: s, label: s === "under_construction" ? "Pipeline" : s === "construction_immature" ? "Construction (Immature)" : s.replace(/_/g, " ") }))} onSave={(v) => acctSave({ status: v }, true)} />
-              <EditSelect label="LinkedIn verified" value={r.linkedinVerified ? "yes" : "no"} options={[{ value: "no", label: "No" }, { value: "yes", label: "✓ Yes" }]} onSave={(v) => acctSave({ linkedinVerified: v === "yes" }, true)} />
+              <ToggleFields fields={credFields} editing={credEditing} onEdit={() => setEditSec("cred")} />
+              {r.twoFactor && <TotpCode key={r.twoFactor} secretKey={r.twoFactor} compact />}
             </>) : (
               <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#888)", lineHeight: 1.5 }}>No account linked yet — link one on Inventory once they&apos;ve handed over the login (matched by LinkedIn URL or an “Owner: email” note), then GoLogin, proxy, 2FA and pricing open up here.</div>
             )}
@@ -580,16 +550,23 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
 
         {/* ── Right column: Payout · Payments · Admin notes ── */}
         <div style={col}>
-          <PanelCard title="Payout">
-            <Edit label="Method" value={r.paymentMethod} placeholder="Wise / PayPal / GCash" onSave={(v) => patchApp(r.id, { paymentMethod: v })} />
-            <Edit label="Account no. / handle" value={r.paymentDetails} placeholder="email / number / account" onSave={(v) => patchApp(r.id, { paymentDetails: v })} />
-            <Edit label="Name on account" value={r.payoutName} placeholder="name on the account" onSave={(v) => patchApp(r.id, { payoutName: v })} />
-            <EditSelect label="Currency" value={r.payoutCurrency || ""} options={[{ value: "", label: "Auto" }, { value: "PHP", label: "PHP ₱" }, { value: "USD", label: "USD $" }]} onSave={(v) => patchApp(r.id, { payoutCurrency: v || null })} />
-            {r.accountId && <Edit label="Payout /mo" value={r.ambassadorPayment} numeric placeholder="amount" onSave={(v) => acctSave({ ambassadorPayment: v ?? 0 })} />}
-            {r.accountId && <Edit label="Rent /mo ($)" value={r.monthlyPrice} numeric placeholder="e.g. 50" onSave={(v) => acctSave({ monthlyPrice: v ?? 0 })} />}
+          <PanelCard title="Payout" right={editToggle("payout", payEditing)}>
+            <ToggleFields fields={payoutFields} editing={payEditing} onEdit={() => setEditSec("payout")} />
           </PanelCard>
 
-          {live && <PanelCard title="Payments"><PaymentBlock r={r} busy={busy} workflow={workflow} logPayment={logPayment} updatePayout={updatePayout} /></PanelCard>}
+          <PanelCard title="Payments" right={<span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#5b6779)" }}>Total paid <b style={{ font: `700 13px ${F_GRO}`, color: "var(--st-active-fg,#15803d)" }}>{formatMoney(totalPaid(r), cfg.currency)}</b></span>}>
+            {payRow(
+              `Setup fee · ${formatMoney(cfg.setupAmount, cfg.currency)}`,
+              setupDone ? `Paid ${fmtDate(setupPay?.paidAt || r.paidAt)}` : live ? "Owed now that they're onboarded" : "Owed once they're onboarded",
+              <span style={pill(setupDone ? "✓ Paid" : live ? "Due" : "After onboarding", setupDone)}>{setupDone ? "✓ Paid" : live ? "Due" : "After onboarding"}</span>
+            )}
+            {payRow(
+              `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
+              "First weekday of the month, after a full month live",
+              <span style={pill(monthlyStarted ? "Active" : "Not started", monthlyStarted)}>{monthlyStarted ? "Active" : "Not started"}</span>
+            )}
+            <a href="/admin/balances" style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>Pay, attach receipts &amp; full history in Payouts →</a>
+          </PanelCard>
 
           {(r.accountId || r.adminNotes || r.applicationNotes || r.accountNotes) && (
             <PanelCard title="Admin notes" tone="notes">
