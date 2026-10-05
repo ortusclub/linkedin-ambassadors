@@ -12,12 +12,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { amount?: number };
+  let body: { amount?: number; successPath?: string; cancelPath?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
+
+  // Optional return paths let a "fund & rent" flow bring the renter back to /checkout to
+  // finish renting. Only accept relative in-app paths (defence against open-redirects).
+  const safePath = (p?: string) => (typeof p === "string" && /^\/[A-Za-z0-9/?&=_.,%#-]*$/.test(p) ? p : null);
+  const successPath = safePath(body.successPath);
+  const cancelPath = safePath(body.cancelPath);
 
   const amount = Number(body.amount);
   if (!Number.isFinite(amount) || amount < MIN_TOPUP_USD || amount > MAX_TOPUP_USD) {
@@ -83,8 +89,8 @@ export async function POST(req: Request) {
         amountUsd: amount.toFixed(2),
       },
     },
-    success_url: `${origin}/dashboard?topup=success`,
-    cancel_url: `${origin}/dashboard?topup=cancelled`,
+    success_url: `${origin}${successPath ?? "/dashboard?topup=success"}`,
+    cancel_url: `${origin}${cancelPath ?? "/dashboard?topup=cancelled"}`,
   });
 
   return NextResponse.json({ url: checkoutSession.url });

@@ -51,6 +51,8 @@ export async function POST(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.metadata?.type === "wallet_topup") {
           await handleWalletTopUp(session);
+        } else if (session.metadata?.type === "card_setup") {
+          await handleCardSetup(session);
         } else if (session.metadata?.type === "rental_renewal") {
           await handleRentalRenewal(session);
         } else if (session.metadata?.type === "rental_autorenew") {
@@ -87,6 +89,52 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+// A renter saved a card via setup mode (no charge). Vault the payment method on the
+// customer, store brand/last4 for display, and — if they were turning on auto-recharge —
+// apply the threshold + amount they chose so the one trip fully enables it.
+async function handleCardSetup(session: Stripe.Checkout.Session) {
+  const userId = session.metadata?.userId;
+  if (!userId || !session.setup_intent) return;
+
+  const si = await stripe.setupIntents.retrieve(
+    typeof session.setup_intent === "string" ? session.setup_intent : session.setup_intent.id,
+    { expand: ["payment_method"] }
+  );
+  const pm = si.payment_method;
+  if (!pm || typeof pm === "string" || !pm.card) return;
+
+  const data: {
+    stripePaymentMethodId: string; cardBrand: string | null; cardLast4: string | null;
+    autoRechargeEnabled?: boolean; autoRechargeThreshold?: number; autoRechargeAmount?: number;
+  } = { stripePaymentMethodId: pm.id, cardBrand: pm.card.brand, cardLast4: pm.card.last4 };
+
+  const threshold = Number(session.metadata?.threshold);
+  const amount = Number(session.metadata?.amount);
+  if (
+    session.metadata?.enableAutoRecharge === "1" &&
+    Number.isFinite(threshold) && threshold > 0 &&
+    Number.isFinite(amount) && amount > 0
+  ) {
+    data.autoRechargeEnabled = true;
+    data.autoRechargeThreshold = threshold;
+    data.autoRechargeAmount = amount;
+  }
+
+  // Make it the customer's default so off-session charges use it.
+  try {
+    if (session.customer) {
+      await stripe.customers.update(
+        typeof session.customer === "string" ? session.customer : session.customer.id,
+        { invoice_settings: { default_payment_method: pm.id } }
+      );
+    }
+  } catch (e) {
+    console.error("Failed to set default payment method:", e);
+  }
+
+  await prisma.user.update({ where: { id: userId }, data });
 }
 
 async function handleWalletTopUp(session: Stripe.Checkout.Session) {

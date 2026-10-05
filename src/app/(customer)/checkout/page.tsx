@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatNumber, formatCurrency, SALES_NAV_MONTHLY } from "@/lib/utils";
 import { blogFontVars } from "@/lib/blog-fonts";
+import { discountedPrice, type AppliedDiscount } from "@/lib/discount-utils";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 const INDUSTRY_COLORS: Record<string, string> = { Sales: "#5747C9", Marketing: "#B23150", Technology: "#0E7C74", Operations: "#0A66C2", Finance: "#946011" };
@@ -43,6 +44,15 @@ function CheckoutContent() {
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [autoRenew, setAutoRenew] = useState(true);
+  // Voucher / discount code
+  const [voucherInput, setVoucherInput] = useState(searchParams.get("voucher") || "");
+  const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
+  const [voucherError, setVoucherError] = useState("");
+  const [voucherChecking, setVoucherChecking] = useState(false);
+  // Keep-topped-up opt-in: after a card is on file, turn on auto-recharge for future renewals.
+  const [autoRechargeOptIn, setAutoRechargeOptIn] = useState(true);
+  // Returning from a card top-up to finish renting (funded=1): shows "finishing" state.
+  const [finishing, setFinishing] = useState(searchParams.get("funded") === "1");
   const [vetted, setVetted] = useState<boolean | null>(null);
   const [showVetting, setShowVetting] = useState(false);
   const [vetForm, setVetForm] = useState({ company: "", website: "", role: "", useCase: "", tools: "", agreed: false });
@@ -73,15 +83,36 @@ function CheckoutContent() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Shadow renters (Apex) pay a flat rate per account, overriding the listed price + add-ons.
-  const priceOf = (a: Account) => (isShadow ? SHADOW_MONTHLY_PRICE : Number(a.monthlyPrice) + (salesNavFor(a) ? SALES_NAV_MONTHLY : 0));
+  const listPriceOf = (a: Account) => (isShadow ? SHADOW_MONTHLY_PRICE : Number(a.monthlyPrice) + (salesNavFor(a) ? SALES_NAV_MONTHLY : 0));
+  // Discounts never apply to shadow renters (fixed flat rate). Pass the account so a tiered
+  // ("price book") code prices by its verified flag + connection count.
+  const priceOf = (a: Account) => (!isShadow && discount ? discountedPrice(listPriceOf(a), discount, a) : listPriceOf(a));
+  const listTotal = accounts.reduce((sum, a) => sum + listPriceOf(a), 0);
   const total = accounts.reduce((sum, a) => sum + priceOf(a), 0);
+  const savings = Math.max(0, listTotal - total);
   const hasSufficientBalance = usdcBalance !== null && usdcBalance >= total;
 
+  const applyVoucher = async () => {
+    const code = voucherInput.trim();
+    if (!code) return;
+    setVoucherError("");
+    setVoucherChecking(true);
+    try {
+      const res = await fetch("/api/discounts/validate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+      const d = await res.json();
+      if (!d.ok || !d.discount) { setDiscount(null); setVoucherError(d.error || "That code isn't valid."); return; }
+      setDiscount(d.discount);
+    } catch { setVoucherError("Could not check that code."); }
+    finally { setVoucherChecking(false); }
+  };
+  const removeVoucher = () => { setDiscount(null); setVoucherInput(""); setVoucherError(""); };
+
+  // Rent straight from wallet balance (balance already covers the total).
   const handleCheckout = async () => {
     setCheckingOut(true);
     setCheckoutError("");
     try {
-      const res = await fetch("/api/rentals/checkout-usdc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew, salesNavAccountIds: accounts.filter(salesNavFor).map((a) => a.id) }) });
+      const res = await fetch("/api/rentals/checkout-usdc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew, discountCode: discount?.code }) });
       const data = await res.json();
       if (res.status === 401) { router.push("/login?message=You must sign in or sign up before you can rent accounts."); return; }
       if (!res.ok) { setCheckoutError(data.error || "Payment failed"); return; }
@@ -90,6 +121,32 @@ function CheckoutContent() {
     } catch { setCheckoutError("Something went wrong. Please try again."); }
     finally { setCheckingOut(false); }
   };
+
+  // Balance short: fund the difference by card (Stripe hosted, saves the card), then return
+  // to /checkout?funded=1 to finish renting. One flow from the renter's side.
+  const handleFundAndRent = async () => {
+    setCheckingOut(true);
+    setCheckoutError("");
+    try {
+      const shortfall = Math.max(10, Math.ceil((total - (usdcBalance || 0)) * 100) / 100);
+      const params = new URLSearchParams();
+      params.set("accounts", accounts.map((a) => a.id).join(","));
+      params.set("funded", "1");
+      if (discount) params.set("voucher", discount.code);
+      params.set("ar", autoRenew ? "1" : "0");
+      if (autoRechargeOptIn) params.set("arch", "1");
+      const res = await fetch("/api/wallet/card-topup-checkout", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: shortfall, successPath: `/checkout?${params.toString()}`, cancelPath: `/checkout?accounts=${accounts.map((a) => a.id).join(",")}` }),
+      });
+      const data = await res.json();
+      if (res.status === 401) { router.push("/login?message=You must sign in or sign up before you can rent accounts."); return; }
+      if (!res.ok || !data.url) { setCheckoutError(data.error || "Could not start payment."); setCheckingOut(false); return; }
+      window.location.href = data.url;
+    } catch { setCheckoutError("Something went wrong. Please try again."); setCheckingOut(false); }
+  };
+
+  const runPayment = () => (hasSufficientBalance ? handleCheckout() : handleFundAndRent());
 
   const startPayment = () => {
     // Always show the ground rules on every rent — the renter must re-agree each
@@ -114,7 +171,7 @@ function CheckoutContent() {
         if (!res.ok) { setVetError(d.error || "Something went wrong"); return; }
         setVetted(true);
       }
-      setShowVetting(false); handleCheckout();
+      setShowVetting(false); runPayment();
     } catch { setVetError("Something went wrong. Please try again."); }
     finally { setVetSaving(false); }
   };
@@ -130,7 +187,56 @@ function CheckoutContent() {
     router.replace(`/checkout?${p.toString()}`);
   };
 
+  // Returning from the card top-up (funded=1): re-apply the voucher, wait for the wallet
+  // credit (the webhook may lag the redirect), optionally turn on auto-recharge, then rent.
+  useEffect(() => {
+    if (!finishing || loading || accounts.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const urlVoucher = searchParams.get("voucher") || "";
+      const ar = searchParams.get("ar") !== "0";
+      const arch = searchParams.get("arch") === "1";
+      setAutoRenew(ar);
+      let applied: AppliedDiscount | null = null;
+      if (urlVoucher) {
+        try {
+          const r = await fetch("/api/discounts/validate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: urlVoucher }) });
+          const d = await r.json();
+          if (d.ok && d.discount) { applied = d.discount; setDiscount(d.discount); }
+        } catch { /* ignore — rent at list price */ }
+      }
+      const needed = accounts.reduce((s, a) => s + (!isShadow && applied ? discountedPrice(listPriceOf(a), applied) : listPriceOf(a)), 0);
+      // Poll the balance until the top-up lands (up to ~18s).
+      let bal = usdcBalance ?? 0;
+      for (let i = 0; i < 12 && !cancelled && bal < needed; i++) {
+        await new Promise((res) => setTimeout(res, 1500));
+        try { const r = await fetch("/api/wallet/balance"); const d = await r.json(); bal = parseFloat(d.balance || "0"); setUsdcBalance(bal); } catch { /* keep polling */ }
+      }
+      if (cancelled) return;
+      if (bal < needed) { setFinishing(false); setCheckoutError("Your payment is still processing — refresh in a moment to finish renting."); return; }
+      if (arch) {
+        try { await fetch("/api/wallet/auto-recharge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: true, threshold: Math.max(needed, 10), amount: Math.max(needed, 10) }) }); } catch { /* non-blocking */ }
+      }
+      setCheckingOut(true);
+      try {
+        const res = await fetch("/api/rentals/checkout-usdc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew: ar, discountCode: applied?.code }) });
+        const data = await res.json();
+        if (!res.ok) { setCheckoutError(data.error || "Could not finish renting."); setFinishing(false); setCheckingOut(false); return; }
+        setCheckoutSuccess(true);
+        setTimeout(() => router.push("/dashboard?rental=success"), 2000);
+      } catch { setCheckoutError("Something went wrong finishing your rental."); setFinishing(false); setCheckingOut(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [loading, finishing]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading) return <div style={{ minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#8A93A2", fontSize: 14 }}>Loading your selection…</div>;
+
+  if (finishing) return <div style={{ minHeight: "80vh", display: "flex", flexDirection: "column", gap: 10, alignItems: "center", justifyContent: "center", color: "#5A6473", fontSize: 15, fontFamily: INT }}>
+    <div style={{ width: 34, height: 34, border: "3px solid #E1E5EA", borderTopColor: "#0A66C2", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    {checkoutSuccess ? "Payment received — setting up your rental…" : "Payment received — finishing your rental…"}
+    {checkoutError && <div style={{ color: "#B23150", fontSize: 13, maxWidth: 360, textAlign: "center" }}>{checkoutError}</div>}
+  </div>;
 
   const TRUST = [
     { bg: "#E4F6EC", fg: "#067A45", icon: <path d="M20 6L9 17l-5-5" />, title: "Instant access", body: "Accounts are ready the moment payment clears." },
@@ -221,23 +327,47 @@ function CheckoutContent() {
             <div style={{ font: `700 19px ${POP}`, marginBottom: 18 }}>Order summary</div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              {accounts.map((a) => (
-                <div key={a.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 14 }}>
+              {accounts.map((a) => {
+                const lp = listPriceOf(a); const dp = priceOf(a);
+                return (
+                  <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 14 }}>
                     <span style={{ color: "#5A6473" }}>{shortName(a.linkedinName)}</span>
-                    <span style={{ color: "#0B1220", fontWeight: 600 }}>{formatCurrency(isShadow ? SHADOW_MONTHLY_PRICE : Number(a.monthlyPrice))}</span>
+                    {dp < lp ? (
+                      <span><span style={{ color: "#96A0AD", textDecoration: "line-through", marginRight: 6 }}>{formatCurrency(lp)}</span><span style={{ color: "#067A45", fontWeight: 600 }}>{formatCurrency(dp)}</span></span>
+                    ) : (
+                      <span style={{ color: "#0B1220", fontWeight: 600 }}>{formatCurrency(lp)}</span>
+                    )}
                   </div>
-                  {!isShadow && salesNavFor(a) && (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12.5 }}>
-                      <span style={{ color: "#5747C9" }}>+ Sales Navigator</span>
-                      <span style={{ color: "#5747C9", fontWeight: 600 }}>{formatCurrency(SALES_NAV_MONTHLY)}</span>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
+            {/* voucher / discount code */}
+            {!isShadow && (
+              <div style={{ marginTop: 14 }}>
+                {discount ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#EFFBF3", border: "1px solid #CDEBD9", borderRadius: 10, padding: "10px 12px" }}>
+                    <span style={{ fontSize: 13, color: "#067A45", fontWeight: 600 }}>✓ Code {discount.code} applied</span>
+                    <button onClick={removeVoucher} style={{ background: "none", border: "none", color: "#5A6473", fontSize: 12.5, cursor: "pointer", fontWeight: 600 }}>Remove</button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input value={voucherInput} onChange={(e) => setVoucherInput(e.target.value.toUpperCase())} onKeyDown={(e) => { if (e.key === "Enter") applyVoucher(); }} placeholder="Discount code" style={{ flex: 1, minWidth: 0, border: "1px solid #E1E5EA", borderRadius: 10, padding: "10px 12px", fontSize: 13.5, fontFamily: INT }} />
+                      <button onClick={applyVoucher} disabled={voucherChecking || !voucherInput.trim()} style={{ border: "1px solid #CBD2DB", background: "#fff", borderRadius: 10, padding: "0 16px", fontSize: 13.5, fontWeight: 600, color: "#0B1220", cursor: "pointer", opacity: voucherChecking || !voucherInput.trim() ? 0.6 : 1 }}>{voucherChecking ? "…" : "Apply"}</button>
+                    </div>
+                    {voucherError && <div style={{ fontSize: 12, color: "#B23150", marginTop: 6 }}>{voucherError}</div>}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ height: 1, background: "#EEF0F3", margin: "18px 0" }} />
+            {savings > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, color: "#067A45", marginBottom: 8 }}>
+                <span>Discount ({discount?.code})</span><span>− {formatCurrency(savings)}</span>
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
               <span style={{ font: `700 16px ${POP}` }}>Monthly total</span>
               <div><span style={{ font: `800 28px ${POP}`, letterSpacing: "-0.02em", color: "#0B1220" }}>{formatCurrency(total)}</span><span style={{ fontSize: 14, color: "#8A93A2" }}>/mo</span></div>
@@ -255,7 +385,7 @@ function CheckoutContent() {
             {/* auto-renew */}
             <button onClick={() => setAutoRenew((v) => !v)} style={{ display: "flex", gap: 11, alignItems: "flex-start", width: "100%", textAlign: "left", background: "#F8FAFC", border: "1px solid #EDEFF2", borderRadius: 12, padding: 14, marginTop: 14, cursor: "pointer" }}>
               <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 700, marginTop: 1, border: "1.5px solid " + (autoRenew ? "#0A66C2" : "#CBD2DB"), background: autoRenew ? "#0A66C2" : "#fff" }}>{autoRenew ? "✓" : ""}</span>
-              <span><span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#0B1220", marginBottom: 2 }}>Auto-renew monthly</span><span style={{ fontSize: 12.5, lineHeight: 1.5, color: "#8A93A2" }}>Renews on the same date each month from your balance. Cancel anytime.</span></span>
+              <span><span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#0B1220", marginBottom: 2 }}>Auto-renew monthly</span><span style={{ fontSize: 12.5, lineHeight: 1.5, color: "#8A93A2" }}>Renews automatically each month from your balance. Cancel anytime.</span></span>
             </button>
 
             {checkoutError && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 10, marginTop: 14, fontSize: 12, color: "#991B1B" }}>{checkoutError}</div>}
@@ -268,10 +398,21 @@ function CheckoutContent() {
             ) : hasSufficientBalance ? (
               <button onClick={startPayment} disabled={checkingOut} className="co-cta" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, marginTop: 16, cursor: "pointer", boxShadow: "0 12px 28px rgba(10,102,194,0.28)", opacity: checkingOut ? 0.6 : 1 }}>{checkingOut ? "Processing…" : `Rent ${accounts.length} account${accounts.length === 1 ? "" : "s"} · ${formatCurrency(total)} →`}</button>
             ) : (
-              <button onClick={() => router.push("/dashboard?topup=1#wallet")} className="co-cta" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, marginTop: 16, cursor: "pointer", boxShadow: "0 12px 28px rgba(10,102,194,0.28)" }}>Top up {formatCurrency(total)} &amp; rent →</button>
+              <>
+                {/* Pay the difference by card, then rent in one flow */}
+                <button onClick={startPayment} disabled={checkingOut} className="co-cta" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, border: "none", borderRadius: 12, padding: 15, marginTop: 16, cursor: "pointer", boxShadow: "0 12px 28px rgba(10,102,194,0.28)", opacity: checkingOut ? 0.6 : 1 }}>
+                  {checkingOut ? "Redirecting…" : `Pay ${formatCurrency(Math.max(10, Math.ceil((total - (usdcBalance || 0)) * 100) / 100))} by card & rent →`}
+                </button>
+                {/* keep-topped-up opt-in (auto-recharge for future renewals) */}
+                <button onClick={() => setAutoRechargeOptIn((v) => !v)} style={{ display: "flex", gap: 9, alignItems: "flex-start", width: "100%", textAlign: "left", background: "transparent", border: "none", padding: "12px 2px 0", cursor: "pointer" }}>
+                  <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: 700, marginTop: 1, border: "1.5px solid " + (autoRechargeOptIn ? "#0A66C2" : "#CBD2DB"), background: autoRechargeOptIn ? "#0A66C2" : "#fff" }}>{autoRechargeOptIn ? "✓" : ""}</span>
+                  <span style={{ fontSize: 12.5, lineHeight: 1.5, color: "#5A6473" }}>Keep my balance topped up automatically so renewals never lapse (auto-recharge). Manage or cancel anytime.</span>
+                </button>
+                <button onClick={() => router.push("/dashboard?topup=1#wallet")} style={{ display: "block", width: "100%", textAlign: "center", background: "transparent", border: "none", color: "#5A6473", fontSize: 13, fontWeight: 600, marginTop: 10, cursor: "pointer" }}>Add balance or pay with crypto instead</button>
+              </>
             )}
 
-            <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Top up once, rent multiple accounts from your balance.</div>
+            <div style={{ textAlign: "center", fontSize: 12.5, color: "#96A0AD", marginTop: 12 }}>Have a discount code? Enter it above before you pay.</div>
             <Link href="/catalogue" style={{ display: "block", textAlign: "center", fontSize: 14, color: "#5A6473", textDecoration: "none", marginTop: 14, fontWeight: 500 }}>← Back to browse</Link>
           </div>
 
