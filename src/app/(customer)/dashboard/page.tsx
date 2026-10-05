@@ -14,6 +14,7 @@ import { CompactDetail } from "@/components/compact-detail";
 import { MeetingBooker } from "@/components/meeting-booker";
 import { OnboardingPrice } from "@/components/onboarding-price";
 import { CardTopUp } from "./card-topup";
+import { AutoRecharge } from "./auto-recharge";
 import { canShowRentalShareLink, isRentalBeingPrepared } from "@/lib/rental-dashboard-access";
 import { startDashboardTour } from "@/lib/dashboard-tour";
 
@@ -596,6 +597,8 @@ function DashboardContent() {
                     We&apos;ll securely save this card so future renewals can cover any shortfall not met by your balance. You can remove it anytime.
                   </p>
                 )}
+                {/* Auto-recharge — keep the balance topped up from the saved card */}
+                <AutoRecharge />
               </div>
             )}
 

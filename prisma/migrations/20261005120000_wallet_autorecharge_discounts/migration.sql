@@ -10,7 +10,7 @@ ALTER TABLE "rentals"
 
 -- Admin-managed voucher / discount codes
 CREATE TABLE "discount_codes" (
-  "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+  "id" UUID NOT NULL,
   "code" TEXT NOT NULL,
   "type" TEXT NOT NULL,
   "value" DECIMAL(10,2) NOT NULL,
