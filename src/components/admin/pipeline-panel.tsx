@@ -515,9 +515,9 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
           }>
             <div><div style={{ ...labelCss, marginBottom: 6 }}>Status</div><RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} /></div>
             {r.accountId ? (<>
+              {r.twoFactor && <TotpCode key={r.twoFactor} secretKey={r.twoFactor} />}
               {needsGologin(r) && !r.hasGologin && <div style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin — this account cannot be run</div>}
               <ToggleFields fields={credFields} editing={credEditing} onEdit={() => setEditSec("cred")} />
-              {r.twoFactor && <TotpCode key={r.twoFactor} secretKey={r.twoFactor} compact />}
             </>) : (
               <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#888)", lineHeight: 1.5 }}>No account linked yet — link one on Inventory once they&apos;ve handed over the login (matched by LinkedIn URL or an “Owner: email” note), then GoLogin, proxy, 2FA and pricing open up here.</div>
             )}
