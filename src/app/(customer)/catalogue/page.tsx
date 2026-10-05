@@ -21,6 +21,8 @@ interface Account {
   monthlyPrice: number;
   status: string;
   linkedinUrl: string | null;
+  // Ortus / Apex segregated-pool accounts: shown as teasers, not rentable yet.
+  availableSoon?: boolean;
 }
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
@@ -62,6 +64,7 @@ export default function CataloguePage() {
   const [industry, setIndustry] = useState("");
   const [sort, setSort] = useState("conn-desc");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [availFilter, setAvailFilter] = useState("All"); // All | Available | Available soon | Rented
   const [view, setView] = useState<"list" | "grid">("list");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<{ id: string } | null>(null);
@@ -112,22 +115,26 @@ export default function CataloguePage() {
   };
   const selectedTotal = accounts.filter((a) => selected.has(a.id)).reduce((s, a) => s + monthlyOf(a), 0);
 
-  // available first, then rented — chosen sort applied within each group
-  const statusRank = (a: Account) => (a.status === "available" ? 0 : 1);
-  // Only a slice of the inventory is public: at most MAX_PER_STATUS available and
-  // MAX_PER_STATUS rented profiles. Everything beyond that is behind the agent CTA.
+  // Rentable available first, then "available soon" (Ortus/Apex pool teasers), then
+  // rented — chosen sort applied within each group.
+  const isRentable = (a: Account) => a.status === "available" && !a.availableSoon;
+  const statusRank = (a: Account) => (isRentable(a) ? 0 : a.availableSoon ? 1 : 2);
+  // Only a slice of the inventory is public: at most MAX_PER_STATUS of each group.
+  // Everything beyond that is behind the agent CTA.
   const visible = useMemo(() => {
     const sorted = [...accounts].sort((a, b) => statusRank(a) - statusRank(b) || SORTS[sort](a, b));
     // Signed-in renters see the full inventory; the MAX_PER_STATUS teaser cap is only
     // for anonymous visitors (who get the agent CTA for everything beyond it).
     const cap = user ? Infinity : MAX_PER_STATUS;
-    const avail = sorted.filter((a) => a.status === "available").slice(0, cap);
-    const rented = sorted.filter((a) => a.status !== "available").slice(0, cap);
-    return [...avail, ...rented];
-  }, [accounts, sort, user]);
+    const avail = sorted.filter(isRentable).slice(0, cap);
+    const soon = sorted.filter((a) => a.availableSoon).slice(0, cap);
+    const rented = sorted.filter((a) => !isRentable(a) && !a.availableSoon).slice(0, cap);
+    const groups: Record<string, Account[]> = { All: [...avail, ...soon, ...rented], Available: avail, "Available soon": soon, Rented: rented };
+    return groups[availFilter] || groups.All;
+  }, [accounts, sort, availFilter, user]);
   const hiddenCount = accounts.length - visible.length;
-  // Bulk-select only ever covers the rows actually on screen.
-  const rentable = visible.filter((a) => a.status === "available");
+  // Bulk-select only ever covers the rentable rows actually on screen (never pool teasers).
+  const rentable = visible.filter(isRentable);
   const toggleSelectAll = () => setSelected(selected.size === rentable.length && rentable.length > 0 ? new Set() : new Set(rentable.map((a) => a.id)));
 
   const chip = (on: boolean) => ({ cursor: "pointer", font: `${on ? 600 : 500} 13.5px ${INT}`, color: on ? "#FFFFFF" : "#3F4856", background: on ? "#0B1220" : "#FFFFFF", border: "1px solid " + (on ? "#0B1220" : "#E0E3E9"), borderRadius: 999, padding: "9px 18px", transition: "all .15s" } as const);
@@ -178,7 +185,13 @@ export default function CataloguePage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+            <span style={{ font: `500 11px ${MONO}`, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8A93A2", marginRight: 2 }}>Availability</span>
+            {["All", "Available", "Available soon", "Rented"].map((c) => (
+              <button key={c} onClick={() => setAvailFilter(c)} style={chip(availFilter === c)}>{c}</button>
+            ))}
+          </div>
           <div style={{ display: "inline-flex", background: "#EEF1F5", borderRadius: 10, padding: 3, gap: 2 }}>
             <button onClick={() => setView("list")} style={seg(view === "list")}>▤ List</button>
             <button onClick={() => setView("grid")} style={seg(view === "grid")}>▦ Grid</button>
@@ -206,7 +219,7 @@ export default function CataloguePage() {
       <div className="cat2-wrap" style={{ paddingTop: 22, paddingBottom: 8 }}>
         {loading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3, 4, 5, 6].map((i) => <div key={i} style={{ height: 60, borderRadius: 14, background: "#EAECEF", animation: "pulse 1.5s ease-in-out infinite" }} />)}</div>
-        ) : accounts.length === 0 ? (
+        ) : visible.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", color: "#5A6473" }}>
             <p style={{ fontSize: 16, fontWeight: 500 }}>No accounts match your filters.</p>
             <p style={{ fontSize: 14, marginTop: 8 }}>Try clearing a filter or check back soon.</p>
@@ -273,7 +286,12 @@ export default function CataloguePage() {
   );
 }
 
-function StatusBadge({ rented, mine, taken }: { rented: boolean; mine?: boolean; taken?: boolean }) {
+function StatusBadge({ rented, mine, taken, soon }: { rented: boolean; mine?: boolean; taken?: boolean; soon?: boolean }) {
+  if (soon) return (
+    <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "4px 11px", color: "#6D28D9", background: "#EDE9FE" }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7C3AED" }} />Available soon
+    </span>
+  );
   if (taken) return (
     <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "4px 11px", color: "#6B7280", background: "#F1F3F5" }}>
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#9AA0A6" }} />Shadow-taken
@@ -301,17 +319,23 @@ function IndustryTag({ industry }: { industry: string }) {
 }
 
 function Actions({ a }: { a: Account }) {
-  const isAvailable = a.status === "available";
+  const soon = !!a.availableSoon;
+  const isAvailable = a.status === "available" && !soon;
   const viewStyle = { fontSize: 13, fontWeight: 600, color: "#0A66C2", background: "#EAF2FC", borderRadius: 9, padding: "9px 13px", textDecoration: "none", whiteSpace: "nowrap" } as const;
+  // Pool teasers 404 on the account-detail page, so only link out to the real LinkedIn
+  // profile when we have a URL — otherwise drop the View action for them.
+  const view = a.linkedinUrl ? (
+    <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={viewStyle}>View</a>
+  ) : soon ? null : (
+    <Link href={`/account/${a.id}`} style={viewStyle}>View</Link>
+  );
   return (
     <>
-      {a.linkedinUrl ? (
-        <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={viewStyle}>View</a>
-      ) : (
-        <Link href={`/account/${a.id}`} style={viewStyle}>View</Link>
-      )}
+      {view}
       {isAvailable ? (
         <Link href={`/account/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#00A150", borderRadius: 9, padding: "9px 17px", textDecoration: "none", whiteSpace: "nowrap" }}>Rent</Link>
+      ) : soon ? (
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#6D28D9", background: "#EDE9FE", borderRadius: 9, padding: "9px 15px", whiteSpace: "nowrap" }}>Available soon</span>
       ) : (
         <span style={{ fontSize: 13, fontWeight: 600, color: "#96A0AD", background: "#F2F4F7", borderRadius: 9, padding: "9px 15px", whiteSpace: "nowrap" }}>Rented</span>
       )}
@@ -332,28 +356,33 @@ function PriceBlock({ a, showPricing, compact }: { a: Account; showPricing: bool
   );
 }
 
-function Avatar({ a, rented }: { a: Account; rented: boolean }) {
+function Avatar({ a, rented, soon }: { a: Account; rented: boolean; soon?: boolean }) {
+  const dot = soon ? "#7C3AED" : rented ? "#E0A43B" : "#00B85C";
   return (
     <div style={{ position: "relative", flexShrink: 0 }}>
       <span style={{ width: 46, height: 46, borderRadius: "50%", background: getAvatarColor(a.linkedinName), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `600 15px ${POP}`, overflow: "hidden", filter: rented ? "grayscale(0.5)" : "none" }}>
         {a.profilePhotoUrl ? <img src={a.profilePhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : getInitials(a.linkedinName)}
       </span>
-      <span style={{ position: "absolute", bottom: 1, right: 1, width: 12, height: 12, borderRadius: "50%", border: "2px solid #fff", background: rented ? "#E0A43B" : "#00B85C" }} />
+      <span style={{ position: "absolute", bottom: 1, right: 1, width: 12, height: 12, borderRadius: "50%", border: "2px solid #fff", background: dot }} />
     </div>
   );
 }
 
 function GridCard({ a, selected, onToggle, showPricing }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean }) {
-  const rented = a.status !== "available";
-  const rentable = a.status === "available";
+  const soon = !!a.availableSoon;
+  const rentable = a.status === "available" && !soon;
+  const rented = !rentable && !soon;
   const displayName = shortName(a.linkedinName);
   return (
     <div className="cat2-card" style={{ position: "relative", background: "#FFFFFF", border: "1px solid #DFE3E9", borderRadius: 16, padding: 20, boxShadow: "0 8px 24px rgba(16,24,40,0.07), 0 1px 3px rgba(16,24,40,0.05)", opacity: rented ? 0.72 : 1, display: "flex", flexDirection: "column" }}>
+      {soon && (
+        <span style={{ position: "absolute", top: 14, right: 14, fontSize: 10.5, fontWeight: 600, color: "#6D28D9", background: "#EDE9FE", borderRadius: 999, padding: "3px 9px" }}>Available soon</span>
+      )}
       {rentable && (
         <input type="checkbox" checked={selected} onChange={() => onToggle(a.id)} title="Select for bulk rent" style={{ position: "absolute", top: 16, right: 16, accentColor: "#0A66C2", cursor: "pointer", width: 16, height: 16 }} />
       )}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 13, marginBottom: 16 }}>
-        <Avatar a={a} rented={rented} />
+        <Avatar a={a} rented={rented} soon={soon} />
         <div style={{ minWidth: 0, flex: 1, paddingRight: rentable ? 20 : 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
             <span style={{ font: `600 16px ${POP}`, color: "#0B1220", lineHeight: 1.2 }}>{displayName}</span>
@@ -383,14 +412,15 @@ function GridCard({ a, selected, onToggle, showPricing }: { a: Account; selected
 }
 
 function ListRow({ a, selected, onToggle, showPricing, mine, taken }: { a: Account; selected: boolean; onToggle: (id: string) => void; showPricing: boolean; mine?: boolean; taken?: boolean }) {
-  const rented = a.status !== "available" || !!taken;
-  const rentable = a.status === "available" && !taken;
+  const soon = !!a.availableSoon;
+  const rented = (a.status !== "available" || !!taken) && !soon;
+  const rentable = a.status === "available" && !taken && !soon;
   const displayName = shortName(a.linkedinName);
   return (
     <div className="cat2-row" style={{ display: "grid", gridTemplateColumns: "28px minmax(0,2.4fr) minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr) minmax(230px,1.6fr)", alignItems: "center", gap: 16, padding: "15px 22px", borderBottom: "1px solid #F0F2F5", opacity: rented ? 0.66 : 1, background: selected ? "#F0F7FF" : "transparent", transition: "background .15s" }}>
       {rentable ? <input type="checkbox" checked={selected} onChange={() => onToggle(a.id)} style={{ accentColor: "#0A66C2", cursor: "pointer" }} /> : <input type="checkbox" disabled style={{ opacity: 0.3 }} />}
       <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
-        <Avatar a={a} rented={rented} />
+        <Avatar a={a} rented={rented} soon={soon} />
         <div style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
             <span style={{ font: `600 15px ${POP}`, color: "#0B1220", lineHeight: 1.2 }}>{displayName}</span>
@@ -404,7 +434,7 @@ function ListRow({ a, selected, onToggle, showPricing, mine, taken }: { a: Accou
       <span className="cat2-hide">{a.industry ? <IndustryTag industry={a.industry} /> : "—"}</span>
       <span className="cat2-hide" style={{ fontSize: 13, color: "#5A6473", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.location || "—"}</span>
       <span><PriceBlock a={a} showPricing={showPricing} compact /></span>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} mine={mine} taken={taken} /><Actions a={a} /></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}><StatusBadge rented={rented} mine={mine} taken={taken} soon={soon} /><Actions a={a} /></div>
     </div>
   );
 }
