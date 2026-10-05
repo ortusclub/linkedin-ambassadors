@@ -391,7 +391,7 @@ export default function PipelineNewPage() {
                 {!gClosed && (
                   <div style={{ overflowX: "auto" }}>
                     <div style={{ minWidth: 1180 }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "32px minmax(0,1.7fr) 104px 96px 70px 60px 112px minmax(0,2fr) 150px 84px 22px", gap: 12, alignItems: "center", padding: "8px 16px", borderBottom: "1px solid var(--divider,#eef0f4)", font: `700 9.5px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "32px minmax(0,2fr) 104px 96px 70px 60px 112px minmax(0,1.5fr) 118px 84px 22px", gap: 12, alignItems: "center", padding: "8px 16px", borderBottom: "1px solid var(--divider,#eef0f4)", font: `700 9.5px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>
                         <span /><span>Ambassador</span><span>Referrer</span><span>Type</span><span>Applied</span><span>Verified</span><span>Level</span><span>Next step</span><span>Handler</span><span>Last touch</span><span />
                       </div>
                       {g.items.map(({ r, t }) => (
@@ -425,11 +425,11 @@ function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onCl
   const restricted = isRestricted(r);
   return (
     <div style={{ borderBottom: "1px solid var(--divider,#f0f2f5)", background: open ? "var(--band,#fafbfc)" : "var(--card,#fff)" }}>
-      <div onClick={onToggle} style={{ display: "grid", gridTemplateColumns: "32px minmax(0,1.7fr) 104px 96px 70px 60px 112px minmax(0,2fr) 150px 84px 22px", gap: 12, alignItems: "center", padding: "9px 16px", cursor: "pointer", boxShadow: `inset 3px 0 0 ${t.chaseDue ? "var(--st-cancel-fg,#c0392b)" : t.turn === "us" && !h ? "var(--warn-badge-text,#f59e0b)" : "transparent"}` }}>
+      <div onClick={onToggle} style={{ display: "grid", gridTemplateColumns: "32px minmax(0,2fr) 104px 96px 70px 60px 112px minmax(0,1.5fr) 118px 84px 22px", gap: 12, alignItems: "center", padding: "9px 16px", cursor: "pointer", boxShadow: `inset 3px 0 0 ${t.chaseDue ? "var(--st-cancel-fg,#c0392b)" : t.turn === "us" && !h ? "var(--warn-badge-text,#f59e0b)" : "transparent"}` }}>
         <input type="checkbox" checked={selected} onClick={(e) => e.stopPropagation()} onChange={onSel} style={{ width: 16, height: 16, cursor: "pointer" }} />
         <div style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-            <span style={{ font: `700 14px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatName(r.fullName) || "—"}</span>
+            <span style={{ font: `700 14px/1.3 ${F_SANS}`, color: "var(--fg,#111)" }}>{formatName(r.fullName) || "—"}</span>
             {r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Open LinkedIn profile ↗" style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2, font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)", textDecoration: "none" }}>in ↗</a>}
             {restricted && <span style={{ flex: "none", font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>Restricted</span>}
             {r.linkedinVerified && <span style={{ flex: "none", font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)" }}>✓</span>}
