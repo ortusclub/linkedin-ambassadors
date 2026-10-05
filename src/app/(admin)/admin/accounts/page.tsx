@@ -2,7 +2,7 @@
 
 import { tierPricing } from "@/lib/account-pricing";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
@@ -616,6 +616,12 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     };
   }, [shown]);
 
+  // Freeze the row order while you work. We re-sort only when a filter, the
+  // search, or the sort direction changes — not when a live edit bumps an
+  // account's updatedAt. Without this, saving a connection count or flipping a
+  // status re-sorts "Newest first" and yanks the row you just touched to the top.
+  const orderRef = useRef<{ sig: string; ids: string[] }>({ sig: "\u0000", ids: [] });
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const base = shown.filter((a) => {
@@ -631,7 +637,27 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       // ambassador's contact email and number, the owner name, plus the profile fields.
       return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.loginEmail || ""} ${a.ownerEmail || ""} ${a.ownerName || ""} ${a.ownerPhone || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
     });
-    return sortAccountsByLastUpdated(base, updateOrder);
+
+    // A fresh sort happens only when the controls change (this signature), or on
+    // first load. Otherwise we reuse the remembered order so edits don't reshuffle.
+    const sig = JSON.stringify([filter, verifiedFilter, connFilter, supplyFilter, pocFilter, q, updateOrder]);
+    if (orderRef.current.sig !== sig) {
+      const sorted = sortAccountsByLastUpdated(base, updateOrder);
+      orderRef.current = { sig, ids: sorted.map((a) => a.id) };
+      return sorted;
+    }
+
+    // Controls unchanged: keep the frozen order, mapping it onto the current data
+    // so edited rows refresh in place. Rows that dropped out of the filter fall
+    // away; genuinely new accounts are sorted and appended so they stay visible.
+    const byId = new Map(base.map((a) => [a.id, a] as const));
+    const ordered = orderRef.current.ids.map((id) => byId.get(id)).filter((a): a is typeof base[number] => Boolean(a));
+    const known = new Set(orderRef.current.ids);
+    const added = base.filter((a) => !known.has(a.id));
+    if (!added.length) return ordered;
+    const merged = [...ordered, ...sortAccountsByLastUpdated(added, updateOrder)];
+    orderRef.current = { sig, ids: merged.map((a) => a.id) };
+    return merged;
   }, [shown, filter, verifiedFilter, connFilter, supplyFilter, pocFilter, search, updateOrder]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
