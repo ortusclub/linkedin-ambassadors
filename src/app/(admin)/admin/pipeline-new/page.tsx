@@ -20,7 +20,7 @@ import {
 const TURN_META: Record<Turn, { tile: string; chip: string; bg: string; fg: string; dot: string; sub: string }> = {
   us:    { tile: "To action",       chip: "ACTION",    bg: "var(--warn-badge-bg,#fef3e2)", fg: "var(--warn-badge-text,#b7791f)", dot: "var(--warn-badge-text,#b7791f)", sub: "needs us now" },
   them:  { tile: "Waiting on them", chip: "WAITING",   bg: "var(--blue-chip-bg,#e8f0fe)",  fg: "var(--blue-chip-text,#1a56db)",  dot: "var(--blue-chip-text,#1a56db)",  sub: "applicant or referrer" },
-  timer: { tile: "Maturing",        chip: "MATURING",  bg: "var(--st-conv-bg,#efe8fd)",    fg: "var(--st-conv-fg,#6d28d9)",      dot: "var(--st-conv-fg,#6d28d9)",      sub: "1-week hold" },
+  timer: { tile: "Maturing",        chip: "TIMER",     bg: "var(--st-conv-bg,#efe8fd)",    fg: "var(--st-conv-fg,#6d28d9)",      dot: "var(--st-conv-fg,#6d28d9)",      sub: "1-week hold" },
   live:  { tile: "Onboarded",       chip: "ONBOARDED", bg: "var(--st-active-bg,#e6f4ea)",  fg: "var(--st-active-fg,#188038)",    dot: "var(--st-active-fg,#188038)",    sub: "live & earning" },
   dead:  { tile: "Stopped",         chip: "STOPPED",   bg: "var(--st-cancel-bg,#fdecea)",  fg: "var(--st-cancel-fg,#c0392b)",    dot: "var(--st-cancel-fg,#c0392b)",    sub: "not progressing" },
 };
