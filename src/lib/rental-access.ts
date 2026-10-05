@@ -12,7 +12,7 @@ export async function grantRentalAccess(rentalId: string): Promise<{ shareId: st
   const rental = await prisma.rental.findUnique({
     where: { id: rentalId },
     include: {
-      user: { select: { email: true } },
+      user: { select: { email: true, gologinShareEmail: true } },
       linkedinAccount: { select: { gologinProfileId: true, gologinAccount: true, restrictedAt: true, twoFactorResetNeeded: true } },
     },
   });
@@ -30,7 +30,10 @@ export async function grantRentalAccess(rentalId: string): Promise<{ shareId: st
   if (!profileId) {
     throw new Error("This account has no GoLogin profile ID, so access can't be managed automatically.");
   }
-  const email = rental.user.email;
+  // Share to the renter's GoLogin login — usually their account email, but some renters
+  // (e.g. ProfilePartner) access GoLogin under a different address; sharing to a non-GoLogin
+  // email 400s, so honour gologinShareEmail when set.
+  const email = rental.user.gologinShareEmail || rental.user.email;
   // Use the token AND workspace for whichever GoLogin account hosts this profile
   // (master vs klabber) — they must match, or the share silently returns no id.
   const token = tokenForAccount(rental.linkedinAccount.gologinAccount);
