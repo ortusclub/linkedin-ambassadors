@@ -100,8 +100,12 @@ model User {
 model DiscountCode {
   id             String    @id @default(uuid()) @db.Uuid
   code           String    @unique
-  type           String    // percent | fixed | flat
+  type           String    // percent | fixed | flat | tiered
   value          Decimal   @db.Decimal(10, 2)
+  // For type "tiered": the price book, as [{ verified, minConnections, price }]. Each
+  // account is priced by the matching tier (its verified flag + connection count),
+  // overriding the list price — used for partner deals like ProfilePartner's 4 tiers.
+  tiers          Json?
   active         Boolean   @default(true)
   maxRedemptions Int?      @map("max_redemptions")
   timesRedeemed  Int       @default(0) @map("times_redeemed")

@@ -84,8 +84,9 @@ function CheckoutContent() {
 
   // Shadow renters (Apex) pay a flat rate per account, overriding the listed price + add-ons.
   const listPriceOf = (a: Account) => (isShadow ? SHADOW_MONTHLY_PRICE : Number(a.monthlyPrice) + (salesNavFor(a) ? SALES_NAV_MONTHLY : 0));
-  // Discounts never apply to shadow renters (fixed flat rate).
-  const priceOf = (a: Account) => (!isShadow && discount ? discountedPrice(listPriceOf(a), discount) : listPriceOf(a));
+  // Discounts never apply to shadow renters (fixed flat rate). Pass the account so a tiered
+  // ("price book") code prices by its verified flag + connection count.
+  const priceOf = (a: Account) => (!isShadow && discount ? discountedPrice(listPriceOf(a), discount, a) : listPriceOf(a));
   const listTotal = accounts.reduce((sum, a) => sum + listPriceOf(a), 0);
   const total = accounts.reduce((sum, a) => sum + priceOf(a), 0);
   const savings = Math.max(0, listTotal - total);

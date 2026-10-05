@@ -76,7 +76,9 @@ export async function POST(req: Request) {
     const priceFor = (a: (typeof accounts)[number]) => {
       if (isShadow) return shadowRate;
       const base = new Prisma.Decimal(monthlyRentalPrice(a)).add(addonFor(a));
-      return discount ? new Prisma.Decimal(discountedPrice(base.toNumber(), discount)) : base;
+      // Pass the account so a tiered ("price book") code can price by its verified flag +
+      // connection count; percent/fixed/flat ignore it.
+      return discount ? new Prisma.Decimal(discountedPrice(base.toNumber(), discount, a)) : base;
     };
 
     const totalPrice = accounts.reduce(

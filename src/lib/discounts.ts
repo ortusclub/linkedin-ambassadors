@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { discountedPrice, discountLabel, type AppliedDiscount, type DiscountType } from "@/lib/discount-utils";
+import { discountedPrice, discountLabel, type AppliedDiscount, type DiscountType, type TierRule } from "@/lib/discount-utils";
 
 // Re-export the pure helpers so server callers can keep importing from "@/lib/discounts".
 export { discountedPrice, discountLabel };
@@ -24,9 +24,12 @@ export async function lookupDiscount(rawCode: string): Promise<DiscountLookup> {
   if (row.maxRedemptions != null && row.timesRedeemed >= row.maxRedemptions) {
     return { ok: false, error: "That code has reached its usage limit." };
   }
+  const tiers = row.type === "tiered" && Array.isArray(row.tiers)
+    ? (row.tiers as unknown as TierRule[])
+    : undefined;
   return {
     ok: true,
-    discount: { code: row.code, type: row.type as DiscountType, value: Number(row.value) },
+    discount: { code: row.code, type: row.type as DiscountType, value: Number(row.value), tiers },
   };
 }
 
