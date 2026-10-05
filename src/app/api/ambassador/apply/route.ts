@@ -1,4 +1,4 @@
-import { existingApplicationAccount } from "@/lib/application-duplicates";
+import { existingApplicationAccount, establishedDuplicate } from "@/lib/application-duplicates";
 import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { meetingToken } from "@/lib/meeting-token";
@@ -60,6 +60,17 @@ export async function POST(req: Request) {
     });
     if (recent) {
       return NextResponse.json({ application: recent, meetingToken: meetingToken(recent.id), assessment: null, duplicate: true }, { status: 200 });
+    }
+
+    // Re-signup of a profile that is already onboarded / live: hand back the existing
+    // application instead of creating another. Scoped to the same LinkedIn profile (not just
+    // the email) so a genuine SECOND account on the same email still gets through.
+    const established = await establishedDuplicate(data.email, linkedinUrl, { profileOnly: true });
+    if (established?.applicationId) {
+      const existing = await prisma.ambassadorApplication.findUnique({ where: { id: established.applicationId } });
+      if (existing) {
+        return NextResponse.json({ application: existing, meetingToken: meetingToken(existing.id), assessment: null, duplicate: true }, { status: 200 });
+      }
     }
 
     const duplicateNote = await existingApplicationAccount(data.email, linkedinUrl);

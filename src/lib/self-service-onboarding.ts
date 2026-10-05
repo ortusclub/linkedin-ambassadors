@@ -135,10 +135,19 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
     }
     const urlSlug = input.linkedinUrl.split("/in/")[1];
     const [application, account] = await Promise.all([
-      tx.ambassadorApplication.findFirst({ where: { OR: [{ email: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true } }),
-      tx.linkedInAccount.findFirst({ where: { OR: [{ personalEmail: { equals: input.email, mode: "insensitive" } }, { loginEmail: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true } }),
+      tx.ambassadorApplication.findFirst({ where: { OR: [{ email: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true, status: true } }),
+      tx.linkedInAccount.findFirst({ where: { OR: [{ personalEmail: { equals: input.email, mode: "insensitive" } }, { loginEmail: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true, status: true } }),
     ]);
-    if (!options.publicOwner && (application || account)) throw new OnboardingError("This person is already in our system. Ask the team to continue their existing onboarding.", 409);
+    // Team/referrer-initiated onboarding: any prior record blocks (as before). A public owner
+    // self-serving is normally let through (flagged, not blocked) so a first-time owner isn't
+    // turned away. But if the profile is ALREADY ESTABLISHED — an onboarded application or a
+    // live (non-removed) inventory account — a repeat self-signup is never legitimate: it only
+    // creates a phantom duplicate that splits the person across two applications and breaks
+    // owner/payout matching (a real payout row then vanishes when a hold is released). Block it.
+    const established = application?.status === "onboarded" || (!!account && account.status !== "removed");
+    if ((!options.publicOwner && (application || account)) || (options.publicOwner && established)) {
+      throw new OnboardingError("This person is already in our system. Ask the team to continue their existing onboarding.", 409);
+    }
     // Reuse existing capacity before purchasing a new proxy.
     const proxy = reusableProxy(await availableProxies(tx), country, input.linkedinVerified);
     if (!proxy && !proxyPurchaseLimits().enabled) throw new OnboardingError("No dedicated proxy is available for this country yet. Ask the team to add one, then try again.", 409);
