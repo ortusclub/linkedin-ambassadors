@@ -63,6 +63,11 @@ model User {
   stripePaymentMethodId String? @map("stripe_payment_method_id")
   cardBrand         String?    @map("card_brand")
   cardLast4         String?    @map("card_last4")
+  // Email a renter's GoLogin profile shares are sent to. Defaults to the account email;
+  // set this when the renter accesses GoLogin under a DIFFERENT account (e.g. ProfilePartner
+  // bills as lydia@ but their GoLogin workspace is support@profilepartner.net). Sharing to an
+  // address that isn't a GoLogin user fails with a 400, so this must be their GoLogin login.
+  gologinShareEmail String?    @map("gologin_share_email")
   // Twilio-style auto-recharge: when the wallet balance drops below `autoRechargeThreshold`,
   // the daily cron charges the saved card for `autoRechargeAmount` and credits the wallet.
   // `autoRechargeEnabled` is the renter's explicit consent to automatic card charges — no
