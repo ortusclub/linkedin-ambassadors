@@ -1,8 +1,9 @@
 "use client";
 
 // Shared pipeline detail components — the expanded-row panel (workflow rail, payments,
-// restriction control, outreach log, credential fields). Lifted VERBATIM from the live
-// pipeline page so /admin/pipeline-new drives the exact same behaviour and endpoints.
+// restriction control, outreach log, credential fields). Drives the exact same behaviour
+// and endpoints as the live pipeline; only the /admin/pipeline-new layout is restyled to
+// the Pipeline v2 mock (workflow bar on top, then a 3-column card grid).
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { formatMoney } from "@/lib/referral-currency";
@@ -15,8 +16,8 @@ import { useQcChecks } from "@/components/admin/use-qc-checks";
 import TotpCode from "@/app/m/[token]/onboarding/totp";
 import { isLikelyTestEmail } from "@/lib/test-mode";
 import {
-  type Row, type Touch, F_SANS, F_GRO, GRID4, labelCss, inputCss, btnSec, btnPrimary,
-  applicationType, isLive, stageOf, isBlocked, levelKey, healthOf, missingGologin, needsGologin,
+  type Row, type Touch, F_SANS, F_GRO, labelCss, inputCss, btnSec, btnPrimary,
+  applicationType, effectiveType, isLive, stageOf, isBlocked, levelKey, healthOf, needsGologin,
   STATUS_STYLE, STAGE_ACCENT, HEALTH_OPTIONS, ACCOUNT_STATUS_OPTIONS, OWNER_STATUS_OPTIONS,
   cfgOf, monthlyAmt, totalPaid, setupPaid, holdDays, matureDaysLeft, QC_ITEMS,
   fmtDate, fmtDateTime, ageDays, liHref, proxyCombined, parseProxy, initialsOf,
@@ -90,6 +91,20 @@ export function Note({ label, children }: { label: string; children: ReactNode }
   );
 }
 
+// White rounded section card with an uppercase grey label (the Pipeline v2 card look).
+function PanelCard({ title, right, children, tone }: { title: string; right?: ReactNode; children: ReactNode; tone?: "notes" }) {
+  const notes = tone === "notes";
+  return (
+    <div style={{ background: notes ? "var(--warn-badge-bg,#fffdf5)" : "var(--card,#fff)", border: `1px solid ${notes ? "var(--warn-badge-border,#f1e3b5)" : "var(--card-border,#e3e3e6)"}`, borderRadius: 14, padding: "14px 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
+        <span style={{ ...labelCss, color: notes ? "var(--warn-badge-text,#a16207)" : "var(--label,#7c8597)" }}>{title}</span>
+        {right}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>
+    </div>
+  );
+}
+
 function SignupMeeting({ r }: { r: Row }) {
   const latest = new Map<string, Touch>();
   for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) latest.set(entry.bookingKey, entry);
@@ -136,7 +151,7 @@ export function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; wor
       render: (isNext) => <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {isApplicationReceived(r) ? doneCol("Received", receiptPatch(r, false)) : <button onClick={() => workflow(r.id, receiptPatch(r, true))} disabled={busy} style={primaryBtn(isNext)}>Mark received</button>}
         <div style={{ fontSize: 12, lineHeight: 1.5, color: "var(--fg,#111)" }}>
-          <b>{r.diyTier === "standard" ? "Option 1 · Form" : r.diyTier === "partial" ? "Option 2 · Email/2FA" : r.diyTier === "full" ? "Option 3 · Full-service" : "Signup option not recorded"}</b>
+          <b>Signup: {effectiveType(r).label}</b>
           {r.diyTier && <div style={{ color: "var(--muted,#8a97ad)", marginTop: 4 }}>{r.diyTier === "standard" ? "Submitted the form for our team to handle setup." : r.diyTier === "partial" ? "Chose to add the LV email and set up 2FA themselves." : "Chose to handle email, 2FA and GoLogin themselves."}</div>}
           {r.diyTier !== "standard" && r.diyTier && <small>Chosen route — completion is tracked in the steps below.</small>}
         </div>
@@ -192,9 +207,15 @@ export function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; wor
 
   return (
     <div style={{ background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
-      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <SectionLabel>Workflow</SectionLabel>
-        <span title="The account's stage = the lowest step not yet complete. Ticking a later step doesn't advance the level until the steps before it are done." style={{ font: `700 11px ${F_SANS}`, color: effLevel >= steps.length ? "var(--st-active-fg,#188038)" : "var(--sheets-btn-bg,#1a56db)", background: effLevel >= steps.length ? "var(--st-active-bg,#e6f4ea)" : "var(--link-bg,#eaf1ff)", padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>Level {effLevel}/{steps.length}</span>
+      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <SectionLabel>Workflow</SectionLabel>
+          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Next: <b style={{ color: "var(--fg,#111)" }}>{nextStep(r).label}</b></span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span title="The account's stage = the lowest step not yet complete. Ticking a later step doesn't advance the level until the steps before it are done." style={{ font: `700 11px ${F_SANS}`, color: effLevel >= steps.length ? "var(--st-active-fg,#188038)" : "var(--sheets-btn-bg,#1a56db)", background: effLevel >= steps.length ? "var(--st-active-bg,#e6f4ea)" : "var(--link-bg,#eaf1ff)", padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>Level {effLevel}/{steps.length}</span>
+          {r.linkedinUrl && <a href={liHref(r.linkedinUrl)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none", whiteSpace: "nowrap" }}>Open LinkedIn ↗</a>}
+        </div>
       </div>
       <div style={{ display: "flex", alignItems: "stretch", gap: 8, flexWrap: "wrap" }}>
         {steps.map((s, i) => {
@@ -270,8 +291,11 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
   };
 
   return (
-    <div style={{ marginTop: 20 }}>
-      <SectionLabel num={4}>Payment schedule</SectionLabel>
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+        <span style={labelCss}>Payment schedule</span>
+        <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Total paid <b style={{ color: "var(--st-active-fg,#188038)" }}>{formatMoney(totalPaid(r), cfg.currency)}</b></span>
+      </div>
       {!verified && <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)", marginBottom: 8 }}>⚠ Stability check not done yet — confirm the account is good to go (Step 3) before paying.</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 18 }}>
         {schedRow(
@@ -298,10 +322,7 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <span style={labelCss}>Payment record</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Total paid <b style={{ color: "var(--st-active-fg,#188038)" }}>{formatMoney(totalPaid(r), cfg.currency)}</b></span>
-          <button onClick={copyHistory} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 7, border: "1px solid var(--divider,#ddd)", cursor: "pointer", whiteSpace: "nowrap", background: copied ? "var(--st-active-bg,#e6f4ea)" : "transparent", color: copied ? "var(--st-active-fg,#188038)" : "var(--fg,#444)" }}>{copied ? "✓ Copied" : "⧉ Copy history"}</button>
-        </div>
+        <button onClick={copyHistory} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 7, border: "1px solid var(--divider,#ddd)", cursor: "pointer", whiteSpace: "nowrap", background: copied ? "var(--st-active-bg,#e6f4ea)" : "transparent", color: copied ? "var(--st-active-fg,#188038)" : "var(--fg,#444)" }}>{copied ? "✓ Copied" : "⧉ Copy history"}</button>
       </div>
       <div style={{ border: "1px solid var(--divider,#eee)", borderRadius: 11, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 108px 116px 128px", gap: 10, padding: "9px 14px", background: "var(--band,#f6f7f8)", borderBottom: "1px solid var(--divider,#eee)" }}>
@@ -349,14 +370,13 @@ export function RestrictionControl({ r, onAccount, onApp, onDeleteEvent }: { r: 
   const opts: { key: "active" | "restricted" | "retired" | "withdrawn"; label: string; tone: [string, string] }[] = [
     { key: "active", label: "Active", tone: ["--st-active-bg,#e6f4ea", "--st-active-fg,#188038"] },
     { key: "restricted", label: "Restricted", tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
-    { key: "retired", label: "Permanently restricted", tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
+    { key: "retired", label: "Perm. restricted", tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
     { key: "withdrawn", label: "Withdrawn", tone: ["--neutral-bg,#eef1f5", "--muted,#647189"] },
   ];
   const history = Array.isArray(r.accountRestrictionLog) ? r.accountRestrictionLog : [];
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span style={labelCss}>Restriction</span>
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         {opts.map((o) => {
           const on = current === o.key;
           return (
@@ -402,15 +422,20 @@ function OutreachLog({ r, busy, onLog, onSetFollowUp, onDelete }: { r: Row; busy
   const send = async (ch: string) => { await onLog(r.id, ch, draft.trim(), by.trim()); setDraft(""); };
   const followVal = r.nextFollowUp ? new Date(r.nextFollowUp).toISOString().slice(0, 10) : "";
   return (
-    <div style={{ border: "1px solid var(--divider,#e3e3e6)", borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", background: "var(--band,#f6f7f8)", borderBottom: "1px solid var(--divider,#e3e3e6)", flexWrap: "wrap" }}>
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
         <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#777)" }}>{touchCount(log)} {touchCount(log) === 1 ? "touch" : "touches"} · last {lastTouchAt(log) || "—"}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 11.5px ${F_SANS}`, color: "var(--muted,#777)" }}>Next <input type="date" value={followVal} onChange={(e) => onSetFollowUp(e.target.value ? new Date(e.target.value).toISOString() : null)} style={{ ...inputCss, width: "auto", padding: "4px 7px", cursor: "pointer" }} /></span>
-          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#777)" }}>Handler <b style={{ color: "var(--fg,#333)" }}>{r.poc || "—"}</b></span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 11.5px ${F_SANS}`, color: "var(--muted,#777)" }}>Follow up <input type="date" value={followVal} onChange={(e) => onSetFollowUp(e.target.value ? new Date(e.target.value).toISOString() : null)} style={{ ...inputCss, width: "auto", padding: "4px 7px", cursor: "pointer" }} /></span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="What happened? Logged with the date and your name." style={{ ...inputCss, width: "100%" }} />
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <input value={by} onChange={(e) => setBy(e.target.value)} placeholder="Who sent it?" style={{ ...inputCss, width: 130, flex: "none" }} />
+          <span style={{ font: `600 10.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>LOG</span>
+          {[chan, "email", "text", "note"].map((ch) => <button key={ch} onClick={() => send(ch)} disabled={busy} style={btnSec}>+ {touchLabel(ch)}</button>)}
         </div>
       </div>
-      <div style={{ padding: "8px 14px" }}>
+      <div style={{ borderTop: "1px solid var(--divider,#eee)", paddingTop: 6 }}>
         {log && log.length ? [...log].reverse().map((t, i) => (
           <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "6px 0" }}>
             <span style={touchChipStyle(t.ch)}>{touchLabel(t.ch)}</span>
@@ -419,16 +444,6 @@ function OutreachLog({ r, busy, onLog, onSetFollowUp, onDelete }: { r: Row; busy
             <span onClick={() => { if (confirm("Delete this outreach entry?")) onDelete(t.at); }} title="Delete entry" style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", cursor: "pointer", flex: "none", lineHeight: 1.2 }}>×</span>
           </div>
         )) : <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#777)" }}>No outreach logged yet.</span>}
-      </div>
-      <div style={{ padding: "2px 14px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="What did you say? — logged with the touch (optional)" style={{ ...inputCss, flex: 1, minWidth: 220 }} />
-          <input value={by} onChange={(e) => setBy(e.target.value)} placeholder="Who sent it?" style={{ ...inputCss, width: 150, flex: "none" }} />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-          <span style={{ font: `600 10.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>LOG</span>
-          {[chan, "email", "text", "note"].map((ch) => <button key={ch} onClick={() => send(ch)} disabled={busy} style={btnSec}>+ {touchLabel(ch)}</button>)}
-        </div>
       </div>
     </div>
   );
@@ -456,147 +471,137 @@ export function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
         <a href="/admin/accounts" style={{ marginLeft: "auto", font: `600 11.5px ${F_SANS}`, color: "var(--link,#1a56db)", textDecoration: "none" }}>Open in Inventory →</a>
       </div>
       {facts.length > 0 && <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#647189)", marginBottom: 10 }}>{facts.join("  ·  ")}</div>}
+      <div style={{ ...labelCss, marginBottom: 6 }}>Restriction</div>
       <RestrictionControl r={r} onAccount={acctSave} onApp={() => {}} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} />
     </div>
   );
 }
 
-// The full expanded-row detail body — the same content the live Card renders when open.
+// The full expanded-row detail — Pipeline v2 layout: workflow bar on top, then a
+// 3-column card grid (Applicant + Credentials · Chase + Activity · Payout + Payments + Notes),
+// with payments and the footer actions full-width below. Same wiring as the live pipeline.
 export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
   const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, provisionGologin, deleteGologin, logTouch, logPayment, updatePayout, onDeleteApp } = h;
   const live = isLive(r);
   const onboarded = r.status === "onboarded";
   const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
+  const photoUrl = (r.adminNotes || "").match(/Owner photo:\s*(https?:\/\/\S+)/)?.[1] || null;
+  const col: CSSProperties = { flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column", gap: 14 };
+  const meetings = new Map<string, Touch>();
+  for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) meetings.set(entry.bookingKey, entry);
+
   return (
-    <div style={{ borderTop: "1px solid var(--divider,#eee)", background: "var(--panel,#fafafa)", padding: "16px" }}>
+    <div style={{ borderTop: "1px solid var(--divider,#eee)", background: "var(--panel,#fafafa)", padding: 16 }}>
       {!onboarded && <WorkflowRail r={r} busy={busy} workflow={workflow} />}
 
-      <div style={{ marginBottom: 16, padding: 12, border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
-        <PipelineIssueActions referrerResumeUrl={r.referrerResumeUrl} id={r.id} name={r.fullName} profile={r.linkedinUrl} lvEmail={r.loginEmail}
-          ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)} referrer={r.referrer}
-          onboarded={onboarded} onSent={() => void workflow(r.id, {})} />
-        {!!r.onboardingFix?.issues.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-          {r.onboardingFix.issues.map(issue => <button key={issue} style={btnSec} disabled={busy} onClick={() => {
-            const remaining = r.onboardingFix!.issues.filter(value => value !== issue);
-            void workflow(r.id, { setOnboardingFix: remaining.length ? { ...r.onboardingFix, issues: remaining } : null });
-          }}>{r.onboardingFix?.state === "referrer_done" ? "Reported fixed" : "Open"}: {({ application_incomplete: "Application not complete", email_added: "Email not added", email_primary: "Email not primary", twofa: "2FA", password: "Password" })[issue]} · Mark resolved</button>)}
-        </div>}
-        {r.referredBy && <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} style={{ display: "inline-block", marginTop: 10, fontSize: 12 }}>View referrer →</a>}
-      </div>
-
-      <SectionLabel num={1}>Applicant &amp; payout</SectionLabel>
-      <div style={{ ...GRID4, marginBottom: 20 }}>
-        <Edit label="Contact number / handle" value={r.contactNumber} placeholder="phone / handle" onSave={(v) => patchApp(r.id, { contactNumber: v })} />
-        <Edit label="Contact channel" value={r.contactChannel} placeholder="Viber / Telegram / WhatsApp" onSave={(v) => patchApp(r.id, { contactChannel: v })} />
-        <Edit label="Location" value={r.location} placeholder="city / country" onSave={(v) => patchApp(r.id, { location: v })} />
-        <Edit label="Industry" value={r.industry} placeholder="—" onSave={(v) => patchApp(r.id, { industry: v })} />
-        <Edit label="LinkedIn URL" value={r.linkedinUrl} placeholder="linkedin.com/in/…" onSave={(v) => patchApp(r.id, { linkedinUrl: v })} />
-        <Edit label="LinkedIn email (applied with)" value={r.linkedinEmail} placeholder="same as owner" onSave={(v) => patchApp(r.id, { linkedinEmail: v })} />
-        <Edit label="Booking email" value={r.bookingEmail} placeholder="if booked with another email" onSave={(v) => patchApp(r.id, { bookingEmail: v })} />
-        <Edit label="Connections" value={r.connectionCount} numeric placeholder="e.g. 500" onSave={(v) => patchApp(r.id, { connectionCount: v })} />
-        <Edit label="Referred by" value={r.referredBy} placeholder="marketer code" onSave={(v) => patchApp(r.id, { referredBy: v })} />
-        <Edit label="LV handler (POC)" value={r.poc} placeholder="who's handling this — e.g. Ardi / Sam / a name" onSave={(v) => { if (!r.accountOnly) patchApp(r.id, { poc: v }); if (r.accountId) patchAccount(r.id, r.accountId, { poc: v }); }} />
-        <Edit label="Referral source" value={r.referralSource} placeholder="flyer / FB / referral" onSave={(v) => patchApp(r.id, { referralSource: v })} />
-        <Edit label="Payout method" value={r.paymentMethod} placeholder="Wise / PayPal / GCash" onSave={(v) => patchApp(r.id, { paymentMethod: v })} />
-        <Edit label="Payout handle / account no." value={r.paymentDetails} placeholder="email / number / account" onSave={(v) => patchApp(r.id, { paymentDetails: v })} />
-        <Edit label="Payout name" value={r.payoutName} placeholder="name on the account" onSave={(v) => patchApp(r.id, { payoutName: v })} />
-        <EditSelect label="Payout currency" value={r.payoutCurrency || ""} options={[{ value: "", label: "Auto" }, { value: "PHP", label: "PHP ₱" }, { value: "USD", label: "USD $" }]} onSave={(v) => patchApp(r.id, { payoutCurrency: v || null })} />
-        <EditSelect label="Owner status" value={r.ownerStatus || ""} options={OWNER_STATUS_OPTIONS} onSave={(v) => patchApp(r.id, { ownerStatus: v || null })} />
-        <Edit label="Account issue" value={r.accountIssue} placeholder="login problem, restriction…" onSave={(v) => patchApp(r.id, { accountIssue: v })} />
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 12, flexWrap: "wrap" }}>
-        <SectionLabel num={2}>Account &amp; credentials</SectionLabel>
-        {!r.accountId ? (
-          <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>no account linked</span>
-        ) : !r.hasGologin ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ font: `600 11px ${F_SANS}`, color: needsGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--muted,#8a97ad)" }}>{needsGologin(r) ? "⚠ No GoLogin — this account cannot be run" : "GoLogin not added yet"}</span>
-            <button onClick={(e) => { e.stopPropagation(); void provisionGologin(r); }} disabled={busy} title="Create the GoLogin profile, assign an available proxy, and generate the share link — all onto this account" style={{ font: `700 11px ${F_SANS}`, color: "#fff", background: "var(--st-active-fg,#188038)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Creating…" : "+ Create GoLogin (profile · proxy · share link)"}</button>
-          </div>
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {r.gologinShareLink ? (
-              <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 9px", borderRadius: 6 }}>↗ Open GoLogin</a>
-            ) : (
-              <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin {r.gologinProfileId ? r.gologinProfileId.slice(0, 10) + "…" : "ready"}</span>
-            )}
-            <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin browser profile, clear its share link, and unassign the proxy (you'll be asked to confirm)" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e5b4ad)", padding: "3px 9px", borderRadius: 6, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Deleting…" : "🗑 Delete GoLogin"}</button>
-          </div>
-        )}
-      </div>
-      <RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} />
-      {r.accountId ? (
-        <div style={{ background: "var(--inset,#fafbfc)", border: `1px solid ${missingGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--divider,#eee)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
-          <div style={GRID4}>
-            <Edit label="Login email (work)" value={r.loginEmail} placeholder="klabber address we sign in with" onSave={(v) => acctSave({ loginEmail: v })} />
-            <Edit label="Personal email (on account)" value={r.personalEmail} placeholder="ambassador's own" onSave={(v) => acctSave({ personalEmail: v })} />
-            <Edit label="Work / recovery email" value={r.workEmail} placeholder="recovery email on the account" onSave={(v) => acctSave({ workEmail: v })} />
-            <Edit label="GoLogin share link" value={r.gologinShareLink} openHref={r.gologinShareLink} placeholder="https://app.gologin.com/share/…" onSave={(v) => acctSave({ gologinShareLink: v }, true)} />
-            <Edit label="Password" value={r.accountPassword} secret placeholder="set account password" onSave={(v) => acctSave({ accountPassword: v })} />
-            <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "flex-end", flexWrap: "wrap", gap: 14 }}>
-              <div style={{ flex: "0 1 440px", minWidth: 0 }}>
-                <Edit label="2FA / TOTP" hint="backup code / secret" value={r.twoFactor} secret placeholder="2FA secret / backup" onSave={(v) => acctSave({ twoFactor: v })} />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "flex-start" }}>
+        {/* ── Left column: Applicant · Sign-in & credentials ── */}
+        <div style={col}>
+          <PanelCard title="Applicant" right={r.linkedinUrl ? <a href={liHref(r.linkedinUrl)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>View profile ↗</a> : undefined}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 10, background: "var(--inset,#f8f9fb)", borderRadius: 12 }}>
+              {photoUrl
+                ? <a href={photoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ flex: "none" }}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={photoUrl} alt="Owner photo" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 12, border: "1px solid var(--line,#e6e8ec)", display: "block" }} /></a>
+                : <div style={{ flex: "none", width: 64, height: 64, borderRadius: 12, border: "1.5px dashed var(--input-border,#c5cbd3)", background: "var(--card,#fff)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 18px ${F_GRO}`, color: "var(--muted2,#b0b7c3)" }}>{initialsOf(r.fullName)}</div>}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ ...labelCss, marginBottom: 3 }}>Owner photo · from onboarding</div>
+                <div style={{ font: `600 12.5px ${F_SANS}`, color: photoUrl ? "var(--fg,#111)" : "var(--muted,#8a93a3)" }}>{photoUrl ? "Uploaded by the owner" : "No photo added — optional at signup"}</div>
+                {photoUrl && <a href={photoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>Open full size ↗</a>}
               </div>
+            </div>
+            <Edit label="LinkedIn URL" value={r.linkedinUrl} openHref={r.linkedinUrl} placeholder="linkedin.com/in/…" onSave={(v) => patchApp(r.id, { linkedinUrl: v })} />
+            <Edit label="Applied with (LinkedIn email)" value={r.linkedinEmail} placeholder="same as owner" onSave={(v) => patchApp(r.id, { linkedinEmail: v })} />
+            <Edit label="Contact number / handle" value={r.contactNumber} placeholder="phone / handle" onSave={(v) => patchApp(r.id, { contactNumber: v })} />
+            <Edit label="Contact channel" value={r.contactChannel} placeholder="Viber / Telegram / WhatsApp" onSave={(v) => patchApp(r.id, { contactChannel: v })} />
+            <Edit label="Location" value={r.location} placeholder="city / country" onSave={(v) => patchApp(r.id, { location: v })} />
+            <Edit label="Industry" value={r.industry} placeholder="—" onSave={(v) => patchApp(r.id, { industry: v })} />
+            <Edit label="Connections" value={r.connectionCount} numeric placeholder="e.g. 500" onSave={(v) => patchApp(r.id, { connectionCount: v })} />
+            <Edit label="Found us via" value={r.referralSource} placeholder="flyer / FB / referral" onSave={(v) => patchApp(r.id, { referralSource: v })} />
+            <Edit label="Referred by" value={r.referredBy} placeholder="marketer code" onSave={(v) => patchApp(r.id, { referredBy: v })} />
+            <Edit label="Booking email" value={r.bookingEmail} placeholder="if booked with another email" onSave={(v) => patchApp(r.id, { bookingEmail: v })} />
+            <Edit label="LV handler (POC)" value={r.poc} placeholder="who's handling this — e.g. Ardi / Sam" onSave={(v) => { if (!r.accountOnly) patchApp(r.id, { poc: v }); if (r.accountId) patchAccount(r.id, r.accountId, { poc: v }); }} />
+            <EditSelect label="Owner status" value={r.ownerStatus || ""} options={OWNER_STATUS_OPTIONS} onSave={(v) => patchApp(r.id, { ownerStatus: v || null })} />
+            <Edit label="Account issue" value={r.accountIssue} placeholder="login problem, restriction…" onSave={(v) => patchApp(r.id, { accountIssue: v })} />
+          </PanelCard>
+
+          <PanelCard title="Sign-in & credentials" right={
+            !r.accountId ? <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>no account linked</span>
+              : !r.hasGologin ? (
+                <button onClick={(e) => { e.stopPropagation(); void provisionGologin(r); }} disabled={busy} title="Create the GoLogin profile, assign a proxy, and generate the share link" style={{ font: `700 11px ${F_SANS}`, color: "#fff", background: "var(--st-active-fg,#188038)", border: "none", padding: "5px 10px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Creating…" : "+ Create GoLogin"}</button>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {r.gologinShareLink ? <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>↗ Open</a> : <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin ready</span>}
+                  <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin profile, clear its share link, unassign the proxy" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "none", padding: 0, cursor: busy ? "wait" : "pointer" }}>Delete</button>
+                </div>
+              )
+          }>
+            <div><div style={{ ...labelCss, marginBottom: 6 }}>Status</div><RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} /></div>
+            {r.accountId ? (<>
+              {needsGologin(r) && !r.hasGologin && <div style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin — this account cannot be run</div>}
+              <Edit label="Login email (work)" value={r.loginEmail} placeholder="klabber address we sign in with" onSave={(v) => acctSave({ loginEmail: v })} />
+              <Edit label="Personal email (on account)" value={r.personalEmail} placeholder="ambassador's own" onSave={(v) => acctSave({ personalEmail: v })} />
+              <Edit label="Work / recovery email" value={r.workEmail} placeholder="recovery email on the account" onSave={(v) => acctSave({ workEmail: v })} />
+              <Edit label="Password" value={r.accountPassword} secret placeholder="set account password" onSave={(v) => acctSave({ accountPassword: v })} />
+              <Edit label="2FA / TOTP" hint="backup code / secret" value={r.twoFactor} secret placeholder="2FA secret / backup" onSave={(v) => acctSave({ twoFactor: v })} />
               <TotpCode key={r.twoFactor || "empty"} secretKey={r.twoFactor || ""} compact />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
+              <Edit label="GoLogin share link" value={r.gologinShareLink} openHref={r.gologinShareLink} placeholder="https://app.gologin.com/share/…" onSave={(v) => acctSave({ gologinShareLink: v }, true)} />
               <Edit label="Proxy · host:port:user:pass" value={proxyCombined(r)} placeholder="1.2.3.4:8000:username:password" onSave={(v) => acctSave(parseProxy(v))} />
-            </div>
-            <Edit label="Proxy location" value={r.proxyLocation} placeholder="City, Country" onSave={(v) => acctSave({ proxyLocation: v })} />
-            <EditSelect label="Account status" value={r.accountStatus || "under_review"} options={ACCOUNT_STATUS_OPTIONS.map((s) => ({ value: s, label: s === "under_construction" ? "Pipeline" : s === "construction_immature" ? "Construction (Immature)" : s.replace(/_/g, " ") }))} onSave={(v) => acctSave({ status: v }, true)} />
-            <Edit label="Rent price ($/mo)" value={r.monthlyPrice} numeric placeholder="e.g. 50" onSave={(v) => acctSave({ monthlyPrice: v ?? 0 })} />
-            <Edit label="Ambassador payout /mo" value={r.ambassadorPayment} numeric placeholder="amount" onSave={(v) => acctSave({ ambassadorPayment: v ?? 0 })} />
-            <EditSelect label="LinkedIn verified" value={r.linkedinVerified ? "yes" : "no"} options={[{ value: "no", label: "No" }, { value: "yes", label: "✓ Yes" }]} onSave={(v) => acctSave({ linkedinVerified: v === "yes" }, true)} />
-            <D label="Restricted">{r.accountRestrictedAt ? `Restricted · ${fmtDate(r.accountRestrictedAt)}` : "No"}</D>
-          </div>
+              <Edit label="Proxy location" value={r.proxyLocation} placeholder="City, Country" onSave={(v) => acctSave({ proxyLocation: v })} />
+              <EditSelect label="Account status" value={r.accountStatus || "under_review"} options={ACCOUNT_STATUS_OPTIONS.map((s) => ({ value: s, label: s === "under_construction" ? "Pipeline" : s === "construction_immature" ? "Construction (Immature)" : s.replace(/_/g, " ") }))} onSave={(v) => acctSave({ status: v }, true)} />
+              <EditSelect label="LinkedIn verified" value={r.linkedinVerified ? "yes" : "no"} options={[{ value: "no", label: "No" }, { value: "yes", label: "✓ Yes" }]} onSave={(v) => acctSave({ linkedinVerified: v === "yes" }, true)} />
+            </>) : (
+              <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#888)", lineHeight: 1.5 }}>No account linked yet — link one on Inventory once they&apos;ve handed over the login (matched by LinkedIn URL or an “Owner: email” note), then GoLogin, proxy, 2FA and pricing open up here.</div>
+            )}
+          </PanelCard>
         </div>
-      ) : (
-        <div style={{ background: "var(--inset,#fafbfc)", border: "1px dashed var(--divider,#ddd)", borderRadius: 12, padding: 16, marginBottom: 20, font: `500 12.5px ${F_SANS}`, color: "var(--muted,#888)" }}>
-          No account linked yet — link one on Inventory once they&apos;ve handed over the login (matched by LinkedIn URL or an “Owner: email” note), then GoLogin, proxy, 2FA and pricing open up here.
+
+        {/* ── Middle column: Chase an issue · Activity ── */}
+        <div style={col}>
+          <PanelCard title="Chase an issue">
+            <PipelineIssueActions referrerResumeUrl={r.referrerResumeUrl} id={r.id} name={r.fullName} profile={r.linkedinUrl} lvEmail={r.loginEmail}
+              ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)} referrer={r.referrer}
+              onboarded={onboarded} onSent={() => void workflow(r.id, {})} />
+            {!!r.onboardingFix?.issues.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {r.onboardingFix.issues.map(issue => <button key={issue} style={btnSec} disabled={busy} onClick={() => {
+                const remaining = r.onboardingFix!.issues.filter(value => value !== issue);
+                void workflow(r.id, { setOnboardingFix: remaining.length ? { ...r.onboardingFix, issues: remaining } : null });
+              }}>{r.onboardingFix?.state === "referrer_done" ? "Reported fixed" : "Open"}: {({ application_incomplete: "Application not complete", email_added: "Email not added", email_primary: "Email not primary", twofa: "2FA", password: "Password" })[issue]} · Mark resolved</button>)}
+            </div>}
+            {r.referredBy && <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>View referrer →</a>}
+          </PanelCard>
+
+          <PanelCard title="Activity">
+            {meetings.size > 0 && <div style={{ padding: "8px 10px", background: "var(--link-bg,#eaf1ff)", borderRadius: 8, font: `500 11.5px ${F_SANS}`, color: "var(--fg,#111)" }}>
+              <b>Meeting booked</b>
+              {[...meetings.values()].sort((a, b) => b.scheduledAt!.localeCompare(a.scheduledAt!)).map(meeting => <div key={meeting.bookingKey} style={{ marginTop: 4 }}><time dateTime={meeting.scheduledAt}>{new Date(meeting.scheduledAt!).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time>{meeting.cancelled && " · Cancelled"}</div>)}
+            </div>}
+            <OutreachLog r={r} busy={busy} onLog={logTouch} onSetFollowUp={(iso) => patchApp(r.id, { nextFollowUp: iso })} onDelete={(at) => patchApp(r.id, { removeTouch: at }, true)} />
+          </PanelCard>
         </div>
-      )}
 
-      {(() => {
-        const meetings = new Map<string, Touch>();
-        for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) meetings.set(entry.bookingKey, entry);
-        if (!meetings.size) return null;
-        return <div style={{ padding: 14, marginBottom: 20, border: "1px solid var(--divider,#ddd)", borderRadius: 12 }}>
-          <b>Meeting booked for</b>
-          {[...meetings.values()].sort((a, b) => b.scheduledAt!.localeCompare(a.scheduledAt!)).map(meeting => <div key={meeting.bookingKey} style={{ marginTop: 8 }}><time dateTime={meeting.scheduledAt}>{new Date(meeting.scheduledAt!).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time>{meeting.cancelled && " · Cancelled"}</div>)}
-          <small>Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone}.</small>
-        </div>;
-      })()}
+        {/* ── Right column: Payout · Payments · Admin notes ── */}
+        <div style={col}>
+          <PanelCard title="Payout">
+            <Edit label="Method" value={r.paymentMethod} placeholder="Wise / PayPal / GCash" onSave={(v) => patchApp(r.id, { paymentMethod: v })} />
+            <Edit label="Account no. / handle" value={r.paymentDetails} placeholder="email / number / account" onSave={(v) => patchApp(r.id, { paymentDetails: v })} />
+            <Edit label="Name on account" value={r.payoutName} placeholder="name on the account" onSave={(v) => patchApp(r.id, { payoutName: v })} />
+            <EditSelect label="Currency" value={r.payoutCurrency || ""} options={[{ value: "", label: "Auto" }, { value: "PHP", label: "PHP ₱" }, { value: "USD", label: "USD $" }]} onSave={(v) => patchApp(r.id, { payoutCurrency: v || null })} />
+            {r.accountId && <Edit label="Payout /mo" value={r.ambassadorPayment} numeric placeholder="amount" onSave={(v) => acctSave({ ambassadorPayment: v ?? 0 })} />}
+            {r.accountId && <Edit label="Rent /mo ($)" value={r.monthlyPrice} numeric placeholder="e.g. 50" onSave={(v) => acctSave({ monthlyPrice: v ?? 0 })} />}
+          </PanelCard>
 
-      <SectionLabel num={3}>Outreach log</SectionLabel>
-      <OutreachLog r={r} busy={busy} onLog={logTouch} onSetFollowUp={(iso) => patchApp(r.id, { nextFollowUp: iso })} onDelete={(at) => patchApp(r.id, { removeTouch: at }, true)} />
+          {live && <PanelCard title="Payments"><PaymentBlock r={r} busy={busy} workflow={workflow} logPayment={logPayment} updatePayout={updatePayout} /></PanelCard>}
 
-      {(() => {
-        const m = (r.adminNotes || "").match(/Owner photo:\s*(https?:\/\/\S+)/);
-        if (!m) return null;
-        const url = m[1];
-        return (
-          <div style={{ marginTop: 14 }}>
-            <div style={{ ...labelCss, marginBottom: 6 }}>Owner photo (from onboarding)</div>
-            <a href={url} target="_blank" rel="noreferrer" style={{ display: "inline-block" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="Owner photo" style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 12, border: "1px solid var(--line,#e6e8ec)", display: "block" }} />
-            </a>
-            <a href={url} target="_blank" rel="noreferrer" style={{ font: `600 12px ${F_SANS}`, color: "var(--green,#15803d)", display: "inline-block", marginTop: 6 }}>Open full size ↗</a>
-          </div>
-        );
-      })()}
-
-      {(r.accountId || r.adminNotes || r.applicationNotes || r.accountNotes) && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
-          {r.adminNotes && <Note label="Admin notes">{r.adminNotes}</Note>}
-          {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
-          {r.accountId && <AccountNotes accountId={r.accountId} notes={r.accountNotes} proof={null} sharedLog={r.outreachLog} onNotesSaved={() => void workflow(r.id, {})} onProofSaved={async () => {}} />}
+          {(r.accountId || r.adminNotes || r.applicationNotes || r.accountNotes) && (
+            <PanelCard title="Admin notes" tone="notes">
+              {r.adminNotes && <Note label="Admin notes">{r.adminNotes}</Note>}
+              {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
+              {r.accountId && <AccountNotes accountId={r.accountId} notes={r.accountNotes} proof={null} sharedLog={r.outreachLog} onNotesSaved={() => void workflow(r.id, {})} onProofSaved={async () => {}} />}
+            </PanelCard>
+          )}
         </div>
-      )}
+      </div>
 
-      {live && <PaymentBlock r={r} busy={busy} workflow={workflow} logPayment={logPayment} updatePayout={updatePayout} />}
-
+      {/* ── Footer: accept / onboarded state + delete ── */}
       {!live ? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)", flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
