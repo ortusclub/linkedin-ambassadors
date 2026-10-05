@@ -2,7 +2,7 @@
 
 import { tierPricing } from "@/lib/account-pricing";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatNumber, formatCurrency, formatName } from "@/lib/utils";
@@ -30,6 +30,10 @@ const TELEGRAM_URL = "https://t.me/linkedvelocity_support_bot";
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
 
 const MAX_PER_STATUS = 20;
+// Selected accounts persist here so the cart survives "back to browse" / revisits
+// (renters build multi-account orders across several browse sessions). Cleared on a
+// completed checkout. Bumped key = ignore any older/incompatible saved cart.
+const CART_KEY = "lv_cart_v1";
 const AVATAR_COLORS = ["#0A66C2", "#0E7C74", "#5747C9", "#B23150", "#946011", "#067A45", "#0D1B2A", "#C2410C"];
 const INDUSTRY_COLORS: Record<string, string> = { Sales: "#5747C9", Marketing: "#B23150", Technology: "#0A66C2", Operations: "#0E7C74", Finance: "#946011" };
 
@@ -89,6 +93,22 @@ export default function CataloguePage() {
     }).catch(() => {});
     if (typeof window !== "undefined") setShowPricing(new URLSearchParams(window.location.search).get("pricing") !== "off");
   }, []);
+
+  // Cart persistence (#1 of PP's fixes): restore the selection on load so going
+  // "back to browse" no longer wipes it, then save on every change. Hydrate guard
+  // stops the empty initial set from clobbering a saved cart before load runs.
+  const cartHydrated = useRef(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CART_KEY);
+      if (saved) { const ids = JSON.parse(saved); if (Array.isArray(ids) && ids.length) setSelected(new Set(ids as string[])); }
+    } catch { /* private mode / blocked storage — cart just won't persist */ }
+    cartHydrated.current = true;
+  }, []);
+  useEffect(() => {
+    if (!cartHydrated.current) return;
+    try { localStorage.setItem(CART_KEY, JSON.stringify([...selected])); } catch { /* ignore */ }
+  }, [selected]);
 
   const fetchAccounts = async () => {
     setLoading(true);

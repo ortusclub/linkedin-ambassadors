@@ -117,6 +117,7 @@ function CheckoutContent() {
       if (res.status === 401) { router.push("/login?message=You must sign in or sign up before you can rent accounts."); return; }
       if (!res.ok) { setCheckoutError(data.error || "Payment failed"); return; }
       setCheckoutSuccess(true);
+      try { localStorage.removeItem("lv_cart_v1"); } catch { /* ignore */ } // clear persisted catalogue cart after a completed order
       setTimeout(() => router.push("/dashboard?rental=success"), 2000);
     } catch { setCheckoutError("Something went wrong. Please try again."); }
     finally { setCheckingOut(false); }
@@ -178,6 +179,8 @@ function CheckoutContent() {
 
   const removeAccount = (id: string) => {
     const remaining = accounts.filter((a) => a.id !== id);
+    // Keep the persisted catalogue cart in sync so "back to browse" reflects removals.
+    try { localStorage.setItem("lv_cart_v1", JSON.stringify(remaining.map((a) => a.id))); } catch { /* ignore */ }
     if (remaining.length === 0) { router.push("/catalogue"); return; }
     setAccounts(remaining);
     setSalesNavIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
@@ -223,7 +226,8 @@ function CheckoutContent() {
         const data = await res.json();
         if (!res.ok) { setCheckoutError(data.error || "Could not finish renting."); setFinishing(false); setCheckingOut(false); return; }
         setCheckoutSuccess(true);
-        setTimeout(() => router.push("/dashboard?rental=success"), 2000);
+        try { localStorage.removeItem("lv_cart_v1"); } catch { /* ignore */ } // clear persisted catalogue cart after a completed order
+      setTimeout(() => router.push("/dashboard?rental=success"), 2000);
       } catch { setCheckoutError("Something went wrong finishing your rental."); setFinishing(false); setCheckingOut(false); }
     })();
     return () => { cancelled = true; };
@@ -278,6 +282,8 @@ function CheckoutContent() {
               return (
                 <div key={a.id} style={{ padding: "14px 18px", borderTop: "1px solid #F1F3F6" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  {/* Whole identity is clickable so renters can review each profile before paying (#2). Opens in a new tab to keep the cart intact. */}
+                  <a href={`/account/${a.id}`} target="_blank" rel="noopener noreferrer" title="View full profile" style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0, textDecoration: "none", color: "inherit" }}>
                   {a.profilePhotoUrl ? (
                     <img src={a.profilePhotoUrl} alt="" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
                   ) : (
@@ -286,6 +292,7 @@ function CheckoutContent() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ font: `600 15.5px ${POP}`, color: "#0B1220" }}>{name}</span>
+                      <span style={{ fontSize: 11, color: "#0A66C2", fontWeight: 700 }} aria-hidden>↗</span>
                       {a.linkedinVerified && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600, color: "#0A66C2", background: "#EAF2FC", borderRadius: 6, padding: "2px 7px" }}>✓ Verified</span>}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 4, flexWrap: "wrap" }}>
@@ -294,6 +301,7 @@ function CheckoutContent() {
                       {a.industry && <span style={{ font: `500 10.5px ${MONO}`, letterSpacing: "0.04em", color: ic, background: ic + "14", borderRadius: 6, padding: "2px 8px" }}>{a.industry}</span>}
                     </div>
                   </div>
+                  </a>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <span style={{ font: `700 16px ${POP}`, color: "#0B1220" }}>{formatCurrency(price)}</span><span style={{ fontSize: 12.5, color: "#96A0AD" }}>/mo</span>
                   </div>
