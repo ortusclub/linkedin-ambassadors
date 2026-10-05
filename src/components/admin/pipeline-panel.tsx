@@ -528,7 +528,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
         <div style={col}>
           <PanelCard title="Chase an issue">
             <PipelineIssueActions referrerResumeUrl={r.referrerResumeUrl} id={r.id} name={r.fullName} profile={r.linkedinUrl} lvEmail={r.loginEmail}
-              ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)} referrer={r.referrer}
+              ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)} referrer={r.referrer} referrerSlug={r.referredBy}
               onboarded={onboarded} onSent={() => void workflow(r.id, {})} />
             {!!r.onboardingFix?.issues.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {r.onboardingFix.issues.map(issue => <button key={issue} style={btnSec} disabled={busy} onClick={() => {
