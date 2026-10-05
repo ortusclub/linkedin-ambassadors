@@ -26,7 +26,9 @@ export async function GET() {
     await requireAdmin();
 
     const accounts = await prisma.linkedInAccount.findMany({
-      where: { status: { notIn: ["removed"] } },
+      // Build/review states have no owner to pay yet and must not appear as payout rows —
+      // a stale under_construction duplicate otherwise surfaces as a bogus due amount.
+      where: { status: { notIn: ["removed", "under_construction", "construction_immature", "under_review"] } },
       orderBy: { linkedinName: "asc" },
       select: {
         id: true, linkedinName: true, linkedinHeadline: true, linkedinUrl: true,
@@ -48,7 +50,15 @@ export async function GET() {
       },
     });
 
-    const appByEmail = new Map(apps.map((a) => [a.email.toLowerCase(), a]));
+    // When one email has several applications (duplicate signups), prefer the onboarded one
+    // so an account resolves to its live owner, not a stale still-onboarding duplicate — which
+    // would classify the account "Still onboarding" and silently drop its real payout row.
+    const appByEmail = new Map<string, (typeof apps)[number]>();
+    for (const a of apps) {
+      const key = a.email.toLowerCase();
+      const cur = appByEmail.get(key);
+      if (!cur || (!cur.onboardedAt && a.onboardedAt)) appByEmail.set(key, a);
+    }
     const emailByUrl = new Map<string, string>();
     for (const a of apps) {
       if (a.linkedinUrl) {
