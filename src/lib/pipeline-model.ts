@@ -72,6 +72,7 @@ export interface Row {
   linkedinEmail: string | null;
   bookingEmail: string | null;
   diyTier?: string | null;
+  onboardingMethod?: string | null;
   accountFreshness: string | null;
   ownerStatus: string | null;
   paymentMethod: string | null;
@@ -142,11 +143,14 @@ export const levelKey = (r: Row): number => levelOf(r);
 //   application received (level 1) → Form · nothing started (dead / accountOnly) → Not recorded.
 // Display only — it does NOT overwrite diyTier, so referrer-payout attribution stays as recorded.
 export const effectiveTypeKey = (r: Row): string => {
+  // Based on the self-service path the owner actually took in the wizard:
+  //   "computer" (they signed into GoLogin themselves)        → Full-service
+  //   "phone"    (they did email+2FA, then handed off to LV)   → Email/2FA
+  // Then the DIY tier they chose on the landing page, if any. Null (LV onboarded it, or
+  // not a self-service signup) stays "Not recorded" — we don't infer a tier from LV's work.
+  if (r.onboardingMethod === "computer") return "full";
+  if (r.onboardingMethod === "phone") return "partial";
   if (r.diyTier) return r.diyTier;
-  const lvl = levelOf(r);
-  if (lvl >= 3) return "full";
-  if (lvl === 2) return "partial";
-  if (lvl >= 1) return "standard";
   return "unknown";
 };
 export const effectiveType = (r: Row) => APPLICATION_TYPES.find((t) => t.key === effectiveTypeKey(r)) || APPLICATION_TYPES[3];

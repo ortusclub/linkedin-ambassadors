@@ -170,6 +170,7 @@ export async function GET() {
         })(),
         existingAccountSubmission: !!app.adminNotes?.includes("[Existing account submission]"),
         diyTier: app.diyTier,
+        onboardingMethod: app.onboardingMethod,
         fullName: app.fullName,
         email: app.email,
         contactNumber: app.contactNumber,
