@@ -430,6 +430,7 @@ function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onCl
         <div style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
             <span style={{ font: `700 14px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatName(r.fullName) || "—"}</span>
+            {r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Open LinkedIn profile ↗" style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2, font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)", textDecoration: "none" }}>in ↗</a>}
             {restricted && <span style={{ flex: "none", font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>Restricted</span>}
             {r.linkedinVerified && <span style={{ flex: "none", font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)" }}>✓</span>}
             {isLikelyTestEmail(r.email) && <span style={{ flex: "none", font: `700 9px ${F_SANS}`, padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
