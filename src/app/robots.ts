@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const DISALLOWED_PATHS = ["/admin/", "/dashboard/", "/profile/", "/checkout/", "/api/"];
+const DISALLOWED_PATHS = ["/admin/", "/dashboard/", "/profile/", "/checkout/", "/api/", "/inventory/"];
 
 const AI_CRAWLERS = [
   "GPTBot",

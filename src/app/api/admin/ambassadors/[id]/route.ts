@@ -23,7 +23,7 @@ const updateSchema = z.object({
   referralSource: z.string().nullable().optional(),
   referredBy: z.string().nullable().optional(),
   bookingEmail: z.string().nullable().optional(),
-  poc: z.string().optional(),
+  poc: z.string().nullable().optional(),
   nextFollowUp: z.string().datetime().nullable().optional(),
   callOutcome: z.enum(["no_show", "completed"]).nullable().optional(),
   accountFreshness: z.enum(["established", "fresh"]).nullable().optional(),
@@ -33,6 +33,7 @@ const updateSchema = z.object({
   emailPrimaryAt: z.string().datetime().nullable().optional(),
   paidAt: z.string().datetime().nullable().optional(),
   marketerPaidAt: z.string().datetime().nullable().optional(),
+  referralHoldReason: z.string().max(120).nullable().optional(),
   // Owner payout details
   paymentMethod: z.string().nullable().optional(),
   paymentDetails: z.string().nullable().optional(),
@@ -101,7 +102,7 @@ export async function PATCH(
     const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
-    const { addTouch, removeTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, emailPrimaryAt, paidAt, marketerPaidAt, setOnboardingFix, setRestrictionReport, qcChecks, ...rest } = updateSchema.parse(body);
+    const { addTouch, removeTouch, addMonthlyPayout, removeMonthlyPayout, updateMonthlyPayout, nextFollowUp, onboardingStartedAt, onboardedAt, verifiedAt, emailPrimaryAt, paidAt, marketerPaidAt, referralHoldReason, setOnboardingFix, setRestrictionReport, qcChecks, ...rest } = updateSchema.parse(body);
 
     // Get the current application before updating
     const currentApp = await prisma.ambassadorApplication.findUnique({ where: { id } });
@@ -117,6 +118,7 @@ export async function PATCH(
     if (emailPrimaryAt !== undefined) updateData.emailPrimaryAt = emailPrimaryAt ? new Date(emailPrimaryAt) : null;
     if (paidAt !== undefined) updateData.paidAt = paidAt ? new Date(paidAt) : null;
     if (marketerPaidAt !== undefined) updateData.marketerPaidAt = marketerPaidAt ? new Date(marketerPaidAt) : null;
+    if (referralHoldReason !== undefined) { const v = (referralHoldReason || "").trim(); updateData.referralHoldReason = v || null; updateData.referralHeldAt = v ? new Date() : null; }
     if (setOnboardingFix !== undefined) updateData.onboardingFix = setOnboardingFix === null ? Prisma.DbNull : setOnboardingFix;
     if (setRestrictionReport !== undefined) updateData.restrictionReport = setRestrictionReport === null ? Prisma.DbNull : setRestrictionReport;
     if (qcChecks !== undefined) updateData.qcChecks = qcChecks === null ? Prisma.DbNull : qcChecks;

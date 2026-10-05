@@ -158,7 +158,8 @@ export async function GET(req: NextRequest) {
         ownerReferredBy: app?.referredBy || null,
         ownerPayoutCurrency: app?.payoutCurrency || null,
         ownerReferralSource: app?.referralSource || null,
-        ownerPoc: app?.poc || null,
+        // Coalesce: POC lives on the application and (some paths) the account itself.
+        ownerPoc: app?.poc || a.poc || null,
         ownerStatus: app?.ownerStatus || null,
         ownerPaymentMethod: app?.paymentMethod || (app?.paypalEmail ? `PayPal: ${app.paypalEmail}` : app?.wiseEmail ? `Wise: ${app.wiseEmail}` : null),
         ownerPaymentDetails: app?.paymentDetails || null,

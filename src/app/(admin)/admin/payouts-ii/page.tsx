@@ -7,7 +7,7 @@
 // and live 2FA. Split into: Payment overdue / Payment made / Payment not
 // applicable. Data comes from /api/admin/payouts-ii.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
@@ -47,6 +47,8 @@ interface Row {
   monthlyPrice: string | number;
   bucket: Bucket;
   reason: string;
+  holdReason: string | null;
+  awaitingReceipt: boolean;
   overdue: boolean;
   daysLate: number;
   ownerName: string | null;
@@ -62,6 +64,20 @@ interface Row {
   setupAmount: number;
   payoutCurrency: "PHP" | "USD";
   totalPaid: number;
+  applicationId: string | null;
+  payouts: PayoutRec[];
+}
+
+interface PayoutRec {
+  paidAt: string | null;
+  amount: number;
+  kind: "setup" | "monthly";
+  by: string | null;
+  proofUrl: string | null;
+  notified: boolean;
+  notifiedAt: string | null;
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
 }
 
 const CHIP: Record<Bucket, { bg: string; fg: string }> = {
@@ -174,12 +190,44 @@ function ReferralMarkButton({ d, busy, onMark }: { d: ReferralDue; busy: boolean
   );
 }
 
-function AccountRow({ r, onMarkPaid }: { r: Row; onMarkPaid: (r: Row) => Promise<void> }) {
+function AccountRow({ r, onMarkPaid, onUpdatePayout, onHold }: { r: Row; onMarkPaid: (r: Row) => Promise<void>; onUpdatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>; onHold: (r: Row, reason: string | null) => Promise<void> }) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [busyIdx, setBusyIdx] = useState<number | null>(null);
+  const [holdBusy, setHoldBusy] = useState(false);
+  const doHold = async (reason: string | null) => {
+    setHoldBusy(true);
+    try { await onHold(r, reason); } finally { setHoldBusy(false); }
+  };
+  const sym = r.payoutCurrency === "USD" ? "$" : "₱";
+  const payFmt = (n: number) => `${sym}${(Number(n) || 0).toLocaleString()}`;
+  const doUpdate = async (index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => {
+    setBusyIdx(index);
+    try { await onUpdatePayout(r, index, patch); } finally { setBusyIdx(null); }
+  };
+  const copyHistory = () => {
+    const lines = [
+      `${r.ownerName || r.linkedinName} — Payment history`,
+      `Total paid: ${payFmt(r.totalPaid)}`,
+      "",
+      ["Date", "Payment", "By", "Notified", "Acknowledged", "Proof"].join("\t"),
+      ...(r.payouts.length ? r.payouts.map((p) => [
+        p.paidAt ? fmtDate(p.paidAt) : "—",
+        `${payFmt(p.amount)} · ${p.kind === "setup" ? "Setup fee" : "Monthly"}`,
+        p.by || "—",
+        p.notified ? "Notified" : "Not notified",
+        p.acknowledged ? (p.acknowledgedAt ? `Ack ${fmtDate(p.acknowledgedAt)}` : "Acknowledged") : "Awaiting ack",
+        p.proofUrl || "—",
+      ].join("\t")) : ["No payments logged yet."]),
+    ];
+    navigator.clipboard?.writeText(lines.join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+  };
   const chip = CHIP[r.bucket];
   const conn = r.connectionCount != null ? `${r.connectionCount}${r.connectionCount >= 100 ? "+" : ""}` : "";
   const dueLabel = r.overdue && r.nextDueISO ? `${fmtDate(r.nextDueISO)} · ${r.daysLate}d late` : fmtDate(r.nextDueISO);
-  const canMark = r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due";
+  // A payout already logged this cycle but awaiting its receipt shouldn't offer "Mark paid"
+  // again (that would double-log) — the next step is attaching the receipt in the record below.
+  const canMark = (r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due") && !r.awaitingReceipt;
   // Something's wrong: a payment is being asked for on an account we can't log
   // into (no credentials) or can't run (no GoLogin profile/share).
   const payable = r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due";
@@ -214,7 +262,17 @@ function AccountRow({ r, onMarkPaid }: { r: Row; onMarkPaid: (r: Row) => Promise
         {canMark && <MarkPaidButton r={r} onMarkPaid={onMarkPaid} />}
         <span style={{ font: `700 11px ${F_SANS}`, padding: "4px 10px", borderRadius: 999, background: chip.bg, color: chip.fg, whiteSpace: "nowrap" }}>{r.reason}</span>
       </button>
-      {open && (
+      {open && (<>
+        {/* Payout hold — pause an inaccessible / problem account (NOT a LinkedIn restriction)
+            so it drops out of the due chase, with a reason, until resumed. */}
+        <div style={{ borderTop: "1px solid var(--border,#eee)", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", background: r.holdReason ? "var(--warn-badge-bg,#fef3e2)" : "var(--panel,#fafafa)" }}>
+          {r.holdReason
+            ? <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⏸ Payout on hold — {r.holdReason}</span>
+            : <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Account inaccessible or paused? Hold the payout so it drops out of the due list.</span>}
+          {r.holdReason
+            ? <button disabled={holdBusy} onClick={() => void doHold(null)} style={{ font: `700 12px ${F_SANS}`, padding: "7px 13px", borderRadius: 8, border: "none", cursor: holdBusy ? "wait" : "pointer", whiteSpace: "nowrap", background: "var(--st-active-fg,#188038)", color: "#fff", opacity: holdBusy ? 0.6 : 1 }}>▶ Resume payouts</button>
+            : <button disabled={holdBusy} onClick={() => { const reason = prompt("Why is this payout on hold? (e.g. Inaccessible — can't log in)"); if (reason && reason.trim()) void doHold(reason.trim()); }} style={{ font: `700 12px ${F_SANS}`, padding: "7px 13px", borderRadius: 8, border: "1px solid var(--warn-badge-text,#b7791f)", cursor: holdBusy ? "wait" : "pointer", whiteSpace: "nowrap", background: "transparent", color: "var(--warn-badge-text,#b7791f)", opacity: holdBusy ? 0.6 : 1 }}>⏸ Put payout on hold</button>}
+        </div>
         <div style={{ borderTop: "1px solid var(--border,#eee)", padding: "16px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 16, background: "var(--panel,#fafafa)" }}>
           {/* Payout (money OUT to ambassador) */}
           <D label="Owner (ambassador)">{r.ownerName || "—"}</D>
@@ -233,9 +291,48 @@ function AccountRow({ r, onMarkPaid }: { r: Row; onMarkPaid: (r: Row) => Promise
           <D label="GoLogin">{r.gologinProfileId ? `profile ${r.gologinProfileId.slice(0, 8)}…` : r.gologinShareLink ? <a href={r.gologinShareLink} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)" }}>share link ↗</a> : <span style={{ color: "var(--st-cancel-fg,#c0392b)" }}>none</span>}</D>
           <D label="LinkedIn">{r.linkedinUrl ? <a href={r.linkedinUrl} target="_blank" rel="noreferrer" style={{ color: "var(--link,#0a66c2)" }}>profile ↗</a> : "—"}</D>
         </div>
-      )}
+        {/* Full payment record — manage receipts (auto-emails the owner), notified and
+            acknowledged right here, so no need to return to the pipeline after onboarding. */}
+        <div style={{ borderTop: "1px solid var(--border,#eee)", padding: "16px", background: "var(--panel,#fafafa)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+            <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Payment record</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Total paid <b style={{ color: "var(--st-active-fg,#188038)" }}>{ownerMoney(r.totalPaid, r.payoutCurrency)}</b></span>
+              <button onClick={copyHistory} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 7, border: "1px solid var(--border,#ddd)", cursor: "pointer", whiteSpace: "nowrap", background: copied ? "var(--st-active-bg,#e6f4ea)" : "transparent", color: copied ? "var(--st-active-fg,#188038)" : "var(--fg,#444)" }}>{copied ? "✓ Copied" : "⧉ Copy history"}</button>
+            </div>
+          </div>
+          {r.applicationId ? (
+            <div style={{ border: "1px solid var(--border,#eee)", borderRadius: 11, overflow: "hidden", background: "var(--card,#fff)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "96px 1fr 104px 112px 124px", gap: 10, padding: "8px 12px", background: "var(--panel,#f6f7f8)", borderBottom: "1px solid var(--border,#eee)" }}>
+                {["Date", "Payment", "Proof", "Notified", "Acknowledged"].map((h) => <span key={h} style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>{h}</span>)}
+              </div>
+              {r.payouts.length ? r.payouts.map((p, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "96px 1fr 104px 112px 124px", gap: 10, alignItems: "center", padding: "10px 12px", borderBottom: "1px solid var(--border,#eee)" }}>
+                  <span style={{ font: `500 12px ${F_SANS}`, color: "var(--fg,#444)", whiteSpace: "nowrap" }}>{p.paidAt ? fmtDate(p.paidAt) : "—"}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)" }}>{payFmt(p.amount)} <span style={{ fontWeight: 500, color: "var(--muted,#8a97ad)" }}>· {p.kind === "setup" ? "Setup fee" : "Monthly"}</span></div>
+                    {p.by && <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>by {p.by}</div>}
+                  </div>
+                  <PayChip on={!!p.proofUrl} busy={busyIdx === i} onLabel="↗ Receipt" offLabel="+ Attach" href={p.proofUrl || undefined}
+                    onClick={() => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) void doUpdate(i, { proofUrl: url.trim() }); }} />
+                  <PayChip on={!!p.notified} busy={busyIdx === i} onLabel="Notified" offLabel="Mark notified" onClick={() => void doUpdate(i, { notified: !p.notified })} />
+                  <PayChip on={!!p.acknowledged} green busy={busyIdx === i} onLabel={p.acknowledgedAt ? `Ack ${fmtDate(p.acknowledgedAt)}` : "Acknowledged"} offLabel="Awaiting ack" onClick={() => void doUpdate(i, { acknowledged: !p.acknowledged })} />
+                </div>
+              )) : <div style={{ padding: 14, textAlign: "center", font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>No payments logged yet.</div>}
+            </div>
+          ) : <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>No owner application linked — nothing to record here.</div>}
+          <p style={{ font: `500 11px/1.5 ${F_SANS}`, color: "var(--muted,#9aa0a6)", margin: "10px 2px 0" }}>Attaching a receipt emails the owner automatically and marks it notified.</p>
+        </div>
+      </>)}
     </div>
   );
+}
+
+// Small toggle chip for the payment record (receipt / notified / acknowledged).
+function PayChip({ on, onLabel, offLabel, onClick, href, green, busy }: { on: boolean; onLabel: string; offLabel: string; onClick: () => void; href?: string; green?: boolean; busy?: boolean }) {
+  const style: CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "5px 9px", borderRadius: 7, border: "none", cursor: busy ? "wait" : "pointer", textAlign: "center", whiteSpace: "nowrap", opacity: busy ? 0.6 : 1, background: on ? (green ? "var(--st-active-bg,#e6f4ea)" : "var(--blue-chip-bg,#e8f0fe)") : "var(--tag-bg,#f1f1f2)", color: on ? (green ? "var(--st-active-fg,#188038)" : "var(--blue-chip-text,#1a56db)") : "var(--muted,#8a97ad)" };
+  if (on && href) return <a href={href} target="_blank" rel="noreferrer" style={{ ...style, display: "inline-block", textDecoration: "none" }}>{onLabel}</a>;
+  return <button onClick={onClick} disabled={busy} style={style}>{on ? onLabel : offLabel}</button>;
 }
 
 interface OwnerGroup { key: string; ownerName: string | null; method: string | null; rows: Row[]; combined: number; earliestDue: number }
@@ -264,7 +361,7 @@ function groupByOwner(rows: Row[], byDue: boolean): OwnerGroup[] {
 }
 
 // Order for the "not applicable" reason sub-groups.
-const REASON_ORDER = ["Restricted", "Inaccessible", "Company-owned · no ambassador", "No monthly rate set"];
+const REASON_ORDER = ["On hold", "Restricted", "Inaccessible", "Company-owned · no ambassador", "No monthly rate set"];
 function groupByReason(rows: Row[]): { reason: string; rows: Row[] }[] {
   const map = new Map<string, Row[]>();
   for (const r of rows) { if (!map.has(r.reason)) map.set(r.reason, []); map.get(r.reason)!.push(r); }
@@ -274,7 +371,7 @@ function groupByReason(rows: Row[]): { reason: string; rows: Row[] }[] {
   return groups;
 }
 
-function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }: { title: string; tone: string; note: string; rows: Row[]; byDue?: boolean; setup?: boolean; byReason?: boolean; onMarkPaid: (r: Row) => Promise<void> }) {
+function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid, onUpdatePayout, onHold }: { title: string; tone: string; note: string; rows: Row[]; byDue?: boolean; setup?: boolean; byReason?: boolean; onMarkPaid: (r: Row) => Promise<void>; onUpdatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>; onHold: (r: Row, reason: string | null) => Promise<void> }) {
   // Setup fee is one-time per ambassador → count it once per owner group, not per account.
   const groups = groupByOwner(rows, !!byDue);
   const reasonGroups = byReason ? groupByReason(rows) : [];
@@ -301,7 +398,7 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
                 <span style={{ font: `700 11px ${F_SANS}`, padding: "1px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#f1f1f2)", color: "var(--warn-badge-text,#6b7280)" }}>{g.rows.length}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {g.rows.map((r) => <AccountRow key={r.id} r={r} onMarkPaid={onMarkPaid} />)}
+                {g.rows.map((r) => <AccountRow key={r.id} r={r} onMarkPaid={onMarkPaid} onUpdatePayout={onUpdatePayout} onHold={onHold} />)}
               </div>
             </div>
           ))}
@@ -323,7 +420,7 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
                   </div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {g.rows.map((r) => <AccountRow key={r.id} r={r} onMarkPaid={onMarkPaid} />)}
+                  {g.rows.map((r) => <AccountRow key={r.id} r={r} onMarkPaid={onMarkPaid} onUpdatePayout={onUpdatePayout} onHold={onHold} />)}
                 </div>
               </div>
             );
@@ -334,12 +431,13 @@ function Section({ title, tone, note, rows, byDue, setup, byReason, onMarkPaid }
   );
 }
 
-type ReferralDue = { applicationId: string; person: string; url: string | null; referrerName: string; referrerId: string | null; referrerSlug: string | null; amount: number; currency: "PHP" | "USD"; dueDate: string; status: "ready" | "upcoming"; payVia: string | null };
+type ReferralDue = { applicationId: string; person: string; url: string | null; referrerName: string; referrerId: string | null; referrerSlug: string | null; amount: number; currency: "PHP" | "USD"; dueDate: string; status: "ready" | "upcoming"; payVia: string | null; holdReason?: string | null };
 
 export default function PayoutsIIPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [onboarding, setOnboarding] = useState<{ count: number; names: string[] }>({ count: 0, names: [] });
   const [referralsDue, setReferralsDue] = useState<ReferralDue[]>([]);
+  const [referralsHeld, setReferralsHeld] = useState<ReferralDue[]>([]);
   const [markingRef, setMarkingRef] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
@@ -356,7 +454,20 @@ export default function PayoutsIIPage() {
     try {
       const due = await fetch("/api/admin/payments-due").then((r) => (r.ok ? r.json() : null)).catch(() => null);
       setReferralsDue(Array.isArray(due?.referralsDue) ? due.referralsDue : []);
+      setReferralsHeld(Array.isArray(due?.referralsHeld) ? due.referralsHeld : []);
     } catch { /* referral block is best-effort */ }
+  };
+  // Hold moves a referral out of "due now" into Held (with a reason); release puts it back.
+  const setHold = async (d: ReferralDue, reason: string | null) => {
+    setMarkingRef(d.applicationId);
+    try {
+      const res = await fetch(`/api/admin/ambassadors/${d.applicationId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralHoldReason: reason }),
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Could not update hold: ${j.error || res.status}`); return; }
+      await load();
+    } finally { setMarkingRef(null); }
   };
   useEffect(() => { load(); }, []);
 
@@ -389,6 +500,30 @@ export default function PayoutsIIPage() {
       else if (d.moveBlockedReason) alert(`✓ Setup paid. Note: the account did NOT move to Available because ${d.moveBlockedReason}. Sort that, then set it available.`);
     }
     await load(); // refresh so the row moves to Paid and last-paid / total / next-due update
+  };
+
+  // Manage a logged payment in place (attach receipt → auto-emails the owner, mark
+  // notified / acknowledged) via the shared ambassador ledger — same mechanism as the
+  // pipeline, so everything can be done here after onboarding.
+  const updatePayout = async (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => {
+    if (!r.applicationId) { alert("No owner application is linked to this account, so there's no payout record to update."); return; }
+    const res = await fetch(`/api/admin/ambassadors/${r.applicationId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updateMonthlyPayout: { index, ...patch } }),
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Could not update payment: ${j.error || res.status}`); return; }
+    await load();
+  };
+
+  // Put an account's payout on hold (inaccessible / paused — NOT a LinkedIn restriction) or
+  // release it. Held accounts drop out of the due/overdue chase into "On hold" until resumed.
+  const setAccountHold = async (r: Row, reason: string | null) => {
+    const res = await fetch(`/api/admin/accounts/${r.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payoutHoldReason: reason }),
+    });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); alert(`Could not update hold: ${j.error || res.status}`); return; }
+    await load();
   };
 
   const filtered = useMemo(() => {
@@ -458,6 +593,7 @@ export default function PayoutsIIPage() {
                 ? <span style={{ font: `700 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", whiteSpace: "nowrap" }}>maturing</span>
                 : <ReferralMarkButton d={d} busy={markingRef === d.applicationId} onMark={markReferral} />}
               {!up && <span style={{ font: `700 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, background: "var(--blue-chip-bg,#eaf1ff)", color: "var(--blue-chip-text,#2b5fd0)", whiteSpace: "nowrap" }}>{money(d.amount, d.currency)} due</span>}
+              {!up && <button disabled={markingRef === d.applicationId} onClick={() => { const reason = (window.prompt("Hold this referral (moves it out of 'due now' until you release it). Reason:", d.payVia ? "account restricted" : "referrer payout not set") || "").trim(); if (reason) setHold(d, reason); }} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 999, background: "transparent", border: "1px solid var(--border,#dcdce0)", color: "var(--muted,#8a9099)", cursor: "pointer", whiteSpace: "nowrap" }}>Hold</button>}
             </div>
           </div>
         );
@@ -484,19 +620,43 @@ export default function PayoutsIIPage() {
         );
       })()}
 
+      {referralsHeld.length > 0 && (
+        <section style={{ marginTop: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+            <span style={{ width: 10, height: 10, borderRadius: 999, background: "var(--muted,#9aa0a6)" }} />
+            <h2 style={{ font: `700 17px ${F_GRO}`, margin: 0, color: "var(--fg,#111)" }}>Held — not chasing</h2>
+            <span style={{ font: `700 13px ${F_SANS}`, color: "var(--muted,#888)" }}>{referralsHeld.length}</span>
+            <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#9aa0a6)" }}>still owed, out of the due list until you release them</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+            {referralsHeld.map((d) => (
+              <div key={d.applicationId} style={{ border: "1px dashed var(--border,#e0e0e4)", borderRadius: 12, background: "var(--panel,#fafafa)", display: "flex", alignItems: "center", gap: 14, padding: "13px 16px" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)" }}>{d.url ? <a href={d.url} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>{d.person} ↗</a> : d.person}</div>
+                  <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 2 }}>referrer: <b style={{ color: "var(--fg,#444)" }}>{d.referrerName}</b></div>
+                  <div style={{ font: `600 12px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)", marginTop: 6 }}>⏸ On hold: {d.holdReason}</div>
+                </div>
+                <span style={{ font: `800 16px ${F_GRO}`, color: "var(--muted,#8a9099)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{d.currency === "USD" ? "$" : "₱"}{Math.round(d.amount).toLocaleString("en-US")}</span>
+                <button disabled={markingRef === d.applicationId} onClick={() => setHold(d, null)} style={{ font: `600 11.5px ${F_SANS}`, padding: "6px 12px", borderRadius: 999, background: "transparent", border: "1px solid var(--border,#dcdce0)", color: "var(--fg,#444)", cursor: "pointer", whiteSpace: "nowrap" }}>Release</button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {rows && (
         <>
           {setupNoCreds.length > 0 && (
-            <Section title="⚠ Initial payment due — NO CREDENTIALS (check)" tone="var(--st-cancel-fg,#c0392b)" note="setup fee showing due but no login stored — verify before paying" rows={setupNoCreds} byDue setup onMarkPaid={onMarkPaid} />
+            <Section title="⚠ Initial payment due — NO CREDENTIALS (check)" tone="var(--st-cancel-fg,#c0392b)" note="setup fee showing due but no login stored — verify before paying" rows={setupNoCreds} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           )}
           {setupNoGologin.length > 0 && (
-            <Section title="⚠ Initial payment due — NO GOLOGIN (check)" tone="var(--warn-badge-text,#b7791f)" note="has login but no GoLogin profile/share — account can't be run, verify before paying" rows={setupNoGologin} byDue setup onMarkPaid={onMarkPaid} />
+            <Section title="⚠ Initial payment due — NO GOLOGIN (check)" tone="var(--warn-badge-text,#b7791f)" note="has login but no GoLogin profile/share — account can't be run, verify before paying" rows={setupNoGologin} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           )}
-          <Section title="Initial payment due" tone="var(--blue-chip-text,#2b5fd0)" note="signup bonus based on referral source and onboarding option · soonest due first" rows={setup} byDue setup onMarkPaid={onMarkPaid} />
-          <Section title="Payment overdue" tone="var(--st-cancel-fg,#c0392b)" note="monthly due / on hold · most overdue first" rows={overdue} byDue onMarkPaid={onMarkPaid} />
-          <Section title="Payment due" tone="var(--warn-badge-text,#b7791f)" note="monthly coming up · soonest due first" rows={due} byDue onMarkPaid={onMarkPaid} />
-          <Section title="Paid this cycle" tone="var(--st-active-fg,#1a8a4a)" note="already settled this month" rows={paid} onMarkPaid={onMarkPaid} />
-          <Section title="Payment not applicable" tone="#9aa0a6" note="grouped by reason" rows={na} byReason onMarkPaid={onMarkPaid} />
+          <Section title="Initial payment due" tone="var(--blue-chip-text,#2b5fd0)" note="signup bonus based on referral source and onboarding option · soonest due first" rows={setup} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          <Section title="Payment overdue" tone="var(--st-cancel-fg,#c0392b)" note="monthly due / on hold · most overdue first" rows={overdue} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          <Section title="Payment due" tone="var(--warn-badge-text,#b7791f)" note="monthly coming up · soonest due first" rows={due} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          <Section title="Paid this cycle" tone="var(--st-active-fg,#1a8a4a)" note="already settled this month" rows={paid} onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          <Section title="Payment not applicable" tone="#9aa0a6" note="grouped by reason" rows={na} byReason onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
         </>
       )}
     </div>

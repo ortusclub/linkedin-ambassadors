@@ -8,6 +8,7 @@ import { decryptSecret } from "@/lib/crypto-creds";
 import { provisionAccount } from "@/lib/provision-account";
 import * as gologin from "@/services/gologin";
 import { restrictionUpdate } from "@/lib/restriction";
+import { setupPaidDate } from "@/lib/payment-schedule";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -39,6 +40,11 @@ const updateSchema = z.object({
   // string to mark it, or null to clear. Held accounts are excluded from the
   // owner's setup/monthly payouts on the Account Owners view.
   restrictedAt: z.string().nullable().optional(),
+  // Admin payout hold (account inaccessible / paused — not a LinkedIn restriction). Pass a
+  // reason string to hold the owner's payout, or null to release it.
+  payoutHoldReason: z.string().nullable().optional(),
+  // LV handler (PoC) for an inventory-only account with no ambassador application.
+  poc: z.string().nullable().optional(),
   twoFactorResetNeeded: z.boolean().optional(),
   paymentLinkedAccountId: z.string().uuid().nullable().optional(),
   gologinProfileId: z.string().nullable().optional(),
@@ -125,9 +131,54 @@ export async function PATCH(
       }
     }
 
+    // Guard: don't let an account be flipped to "available" (listed for rent) while its
+    // linked ambassador's setup fee is still unpaid. Recording the setup fee payment is
+    // what should list the account (that path sets available in prisma directly, so it
+    // isn't affected here); flipping the status by hand skips it and puts an unpaid
+    // account on the market. LV-owned inventory (no linked application) is exempt.
+    if (data.status === "available") {
+      const cur = await prisma.linkedInAccount.findUnique({
+        where: { id },
+        select: { status: true, notes: true, linkedinUrl: true },
+      });
+      if (!cur) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      // Only guard an actual flip INTO available — not a no-op re-save of an account
+      // that is already available.
+      if (cur.status !== "available") {
+        const ownerEmail = (cur.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || null;
+        const url = cur.linkedinUrl?.replace(/\/$/, "") || null;
+        if (ownerEmail || url) {
+          const app = await prisma.ambassadorApplication.findFirst({
+            where: {
+              OR: [
+                ...(ownerEmail ? [{ email: { equals: ownerEmail, mode: "insensitive" as const } }] : []),
+                ...(url ? [{ linkedinUrl: url }, { linkedinUrl: `${url}/` }] : []),
+              ],
+            },
+            select: { paidAt: true, monthlyPayouts: true },
+          });
+          if (app && !setupPaidDate(app.paidAt, app.monthlyPayouts)) {
+            return NextResponse.json(
+              { error: "Setup fee not paid — record the setup fee payment first (that auto-lists the account). Use the payouts page to mark it paid." },
+              { status: 409 }
+            );
+          }
+        }
+      }
+    }
+
     // A manual health mark stamps the check date server-side.
     if (data.linkedinAccountHealth !== undefined) {
       (data as Record<string, unknown>).healthCheckedAt = new Date();
+    }
+
+    // Setting/clearing a payout hold stamps (or clears) the held-at date server-side.
+    if (data.payoutHoldReason !== undefined) {
+      const reason = data.payoutHoldReason?.trim() || null;
+      (data as Record<string, unknown>).payoutHoldReason = reason;
+      (data as Record<string, unknown>).payoutHeldAt = reason ? new Date() : null;
     }
 
     // A restriction change (restrictedAt set or cleared) is recorded to the shared

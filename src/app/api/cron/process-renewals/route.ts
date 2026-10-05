@@ -14,6 +14,7 @@ import {
   sendAccessRevokedEmail,
   sendAccountAvailableEmail,
   sendPaymentFailedEmail,
+  sendTopUpConfirmation,
 } from "@/services/email";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const result = { renewed: 0, cardRenewed: 0, failed: 0, graced: 0, reminded: 0, graceNoticed: 0, lapsed: 0, winBack: 0, headsUp: 0, released: 0 };
+  const result = { renewed: 0, cardRenewed: 0, recharged: 0, failed: 0, graced: 0, reminded: 0, graceNoticed: 0, lapsed: 0, winBack: 0, headsUp: 0, released: 0 };
 
   // Reclaim window: after a rental ends, hold the profile this many days so the same
   // renter can re-pay and keep it, before it's released to others.
@@ -45,6 +46,77 @@ export async function POST(req: NextRequest) {
   const USDC_GRACE_DAYS = 3;
 
   try {
+    // -1) Auto-recharge (Twilio-style): refill the wallet from the saved card when the balance
+    // drops below the renter's threshold. OPT-IN only — autoRechargeEnabled is explicit consent
+    // to automatic card charges; we never auto-charge a card without it. Runs before renewals so
+    // the refilled balance is available for any charges due today. One recharge per user per day
+    // (idempotency key on user+date) so a double cron run can't double-charge.
+    const rechargeUsers = await prisma.user.findMany({
+      where: {
+        autoRechargeEnabled: true,
+        stripeCustomerId: { not: null },
+        stripePaymentMethodId: { not: null },
+        autoRechargeThreshold: { not: null },
+        autoRechargeAmount: { not: null },
+      },
+    });
+    const dayKey = now.toISOString().slice(0, 10);
+    for (const u of rechargeUsers) {
+      const threshold = u.autoRechargeThreshold!;
+      const amount = u.autoRechargeAmount!;
+      if (u.usdcBalance.greaterThanOrEqualTo(threshold)) continue; // still above threshold
+      let ok = false;
+      let piId: string | null = null;
+      try {
+        const pi = await stripe.paymentIntents.create(
+          {
+            amount: Math.round(Number(amount) * 100),
+            currency: "usd",
+            customer: u.stripeCustomerId!,
+            payment_method: u.stripePaymentMethodId!,
+            off_session: true,
+            confirm: true,
+            description: `Auto-recharge — $${Number(amount).toFixed(0)} to LinkedVelocity balance`,
+            metadata: { userId: u.id, type: "auto_recharge" },
+          },
+          { idempotencyKey: `recharge_${u.id}_${dayKey}` }
+        );
+        piId = pi.id;
+        ok = pi.status === "succeeded";
+      } catch (e) {
+        // Card declined / needs authentication — skip; the wallet draw-down below handles
+        // the shortfall path (grace), same as any other insufficient-balance renewal.
+        console.error("auto-recharge charge failed", u.id, e instanceof Error ? e.message : e);
+      }
+      if (ok && piId) {
+        // DB-side idempotency keyed on the PaymentIntent id: the per-day Stripe key means a
+        // same-day re-run gets the SAME PI back (one card charge) — but we must credit the
+        // wallet only ONCE for it, so skip if this PI was already recorded.
+        const already = await prisma.transaction.findFirst({ where: { description: { contains: piId } } });
+        if (!already) {
+          const updated = await prisma.$transaction(async (tx) => {
+            const uu = await tx.user.update({
+              where: { id: u.id },
+              data: { usdcBalance: { increment: amount } },
+              select: { usdcBalance: true },
+            });
+            await tx.transaction.create({
+              data: {
+                userId: u.id, type: "deposit",
+                amount: new Prisma.Decimal(amount),
+                description: `Auto-recharge (card ••${u.cardLast4 ?? ""}) [${piId}]`,
+              },
+            });
+            return uu;
+          });
+          try {
+            await sendTopUpConfirmation({ email: u.email, amount: Number(amount), method: "card", newBalance: Number(updated.usdcBalance) });
+          } catch (e) { console.error(e); }
+          result.recharged++;
+        }
+      }
+    }
+
     // 0) Auto-renew ON — pre-charge reminder ~3 days before renewal (Stripe + USDC + card-on-file).
     // For a rental billed to a saved card, this states the exact upcoming charge (amount + card):
     // section 1 will NOT charge a card until this reminder has gone out, so notice always comes first.

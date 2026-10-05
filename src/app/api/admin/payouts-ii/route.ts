@@ -13,7 +13,7 @@ import { setupFeeReadyDate } from "@/lib/referrals";
 // an owner's accounts shares that ledger. Admin-only; returns credentials for the
 // expandable inventory-style row, same as /api/admin/accounts.
 
-type PayoutEntry = { paidAt?: string; amount?: number; kind?: string };
+type PayoutEntry = { paidAt?: string; amount?: number; kind?: string; by?: string | null; proofUrl?: string | null; notified?: boolean; notifiedAt?: string | null; acknowledged?: boolean; acknowledgedAt?: string | null };
 type Bucket = "setup" | "overdue" | "due" | "paid" | "na";
 
 const sameMonth = (iso: string, y: number, m: number) => {
@@ -33,14 +33,14 @@ export async function GET() {
         location: true, connectionCount: true, accountAgeMonths: true,
         loginEmail: true, accountPassword: true, twoFactor: true,
         gologinProfileId: true, gologinShareLink: true,
-        status: true, restrictedAt: true, monthlyPrice: true, ambassadorPayment: true,
+        status: true, restrictedAt: true, payoutHoldReason: true, monthlyPrice: true, ambassadorPayment: true,
         notes: true,
       },
     });
 
     const apps = await prisma.ambassadorApplication.findMany({
       select: {
-        email: true, fullName: true, linkedinUrl: true, onboardedAt: true,
+        id: true, email: true, fullName: true, linkedinUrl: true, onboardedAt: true,
         contactNumber: true, contactChannel: true, createdAt: true, diyTier: true, payoutCurrency: true, referredBy: true,
         accountFreshness: true, paidAt: true, verifiedAt: true,
         monthlyPayouts: true, paymentMethod: true, paypalEmail: true, wiseEmail: true,
@@ -83,13 +83,16 @@ export async function GET() {
       const nextDue = monthlyDueDate(setupPaidAt, paidCount);
       const firstDue = monthlyDueDate(setupPaidAt, 0);
 
-      // One-time ₱1,000 setup fee (per ambassador). Paid if the application's
-      // paidAt is set OR a "setup" payout entry was logged.
-      const setupPaid = !!app?.paidAt || payouts.some((p) => p?.kind === "setup");
+      // One-time ₱1,000 setup fee (per ambassador). "Logged" = marked paid (paidAt set or a
+      // setup entry exists); "receipted" = that setup entry has a proof attached. Like the
+      // monthly flow, it isn't fully settled — and doesn't leave the Initial-payment section —
+      // until the receipt is on it (which is also what emails the owner).
+      const setupEntry = payouts.find((p) => p?.kind === "setup");
+      const setupLogged = !!app?.paidAt || !!setupEntry;
+      const setupReceipted = !!setupEntry?.proofUrl;
       // Setup fee is due one week after QC (same clock as the pipeline / referrer portal).
-      // Fall back to the onboard date for the rare onboarded account with no QC date recorded,
-      // so an owed fee still shows a date rather than dropping out.
-      const setupDue = setupFeeReadyDate(app?.verifiedAt || null) || (onboardedAt ? new Date(onboardedAt) : null);
+      // No QC date → not due yet; the account is still in onboarding (handled below).
+      const setupDue = setupFeeReadyDate(app?.verifiedAt || null);
 
       // Categorise. Bucket meaning:
       //  setup   → one-time ₱1,000 initial payment still outstanding
@@ -100,28 +103,51 @@ export async function GET() {
       let bucket: Bucket = "due";
       let reason = "Up to date";
       let overdue = false;
+      // A payout logged this cycle but with no receipt yet — "paid" doesn't count until the
+      // receipt is attached (that's also what emails the owner), so it stays out of "Paid".
+      let awaitingReceipt = false;
       let dueISO: string | null = nextDue ? new Date(nextDue).toISOString() : null;
 
       if (a.restrictedAt) { bucket = "na"; reason = "Restricted"; }
+      // Admin payout hold: inaccessible / paused (not a LinkedIn restriction). Held out of
+      // the due/overdue chase until released; the specific reason rides along in holdReason.
+      else if (a.payoutHoldReason) { bucket = "na"; reason = "On hold"; }
       else if (a.status === "retired") { bucket = "na"; reason = "Inaccessible"; }
       else if (!ownerEmail || isCompanyEmail(ownerEmail)) { bucket = "na"; reason = "Company-owned · no ambassador"; }
       // Still in the onboarding pipeline — no onboarding date means nothing is owed
       // yet and no schedule exists. These belong on the Onboarding page, not here, so
       // they're filtered out below rather than shown as an unpayable "na" row.
       else if (!onboardedAt) { bucket = "na"; reason = "Still onboarding"; }
-      else if (!setupPaid) {
-        // Initial ₱1,000 not yet settled → its own section, regardless of monthly.
+      // Logged in but not yet QC'd: the setup fee isn't due until a week after QC, so it
+      // isn't payable yet. Keep it in the onboarding group (tracked on /admin/onboarding)
+      // instead of showing a false "overdue" off the login date.
+      else if (!setupLogged && !app?.verifiedAt) { bucket = "na"; reason = "Still onboarding"; }
+      else if (!setupReceipted) {
+        // Initial ₱1,000 not yet fully settled → its own section, regardless of monthly.
         bucket = "setup";
-        dueISO = setupDue ? setupDue.toISOString() : null;
-        overdue = !!setupDue && setupDue.getTime() < startOfToday.getTime();
-        reason = overdue ? "Initial payment overdue" : "Initial payment due";
+        if (setupLogged) {
+          // Marked paid but no receipt yet — keep it here as "attach receipt" instead of
+          // silently leaving the section; attaching the receipt emails the owner and moves it on.
+          reason = "Paid · attach receipt"; awaitingReceipt = true; dueISO = null; overdue = false;
+        } else {
+          dueISO = setupDue ? setupDue.toISOString() : null;
+          overdue = !!setupDue && setupDue.getTime() < startOfToday.getTime();
+          reason = overdue ? "Initial payment overdue" : "Initial payment due";
+        }
       }
       else if (monthlyAmount <= 0) { bucket = "na"; reason = "No monthly rate set"; }
       // Year-month comparison (not raw timestamps) — firstDue is anchored at noon UTC
       // on the 1st, so a same-day timezone offset must not hide a monthly due this cycle.
       else if (firstDue && (CY * 12 + CM) >= (firstDue.getUTCFullYear() * 12 + firstDue.getUTCMonth())) {
-        const paidThisCycle = monthlyEntries.some((p) => p.paidAt && sameMonth(p.paidAt, CY, CM));
-        if (paidThisCycle) { bucket = "paid"; reason = "Paid this cycle"; }
+        // "Paid this cycle" requires a receipt on this cycle's payout. A payout logged
+        // without a receipt yet sits in "Paid · attach receipt" (not chased, not yet paid)
+        // until the receipt is attached — attaching it also emails the owner.
+        const cycleEntry = monthlyEntries.find((p) => p.paidAt && sameMonth(p.paidAt, CY, CM));
+        if (cycleEntry?.proofUrl) { bucket = "paid"; reason = "Paid this cycle"; }
+        // Marked paid but no receipt yet — keep it right here in the overdue list (so it
+        // doesn't vanish), labelled "attach receipt" and NOT chased as late, until the
+        // receipt is attached (which then moves it to Paid this cycle).
+        else if (cycleEntry) { bucket = "overdue"; reason = "Paid · attach receipt"; awaitingReceipt = true; overdue = false; }
         else if (app?.accountIssue || (!method)) { bucket = "overdue"; reason = app?.accountIssue ? "On hold · login issue" : "On hold · no payment method"; overdue = true; }
         else { bucket = "overdue"; reason = "Payment due"; overdue = true; }
       } else {
@@ -147,6 +173,8 @@ export async function GET() {
         monthlyPrice: a.monthlyPrice,
         bucket,
         reason,
+        holdReason: a.payoutHoldReason || null,
+        awaitingReceipt,
         overdue,
         daysLate,
         ownerName,
@@ -162,6 +190,16 @@ export async function GET() {
         setupAmount: currencyConfigFor(app?.payoutCurrency, app?.referredBy, app).setupAmount,
         payoutCurrency: currencyConfigFor(app?.payoutCurrency, app?.referredBy, app).currency,
         totalPaid,
+        // Owner's application id + full payout ledger, so the whole payment record can be
+        // viewed and managed (receipt → auto-email, notified, acknowledged) here instead of
+        // having to go back to the pipeline after onboarding.
+        applicationId: app?.id || null,
+        payouts: payouts.map((p) => ({
+          paidAt: p.paidAt || null, amount: Number(p.amount) || 0, kind: p.kind === "setup" ? "setup" : "monthly",
+          by: p.by || null, proofUrl: p.proofUrl || null,
+          notified: !!p.notified, notifiedAt: p.notifiedAt || null,
+          acknowledged: !!p.acknowledged, acknowledgedAt: p.acknowledgedAt || null,
+        })),
       };
     });
 

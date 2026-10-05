@@ -28,6 +28,7 @@ import { formatName } from "@/lib/utils";
 import { AccountNotes } from "@/components/admin/account-notes";
 import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions";
 import { ambassadorIssueContact } from "@/lib/issue-contacts";
+import { ONBOARDING_ISSUES } from "@/lib/onboarding-issue-message";
 import { isApplicationReceived, receiptPatch } from "@/lib/pipeline-received";
 import { useQcChecks } from "@/components/admin/use-qc-checks";
 import TotpCode from "@/app/m/[token]/onboarding/totp";
@@ -87,6 +88,7 @@ interface Row {
   referrer: { email?: string | null; viber?: string | null; name: string; token: string | null; whatsapp: string | null; telegram: string | null; preferred: string | null } | null;
   reason: string;
   phoneHandoffPending?: boolean;
+  latestCode?: string | null;
   hasGologin: boolean;
   hasLogin: boolean;
   accountId: string | null;
@@ -291,7 +293,15 @@ const setupPaid = (r: Row) => (r.monthlyPayouts || []).some((p) => p.kind === "s
 // Formatting -----------------------------------------------------------------
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—");
 const fmtDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
-const ageDays = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+// Whole-CALENDAR-days ago, in local time — so it agrees with fmtDate (which shows the local
+// calendar date). A raw 24h-bucket floor would call a late-yesterday timestamp "today" the
+// next morning (e.g. "Oct 1 (today)" when it's already Oct 2).
+const ageDays = (iso: string) => {
+  const d = new Date(iso), n = new Date();
+  const d0 = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const n0 = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
+  return Math.max(0, Math.round((n0 - d0) / 86400000));
+};
 const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
 const liHref = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
 const cfgOf = (r: Row) => currencyConfigFor(r.payoutCurrency, r.referredBy, r);
@@ -350,6 +360,11 @@ type StepState = "now" | "waiting" | "done";
 type NextStep = { state: StepState; label: string; timing?: string; last?: string };
 const STEP_RANK: Record<StepState, number> = { now: 0, waiting: 1, done: 2 };
 const daysUntil = (ms: number) => Math.max(1, Math.ceil((ms - Date.now()) / 86400000));
+// Maturation is a DATE threshold, not a precise time: an account is "matured" once the
+// Manila calendar date reaches its ready date, so it reads ready all day on that date
+// (not "1 day left" until the exact QC time-of-day). Compare whole Manila days.
+const manilaDay = (ms: number) => Math.floor((ms + 8 * 3600000) / 86400000);
+const matureDaysLeft = (matureAtMs: number) => manilaDay(matureAtMs) - manilaDay(Date.now());
 
 // The most recent thing that happened to this row, so the admin can tell whether they've
 // already touched it. Prefers the last real outreach touch, else the latest milestone.
@@ -401,7 +416,7 @@ const nextStep = (r: Row): NextStep => {
   }
   if (r.meetingRequested) return { state: "now", label: "Arrange a setup meeting — requested by referrer", last };
   if (r.onboardingFix?.state === "referrer_done") return { state: "now", label: "Recheck — referrer marked the fix done", last };
-  if (r.onboardingFix?.issues?.length) return { state: "waiting", label: `Waiting on referrer to fix ${r.onboardingFix.issues.length} issue${r.onboardingFix.issues.length > 1 ? "s" : ""}`, last };
+  if (r.onboardingFix?.issues?.length) return { state: "waiting", label: `Waiting on referrer: ${r.onboardingFix.issues.map((i) => ONBOARDING_ISSUES[i]?.label || i).join(", ")}`, last };
   if (r.nextFollowUp) {
     const t = new Date(r.nextFollowUp).getTime();
     if (Date.now() >= t) return { state: "now", label: "Follow-up due", timing: `set for ${fmtDate(r.nextFollowUp)}`, last };
@@ -431,7 +446,7 @@ const nextStep = (r: Row): NextStep => {
     // Maturation counts from QC-passed (verifiedAt), same as the Step 5 card — NOT from
     // onboardedAt (the login moment), or the header and the workflow card disagree.
     const matureAt = r.verifiedAt ? new Date(r.verifiedAt).getTime() + holdDays(r) * 86400000 : null;
-    if (matureAt && Date.now() < matureAt) return { state: "waiting", label: "Maturing", timing: `${daysUntil(matureAt)} day${daysUntil(matureAt) === 1 ? "" : "s"} left · ready ${fmtDate(new Date(matureAt).toISOString())}`, last };
+    if (matureAt && matureDaysLeft(matureAt) > 0) { const d = matureDaysLeft(matureAt); return { state: "waiting", label: "Maturing", timing: `${d} day${d === 1 ? "" : "s"} left · ready ${fmtDate(new Date(matureAt).toISOString())}`, last }; }
     return { state: "now", label: setupPaid(r) ? "Matured — mark onboarded (live)" : "Matured — pay setup fee & mark onboarded", last };
   }
   if (!setupPaid(r)) return { state: "now", label: "Pay setup fee", last };
@@ -504,6 +519,8 @@ export default function AdminPipelinePage() {
   const [pocFilter, setPocFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [flagged, setFlagged] = useState(false);
+  const [actionNowOnly, setActionNowOnly] = useState(false);
+  const [bulkPoc, setBulkPoc] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   // Save feedback so edits never fail silently: "Saved ✓" on success, an error on failure.
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -633,7 +650,7 @@ export default function AdminPipelinePage() {
       const res = await fetch("/api/admin/onboarding/provision-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { alert(typeof d.error === "string" ? d.error : `Could not create GoLogin (${res.status}).`); }
-      else if (d.result?.proxy === "flagged") { alert(`GoLogin profile created, but no free proxy of the right type — the account is flagged "${d.result.provisionStatus}". Add a proxy and it'll finish (share link included) on the next run.`); }
+      else if (d.result?.proxy === "flagged") { const why = d.result?.errors?.length ? d.result.errors.join("; ") : "no proxy could be assigned (reuse pool empty or a purchase is mid-flight)"; alert(`Couldn't attach a proxy — ${why}. The account still needs one; resolve the cause (or assign a proxy manually) and re-run "Create GoLogin".`); }
       else if (d.result?.errors?.length) { alert(`Partly done: ${d.result.errors.join("; ")}`); }
       await load();
     } finally { setBusy(null); }
@@ -735,6 +752,7 @@ export default function AdminPipelinePage() {
     return scoped.filter((r) => {
       if (applicationTypeFilter !== "all" && applicationType(r).key !== applicationTypeFilter) return false;
       if (flagged && !isBlocked(r)) return false;
+      if (actionNowOnly && nextStep(r).state !== "now") return false;
       // Stage mode filters on the two axes (level + health); other modes on status.
       if (mode === "stage") {
         if (levelFilter !== "all" && levelKey(r) !== levelFilter) return false;
@@ -746,7 +764,40 @@ export default function AdminPipelinePage() {
       return [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc,
         ...(r.outreachLog || []).map((t) => t.text)].some((v) => (v || "").toLowerCase().includes(q));
     });
-  }, [scoped, query, flagged, mode, statusFilter, levelFilter, healthFilter, pocFilter, applicationTypeFilter]);
+  }, [scoped, query, flagged, actionNowOnly, mode, statusFilter, levelFilter, healthFilter, pocFilter, applicationTypeFilter]);
+
+  // Count of rows that need acting on NOW (past their grace) within the current scope —
+  // the handler's live to-do count for the "Action now" filter.
+  const actionNowCount = useMemo(() => scoped.filter((r) => nextStep(r).state === "now").length, [scoped]);
+
+  // Bulk-assign the LV handler to every application currently shown (whatever the filters
+  // are). Lets a batch — e.g. all Level 1 — be handed to one person in a click.
+  const bulkAssign = async () => {
+    const name = bulkPoc.trim();
+    const shown = filtered;
+    if (!name || shown.length === 0) return;
+    if (!confirm(`Assign ${shown.length} ${shown.length === 1 ? "row" : "rows"} (everything shown) to "${name}" as LV handler? This replaces any current handler on them.`)) return;
+    // Application rows carry the PoC on the application; inventory-only rows carry it on the
+    // account (they have no application), so they go to the accounts endpoint instead.
+    const appIds = shown.filter((r) => !r.accountOnly).map((r) => r.id);
+    const acctRows = shown.filter((r) => r.accountOnly && r.accountId);
+    const idSet = new Set(shown.map((r) => r.id));
+    setRows((prev) => (prev ? prev.map((r) => (idSet.has(r.id) ? { ...r, poc: name } : r)) : prev));
+    try {
+      if (appIds.length) {
+        const res = await fetch("/api/admin/ambassadors/bulk-poc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: appIds, poc: name }) });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Failed (${res.status})`);
+      }
+      if (acctRows.length) {
+        await Promise.all(acctRows.map((r) => fetch(`/api/admin/accounts/${r.accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc: name }) }).then((res) => { if (!res.ok) throw new Error("account PoC save failed"); })));
+      }
+      flashSave(true, `Assigned ${shown.length} to ${name} ✓`);
+      setBulkPoc("");
+    } catch (e) {
+      flashSave(false, e instanceof Error ? e.message : "Bulk assign failed — not saved.");
+      await load();
+    }
+  };
 
   const groups = useMemo(() => {
     const defs = mode === "stage" ? LEVEL_GROUPS : mode === "live" ? LIVE_GROUPS : ACTION_GROUPS;
@@ -950,9 +1001,20 @@ export default function AdminPipelinePage() {
       {/* search + toggles */}
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 22, flexWrap: "wrap" }}>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact, account or referrer…" style={{ ...inputCss, flex: "1 1 280px", padding: "11px 14px", font: `500 13.5px ${F_SANS}` }} />
+        <button onClick={() => setActionNowOnly((a) => !a)} title="Only rows that need acting on now — past their 1-day grace and not waiting/maturing. Your live to-do list." style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(actionNowOnly ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>● Action now{actionNowCount ? ` (${actionNowCount})` : ""}</button>
         <button onClick={() => setFlagged((f) => !f)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(flagged ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>⚠ Problems only</button>
         <button onClick={() => setOpen(anyOpen ? new Set() : new Set(filtered.map((r) => r.id)))} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px" }}>{anyOpen ? "Collapse all" : "Expand all"}</button>
       </div>
+
+      {/* Bulk-assign handler — acts on exactly what the current filters show. */}
+      {rows && filtered.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap", padding: "11px 14px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 11 }}>
+          <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--muted,#555)" }}>Assign all <b style={{ color: "var(--fg,#111)" }}>{filtered.length}</b> shown to handler</span>
+          <input value={bulkPoc} onChange={(e) => setBulkPoc(e.target.value)} placeholder="handler name — e.g. Giana" style={{ ...inputCss, flex: "0 1 220px", padding: "8px 11px", font: `500 13px ${F_SANS}` }} />
+          <button onClick={bulkAssign} disabled={!bulkPoc.trim()} style={{ ...btnPrimary, padding: "9px 15px", whiteSpace: "nowrap", opacity: bulkPoc.trim() ? 1 : 0.5, cursor: bulkPoc.trim() ? "pointer" : "not-allowed" }}>Assign {filtered.length}</button>
+          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", flex: "1 1 200px" }}>Narrow with the Level / PoC filters first (e.g. Level 1 + PoC: Unassigned) to hand just those to a new teammate.</span>
+        </div>
+      )}
 
       {error && <p style={{ color: "var(--st-cancel-fg,#b00)", font: `600 14px ${F_SANS}` }}>Failed to load.</p>}
       {!rows && !error && <p style={{ font: `500 14px ${F_SANS}`, color: "var(--muted,#888)" }}>Loading…</p>}
@@ -1110,6 +1172,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
               {missingGologin(r) && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No GoLogin — account can't be run until one is added" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin</span>}
               {r.accountIssue && !r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={r.accountIssue} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ {r.accountIssue.length > 22 ? "login issue" : r.accountIssue}</span>}
               {isLikelyTestEmail(r.email) && <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
+              {r.latestCode && <span title="Latest LinkedIn code forwarded during onboarding — expires fast. Clears once onboarded." style={{ font: `800 11px ${F_SANS}`, letterSpacing: ".08em", padding: "2px 9px", borderRadius: 999, background: "var(--st-active-bg,#e6f4ea)", color: "var(--st-active-fg,#188038)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(r.latestCode!); }}>🔑 {r.latestCode}</span>}
               {r.provisionStatus === "ready_to_buy_cheap" && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No proxy-cheap residential free for this account — buy one to finish auto-provisioning" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>🛒 Ready to buy proxy-cheap</span>}
               {r.provisionStatus === "needs_proxy6" && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No Proxy 6 datacenter IP free for this verified account — buy one (no Proxy 6 API)" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ Needs Proxy 6</span>}
             </div>
@@ -1204,6 +1267,7 @@ function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestricti
             <Edit label="Booking email" value={r.bookingEmail} placeholder="if booked with another email" onSave={(v) => patchApp(r.id, { bookingEmail: v })} />
             <Edit label="Connections" value={r.connectionCount} numeric placeholder="e.g. 500" onSave={(v) => patchApp(r.id, { connectionCount: v })} />
             <Edit label="Referred by" value={r.referredBy} placeholder="marketer code" onSave={(v) => patchApp(r.id, { referredBy: v })} />
+            <Edit label="LV handler (POC)" value={r.poc} placeholder="who's handling this — e.g. Ardi / Sam / a name" onSave={(v) => { if (!r.accountOnly) patchApp(r.id, { poc: v }); if (r.accountId) patchAccount(r.id, r.accountId, { poc: v }); }} />
             <Edit label="Referral source" value={r.referralSource} placeholder="flyer / FB / referral" onSave={(v) => patchApp(r.id, { referralSource: v })} />
             <Edit label="Payout method" value={r.paymentMethod} placeholder="Wise / PayPal / GCash" onSave={(v) => patchApp(r.id, { paymentMethod: v })} />
             <Edit label="Payout handle / account no." value={r.paymentDetails} placeholder="email / number / account" onSave={(v) => patchApp(r.id, { paymentDetails: v })} />
@@ -1352,7 +1416,7 @@ function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: 
   const qcPassed = !!r.verifiedAt;
   const matureStartMs = r.verifiedAt ? new Date(r.verifiedAt).getTime() : null;
   const matureDue = matureStartMs !== null ? matureStartMs + holdDays(r) * 86400000 : null;
-  const matured = matureDue !== null && Date.now() >= matureDue;
+  const matured = matureDue !== null && matureDaysLeft(matureDue) <= 0;
   const gated = false;                             // level ladder isn't gated behind "accept"
 
   // QC checklist state (Step 4). All items must be ticked before QC can pass.
@@ -1465,10 +1529,35 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
   updatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>;
 }) {
   const [okPay, setOkPay] = useState<{ setup: boolean; monthly: boolean }>({ setup: false, monthly: false });
+  const [copied, setCopied] = useState(false);
   const cfg = cfgOf(r);
   const pays = r.monthlyPayouts || [];
   const setupDone = setupPaid(r);
   const verified = !!r.verifiedAt;
+
+  // Copy the whole schedule + payment history as plain text (tab-separated rows, so it
+  // pastes cleanly into a message or a spreadsheet) for records / sharing.
+  const copyHistory = () => {
+    const who = r.payoutName?.trim() || r.fullName;
+    const setupLine = setupDone ? `Paid ${fmtDate(pays.find((p) => p.kind === "setup")?.paidAt || r.paidAt)}` : "Not paid";
+    const lines = [
+      `${who} — Payment history`,
+      `Setup fee · ${formatMoney(cfg.setupAmount, cfg.currency)} — ${setupLine}`,
+      `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
+      `Total paid: ${formatMoney(totalPaid(r), cfg.currency)}`,
+      "",
+      ["Date", "Payment", "By", "Notified", "Acknowledged", "Proof"].join("\t"),
+      ...(pays.length ? pays.map((p) => [
+        fmtDate(p.paidAt),
+        `${formatMoney(Number(p.amount) || 0, cfg.currency)} · ${p.kind === "setup" ? "Setup fee" : "Monthly"}`,
+        p.by || "—",
+        p.notified ? "Notified" : "Not notified",
+        p.acknowledged ? (p.acknowledgedAt ? `Ack ${fmtDate(p.acknowledgedAt)}` : "Acknowledged") : "Awaiting ack",
+        p.proofUrl || "—",
+      ].join("\t")) : ["No payments logged yet."]),
+    ];
+    navigator.clipboard?.writeText(lines.join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+  };
 
   const schedRow = (key: "setup" | "monthly", title: string, sub: string, done: boolean, onLog: () => void, logLabel: string, confirm?: { ok: boolean; onToggle: () => void; label: string }) => {
     const ok = confirm ? confirm.ok : okPay[key];
@@ -1507,7 +1596,7 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
         {schedRow(
           "monthly",
           `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
-          "On the 1st, after one full month of service",
+          "In the first few days of the month, after one full month of service",
           false, () => logPayment(r, "monthly"), `+ Log ${formatMoney(monthlyAmt(r), cfg.currency)}`
         )}
       </div>
@@ -1521,7 +1610,10 @@ function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <span style={labelCss}>Payment record</span>
-        <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Total paid <b style={{ color: "var(--st-active-fg,#188038)" }}>{formatMoney(totalPaid(r), cfg.currency)}</b></span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Total paid <b style={{ color: "var(--st-active-fg,#188038)" }}>{formatMoney(totalPaid(r), cfg.currency)}</b></span>
+          <button onClick={copyHistory} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 7, border: "1px solid var(--divider,#ddd)", cursor: "pointer", whiteSpace: "nowrap", background: copied ? "var(--st-active-bg,#e6f4ea)" : "transparent", color: copied ? "var(--st-active-fg,#188038)" : "var(--fg,#444)" }}>{copied ? "✓ Copied" : "⧉ Copy history"}</button>
+        </div>
       </div>
       <div style={{ border: "1px solid var(--divider,#eee)", borderRadius: 11, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 108px 116px 128px", gap: 10, padding: "9px 14px", background: "var(--band,#f6f7f8)", borderBottom: "1px solid var(--divider,#eee)" }}>

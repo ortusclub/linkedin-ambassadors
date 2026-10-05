@@ -2,7 +2,7 @@
 
 import { tierPricing } from "@/lib/account-pricing";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
@@ -187,9 +187,16 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 
 // Inventory groups are display-only; rental/billing status stays in the database.
 // Current restrictions and maintenance share one group. Terminal states stay separate.
-const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; ownerOnboarded?: boolean }): string => {
+const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; ownerOnboarded?: boolean; ownerSetupPaidAt?: string | null; ownerApplicationId?: string | null }): string => {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
   if (a.status === "removed") return "Removed";
+  // INVENTORY = ONBOARDED **and** SETUP-FEE PAID. An account tied to an application that
+  // isn't onboarded yet, or whose setup fee is still unpaid, belongs in the pipeline, not
+  // inventory — held as "Initial" even if it's been marked available or is restricted.
+  // (Rented accounts are live and always shown; accounts with NO linked application — e.g.
+  // Ortus / direct inventory — aren't subject to the ambassador onboard+pay flow, so they
+  // keep their status.)
+  if (a.status !== "rented" && a.ownerApplicationId && !(a.ownerOnboarded && !!a.ownerSetupPaidAt)) return "Initial";
   if (a.restrictedAt || a.status === "maintenance") return "Maintenance";
   if (a.status === "rented") return "Rented";
   // Warming-up stages (Pipeline) only belong in inventory once the owner is ONBOARDED —
@@ -198,19 +205,20 @@ const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFa
   // on an account the moment someone signs up, so without this gate a lot of not-yet-onboarded
   // accounts (0-conn placeholders, logged-in-but-unpaid, paid-but-not-yet-marked) flood the
   // pipeline. A not-onboarded warming account reads as Initial and is held out of inventory.
-  if (a.status === "construction_immature") return a.ownerOnboarded ? "Construction (Immature)" : "Initial";
-  if (a.status === "under_construction") return a.ownerOnboarded ? "Construction" : "Initial";
+  // Both warming statuses live in one "Construction" bucket; immature accounts (very new /
+  // thin) are flagged with an "immature" badge on the row rather than a separate section.
+  if (a.status === "construction_immature" || a.status === "under_construction") return a.ownerOnboarded ? "Construction" : "Initial";
   if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : "Available";
   if (a.status === "trial") return "Trial";
   if (!a.loginEmail || !isCompanyEmail(a.loginEmail) || !a.accountPassword) return "Initial";
   return a.ownerOnboarded ? "Construction" : "Initial";
 };
-const inventoryStatusLabel = (status: string) => status === "Construction" ? "Pipeline" : status === "Maintenance" ? "Restricted / Maintenance" : status;
+const inventoryStatusLabel = (status: string) => status === "Maintenance" ? "Restricted / Maintenance" : status;
 const GROUPS: { key: string; hint: string; dot: string }[] = [
   { key: "Available", hint: "live & rentable, no one on it", dot: "var(--st-active-fg)" },
   { key: "Trial", hint: "on a 3-day trial hold — held out of Available", dot: "var(--warn-badge-text)" },
   { key: "Rented", hint: "currently rented by a customer", dot: "var(--blue-chip-text)" },
-  { key: "Construction (Immature)", hint: "warming up — not yet mature enough to rent", dot: "var(--st-construct-fg)" },
+  { key: "Construction", hint: "onboarded & paid — warming up before going live", dot: "var(--st-construct-fg)" },
   { key: "Maintenance", hint: "restricted or needs fixing — check account badges and notes", dot: "var(--neutral-chip-text)" },
   { key: "Permanently restricted/Inaccessible", hint: "retired — permanently restricted or inaccessible", dot: "var(--st-cancel-fg)" },
   { key: "Removed", hint: "taken out of inventory", dot: "var(--st-cancel-fg)" },
@@ -363,6 +371,10 @@ const CONN_BUCKETS: { key: string; label: string; test: (n: number) => boolean }
   { key: "1k", label: "1k+", test: (n) => n >= 1000 },
 ];
 const connBucketOf = (n: number | null | undefined) => CONN_BUCKETS.find((b) => b.test(n ?? 0))?.key || "lt50";
+// Shadow-held = quietly rented by Apex/Ortus while still showing as Available.
+const isShadowHeld = (a: { shadowRenter: string | null }) => !!(a.shadowRenter && a.shadowRenter.trim());
+// Available-to-offer = the real sellable set: live & rentable, not shadow-held, not a showcase dummy.
+const isOfferable = (a: Account) => !isDummy(a) && canonicalStatus(a) === "Available" && !isShadowHeld(a);
 
 const GRID = "minmax(0,1fr) 132px 84px 150px 168px 214px";
 
@@ -374,6 +386,7 @@ export default function AdminAccountsPage() {
   const [pocFilter, setPocFilter] = useState("all");
   const [verifiedFilter, setVerifiedFilter] = useState<"all" | "yes" | "no">("all");
   const [connFilter, setConnFilter] = useState("all");
+  const [supplyFilter, setSupplyFilter] = useState<"all" | "shadow" | "offerable">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [savingProof, setSavingProof] = useState<string | null>(null);
@@ -496,7 +509,8 @@ export default function AdminAccountsPage() {
     const v = value.trim();
     if (!a.ownerApplicationId || v === (a.ownerPoc || "")) return;
     setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, ownerPoc: v || null } : x)));
-    await patchApp(a.ownerApplicationId, { poc: v });
+    // Write POC to both the application and the account so the two stores stay in sync.
+    await Promise.all([patchApp(a.ownerApplicationId, { poc: v }), patch(a.id, { poc: v })]);
   };
   // Manual health mark — for when you've verified the account yourself (in GoLogin).
   const markHealth = async (a: Account, health: string) => {
@@ -574,7 +588,9 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
   };
 
   // Onboarding accounts live in Pipeline; immature construction remains inventory.
-  const shown = useMemo(() => accounts.filter((a) => !["Initial", "Construction"].includes(groupKey(a))), [accounts]);
+  // Hide only pre-onboarding "Initial" accounts. Onboarded warming accounts ("Construction")
+  // DO belong in inventory — visible but not rentable until flipped to Available by hand.
+  const shown = useMemo(() => accounts.filter((a) => groupKey(a) !== "Initial"), [accounts]);
 
   const counts = useMemo(() => {
     const real = shown.filter((a) => !isDummy(a));
@@ -585,7 +601,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       Available: c("Available"),
       Trial: c("Trial"),
       Rented: c("Rented"),
-      "Construction (Immature)": c("Construction (Immature)"),
+      Construction: c("Construction"),
       Maintenance: c("Maintenance"),
       "Permanently restricted/Inaccessible": c("Permanently restricted/Inaccessible"),
       Removed: c("Removed"),
@@ -593,10 +609,18 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       checksDue: shown.filter(checkDue).length,
       verified: real.filter((a) => a.linkedinVerified).length,
       unverified: real.filter((a) => !a.linkedinVerified).length,
+      shadow: real.filter(isShadowHeld).length,
+      offerable: real.filter(isOfferable).length,
       // per-connection-bucket counts over real (non-showcase) inventory
       conn: Object.fromEntries(CONN_BUCKETS.map((b) => [b.key, real.filter((a) => b.test(a.connectionCount ?? 0)).length])) as Record<string, number>,
     };
   }, [shown]);
+
+  // Freeze the row order while you work. We re-sort only when a filter, the
+  // search, or the sort direction changes — not when a live edit bumps an
+  // account's updatedAt. Without this, saving a connection count or flipping a
+  // status re-sorts "Newest first" and yanks the row you just touched to the top.
+  const orderRef = useRef<{ sig: string; ids: string[] }>({ sig: "\u0000", ids: [] });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -605,14 +629,36 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       if (verifiedFilter === "yes" && !a.linkedinVerified) return false;
       if (verifiedFilter === "no" && a.linkedinVerified) return false;
       if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
+      if (supplyFilter === "shadow" && !isShadowHeld(a)) return false;
+      if (supplyFilter === "offerable" && !isOfferable(a)) return false;
       if (pocFilter !== "all") { const p = (a.ownerPoc || "").trim(); if (pocFilter === "__unassigned" ? p !== "" : p !== pocFilter) return false; }
       if (!q) return true;
       // Every identifier someone might paste in: the login email we issued, the
       // ambassador's contact email and number, the owner name, plus the profile fields.
       return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.loginEmail || ""} ${a.ownerEmail || ""} ${a.ownerName || ""} ${a.ownerPhone || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
     });
-    return sortAccountsByLastUpdated(base, updateOrder);
-  }, [shown, filter, verifiedFilter, connFilter, pocFilter, search, updateOrder]);
+
+    // A fresh sort happens only when the controls change (this signature), or on
+    // first load. Otherwise we reuse the remembered order so edits don't reshuffle.
+    const sig = JSON.stringify([filter, verifiedFilter, connFilter, supplyFilter, pocFilter, q, updateOrder]);
+    if (orderRef.current.sig !== sig) {
+      const sorted = sortAccountsByLastUpdated(base, updateOrder);
+      orderRef.current = { sig, ids: sorted.map((a) => a.id) };
+      return sorted;
+    }
+
+    // Controls unchanged: keep the frozen order, mapping it onto the current data
+    // so edited rows refresh in place. Rows that dropped out of the filter fall
+    // away; genuinely new accounts are sorted and appended so they stay visible.
+    const byId = new Map(base.map((a) => [a.id, a] as const));
+    const ordered = orderRef.current.ids.map((id) => byId.get(id)).filter((a): a is typeof base[number] => Boolean(a));
+    const known = new Set(orderRef.current.ids);
+    const added = base.filter((a) => !known.has(a.id));
+    if (!added.length) return ordered;
+    const merged = [...ordered, ...sortAccountsByLastUpdated(added, updateOrder)];
+    orderRef.current = { sig, ids: merged.map((a) => a.id) };
+    return merged;
+  }, [shown, filter, verifiedFilter, connFilter, supplyFilter, pocFilter, search, updateOrder]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allExpanded = filtered.length > 0 && filtered.every((a) => expanded.has(a.id));
@@ -632,7 +678,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{[1, 2, 3].map((i) => <div key={i} style={{ height: 64, borderRadius: 14, background: "var(--card)", border: "1px solid var(--card-border)" }} />)}</div>;
 
-  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Construction (Immature)", "Construction (Immature)", counts["Construction (Immature)"], "var(--st-construct-fg)"], ["Maintenance", inventoryStatusLabel("Maintenance"), counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
+  const CHIPS: [string, string, number, string | null][] = [["all", "All", counts.total, null], ["Available", "Available", counts.Available, "var(--st-active-fg)"], ["Trial", "Trial", counts.Trial, "var(--warn-badge-text)"], ["Rented", "Rented", counts.Rented, "var(--blue-chip-text)"], ["Construction", "Construction", counts.Construction, "var(--st-construct-fg)"], ["Maintenance", inventoryStatusLabel("Maintenance"), counts.Maintenance, "var(--neutral-chip-text)"], ["Permanently restricted/Inaccessible", "Permanently restricted/Inaccessible", counts["Permanently restricted/Inaccessible"], "var(--st-cancel-fg)"], ["Removed", "Removed", counts.Removed, "var(--st-cancel-fg)"], ["Showcase", "Showcase", counts.Showcase, "var(--warn-badge-text)"]];
 
   return (
     <div>
@@ -725,6 +771,17 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
               {b.label}<span style={{ color: "var(--muted)" }}>{counts.conn[b.key] || 0}</span>
             </button>
           ))}
+        </div>
+        <span style={{ width: 1, height: 22, background: "var(--divider)" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ ...labelCss, marginRight: 2 }}>Supply</span>
+          <button onClick={() => setSupplyFilter("all")} style={chip(supplyFilter === "all")}>All<span style={{ color: "var(--muted)" }}>{counts.realTotal}</span></button>
+          <button onClick={() => setSupplyFilter("offerable")} style={chip(supplyFilter === "offerable")} title="Live & rentable right now, excluding shadow-held — the real set you can hand to a renter.">
+            <span style={{ width: 7, height: 7, borderRadius: 999, background: "var(--st-active-fg)" }} />Available to offer<span style={{ color: "var(--muted)" }}>{counts.offerable}</span>
+          </button>
+          <button onClick={() => setSupplyFilter("shadow")} style={chip(supplyFilter === "shadow")} title="Shadow-held by Apex/Ortus — still shown as available but quietly in use.">
+            ◑ Shadow<span style={{ color: "var(--muted)" }}>{counts.shadow}</span>
+          </button>
         </div>
       </div>
 
@@ -837,6 +894,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
                           <span style={{ font: `600 11px ${F_SANS}`, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", ...statusChip(st) }}>{inventoryStatusLabel(st)}</span>
+                          {a.status === "construction_immature" && <span title="Immature — very new / few connections; needs more warm-up before it's ready to rent" style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--st-construct-bg)", color: "var(--st-construct-fg)" }}>⏳ immature</span>}
                           {a.shadowRenter && <span title={`Shadow-held by ${a.shadowRenter} — still available to rent; a real customer rental takes it back automatically.`} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)" }}>◑ Shadow · {({ "info@ortus.solutions": "Ortus", "info@apexstrategy.io": "Apex" } as Record<string, string>)[a.shadowRenter.trim().toLowerCase()] || a.shadowRenter}</span>}
                           {a.inventoryPool === "ortus" && <span title="Ortus inventory — brought in by an Ortus referrer. Hidden from the public catalogue and auto-owned ($0) by info@ortus.solutions." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#ede9fe", color: "#6d28d9" }}>◆ Ortus</span>}
                           {a.inventoryPool === "apex" && <span title="Apex inventory — brought in by an Apex referrer. Hidden from the public catalogue and auto-owned ($0) by info@apexstrategy.io." style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap", background: "#e0f2fe", color: "#0369a1" }}>◆ Apex</span>}

@@ -531,7 +531,7 @@ export default function ProfilePage() {
                         <p className="text-xs text-gray-500 mt-0.5">{currentPaymentDetails}</p>
                       )}
                       {!currentPaymentDetails && (
-                        <p className="text-xs text-gray-400 mt-0.5">Paid on the 1st of each month</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Paid in the first few days of each month</p>
                       )}
                     </div>
                   </div>

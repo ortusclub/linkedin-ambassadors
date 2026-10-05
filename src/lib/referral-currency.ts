@@ -77,8 +77,8 @@ const USD_TIERS: ReferralTiers = { referral: 8, phone: { base: 10, verified: 13 
 export const CURRENCY_CONFIG: Record<Currency, CurrencyConfig> = {
   // PH options ordered by how often people actually get paid that way (GCash dominant,
   // then Maribank / GoTyme / Maya, then the banks); Bank transfer stays the catch-all.
-  PHP: make("PHP", "₱", 500, PHP_TIERS, 500, 500, ["GCash", "Maya", "Maribank", "GoTyme", "UnionBank", "BPI", "BDO", "PayPal", "Wise", "Bank transfer"], "GCash"),
-  USD: make("USD", "$", 8, USD_TIERS, 8, 8, ["UPI", "PayPal", "Wise", "Bank transfer", "GCash", "Maya"], "Wise"),
+  PHP: make("PHP", "₱", 500, PHP_TIERS, 1000, 500, ["GCash", "Maya", "Maribank", "GoTyme", "UnionBank", "BPI", "BDO", "PayPal", "Wise", "Bank transfer"], "GCash"),
+  USD: make("USD", "$", 8, USD_TIERS, 16, 8, ["UPI", "PayPal", "Wise", "Bank transfer", "GCash", "Maya"], "Wise"),
 };
 
 export function currencyConfig(slug: string | null | undefined): CurrencyConfig {
@@ -89,7 +89,6 @@ export function currencyConfig(slug: string | null | undefined): CurrencyConfig 
 // Resolve an owner's currency. An explicit per-owner override ("PHP" | "USD") wins;
 // otherwise it falls back to the referrer's currency. This lets an ambassador be
 // pinned to a currency regardless of who referred them.
-export const REFERRED_SETUP_POLICY_START = new Date("2026-09-27T16:12:00Z");
 export interface OwnerSignup { createdAt?: Date | string | null; diyTier?: string | null; }
 function withSetup(cfg: CurrencyConfig, setupAmount: number): CurrencyConfig {
   return { ...cfg, setupAmount, offer: { ...cfg.offer, setup: cfg.symbol + setupAmount.toLocaleString("en-US") } };
@@ -105,8 +104,10 @@ export function currencyConfigFor(
   const ex = (explicit || "").trim().toUpperCase();
   const cfg = ex === "PHP" || ex === "USD" ? CURRENCY_CONFIG[ex as Currency] : CURRENCY_CONFIG[referralCurrency(slug)];
   const referred = !!slug?.trim() && slug.trim().toLowerCase() !== "diy";
-  const newOffer = !!owner?.createdAt && new Date(owner.createdAt) >= REFERRED_SETUP_POLICY_START;
-  const amount = referred && newOffer ? (cfg.currency === "USD" ? 8 : 500)
+  // A referred owner's one-time bonus is a flat ₱1,000 / $16 (whoever referred them earns
+  // their own commission separately). The higher tiers are only for DIY self-service owners
+  // who did the setup themselves.
+  const amount = referred ? (cfg.currency === "USD" ? 16 : 1000)
     : owner?.diyTier === "full" ? (cfg.currency === "USD" ? 32 : 2000)
     : owner?.diyTier === "partial" ? (cfg.currency === "USD" ? 24 : 1500)
     : (cfg.currency === "USD" ? 16 : 1000);
