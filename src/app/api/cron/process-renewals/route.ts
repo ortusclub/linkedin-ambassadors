@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       const amount = u.autoRechargeAmount!;
       if (u.usdcBalance.greaterThanOrEqualTo(threshold)) continue; // still above threshold
       let ok = false;
+      let piId: string | null = null;
       try {
         const pi = await stripe.paymentIntents.create(
           {
@@ -80,32 +81,39 @@ export async function POST(req: NextRequest) {
           },
           { idempotencyKey: `recharge_${u.id}_${dayKey}` }
         );
+        piId = pi.id;
         ok = pi.status === "succeeded";
       } catch (e) {
         // Card declined / needs authentication — skip; the wallet draw-down below handles
         // the shortfall path (grace), same as any other insufficient-balance renewal.
         console.error("auto-recharge charge failed", u.id, e instanceof Error ? e.message : e);
       }
-      if (ok) {
-        const updated = await prisma.$transaction(async (tx) => {
-          const uu = await tx.user.update({
-            where: { id: u.id },
-            data: { usdcBalance: { increment: amount } },
-            select: { usdcBalance: true },
+      if (ok && piId) {
+        // DB-side idempotency keyed on the PaymentIntent id: the per-day Stripe key means a
+        // same-day re-run gets the SAME PI back (one card charge) — but we must credit the
+        // wallet only ONCE for it, so skip if this PI was already recorded.
+        const already = await prisma.transaction.findFirst({ where: { description: { contains: piId } } });
+        if (!already) {
+          const updated = await prisma.$transaction(async (tx) => {
+            const uu = await tx.user.update({
+              where: { id: u.id },
+              data: { usdcBalance: { increment: amount } },
+              select: { usdcBalance: true },
+            });
+            await tx.transaction.create({
+              data: {
+                userId: u.id, type: "deposit",
+                amount: new Prisma.Decimal(amount),
+                description: `Auto-recharge (card ••${u.cardLast4 ?? ""}) [${piId}]`,
+              },
+            });
+            return uu;
           });
-          await tx.transaction.create({
-            data: {
-              userId: u.id, type: "deposit",
-              amount: new Prisma.Decimal(amount),
-              description: `Auto-recharge (card ••${u.cardLast4 ?? ""})`,
-            },
-          });
-          return uu;
-        });
-        try {
-          await sendTopUpConfirmation({ email: u.email, amount: Number(amount), method: "card", newBalance: Number(updated.usdcBalance) });
-        } catch (e) { console.error(e); }
-        result.recharged++;
+          try {
+            await sendTopUpConfirmation({ email: u.email, amount: Number(amount), method: "card", newBalance: Number(updated.usdcBalance) });
+          } catch (e) { console.error(e); }
+          result.recharged++;
+        }
       }
     }
 
