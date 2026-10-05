@@ -118,10 +118,13 @@ export default function CataloguePage() {
   // MAX_PER_STATUS rented profiles. Everything beyond that is behind the agent CTA.
   const visible = useMemo(() => {
     const sorted = [...accounts].sort((a, b) => statusRank(a) - statusRank(b) || SORTS[sort](a, b));
-    const avail = sorted.filter((a) => a.status === "available").slice(0, MAX_PER_STATUS);
-    const rented = sorted.filter((a) => a.status !== "available").slice(0, MAX_PER_STATUS);
+    // Signed-in renters see the full inventory; the MAX_PER_STATUS teaser cap is only
+    // for anonymous visitors (who get the agent CTA for everything beyond it).
+    const cap = user ? Infinity : MAX_PER_STATUS;
+    const avail = sorted.filter((a) => a.status === "available").slice(0, cap);
+    const rented = sorted.filter((a) => a.status !== "available").slice(0, cap);
     return [...avail, ...rented];
-  }, [accounts, sort]);
+  }, [accounts, sort, user]);
   const hiddenCount = accounts.length - visible.length;
   // Bulk-select only ever covers the rows actually on screen.
   const rentable = visible.filter((a) => a.status === "available");
