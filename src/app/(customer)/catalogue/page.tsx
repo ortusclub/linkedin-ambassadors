@@ -335,7 +335,9 @@ function Actions({ a }: { a: Account }) {
       {isAvailable ? (
         <Link href={`/account/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#00A150", borderRadius: 9, padding: "9px 17px", textDecoration: "none", whiteSpace: "nowrap" }}>Rent</Link>
       ) : soon ? (
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#6D28D9", background: "#EDE9FE", borderRadius: 9, padding: "9px 15px", whiteSpace: "nowrap" }}>Available soon</span>
+        // "Available soon" is already shown by the status badge (list) / corner tag
+        // (grid) — no second action pill, which kept overflowing onto the price column.
+        null
       ) : (
         <span style={{ fontSize: 13, fontWeight: 600, color: "#96A0AD", background: "#F2F4F7", borderRadius: 9, padding: "9px 15px", whiteSpace: "nowrap" }}>Rented</span>
       )}
