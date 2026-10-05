@@ -63,6 +63,13 @@ model User {
   stripePaymentMethodId String? @map("stripe_payment_method_id")
   cardBrand         String?    @map("card_brand")
   cardLast4         String?    @map("card_last4")
+  // Twilio-style auto-recharge: when the wallet balance drops below `autoRechargeThreshold`,
+  // the daily cron charges the saved card for `autoRechargeAmount` and credits the wallet.
+  // `autoRechargeEnabled` is the renter's explicit consent to automatic card charges — no
+  // card is ever auto-charged unless this is on. Off => wallet draws down + manual top-up only.
+  autoRechargeEnabled   Boolean  @default(false) @map("auto_recharge_enabled")
+  autoRechargeThreshold Decimal? @map("auto_recharge_threshold") @db.Decimal(10, 2)
+  autoRechargeAmount    Decimal? @map("auto_recharge_amount") @db.Decimal(10, 2)
   isTest            Boolean    @default(false) @map("is_test")
   // "Shadow renter" (e.g. Apex Strategy): rents idle accounts at a flat rate WITHOUT
   // removing them from the catalogue. A real customer can still rent the same account,
@@ -82,6 +89,28 @@ model User {
   depositAddress    DepositAddress?
 
   @@map("users")
+}
+
+// Admin-managed voucher / discount codes applied at checkout (and locked onto the rental
+// so renewals keep the discounted rate). Three kinds via `type`:
+//   - "percent": `value` = % off the list price (0-100)
+//   - "fixed":   `value` = $ off the list price
+//   - "flat":    `value` = the exact $/mo price the renter pays, overriding list price
+// DB-backed (not Stripe coupons) because our rentals bill from the wallet, not a Stripe sub.
+model DiscountCode {
+  id             String    @id @default(uuid()) @db.Uuid
+  code           String    @unique
+  type           String    // percent | fixed | flat
+  value          Decimal   @db.Decimal(10, 2)
+  active         Boolean   @default(true)
+  maxRedemptions Int?      @map("max_redemptions")
+  timesRedeemed  Int       @default(0) @map("times_redeemed")
+  expiresAt      DateTime? @map("expires_at")
+  note           String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("discount_codes")
 }
 
 model Session {
@@ -251,6 +280,8 @@ model Rental {
   // current listed price. Lets us raise catalogue prices while grandfathering existing
   // renters at their original rate (e.g. Nico locked at $50 while inventory lists $75).
   lockedPrice           Decimal?     @map("locked_price") @db.Decimal(10, 2)
+  // Voucher code applied at checkout (audit only; the discounted rate lives in lockedPrice).
+  discountCode          String?      @map("discount_code")
   accessRevokedAt       DateTime?    @map("access_revoked_at")
   paused                Boolean      @default(false)
   // GoLogin shares created for this rental, so we can revoke them on pause:

@@ -7,11 +7,12 @@ import { sendRentalReadyEmail, sendRentalNotification } from "@/services/email";
 import { grantRentalAccess } from "@/lib/rental-access";
 import { SALES_NAV_MONTHLY } from "@/lib/utils";
 import { SHADOW_MONTHLY_PRICE, yieldShadowRentals, isShadowRenterEmail, shadowRateFor } from "@/lib/shadow-rental";
+import { lookupDiscount, discountedPrice, consumeDiscount, type AppliedDiscount } from "@/lib/discounts";
 
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    const { accountIds, autoRenew = true } = await req.json();
+    const { accountIds, autoRenew = true, discountCode: rawDiscountCode } = await req.json();
 
     if (!accountIds || !Array.isArray(accountIds) || accountIds.length === 0) {
       return NextResponse.json({ error: "No accounts selected" }, { status: 400 });
@@ -54,14 +55,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No selected accounts are available" }, { status: 400 });
     }
 
+    // Voucher / discount code (not applicable to shadow renters, who pay a fixed flat rate).
+    // Validate up front so a bad code fails the whole order cleanly; the discounted rate is
+    // locked onto each rental so renewals keep it.
+    let discount: AppliedDiscount | undefined;
+    if (!isShadow && rawDiscountCode) {
+      const look = await lookupDiscount(rawDiscountCode);
+      if (!look.ok || !look.discount) {
+        return NextResponse.json({ error: look.error || "That code isn't valid." }, { status: 400 });
+      }
+      discount = look.discount;
+    }
+
     // Effective monthly charge per account = base price + Sales Nav add-on (if chosen
-    // and not already included). This is the amount we bill now AND lock in for renewals.
-    // Shadow renters ignore all of that and pay the flat shadow rate instead.
+    // and not already included), then any voucher applied. This is the amount we bill now
+    // AND lock in for renewals. Shadow renters ignore all of that and pay the flat rate.
     const addonFor = (a: (typeof accounts)[number]) =>
       !isShadow && salesNavSet.has(a.id) && !a.hasSalesNav ? SALES_NAV_MONTHLY : 0;
     const shadowRate = new Prisma.Decimal(shadowRateFor(user.email) ?? SHADOW_MONTHLY_PRICE);
-    const priceFor = (a: (typeof accounts)[number]) =>
-      isShadow ? shadowRate : new Prisma.Decimal(monthlyRentalPrice(a)).add(addonFor(a));
+    const priceFor = (a: (typeof accounts)[number]) => {
+      if (isShadow) return shadowRate;
+      const base = new Prisma.Decimal(monthlyRentalPrice(a)).add(addonFor(a));
+      return discount ? new Prisma.Decimal(discountedPrice(base.toNumber(), discount)) : base;
+    };
 
     const totalPrice = accounts.reduce(
       (sum, a) => sum.add(priceFor(a)),
@@ -117,9 +133,10 @@ export async function POST(req: Request) {
               // shadow renter, or base+Sales Nav add-on otherwise (all billing paths read
               // lockedPrice ?? monthlyPrice).
               lockedPrice: effectivePrice,
+              discountCode: discount ? discount.code : null,
               notes: isShadow
                 ? `Shadow rental (${SHADOW_MONTHLY_PRICE}/mo) — stays in catalogue; yields to a real rental`
-                : withSalesNav ? "Sales Navigator add-on (+$70/mo)" : null,
+                : discount ? `Voucher ${discount.code} applied` : withSalesNav ? "Sales Navigator add-on (+$70/mo)" : null,
               currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
             },
           });
@@ -145,6 +162,9 @@ export async function POST(req: Request) {
 
           arr.push({ rentalId: rental.id, accountId: account.id });
         }
+
+        // Count one redemption for the whole order (one use of the code).
+        if (discount) await consumeDiscount(discount.code, tx);
 
         return arr;
       });
