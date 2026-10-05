@@ -135,6 +135,22 @@ export const levelOf = (r: Row): 0 | 0.5 | 1 | 2 | 3 | 4 | 5 => {
 };
 export const levelKey = (r: Row): number => levelOf(r);
 
+// Effective application Type. Uses the recorded tier (diyTier, written by the self-service
+// wizard / apply form) when present; otherwise derives it from how far onboarding actually
+// got, so active rows auto-show Form / Email-2FA / Full-service instead of "Not recorded":
+//   logged into GoLogin (level 3+) → Full-service · email & 2FA set (level 2) → Email/2FA ·
+//   application received (level 1) → Form · nothing started (dead / accountOnly) → Not recorded.
+// Display only — it does NOT overwrite diyTier, so referrer-payout attribution stays as recorded.
+export const effectiveTypeKey = (r: Row): string => {
+  if (r.diyTier) return r.diyTier;
+  const lvl = levelOf(r);
+  if (lvl >= 3) return "full";
+  if (lvl === 2) return "partial";
+  if (lvl >= 1) return "standard";
+  return "unknown";
+};
+export const effectiveType = (r: Row) => APPLICATION_TYPES.find((t) => t.key === effectiveTypeKey(r)) || APPLICATION_TYPES[3];
+
 export const healthOf = (r: Row): Health => {
   switch (r.status) {
     case "rejected": return "rejected";

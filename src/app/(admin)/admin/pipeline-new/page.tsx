@@ -11,7 +11,7 @@ import { isLikelyTestEmail } from "@/lib/test-mode";
 import { CardDetail, AccountOnlyCard } from "@/components/admin/pipeline-panel";
 import {
   type Row, type Status, type Turn, F_SANS, F_GRO, labelCss, inputCss,
-  applicationType, APPLICATION_TYPES, levelOf, levelKey, LEVEL_CHIP, LEVEL_GROUPS,
+  applicationType, effectiveType, effectiveTypeKey, APPLICATION_TYPES, levelOf, levelKey, LEVEL_CHIP, LEVEL_GROUPS,
   healthOf, HEALTH_OPTIONS, isRestricted, turnOf,
   cfgOf, monthlyAmt, fmtDate, ageDays, initialsOf,
 } from "@/lib/pipeline-model";
@@ -42,7 +42,7 @@ const handlerColor = (name: string): string => {
 const TYPE_COLOR: Record<string, [string, string]> = {
   standard: ["#eef1f5", "#334155"], partial: ["#e0f2fe", "#075985"], full: ["#ede9fe", "#5b21b6"], unknown: ["#f1f3f6", "#9aa0a6"],
 };
-const typeColor = (r: Row) => TYPE_COLOR[applicationType(r).key] || TYPE_COLOR.unknown;
+const typeColor = (r: Row) => TYPE_COLOR[effectiveTypeKey(r)] || TYPE_COLOR.unknown;
 // Level pill colours by ladder stage (matches the mock STAGES palette).
 const LEVEL_PILL: Record<string, [string, string]> = {
   "0.5": ["#fef3c7", "#92400e"], "1": ["#dbeafe", "#1e40af"], "2": ["#dbeafe", "#1e40af"], "3": ["#ffedd5", "#9a3412"], "4": ["#ede9fe", "#5b21b6"], "5": ["#dcfce7", "#166534"], "0": ["#fee2e2", "#991b1b"],
@@ -253,7 +253,7 @@ export default function PipelineNewPage() {
       if (whoF !== "all") { const p = (r.poc || "").trim(); if (whoF === "__unassigned" ? p !== "" : whoF === "__me" ? p !== me : p !== whoF) return false; }
       if (levelF !== "all" && levelKey(r) !== levelF) return false;
       if (healthF !== "all") { if (healthF === "restricted") { if (!isRestricted(r)) return false; } else if (healthOf(r) !== healthF) return false; }
-      if (typeF !== "all" && applicationType(r).key !== typeF) return false;
+      if (typeF !== "all" && effectiveTypeKey(r) !== typeF) return false;
       if (!q) return true;
       return [r.fullName, r.email, r.contactNumber, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc, ...(r.outreachLog || []).map((x) => x.text)].some((v) => (v || "").toLowerCase().includes(q));
     });
@@ -438,7 +438,7 @@ function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onCl
           <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.email}{r.contactNumber ? ` · ${r.contactNumber}` : ""}</div>
         </div>
         {r.referredBy ? <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} style={{ font: `700 12.5px ${F_SANS}`, color: "var(--link,#0a66c2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.referredBy}</a> : <span style={{ color: "var(--muted2,#b6bbc2)" }}>—</span>}
-        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 7, background: typeColor(r)[0], color: typeColor(r)[1], whiteSpace: "nowrap" }}>{applicationType(r).label}</span>
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 7, background: typeColor(r)[0], color: typeColor(r)[1], whiteSpace: "nowrap" }}>{effectiveType(r).label}</span>
         <div style={{ display: "flex", flexDirection: "column" }}><span style={{ font: `700 12.5px ${F_GRO}`, color: applied >= 14 && !["live", "dead"].includes(t.turn) ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" }}>{applied === 0 ? "Today" : applied + "d"}</span><span style={{ font: `500 10px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>{fmtDate(r.createdAt)}</span></div>
         <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: r.linkedinVerified ? "#dcfce7" : "#f1f3f6", color: r.linkedinVerified ? "#15803d" : "#9aa0a6", whiteSpace: "nowrap" }}>{r.linkedinVerified ? "✓ Yes" : "No"}</span>
         <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: levelPill(lvl)[0], color: levelPill(lvl)[1], whiteSpace: "nowrap" }}>{LEVEL_CHIP[String(lvl)]}</span>
