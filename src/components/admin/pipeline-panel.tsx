@@ -168,7 +168,7 @@ function SignupMeeting({ r }: { r: Row }) {
   </div>;
 }
 
-export function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void }) {
+export function WorkflowRail({ r, busy, workflow, setStage }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void; setStage: (r: Row, s: Status) => void }) {
   const qcPassed = !!r.verifiedAt;
   const matureStartMs = r.verifiedAt ? new Date(r.verifiedAt).getTime() : null;
   const matureDue = matureStartMs !== null ? matureStartMs + holdDays(r) * 86400000 : null;
@@ -242,13 +242,15 @@ export function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; wor
     },
     {
       label: "Step 5", title: "Matured — ready to onboard",
-      sub: !qcPassed ? "starts once QC is passed" : matured ? "maturation complete" : `maturing · ready ${matureDue ? fmtDate(new Date(matureDue).toISOString()) : "—"}`,
-      done: matured,
-      render: () => !qcPassed
+      sub: !qcPassed ? "starts once QC is passed" : r.status === "onboarded" ? "live & earning" : matured ? "ready — mark onboarded" : `maturing · ready ${matureDue ? fmtDate(new Date(matureDue).toISOString()) : "—"}`,
+      done: r.status === "onboarded",
+      render: (isNext: boolean) => !qcPassed
         ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>🔒 pass QC to begin</span>
-        : matured
-          ? doneBadge("Matured — ready")
-          : <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing · 1 week hold…</span>,
+        : r.status === "onboarded"
+          ? doneBadge("Onboarded — live")
+          : !matured
+            ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing · 1 week hold…</span>
+            : <button onClick={() => setStage(r, "onboarded")} disabled={busy} title="Mark the account onboarded & live (needs a GoLogin profile)" style={primaryBtn(isNext)}>Mark onboarded (live)</button>,
     },
   ];
   let unlocked = true;
@@ -413,7 +415,7 @@ export function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
 // card grid. Applicant / Sign-in & credentials / Payout cards have a per-card read↔edit
 // toggle; Payments is a compact summary that links out to the Payouts page. Same wiring.
 export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
-  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, provisionGologin, deleteGologin, logTouch, onDeleteApp } = h;
+  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, deleteGologin, logTouch, onDeleteApp } = h;
   const [editSec, setEditSec] = useState<string | null>(null);
   const live = isLive(r);
   const onboarded = r.status === "onboarded";
@@ -483,7 +485,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
 
   return (
     <div style={{ borderTop: "1px solid var(--divider,#eee)", background: "var(--panel,#fafafa)", padding: 16 }}>
-      {!onboarded && <WorkflowRail r={r} busy={busy} workflow={workflow} />}
+      {!onboarded && <WorkflowRail r={r} busy={busy} workflow={workflow} setStage={setStage} />}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "flex-start" }}>
         {/* ── Left column: Applicant · Sign-in & credentials ── */}
