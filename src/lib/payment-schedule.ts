@@ -104,7 +104,12 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   const horizonEnd = now + horizonDays * DAY;
 
   const apps = await prisma.ambassadorApplication.findMany({
-    where: { status: "onboarded" },
+    // "Onboarded" means the setup fee is PAID (the canonical rule) — NOT the raw status enum.
+    // A referral/payout that has passed login + QC + setup payment must count even if the
+    // pipeline status was never flipped off "approved" (marking the setup fee paid doesn't
+    // touch application status). So include anyone whose setup fee is marked paid, not just
+    // status=onboarded. Milestone gates downstream (isReferralEarned, maturing) still apply.
+    where: { OR: [{ status: "onboarded" }, { paidAt: { not: null } }] },
     select: {
       id: true, fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
