@@ -438,19 +438,23 @@ export const GRID4: CSSProperties = { display: "grid", gridTemplateColumns: "rep
 // us = needs an admin now · them = waiting on applicant/referrer · timer = maturing
 // hold (the ONLY wait) · live = onboarded & earning · dead = not progressing.
 export type Turn = "us" | "them" | "timer" | "live" | "dead";
-export const WAIT_DAYS = 3;
+export const WAIT_DAYS = 1; // daily: once we've messaged, re-check for a reply the next day
 export const MAX_CHASES = 3;
 // Outbound chases (our messages, excluding replies/bookings/notes) — the chase counter.
 // Human follow-ups only: automated nudges (Fast-track invites etc., logged by "Auto"/
 // system) do NOT count toward the chase total or the "mark Stopped after 3 chases" gate.
 const AUTO_BY = /^(auto|system|pipeline|scheduler)$/i;
 export const chaseCount = (r: Row) => (r.outreachLog || []).filter((t) => !["reply", "booked", "done", "note"].includes(t.ch) && !AUTO_BY.test((t.by || "").trim())).length;
-// Days since our last outbound touch (or signup if none) — the "gone quiet" clock.
+// Days since our last HUMAN outbound touch (or signup if none) — the "gone quiet" clock.
+// Auto nudges don't count, so an automated email doesn't make a row look recently worked.
 export const idleDays = (r: Row) => {
-  const outbound = (r.outreachLog || []).filter((t) => !["reply", "booked", "done", "note"].includes(t.ch));
+  const outbound = (r.outreachLog || []).filter((t) => !["reply", "booked", "done", "note"].includes(t.ch) && !AUTO_BY.test((t.by || "").trim()));
   const at = outbound.length ? outbound[outbound.length - 1].at : r.createdAt;
   return ageDays(at);
 };
+// Did we send a human outbound message TODAY? Such a row is "actioned today" → it drops to
+// Waiting on them until tomorrow, so To action only shows what still needs us right now.
+export const actionedToday = (r: Row): boolean => (r.outreachLog || []).some((t) => !["reply", "booked", "done", "note"].includes(t.ch) && !AUTO_BY.test((t.by || "").trim()) && ageDays(t.at) === 0);
 // Has a chase been sent since the restriction was recorded? (then it's with the owner)
 export const chasedSinceRestricted = (r: Row): boolean => {
   if (!r.accountRestrictedAt) return false;
@@ -509,5 +513,9 @@ export const turnOf = (r: Row): TurnInfo => {
   }
 
   if (ns.state === "done") return { turn: "live", label: ns.label };
+  // Actioned today: if we already messaged this person/referrer today, there's nothing
+  // more to do now — snooze it to Waiting on them until tomorrow, when it returns to To
+  // action to check for a reply. Keeps To action to rows that still need us right now.
+  if (actionedToday(r)) return { turn: "them", label: `${ns.label} — messaged today, check tomorrow` };
   return { turn: "us", label: ns.label };
 };
