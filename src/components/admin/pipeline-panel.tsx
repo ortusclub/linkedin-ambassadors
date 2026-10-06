@@ -583,8 +583,15 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)", flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
             {r.status !== "approved" && r.status !== "onboarding" && <button onClick={() => workflow(r.id, { status: "onboarding", applicationReceived: true })} disabled={busy} title="They've agreed — start onboarding (Level 1 · add email & 2FA)" style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)" }}>✓ Accept → Level 1</button>}
+            {r.status !== "rejected" && r.status !== "unreachable" && (
+              <select value="" disabled={busy} onChange={(e) => { if (e.target.value) void workflow(r.id, { status: e.target.value }); }} title="Stop / close this application (Withdrawn lives in the Status toggle above)" style={{ font: `700 12px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "var(--card,#fff)", border: "1px solid var(--danger-border,#e6b4ad)", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>
+                <option value="">Close application…</option>
+                <option value="unreachable">Unresponsive — no reply</option>
+                <option value="rejected">Rejected — doesn&apos;t qualify</option>
+              </select>
+            )}
           </div>
-          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Accepting reveals the inventory profile · other states from the status dropdown</span>
+          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Accepting reveals the inventory profile · reopen a closed one with Accept</span>
         </div>
       ) : onboarded ? (
         <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)" }}>
