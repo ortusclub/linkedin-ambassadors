@@ -12,6 +12,7 @@ const SECTIONS = [
   { id: "sec-limits", label: "Your daily limits" },
   { id: "sec-automation", label: "Automation & scraping" },
   { id: "sec-dos", label: "Do's and don'ts" },
+  { id: "sec-editing", label: "Editing the profile" },
   { id: "sec-wrong", label: "If something goes wrong" },
   { id: "sec-questions", label: "Questions?" },
 ];
@@ -55,6 +56,30 @@ const DONTS = [
   "Never use it for anything illegal, fraudulent, or deceptive.",
 ];
 
+const PROFILE_EDITING = [
+  "Never change several things in one session. Editing the About, headline, job, banner, location, or adding and deleting info all at once is the single fastest way to get an account restricted.",
+  "Make one change at a time, then leave the account alone for at least a day before the next.",
+  "Spread a full optimisation over about two weeks — roughly: industry, then About, then headline, skills, banner, location, job title.",
+  "Go very light on the banner, and never touch the name or photo — those are the highest-risk edits.",
+  "Only edit from inside the GoLogin profile, never a separate browser.",
+  "After a fresh handover, leave the profile as-is for the first few days before making any changes.",
+];
+
+const AFTER_RESTRICTION: [string, string][] = [
+  ["Stop straight away.", "Don't keep logging in, retrying, or editing — repeated attempts deepen the restriction and reset the recovery clock."],
+  ["Leave it alone.", "Most restrictions are temporary and lift on their own within a few days if the account is left untouched."],
+  ["Don't change the password, email, or settings.", "LinkedIn locks settings changes after a flag, and trying only triggers further blocks."],
+  ["Don't try to appeal or verify it yourself.", "If LinkedIn asks for ID or an appeal, leave it — we handle all verification and recovery on our side."],
+  ["Flag it to us right away.", "The sooner we know, the sooner we can start the recovery."],
+];
+
+const AFTER_RECOVERY = [
+  "Treat it like a brand-new account — a just-recovered profile is fragile and re-restricts easily.",
+  "Keep activity very low for the first week (a handful of actions a day), then build back up slowly.",
+  "Hold off on any profile edits for a couple of weeks while it settles.",
+  "If LinkedIn shows any warning, stop and pause for a few days — don't push through it.",
+];
+
 const RECOVERY: [string, string][] = [
   ["Let us handle the recovery — don't appeal it yourself.", "If an account gets restricted, please don't try to appeal or contact LinkedIn on your own. Just flag it to us and we'll sort it out — appealing yourself can make it harder to get back."],
   ["We'll always work to get it back.", "Whatever caused it, we jump on recovery straight away."],
@@ -73,6 +98,7 @@ const secIcon: Record<string, { bg: string; fg: string; path: React.ReactNode }>
   "sec-automation": { bg: "#F1EFFB", fg: "#5747C9", path: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></> },
   "sec-dos": { bg: "#EAF2FC", fg: "#0A66C2", path: <><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></> },
   "sec-wrong": { bg: "#E4F6EC", fg: "#067A45", path: <><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></> },
+  "sec-editing": { bg: "#F1EFFB", fg: "#5747C9", path: <><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></> },
 };
 
 function SecHead({ id, title }: { id: string; title: string }) {
@@ -243,10 +269,40 @@ export default function AccountGuideView() {
             </div>
           </section>
 
+          {/* editing the profile */}
+          <section id="sec-editing">
+            <SecHead id="sec-editing" title="Editing the profile" />
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 20px" }}>Happy to tailor the profile for you — just <a href={SUPPORT} target="_blank" rel="noopener noreferrer" style={{ color: "#0A66C2", fontWeight: 600, textDecoration: "none" }}>message us</a> and we&apos;ll handle it. If you&apos;re editing it yourself, <strong style={{ color: "#0B1220" }}>how you do it matters more than what you change</strong> — editing is where most restrictions come from.</p>
+            <div style={{ ...card, padding: "24px 28px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
+                {PROFILE_EDITING.map((t) => (
+                  <div key={t} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, background: "#F1EFFB", color: "#5747C9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, marginTop: 1 }}>✓</span>
+                    <p style={{ fontSize: 15, lineHeight: 1.6, color: "#37424F", margin: 0 }}>{t}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ ...amber, marginTop: 16 }}>
+              <span style={{ flexShrink: 0, fontSize: 18 }}>⚠️</span>
+              <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#8A5216", margin: 0 }}><strong style={{ color: "#6B3E0C" }}>The one to avoid:</strong> a full profile makeover in a single session — new About, banner, job, location and info all at once. On an aged account LinkedIn reads that as a takeover and locks it. Space the changes out and you&apos;re fine.</p>
+            </div>
+          </section>
+
           {/* if something goes wrong */}
           <section id="sec-wrong">
             <SecHead id="sec-wrong" title="If something goes wrong" />
-            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 20px" }}>Restrictions happen now and then, even to careful users — it&apos;s part of LinkedIn, and most are temporary. Here&apos;s exactly how we handle it, so there are never surprises.</p>
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 20px" }}>Restrictions happen now and then, even to careful users — it&apos;s part of LinkedIn, and most are temporary. What you do in the first few minutes matters, so here&apos;s exactly how to handle it.</p>
+            <p style={{ fontSize: 14.5, fontWeight: 600, color: "#0B1220", margin: "0 0 14px" }}>The moment an account gets restricted:</p>
+            <div style={{ ...card, padding: "26px 28px", display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
+              {AFTER_RESTRICTION.map(([t, b]) => (
+                <div key={t} style={{ display: "flex", gap: 13, alignItems: "flex-start" }}>
+                  <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, background: "#FCE9BF", color: "#8A5216", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, marginTop: 1 }}>!</span>
+                  <p style={{ fontSize: 15, lineHeight: 1.65, color: "#37424F", margin: 0 }}><strong style={{ color: "#0B1220" }}>{t}</strong> {b}</p>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 14.5, fontWeight: 600, color: "#0B1220", margin: "0 0 14px" }}>How we handle it:</p>
             <div style={{ ...card, padding: "26px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
               {RECOVERY.map(([t, b]) => (
                 <div key={t} style={{ display: "flex", gap: 13, alignItems: "flex-start" }}>
@@ -254,6 +310,17 @@ export default function AccountGuideView() {
                   <p style={{ fontSize: 15, lineHeight: 1.65, color: "#37424F", margin: 0 }}><strong style={{ color: "#0B1220" }}>{t}</strong> {b}</p>
                 </div>
               ))}
+            </div>
+            <p style={{ fontSize: 14.5, fontWeight: 600, color: "#0B1220", margin: "22px 0 14px" }}>Once it&apos;s back up — ease in gently:</p>
+            <div style={{ ...card, padding: "24px 28px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
+                {AFTER_RECOVERY.map((t) => (
+                  <div key={t} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, background: "#E4F6EC", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, marginTop: 1 }}>✓</span>
+                    <p style={{ fontSize: 15, lineHeight: 1.6, color: "#37424F", margin: 0 }}>{t}</p>
+                  </div>
+                ))}
+              </div>
             </div>
             <p style={{ fontSize: 14.5, fontWeight: 600, color: "#0B1220", margin: "22px 0 14px" }}>And if an account keeps getting restricted from heavy use, here&apos;s what happens — we keep it fair and predictable:</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
