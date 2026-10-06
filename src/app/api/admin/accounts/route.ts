@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
           // are excluded here — they don't occupy the account, and are surfaced
           // separately as `shadowRenter` so an "Available" row still reads Available.
           where: { status: { in: ["active", "payment_failed"] }, isShadow: false },
-          include: { user: { select: { fullName: true, email: true } } },
+          include: { user: { select: { id: true, fullName: true, email: true } } },
           orderBy: { createdAt: "desc" },
           take: 1,
         },

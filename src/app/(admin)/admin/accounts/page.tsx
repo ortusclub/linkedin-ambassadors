@@ -171,7 +171,7 @@ interface Account {
   paymentTrackedFrom: string | null;
   paymentTelegramChatId: string | null;
   paymentWhatsapp: string | null;
-  rentals: Array<{ lockedPrice: string | number | null; currentPeriodEnd: string | null; autoRenew: boolean; status: string; updatedAt: string | null; user: { fullName: string; email: string } }>;
+  rentals: Array<{ lockedPrice: string | number | null; currentPeriodEnd: string | null; autoRenew: boolean; status: string; updatedAt: string | null; user: { id: string; fullName: string; email: string } }>;
   cryptoPayments?: Array<{ amount: string | number; paidAt: string }>;
 }
 
@@ -378,11 +378,83 @@ const isOfferable = (a: Account) => !isDummy(a) && canonicalStatus(a) === "Avail
 
 const GRID = "minmax(0,1fr) 132px 84px 150px 168px 214px";
 
+type RenterOption = { id: string; name: string; email: string; count: number };
+
+// Search all renters, but mount at most 25 results at once. The control occupies
+// the same space with ten renters or a thousand; identity is the user ID, not name.
+function RenterFilter({ options, value, onChange }: { options: RenterOption[]; value: string; onChange: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const selected = options.find((r) => r.id === value);
+  const matches = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase();
+    return options.filter((r) => `${r.name} ${r.email}`.toLocaleLowerCase().includes(q));
+  }, [options, query]);
+  const currentPage = Math.min(page, Math.max(0, Math.ceil(matches.length / 25) - 1));
+  const close = () => { setOpen(false); trigger.current?.focus(); };
+  const choose = (id: string) => { onChange(id); close(); };
+  useEffect(() => {
+    if (!open) return;
+    input.current?.focus();
+    const outside = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [open]);
+  useEffect(() => { list.current?.scrollTo(0, 0); }, [currentPage, query]);
+  const buttonStyle: React.CSSProperties = { font: `600 12.5px ${F_SANS}`, color: "var(--text)", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 9, padding: "8px 12px", cursor: "pointer" };
+  return (
+    <div ref={root} style={{ position: "relative", display: "flex", alignItems: "center", gap: 8, maxWidth: "100%" }}
+      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
+      onKeyDown={(event) => { if (event.key === "Escape" && open) { event.preventDefault(); event.stopPropagation(); close(); } }}>
+      <button ref={trigger} type="button" aria-haspopup="dialog" aria-expanded={open} aria-controls="inventory-renter-filter"
+        onClick={() => { setQuery(""); setPage(0); setOpen(!open); }}
+        style={{ ...buttonStyle, display: "flex", alignItems: "center", gap: 12, maxWidth: 260, borderColor: value ? "var(--chip-active-border)" : "var(--card-border)", background: value ? "var(--chip-active-bg)" : "var(--card)" }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value ? selected?.name || "Selected renter" : "All renters"}</span><span aria-hidden="true">▾</span>
+      </button>
+      {value && <button type="button" onClick={() => onChange("")} style={buttonStyle} aria-label="Clear renter filter">Clear</button>}
+      {open && (
+        <div id="inventory-renter-filter" role="dialog" aria-label="Filter by renter" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, width: 340, maxWidth: "calc(100vw - 100px)", zIndex: 30, background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 12, padding: 12, boxShadow: "0 12px 35px rgba(0,0,0,.16)" }}>
+          <input ref={input} aria-label="Search renters by name or email" placeholder="Search renters by name or email…" value={query}
+            onChange={(event) => { setQuery(event.target.value); setPage(0); }}
+            style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--input-border)", background: "var(--input-bg)", color: "var(--input-fg)", font: `500 13px ${F_SANS}` }} />
+          <button type="button" aria-pressed={!value} onClick={() => choose("")} style={{ ...buttonStyle, width: "100%", textAlign: "left", margin: "8px 0" }}>All renters</button>
+          <div ref={list} style={{ maxHeight: 280, overflowY: "auto" }}>
+            {matches.slice(currentPage * 25, (currentPage + 1) * 25).map((renter) => (
+              <button type="button" key={renter.id} aria-pressed={value === renter.id} onClick={() => choose(renter.id)}
+                style={{ ...buttonStyle, width: "100%", display: "flex", alignItems: "center", gap: 12, textAlign: "left", marginBottom: 4, background: value === renter.id ? "var(--chip-active-bg)" : "var(--card)" }}>
+                <span style={{ minWidth: 0, flex: 1 }}><span style={{ display: "block", overflowWrap: "anywhere" }}>{renter.name}</span><span style={{ display: "block", fontSize: 11, fontWeight: 400, color: "var(--muted)", overflowWrap: "anywhere" }}>{renter.email}</span></span>
+                <span title="Accounts in Rented" style={{ color: "var(--muted)", flexShrink: 0 }}>{renter.count}</span>
+              </button>
+            ))}
+            {matches.length === 0 && <p role="status" style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>No renters found.</p>}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8, font: `500 11px ${F_SANS}`, color: "var(--muted)" }}>
+            <span aria-live="polite">{matches.length ? `${currentPage * 25 + 1}–${Math.min((currentPage + 1) * 25, matches.length)} of ${matches.length}` : "0 renters"}</span>
+            {matches.length > 25 && <div style={{ display: "flex", gap: 4 }}>
+              <button type="button" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)} style={buttonStyle} aria-label="Previous renters">←</button>
+              <button type="button" disabled={(currentPage + 1) * 25 >= matches.length} onClick={() => setPage(currentPage + 1)} style={buttonStyle} aria-label="Next renters">→</button>
+            </div>}
+          </div>
+          <p style={{ margin: "8px 0 0", font: `400 11px ${F_SANS}`, color: "var(--muted)" }}>Counts show accounts in Rented before other filters.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [updateOrder, setUpdateOrder] = useState<"newest" | "oldest">("newest");
   const [filter, setFilter] = useState("all");
+  const [renterFilter, setRenterFilter] = useState("");
   const [pocFilter, setPocFilter] = useState("all");
   const [verifiedFilter, setVerifiedFilter] = useState<"all" | "yes" | "no">("all");
   const [connFilter, setConnFilter] = useState("all");
@@ -592,6 +664,22 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
   // DO belong in inventory — visible but not rentable until flipped to Available by hand.
   const shown = useMemo(() => accounts.filter((a) => groupKey(a) !== "Initial"), [accounts]);
 
+  const renterOptions = useMemo(() => {
+    const renters = new Map<string, RenterOption>();
+    for (const a of shown) {
+      if (groupKey(a) !== "Rented") continue;
+      const user = a.rentals?.[0]?.user;
+      const id = user?.id || "__unassigned";
+      const existing = renters.get(id);
+      if (existing) existing.count++;
+      else renters.set(id, {
+        id, name: user?.fullName.replace(/\s*\((?:Telegram|WhatsApp)\)\s*$/i, "") || "No renter assigned",
+        email: user?.email || "", count: 1,
+      });
+    }
+    return [...renters.values()].sort((a, b) => a.name.localeCompare(b.name) || a.email.localeCompare(b.email));
+  }, [shown]);
+
   const counts = useMemo(() => {
     const real = shown.filter((a) => !isDummy(a));
     const c = (label: string) => real.filter((a) => canonicalStatus(a) === label).length;
@@ -626,6 +714,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     const q = search.trim().toLowerCase();
     const base = shown.filter((a) => {
       if (filter !== "all" && groupKey(a) !== filter) return false;
+      if (filter === "Rented" && renterFilter && (a.rentals?.[0]?.user?.id || "__unassigned") !== renterFilter) return false;
       if (verifiedFilter === "yes" && !a.linkedinVerified) return false;
       if (verifiedFilter === "no" && a.linkedinVerified) return false;
       if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
@@ -640,7 +729,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
     // A fresh sort happens only when the controls change (this signature), or on
     // first load. Otherwise we reuse the remembered order so edits don't reshuffle.
-    const sig = JSON.stringify([filter, verifiedFilter, connFilter, supplyFilter, pocFilter, q, updateOrder]);
+    const sig = JSON.stringify([filter, renterFilter, verifiedFilter, connFilter, supplyFilter, pocFilter, q, updateOrder]);
     if (orderRef.current.sig !== sig) {
       const sorted = sortAccountsByLastUpdated(base, updateOrder);
       orderRef.current = { sig, ids: sorted.map((a) => a.id) };
@@ -658,7 +747,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     const merged = [...ordered, ...sortAccountsByLastUpdated(added, updateOrder)];
     orderRef.current = { sig, ids: merged.map((a) => a.id) };
     return merged;
-  }, [shown, filter, verifiedFilter, connFilter, supplyFilter, pocFilter, search, updateOrder]);
+  }, [shown, filter, renterFilter, verifiedFilter, connFilter, supplyFilter, pocFilter, search, updateOrder]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allExpanded = filtered.length > 0 && filtered.every((a) => expanded.has(a.id));
@@ -728,12 +817,20 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       <div role="group" aria-label="Filter by status" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <span style={{ ...labelCss, marginRight: 2 }}>Status</span>
         {CHIPS.map(([key, lbl, n, dot]) => (
-          <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)} style={chip(filter === key)}>
+          <button key={key} type="button" aria-pressed={filter === key} onClick={() => { setFilter(key); setRenterFilter(""); }} style={chip(filter === key)}>
             {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
             {lbl}<span style={{ color: "var(--muted)" }}>{n}</span>
           </button>
         ))}
       </div>
+
+      {filter === "Rented" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+          <span style={labelCss}>Renter</span>
+          <RenterFilter options={renterOptions} value={renterFilter} onChange={setRenterFilter} />
+          <span role="status" style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{filtered.length} matching account{filtered.length === 1 ? "" : "s"}</span>
+        </div>
+      )}
 
       {/* LV PoC filter (the LinkedVelocity rep who onboarded the account) */}
       {(() => {
