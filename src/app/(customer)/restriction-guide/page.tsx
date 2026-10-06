@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import RestrictionGuideView from "./restriction-guide-view";
+import RestrictionGuideView from "@/components/restriction-guide-view";
 
 export const metadata: Metadata = {
   title: "Managing a LinkedIn restriction — owner & referrer guide",
