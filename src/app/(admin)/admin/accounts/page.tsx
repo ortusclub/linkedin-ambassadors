@@ -442,7 +442,7 @@ function RenterFilter({ options, value, onChange }: { options: RenterOption[]; v
               <button type="button" disabled={(currentPage + 1) * 25 >= matches.length} onClick={() => setPage(currentPage + 1)} style={buttonStyle} aria-label="Next renters">→</button>
             </div>}
           </div>
-          <p style={{ margin: "8px 0 0", font: `400 11px ${F_SANS}`, color: "var(--muted)" }}>Counts show accounts in inventory before other filters.</p>
+          <p style={{ margin: "8px 0 0", font: `400 11px ${F_SANS}`, color: "var(--muted)" }}>Counts reflect the other inventory filters.</p>
         </div>
       )}
     </div>
@@ -664,44 +664,74 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
   // DO belong in inventory — visible but not rentable until flipped to Available by hand.
   const shown = useMemo(() => accounts.filter((a) => groupKey(a) !== "Initial"), [accounts]);
 
+  // Each facet applies every other filter, but excludes its own selection so
+  // its counts describe the results of switching to each alternative.
+  const facets = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const result: Record<"matches" | "status" | "renter" | "poc" | "verified" | "conn" | "supply", Account[]> = {
+      matches: [], status: [], renter: [], poc: [], verified: [], conn: [], supply: [],
+    };
+    for (const a of shown) {
+      if (q && !`${a.linkedinName} ${a.linkedinHeadline || ""} ${a.loginEmail || ""} ${a.ownerEmail || ""} ${a.ownerName || ""} ${a.ownerPhone || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q)) continue;
+      const poc = (a.ownerPoc || "").trim();
+      const tests = {
+        status: filter === "all" || groupKey(a) === filter,
+        renter: !renterFilter || (a.rentals?.[0]?.user?.id || "__unassigned") === renterFilter,
+        poc: pocFilter === "all" || (pocFilter === "__unassigned" ? !poc : poc === pocFilter),
+        verified: verifiedFilter === "all" || (verifiedFilter === "yes" ? a.linkedinVerified : !a.linkedinVerified),
+        conn: connFilter === "all" || connBucketOf(a.connectionCount) === connFilter,
+        supply: supplyFilter === "all" || (supplyFilter === "shadow" ? isShadowHeld(a) : isOfferable(a)),
+      };
+      const keys = Object.keys(tests) as (keyof typeof tests)[];
+      if (keys.every((key) => tests[key])) result.matches.push(a);
+      for (const key of keys) {
+        if (keys.every((other) => other === key || tests[other])) result[key].push(a);
+      }
+    }
+    return result;
+  }, [shown, filter, renterFilter, pocFilter, verifiedFilter, connFilter, supplyFilter, search]);
+
   const renterOptions = useMemo(() => {
     const renters = new Map<string, RenterOption>();
+    const matchingIds = new Set(facets.renter.map((a) => a.id));
     for (const a of shown) {
       const user = a.rentals?.[0]?.user;
       const id = user?.id || "__unassigned";
+      const count = matchingIds.has(a.id) ? 1 : 0;
       const existing = renters.get(id);
-      if (existing) existing.count++;
+      if (existing) existing.count += count;
       else renters.set(id, {
         id, name: user?.fullName.replace(/\s*\((?:Telegram|WhatsApp)\)\s*$/i, "") || "No renter assigned",
-        email: user?.email || "", count: 1,
+        email: user?.email || "", count,
       });
     }
     return [...renters.values()].sort((a, b) => a.name.localeCompare(b.name) || a.email.localeCompare(b.email));
-  }, [shown]);
+  }, [shown, facets.renter]);
 
   const counts = useMemo(() => {
-    const real = shown.filter((a) => !isDummy(a));
-    const c = (label: string) => real.filter((a) => canonicalStatus(a) === label).length;
+    const c = (label: string) => facets.status.filter((a) => groupKey(a) === label).length;
     return {
-      total: shown.length, // "All" chip (everything on the inventory, excl. Initial and Pipeline)
-      realTotal: real.length, // headline — sellable inventory, excludes dummies
-      Available: c("Available"),
-      Trial: c("Trial"),
-      Rented: c("Rented"),
-      Construction: c("Construction"),
-      Maintenance: c("Maintenance"),
+      total: facets.status.length,
+      realTotal: facets.matches.filter((a) => !isDummy(a)).length,
+      Available: c("Available"), Trial: c("Trial"), Rented: c("Rented"),
+      Construction: c("Construction"), Maintenance: c("Maintenance"),
       "Permanently restricted/Inaccessible": c("Permanently restricted/Inaccessible"),
-      Removed: c("Removed"),
-      Showcase: shown.filter(isDummy).length,
-      checksDue: shown.filter(checkDue).length,
-      verified: real.filter((a) => a.linkedinVerified).length,
-      unverified: real.filter((a) => !a.linkedinVerified).length,
-      shadow: real.filter(isShadowHeld).length,
-      offerable: real.filter(isOfferable).length,
-      // per-connection-bucket counts over real (non-showcase) inventory
-      conn: Object.fromEntries(CONN_BUCKETS.map((b) => [b.key, real.filter((a) => b.test(a.connectionCount ?? 0)).length])) as Record<string, number>,
+      Removed: c("Removed"), Showcase: c("Showcase"),
+      verifiedTotal: facets.verified.length,
+      verified: facets.verified.filter((a) => a.linkedinVerified).length,
+      unverified: facets.verified.filter((a) => !a.linkedinVerified).length,
+      supplyTotal: facets.supply.length,
+      shadow: facets.supply.filter(isShadowHeld).length,
+      offerable: facets.supply.filter(isOfferable).length,
+      connTotal: facets.conn.length,
+      conn: Object.fromEntries(CONN_BUCKETS.map((b) => [b.key, facets.conn.filter((a) => b.test(a.connectionCount ?? 0)).length])) as Record<string, number>,
     };
-  }, [shown]);
+  }, [facets]);
+
+  const clearFilters = () => {
+    setFilter("all"); setRenterFilter(""); setPocFilter("all");
+    setVerifiedFilter("all"); setConnFilter("all"); setSupplyFilter("all"); setSearch("");
+  };
 
   // Freeze the row order while you work. We re-sort only when a filter, the
   // search, or the sort direction changes — not when a live edit bumps an
@@ -711,20 +741,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = shown.filter((a) => {
-      if (filter !== "all" && groupKey(a) !== filter) return false;
-      if (renterFilter && (a.rentals?.[0]?.user?.id || "__unassigned") !== renterFilter) return false;
-      if (verifiedFilter === "yes" && !a.linkedinVerified) return false;
-      if (verifiedFilter === "no" && a.linkedinVerified) return false;
-      if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
-      if (supplyFilter === "shadow" && !isShadowHeld(a)) return false;
-      if (supplyFilter === "offerable" && !isOfferable(a)) return false;
-      if (pocFilter !== "all") { const p = (a.ownerPoc || "").trim(); if (pocFilter === "__unassigned" ? p !== "" : p !== pocFilter) return false; }
-      if (!q) return true;
-      // Every identifier someone might paste in: the login email we issued, the
-      // ambassador's contact email and number, the owner name, plus the profile fields.
-      return `${a.linkedinName} ${a.linkedinHeadline || ""} ${a.loginEmail || ""} ${a.ownerEmail || ""} ${a.ownerName || ""} ${a.ownerPhone || ""} ${a.location || ""} ${a.industry || ""} ${a.proxyHost || ""}`.toLowerCase().includes(q);
-    });
+    const base = facets.matches;
 
     // A fresh sort happens only when the controls change (this signature), or on
     // first load. Otherwise we reuse the remembered order so edits don't reshuffle.
@@ -746,7 +763,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     const merged = [...ordered, ...sortAccountsByLastUpdated(added, updateOrder)];
     orderRef.current = { sig, ids: merged.map((a) => a.id) };
     return merged;
-  }, [shown, filter, renterFilter, verifiedFilter, connFilter, supplyFilter, pocFilter, search, updateOrder]);
+  }, [facets.matches, filter, renterFilter, verifiedFilter, connFilter, supplyFilter, pocFilter, search, updateOrder]);
 
   const toggle = (id: string) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const allExpanded = filtered.length > 0 && filtered.every((a) => expanded.has(a.id));
@@ -832,16 +849,16 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       {/* LV PoC filter (the LinkedVelocity rep who onboarded the account) */}
       {(() => {
         const m = new Map<string, number>(); let un = 0;
-        for (const a of shown) { if (isDummy(a)) continue; const p = (a.ownerPoc || "").trim(); if (p) m.set(p, (m.get(p) || 0) + 1); else un++; }
+        for (const a of shown) { const p = (a.ownerPoc || "").trim(); if (p) m.set(p, 0); }
+        for (const a of facets.poc) { const p = (a.ownerPoc || "").trim(); if (p) m.set(p, (m.get(p) || 0) + 1); else un++; }
         const entries = [...m.entries()].sort((x, y) => x[0].localeCompare(y[0]));
-        if (entries.length === 0) return null;
-        const total = shown.filter((a) => !isDummy(a)).length;
+        const total = facets.poc.length;
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             <span style={{ ...labelCss, marginRight: 2 }}>LV PoC</span>
             <button onClick={() => setPocFilter("all")} style={chip(pocFilter === "all")}>All<span style={{ color: "var(--muted)" }}>{total}</span></button>
             {entries.map(([name, n]) => <button key={name} onClick={() => setPocFilter(name)} style={chip(pocFilter === name)}>{name}<span style={{ color: "var(--muted)" }}>{n}</span></button>)}
-            {un > 0 && <button onClick={() => setPocFilter("__unassigned")} style={chip(pocFilter === "__unassigned")}>Unassigned<span style={{ color: "var(--muted)" }}>{un}</span></button>}
+            {<button onClick={() => setPocFilter("__unassigned")} style={chip(pocFilter === "__unassigned")}>Unassigned<span style={{ color: "var(--muted)" }}>{un}</span></button>}
           </div>
         );
       })()}
@@ -850,7 +867,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ ...labelCss, marginRight: 2 }}>Verified</span>
-          {([["all", "All", counts.realTotal, null], ["yes", "Verified", counts.verified, "var(--st-active-fg)"], ["no", "Unverified", counts.unverified, "var(--st-unreach-fg)"]] as ["all" | "yes" | "no", string, number, string | null][]).map(([key, lbl, n, dot]) => (
+          {([["all", "All", counts.verifiedTotal, null], ["yes", "Verified", counts.verified, "var(--st-active-fg)"], ["no", "Unverified", counts.unverified, "var(--st-unreach-fg)"]] as ["all" | "yes" | "no", string, number, string | null][]).map(([key, lbl, n, dot]) => (
             <button key={key} onClick={() => setVerifiedFilter(key)} style={chip(verifiedFilter === key)}>
               {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}{lbl}<span style={{ color: "var(--muted)" }}>{n}</span>
             </button>
@@ -859,7 +876,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         <span style={{ width: 1, height: 22, background: "var(--divider)" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ ...labelCss, marginRight: 2 }}>Connections</span>
-          <button onClick={() => setConnFilter("all")} style={chip(connFilter === "all")}>All<span style={{ color: "var(--muted)" }}>{counts.realTotal}</span></button>
+          <button onClick={() => setConnFilter("all")} style={chip(connFilter === "all")}>All<span style={{ color: "var(--muted)" }}>{counts.connTotal}</span></button>
           {CONN_BUCKETS.map((b) => (
             <button key={b.key} onClick={() => setConnFilter(b.key)} style={chip(connFilter === b.key)}>
               {b.label}<span style={{ color: "var(--muted)" }}>{counts.conn[b.key] || 0}</span>
@@ -869,7 +886,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
         <span style={{ width: 1, height: 22, background: "var(--divider)" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ ...labelCss, marginRight: 2 }}>Supply</span>
-          <button onClick={() => setSupplyFilter("all")} style={chip(supplyFilter === "all")}>All<span style={{ color: "var(--muted)" }}>{counts.realTotal}</span></button>
+          <button onClick={() => setSupplyFilter("all")} style={chip(supplyFilter === "all")}>All<span style={{ color: "var(--muted)" }}>{counts.supplyTotal}</span></button>
           <button onClick={() => setSupplyFilter("offerable")} style={chip(supplyFilter === "offerable")} title="Live & rentable right now, excluding shadow-held — the real set you can hand to a renter.">
             <span style={{ width: 7, height: 7, borderRadius: 999, background: "var(--st-active-fg)" }} />Available to offer<span style={{ color: "var(--muted)" }}>{counts.offerable}</span>
           </button>
@@ -877,6 +894,11 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
             ◑ Shadow<span style={{ color: "var(--muted)" }}>{counts.shadow}</span>
           </button>
         </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+        <button type="button" onClick={clearFilters} style={secBtn}>Clear filters</button>
+        <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>Counts reflect the other selected filters.</span>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", margin: "0 0 14px" }}>
