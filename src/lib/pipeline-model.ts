@@ -124,6 +124,10 @@ export type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" |
 
 export const EARNING_INVENTORY = new Set(["available", "rented", "trial"]);
 export const levelOf = (r: Row): 0 | 0.5 | 1 | 2 | 3 | 4 | 5 => {
+  // Account-only rows are live inventory accounts we hold (no ambassador application),
+  // surfaced here only because they're restricted — they're onboarded (Level 5), not
+  // "not progressing". Keep them out of Level 0 so they group under Onboarded.
+  if (r.accountOnly) return 5;
   if (r.setupInProgress && !["rejected", "unreachable", "onboarded"].includes(r.status)) return 0.5;
   if (!isApplicationReceived(r)) return 0;
   if (r.status === "onboarded") return 5;
@@ -470,10 +474,8 @@ export const turnOf = (r: Row): TurnInfo => {
   if (r.accountStatus === "removed") return { turn: "dead", label: "Withdrawn — account pulled" };
   if (r.accountStatus === "retired") return { turn: "dead", label: "Permanently restricted" };
 
-  // Onboarded & earning.
-  if (levelOf(r) === 5) return { turn: "live", label: "Live & earning" };
-
-  // Restriction follows whose-turn (the red flag stays regardless).
+  // Restriction first — a restricted account needs attention even if it's onboarded/live,
+  // so it surfaces for re-check rather than sitting quietly in Onboarded. (Flag stays on.)
   const restricted = !!r.accountRestrictedAt || (r.accountIssue || "").toLowerCase().includes("restricted");
   if (restricted && blockKind(r) === "restricted") {
     if (r.accountId) {
@@ -492,6 +494,9 @@ export const turnOf = (r: Row): TurnInfo => {
     const flagged = (r.outreachLog || []).some((t) => !["reply", "booked", "done", "note"].includes(t.ch) && !AUTO_BY.test((t.by || "").trim()));
     return { turn: "us", recheckDue: true, label: flagged ? "Re-check — restriction still open?" : "Flag restriction with owner" };
   }
+
+  // Onboarded & earning (not restricted — restriction was handled above).
+  if (levelOf(r) === 5) return { turn: "live", label: "Live & earning" };
 
   const ns = nextStep(r);
 
