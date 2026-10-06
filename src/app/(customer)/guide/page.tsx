@@ -117,7 +117,7 @@ export default function GuidePage() {
               <h2 className="g-h" style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: "#0A66C2" }}>Using your account day-to-day</h2>
               <p style={{ fontSize: 15, color: "#374151", lineHeight: 1.6, margin: 0, maxWidth: 520 }}>Once you&apos;re renting, your <strong>Account Guide</strong> has everything you need: daily limits, do&apos;s &amp; don&apos;ts, and exactly what happens if an account ever gets restricted.</p>
             </div>
-            <Link href="/account-guide" style={{ background: "#0A66C2", color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 14, padding: "12px 22px", borderRadius: 10, whiteSpace: "nowrap" }}>Open the Account Guide →</Link>
+            <Link href="/account-guide-v2" style={{ background: "#0A66C2", color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 14, padding: "12px 22px", borderRadius: 10, whiteSpace: "nowrap" }}>Open the Account Guide →</Link>
           </div>
         </div>
       </section>

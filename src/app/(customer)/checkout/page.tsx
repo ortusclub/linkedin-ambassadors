@@ -452,7 +452,7 @@ function CheckoutContent() {
             </div>
             <label style={{ display: "flex", gap: 9, alignItems: "flex-start", marginTop: 6, marginBottom: 14, cursor: "pointer" }}>
               <input type="checkbox" checked={vetForm.agreed} onChange={(e) => setVetForm((v) => ({ ...v, agreed: e.target.checked }))} style={{ marginTop: 2 }} />
-              <span style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.5 }}>I’ve read and agree to these rules and the <a href="/account-guide" target="_blank" style={{ color: "#0A66C2", fontWeight: 600 }}>use policy</a>, and I’m responsible for all use of these accounts — including my team.</span>
+              <span style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.5 }}>I’ve read and agree to these rules and the <a href="/account-guide-v2" target="_blank" style={{ color: "#0A66C2", fontWeight: 600 }}>use policy</a>, and I’m responsible for all use of these accounts — including my team.</span>
             </label>
             {vetError && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 9, marginBottom: 12, fontSize: 12, color: "#991B1B" }}>{vetError}</div>}
             <button onClick={submitVetting} disabled={vetSaving} style={{ width: "100%", padding: 13, borderRadius: 10, background: "#0A66C2", color: "#fff", fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: INT, opacity: vetSaving ? 0.6 : 1 }}>{vetSaving ? "Saving…" : "Continue to payment →"}</button>
