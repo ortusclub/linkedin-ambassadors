@@ -190,23 +190,23 @@ const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 const canonicalStatus = (a: { status: string; restrictedAt: string | null; twoFactorResetNeeded?: boolean; connectionCount?: number | null; loginEmail?: string | null; accountPassword?: string | null; ownerOnboarded?: boolean; ownerSetupPaidAt?: string | null; ownerApplicationId?: string | null }): string => {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
   if (a.status === "removed") return "Removed";
-  // INVENTORY = ONBOARDED **and** SETUP-FEE PAID. An account tied to an application that
-  // isn't onboarded yet, or whose setup fee is still unpaid, belongs in the pipeline, not
-  // inventory — held as "Initial" even if it's been marked available or is restricted.
+  // INVENTORY ENTRY = SETUP-FEE PAID. An account tied to an application whose setup fee is
+  // still unpaid belongs in the pipeline, not inventory — held as "Initial" even if it's been
+  // marked available. Once the fee is paid the account enters inventory immediately, even
+  // before the application is flipped to onboarded (it shows under "Construction" until then).
   // (Rented accounts are live and always shown; accounts with NO linked application — e.g.
-  // Ortus / direct inventory — aren't subject to the ambassador onboard+pay flow, so they
-  // keep their status.)
-  if (a.status !== "rented" && a.ownerApplicationId && !(a.ownerOnboarded && !!a.ownerSetupPaidAt)) return "Initial";
+  // Ortus / direct inventory — aren't subject to the ambassador pay flow, so they keep their
+  // status.)
+  if (a.status !== "rented" && a.ownerApplicationId && !a.ownerSetupPaidAt) return "Initial";
   if (a.restrictedAt || a.status === "maintenance") return "Maintenance";
   if (a.status === "rented") return "Rented";
-  // Warming-up stages (Pipeline) only belong in inventory once the owner is ONBOARDED —
-  // i.e. their application was explicitly marked onboarded, which only happens after the
-  // setup fee is paid (`ownerOnboarded`). DIY / auto-provisioning stamps under_construction
-  // on an account the moment someone signs up, so without this gate a lot of not-yet-onboarded
-  // accounts (0-conn placeholders, logged-in-but-unpaid, paid-but-not-yet-marked) flood the
-  // pipeline. A not-onboarded warming account reads as Initial and is held out of inventory.
-  // Both warming statuses live in one "Construction" bucket; immature accounts (very new /
-  // thin) are flagged with an "immature" badge on the row rather than a separate section.
+  // Paid but not yet onboarded → in inventory as Construction (warming), whatever the raw
+  // status says. This keeps a paid-but-unfinished account (0-conn placeholder, logged-in, or
+  // marked available early) visible to the team to build out, instead of hiding it until the
+  // application is explicitly marked onboarded.
+  if (a.ownerApplicationId && !a.ownerOnboarded) return "Construction";
+  // Warming stages for accounts with NO linked application (direct/Ortus) stay out of
+  // inventory until built; immature accounts get an "immature" badge on the row.
   if (a.status === "construction_immature" || a.status === "under_construction") return a.ownerOnboarded ? "Construction" : "Initial";
   if (a.status === "available") return a.twoFactorResetNeeded ? "Maintenance" : "Available";
   if (a.status === "trial") return "Trial";
