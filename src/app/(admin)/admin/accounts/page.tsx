@@ -430,7 +430,7 @@ function RenterFilter({ options, value, onChange }: { options: RenterOption[]; v
               <button type="button" key={renter.id} aria-pressed={value === renter.id} onClick={() => choose(renter.id)}
                 style={{ ...buttonStyle, width: "100%", display: "flex", alignItems: "center", gap: 12, textAlign: "left", marginBottom: 4, background: value === renter.id ? "var(--chip-active-bg)" : "var(--card)" }}>
                 <span style={{ minWidth: 0, flex: 1 }}><span style={{ display: "block", overflowWrap: "anywhere" }}>{renter.name}</span><span style={{ display: "block", fontSize: 11, fontWeight: 400, color: "var(--muted)", overflowWrap: "anywhere" }}>{renter.email}</span></span>
-                <span title="Accounts in Rented" style={{ color: "var(--muted)", flexShrink: 0 }}>{renter.count}</span>
+                <span title="Accounts in inventory" style={{ color: "var(--muted)", flexShrink: 0 }}>{renter.count}</span>
               </button>
             ))}
             {matches.length === 0 && <p role="status" style={{ font: `500 13px ${F_SANS}`, color: "var(--muted)" }}>No renters found.</p>}
@@ -442,7 +442,7 @@ function RenterFilter({ options, value, onChange }: { options: RenterOption[]; v
               <button type="button" disabled={(currentPage + 1) * 25 >= matches.length} onClick={() => setPage(currentPage + 1)} style={buttonStyle} aria-label="Next renters">→</button>
             </div>}
           </div>
-          <p style={{ margin: "8px 0 0", font: `400 11px ${F_SANS}`, color: "var(--muted)" }}>Counts show accounts in Rented before other filters.</p>
+          <p style={{ margin: "8px 0 0", font: `400 11px ${F_SANS}`, color: "var(--muted)" }}>Counts show accounts in inventory before other filters.</p>
         </div>
       )}
     </div>
@@ -667,7 +667,6 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
   const renterOptions = useMemo(() => {
     const renters = new Map<string, RenterOption>();
     for (const a of shown) {
-      if (groupKey(a) !== "Rented") continue;
       const user = a.rentals?.[0]?.user;
       const id = user?.id || "__unassigned";
       const existing = renters.get(id);
@@ -714,7 +713,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
     const q = search.trim().toLowerCase();
     const base = shown.filter((a) => {
       if (filter !== "all" && groupKey(a) !== filter) return false;
-      if (filter === "Rented" && renterFilter && (a.rentals?.[0]?.user?.id || "__unassigned") !== renterFilter) return false;
+      if (renterFilter && (a.rentals?.[0]?.user?.id || "__unassigned") !== renterFilter) return false;
       if (verifiedFilter === "yes" && !a.linkedinVerified) return false;
       if (verifiedFilter === "no" && a.linkedinVerified) return false;
       if (connFilter !== "all" && connBucketOf(a.connectionCount) !== connFilter) return false;
@@ -817,20 +816,18 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
       <div role="group" aria-label="Filter by status" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <span style={{ ...labelCss, marginRight: 2 }}>Status</span>
         {CHIPS.map(([key, lbl, n, dot]) => (
-          <button key={key} type="button" aria-pressed={filter === key} onClick={() => { setFilter(key); setRenterFilter(""); }} style={chip(filter === key)}>
+          <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)} style={chip(filter === key)}>
             {dot && <span style={{ width: 7, height: 7, borderRadius: 999, background: dot }} />}
             {lbl}<span style={{ color: "var(--muted)" }}>{n}</span>
           </button>
         ))}
       </div>
 
-      {filter === "Rented" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
           <span style={labelCss}>Renter</span>
           <RenterFilter options={renterOptions} value={renterFilter} onChange={setRenterFilter} />
           <span role="status" style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)" }}>{filtered.length} matching account{filtered.length === 1 ? "" : "s"}</span>
-        </div>
-      )}
+      </div>
 
       {/* LV PoC filter (the LinkedVelocity rep who onboarded the account) */}
       {(() => {
