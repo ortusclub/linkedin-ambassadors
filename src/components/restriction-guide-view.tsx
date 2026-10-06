@@ -358,7 +358,7 @@ export default function RestrictionGuideView() {
                 <a href={BOOK} target="_blank" rel="noopener noreferrer" style={{ background: "rgba(255,255,255,0.1)", color: "#EAF0FA", border: "1px solid rgba(255,255,255,0.2)", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, textDecoration: "none" }}>Book a help call</a>
               </div>
               <div style={{ marginTop: 22 }}>
-                <Link href="/account-guide" style={{ color: "#7FB2EE", fontSize: 13.5, fontWeight: 500, textDecoration: "none" }}>See the full account guide →</Link>
+                <Link href="/account-guide-v2" style={{ color: "#7FB2EE", fontSize: 13.5, fontWeight: 500, textDecoration: "none" }}>See the full account guide →</Link>
               </div>
             </div>
           </section>

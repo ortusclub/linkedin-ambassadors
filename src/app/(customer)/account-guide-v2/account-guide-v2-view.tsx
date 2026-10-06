@@ -161,7 +161,6 @@ export default function AccountGuideV2View() {
               <p style={{ fontSize: 15, lineHeight: 1.65, color: "#37424F", margin: 0 }}>While some account restrictions may be unavoidable, a higher-than-average restriction rate may indicate misuse or excessive activity and may prompt a review of your usage.</p>
               <p style={{ fontSize: 15, lineHeight: 1.65, color: "#37424F", margin: 0 }}>LV reserves the right to suspend or cancel your subscription or rental, revoke access to the account(s), and refuse future rentals if we reasonably believe you are exceeding usage limits, misusing the account(s), or exposing them to excessive risk. We may take immediate action without prior notice where necessary to protect the account(s).</p>
             </div>
-            <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#5A6473", margin: "18px 0 0" }}>Want the full walkthrough — getting in, warm-up, what to do if an account is restricted? <Link href="/account-guide" style={{ color: "#0A66C2", fontWeight: 600, textDecoration: "underline" }}>Read the full guide →</Link></p>
           </section>
 
           {/* questions */}
@@ -172,7 +171,6 @@ export default function AccountGuideV2View() {
               <div style={{ fontSize: 15, color: "#CFE0F0", marginBottom: 26 }}>Telegram <a href={SUPPORT} target="_blank" rel="noopener noreferrer" style={{ color: "#7FB2EE", fontWeight: 600, textDecoration: "none" }}>@linkedvelocity_support_bot</a></div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                 <Link href="/dashboard" style={{ background: "#0A66C2", color: "#fff", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, textDecoration: "none" }}>Go to dashboard</Link>
-                <Link href="/account-guide" style={{ background: "rgba(255,255,255,0.1)", color: "#EAF0FA", border: "1px solid rgba(255,255,255,0.2)", fontSize: 15, fontWeight: 600, padding: "13px 24px", borderRadius: 12, textDecoration: "none" }}>Full guide</Link>
               </div>
             </div>
           </section>
