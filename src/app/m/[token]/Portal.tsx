@@ -935,6 +935,13 @@ export default function Portal({ token }: { token: string }) {
               ))}
             </div>
 
+            {/* if an account gets restricted */}
+            <div style={{ ...card, padding: 17 }}>
+              <div style={cardTitle}>If an account gets restricted</div>
+              <p style={{ font: `500 12.5px/1.5 ${JAK}`, color: C.slate, margin: "0 0 12px" }}>Common on newer accounts and almost always temporary. The owner clears it themselves on their own phone — our step-by-step guide walks them through LinkedIn&apos;s ID check and, if LinkedIn needs it, the appeal.</p>
+              <a href="https://linkedvelocity.com/restriction-guide" target="_blank" rel="noreferrer" style={{ display: "inline-block", font: `700 13px ${JAK}`, color: "#0a66c2", textDecoration: "none" }}>Open the restriction guide ↗</a>
+            </div>
+
             {/* they'll ask you this */}
             <div style={{ ...card, padding: 17 }}>
               <div style={cardTitle}>They&apos;ll ask you this</div>
@@ -1101,6 +1108,7 @@ export default function Portal({ token }: { token: string }) {
                 </div>
               ))}
               <div style={{ background: C.warnBg, border: `1px solid ${C.warnBorder}`, borderRadius: 12, padding: 13, marginTop: 13, font: `500 12.5px/1.5 ${JAK}`, color: C.warn }}>If it needs an ID check, they photograph their own ID in LinkedIn&apos;s screen. We never see it and never ask for a copy.</div>
+              <a href="https://linkedvelocity.com/restriction-guide" target="_blank" rel="noreferrer" style={{ display: "block", textAlign: "center", marginTop: 13, font: `700 13px ${JAK}`, color: "#0a66c2", textDecoration: "none" }}>Open the full step-by-step guide ↗</a>
               <a href={`/m/${token}/onboarding`} style={{ display: "block", textAlign: "center", marginTop: 14, font: `700 13.5px ${JAK}`, color: C.ink, background: C.line2, border: `1px solid ${C.inputBorder}`, padding: 14, borderRadius: 13, textDecoration: "none" }}>It&apos;s cleared — resume the onboarding</a>
               <button onClick={() => setLockName(null)} style={{ width: "100%", marginTop: 8, font: `700 13.5px ${JAK}`, color: C.slate, background: "none", border: "none", padding: 11, cursor: "pointer" }}>Close</button>
             </div>
