@@ -170,6 +170,10 @@ function SignupMeeting({ r }: { r: Row }) {
 
 export function WorkflowRail({ r, busy, workflow, setStage }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void; setStage: (r: Row, s: Status) => void }) {
   const qcPassed = !!r.verifiedAt;
+  // A fresh form signup lands as "reviewing"/"pending" — step 1 is to accept it (the old
+  // footer "Accept → Level 1" button is now folded in here).
+  const toAccept = ["reviewing", "pending"].includes(r.status);
+  const accepted = isApplicationReceived(r) && !toAccept;
   const matureStartMs = r.verifiedAt ? new Date(r.verifiedAt).getTime() : null;
   const matureDue = matureStartMs !== null ? matureStartMs + holdDays(r) * 86400000 : null;
   const matured = matureDue !== null && matureDaysLeft(matureDue) <= 0;
@@ -197,9 +201,11 @@ export function WorkflowRail({ r, busy, workflow, setStage }: { r: Row; busy: bo
 
   const steps: Step[] = [
     {
-      label: "Step 1", title: "Application received", sub: r.createdAt ? `applied ${fmtDate(r.createdAt)}` : "in the pipeline", done: isApplicationReceived(r),
+      label: "Step 1", title: "Application received", sub: toAccept ? "review, then accept to start onboarding" : r.createdAt ? `applied ${fmtDate(r.createdAt)}` : "in the pipeline", done: accepted,
       render: (isNext) => <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-        {isApplicationReceived(r) ? doneCol("Received", receiptPatch(r, false)) : <button onClick={() => workflow(r.id, receiptPatch(r, true))} disabled={busy} style={primaryBtn(isNext)}>Mark received</button>}
+        {accepted ? doneCol("Received", { status: "reviewing" })
+          : toAccept ? <button onClick={() => workflow(r.id, { status: "onboarding", applicationReceived: true })} disabled={busy} style={primaryBtn(isNext)}>✓ Accept → start onboarding</button>
+          : <button onClick={() => workflow(r.id, receiptPatch(r, true))} disabled={busy} style={primaryBtn(isNext)}>Mark received</button>}
         <div style={{ fontSize: 12, lineHeight: 1.5, color: "var(--fg,#111)" }}>
           <b>Signup: {effectiveType(r).label}</b>
           {r.diyTier && <div style={{ color: "var(--muted,#8a97ad)", marginTop: 4 }}>{r.diyTier === "standard" ? "Submitted the form for our team to handle setup." : r.diyTier === "partial" ? "Chose to add the LV email and set up 2FA themselves." : "Chose to handle email, 2FA and GoLogin themselves."}</div>}
@@ -584,7 +590,6 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
       {!live ? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)", flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-            {r.status !== "approved" && r.status !== "onboarding" && <button onClick={() => workflow(r.id, { status: "onboarding", applicationReceived: true })} disabled={busy} title="They've agreed — start onboarding (Level 1 · add email & 2FA)" style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)" }}>✓ Accept → Level 1</button>}
             {r.status !== "rejected" && r.status !== "unreachable" && (
               <select value="" disabled={busy} onChange={(e) => { if (e.target.value) void workflow(r.id, { status: e.target.value }); }} title="Stop / close this application (Withdrawn lives in the Status toggle above)" style={{ font: `700 12px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "var(--card,#fff)", border: "1px solid var(--danger-border,#e6b4ad)", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>
                 <option value="">Close application…</option>
@@ -593,7 +598,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
               </select>
             )}
           </div>
-          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Accepting reveals the inventory profile · reopen a closed one with Accept</span>
+          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Accept &amp; advance from the Workflow steps above · reopen a closed one with Mark received</span>
         </div>
       ) : onboarded ? (
         <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)" }}>
