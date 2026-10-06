@@ -69,8 +69,15 @@ const AFTER_RESTRICTION: [string, string][] = [
   ["Stop straight away.", "Don't keep logging in, retrying, or editing — repeated attempts deepen the restriction and reset the recovery clock."],
   ["Leave it alone.", "Most restrictions are temporary and lift on their own within a few days if the account is left untouched."],
   ["Don't change the password, email, or settings.", "LinkedIn locks settings changes after a flag, and trying only triggers further blocks."],
-  ["If it asks you to verify ID, use a real government ID.", "Verify identity-first, and never mention VPNs or proxies. Don't fabricate anything."],
-  ["Then flag it to us.", "Let us take over the recovery — please don't appeal to LinkedIn yourself."],
+  ["Don't try to appeal or verify it yourself.", "If LinkedIn asks for ID or an appeal, leave it — we handle all verification and recovery on our side."],
+  ["Flag it to us right away.", "The sooner we know, the sooner we can start the recovery."],
+];
+
+const AFTER_RECOVERY = [
+  "Treat it like a brand-new account — a just-recovered profile is fragile and re-restricts easily.",
+  "Keep activity very low for the first week (a handful of actions a day), then build back up slowly.",
+  "Hold off on any profile edits for a couple of weeks while it settles.",
+  "If LinkedIn shows any warning, stop and pause for a few days — don't push through it.",
 ];
 
 const RECOVERY: [string, string][] = [
@@ -303,6 +310,17 @@ export default function AccountGuideView() {
                   <p style={{ fontSize: 15, lineHeight: 1.65, color: "#37424F", margin: 0 }}><strong style={{ color: "#0B1220" }}>{t}</strong> {b}</p>
                 </div>
               ))}
+            </div>
+            <p style={{ fontSize: 14.5, fontWeight: 600, color: "#0B1220", margin: "22px 0 14px" }}>Once it&apos;s back up — ease in gently:</p>
+            <div style={{ ...card, padding: "24px 28px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
+                {AFTER_RECOVERY.map((t) => (
+                  <div key={t} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, background: "#E4F6EC", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, marginTop: 1 }}>✓</span>
+                    <p style={{ fontSize: 15, lineHeight: 1.6, color: "#37424F", margin: 0 }}>{t}</p>
+                  </div>
+                ))}
+              </div>
             </div>
             <p style={{ fontSize: 14.5, fontWeight: 600, color: "#0B1220", margin: "22px 0 14px" }}>And if an account keeps getting restricted from heavy use, here&apos;s what happens — we keep it fair and predictable:</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
