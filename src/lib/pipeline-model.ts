@@ -488,10 +488,14 @@ export const turnOf = (r: Row): TurnInfo => {
       const last = r.healthCheckedAt ? ageDays(r.healthCheckedAt) : null;
       return { turn: "us", recheckDue: true, label: last == null ? "Re-check restriction — not checked yet" : `Re-check restriction · last checked ${last}d ago` };
     }
-    // App-only restriction (no account to stamp): keep the flag/chase flow.
+    // App-only restriction (no linked account to stamp a health-check): follow the chase
+    // cadence off our real outreach — flag it, snooze after messaging, follow up daily.
     if (r.restrictionReport) return { turn: "us", label: "Verify restriction cleared" };
-    if (chasedSinceRestricted(r)) return { turn: "them", label: "Owner clearing restriction with LinkedIn" };
-    return { turn: "us", label: "Flag restriction with owner" };
+    const flagged = (r.outreachLog || []).some((t) => !["reply", "booked", "done", "note"].includes(t.ch) && !AUTO_BY.test((t.by || "").trim()));
+    if (!flagged) return { turn: "us", label: "Flag restriction with owner" };
+    if (actionedToday(r)) return { turn: "them", label: "Flagged with owner today — check tomorrow" };
+    if (idleDays(r) >= WAIT_DAYS) return { turn: "us", label: "Follow up — restriction still open?", chaseDue: true };
+    return { turn: "them", label: "Owner clearing restriction with LinkedIn" };
   }
 
   const ns = nextStep(r);
