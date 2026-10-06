@@ -439,7 +439,10 @@ export type Turn = "us" | "them" | "timer" | "live" | "dead";
 export const WAIT_DAYS = 3;
 export const MAX_CHASES = 3;
 // Outbound chases (our messages, excluding replies/bookings/notes) — the chase counter.
-export const chaseCount = (r: Row) => (r.outreachLog || []).filter((t) => !["reply", "booked", "done", "note"].includes(t.ch)).length;
+// Human follow-ups only: automated nudges (Fast-track invites etc., logged by "Auto"/
+// system) do NOT count toward the chase total or the "mark Stopped after 3 chases" gate.
+const AUTO_BY = /^(auto|system|pipeline|scheduler)$/i;
+export const chaseCount = (r: Row) => (r.outreachLog || []).filter((t) => !["reply", "booked", "done", "note"].includes(t.ch) && !AUTO_BY.test((t.by || "").trim())).length;
 // Days since our last outbound touch (or signup if none) — the "gone quiet" clock.
 export const idleDays = (r: Row) => {
   const outbound = (r.outreachLog || []).filter((t) => !["reply", "booked", "done", "note"].includes(t.ch));
