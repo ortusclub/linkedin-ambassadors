@@ -474,8 +474,12 @@ export const turnOf = (r: Row): TurnInfo => {
   if (r.accountStatus === "removed") return { turn: "dead", label: "Withdrawn — account pulled" };
   if (r.accountStatus === "retired") return { turn: "dead", label: "Permanently restricted" };
 
-  // Restriction first — a restricted account needs attention even if it's onboarded/live,
-  // so it surfaces for re-check rather than sitting quietly in Onboarded. (Flag stays on.)
+  // Onboarded & earning — done, not active pipeline work. A restriction on an ONBOARDED
+  // account is handled in Inventory, so it stays in Onboarded (the red flag still shows)
+  // rather than flooding To action. Only accounts still in onboarding (levels 1-4) re-check.
+  if (levelOf(r) === 5) return { turn: "live", label: "Live & earning" };
+
+  // Restriction follows whose-turn (the red flag stays regardless).
   const restricted = !!r.accountRestrictedAt || (r.accountIssue || "").toLowerCase().includes("restricted");
   if (restricted && blockKind(r) === "restricted") {
     if (r.accountId) {
@@ -494,9 +498,6 @@ export const turnOf = (r: Row): TurnInfo => {
     const flagged = (r.outreachLog || []).some((t) => !["reply", "booked", "done", "note"].includes(t.ch) && !AUTO_BY.test((t.by || "").trim()));
     return { turn: "us", recheckDue: true, label: flagged ? "Re-check — restriction still open?" : "Flag restriction with owner" };
   }
-
-  // Onboarded & earning (not restricted — restriction was handled above).
-  if (levelOf(r) === 5) return { turn: "live", label: "Live & earning" };
 
   const ns = nextStep(r);
 
