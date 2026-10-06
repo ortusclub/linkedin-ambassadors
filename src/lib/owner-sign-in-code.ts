@@ -10,16 +10,22 @@ export async function ownerSignInCode(token: string, loginEmail: string) {
   return codeForAccount(id, loginEmail);
 }
 export async function privateOwnerSignInCode(token: string, loginEmail: string) {
-  return codeForAccount(await readAccountCodeLink(token), loginEmail);
+  return codeForAccount(await readAccountCodeLink(token), loginEmail, true);
 }
-async function codeForAccount(id: string, loginEmail: string) {
+async function codeForAccount(id: string, loginEmail: string, privateLink = false) {
   const account = await prisma.linkedInAccount.findUnique({ where: { id }, select: { twoFactor: true, loginEmail: true, removedAt: true, status: true, restrictedAt: true, twoFactorResetNeeded: true, rentals: { where: { status: { in: ["active", "pending_access", "payment_failed"] }, isShadow: false }, select: { id: true }, take: 1 } } });
   if (!account || account.removedAt) throw new EmailSetupError("Please contact our team to check your account.", 403);
   // Match the inventory's maintenance override without changing rental/billing state.
   // Shadow assignments do not occupy inventory; actual customer rentals still block access.
   const maintenanceOverride = account.status === "available" && (!!account.restrictedAt || account.twoFactorResetNeeded);
   const eligibleStatus = ["under_review", "maintenance", "under_construction", "construction_immature", "unavailable"].includes(account.status) || maintenanceOverride;
-  if (!eligibleStatus || account.rentals.length > 0) {
+  // Explicit account-specific exception requested by the administrator. It only
+  // applies through a valid private link, and never restores retired/removed accounts.
+  const dexterPrivateAccess = privateLink
+    && id === "4c86793b-6a70-4e05-99f0-601f798c0025"
+    && account.loginEmail?.trim().toLowerCase() === "dexter.obias@lotuspost.co.uk"
+    && (eligibleStatus || ["available", "rented", "trial"].includes(account.status));
+  if ((!eligibleStatus || account.rentals.length > 0) && !dexterPrivateAccess) {
     throw new EmailSetupError("Sign-in codes are unavailable while this account is available, rented, on trial, or no longer in service. Please contact our team.", 403);
   }
   if (!loginEmail.trim() || account.loginEmail?.trim().toLowerCase() !== loginEmail.trim().toLowerCase()) {

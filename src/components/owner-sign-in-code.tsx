@@ -37,6 +37,6 @@ export default function OwnerSignInCode() {
     <button disabled={busy || !access || !loginEmail} onClick={()=>void getCode()}>{busy ? "Getting code…" : "Get six-digit code"}</button>
     {result && <div className={styles.notice} role="status"><p>LinkedIn account: {result.address}</p>{result.expiresAt > now ? <><strong style={{fontSize:36,letterSpacing:6}}>{result.code}</strong><p>Enter this on LinkedIn. Expires in {Math.ceil((result.expiresAt-now)/1000)} seconds.</p></> : <p>This code has expired. Get a new code above.</p>}</div>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
-    <p>Private links expire after 24 hours. Codes are disabled while an account is rented, available or on trial. If you refresh this page, reopen your private link.</p>
+    <p>Private links expire after 24 hours. Codes are normally disabled while an account is rented, available or on trial, unless our team has approved access for that account. If you refresh this page, reopen your private link.</p>
   </section>;
 }
