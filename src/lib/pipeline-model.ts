@@ -474,13 +474,16 @@ export const turnOf = (r: Row): TurnInfo => {
   // Restriction follows whose-turn (the red flag stays regardless).
   const restricted = !!r.accountRestrictedAt || (r.accountIssue || "").toLowerCase().includes("restricted");
   if (restricted && blockKind(r) === "restricted") {
-    if (r.restrictionReport) return { turn: "us", label: "Verify restriction cleared" };
     if (r.accountId) {
-      // Daily re-check: once marked checked today it snoozes to tomorrow; else it's due.
+      // Daily re-check for every restricted account (incl. referrer-reported ones):
+      // once marked checked today it snoozes to tomorrow; else it's due with the buttons.
       if (restrictionCheckedToday(r)) return { turn: "them", label: "Restricted · re-checked today — due tomorrow" };
+      if (r.restrictionReport) return { turn: "us", recheckDue: true, label: "Verify restriction — referrer says it's cleared" };
       const last = r.healthCheckedAt ? ageDays(r.healthCheckedAt) : null;
       return { turn: "us", recheckDue: true, label: last == null ? "Re-check restriction — not checked yet" : `Re-check restriction · last checked ${last}d ago` };
     }
+    // App-only restriction (no account to stamp): keep the flag/chase flow.
+    if (r.restrictionReport) return { turn: "us", label: "Verify restriction cleared" };
     if (chasedSinceRestricted(r)) return { turn: "them", label: "Owner clearing restriction with LinkedIn" };
     return { turn: "us", label: "Flag restriction with owner" };
   }
