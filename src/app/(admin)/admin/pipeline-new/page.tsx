@@ -446,6 +446,10 @@ function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onCl
           <span style={{ flex: "none", font: `800 9px ${F_SANS}`, letterSpacing: ".05em", padding: "3px 7px", borderRadius: 6, background: m.bg, color: m.fg }}>{m.chip}</span>
           <span title={t.label} style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "help" }}>{t.label}</span>
           {t.stopSuggested && <button onClick={(e) => { e.stopPropagation(); void handlers.setStage(r, "unreachable"); }} title="Stop chasing — mark Unresponsive" style={{ flex: "none", border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", borderRadius: 7, padding: "3px 8px", font: `700 11px ${F_SANS}`, cursor: "pointer", whiteSpace: "nowrap" }}>Mark Stopped</button>}
+          {t.recheckDue && r.accountId && (<>
+            <button onClick={(e) => { e.stopPropagation(); handlers.patchAccount(r.id, r.accountId!, { linkedinAccountHealth: "restricted" }, true); }} title="Checked LinkedIn — still restricted (snooze the re-check to tomorrow)" style={{ flex: "none", border: "1px solid #fcd34d", background: "#fffbeb", color: "#92400e", borderRadius: 7, padding: "3px 8px", font: `700 11px ${F_SANS}`, cursor: "pointer", whiteSpace: "nowrap" }}>Still restricted</button>
+            <button onClick={(e) => { e.stopPropagation(); handlers.patchAccount(r.id, r.accountId!, { restrictedAt: null, linkedinAccountHealth: "active" }, true); }} title="Restriction cleared — recover & remove from To action" style={{ flex: "none", border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#15803d", borderRadius: 7, padding: "3px 8px", font: `700 11px ${F_SANS}`, cursor: "pointer", whiteSpace: "nowrap" }}>Cleared</button>
+          </>)}
         </div>
         <div onClick={(e) => e.stopPropagation()} style={{ minWidth: 0 }}>
           {!h ? (

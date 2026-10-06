@@ -97,6 +97,8 @@ export interface Row {
   proxyLocation: string | null;
   accountRestrictedAt: string | null;
   accountRestrictionLog: { at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }[] | null;
+  linkedinAccountHealth: string | null;
+  healthCheckedAt: string | null;
   monthlyPrice: number | null;
   ambassadorPayment: number | null;
   outreachLog: Touch[] | null;
@@ -455,7 +457,10 @@ export const chasedSinceRestricted = (r: Row): boolean => {
   const since = +new Date(r.accountRestrictedAt);
   return (r.outreachLog || []).some((t) => !["reply", "booked", "done", "note"].includes(t.ch) && +new Date(t.at) >= since);
 };
-export type TurnInfo = { turn: Turn; label: string; chaseDue?: boolean; stopSuggested?: boolean };
+// Was the restriction re-checked today? healthCheckedAt is stamped when the admin marks
+// "Still restricted", which snoozes the daily re-check until tomorrow.
+export const restrictionCheckedToday = (r: Row): boolean => !!r.healthCheckedAt && ageDays(r.healthCheckedAt) === 0;
+export type TurnInfo = { turn: Turn; label: string; chaseDue?: boolean; stopSuggested?: boolean; recheckDue?: boolean };
 export const turnOf = (r: Row): TurnInfo => {
   // Stopped — terminal.
   if (r.status === "rejected") return { turn: "dead", label: "Closed — rejected" };
@@ -470,6 +475,12 @@ export const turnOf = (r: Row): TurnInfo => {
   const restricted = !!r.accountRestrictedAt || (r.accountIssue || "").toLowerCase().includes("restricted");
   if (restricted && blockKind(r) === "restricted") {
     if (r.restrictionReport) return { turn: "us", label: "Verify restriction cleared" };
+    if (r.accountId) {
+      // Daily re-check: once marked checked today it snoozes to tomorrow; else it's due.
+      if (restrictionCheckedToday(r)) return { turn: "them", label: "Restricted · re-checked today — due tomorrow" };
+      const last = r.healthCheckedAt ? ageDays(r.healthCheckedAt) : null;
+      return { turn: "us", recheckDue: true, label: last == null ? "Re-check restriction — not checked yet" : `Re-check restriction · last checked ${last}d ago` };
+    }
     if (chasedSinceRestricted(r)) return { turn: "them", label: "Owner clearing restriction with LinkedIn" };
     return { turn: "us", label: "Flag restriction with owner" };
   }
