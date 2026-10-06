@@ -104,7 +104,12 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   const horizonEnd = now + horizonDays * DAY;
 
   const apps = await prisma.ambassadorApplication.findMany({
-    where: { status: "onboarded" },
+    // "Onboarded" means the setup fee is PAID (the canonical rule) — NOT the raw status enum.
+    // A referral/payout that has passed login + QC + setup payment must count even if the
+    // pipeline status was never flipped off "approved" (marking the setup fee paid doesn't
+    // touch application status). So include anyone whose setup fee is marked paid, not just
+    // status=onboarded. Milestone gates downstream (isReferralEarned, maturing) still apply.
+    where: { OR: [{ status: "onboarded" }, { paidAt: { not: null } }] },
     select: {
       id: true, fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
@@ -200,10 +205,20 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   const legacyPaidByRefId = new Map<string, number>();
   for (const p of commPayouts) if (!p.ambassadorApplicationId) legacyPaidByRefId.set(p.referrerId, (legacyPaidByRefId.get(p.referrerId) || 0) + Number(p.amount));
 
+  // A referral is only EARNED once the referred account's setup fee is fully SETTLED — the
+  // receipt is attached, not merely marked paid. A "paid · awaiting receipt" setup does not
+  // yet credit the referrer (mirrors how the owner setup payment itself only settles on the
+  // receipt). A manually-onboarded account (status=onboarded) counts as settled even with no
+  // stored receipt, to grandfather legacy rows.
+  const setupReceipted = (a: (typeof apps)[number]) =>
+    a.status === "onboarded" ||
+    (Array.isArray(a.monthlyPayouts) ? (a.monthlyPayouts as Array<{ kind?: string; proofUrl?: string }>) : [])
+      .some((p) => p?.kind === "setup" && !!p?.proofUrl);
+
   const earnedByRefSlug = new Map<string, typeof apps>();
   for (const a of apps) {
     const ref = (a.referredBy || "").trim().toLowerCase();
-    if (!ref || !isReferralEarned(a)) continue;
+    if (!ref || !isReferralEarned(a) || !setupReceipted(a)) continue;
     const arr = earnedByRefSlug.get(ref) || [];
     arr.push(a);
     earnedByRefSlug.set(ref, arr);
