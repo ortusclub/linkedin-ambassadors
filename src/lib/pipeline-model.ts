@@ -484,14 +484,13 @@ export const turnOf = (r: Row): TurnInfo => {
       const last = r.healthCheckedAt ? ageDays(r.healthCheckedAt) : null;
       return { turn: "us", recheckDue: true, label: last == null ? "Re-check restriction — not checked yet" : `Re-check restriction · last checked ${last}d ago` };
     }
-    // App-only restriction (no linked account to stamp a health-check): follow the chase
-    // cadence off our real outreach — flag it, snooze after messaging, follow up daily.
-    if (r.restrictionReport) return { turn: "us", label: "Verify restriction cleared" };
+    // App-only restriction (no linked account to stamp a health-check): same daily re-check
+    // + buttons as accounts, but snoozed via a follow-up date instead of healthCheckedAt.
+    // "Still restricted" sets follow-up to tomorrow; "Cleared" clears the accountIssue flag.
+    if (r.restrictionReport) return { turn: "us", recheckDue: true, label: "Verify restriction — referrer says it's cleared" };
+    if (r.nextFollowUp && +new Date(r.nextFollowUp) > Date.now()) return { turn: "them", label: `Restricted · re-checked — follow up ${fmtDate(r.nextFollowUp)}` };
     const flagged = (r.outreachLog || []).some((t) => !["reply", "booked", "done", "note"].includes(t.ch) && !AUTO_BY.test((t.by || "").trim()));
-    if (!flagged) return { turn: "us", label: "Flag restriction with owner" };
-    if (actionedToday(r)) return { turn: "them", label: "Flagged with owner today — check tomorrow" };
-    if (idleDays(r) >= WAIT_DAYS) return { turn: "us", label: "Follow up — restriction still open?", chaseDue: true };
-    return { turn: "them", label: "Owner clearing restriction with LinkedIn" };
+    return { turn: "us", recheckDue: true, label: flagged ? "Re-check — restriction still open?" : "Flag restriction with owner" };
   }
 
   const ns = nextStep(r);
