@@ -283,7 +283,9 @@ export const touchCount = (log: Touch[] | null) => (log || []).filter((t) => t.c
 export const lastTouchActivity = (r: Row): string | null => {
   let best: string | null = null;
   const bump = (d: string | null | undefined) => { if (d && (!best || +new Date(d) > +new Date(best))) best = d; };
-  for (const t of r.outreachLog || []) bump(t.at);
+  // Exclude automated log entries (e.g. the "application received" auto note) — those
+  // aren't us touching the record. Real notes/meetings (by a person) still count.
+  for (const t of r.outreachLog || []) if (!/^(auto|system|pipeline|scheduler)$/i.test((t.by || "").trim())) bump(t.at);
   for (const d of [r.emailPrimaryAt, r.onboardedAt, r.verifiedAt, r.paidAt, r.onboardingStartedAt]) bump(d);
   return best;
 };
@@ -362,8 +364,8 @@ export const nextStep = (r: Row): NextStep => {
     return { state: "waiting", label: "Awaiting their reply", timing: idle > 0 ? `${idle}d` : "today", last };
   }
   if (levelOf(r) === 0.5) return { state: "waiting", label: "Setup in progress — waiting for the applicant to finish the wizard", last };
-  if (r.status === "pending") return gate("Reach out — new application", 1);
-  if (r.status === "reviewing") return { state: "waiting", label: "In review", last };
+  if (r.status === "pending") return { state: "now", label: "Reach out — new application", last };
+  if (r.status === "reviewing") return { state: "now", label: "Review application", last };
   if (r.status === "on_hold") return { state: "waiting", label: "On hold", last };
 
   const lvl = levelOf(r);
