@@ -334,11 +334,10 @@ export const nextStep = (r: Row): NextStep => {
   const last = lastActivity(r);
   const at = lastActivityAt(r);
   const idle = ageDays(at);
-  const gate = (label: string, graceDays: number): NextStep => {
-    if (idle >= graceDays) return { state: "now", label, last };
-    const dueAt = new Date(new Date(at).getTime() + graceDays * 86400000).toISOString();
-    return { state: "waiting", label, timing: `from ${fmtDate(dueAt)}`, last };
-  };
+  // Our own next step (add email, log in, QC, chase, fix GoLogin) is always actionable
+  // NOW — To action shows it immediately. Once we message, the actioned-today rule moves
+  // it to Waiting on them; account tasks leave when we advance the stage. (No same-day grace.)
+  const gate = (label: string, _graceDays?: number): NextStep => ({ state: "now", label, last });
 
   if (r.status === "rejected") return { state: "done", label: "Closed — rejected" };
   if (r.accountStatus === "removed") return { state: "done", label: "Withdrawn — account pulled" };
@@ -359,10 +358,7 @@ export const nextStep = (r: Row): NextStep => {
   if (blockKind(r) === "setup") return gate(missingGologin(r) ? "Add a GoLogin so the account can run" : "Fix the login issue", 1);
 
   if (r.status === "unreachable") return gate(`Chase — unresponsive${idle > 0 ? ` (${idle}d quiet)` : ""}`, 3);
-  if (r.status === "contacted") {
-    if (idle >= 3) return { state: "now", label: `Chase — no reply in ${idle}d`, last };
-    return { state: "waiting", label: "Awaiting their reply", timing: idle > 0 ? `${idle}d` : "today", last };
-  }
+  if (r.status === "contacted") return { state: "waiting", label: "Awaiting their reply", timing: idle > 0 ? `${idle}d` : "today", last };
   if (levelOf(r) === 0.5) return { state: "waiting", label: "Setup in progress — waiting for the applicant to finish the wizard", last };
   if (r.status === "pending") return { state: "now", label: "Reach out — new application", last };
   if (r.status === "reviewing") return { state: "now", label: "Review application", last };
