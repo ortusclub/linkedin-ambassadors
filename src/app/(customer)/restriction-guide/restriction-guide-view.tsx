@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { blogFontVars } from "@/lib/blog-fonts";
+import OwnerSignInCode from "@/components/owner-sign-in-code";
+import pe from "@/app/(customer)/guide/primary-email/primary-email.module.css";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 const SUPPORT = "https://t.me/linkedvelocity_support_bot";
@@ -13,6 +15,7 @@ const FORM_APPEAL = "https://www.linkedin.com/help/linkedin/ask/TS-F-APPEAL";
 const SECTIONS = [
   { id: "sec-heads-up", label: "First, a heads-up" },
   { id: "sec-verify", label: "Step 1 · Verify (QR)" },
+  { id: "sec-code", label: "Get your 2FA code" },
   { id: "sec-forms", label: "Step 2 · Message LinkedIn" },
   { id: "sec-writing", label: "What to write" },
   { id: "sec-after", label: "While you wait" },
@@ -20,7 +23,7 @@ const SECTIONS = [
 ];
 
 const VERIFY_STEPS: React.ReactNode[] = [
-  <>Sign in to the account the normal way &mdash; through your GoLogin profile, using the login email and password. If LinkedIn asks for a 2FA code, use your authenticator (or the code tool in the private link we sent you).</>,
+  <>Sign in to the account the normal way &mdash; through your GoLogin profile, using the login email and password. If LinkedIn asks for a 6-digit code, generate one in the <strong>Get your 2FA code</strong> step just below. If the password no longer works, use <strong>Forgot password</strong> on LinkedIn&apos;s sign-in page.</>,
   <>On the <strong>&quot;Verify your identity to continue&quot;</strong> screen, tap <strong>Verify with Persona</strong>.</>,
   <>Follow the prompts on your phone &mdash; scan the QR code if one is shown, take a live selfie when asked, and upload a <strong>valid government ID</strong>. The name on the ID must match the name on the LinkedIn profile.</>,
   <>Finish the flow and wait for LinkedIn&apos;s result. It can take anywhere from a few minutes to a day or two.</>,
@@ -43,6 +46,7 @@ const WRITING = [
 const AFTER = [
   "Verification and appeals run on LinkedIn's clock — a few days is normal, and sometimes they come back asking for the same thing again. Hang in there and don't spam the forms.",
   "Keep us posted — reply to our message or ping support with where things stand. We keep trying alongside you, and if an account genuinely can't come back, we'll make it right.",
+  "As soon as access is back, let us know — we'll test the account, and once we confirm it's working again, your monthly payments pick right back up.",
 ];
 
 type FormField = { label: string; answer: React.ReactNode };
@@ -79,6 +83,7 @@ I use the account for genuine, professional networking. The name on my profile m
 const secIcon: Record<string, { bg: string; fg: string; path: React.ReactNode }> = {
   "sec-heads-up": { bg: "#FBF1DE", fg: "#946011", path: <><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M12 9v4" /><path d="M12 16h.01" /></> },
   "sec-verify": { bg: "#EAF2FC", fg: "#0A66C2", path: <><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="11" r="2.2" /><path d="M8.3 16.2a3.8 3.8 0 0 1 7.4 0" /></> },
+  "sec-code": { bg: "#E4F6EC", fg: "#067A45", path: <><circle cx="8" cy="15" r="4" /><path d="M10.85 12.15 19 4" /><path d="M18 5l2 2" /><path d="M15 8l2 2" /></> },
   "sec-forms": { bg: "#F1EFFB", fg: "#5747C9", path: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></> },
   "sec-writing": { bg: "#E4F6EC", fg: "#067A45", path: <><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" /></> },
   "sec-after": { bg: "#DEF3F1", fg: "#0E7C74", path: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></> },
@@ -231,6 +236,9 @@ export default function RestrictionGuideView() {
                 <span style={{ flexShrink: 0, fontSize: 18 }}>🔒</span>
                 <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#7A4A12", margin: 0 }}><strong style={{ color: "#6B3E0C" }}>Only ever upload your ID inside LinkedIn&apos;s official Persona flow.</strong> Never send ID documents to us, or to anyone, over chat or email.</p>
               </div>
+              <div style={{ marginTop: 16, fontSize: 13.5, lineHeight: 1.6, color: "#5A6473" }}>
+                LinkedIn&apos;s own step-by-step help: <a href="https://www.linkedin.com/help/linkedin/answer/a1339720" target="_blank" rel="noopener noreferrer" style={{ color: "#0A66C2", textDecoration: "underline" }}>verifying your identity</a> · <a href="https://www.linkedin.com/help/linkedin/answer/a1376104" target="_blank" rel="noopener noreferrer" style={{ color: "#0A66C2", textDecoration: "underline" }}>recovering account access</a>.
+              </div>
             </div>
 
             {/* retry / error branch */}
@@ -250,6 +258,15 @@ export default function RestrictionGuideView() {
                   </div>
                 ))}
               </div>
+            </div>
+          </section>
+
+          {/* get your 2FA code */}
+          <section id="sec-code">
+            <SecHead id="sec-code" title="Get your sign-in code (2FA)" />
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 14px" }}>If LinkedIn asks for a 6-digit two-step code when you sign in, generate it here using the private link we sent you &mdash; no personal email or extra verification needed. The code refreshes every 30 seconds.</p>
+            <div className={pe.page} style={{ fontFamily: INT, maxWidth: "none", margin: 0, padding: 0, lineHeight: 1.6 }}>
+              <OwnerSignInCode />
             </div>
           </section>
 
