@@ -62,15 +62,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ application: recent, meetingToken: meetingToken(recent.id), assessment: null, duplicate: true }, { status: 200 });
     }
 
-    // Re-signup of a profile that is already onboarded / live: hand back the existing
-    // application instead of creating another. Scoped to the same LinkedIn profile (not just
-    // the email) so a genuine SECOND account on the same email still gets through.
-    const established = await establishedDuplicate(data.email, linkedinUrl, { profileOnly: true });
-    if (established?.applicationId) {
-      const existing = await prisma.ambassadorApplication.findUnique({ where: { id: established.applicationId } });
-      if (existing) {
-        return NextResponse.json({ application: existing, meetingToken: meetingToken(existing.id), assessment: null, duplicate: true }, { status: 200 });
+    // Re-signup by an email or profile already established with us (an onboarded application
+    // OR a live, non-removed inventory account): never a legitimate new signup. Hand back the
+    // existing application where there is one, otherwise refuse. This is what stops an
+    // already-onboarded owner filing a fresh duplicate every time they re-submit. Matching now
+    // includes the email (not only the profile slug) and a live account that has no application
+    // (e.g. the application was deleted) — the two gaps that previously let repeats through.
+    const established = await establishedDuplicate(data.email, linkedinUrl);
+    if (established) {
+      if (established.applicationId) {
+        const existing = await prisma.ambassadorApplication.findUnique({ where: { id: established.applicationId } });
+        if (existing) {
+          return NextResponse.json({ application: existing, meetingToken: meetingToken(existing.id), assessment: null, duplicate: true }, { status: 200 });
+        }
       }
+      // Live account but no application to hand back: already registered, do not create one.
+      return NextResponse.json({ duplicate: true, alreadyRegistered: true, error: "This account is already registered with LinkedVelocity. If you need to make a change, contact the team instead of submitting a new application." }, { status: 200 });
     }
 
     const duplicateNote = await existingApplicationAccount(data.email, linkedinUrl);
