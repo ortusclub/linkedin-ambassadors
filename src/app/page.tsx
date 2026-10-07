@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { blogFontVars } from "@/lib/blog-fonts";
 import { getBrand } from "@/lib/brand";
+import { LinkedArmyHome } from "./linkedarmy-home";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
@@ -72,6 +73,8 @@ const STEPS_BY_BRAND = {
 
 export default async function HomePage() {
   const brand = await getBrand();
+  // LinkedArmy gets its own SDR-agency homepage; LinkedVelocity keeps the page below.
+  if (brand.id === "linkedarmy") return <LinkedArmyHome />;
   const hero = HERO[brand.id];
   const steps = STEPS_BY_BRAND[brand.id];
   return (
@@ -141,8 +144,7 @@ export default async function HomePage() {
       </section>
 
 
-      {/* ===== GOLOGIN — LinkedVelocity only. LinkedArmy clients hire reps (SDR model), they don't get account access. ===== */}
-      {brand.id !== "linkedarmy" && (
+      {/* ================= GOLOGIN (LinkedVelocity only — LinkedArmy has its own homepage) ================= */}
       <section style={{ position: "relative", background: "#FFFFFF", borderTop: "1px solid #ECEEF1", padding: "88px 24px", overflow: "hidden" }}>
         <div style={{ position: "relative", maxWidth: 1160, margin: "0 auto" }} className="lvh-2">
           <div>
@@ -176,7 +178,6 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-      )}
 
       {/* ================= CATALOGUE ================= */}
       <section style={{ background: "#FBFCFD", padding: "72px 24px", borderTop: "1px solid #EEF0F3", textAlign: "center" }}>
