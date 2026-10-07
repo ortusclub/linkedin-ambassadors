@@ -78,7 +78,14 @@ const STEPS_BY_BRAND = {
 async function getArmyRoster(): Promise<ArmyRosterCard[]> {
   try {
     const rows = await prisma.linkedInAccount.findMany({
-      where: { inventoryPool: { notIn: ["ortus", "apex"] }, status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false },
+      where: {
+        inventoryPool: { notIn: ["ortus", "apex"] },
+        // Same public set the catalogue shows: rentable now, plus rented/trial as social proof.
+        OR: [
+          { status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false },
+          { status: { in: ["rented", "trial"] }, listed: true },
+        ],
+      },
       select: { id: true, linkedinName: true, linkedinHeadline: true, connectionCount: true, industry: true, location: true, hasSalesNav: true, linkedinVerified: true },
       orderBy: { connectionCount: "desc" },
       take: 8,
