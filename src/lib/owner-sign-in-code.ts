@@ -17,15 +17,19 @@ async function codeForAccount(id: string, loginEmail: string, privateLink = fals
   if (!account || account.removedAt) throw new EmailSetupError("Please contact our team to check your account.", 403);
   // Match the inventory's maintenance override without changing rental/billing state.
   // Shadow assignments do not occupy inventory; actual customer rentals still block access.
-  const maintenanceOverride = account.status === "available" && (!!account.restrictedAt || account.twoFactorResetNeeded);
-  const eligibleStatus = ["under_review", "maintenance", "under_construction", "construction_immature", "unavailable"].includes(account.status) || maintenanceOverride;
+  const restrictedActive = !!account.restrictedAt;
+  const maintenanceOverride = account.status === "available" && (restrictedActive || account.twoFactorResetNeeded);
+  // A restricted account is locked by LinkedIn, so the renter can't use it anyway — the owner or
+  // referrer still needs a code to recover it, so allow it regardless of status or an attached rental.
+  const eligibleStatus = ["under_review", "maintenance", "under_construction", "construction_immature", "unavailable"].includes(account.status) || maintenanceOverride || restrictedActive;
   // Explicit account-specific exception requested by the administrator. It only
   // applies through a valid private link, and never restores retired/removed accounts.
   const dexterPrivateAccess = privateLink
     && id === "4c86793b-6a70-4e05-99f0-601f798c0025"
     && account.loginEmail?.trim().toLowerCase() === "dexter.obias@lotuspost.co.uk"
     && (eligibleStatus || ["available", "rented", "trial"].includes(account.status));
-  if ((!eligibleStatus || account.rentals.length > 0) && !dexterPrivateAccess) {
+  const rentalBlocks = account.rentals.length > 0 && !restrictedActive;
+  if ((!eligibleStatus || rentalBlocks) && !dexterPrivateAccess) {
     throw new EmailSetupError("Sign-in codes are unavailable while this account is available, rented, on trial, or no longer in service. Please contact our team.", 403);
   }
   if (!loginEmail.trim() || account.loginEmail?.trim().toLowerCase() !== loginEmail.trim().toLowerCase()) {
