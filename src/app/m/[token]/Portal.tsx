@@ -165,6 +165,10 @@ export default function Portal({ token }: { token: string }) {
   // referrer can grab one without walking the wizard.
   const [codeOpenId, setCodeOpenId] = useState<string | null>(null);
   const [codeInfo, setCodeInfo] = useState<{ code: string | null; at: string | null; loading: boolean; error: string; copied: boolean }>({ code: null, at: null, loading: false, error: "", copied: false });
+  // The authenticator (2FA) code for a restricted referred account — the TOTP the owner needs to
+  // sign in and run LinkedIn's identity check. Separate from the emailed code panel above.
+  const [authOpenId, setAuthOpenId] = useState<string | null>(null);
+  const [authCode, setAuthCode] = useState<{ code: string | null; loading: boolean; error: string; copied: boolean }>({ code: null, loading: false, error: "", copied: false });
 
   useEffect(() => {
     fetch(`/api/m/${token}`)
@@ -238,6 +242,23 @@ export default function Portal({ token }: { token: string }) {
     if (codeOpenId === signupId) { setCodeOpenId(null); return; }
     setCodeOpenId(signupId);
     void loadCode(sessionId);
+  };
+  // Generate the live authenticator code for a restricted referred account (TOTP from the saved key).
+  const loadAuthCode = async (applicationId: string) => {
+    setAuthCode((c) => ({ ...c, loading: true, error: "", copied: false }));
+    try {
+      const r = await fetch(`/api/m/${token}/code`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ applicationId }) });
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok) { setAuthCode({ code: null, loading: false, error: b.error || "Couldn't get the code. Please try again.", copied: false }); return; }
+      setAuthCode({ code: b.code ?? null, loading: false, error: "", copied: false });
+    } catch {
+      setAuthCode({ code: null, loading: false, error: "Check your connection and try again.", copied: false });
+    }
+  };
+  const toggleAuth = (applicationId: string) => {
+    if (authOpenId === applicationId) { setAuthOpenId(null); return; }
+    setAuthOpenId(applicationId);
+    void loadAuthCode(applicationId);
   };
   const toggleFaq = (k: string) => setFaqOpen((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const go = (t: Tab) => { setTab(t); if (typeof window !== "undefined") window.scrollTo({ top: 0 }); };
@@ -593,6 +614,31 @@ export default function Portal({ token }: { token: string }) {
                       <div style={{ font: `500 11.5px/1.45 ${JAK}`, color: "#8a2b2b" }}>LinkedIn has locked this account. The owner clears it on their <strong>own phone</strong> — usually scanning a QR code, sometimes a selfie or ID photo. You can&apos;t clear it for them.</div>
                       {s.liUrl && <a href={s.liUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", width: "100%", marginTop: 10, font: `700 12.5px ${JAK}`, color: "#fff", background: C.dark, padding: 11, borderRadius: 10, textDecoration: "none" }}>Open LinkedIn to check it ↗</a>}
                       <button onClick={() => setLockName(s.name)} style={{ width: "100%", marginTop: 8, font: `700 12.5px ${JAK}`, color: C.red, background: "#fff", border: `1px solid ${C.redBorder}`, padding: 11, borderRadius: 10, cursor: "pointer" }}>See the steps to clear it</button>
+                      <div style={{ font: `500 11.5px/1.45 ${JAK}`, color: "#8a2b2b", marginTop: 10 }}>To sign in and start LinkedIn&apos;s check, the owner needs the 6-digit code:</div>
+                      {authOpenId === s.id ? (
+                        <div style={{ marginTop: 8, background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 10, padding: 12 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ font: `700 10.5px ${JAK}`, letterSpacing: ".08em", color: C.greenDk, textTransform: "uppercase" }}>Authenticator code</span>
+                            <button onClick={() => setAuthOpenId(null)} style={{ font: `600 11px ${JAK}`, color: C.muted, background: "none", border: "none", cursor: "pointer" }}>Hide</button>
+                          </div>
+                          {authCode.loading ? (
+                            <div style={{ font: `600 13px ${JAK}`, color: C.muted, marginTop: 8 }}>Getting code…</div>
+                          ) : authCode.error ? (
+                            <div style={{ font: `600 12.5px ${JAK}`, color: C.red, marginTop: 8 }}>{authCode.error}</div>
+                          ) : authCode.code ? (<>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                              <span style={{ font: `700 26px ${GRO}`, letterSpacing: ".16em", color: "#0b1220" }}>{authCode.code}</span>
+                              <button onClick={() => { navigator.clipboard?.writeText(authCode.code!); setAuthCode((c) => ({ ...c, copied: true })); }} style={{ font: `700 12px ${JAK}`, color: "#0b1220", background: "#a7f3d0", border: "none", borderRadius: 8, padding: "8px 12px", cursor: "pointer" }}>{authCode.copied ? "Copied" : "Copy"}</button>
+                              <button onClick={() => void loadAuthCode(s.id)} style={{ font: `700 12px ${JAK}`, color: C.greenDk, background: "none", border: "none", cursor: "pointer" }}>Refresh</button>
+                            </div>
+                            <div style={{ font: `500 11px/1.45 ${JAK}`, color: "#5b7a68", marginTop: 8 }}>Enter this where LinkedIn asks for the 6-digit code. It changes every 30 seconds — tap Refresh for a fresh one.</div>
+                          </>) : (
+                            <div style={{ font: `600 12.5px/1.5 ${JAK}`, color: "#5b7a68", marginTop: 8 }}>No code available right now. Ask the team.</div>
+                          )}
+                        </div>
+                      ) : (
+                        <button onClick={() => toggleAuth(s.id)} style={{ width: "100%", marginTop: 8, font: `700 12.5px ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, padding: 11, borderRadius: 10, cursor: "pointer" }}>Get authenticator code</button>
+                      )}
                       {s.restrictionReport ? (
                         <div style={{ font: `700 11.5px/1.4 ${JAK}`, color: C.greenDk, background: C.softGreen, border: `1px solid ${C.softGreenBorder}`, borderRadius: 9, padding: "9px 11px", marginTop: 8 }}>
                           ✓ {s.restrictionReport.type === "recovered" ? "You told us it's unrestricted" : "You told us the check is done"} — the team is verifying it now.

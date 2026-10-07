@@ -12,6 +12,12 @@ export async function ownerSignInCode(token: string, loginEmail: string) {
 export async function privateOwnerSignInCode(token: string, loginEmail: string) {
   return codeForAccount(await readAccountCodeLink(token), loginEmail, true);
 }
+// For a referrer's own authenticated portal: the portal token proves the referrer, and the
+// account is already resolved from their referral, so pass the account's own login email.
+// Eligibility (restricted / in-progress states) is still enforced by codeForAccount.
+export async function accountSignInCode(accountId: string, loginEmail: string) {
+  return codeForAccount(accountId, loginEmail, true);
+}
 async function codeForAccount(id: string, loginEmail: string, privateLink = false) {
   const account = await prisma.linkedInAccount.findUnique({ where: { id }, select: { twoFactor: true, loginEmail: true, removedAt: true, status: true, restrictedAt: true, twoFactorResetNeeded: true, rentals: { where: { status: { in: ["active", "pending_access", "payment_failed"] }, isShadow: false }, select: { id: true }, take: 1 } } });
   if (!account || account.removedAt) throw new EmailSetupError("Please contact our team to check your account.", 403);
