@@ -3,7 +3,9 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { blogFontVars } from "@/lib/blog-fonts";
 import { getBrand } from "@/lib/brand";
-import { LinkedArmyHome } from "./linkedarmy-home";
+import { LinkedArmyHome, type ArmyRosterCard } from "./linkedarmy-home";
+import { prisma } from "@/lib/prisma";
+import { maskName } from "@/lib/mask";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
@@ -71,10 +73,35 @@ const STEPS_BY_BRAND = {
   ],
 } as const;
 
+// A few real, privacy-masked profiles for the LinkedArmy "browse the roster" preview —
+// same shared catalogue backend as LinkedVelocity, same public filters.
+async function getArmyRoster(): Promise<ArmyRosterCard[]> {
+  try {
+    const rows = await prisma.linkedInAccount.findMany({
+      where: { inventoryPool: { notIn: ["ortus", "apex"] }, status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false },
+      select: { id: true, linkedinName: true, linkedinHeadline: true, connectionCount: true, industry: true, location: true, hasSalesNav: true, linkedinVerified: true },
+      orderBy: { connectionCount: "desc" },
+      take: 8,
+    });
+    return rows.map((a) => ({
+      id: a.id,
+      name: maskName(a.linkedinName),
+      headline: a.linkedinHeadline,
+      connections: a.connectionCount,
+      industry: a.industry,
+      location: a.location,
+      hasSalesNav: a.hasSalesNav,
+      verified: a.linkedinVerified,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export default async function HomePage() {
   const brand = await getBrand();
   // LinkedArmy gets its own SDR-agency homepage; LinkedVelocity keeps the page below.
-  if (brand.id === "linkedarmy") return <LinkedArmyHome />;
+  if (brand.id === "linkedarmy") return <LinkedArmyHome roster={await getArmyRoster()} />;
   const hero = HERO[brand.id];
   const steps = STEPS_BY_BRAND[brand.id];
   return (
