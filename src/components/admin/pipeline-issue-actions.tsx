@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { contactLink, type IssueContact } from "@/lib/issue-contacts";
 import { ONBOARDING_ISSUES, onboardingIssueMessage, type OnboardingIssue } from "@/lib/onboarding-issue-message";
+import { includeIssueLoginDetails } from "@/lib/issue-login-details";
 export function PipelineIssueActions({ id, name, profile, lvEmail, referrerResumeUrl, ambassador, referrer, referrerSlug, onSent, onboarded = false }: { referrerResumeUrl?: string | null; id: string; name: string; profile: string | null; lvEmail: string | null; ambassador: IssueContact; referrer: IssueContact | null; referrerSlug?: string | null; onSent: () => void; onboarded?: boolean }) {
   // Once the account is onboarded, these are live-account problems, not onboarding steps.
   const heading = onboarded ? "Account issues" : "Onboarding issues";
@@ -41,6 +42,15 @@ export function PipelineIssueActions({ id, name, profile, lvEmail, referrerResum
       {preview.channel === "email" && <input aria-label="Email subject" style={button} value={preview.subject} onChange={e => setPreview({ ...preview, subject: e.target.value })} />}
       <textarea aria-label="Issue message" style={{ ...button, color: "var(--fg,#111)", width: "100%", boxSizing: "border-box" }} rows={12} value={preview.text} onChange={e => setPreview({ ...preview, text: e.target.value })} />
       {preview.channel !== "email" && <small>Opens the chat for you to review and send. Viber copies the message so you can paste it.</small>}
+      <button style={button} disabled={busy || !lvEmail || preview.text.includes("Saved login password:")} title={!lvEmail ? "No login email saved for this account yet" : "Add the login email, password and private sign-in-code link"} onClick={async () => {
+        setBusy(true); setResult("");
+        try {
+          const res = await fetch(`/api/admin/ambassadors/code-link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loginEmail: lvEmail }) });
+          const d = await res.json(); if (!res.ok) throw new Error(d.error || "Could not load sign-in details");
+          setPreview({ ...preview, text: includeIssueLoginDetails(preview.text, d.email, d.password, d.url, preview.recipient === "referrer" ? name : undefined) });
+        } catch (e) { setResult(e instanceof Error ? e.message : "Could not load sign-in details"); }
+        finally { setBusy(false); }
+      }}>{preview.text.includes("Saved login password:") ? "Login details included" : "Include login details"}</button>
       <div style={{ display: "flex", gap: 8 }}><button style={button} disabled={busy} onClick={() => setPreview(null)}>Cancel</button><button style={button} disabled={busy || !preview.text.trim() || !preview.subject.trim()} onClick={async () => {
         setBusy(true); setResult("");
         try {

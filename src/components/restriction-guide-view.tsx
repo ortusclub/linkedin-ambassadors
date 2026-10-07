@@ -264,7 +264,17 @@ export default function RestrictionGuideView() {
           {/* get your 2FA code */}
           <section id="sec-code">
             <SecHead id="sec-code" title="Get your sign-in code (2FA)" />
-            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 14px" }}>If LinkedIn asks for a 6-digit two-step code when you sign in, generate it here using the private link we sent you &mdash; no personal email or extra verification needed. The code refreshes every 30 seconds.</p>
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 14px" }}>If LinkedIn asks for a 6-digit two-step code when you sign in, you can generate it here &mdash; no personal email or extra verification needed.</p>
+            <ol style={{ margin: "0 0 14px", paddingLeft: 22, fontSize: 15, lineHeight: 1.7, color: "#37424F" }}>
+              <li>Open the <strong>private link we sent you</strong> (it looks like <code style={{ fontFamily: MONO, fontSize: 13.5, background: "#F1F4F8", padding: "1px 5px", borderRadius: 5 }}>linkedvelocity.com/c#…</code>).</li>
+              <li>Type the account&apos;s <strong>login email</strong> in the box below.</li>
+              <li>Press <strong>Get six-digit code</strong> and copy the 6 digits.</li>
+              <li>Enter them on LinkedIn where it asks for your verification code. Codes change every <strong>30 seconds</strong> &mdash; if it expires, press the button again for a fresh one.</li>
+            </ol>
+            <div style={{ ...amber, margin: "0 0 14px" }}>
+              <span style={{ flexShrink: 0, fontSize: 18 }}>⚠️</span>
+              <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#7A4A12", margin: 0 }}><strong style={{ color: "#6B3E0C" }}>If the button below stays greyed out,</strong> your link lost the part after the <strong>#</strong> &mdash; some chat and email apps cut it off. Open the full link again (or ask us to resend it); the <strong>#</strong> and everything after it must be there.</p>
+            </div>
             <div className={pe.page} style={{ fontFamily: INT, maxWidth: "none", margin: 0, padding: 0, lineHeight: 1.6 }}>
               <OwnerSignInCode />
             </div>
