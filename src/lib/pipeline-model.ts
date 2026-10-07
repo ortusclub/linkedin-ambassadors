@@ -124,10 +124,6 @@ export type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" |
 
 export const EARNING_INVENTORY = new Set(["available", "rented", "trial"]);
 export const levelOf = (r: Row): 0 | 0.5 | 1 | 2 | 3 | 4 | 5 => {
-  // Account-only rows are live inventory accounts we hold (no ambassador application),
-  // surfaced here only because they're restricted — they're onboarded (Level 5), not
-  // "not progressing". Keep them out of Level 0 so they group under Onboarded.
-  if (r.accountOnly) return 5;
   if (r.setupInProgress && !["rejected", "unreachable", "onboarded"].includes(r.status)) return 0.5;
   if (!isApplicationReceived(r)) return 0;
   if (r.status === "onboarded") return 5;
@@ -180,7 +176,7 @@ export const LEVEL_GROUPS: { key: number; label: string; dot: string; note: stri
   { key: 3, label: "Level 3 · Logged into GoLogin", dot: "var(--warn-badge-text,#b7791f)", note: "signed in via GoLogin — going through QC checks" },
   { key: 4, label: "Level 4 · Maturing", dot: "var(--st-conv-fg,#6d28d9)", note: "passed QC — in the 1-week maturation hold" },
   { key: 5, label: "Level 5 · Onboarded", dot: "var(--st-active-fg,#188038)", note: "matured & paid — live and earning (also in the payments view)" },
-  { key: 0, label: "Level 0 · Not progressing", dot: "var(--st-cancel-fg,#c0392b)", note: "rejected or unreachable — not moving through the pipeline" },
+  { key: 0, label: "Level 0 · Not progressing", dot: "var(--st-cancel-fg,#c0392b)", note: "rejected, unreachable, or restricted inventory — not moving through the pipeline" },
 ];
 
 export const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
@@ -473,6 +469,10 @@ export const turnOf = (r: Row): TurnInfo => {
   if (r.status === "unreachable") return { turn: "dead", label: "Unreachable" };
   if (r.accountStatus === "removed") return { turn: "dead", label: "Withdrawn — account pulled" };
   if (r.accountStatus === "retired") return { turn: "dead", label: "Permanently restricted" };
+  // Account-only rows = restricted inventory accounts (no ambassador application). They're
+  // not active onboarding work — show as Stopped / Not progressing; manage the restriction
+  // itself in Inventory (not a daily pipeline re-check).
+  if (r.accountOnly) return { turn: "dead", label: "Restricted — inventory account" };
 
   // Onboarded & earning — done, not active pipeline work. A restriction on an ONBOARDED
   // account is handled in Inventory, so it stays in Onboarded (the red flag still shows)
