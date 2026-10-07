@@ -43,8 +43,12 @@ export function Footer({ brand }: { brand: Brand }) {
       <div className="lv-foot-inner">
         <div>
           <div className="lv-foot-logo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={brand.logo} alt={brand.name} width={32} height={32} style={{ borderRadius: 8 }} />
+            {brand.id === "linkedarmy" ? (
+              <span style={{ width: 32, height: 32, borderRadius: 8, background: "#e4fb25", color: "#0e404b", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 18 }}>L</span>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brand.logo} alt={brand.name} width={32} height={32} style={{ borderRadius: 8 }} />
+            )}
             <span>Linked<span className="lv-foot-velo">{brandSuffix}</span></span>
           </div>
           <p className="lv-foot-slogan">{brand.term.slogan}</p>

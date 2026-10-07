@@ -109,8 +109,12 @@ export function Navbar({ brand }: { brand: Brand }) {
         <div className="kl-navbar-inner">
           <Link href={isAmb ? "/become-ambassador" : "/"} className="kl-logo">
             <span className="kl-logo-mark" aria-hidden="true">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={brand.logo} alt="" width={36} height={36} style={{ borderRadius: 8 }} />
+              {brand.id === "linkedarmy" ? (
+                <span style={{ width: 36, height: 36, borderRadius: 8, background: "#e4fb25", color: "#0e404b", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 20 }}>L</span>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={brand.logo} alt="" width={36} height={36} style={{ borderRadius: 8 }} />
+              )}
             </span>
             <span>Linked<span className="kl-word-velo">{brandSuffix}</span></span>
             <span className={`kl-tag ${isAmb ? "kl-tag-amb" : "kl-tag-rent"}`}>{isAmb ? "for Ambassadors" : "for Teams"}</span>
