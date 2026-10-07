@@ -74,6 +74,23 @@ export async function POST(req: Request) {
       });
     }
 
+    // Reaching onboarded means the build is finished and the account is in hand, so move the
+    // owner's profile out of any hidden build/review state to a payable inventory row. Without
+    // this a profile built through the construction flow stays under_construction and is
+    // excluded from Payouts even though the pipeline already shows the owner as onboarded.
+    if (status === "onboarded") {
+      await prisma.linkedInAccount.updateMany({
+        where: {
+          status: { in: ["under_review", "under_construction"] },
+          OR: [
+            { notes: { contains: `Owner: ${app.email}` } },
+            ...(app.linkedinUrl ? [{ linkedinUrl: app.linkedinUrl }] : []),
+          ],
+        },
+        data: { status: "unavailable" },
+      });
+    }
+
     return NextResponse.json({ application: updated });
   } catch (error) {
     if (error instanceof z.ZodError) {
