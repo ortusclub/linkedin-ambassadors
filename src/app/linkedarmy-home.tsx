@@ -45,16 +45,6 @@ const STATS = [
   { label: "cost per meeting", value: "$118", delta: "−71% vs in-house" },
 ];
 
-// Generic roster cards — real SDRs are named on your account, not published here.
-const ROSTER = [
-  { role: "SaaS", sub: "named on your account" },
-  { role: "Fintech", sub: "named on your account" },
-  { role: "HR tech", sub: "named on your account" },
-  { role: "Agencies", sub: "named on your account" },
-  { role: "Dev tools", sub: "named on your account" },
-  { role: "+ more", sub: "on the roster" },
-];
-
 // PLACEHOLDER — pricing
 const TIERS = [
   { name: "crew", badge: "2 sdrs", monthly: 2400, cta: "deploy a crew", featured: false,
@@ -72,7 +62,21 @@ const FAQS = [
   { q: "can we cancel?", a: "Yes. Plans run month to month. Annual saves 15% if you'd rather commit." },
 ];
 
-export function LinkedArmyHome() {
+export type ArmyRosterCard = {
+  id: string;
+  name: string;
+  headline: string | null;
+  connections: number;
+  industry: string | null;
+  location: string | null;
+  hasSalesNav: boolean;
+  verified: boolean;
+};
+
+const fmtConns = (c: number) =>
+  c >= 1000 ? `${(c / 1000).toFixed(c % 1000 >= 100 ? 1 : 0)}k+` : c > 0 ? `${c}` : "—";
+
+export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
   const [annual, setAnnual] = useState(false);
   const price = (n: number) => "$" + Math.round(annual ? n * 0.85 : n).toLocaleString("en-US");
 
@@ -104,6 +108,7 @@ export function LinkedArmyHome() {
         <nav style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 24, padding: "16px clamp(20px,4vw,56px)", borderBottom: "2px solid var(--ink)", fontSize: 14, fontWeight: 600 }}>
           <a href="#top" style={{ display: "flex", alignItems: "baseline", gap: 3, fontWeight: 800, fontSize: 24, letterSpacing: "-0.045em", marginRight: "auto" }}>linkedarmy<span style={{ width: 7, height: 7, background: "var(--ink)" }} /></a>
           <a href="#how" className="lnk">how it works</a>
+          <a href="#roster" className="lnk">roster</a>
           <a href="#results" className="lnk">results</a>
           <a href="#pricing" className="lnk">pricing</a>
           <a href="#faq" className="lnk">faq</a>
@@ -185,22 +190,32 @@ export function LinkedArmyHome() {
         </div>
       </section>
 
-      {/* ===== REAL PEOPLE / ROSTER ===== */}
-      <section style={{ borderBottom: "2px solid var(--divider)" }}>
+      {/* ===== THE ROSTER — real, masked profiles from the shared catalogue ===== */}
+      <section id="roster" style={{ borderBottom: "2px solid var(--divider)" }}>
         <div style={{ padding: "clamp(48px,6vw,80px) clamp(20px,4vw,56px) 32px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,380px),1fr))", gap: 24, alignItems: "end" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><span style={{ alignSelf: "flex-start", background: "var(--coral)", color: "var(--ink)", fontSize: 13, fontWeight: 800, padding: "5px 10px" }}>real people, real profiles</span><h2 style={{ fontSize: "clamp(40px,5.5vw,80px)", fontWeight: 800, lineHeight: 0.95, letterSpacing: "-0.05em" }}>real humans.<br />0 bots.</h2></div>
-          <p style={{ margin: 0, fontSize: 17, lineHeight: 1.5, maxWidth: 480, color: "var(--n800)" }}>Every SDR is vetted, trained on your offer and named on your account. You see who&apos;s writing to your prospects, and so do they.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><span style={{ alignSelf: "flex-start", background: "var(--coral)", color: "var(--ink)", fontSize: 13, fontWeight: 800, padding: "5px 10px" }}>meet the roster</span><h2 style={{ fontSize: "clamp(40px,5.5vw,80px)", fontWeight: 800, lineHeight: 0.95, letterSpacing: "-0.05em" }}>real humans.<br />0 bots.</h2></div>
+          <p style={{ margin: 0, fontSize: 17, lineHeight: 1.5, maxWidth: 480, color: "var(--n800)" }}>Browse the people behind your outreach. Every one is a real, established LinkedIn profile, vetted and named on your account. First-name-only here; full details once you&apos;re working together.</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,200px),1fr))", borderTop: "2px solid var(--divider)" }}>
-          {ROSTER.map((p) => (
-            <div key={p.role} style={{ borderRight: "2px solid var(--divider)", borderBottom: "2px solid var(--divider)", display: "flex", flexDirection: "column" }}>
-              <div style={{ aspectRatio: "4/5", background: "repeating-linear-gradient(45deg,var(--n200) 0 8px,var(--n100) 8px 16px)", display: "flex", alignItems: "flex-start", padding: 10 }}><span style={{ fontFamily: "ui-monospace,monospace", fontSize: 11, color: "var(--n700)" }}>sdr portrait</span></div>
-              <div style={{ padding: "12px 16px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}><span style={{ width: 8, height: 8, background: "var(--coral)" }} />{p.role}</span>
-                <span style={{ fontSize: 13, color: "var(--n700)" }}>{p.sub}</span>
+        {roster.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,220px),1fr))", borderTop: "2px solid var(--divider)" }}>
+            {roster.map((p) => (
+              <div key={p.id} style={{ borderRight: "2px solid var(--divider)", borderBottom: "2px solid var(--divider)", display: "flex", flexDirection: "column" }}>
+                <div style={{ aspectRatio: "4/5", background: "repeating-linear-gradient(45deg,var(--n200) 0 8px,var(--n100) 8px 16px)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: 10 }}>
+                  <span style={{ fontFamily: "ui-monospace,monospace", fontSize: 11, color: "var(--n700)" }}>{p.industry || "SDR"}</span>
+                  {p.verified && <span style={{ background: "var(--ink)", color: "var(--bg)", fontSize: 10, fontWeight: 800, padding: "2px 5px" }}>✓</span>}
+                </div>
+                <div style={{ padding: "12px 16px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}><span style={{ width: 8, height: 8, background: "var(--coral)", flexShrink: 0 }} />{p.name}</span>
+                  {p.headline && <span style={{ fontSize: 13, color: "var(--n700)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.headline}</span>}
+                  <span style={{ fontSize: 12, color: "var(--n700)", fontWeight: 700 }}>{fmtConns(p.connections)} connections{p.hasSalesNav ? " · SalesNav" : ""}</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}
+        <div style={{ padding: "clamp(28px,4vw,44px) clamp(20px,4vw,56px)", borderTop: "2px solid var(--divider)", display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 15, fontWeight: 600 }}>Hundreds of real profiles across SaaS, fintech, agencies and more.</span>
+          <a href="/catalogue" className="btn" style={{ display: "flex", justifyContent: "space-between", gap: 32, minWidth: 260, fontSize: 15, padding: "14px 18px" }}><span>browse the full roster</span><span>→</span></a>
         </div>
       </section>
 
