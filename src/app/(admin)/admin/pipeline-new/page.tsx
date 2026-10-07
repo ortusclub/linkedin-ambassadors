@@ -435,7 +435,7 @@ function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onCl
             {r.linkedinVerified && <span style={{ flex: "none", font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)" }}>✓</span>}
             {isLikelyTestEmail(r.email) && <span style={{ flex: "none", font: `700 9px ${F_SANS}`, padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
           </div>
-          <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.email}{r.contactNumber ? ` · ${r.contactNumber}` : ""}</div>
+          <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.loginEmail || r.email}{r.contactNumber ? ` · ${r.contactNumber}` : ""}</div>
         </div>
         {r.referredBy ? <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} style={{ font: `700 12.5px ${F_SANS}`, color: "var(--link,#0a66c2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.referredBy}</a> : <span style={{ color: "var(--muted2,#b6bbc2)" }}>—</span>}
         <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 7, background: typeColor(r)[0], color: typeColor(r)[1], whiteSpace: "nowrap" }}>{effectiveType(r).label}</span>
