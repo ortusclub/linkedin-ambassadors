@@ -141,7 +141,8 @@ export default async function HomePage() {
       </section>
 
 
-      {/* ================= GOLOGIN ================= */}
+      {/* ===== GOLOGIN — LinkedVelocity only. LinkedArmy clients hire reps (SDR model), they don't get account access. ===== */}
+      {brand.id !== "linkedarmy" && (
       <section style={{ position: "relative", background: "#FFFFFF", borderTop: "1px solid #ECEEF1", padding: "88px 24px", overflow: "hidden" }}>
         <div style={{ position: "relative", maxWidth: 1160, margin: "0 auto" }} className="lvh-2">
           <div>
@@ -175,6 +176,7 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ================= CATALOGUE ================= */}
       <section style={{ background: "#FBFCFD", padding: "72px 24px", borderTop: "1px solid #EEF0F3", textAlign: "center" }}>
