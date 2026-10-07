@@ -163,8 +163,10 @@ export default function BecomeAmbassadorPage() {
     referredBy: "",
   });
 
-  const hasReferral = !!form.referredBy.trim() && form.referredBy.trim().toLowerCase() !== "diy";
-  const setupPrice = hasReferral ? offerPair(8, 500, currency) : offerPair(16, 1000, currency);
+  // The owner's one-time setup bonus is a flat ₱1,000 / $16 whether or not they were referred
+  // (the referrer earns their own commission separately). Keep this in step with the payout
+  // logic in referral-currency.ts, which already pays referred owners the flat amount.
+  const setupPrice = offerPair(16, 1000, currency);
 
   const [accountName, setAccountName] = useState("");
   const [accountEmail, setAccountEmail] = useState("");
@@ -494,7 +496,7 @@ export default function BecomeAmbassadorPage() {
 
       {/* EARN — flat payout, real public figures with PHP/USD toggle */}
       {(() => {
-        const M = { setup: setupPrice, monthly: monthlyPrice, year: hasReferral ? offerPair(104, 6500, currency) : offerPair(112, 7000, currency) };
+        const M = { setup: setupPrice, monthly: monthlyPrice, year: offerPair(112, 7000, currency) };
         return (
       <section id="earn" style={{ background: "#FBFCFB", padding: "64px 24px 8px", borderBottom: "1px solid #E8E6E1" }}>
         <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 40px" }}>
