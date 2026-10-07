@@ -157,6 +157,23 @@ export default function PipelineNewPage() {
       await load();
     } finally { setBusy(null); }
   };
+  // Spin up an inventory account linked to this application so the login/2FA/GoLogin fields
+  // open up right here — matched back to the app by its LinkedIn URL and an "Owner: email"
+  // note. For an app with no account yet (nothing matched), so it can't create a duplicate.
+  const createAccount = async (r: Row) => {
+    if (r.accountId) return; setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        linkedinName: formatName(r.fullName) || r.fullName || r.email,
+        linkedinUrl: r.linkedinUrl || undefined,
+        notes: `Owner: ${r.email}`,
+        status: "under_construction",
+      }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not create account (${res.status}).`);
+      await load();
+    } finally { setBusy(null); }
+  };
   const deleteGologin = async (r: Row) => {
     if (!r.accountId) return;
     if (!confirm(`Delete the GoLogin profile for ${r.accountName || r.fullName || "this account"}?\n\nThis removes the browser profile, clears the share link, and unassigns the proxy.`)) return;
@@ -221,7 +238,7 @@ export default function PipelineNewPage() {
   };
   const claim = (r: Row) => { if (me) assignMany([r.id], me); };
 
-  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
+  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, createAccount, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
 
   // Distinct handlers present (for chips + bulk menu).
   const handlerNames = useMemo(() => {
