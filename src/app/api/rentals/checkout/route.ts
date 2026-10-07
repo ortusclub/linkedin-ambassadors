@@ -3,11 +3,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { requireAuth } from "@/lib/auth";
+import { baseUrlFromRequest } from "@/lib/brand";
 
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
     const body = await req.json();
+    // Return to the SAME domain the checkout was started on, so a linkedarmy.com
+    // customer lands back on linkedarmy.com (not the LinkedVelocity fallback).
+    const baseUrl = baseUrlFromRequest(req);
 
     // Support both single accountId and array of accountIds
     const accountIds: string[] = body.accountIds
@@ -66,8 +70,8 @@ export async function POST(req: Request) {
           linkedinAccountIds: accounts.map((a) => a.id).join(","),
         },
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?rental=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/catalogue?rental=cancelled`,
+      success_url: `${baseUrl}/dashboard?rental=success`,
+      cancel_url: `${baseUrl}/catalogue?rental=cancelled`,
     });
 
     return NextResponse.json({ url: session.url });
