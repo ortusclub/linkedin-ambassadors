@@ -34,6 +34,7 @@ type Handlers = {
   setStage: (r: Row, s: Status) => void;
   workflow: (id: string, patch: Record<string, unknown>) => void;
   provisionGologin: (r: Row) => void;
+  createAccount: (r: Row) => void;
   deleteGologin: (r: Row) => void;
   emailIssue: (r: Row, issue: string) => void;
   logTouch: (id: string, ch: string, text: string, by: string) => Promise<void>;
@@ -421,7 +422,7 @@ export function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
 // card grid. Applicant / Sign-in & credentials / Payout cards have a per-card read↔edit
 // toggle; Payments is a compact summary that links out to the Payouts page. Same wiring.
 export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
-  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, deleteGologin, logTouch, onDeleteApp } = h;
+  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, createAccount, deleteGologin, logTouch, onDeleteApp } = h;
   const [editSec, setEditSec] = useState<string | null>(null);
   const live = isLive(r);
   const onboarded = r.status === "onboarded";
@@ -527,7 +528,10 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
               {needsGologin(r) && !r.hasGologin && <div style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin — this account cannot be run</div>}
               <ToggleFields fields={credFields} editing={credEditing} onEdit={() => setEditSec("cred")} />
             </>) : (
-              <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#888)", lineHeight: 1.5 }}>No account linked yet — link one on Inventory once they&apos;ve handed over the login (matched by LinkedIn URL or an “Owner: email” note), then GoLogin, proxy, 2FA and pricing open up here.</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button onClick={(e) => { e.stopPropagation(); void createAccount(r); }} disabled={busy} title="Create a linked inventory account from this application, then add the login, GoLogin, 2FA and pricing here" style={{ alignSelf: "flex-start", font: `700 12px ${F_SANS}`, color: "#fff", background: "var(--st-active-fg,#188038)", border: "none", padding: "8px 13px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Creating…" : "+ Create account to add login"}</button>
+                <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#888)", lineHeight: 1.5 }}>Creates a linked inventory account (matched by LinkedIn URL and an “Owner: email” note), then login, GoLogin, proxy, 2FA and pricing open up here. If one already exists on Inventory it links automatically.</div>
+              </div>
             )}
           </PanelCard>
         </div>
