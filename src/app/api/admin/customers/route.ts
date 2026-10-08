@@ -67,6 +67,8 @@ export async function GET() {
       vettedAt: c.vettedAt,
       vettingInfo: c.vettingInfo,
       vettingReview: c.vettingReview,
+      dailyRentalLimit: c.dailyRentalLimit,
+      credentialAccess: c.credentialAccess,
     }));
 
     return NextResponse.json({ customers: result });
@@ -132,9 +134,9 @@ export async function DELETE(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
 
-    const { email, paymentMethod, paymentDetails, id, isTest, vettingReview } = await req.json();
+    const { email, paymentMethod, paymentDetails, id, isTest, vettingReview, dailyRentalLimit, credentialAccess } = await req.json();
 
     // Toggle a customer's test flag (by id) — keeps them out of / in live dashboard numbers.
     if (id && typeof isTest === "boolean") {
@@ -145,6 +147,21 @@ export async function PATCH(req: Request) {
     // Admin's personal review verdict on a renter's vetting.
     if (id && typeof vettingReview === "string" && ["pending", "verified", "flagged"].includes(vettingReview)) {
       await prisma.user.update({ where: { id }, data: { vettingReview } });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Per-renter daily rental cap (anti-burn speed limit). Clamp to a sane 0–100.
+    if (id && typeof dailyRentalLimit === "number" && Number.isFinite(dailyRentalLimit)) {
+      const limit = Math.max(0, Math.min(100, Math.round(dailyRentalLimit)));
+      await prisma.user.update({ where: { id }, data: { dailyRentalLimit: limit } });
+      return NextResponse.json({ ok: true, dailyRentalLimit: limit });
+    }
+
+    // Tiered credential access: show login email + password + live 2FA code on this renter's
+    // dashboard for every account they rent. Sensitive — log who turned it on/off for whom.
+    if (id && typeof credentialAccess === "boolean") {
+      await prisma.user.update({ where: { id }, data: { credentialAccess } });
+      console.log(`[cred-access] ${admin.email} turned credential access ${credentialAccess ? "ON" : "OFF"} for user ${id}`);
       return NextResponse.json({ ok: true });
     }
 

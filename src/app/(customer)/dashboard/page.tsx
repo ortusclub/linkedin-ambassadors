@@ -54,6 +54,106 @@ function RevealShareLink({ link }: { link: string | null; linkedinUrl?: string |
   );
 }
 
+// Sign-in credentials panel, shown only for renters with tiered credential access.
+// Login email + password are delivered in the /api/rentals payload (already gated there);
+// the 2FA code is fetched live from /api/rentals/[id]/signin-code so it always matches the
+// current 30s TOTP window.
+function RentalCredentials({ rental }: { rental: Rental }) {
+  const acct = rental.linkedinAccount;
+  const [showPass, setShowPass] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
+  const [codeExp, setCodeExp] = useState<number | null>(null);
+  const [secsLeft, setSecsLeft] = useState(0);
+  const [loadingCode, setLoadingCode] = useState(false);
+  const [codeErr, setCodeErr] = useState<string | null>(null);
+
+  const copy = (val: string, which: string) => {
+    try { navigator.clipboard?.writeText(val); setCopied(which); setTimeout(() => setCopied(null), 1200); } catch {}
+  };
+
+  const getCode = async () => {
+    setLoadingCode(true); setCodeErr(null);
+    try {
+      const res = await fetch(`/api/rentals/${rental.id}/signin-code`);
+      const data = await res.json();
+      if (!res.ok) { setCodeErr(data.error || "Couldn't get a code."); setCode(null); setCodeExp(null); }
+      else { setCode(data.code); setCodeExp(data.expiresAt); }
+    } catch { setCodeErr("Couldn't get a code — try again."); }
+    finally { setLoadingCode(false); }
+  };
+
+  useEffect(() => {
+    if (!codeExp) return;
+    const tick = () => {
+      const left = Math.max(0, Math.round((codeExp - Date.now()) / 1000));
+      setSecsLeft(left);
+      if (left <= 0) { setCode(null); setCodeExp(null); }
+    };
+    tick();
+    const t = setInterval(tick, 500);
+    return () => clearInterval(t);
+  }, [codeExp]);
+
+  const CopyBtn = ({ val, id }: { val: string; id: string }) => (
+    <button onClick={() => copy(val, id)}
+      className="shrink-0 rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-white hover:text-blue-700 cursor-pointer whitespace-nowrap">
+      {copied === id ? "Copied" : "Copy"}
+    </button>
+  );
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V8a4 4 0 118 0v3" /></svg>
+        <h4 className="text-sm font-semibold text-gray-900">Sign-in credentials</h4>
+        <span className="ml-auto text-[11px] text-gray-400">Keep these private</span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {/* login email */}
+        <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Login email</p>
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 break-all font-mono text-[13px] text-gray-900">{acct.accountEmail || "—"}</span>
+            {acct.accountEmail && <CopyBtn val={acct.accountEmail} id="email" />}
+          </div>
+        </div>
+        {/* password */}
+        <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Password</p>
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 break-all font-mono text-[13px] text-gray-900">{acct.accountPassword ? (showPass ? acct.accountPassword : "••••••••••••") : "—"}</span>
+            {acct.accountPassword && (
+              <>
+                <button onClick={() => setShowPass((v) => !v)} className="shrink-0 rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-white hover:text-blue-700 cursor-pointer">{showPass ? "Hide" : "Show"}</button>
+                <CopyBtn val={acct.accountPassword} id="pass" />
+              </>
+            )}
+          </div>
+        </div>
+        {/* 2FA code */}
+        <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">2FA code</p>
+          <div className="flex items-center gap-3">
+            {code ? (
+              <>
+                <span className="font-mono text-lg font-bold tracking-wider text-[#004182] tabular-nums">{code.replace(/(\d{3})(\d{3})/, "$1 $2")}</span>
+                <span className="text-[11px] text-gray-400 tabular-nums">{secsLeft}s</span>
+                <button onClick={getCode} className="ml-auto shrink-0 rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50 cursor-pointer">Refresh</button>
+              </>
+            ) : (
+              <>
+                <span className="text-[12px] text-gray-500">{codeErr || "Generate the current code"}</span>
+                <button onClick={getCode} disabled={loadingCode} className="ml-auto shrink-0 rounded-md bg-blue-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-blue-700 cursor-pointer disabled:opacity-60">{loadingCode ? "…" : "Get code"}</button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface Rental {
   id: string;
   status: string;
@@ -64,12 +164,16 @@ interface Rental {
   startDate: string;
   currentPeriodEnd: string | null;
   autoRenew: boolean;
+  // Tiered credential access: true when this renter is flagged to see sign-in details
+  // (login email, password, live 2FA) for the accounts they rent. Default false.
+  credentialAccess?: boolean;
   linkedinAccount: {
     id: string;
     linkedinName: string;
     linkedinHeadline: string | null;
     linkedinUrl: string | null;
     accountEmail: string | null;
+    accountPassword?: string | null;
     profilePhotoUrl: string | null;
     connectionCount: number;
     gologinProfileId: string | null;
@@ -131,6 +235,7 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const [meetingSubmissionId, setMeetingSubmissionId] = useState<string | null>(null);
   const [rentals, setRentals] = useState<Rental[]>([]);
+  const [openCredsId, setOpenCredsId] = useState<string | null>(null);
   const [ambassadorAccounts, setAmbassadorAccounts] = useState<AmbassadorAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [usdcBalance, setUsdcBalance] = useState<string>("0");
@@ -893,8 +998,11 @@ function DashboardContent() {
                 <tbody>
             {activeRentals.map((rental) => {
               const initials = rental.linkedinAccount.linkedinName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+              const canSeeCreds = !!rental.credentialAccess && !rental.isShadow && !isRentalBeingPrepared(rental);
+              const credsOpen = openCredsId === rental.id;
               return (
-                <tr key={rental.id} className="border-b">
+                <Fragment key={rental.id}>
+                <tr className={credsOpen ? "" : "border-b"}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="relative flex-shrink-0">
@@ -990,6 +1098,14 @@ function DashboardContent() {
                       ) : rental.status === "pending_access" ? (
                         <span className="text-[11px] text-gray-400 whitespace-nowrap">{isRentalBeingPrepared(rental) ? "Being prepared" : "Awaiting access"}{isRentalBeingPrepared(rental) && rental.handoverAt ? ` — expected ${formatDate(rental.handoverAt)}. Your paid month starts when access is ready.` : " — share link not available yet."} <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
                       ) : null}
+                      {canSeeCreds && (
+                        <button
+                          onClick={() => setOpenCredsId((prev) => (prev === rental.id ? null : rental.id))}
+                          className="rounded-md border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 transition-colors whitespace-nowrap"
+                        >
+                          {credsOpen ? "Hide sign-in details" : "Show sign-in details"}
+                        </button>
+                      )}
                       {rental.autoRenew && (
                         <button
                           onClick={() => handleCancel(rental.id)}
@@ -1001,6 +1117,14 @@ function DashboardContent() {
                     </div>
                   </td>
                 </tr>
+                {canSeeCreds && credsOpen && (
+                  <tr className="border-b">
+                    <td colSpan={6} className="px-4 pb-4 pt-0">
+                      <RentalCredentials rental={rental} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
                 </tbody>

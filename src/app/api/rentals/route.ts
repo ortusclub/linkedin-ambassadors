@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canShowRentalShareLink } from "@/lib/rental-dashboard-access";
 import { requireAuth } from "@/lib/auth";
+import { decryptSecret } from "@/lib/crypto-creds";
 
 export async function GET() {
   try {
@@ -17,6 +18,7 @@ export async function GET() {
             linkedinHeadline: true,
             linkedinUrl: true,
             loginEmail: true,
+            accountPassword: true,
             profilePhotoUrl: true,
             connectionCount: true,
             gologinShareLink: true,
@@ -28,12 +30,30 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    // Tiered credential access: a renter flagged with credentialAccess also gets the login
+    // password (and a live 2FA code via /api/rentals/[id]/signin-code) for every account they
+    // rent. Default OFF — the password never leaves the server for a normal renter.
+    const credAccess = user.credentialAccess === true;
+
     // Renter-facing: surface the sign-in email as accountEmail (loginEmail is the
-    // address we log into the account with), and drop the raw field name.
+    // address we log into the account with), and drop the raw field name. The password is
+    // pulled out of the spread so it is only ever added back for a credential-access renter.
     const shaped = rentals.map((r) => {
-      const { loginEmail, ...account } = r.linkedinAccount;
+      const { loginEmail, accountPassword, ...account } = r.linkedinAccount;
       const ready = canShowRentalShareLink(r);
-      return { ...r, gologinShareIds: undefined, gologinShareLinkId: undefined, gologinShareLinkUrl: ready ? r.gologinShareLinkUrl : null, linkedinAccount: { ...account, gologinShareLink: ready ? account.gologinShareLink : null, accountEmail: loginEmail } };
+      return {
+        ...r,
+        gologinShareIds: undefined,
+        gologinShareLinkId: undefined,
+        gologinShareLinkUrl: ready ? r.gologinShareLinkUrl : null,
+        credentialAccess: credAccess,
+        linkedinAccount: {
+          ...account,
+          gologinShareLink: ready ? account.gologinShareLink : null,
+          accountEmail: loginEmail,
+          accountPassword: credAccess ? decryptSecret(accountPassword) : undefined,
+        },
+      };
     });
 
     return NextResponse.json({ rentals: shaped });
