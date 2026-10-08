@@ -148,6 +148,24 @@ export async function sendAmbassadorSignupWelcomeEmail(email: string, fullName: 
   });
 }
 
+// Sent right after someone signs up as a REFERRER on /become-a-referrer. Gives them
+// their share link and dashboard so they can start sending people straight away.
+export async function sendReferrerWelcomeEmail(email: string, name: string, shareUrl: string, portalUrl: string) {
+  const firstName = (name || "").trim().split(" ")[0] || "there";
+  return sendEmail({
+    to: email,
+    subject: `You're a LinkedVelocity referrer, ${firstName} — here's your link`,
+    html: brandWrap(`
+      <p style="font-size:16px;margin:0 0 8px;"><strong>You're all set, ${firstName}.</strong></p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">You earn ₱500 for every person who signs up through your link, or up to ₱1,000 when you help them get set up. You're paid the same day they are.</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 8px;">Your referral link:</p>
+      <p style="font-size:15px;margin:0 0 20px;"><a href="${shareUrl}" style="color:#0A66C2;font-weight:700;">${shareUrl}</a></p>
+      <a href="${portalUrl}" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:10px;">Open your dashboard →</a>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:18px 0 0;">Start with friends and family. Verified or not, we accept both. Your dashboard is where you track sign-ups, add your payout details, and see what you've earned.</p>
+    `),
+  });
+}
+
 // Sent immediately after payment (card or USDC). Access is granted by our team
 // after vetting + freeing the account internally — so this email is about what to
 // do NOW (set up GoLogin) and what to expect, not "you're live yet".
