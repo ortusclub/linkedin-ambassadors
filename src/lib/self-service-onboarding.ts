@@ -414,12 +414,19 @@ export async function confirmOnboarding(id: string, referrerId: string, creds?: 
       throw new OnboardingError("The team needs to check this account before it can be completed.", 409);
     }
     await tx.ambassadorApplication.update({ where: { id: s.applicationId }, data: {
-      status: "onboarded", onboardedAt: s.confirmedAt, ownerStatus: "active",
+      // A referrer's self-reported PC sign-in is NOT trusted as "onboarded". There's no way to
+      // confirm from the self-report that the login actually took (the GoLogin exists either way
+      // because it's auto-provisioned), so the account sits at "approved" — GoLogin ready, login
+      // reported — until a human opens the profile and confirms it's genuinely signed in. Crucially
+      // onboardedAt is NOT stamped here (the team stamps it when they mark it logged in), so the
+      // row does not jump to Level 5 / Onboarded and the referral does not count as a conversion
+      // or become payable off an unverified self-report.
+      status: "approved", ownerStatus: "onboarding",
       onboardingMethod: "computer", // referrer did the guided sign-in themselves
       onboardingVerified: acc.linkedinVerified, // snapshot: commission locks to this, not later verification
-      // Keep payment blocked until an admin checks the self-reported login.
-      accountIssue: "Self-service login reported; awaiting team verification before payout.",
-      adminNotes: `Self-service login confirmed by referrer at ${s.confirmedAt!.toISOString()}. Verify login, clear account issue, and confirm ok to pay after review.${hasPassword ? " Password saved." : " Password NOT captured."}${has2fa ? " 2FA key saved." : ""}`,
+      // Payment and conversion stay blocked until an admin opens the GoLogin and confirms the sign-in.
+      accountIssue: "Self-service login reported by referrer — open the GoLogin and confirm the account is actually signed in before marking it logged in.",
+      adminNotes: `Self-service login reported by referrer at ${s.confirmedAt!.toISOString()}. Open the GoLogin profile, confirm it's signed into LinkedIn, mark it logged in, then QC and confirm ok to pay.${hasPassword ? " Password saved." : " Password NOT captured."}${has2fa ? " 2FA key saved." : ""}`,
     } });
     // Keep inventory unlisted and in construction until the usual admin review.
     await tx.linkedInAccount.update({ where: { id: s.accountId }, data: {
