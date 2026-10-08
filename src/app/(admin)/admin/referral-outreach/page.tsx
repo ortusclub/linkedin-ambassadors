@@ -1,0 +1,121 @@
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import { contactLink } from "@/lib/issue-contacts";
+import { outreachCopy, SEGMENT_LABEL, type OutreachRow, type OutreachSegment } from "@/lib/referral-outreach";
+
+const F = "system-ui,-apple-system,sans-serif";
+const SEG_ORDER: (OutreachSegment | "all")[] = ["all", "1a", "1b", "2", "3"];
+const SEG_COLOR: Record<OutreachSegment, string> = { "1a": "#1a56db", "1b": "#b7791f", "2": "#188038", "3": "#c0392b" };
+
+type Preview = { row: OutreachRow; subject: string; text: string } | null;
+
+export default function ReferralOutreachPage() {
+  const [rows, setRows] = useState<OutreachRow[] | null>(null);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [error, setError] = useState("");
+  const [seg, setSeg] = useState<OutreachSegment | "all">("all");
+  const [sent, setSent] = useState<Set<string>>(new Set());
+  const [preview, setPreview] = useState<Preview>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/referral-outreach", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error("Failed to load")))
+      .then(d => { setRows(d.rows); setCounts(d.counts || {}); })
+      .catch(e => setError(e.message));
+  }, []);
+
+  const visible = useMemo(() => (rows || []).filter(r => seg === "all" || r.segment === seg), [rows, seg]);
+
+  const btn: React.CSSProperties = { border: "1px solid var(--line,#d6e4fb)", borderRadius: 8, padding: "6px 11px", background: "var(--card,#fff)", color: "var(--link,#0a66c2)", cursor: "pointer", font: `600 12px ${F}` };
+
+  const openChat = (row: OutreachRow) => {
+    if (!row.chatMethod || !row.chatHandle) return;
+    const { text } = outreachCopy(row.segment, "chat", row.name, row.link, row.isSignup);
+    const contact = { [row.chatMethod]: row.chatHandle };
+    const href = contactLink(row.chatMethod, contact[row.chatMethod], text);
+    if (row.chatMethod === "viber") navigator.clipboard?.writeText(text).catch(() => {});
+    if (href) window.open(href, "_blank", "noopener,noreferrer");
+    else setNote(`Couldn't build a ${row.chatMethod} link for ${row.name}.`);
+  };
+
+  const openEmail = (row: OutreachRow) => {
+    setNote("");
+    const { subject, text } = outreachCopy(row.segment, "email", row.name, row.link, row.isSignup);
+    setPreview({ row, subject, text });
+  };
+
+  const sendEmail = async () => {
+    if (!preview?.row.email) return;
+    setBusy(true); setNote("");
+    try {
+      const res = await fetch("/api/admin/referral-outreach/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: preview.row.email, subject: preview.subject, text: preview.text }) });
+      const d = await res.json(); if (!res.ok) throw new Error(d.error);
+      setSent(s => new Set(s).add(preview.row.id));
+      setNote(`Emailed ${d.to}.`);
+      setPreview(null);
+    } catch (e) { setNote(e instanceof Error ? e.message : "Could not send."); }
+    finally { setBusy(false); }
+  };
+
+  const chatLabel = { whatsapp: "WhatsApp", telegram: "Telegram", viber: "Viber" };
+
+  return (
+    <div style={{ padding: "20px 22px", font: `400 13px ${F}`, color: "var(--fg,#111)" }}>
+      <h1 style={{ font: `800 20px ${F}`, margin: "0 0 4px" }}>Referral outreach</h1>
+      <p style={{ color: "var(--muted,#647189)", margin: "0 0 16px", maxWidth: 680 }}>
+        Invite people to the referral program. Email sends from info@linkedvelocity.com and is logged. WhatsApp / Telegram / Viber open the chat with the message prefilled — you hit send. People with no referral link yet get pointed to the self-serve signup.
+      </p>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {SEG_ORDER.map(s => {
+          const n = s === "all" ? (rows?.length || 0) : (counts[s] || 0);
+          const on = seg === s;
+          return <button key={s} onClick={() => setSeg(s)} style={{ ...btn, background: on ? "var(--link,#0a66c2)" : "var(--card,#fff)", color: on ? "#fff" : "var(--link,#0a66c2)" }}>
+            {s === "all" ? "All" : SEGMENT_LABEL[s]} <span style={{ opacity: .7 }}>({n})</span>
+          </button>;
+        })}
+      </div>
+
+      {error && <p style={{ color: "#c0392b" }}>{error}</p>}
+      {note && <p role="status" style={{ color: "var(--link,#0a66c2)", fontWeight: 600 }}>{note}</p>}
+      {!rows && !error && <p style={{ color: "var(--muted,#647189)" }}>Loading…</p>}
+
+      {rows && <div style={{ display: "grid", gap: 8 }}>
+        {visible.map(row => {
+          const done = row.contacted || sent.has(row.id);
+          return <div key={`${row.kind}-${row.id}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", border: "1px solid var(--card-border,#e7ebf0)", borderRadius: 10, padding: "10px 13px", background: "var(--card,#fff)" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{row.name || "—"} {done && <span style={{ font: `700 10px ${F}`, color: "#188038", background: "#e6f4ea", padding: "2px 7px", borderRadius: 999, marginLeft: 6 }}>✓ emailed</span>}</div>
+              <div style={{ fontSize: 11.5, color: "var(--muted,#8a97ad)", marginTop: 2 }}>
+                <span style={{ color: SEG_COLOR[row.segment], fontWeight: 700 }}>{SEGMENT_LABEL[row.segment]}</span>
+                {" · "}{row.email || "no email"}
+                {" · "}{row.isSignup ? "signup CTA" : "has link"}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+              <button style={{ ...btn, opacity: row.email ? 1 : .4 }} disabled={!row.email || busy} title={row.email ? "Review, then send" : "No email saved"} onClick={() => openEmail(row)}>Email</button>
+              {row.chatMethod && row.chatHandle
+                ? <button style={btn} disabled={busy} onClick={() => openChat(row)}>{chatLabel[row.chatMethod]}</button>
+                : <span style={{ font: `500 11px ${F}`, color: "var(--muted2,#9aa0a6)", alignSelf: "center" }}>no chat</span>}
+            </div>
+          </div>;
+        })}
+        {!visible.length && <p style={{ color: "var(--muted,#647189)" }}>No one in this segment.</p>}
+      </div>}
+
+      {preview && <div role="dialog" aria-label="Review outreach email" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "grid", placeItems: "center", padding: 16, zIndex: 50 }} onClick={e => { if (e.target === e.currentTarget) setPreview(null); }}>
+        <div style={{ background: "var(--card,#fff)", borderRadius: 14, padding: 18, width: "min(640px,100%)", maxHeight: "90vh", overflow: "auto", display: "grid", gap: 10 }}>
+          <b style={{ font: `700 14px ${F}` }}>Email to {preview.row.name} · {preview.row.email}</b>
+          <input aria-label="Subject" style={{ ...btn, color: "var(--fg,#111)", width: "100%", boxSizing: "border-box" }} value={preview.subject} onChange={e => setPreview({ ...preview, subject: e.target.value })} />
+          <textarea aria-label="Message" rows={16} style={{ ...btn, color: "var(--fg,#111)", width: "100%", boxSizing: "border-box", fontFamily: F }} value={preview.text} onChange={e => setPreview({ ...preview, text: e.target.value })} />
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button style={btn} disabled={busy} onClick={() => setPreview(null)}>Cancel</button>
+            <button style={{ ...btn, background: "var(--link,#0a66c2)", color: "#fff" }} disabled={busy || !preview.subject.trim() || !preview.text.trim()} onClick={sendEmail}>{busy ? "Sending…" : "Send email"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
