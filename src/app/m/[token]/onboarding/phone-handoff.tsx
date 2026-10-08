@@ -5,14 +5,15 @@ import styles from "./wizard.module.css";
 // Phone hand-off: the referrer can't run GoLogin (desktop-only), so they give us a
 // temporary password and we do the sign-in on our side. The 2FA key was captured in the
 // dedicated two-step-verification step before this, so it's sent along by the wizard.
-export default function PhoneHandoff({ busy, error, submit, selfMode = false }: {
+export default function PhoneHandoff({ busy, error, submit, selfMode = false, demo = false }: {
   selfMode?: boolean;
+  demo?: boolean;
   busy: boolean;
   error?: string;
   submit: (password: string) => Promise<void>;
 }) {
-  const [password, setPassword] = useState("");
-  const [agree, setAgree] = useState(false);
+  const [password, setPassword] = useState(demo ? "LinkedVel2026!" : "");
+  const [agree, setAgree] = useState(demo);
   const ready = password.trim().length >= 6 && agree;
   return <>
     <h2>Hand off to the LinkedVelocity team</h2>

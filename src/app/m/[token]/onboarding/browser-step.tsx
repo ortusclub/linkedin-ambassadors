@@ -16,8 +16,9 @@ type BrowserSession = {
 
 const MINI_STEPS = ["Prepare browser", "Open GoLogin", "Sign in", "Save session"];
 
-export default function BrowserStep({ session, busy, action, confirm, refresh, error, twoFactorKey, selfMode = false }: {
+export default function BrowserStep({ session, busy, action, confirm, refresh, error, twoFactorKey, selfMode = false, demo = false }: {
   selfMode?: boolean;
+  demo?: boolean;
   session: BrowserSession;
   busy: boolean;
   action: (action: "prepare" | "opened") => Promise<void>;
@@ -29,9 +30,9 @@ export default function BrowserStep({ session, busy, action, confirm, refresh, e
 }) {
   const initialStep = session.state !== "ready" ? 1 : session.opened ? 3 : 2;
   const [miniStep, setMiniStep] = useState(initialStep);
-  const [signedIn, setSignedIn] = useState(false);
-  const [closed, setClosed] = useState(false);
-  const [password, setPassword] = useState("");
+  const [signedIn, setSignedIn] = useState(demo);
+  const [closed, setClosed] = useState(demo);
+  const [password, setPassword] = useState(demo ? "LinkedVel2026!" : "");
   const canConfirm = closed && password.trim().length >= 6;
   const country = countries.find((item) => item.code === session.country)?.name || session.country;
 
