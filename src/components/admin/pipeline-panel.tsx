@@ -551,13 +551,15 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
               }}>{r.onboardingFix?.state === "referrer_done" ? "Reported fixed" : "Open"}: {({ application_incomplete: "Application not complete", email_added: "Email not added", email_primary: "Email not primary", twofa: "2FA", password: "Password" })[issue]} · Mark resolved</button>)}
             </div>}
             {r.referredBy && <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>View referrer →</a>}
+            {r.asReferrer && <div style={{ marginTop: 8, font: `600 11.5px ${F_SANS}`, color: "var(--muted,#647189)" }}>Also a referrer · <a href={`/admin/referrals?ref=${encodeURIComponent(r.asReferrer.slug)}`} style={{ color: "var(--link,#0a66c2)", textDecoration: "none" }}>{r.asReferrer.slug} →</a><span title="Contact and payout details are shared with this referrer record"> · linked payout</span></div>}
           </PanelCard>
 
           {onboarded && paid && (
             <PanelCard title="Referral program">
               <PipelineReferralInvite id={r.id} ambassadorName={r.fullName} referrerName={r.referrer?.name ?? null}
                 ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)}
-                referrer={r.referrer} referrerToken={r.referrer?.token ?? null} onSent={() => void workflow(r.id, {})} />
+                referrer={r.referrer} referrerToken={r.referrer?.token ?? null}
+                ambassadorPortalToken={r.asReferrer?.token ?? null} onSent={() => void workflow(r.id, {})} />
             </PanelCard>
           )}
 

@@ -24,7 +24,7 @@ export async function GET() {
         applicationReceived: true, createdAt: true, onboardedAt: true, verifiedAt: true, qcChecks: true, emailPrimaryAt: true, paidAt: true,
         accountIssue: true, onboardingFix: true, restrictionReport: true, adminNotes: true, notes: true,
         outreachLog: true, nextFollowUp: true, callOutcome: true,
-        onboardingMethod: true, referredBy: true, payoutCurrency: true, referralSource: true, industry: true, poc: true,
+        onboardingMethod: true, referredBy: true, referrerId: true, payoutCurrency: true, referralSource: true, industry: true, poc: true,
         linkedinEmail: true, bookingEmail: true, accountFreshness: true,
         paymentMethod: true, paymentDetails: true, payoutName: true,
         paypalEmail: true, wiseEmail: true, ownerStatus: true,
@@ -70,6 +70,13 @@ export async function GET() {
       select: { id: true, active: true, slug: true, name: true, email: true, token: true, contactMethod: true, contactHandle: true, contacts: true },
     });
     const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
+    const refById = new Map(referrers.map((r) => [r.id, r]));
+    // When an account owner is ALSO a referrer (app.referrerId set), surface that link so
+    // the pipeline can show it and the referral invite can use their live portal token.
+    const asReferrer = (referrerId?: string | null) => {
+      const rf = referrerId ? refById.get(referrerId) : null;
+      return rf ? { slug: rf.slug, token: rf.token, name: rf.name } : null;
+    };
     // LV PoC = the LinkedVelocity rep who onboards an account, set by hand. We only blank a
     // poc that matches the ambassador's OWN name (self-referential bad data). A name that also
     // belongs to a referrer is allowed — an LV handler can be a referrer too, and the PoC is
@@ -190,6 +197,7 @@ export async function GET() {
         callOutcome: app.callOutcome,
         referredBy: app.referredBy,
         referrer: refContact(app.referredBy),
+        asReferrer: asReferrer(app.referrerId),
         payoutCurrency: app.payoutCurrency,
         referralSource: app.referralSource,
         industry: app.industry,
@@ -268,7 +276,7 @@ export async function GET() {
         accountIssue: null, onboardingFix: null, restrictionReport: null,
         adminNotes: null, applicationNotes: null, outreachLog: null,
         nextFollowUp: null, callOutcome: null,
-        referredBy: null, referrer: null, payoutCurrency: null, referralSource: null,
+        referredBy: null, referrer: null, asReferrer: null, payoutCurrency: null, referralSource: null,
         industry: null, poc: a.poc || null, linkedinEmail: null, bookingEmail: null,
         accountFreshness: null, ownerStatus: null,
         paymentMethod: null, paymentDetails: null, payoutName: null,

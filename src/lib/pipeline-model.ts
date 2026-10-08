@@ -49,6 +49,8 @@ export interface Row {
   onboardingFix: { issues: ("application_incomplete" | "email_added" | "email_primary" | "twofa" | "password")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
   restrictionReport: { type: "qr_done" | "recovered"; at: string; by?: string } | null;
   referrer: { email?: string | null; viber?: string | null; name: string; token: string | null; whatsapp: string | null; telegram: string | null; preferred: string | null } | null;
+  // Set when this account owner is ALSO a referrer (same person) — their own Referrer row.
+  asReferrer?: { slug: string; token: string; name: string } | null;
   reason: string;
   phoneHandoffPending?: boolean;
   latestCode?: string | null;

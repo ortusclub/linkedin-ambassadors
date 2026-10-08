@@ -369,6 +369,11 @@ model AmbassadorApplication {
   notes             String?
   referralSource    String?          @map("referral_source")
   referredBy        String?          @map("referred_by")
+  // This account owner is ALSO a referrer (same human) — links to their Referrer row so
+  // contact + payout info are shared and payouts treat them as one payee. Distinct from
+  // referredBy, which is the slug of whoever referred THIS signup. Null = not a referrer.
+  referrerId        String?          @map("referrer_id") @db.Uuid
+  asReferrer        Referrer?        @relation("AmbassadorIsReferrer", fields: [referrerId], references: [id], onDelete: SetNull)
   status            AmbassadorStatus @default(pending)
   offeredAmount     Decimal?         @map("offered_amount") @db.Decimal(10, 2)
   adminNotes        String?          @map("admin_notes")
@@ -448,6 +453,7 @@ model AmbassadorApplication {
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
   @@index([submittedByUserId])
+  @@index([referrerId])
   @@map("ambassador_applications")
 }
 
@@ -475,6 +481,9 @@ model Referrer {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
   payouts          Payout[]
+  // Ambassador account(s) owned by this same person (they are both a referrer and an
+  // account owner). Lets the two sides share contact + payout info. See AmbassadorApplication.asReferrer.
+  ambassadorAccounts AmbassadorApplication[] @relation("AmbassadorIsReferrer")
 
   @@map("referrers")
 }

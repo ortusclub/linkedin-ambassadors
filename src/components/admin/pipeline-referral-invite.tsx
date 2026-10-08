@@ -7,11 +7,15 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
 
 // Shown on onboarded + paid pipeline rows: invite the ambassador to become a referrer
 // (opt-in — no portal yet) and re-engage the referrer who brought them in (live portal link).
-export function PipelineReferralInvite({ id, ambassadorName, referrerName, ambassador, referrer, referrerToken, onSent }: {
+export function PipelineReferralInvite({ id, ambassadorName, referrerName, ambassador, referrer, referrerToken, ambassadorPortalToken, onSent }: {
   id: string; ambassadorName: string; referrerName: string | null;
-  ambassador: IssueContact; referrer: IssueContact | null; referrerToken: string | null; onSent: () => void;
+  ambassador: IssueContact; referrer: IssueContact | null; referrerToken: string | null;
+  ambassadorPortalToken?: string | null; onSent: () => void;
 }) {
   const portalUrl = referrerToken ? `${APP_URL}/m/${referrerToken}` : null;
+  // Set only when this ambassador is already a referrer too — then we link their own portal
+  // instead of the opt-in copy.
+  const ambassadorPortalUrl = ambassadorPortalToken ? `${APP_URL}/m/${ambassadorPortalToken}` : null;
   const [preview, setPreview] = useState<{ recipient: InviteRecipient; channel: keyof IssueContact; subject: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false), [result, setResult] = useState("");
   const request = useRef({ signature: "", id: "" });
@@ -19,7 +23,7 @@ export function PipelineReferralInvite({ id, ambassadorName, referrerName, ambas
 
   const build = (recipient: InviteRecipient, channel: keyof IssueContact) => {
     const name = recipient === "ambassador" ? ambassadorName : (referrerName || "");
-    return referralInviteMessage(recipient, channel === "email" ? "email" : "chat", name, recipient === "referrer" ? portalUrl : null);
+    return referralInviteMessage(recipient, channel === "email" ? "email" : "chat", name, recipient === "referrer" ? portalUrl : ambassadorPortalUrl);
   };
 
   return <div style={{ display: "grid", gap: 10 }}>
