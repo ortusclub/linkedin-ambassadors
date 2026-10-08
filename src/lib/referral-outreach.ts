@@ -24,6 +24,9 @@ export type OutreachRow = {
   link: string;       // their /r/<slug>, or the /become-a-referrer signup URL when they have no link yet
   isSignup: boolean;  // true = link is the signup CTA (no referrer record yet)
   contacted: boolean; // we've already emailed them for this campaign
+  signedUpAt: string | null; // when they signed up / applied (ISO)
+  suppressed: boolean;       // on the do-not-contact list
+  suppressReason: string | null;
 };
 
 const first = (name: string) => (name || "").trim().split(/\s+/)[0] || "there";

@@ -18,6 +18,7 @@ export default function ReferralOutreachPage() {
   const [preview, setPreview] = useState<Preview>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  const [localSup, setLocalSup] = useState<Map<string, { suppressed: boolean; reason: string | null }>>(new Map());
 
   useEffect(() => {
     fetch("/api/admin/referral-outreach", { cache: "no-store" })
@@ -59,13 +60,35 @@ export default function ReferralOutreachPage() {
     finally { setBusy(false); }
   };
 
+  const effSup = (row: OutreachRow) => (row.email && localSup.has(row.email)) ? localSup.get(row.email)! : { suppressed: row.suppressed, reason: row.suppressReason };
+  const toggleSuppress = async (row: OutreachRow) => {
+    if (!row.email) return;
+    setNote("");
+    try {
+      if (effSup(row).suppressed) {
+        const res = await fetch("/api/admin/referral-outreach/suppress", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: row.email }) });
+        if (!res.ok) throw new Error((await res.json()).error);
+        setLocalSup(m => new Map(m).set(row.email!, { suppressed: false, reason: null }));
+        setNote(`${row.name} can be contacted again.`);
+      } else {
+        const reason = window.prompt(`Add a note — why not contact ${row.name}?`, "");
+        if (reason === null) return; // cancelled
+        const res = await fetch("/api/admin/referral-outreach/suppress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: row.email, reason: reason || undefined }) });
+        if (!res.ok) throw new Error((await res.json()).error);
+        setLocalSup(m => new Map(m).set(row.email!, { suppressed: true, reason: reason || null }));
+        setNote(`${row.name} added to do-not-contact.`);
+      }
+    } catch (e) { setNote(e instanceof Error ? e.message : "Could not update."); }
+  };
+  const fmtDate = (iso: string | null) => iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+
   const chatLabel = { whatsapp: "WhatsApp", telegram: "Telegram", viber: "Viber" };
 
   return (
     <div style={{ padding: "20px 22px", font: `400 13px ${F}`, color: "var(--fg,#111)" }}>
       <h1 style={{ font: `800 20px ${F}`, margin: "0 0 4px" }}>Referral outreach</h1>
       <p style={{ color: "var(--muted,#647189)", margin: "0 0 16px", maxWidth: 680 }}>
-        Invite people to the referral program. Email sends from info@linkedvelocity.com and is logged. WhatsApp / Telegram / Viber open the chat with the message prefilled — you hit send. People with no referral link yet get pointed to the self-serve signup.
+        Invite people to the referral program. Email sends from info@linkedvelocity.com and is logged. WhatsApp / Telegram / Viber open the chat with the message prefilled — you hit send. People with no referral link yet get pointed to the self-serve signup. Each row shows when they signed up; use &ldquo;Don&apos;t contact&rdquo; to add a note and keep someone off every list.
       </p>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -92,13 +115,20 @@ export default function ReferralOutreachPage() {
                 <span style={{ color: SEG_COLOR[row.segment], fontWeight: 700 }}>{SEGMENT_LABEL[row.segment]}</span>
                 {" · "}{row.email || "no email"}
                 {" · "}{row.isSignup ? "signup CTA" : "has link"}
+                {row.signedUpAt && <>{" · "}signed up {fmtDate(row.signedUpAt)}</>}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-              <button style={{ ...btn, opacity: row.email ? 1 : .4 }} disabled={!row.email || busy} title={row.email ? "Review, then send" : "No email saved"} onClick={() => openEmail(row)}>Email</button>
-              {row.chatMethod && row.chatHandle
-                ? <button style={btn} disabled={busy} onClick={() => openChat(row)}>{chatLabel[row.chatMethod]}</button>
-                : <span style={{ font: `500 11px ${F}`, color: "var(--muted2,#9aa0a6)", alignSelf: "center" }}>no chat</span>}
+            <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
+              {effSup(row).suppressed ? <>
+                <span title={effSup(row).reason || undefined} style={{ font: `700 10.5px ${F}`, color: "#c0392b", background: "#fdecea", padding: "4px 10px", borderRadius: 999, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>⛔ Do not contact{effSup(row).reason ? `: ${effSup(row).reason}` : ""}</span>
+                <button style={btn} disabled={busy} onClick={() => toggleSuppress(row)}>Allow again</button>
+              </> : <>
+                <button style={{ ...btn, opacity: row.email ? 1 : .4 }} disabled={!row.email || busy} title={row.email ? "Review, then send" : "No email saved"} onClick={() => openEmail(row)}>Email</button>
+                {row.chatMethod && row.chatHandle
+                  ? <button style={btn} disabled={busy} onClick={() => openChat(row)}>{chatLabel[row.chatMethod]}</button>
+                  : <span style={{ font: `500 11px ${F}`, color: "var(--muted2,#9aa0a6)", alignSelf: "center" }}>no chat</span>}
+                {row.email && <button style={{ ...btn, color: "#c0392b", borderColor: "#f3c0ba" }} disabled={busy} title="Add to do-not-contact" onClick={() => toggleSuppress(row)}>Don&apos;t contact</button>}
+              </>}
             </div>
           </div>;
         })}
