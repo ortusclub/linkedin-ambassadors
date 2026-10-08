@@ -728,28 +728,48 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <div>Copy the key — don&apos;t scan the QR</div>
               <p>If you scan it into your own app, {selfMode ? "we" : "the team"} can&apos;t make sign-in codes and you&apos;ll be stuck.</p>
             </div>
-            <ol className={styles.instructions}>
-              <li>LinkedIn app: <strong>Settings → Sign in &amp; security → Two-step verification</strong></li>
-              <li>Choose <strong>Authenticator app</strong></li>
-              <li>Tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> and copy the key</li>
-              <li>Paste it below, then type the 6-digit code into LinkedIn</li>
-            </ol>
-            <div data-tour="twofa-key" style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 14px", margin: "0 0 14px", background: "#fafafa" }}>
-              <div style={{ font: "700 12px var(--font-sans), system-ui, sans-serif", color: "#6b7280", marginBottom: 6 }}>What the key looks like in LinkedIn</div>
-              <p style={{ font: "500 12.5px/1.5 var(--font-sans), system-ui, sans-serif", color: "#4b5563", margin: "0 0 8px" }}>You may also enter the key manually and use <strong>&ldquo;LinkedIn&rdquo;</strong> as the account name.</p>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #fca5a5", borderRadius: 8, padding: "8px 10px", background: "#fff" }}>
-                <code style={{ flex: 1, font: "600 13px ui-monospace, SFMono-Regular, Menlo, monospace", color: "#0b1220", letterSpacing: ".04em", wordBreak: "break-all" }}>K7QXM2VD4HJNP3WLR6TZY8BCE5GS</code>
-                <span aria-hidden="true" style={{ color: "#9ca3af", fontSize: 15 }}>📋</span>
-              </div>
-              <p style={{ font: "600 11.5px var(--font-sans), system-ui, sans-serif", color: "#b45309", margin: "8px 0 0" }}>Copy this line — not the QR above it.</p>
-            </div>
-            <a href={`https://linkedvelocity.com/guide/two-step-verification?for=${selfMode ? "owner" : "referrer"}`} target="_blank" rel="noreferrer" style={{ display: "inline-block", margin: "0 0 14px", color: "#15803d", font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none" }}>Step-by-step guide with screenshots ↗</a>
-            <label className={styles.field}>2FA setup key
-              <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
-            </label>
-            {session.twoFactorSaved && !twoFactorKey.trim() && <p className={styles.note}>Your 2FA setup is already saved. You can continue, or enter a replacement key if you changed it.</p>}
-            {looksLikeTotpKey(twoFactorKey) && <p className={styles.note} style={{ color: "#15803d" }}>✓ Key captured on our side — this is what we needed. It saves automatically, and the live code appears below.</p>}
-            <div data-tour="twofa-code"><TotpCode secretKey={twoFactorKey.trim()} /></div>
+            {(() => {
+              const captured = looksLikeTotpKey(twoFactorKey) || (!!session.twoFactorSaved && !twoFactorKey.trim());
+              const dot = (label: string | number, done = false) => <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", background: done ? "#16a34a" : "#0b1220", color: "#fff", font: "700 12.5px var(--font-sans), system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>{label}</span>;
+              const line = () => <span style={{ flex: 1, width: 2, background: "#e3e6ea", margin: "4px 0" }} />;
+              const txt = { font: "600 14.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#0b1220" } as const;
+              const colL = { display: "flex", flexDirection: "column", alignItems: "center" } as const;
+              return <div style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={colL}>{dot(1)}{line()}</div>
+                  <div style={{ flex: 1, minWidth: 0, padding: "2px 0 18px" }}><div style={txt}>In the LinkedIn app, go to <strong>Settings → Sign in &amp; security → Two-step verification</strong></div></div>
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={colL}>{dot(2)}{line()}</div>
+                  <div style={{ flex: 1, minWidth: 0, padding: "2px 0 18px" }}><div style={txt}>Choose <strong>Authenticator app</strong></div></div>
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={colL}>{dot(3)}{line()}</div>
+                  <div style={{ flex: 1, minWidth: 0, padding: "2px 0 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={txt}>Copy the long key under the QR code</div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <div style={{ border: "1px solid #e3e6ea", borderRadius: 10, overflow: "hidden", background: "#fff" }}><img src="/onboarding/2fa-key-sample.png" alt="Where the key appears in LinkedIn, with the copy icon" style={{ width: "100%", display: "block" }} /></div>
+                    <div style={{ font: "500 12px var(--font-sans), system-ui, sans-serif", color: "#8a93a3" }}>Tap the copy icon. Can&apos;t see it? Tap &ldquo;Can&apos;t scan the QR code?&rdquo;</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12 }} data-tour="twofa-key">
+                  <div style={colL}>{dot(captured ? "✓" : 4, captured)}{line()}</div>
+                  <div style={{ flex: 1, minWidth: 0, padding: "2px 0 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={txt}>Paste it here</div>
+                    <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. K7QX M2VD 4HJN P3WL…" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${captured ? "#86efac" : "#d9dde3"}`, borderRadius: 12, padding: 13, font: "600 15px var(--font-sans), system-ui, sans-serif", letterSpacing: ".04em", color: "#0b1220", outline: "none", background: "#fff" }} />
+                    {captured && <div style={{ font: "600 12.5px var(--font-sans), system-ui, sans-serif", color: "#15803d" }}>✓ Key saved</div>}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12 }} data-tour="twofa-code">
+                  <div style={colL}>{dot(5)}</div>
+                  <div style={{ flex: 1, minWidth: 0, padding: "2px 0 0", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={txt}>Type this code into LinkedIn</div>
+                    <TotpCode secretKey={twoFactorKey.trim()} />
+                  </div>
+                </div>
+              </div>;
+            })()}
+            <a href={`https://linkedvelocity.com/guide/two-step-verification?for=${selfMode ? "owner" : "referrer"}`} target="_blank" rel="noreferrer" style={{ display: "inline-block", margin: "14px 0 0", color: "#15803d", font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none" }}>Full guide with screenshots ↗</a>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={goBack}>Back</button>
               <button type="button" className={styles.primary} disabled={busy || (!looksLikeTotpKey(twoFactorKey) && !(session.twoFactorSaved && !twoFactorKey.trim()))} onClick={() => run(async () => { if (twoFactorKey.trim()) { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); setSession({ ...session, twoFactorSaved: true }); } setStep(session.emailSetup && !session.emailSetup.primaryConfirmed ? 4 : 5); })}>{session.emailSetup && !session.emailSetup.primaryConfirmed ? "Continue to secure email →" : selfMode && session.diyTier === "partial" ? "Continue to team handoff →" : "Continue to sign-in →"}</button>
