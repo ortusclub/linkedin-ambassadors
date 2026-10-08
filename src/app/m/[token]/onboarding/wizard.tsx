@@ -717,7 +717,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
           </div>}
           {step === 4 && session?.emailSetup && <>
             <div className={styles.stepLabel}>Add secure email</div>
-            <EmailStep selfMode={selfMode} key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+            <EmailStep selfMode={selfMode} demo={demo} key={`${session.id}-${session.emailSetup.forwardingActive}-${session.emailSetup.lastForwardedAt || "waiting"}`} setup={session.emailSetup} busy={busy} submit={emailAction} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>}
 
           {step === 3 && session && <>
@@ -785,14 +785,14 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             {setupOptions()}
           </> : browserMode === "phone" ? <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
-            <PhoneHandoff selfMode={selfMode} busy={busy} error={error} submit={handoff} />
+            <PhoneHandoff selfMode={selfMode} demo={demo} busy={busy} error={error} submit={handoff} />
           </> : <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
             <div className={styles.infoBlue}><div>This step needs a computer</div><p>The sign-in uses GoLogin desktop software. If you&apos;re on a phone, copy this link and open it on a Windows or Mac computer {selfMode ? "to continue your setup" : "with the account owner"}.</p></div>
             <button type="button" className={styles.secondary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Copy / share this link"}</button>
             <WaitNotice primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null} />
             {session.emailSetup && <><div className={styles.emailAddressCard}><span>LinkedIn login email</span><strong>{session.emailSetup.address}</strong><button type="button" onClick={() => { if (session.emailSetup?.address) { navigator.clipboard?.writeText(session.emailSetup.address); setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800); } }}>{emailCopied ? "Copied ✓" : "Copy email"}</button></div><div className={styles.note}>{session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(4)}>Manage onboarding email</button></>}
-            <BrowserStep selfMode={selfMode} key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+            <BrowserStep selfMode={selfMode} demo={demo} key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
           </>)}
 
           {step === 6 && session && <>

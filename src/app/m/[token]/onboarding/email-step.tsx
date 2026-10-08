@@ -15,8 +15,9 @@ export type EmailSetup = {
 
 const MINI_STEPS = ["Code inbox", "Add email", "Verify email", "Make primary"];
 
-export default function EmailStep({ setup, busy, submit, refresh, selfMode = false }: {
+export default function EmailStep({ setup, busy, submit, refresh, selfMode = false, demo = false }: {
   selfMode?: boolean;
+  demo?: boolean;
   setup: EmailSetup; busy: boolean; submit: (body: unknown) => Promise<void>; refresh: () => Promise<void>;
 }) {
   const initialStep = !setup.forwardingActive ? 1 : (setup.lastForwardedAt || setup.confirmUrl) ? 3 : 2;
@@ -24,10 +25,10 @@ export default function EmailStep({ setup, busy, submit, refresh, selfMode = fal
   const [destination, setDestination] = useState(setup.destination || (selfMode ? setup.previouslyVerifiedEmail : "") || "");
   const [editingInbox, setEditingInbox] = useState(false);
   const previouslyVerified = !!(selfMode && setup.previouslyVerifiedEmail && destination.trim().toLowerCase() === setup.previouslyVerifiedEmail.toLowerCase());
-  const [consent, setConsent] = useState(false);
+  const [consent, setConsent] = useState(demo);
   const [code, setCode] = useState("");
-  const [linkConfirmed, setLinkConfirmed] = useState(false);
-  const [primary, setPrimary] = useState(false);
+  const [linkConfirmed, setLinkConfirmed] = useState(demo);
+  const [primary, setPrimary] = useState(demo);
   const [copied, setCopied] = useState(false);
   const [confirmCopied, setConfirmCopied] = useState(false);
 
