@@ -3,6 +3,9 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { blogFontVars } from "@/lib/blog-fonts";
 import { getBrand } from "@/lib/brand";
+import { LinkedArmyHome, type ArmyRosterCard } from "./linkedarmy-home";
+import { prisma } from "@/lib/prisma";
+import { maskName } from "@/lib/mask";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 
@@ -84,13 +87,46 @@ const WHY_BY_BRAND = {
   ],
 } as const;
 
+// A few real, privacy-masked profiles for the LinkedArmy "meet the operators" teaser —
+// same shared catalogue backend as LinkedVelocity, same public filters.
+async function getArmyRoster(): Promise<ArmyRosterCard[]> {
+  try {
+    const rows = await prisma.linkedInAccount.findMany({
+      where: {
+        inventoryPool: { notIn: ["ortus", "apex"] },
+        OR: [
+          { status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false },
+          { status: { in: ["rented", "trial"] }, listed: true },
+        ],
+      },
+      select: { id: true, linkedinName: true, linkedinHeadline: true, connectionCount: true, industry: true, location: true, hasSalesNav: true, linkedinVerified: true },
+      orderBy: { connectionCount: "desc" },
+      take: 8,
+    });
+    return rows.map((a) => ({
+      id: a.id,
+      name: maskName(a.linkedinName),
+      headline: a.linkedinHeadline,
+      connections: a.connectionCount,
+      industry: a.industry,
+      location: a.location,
+      hasSalesNav: a.hasSalesNav,
+      verified: a.linkedinVerified,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export default async function HomePage() {
   const brand = await getBrand();
-  const isArmy = brand.id === "linkedarmy";
-  const hero = HERO[brand.id];
-  const steps = STEPS_BY_BRAND[brand.id];
-  const goFeatures = GO_FEATURES_BY_BRAND[brand.id];
-  const why = WHY_BY_BRAND[brand.id];
+  // LinkedArmy renders its own brutalist homepage; LinkedVelocity keeps the page below.
+  if (brand.id === "linkedarmy") return <LinkedArmyHome roster={await getArmyRoster()} />;
+  const isArmy = false; // LinkedVelocity-only below (keeps the shared ternaries valid)
+  const hero = HERO.linkedvelocity;
+  const steps = STEPS_BY_BRAND.linkedvelocity;
+  const goFeatures = GO_FEATURES_BY_BRAND.linkedvelocity;
+  const why = WHY_BY_BRAND.linkedvelocity;
   return (
     <div className={blogFontVars} style={{ fontFamily: INT, color: "#0B1220", background: "#0D1B2A" }}>
       <style>{`
