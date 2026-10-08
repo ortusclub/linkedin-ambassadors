@@ -159,6 +159,15 @@ export const effectiveTypeKey = (r: Row): string => {
 };
 export const effectiveType = (r: Row) => APPLICATION_TYPES.find((t) => t.key === effectiveTypeKey(r)) || APPLICATION_TYPES[3];
 
+// A full-service self-service row where the referrer self-reported the PC sign-in but it hasn't
+// been human-verified yet (no onboardedAt, carries the "login reported" flag). The team must
+// open the GoLogin and confirm / retry / take over before it advances.
+export const awaitingSigninVerify = (r: Row): boolean =>
+  r.referralSource === "self-service" &&
+  r.onboardingMethod === "computer" &&
+  !r.onboardedAt &&
+  (r.accountIssue || "").toLowerCase().includes("login reported");
+
 export const healthOf = (r: Row): Health => {
   switch (r.status) {
     case "rejected": return "rejected";

@@ -19,7 +19,7 @@ import TotpCode from "@/app/m/[token]/onboarding/totp";
 import { isLikelyTestEmail } from "@/lib/test-mode";
 import {
   type Row, type Touch, F_SANS, F_GRO, labelCss, inputCss, btnSec, btnPrimary,
-  applicationType, effectiveType, isLive, stageOf, isBlocked, levelKey, healthOf, needsGologin,
+  applicationType, effectiveType, awaitingSigninVerify, isLive, stageOf, isBlocked, levelKey, healthOf, needsGologin,
   STATUS_STYLE, STAGE_ACCENT, HEALTH_OPTIONS, ACCOUNT_STATUS_OPTIONS, OWNER_STATUS_OPTIONS,
   cfgOf, monthlyAmt, totalPaid, setupPaid, holdDays, matureDaysLeft, QC_ITEMS,
   fmtDate, fmtDateTime, ageDays, liHref, proxyCombined, parseProxy, initialsOf,
@@ -36,6 +36,7 @@ type Handlers = {
   workflow: (id: string, patch: Record<string, unknown>) => void;
   provisionGologin: (r: Row) => void;
   createAccount: (r: Row) => void;
+  verifySignin: (r: Row, action: "confirm" | "retry" | "takeover") => void;
   deleteGologin: (r: Row) => void;
   emailIssue: (r: Row, issue: string) => void;
   logTouch: (id: string, ch: string, text: string, by: string) => Promise<void>;
@@ -170,7 +171,7 @@ function SignupMeeting({ r }: { r: Row }) {
   </div>;
 }
 
-export function WorkflowRail({ r, busy, workflow, setStage }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void; setStage: (r: Row, s: Status) => void }) {
+export function WorkflowRail({ r, busy, workflow, setStage, verifySignin }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void; setStage: (r: Row, s: Status) => void; verifySignin: (r: Row, action: "confirm" | "retry" | "takeover") => void }) {
   const qcPassed = !!r.verifiedAt;
   // A fresh form signup lands as "reviewing"/"pending" — step 1 is to accept it (the old
   // footer "Accept → Level 1" button is now folded in here).
@@ -223,9 +224,19 @@ export function WorkflowRail({ r, busy, workflow, setStage }: { r: Row; busy: bo
         : <button onClick={() => workflow(r.id, { emailPrimaryAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>Mark email added &amp; primary</button>,
     },
     {
-      label: "Step 3", title: "Logged into GoLogin", sub: r.onboardedAt ? `logged in ${fmtDate(r.onboardedAt)}` : "sign in via the GoLogin profile", done: !!r.onboardedAt,
+      label: "Step 3", title: "Logged into GoLogin", sub: r.onboardedAt ? `logged in ${fmtDate(r.onboardedAt)}` : awaitingSigninVerify(r) ? "referrer reported sign-in — verify it's actually signed in" : "sign in via the GoLogin profile", done: !!r.onboardedAt,
       render: (isNext) => r.onboardedAt ? doneCol("Logged in", { onboardedAt: null })
-        : <button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>Mark logged in</button>,
+        : awaitingSigninVerify(r)
+          ? <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)", lineHeight: 1.4 }}>Referrer reported the sign-in. Open the GoLogin and confirm it&apos;s actually signed into LinkedIn.</div>
+              {r.gologinShareLink && <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 11px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>Open GoLogin ↗</a>}
+              <button onClick={() => verifySignin(r, "confirm")} disabled={busy} style={primaryBtn(isNext)}>✓ Confirm signed in</button>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <button onClick={() => verifySignin(r, "retry")} disabled={busy} title="Not signed in — reopen the referrer's sign-in step so they can retry (stays full-service tier)" style={{ flex: "1 1 auto", font: `700 11px ${F_SANS}`, color: "#92400e", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "7px 9px", cursor: busy ? "wait" : "pointer" }}>↩ Referrer retries</button>
+                <button onClick={() => verifySignin(r, "takeover")} disabled={busy} title="Not signed in — we take over the sign-in; commission drops to the email/2FA tier" style={{ flex: "1 1 auto", font: `700 11px ${F_SANS}`, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "7px 9px", cursor: busy ? "wait" : "pointer" }}>✗ We&apos;ll do it</button>
+              </div>
+            </div>
+          : <button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>Mark logged in</button>,
     },
     {
       label: "Step 4", title: "Passed checks & QC",
@@ -423,7 +434,7 @@ export function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
 // card grid. Applicant / Sign-in & credentials / Payout cards have a per-card read↔edit
 // toggle; Payments is a compact summary that links out to the Payouts page. Same wiring.
 export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
-  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, createAccount, deleteGologin, logTouch, onDeleteApp } = h;
+  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, createAccount, verifySignin, deleteGologin, logTouch, onDeleteApp } = h;
   const [editSec, setEditSec] = useState<string | null>(null);
   const live = isLive(r);
   const onboarded = r.status === "onboarded";
@@ -494,7 +505,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
 
   return (
     <div style={{ borderTop: "1px solid var(--divider,#eee)", background: "var(--panel,#fafafa)", padding: 16 }}>
-      {!onboarded && <WorkflowRail r={r} busy={busy} workflow={workflow} setStage={setStage} />}
+      {!onboarded && <WorkflowRail r={r} busy={busy} workflow={workflow} setStage={setStage} verifySignin={verifySignin} />}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "flex-start" }}>
         {/* ── Left column: Applicant · Sign-in & credentials ── */}
