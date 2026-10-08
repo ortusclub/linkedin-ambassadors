@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { accountNotesTimeline } from "@/lib/account-notes";
+import { OnboardingNotes } from "@/components/admin/onboarding-notes";
 
 export function AccountNotes({ accountId, notes, proof, sharedLog, onNotesSaved, onProofSaved }: {
   sharedLog?: Array<{ ch: string; text: string; at: string }> | null;
@@ -38,7 +39,7 @@ export function AccountNotes({ accountId, notes, proof, sharedLog, onNotesSaved,
       {!entries.length && <span style={{ color: "var(--muted)" }}>No notes yet.</span>}
       {entries.map((entry, i) => <article key={`${entry.source}-${i}`} style={{ padding: "14px 16px", borderTop: "1px solid var(--card-border)", background: "var(--card)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: "var(--muted)", fontSize: 11, marginBottom: 8 }}><span style={{ padding: "3px 10px", borderRadius: 5, background: "var(--blue-chip-bg)", color: "var(--blue-chip-text)", fontWeight: 600 }}>NOTE</span><span>{entry.at ? entry.at.includes("T") ? new Date(entry.at).toLocaleString("en-GB") : entry.at : "Earlier notes · date not recorded"}</span></div>
-        <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.5, color: "var(--text)" }}>{entry.text}</div>
+        <OnboardingNotes text={entry.text} />
       </article>)}
     </div>
     {proof && <details style={{ padding: 16, borderTop: "1px solid var(--card-border)" }}>
