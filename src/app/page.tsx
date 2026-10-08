@@ -251,12 +251,12 @@ export default async function HomePage() {
             <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 18, padding: "26px 28px" }}>
               <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.12em", textTransform: "uppercase", color: "#D3F5E0", marginBottom: 18 }}>Example</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
-                <div><div style={{ font: `700 19px ${POP}`, color: "#fff" }}>{isArmy ? "Your profile" : "Each account"}</div><div style={{ fontSize: 12.5, color: "#CFEFDC", marginTop: 2 }}>shared, hands-off</div></div>
+                <div><div style={{ font: `700 19px ${POP}`, color: "#fff" }}>{isArmy ? "Your profile" : "Each account"}</div><div style={{ fontSize: 12.5, color: "#CFEFDC", marginTop: 2 }}>{isArmy ? "shared securely" : "shared, hands-off"}</div></div>
                 <span style={{ fontSize: 22, color: "#B7EBCC" }}>=</span>
                 <div style={{ textAlign: "right" }}><div style={{ font: `800 22px ${POP}`, color: "#fff", lineHeight: 1.15 }}>Setup bonus<br />+ fixed monthly payment</div><div style={{ fontSize: 12.5, color: "#CFEFDC", marginTop: 6 }}>{isArmy ? "a fixed payment, every month" : "the more accounts, the more you earn"}</div></div>
               </div>
               <div style={{ height: 1, background: "rgba(255,255,255,0.18)", margin: "20px 0" }} />
-              {["Leave anytime after 6 months", "Password never shared"].map((t) => (
+              {["Leave anytime after 6 months", isArmy ? "You stay in control" : "Password never shared"].map((t) => (
                 <div key={t} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: "#EAFBF0", marginBottom: 11 }}><span style={{ fontWeight: 700 }}>✓</span>{t}</div>
               ))}
             </div>
