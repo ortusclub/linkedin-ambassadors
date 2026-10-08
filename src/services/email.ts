@@ -166,6 +166,19 @@ export async function sendReferrerWelcomeEmail(email: string, name: string, shar
   });
 }
 
+// Referral-outreach campaign email (/admin/referral-outreach). Takes the plain campaign
+// copy, renders it in the branded wrapper (links made clickable), and logs to email_log.
+export async function sendReferralOutreachEmail(to: string, subject: string, bodyText: string) {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const body = bodyText.replace(/\n*—\s*LinkedVelocity\s*$/, "").trimEnd(); // brandWrap adds the sign-off
+  const html = brandWrap(
+    esc(body)
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#0A66C2;font-weight:600;text-decoration:none;">$1</a>')
+      .replace(/\n/g, "<br>")
+  );
+  return sendEmail({ to, subject, html });
+}
+
 // Sent immediately after payment (card or USDC). Access is granted by our team
 // after vetting + freeing the account internally — so this email is about what to
 // do NOW (set up GoLogin) and what to expect, not "you're live yet".
