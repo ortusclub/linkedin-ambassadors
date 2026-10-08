@@ -81,7 +81,7 @@ export interface Row {
   paymentDetails: string | null;
   payoutName: string | null;
   verifiedAt: string | null;
-  qcChecks: { photo?: boolean; headline?: boolean; about?: boolean; connections?: boolean; experiences?: boolean; education?: boolean } | null;
+  qcChecks: { photo?: boolean; headline?: boolean; about?: boolean; connections?: boolean; experiences?: boolean; education?: boolean; sessionsOut?: boolean; noRememberedPw?: boolean; gologinRemoved?: boolean } | null;
   emailPrimaryAt: string | null;
   linkedinVerified: boolean;
   provisionStatus: string | null;

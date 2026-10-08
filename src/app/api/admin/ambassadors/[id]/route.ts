@@ -66,6 +66,10 @@ const updateSchema = z.object({
     connections: z.boolean().optional(),
     experiences: z.boolean().optional(),
     education: z.boolean().optional(),
+    // Pre-onboarding security handover check (Step 5), stored alongside the QC checks.
+    sessionsOut: z.boolean().optional(),
+    noRememberedPw: z.boolean().optional(),
+    gologinRemoved: z.boolean().optional(),
   }).nullable().optional(),
   // Recurring ₱500/month payout: append a receipt, or remove one by index.
   // A receipt can carry proof-of-payment and its notified / acknowledged audit trail.

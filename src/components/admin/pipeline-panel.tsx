@@ -186,6 +186,15 @@ export function WorkflowRail({ r, busy, workflow, setStage, verifySignin }: { r:
   const qc = qcState.checks;
   const qcCount = QC_ITEMS.filter(([k]) => qc[k]).length;
   const allQc = qcCount === QC_ITEMS.length;
+  // Pre-onboarding security handover check (Step 5), stored in the same qcChecks object. The
+  // GoLogin item only applies to full-service (onboardingMethod "computer"), where the referrer
+  // was given GoLogin access to do the sign-in; other types never had it.
+  const secItems: ["sessionsOut" | "noRememberedPw" | "gologinRemoved", string][] = [
+    ["sessionsOut", "Signed out of all other sessions on LinkedIn"],
+    ["noRememberedPw", "No other device remembers the password"],
+    ...(r.onboardingMethod === "computer" ? [["gologinRemoved", "Referrer's GoLogin access removed"] as ["gologinRemoved", string]] : []),
+  ];
+  const allSec = secItems.every(([k]) => qc[k]);
 
   type Step = { label: string; title: string; sub: string; done: boolean; render: (isNext: boolean) => ReactNode };
   const stepCard = (label: string, title: string, sub: string, isNext: boolean, done: boolean, body: ReactNode) => (
@@ -269,7 +278,17 @@ export function WorkflowRail({ r, busy, workflow, setStage, verifySignin }: { r:
           ? doneBadge("Onboarded — live")
           : !matured
             ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing · 1 week hold…</span>
-            : <button onClick={() => setStage(r, "onboarded")} disabled={busy} title="Mark the account onboarded & live (needs a GoLogin profile)" style={primaryBtn(isNext)}>Mark onboarded (live)</button>,
+            : <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ font: `700 10px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Security check before onboarding</div>
+                {secItems.map(([key, lbl]) => (
+                  <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: 7, cursor: "pointer", font: `500 12px ${F_SANS}`, color: "var(--fg,#333)", lineHeight: 1.35 }}>
+                    <input type="checkbox" checked={!!qc[key]} onChange={e => qcState.toggle(key, e.target.checked)} style={{ width: 15, height: 15, marginTop: 1, accentColor: "var(--st-active-fg,#188038)", flex: "none", cursor: "pointer" }} />
+                    <span>{lbl}</span>
+                  </label>
+                ))}
+                {qcState.saving && <small role="status">Saving…</small>}
+                <button onClick={() => setStage(r, "onboarded")} disabled={busy || !allSec || qcState.saving} title={allSec ? "Mark the account onboarded & live (needs a GoLogin profile)" : "Complete the security check first"} style={{ ...primaryBtn(isNext), marginTop: 2, opacity: allSec ? 1 : 0.5, cursor: allSec ? "pointer" : "not-allowed" }}>Mark onboarded (live)</button>
+              </div>,
     },
   ];
   let unlocked = true;
