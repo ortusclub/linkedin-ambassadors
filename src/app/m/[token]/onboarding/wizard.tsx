@@ -164,7 +164,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "", ownerPhotoUrl: "" });
 
   // --- Demo mode: fabricate everything the UI would otherwise fetch, with no writes. ---
-  const demoProgress = useRef<{ twoFa: boolean; email: "add" | "verify" | "primary" | "done"; confirmed: boolean }>({ twoFa: false, email: "add", confirmed: false });
+  const demoProgress = useRef<{ twoFa: boolean; email: "add" | "verify" | "primary" | "done"; browser: "reserved" | "ready" | "opened"; confirmed: boolean }>({ twoFa: false, email: "add", browser: "reserved", confirmed: false });
   function demoBootstrap(): Bootstrap {
     return { displayCurrency: "PHP", emailEnabled: true, phoneVerificationEnabled: false, countries: ["Philippines"], autoPurchase: true, config: currencyConfig("demo"), configured: true, doneComputer: false, donePhone: false, sessions: [] };
   }
@@ -182,7 +182,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
       emailSetup: demoEmailSetup(p.email), diyTier: null, twoFactorSaved: p.twoFa, meetingRequested: false,
       savedDetails: { fullName: form.fullName, email: form.email, linkedinUrl: form.linkedinUrl, contactNumber: form.contactNumber, paymentMethod: form.paymentMethod, paymentDetails: form.paymentDetails, payoutName: form.payoutName, bankName: form.bankName, bankAccountNumber: form.bankAccountNumber, bankRoutingNumber: form.bankRoutingNumber },
       duplicateWarning: null, country: "PH", proxyAssigned: true, proxyPriceLimit: 10,
-      id: "demo", name: form.fullName || "Demo Owner", state: p.confirmed ? "confirmed" : "reserved", opened: true,
+      id: "demo", name: form.fullName || "Demo Owner", state: p.confirmed ? "confirmed" : p.browser === "reserved" ? "reserved" : "ready", opened: p.browser === "opened",
       shareLink: "https://app.gologin.com/share/demo-profile", confirmedAt: p.confirmed ? new Date().toISOString() : null,
       accountFreshness: form.accountFreshness, setupDueAt: null, setupAmount: cfg.offer.setup, monthlyAmount: cfg.offer.monthly,
       commission: cfg.symbol + (800).toLocaleString("en-US"), verified: accountVerified === "yes", ...over,
@@ -193,6 +193,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     if (demo) {
       const act = body && typeof body === "object" ? (body as { action?: string }).action : undefined;
       if (act === "twofactor") demoProgress.current.twoFa = true;
+      if (act === "prepare") demoProgress.current.browser = "ready";
+      if (act === "opened") demoProgress.current.browser = "opened";
       if (act === "confirm") { demoProgress.current.twoFa = true; demoProgress.current.confirmed = true; }
       if (act === "meeting") return { session: demoSession({ meetingRequested: true }) };
       if (act === "undo_meeting") return { session: demoSession({ meetingRequested: false }) };
