@@ -67,10 +67,12 @@ export async function GET() {
     for (const a of apps) {
       if (a.email && takenEmails.has(norm(a.email))) continue;
       if (a.referrerId && takenRefIds.has(a.referrerId)) continue;
-      const restricted = a.status === "rejected" || a.status === "unreachable" || (!a.onboardedAt && a.status !== "onboarded");
+      // Segment 3 is only people who dropped out — rejected or unreachable. Everyone still
+      // in progress (pending/reviewing/approved/onboarding/contacted/on_hold) is actively
+      // being onboarded and must NOT be told their account "didn't make it through".
       let seg: OutreachSegment | null = null;
       if (a.status === "onboarded") seg = "2";
-      else if (restricted) seg = "3";
+      else if (a.status === "rejected" || a.status === "unreachable") seg = "3";
       if (!seg) continue;
       const linkedRef = a.referrerId ? refById.get(a.referrerId) : null;
       const chat = pickChat(a.contactChannel, a.contactNumber, null);
