@@ -998,7 +998,12 @@ function DashboardContent() {
                 <tbody>
             {activeRentals.map((rental) => {
               const initials = rental.linkedinAccount.linkedinName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-              const canSeeCreds = !!rental.credentialAccess && !rental.isShadow && !isRentalBeingPrepared(rental);
+              // Tiered credential access is an explicit per-renter admin opt-in, so when it's
+              // on we show sign-in details for every account they currently rent — shadow or
+              // not, and even while GoLogin access is still being prepared (credentials are a
+              // direct-login path that doesn't depend on the GoLogin share). activeRentals is
+              // already limited to current rentals (active / pending_access / payment_failed).
+              const canSeeCreds = !!rental.credentialAccess;
               const credsOpen = openCredsId === rental.id;
               return (
                 <Fragment key={rental.id}>

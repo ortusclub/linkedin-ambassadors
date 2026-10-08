@@ -38,20 +38,24 @@ export async function GET() {
     // Renter-facing: surface the sign-in email as accountEmail (loginEmail is the
     // address we log into the account with), and drop the raw field name. The password is
     // pulled out of the spread so it is only ever added back for a credential-access renter.
+    // Only hand back the password for accounts they CURRENTLY rent — never for an expired or
+    // cancelled rental still in the list.
+    const current = new Set(["active", "pending_access", "payment_failed"]);
     const shaped = rentals.map((r) => {
       const { loginEmail, accountPassword, ...account } = r.linkedinAccount;
       const ready = canShowRentalShareLink(r);
+      const showCreds = credAccess && current.has(r.status);
       return {
         ...r,
         gologinShareIds: undefined,
         gologinShareLinkId: undefined,
         gologinShareLinkUrl: ready ? r.gologinShareLinkUrl : null,
-        credentialAccess: credAccess,
+        credentialAccess: showCreds,
         linkedinAccount: {
           ...account,
           gologinShareLink: ready ? account.gologinShareLink : null,
           accountEmail: loginEmail,
-          accountPassword: credAccess ? decryptSecret(accountPassword) : undefined,
+          accountPassword: showCreds ? decryptSecret(accountPassword) : undefined,
         },
       };
     });
