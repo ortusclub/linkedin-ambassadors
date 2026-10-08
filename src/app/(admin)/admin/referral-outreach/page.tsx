@@ -19,6 +19,7 @@ export default function ReferralOutreachPage() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [localSup, setLocalSup] = useState<Map<string, { suppressed: boolean; reason: string | null }>>(new Map());
+  const [batching, setBatching] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/referral-outreach", { cache: "no-store" })
@@ -37,8 +38,10 @@ export default function ReferralOutreachPage() {
     const contact = { [row.chatMethod]: row.chatHandle };
     const href = contactLink(row.chatMethod, contact[row.chatMethod], text);
     if (row.chatMethod === "viber") navigator.clipboard?.writeText(text).catch(() => {});
-    if (href) window.open(href, "_blank", "noopener,noreferrer");
-    else setNote(`Couldn't build a ${row.chatMethod} link for ${row.name}.`);
+    if (!href) { setNote(`Couldn't build a ${row.chatMethod} link for ${row.name}.`); return; }
+    window.open(href, "_blank", "noopener,noreferrer");
+    // Record it in the pipeline activity (ambassadors only — referrers have no pipeline row).
+    if (row.kind === "ambassador") fetch("/api/admin/referral-outreach/log", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ applicationId: row.id, channel: row.chatMethod }) }).catch(() => {});
   };
 
   const openEmail = (row: OutreachRow) => {
@@ -47,17 +50,40 @@ export default function ReferralOutreachPage() {
     setPreview({ row, subject, text });
   };
 
+  const sendOne = async (row: OutreachRow, subject: string, text: string) => {
+    const res = await fetch("/api/admin/referral-outreach/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: row.email, subject, text, applicationId: row.kind === "ambassador" ? row.id : undefined }) });
+    const d = await res.json(); if (!res.ok) throw new Error(d.error);
+    return d;
+  };
+
   const sendEmail = async () => {
     if (!preview?.row.email) return;
     setBusy(true); setNote("");
     try {
-      const res = await fetch("/api/admin/referral-outreach/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: preview.row.email, subject: preview.subject, text: preview.text }) });
-      const d = await res.json(); if (!res.ok) throw new Error(d.error);
+      const d = await sendOne(preview.row, preview.subject, preview.text);
       setSent(s => new Set(s).add(preview.row.id));
       setNote(`Emailed ${d.to}.`);
       setPreview(null);
     } catch (e) { setNote(e instanceof Error ? e.message : "Could not send."); }
     finally { setBusy(false); }
+  };
+
+  const sendAll = async () => {
+    const targets = visible.filter(r => r.email && !effSup(r).suppressed && !(r.contacted || sent.has(r.id)));
+    if (!targets.length) { setNote("No one left to email in this view (all done, no email, or do-not-contact)."); return; }
+    const segName = seg === "all" ? "all segments" : SEGMENT_LABEL[seg as OutreachSegment];
+    if (!window.confirm(`Email the referral invite to ${targets.length} people in ${segName}?\n\nSkips anyone already emailed or on the do-not-contact list. Chat is not included.`)) return;
+    setBatching(true); setBusy(true); setNote("");
+    let ok = 0, fail = 0;
+    for (let i = 0; i < targets.length; i++) {
+      const row = targets[i];
+      const { subject, text } = outreachCopy(row.segment, "email", row.name, row.link, row.isSignup);
+      try { await sendOne(row, subject, text); setSent(s => new Set(s).add(row.id)); ok++; } catch { fail++; }
+      setNote(`Sending… ${i + 1}/${targets.length}  (${ok} sent${fail ? `, ${fail} failed` : ""})`);
+      await new Promise(r => setTimeout(r, 350)); // gentle pacing
+    }
+    setNote(`Done. Emailed ${ok}${fail ? `, ${fail} failed` : ""}.`);
+    setBatching(false); setBusy(false);
   };
 
   const effSup = (row: OutreachRow) => (row.email && localSup.has(row.email)) ? localSup.get(row.email)! : { suppressed: row.suppressed, reason: row.suppressReason };
@@ -100,6 +126,16 @@ export default function ReferralOutreachPage() {
           </button>;
         })}
       </div>
+
+      {rows && (() => {
+        const eligible = visible.filter(r => r.email && !effSup(r).suppressed && !(r.contacted || sent.has(r.id))).length;
+        return <div style={{ marginBottom: 14 }}>
+          <button onClick={sendAll} disabled={busy || batching || !eligible} style={{ ...btn, background: eligible ? "var(--link,#0a66c2)" : "var(--card,#fff)", color: eligible ? "#fff" : "var(--muted2,#9aa0a6)", padding: "9px 16px", fontSize: 13 }}>
+            {batching ? "Sending…" : `Send email to all ${eligible} in ${seg === "all" ? "all segments" : SEGMENT_LABEL[seg as OutreachSegment]}`}
+          </button>
+          <span style={{ marginLeft: 10, font: `500 11.5px ${F}`, color: "var(--muted,#8a97ad)" }}>Emails only · skips already-emailed + do-not-contact</span>
+        </div>;
+      })()}
 
       {error && <p style={{ color: "#c0392b" }}>{error}</p>}
       {note && <p role="status" style={{ color: "var(--link,#0a66c2)", fontWeight: 600 }}>{note}</p>}

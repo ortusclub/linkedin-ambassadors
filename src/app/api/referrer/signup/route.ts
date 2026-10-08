@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { sendReferrerWelcomeEmail } from "@/services/email";
+import { sendReferrerWelcomeEmail, sendReferrerSignupNotification } from "@/services/email";
 
 // Public self-serve referrer sign-up (/become-a-referrer). Auto-creates a referrer
 // record and returns their share link + dashboard immediately. No approval: a link
@@ -44,8 +44,9 @@ export async function POST(req: Request) {
       },
     });
 
-    // Best-effort welcome email — never block signup on it.
+    // Best-effort emails — never block signup on them.
     try { await sendReferrerWelcomeEmail(email, input.name, `${APP_URL}/r/${slug}`, `${APP_URL}/m/${token}`); } catch { /* shown on-page regardless */ }
+    try { await sendReferrerSignupNotification(input.name, email, slug); } catch { /* team ping is best-effort */ }
 
     return NextResponse.json({ ...links(slug, token), existing: false }, { status: 201 });
   } catch (error) {
