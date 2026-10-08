@@ -7,10 +7,10 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
 
 // Shown on onboarded + paid pipeline rows: invite the ambassador to become a referrer
 // (opt-in — no portal yet) and re-engage the referrer who brought them in (live portal link).
-export function PipelineReferralInvite({ id, ambassadorName, referrerName, ambassador, referrer, referrerToken, ambassadorPortalToken, onSent }: {
+export function PipelineReferralInvite({ id, ambassadorName, referrerName, ambassador, referrer, referrerToken, ambassadorPortalToken, ambassadorReferrerSlug, onSent }: {
   id: string; ambassadorName: string; referrerName: string | null;
   ambassador: IssueContact; referrer: IssueContact | null; referrerToken: string | null;
-  ambassadorPortalToken?: string | null; onSent: () => void;
+  ambassadorPortalToken?: string | null; ambassadorReferrerSlug?: string | null; onSent: () => void;
 }) {
   const portalUrl = referrerToken ? `${APP_URL}/m/${referrerToken}` : null;
   // Set only when this ambassador is already a referrer too — then we link their own portal
@@ -29,7 +29,9 @@ export function PipelineReferralInvite({ id, ambassadorName, referrerName, ambas
   return <div style={{ display: "grid", gap: 10 }}>
     <small style={{ color: "var(--muted,#647189)" }}>₱500 per referral · up to ₱1,000 if they onboard it themselves.</small>
     {([
-      { key: "ambassador" as InviteRecipient, name: ambassadorName, role: ambassadorPortalUrl ? "Ambassador · nudge to refer more" : "Ambassador · invite to refer", contact: ambassador },
+      { key: "ambassador" as InviteRecipient, name: ambassadorName, role: ambassadorPortalUrl
+        ? <>Ambassador · already a referrer{ambassadorReferrerSlug && <> · <a href={`/admin/referrals?ref=${encodeURIComponent(ambassadorReferrerSlug)}`} style={{ color: "var(--link,#0a66c2)", textDecoration: "none" }}>{ambassadorReferrerSlug} →</a></>}</>
+        : "Ambassador · invite to refer", contact: ambassador },
       ...(referrer ? [{ key: "referrer" as InviteRecipient, name: referrerName || "Referrer", role: "Referrer · nudge for more", contact: referrer }] : []),
     ]).map(row => {
       const valid = (["email", "whatsapp", "telegram", "viber"] as const).filter(ch => !!contactLink(ch, row.contact?.[ch], ""));

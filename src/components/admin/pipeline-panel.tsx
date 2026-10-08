@@ -590,7 +590,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
               <PipelineReferralInvite id={r.id} ambassadorName={r.fullName} referrerName={r.referrer?.name ?? null}
                 ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)}
                 referrer={r.referrer} referrerToken={r.referrer?.token ?? null}
-                ambassadorPortalToken={r.asReferrer?.token ?? null} onSent={() => void workflow(r.id, {})} />
+                ambassadorPortalToken={r.asReferrer?.token ?? null} ambassadorReferrerSlug={r.asReferrer?.slug ?? null} onSent={() => void workflow(r.id, {})} />
             </PanelCard>
           )}
 

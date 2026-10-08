@@ -1,8 +1,8 @@
 // Invites sent from the onboarded pipeline row: convert a just-onboarded ambassador
-// into a referrer, and re-engage the referrer who brought them in. Offer tiers:
-// refer = ₱500, onboard it yourself (DIY) = up to ₱1,000 per account.
-// Referrers already have a live portal (/m/<token>). Most new ambassadors don't yet, so
-// they opt in — unless they're already a referrer (portalUrl passed), then we link it.
+// into a referrer, re-engage the referrer who brought them in, and nudge an ambassador
+// who is ALREADY a referrer. Offer: refer = ₱500, onboard it yourself (DIY) = up to ₱1,000.
+// A portalUrl is passed for anyone who already has a portal (referrers, and ambassadors
+// who are also referrers); a bare ambassador with no portal gets the opt-in copy.
 export type InviteRecipient = "ambassador" | "referrer";
 export type InviteChannel = "email" | "chat";
 
@@ -15,26 +15,27 @@ export function referralInviteMessage(
   const hi = name?.trim() ? `Hi ${name.trim()}` : "Hi";
 
   if (recipient === "referrer") {
-    const subject = "A bigger payout for your referrals";
-    const link = portalUrl ? ` Your dashboard and share link are live here whenever you want to send someone over: ${portalUrl}` : "";
+    // The referrer who brought this account in — re-engage them (they have a portal).
+    const subject = "Your referrals are worth more now";
     if (channel === "chat") {
-      return { subject, text: `${hi}, it's Ortus from LinkedVelocity. You've already sent accounts our way, thank you for that. Two things worth knowing: we're still taking on new accounts, and the payout is bigger now. Onboard an account yourself and you earn up to ₱1,000 for it, instead of ₱500 for a referral. Same process you already know, more for your time.${link}` };
+      return { subject, text: `${hi}, it's Ortus from LinkedVelocity. Thanks again for the accounts you've sent our way. Quick heads up: the payout just got better. On top of the ₱500 for a referral, you now earn up to ₱1,000 when you set the account up yourself. Same process you already know, just more for your time. We're still taking on new accounts whenever you have someone in mind.${portalUrl ? ` Your dashboard and share link are here: ${portalUrl}` : ""}` };
     }
-    const emailLink = portalUrl ? `\n\nYour dashboard and share link are live here:\n${portalUrl}` : "";
-    return { subject, text: `${hi},\n\nThank you for the accounts you've sent our way. A couple of things you'll want to know.\n\nWe're still taking on new accounts, so the door's open whenever someone comes to mind. And the payout is bigger now: onboard an account yourself and you earn up to ₱1,000 for it, instead of ₱500 for a plain referral. Same process you already know, with more for your time.${emailLink}\n\nHappy to help if you have any questions.\nOrtus, LinkedVelocity` };
+    return { subject, text: `${hi},\n\nThanks again for the accounts you've sent our way.\n\nQuick heads up: the payout just got better. On top of the ₱500 for a referral, you now earn up to ₱1,000 when you set the account up yourself. Same process you already know, just more for your time, and we're still taking on new accounts whenever you have someone in mind.${portalUrl ? `\n\nYour dashboard and share link are here:\n${portalUrl}` : ""}\n\nHappy to help if you have any questions.\nOrtus, LinkedVelocity` };
   }
 
-  // Ambassador — just onboarded. If they're already a referrer (portalUrl), link it;
-  // otherwise invite them to opt in and we set the portal up.
-  const subject = "You can start earning on referrals now";
+  // Ambassador who is ALSO a referrer already — nudge, don't re-pitch from scratch.
   if (portalUrl) {
+    const subject = "Your referrals are worth more now";
     if (channel === "chat") {
-      return { subject, text: `${hi}, it's Ortus from LinkedVelocity. Now that your account's up and running, you can start earning on the other side too. Refer someone and you get ₱500, or onboard an account yourself, exactly like you just did with yours, and earn up to ₱1,000 for it. You already have a referral dashboard, your share link and the onboarding option are both inside: ${portalUrl}` };
+      return { subject, text: `${hi}, it's Ortus from LinkedVelocity. Quick nudge, since you're already set up as a referrer: the payout just got better. On top of the ₱500 for a referral, you now earn up to ₱1,000 when you set the account up yourself, the same way you did with yours. We're still taking on new accounts. Your dashboard and share link are right here: ${portalUrl}` };
     }
-    return { subject, text: `${hi},\n\nCongrats on getting set up. Now that you know how it all works, you can earn on referrals too.\n\nRefer someone and you earn ₱500. Or onboard an account yourself, exactly like you just did with yours, and earn up to ₱1,000 for it. Same steps you've already been through, so it's an easy way to earn on the side. We're still taking on new accounts.\n\nYour referral dashboard is live, your share link and the onboarding option are both inside:\n${portalUrl}\n\nOrtus, LinkedVelocity` };
+    return { subject, text: `${hi},\n\nQuick heads up, since you're already one of our referrers: the payout just got better. On top of the ₱500 for a referral, you now earn up to ₱1,000 when you set the account up yourself, the same way you did with yours. We're still taking on new accounts whenever you have someone in mind.\n\nEverything's in your dashboard:\n${portalUrl}\n\nOrtus, LinkedVelocity` };
   }
+
+  // Ambassador, just onboarded, not a referrer yet — opt in and we set the portal up.
+  const subject = "Earn on the side with LinkedVelocity";
   if (channel === "chat") {
-    return { subject, text: `${hi}, it's Ortus from LinkedVelocity. Now that your account's up and running, you can start earning on the other side too. Refer someone and you get ₱500, or onboard an account yourself, exactly like you just did with yours, and earn up to ₱1,000 for it. You already know the whole process, so it's an easy way to earn on the side. We're still taking on new accounts. Want me to set up your referral link?` };
+    return { subject, text: `${hi}, it's Ortus from LinkedVelocity. You've been through the whole setup now, so you already know how it works, which puts you in a good spot to earn on the side. It's ₱500 when you refer someone, or up to ₱1,000 when you set the account up yourself, the same way you just did with yours. Want me to spin up your referral link so you can start?` };
   }
-  return { subject, text: `${hi},\n\nCongrats on getting set up. Now that you know how it all works, you can earn on referrals too.\n\nRefer someone and you earn ₱500. Or onboard an account yourself, exactly like you just did with yours, and earn up to ₱1,000 for it. Same steps you've already been through, so it's an easy way to earn on the side. We're still taking on new accounts.\n\nReply here and I'll set up your referral link.\nOrtus, LinkedVelocity` };
+  return { subject, text: `${hi},\n\nYou've been through the whole setup now, so you already know how it works. That puts you in a good spot to earn on the side.\n\nIt's ₱500 when you refer someone to us, or up to ₱1,000 when you set the account up yourself, the same way you just did with yours. We're always glad to take on more.\n\nJust reply and I'll set up your referral link so you can start.\nOrtus, LinkedVelocity` };
 }
