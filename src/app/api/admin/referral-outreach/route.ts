@@ -10,6 +10,23 @@ const QUIET_DAYS = 45;
 const norm = (s?: string | null) => (s || "").trim().toLowerCase();
 
 type ChatC = { method: "whatsapp" | "telegram" | "viber"; handle: string } | null;
+// Normalize a stored handle into the exact form contactLink accepts, so the chat buttons
+// actually open. Stored handles are messy: "telegram:@@x", "telegram: name", 0-prefixed PH
+// mobiles (contactLink rejects a leading 0), "+63…", bare usernames, etc.
+function normChat(method: string, raw: string): ChatC {
+  const s = raw.replace(/^(whatsapp|telegram|viber|phone)\s*:/i, "").trim();
+  const intl = (digits: string) => (digits.startsWith("0") && digits.length === 11 ? "63" + digits.slice(1) : digits);
+  if (method === "telegram") {
+    const u = (s.match(/(?:t\.me\/|@)+([a-z][a-z0-9_]{3,31})/i) || [])[1] || s.replace(/^@+/, "").trim();
+    if (/^[a-z][a-z0-9_]{3,31}$/i.test(u)) return { method: "telegram", handle: u };
+    const d = intl(s.replace(/\D/g, ""));
+    return d.length >= 10 && d.length <= 15 && !d.startsWith("0") ? { method: "telegram", handle: "+" + d } : null;
+  }
+  const d = intl(s.replace(/\D/g, ""));
+  if (d.length < 10 || d.length > 15 || d.startsWith("0")) return null;
+  return { method: method as "whatsapp" | "viber", handle: "+" + d };
+}
+
 function pickChat(method?: string | null, handle?: string | null, contacts?: unknown): ChatC {
   const list = Array.isArray(contacts) ? (contacts as Array<{ method?: string; handle?: string; preferred?: boolean }>) : [];
   const pref = list.find(c => c.preferred && c.handle) || list.find(c => c.handle);
@@ -20,7 +37,7 @@ function pickChat(method?: string | null, handle?: string | null, contacts?: unk
   if (/telegram|t\.me|@/.test(blob)) m = "telegram";
   else if (/viber/.test(blob)) m = "viber";
   else m = "whatsapp";
-  return { method: m as "whatsapp" | "telegram" | "viber", handle: h };
+  return normChat(m, h);
 }
 
 export async function GET() {
