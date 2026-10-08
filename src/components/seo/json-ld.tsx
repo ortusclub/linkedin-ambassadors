@@ -1,21 +1,21 @@
 import type { Brand } from "@/lib/brand";
 
 // Structured data, resolved per brand. LinkedVelocity keeps its rental wording; LinkedArmy
-// gets the "hire a rep" framing. Both read name/url/logo/support from the brand config.
+// gets the "hire a ambassador" framing. Both read name/url/logo/support from the brand config.
 export function JsonLd({ brand }: { brand: Brand }) {
   const telegramUrl = `https://t.me/${brand.supportTelegram.replace(/^@/, "")}`;
   const isArmy = brand.id === "linkedarmy";
 
   const orgDescription = isArmy
-    ? "LinkedArmy connects B2B teams with real LinkedIn reps who run outreach on their behalf."
+    ? "LinkedArmy connects B2B teams with real LinkedIn ambassadors who run outreach on their behalf."
     : "LinkedVelocity is a marketplace for renting premium, pre-warmed LinkedIn accounts for outreach and lead generation.";
   const websiteDescription = isArmy
-    ? "Hire real LinkedIn reps with established networks to scale your outreach."
+    ? "Hire real LinkedIn ambassadors with established networks to scale your outreach."
     : "Rent premium LinkedIn accounts for outreach, lead generation, and networking.";
-  const serviceName = isArmy ? "LinkedIn Outreach Reps" : "LinkedIn Account Rental";
+  const serviceName = isArmy ? "LinkedIn Outreach Ambassadors" : "LinkedIn Account Rental";
   const serviceType = isArmy ? "Outreach Service" : "Account Rental";
   const serviceDescription = isArmy
-    ? "Hire vetted LinkedIn reps with established networks to run B2B outreach and lead generation campaigns."
+    ? "Hire vetted LinkedIn ambassadors with established networks to run B2B outreach and lead generation campaigns."
     : "Rent pre-warmed, verified LinkedIn accounts for B2B outreach and lead generation campaigns. Includes GoLogin browser access for safe, simultaneous use.";
 
   const organizationSchema = {
@@ -93,7 +93,7 @@ export function JsonLd({ brand }: { brand: Brand }) {
   };
 
   // LinkedVelocity keeps its exact original FAQ set (unchanged rich snippets);
-  // LinkedArmy gets a rep-worded set.
+  // LinkedArmy gets a ambassador-worded set.
   const lvFaq = [
     { q: "How does LinkedIn account rental work?", a: "Browse our catalogue of pre-warmed LinkedIn accounts, select one that fits your needs, and get instant access via GoLogin browser. Each account is verified, aged, and ready for outreach campaigns." },
     { q: "Is it safe to rent a LinkedIn account?", a: "Yes. We use GoLogin anti-detect browser technology which creates unique browser fingerprints for each session. This prevents LinkedIn from detecting account sharing, with a 0% restriction rate." },
@@ -105,10 +105,10 @@ export function JsonLd({ brand }: { brand: Brand }) {
     { q: "What tools work with rented accounts?", a: "Any Chrome extension or LinkedIn automation tool works — including Dripify, Expandi, Linked Helper, and others. The GoLogin browser session supports all standard extensions." },
   ];
   const armyFaq = [
-    { q: "How does hiring a LinkedIn rep work?", a: "Browse our roster of vetted professionals with established LinkedIn networks, choose the rep that fits your market, and run outreach through their established, credible profile from day one." },
-    { q: "Is it safe to hire a rep for outreach?", a: "Every session runs through a dedicated, isolated browser environment with its own IP and fingerprint, so LinkedIn sees one consistent user. Activity stays within safe limits to protect the account." },
-    { q: "How much does it cost to hire a rep?", a: "Pricing runs from $45/month for newer profiles up to $110+/month for senior reps with large networks and Sales Navigator. You see the exact monthly price before you commit." },
-    { q: "Can I earn as a LinkedIn rep?", a: "Yes. If you have an established LinkedIn account you're not actively using, you can join the network and earn a monthly retainer depending on your account's connections, age, and features." },
+    { q: "How does hiring a LinkedIn ambassador work?", a: "Browse our roster of vetted professionals with established LinkedIn networks, choose the ambassador that fits your market, and run outreach through their established, credible profile from day one." },
+    { q: "Is it safe to hire a ambassador for outreach?", a: "Every session runs through a dedicated, isolated browser environment with its own IP and fingerprint, so LinkedIn sees one consistent user. Activity stays within safe limits to protect the account." },
+    { q: "How much does it cost to hire a ambassador?", a: "Pricing runs from $45/month for newer profiles up to $110+/month for senior ambassadors with large networks and Sales Navigator. You see the exact monthly price before you commit." },
+    { q: "Can I earn as a LinkedIn ambassador?", a: "Yes. If you have an established LinkedIn account you're not actively using, you can join the network and earn a monthly retainer depending on your account's connections, age, and features." },
   ];
   const faqSchema = {
     "@context": "https://schema.org",

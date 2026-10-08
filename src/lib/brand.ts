@@ -111,11 +111,10 @@ const linkedvelocity: Brand = {
   },
 };
 
-// LinkedArmy — the "hire a team" front. Same product, "hire a rep" wrapping, "your outreach
-// army" framing (army = scale + real people, NOT military; keep copy/visuals modern and
-// corporate, avoid deploy/troops/ranks/camo).
-// TODO(assets): add /public/linkedarmy-mark.png, /public/linkedarmy-favicon.svg and
-// /public/linkedarmy-og.png before pointing DNS live, or these fall back to 404.
+// LinkedArmy — SAME LinkedVelocity layout + product, worded as "hire a LinkedIn Ambassador"
+// instead of "rent an account" (subtle, compliant-sounding; Sam's direction). To switch the
+// public noun to "LinkedIn support", change noun/nounPlural/browse below.
+// TODO(assets): add /public/linkedarmy-mark.png (nav/footer render a CSS mark meanwhile).
 const linkedarmy: Brand = {
   id: "linkedarmy",
   name: "LinkedArmy",
@@ -128,42 +127,42 @@ const linkedarmy: Brand = {
   logo: "/linkedarmy-mark.png",
   favicon: "/linkedarmy-favicon.svg",
   ogImage: "/linkedarmy-og.png",
-  palette: { primary: "#4338CA", ink: "#141326" },
+  palette: { primary: "#0A66C2", ink: "#1D1B16" },
   meta: {
-    titleDefault: "LinkedArmy — Hire a LinkedIn Outreach Team at Scale",
+    titleDefault: "LinkedArmy — Hire Verified LinkedIn Ambassadors for Outreach",
     titleTemplate: "%s | LinkedArmy",
     description:
-      "Hire a whole team of real LinkedIn professionals who run your outreach at scale — established networks, from day one, month to month.",
+      "Hire verified LinkedIn Ambassadors with established networks to run your outreach and hit pipeline targets. Month to month, cancel anytime.",
     keywords: [
-      "hire LinkedIn outreach team",
-      "LinkedIn SDR",
-      "outsourced LinkedIn outreach",
-      "LinkedIn outreach at scale",
+      "hire LinkedIn ambassador",
+      "LinkedIn ambassadors",
+      "LinkedIn outreach",
       "LinkedIn lead generation",
-      "done for you LinkedIn",
       "B2B outreach",
-      "LinkedIn outreach agency",
+      "done-for-you LinkedIn outreach",
+      "LinkedIn campaigns",
+      "LinkedIn marketing support",
     ],
-    ogTitle: "LinkedArmy — Hire a LinkedIn Outreach Team at Scale",
+    ogTitle: "LinkedArmy — Hire Verified LinkedIn Ambassadors for Outreach",
     ogDescription:
-      "Hire a whole team of real LinkedIn professionals who run your outreach at scale — established networks, from day one.",
-    ogImageAlt: "LinkedArmy — Your outreach army",
-    twitterTitle: "LinkedArmy — Hire a LinkedIn Outreach Team",
+      "Hire verified LinkedIn Ambassadors with established networks to run your outreach and hit pipeline targets. Month to month.",
+    ogImageAlt: "LinkedArmy — Hire verified LinkedIn Ambassadors",
+    twitterTitle: "LinkedArmy — Hire LinkedIn Ambassadors",
     twitterDescription:
-      "Hire a team of real LinkedIn professionals who run your outreach at scale. Month to month.",
+      "Hire verified LinkedIn Ambassadors to run your outreach. Month to month, cancel anytime.",
   },
   term: {
     verb: "Hire",
     verbLower: "hire",
-    noun: "rep",
-    nounPlural: "reps",
-    catalogue: "Roster",
-    browse: "Meet the Team",
-    slogan: "Your outreach army",
+    noun: "ambassador",
+    nounPlural: "ambassadors",
+    catalogue: "Catalogue",
+    browse: "Browse Ambassadors",
+    slogan: "Accelerate your network",
     footerBlurb:
-      "Hire a team of real LinkedIn professionals who run your outreach at scale — or join the network and earn.",
-    earnCta: "Earn with your network",
-    tagline: "Your outreach army.",
+      "Hire verified LinkedIn Ambassadors with established networks to run your outreach — or become an ambassador and earn.",
+    earnCta: "Become an ambassador",
+    tagline: "Hire verified LinkedIn Ambassadors for outreach.",
   },
 };
 

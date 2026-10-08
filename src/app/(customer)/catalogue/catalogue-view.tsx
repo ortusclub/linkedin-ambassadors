@@ -65,9 +65,9 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
   // LinkedArmy reword + accent nudge; LinkedVelocity unchanged. Status words ("Rented",
   // "Available") stay factual — only the action verb changes.
   const verb = isArmy ? "Hire" : "Rent";
-  const noun = isArmy ? "profile" : "account";
-  const Noun = isArmy ? "Profile" : "Account";
-  const ACCENT = isArmy ? "#0e404b" : "#0A66C2";
+  const noun = isArmy ? "ambassador" : "account";
+  const Noun = isArmy ? "Ambassador" : "Account";
+  const ACCENT = "#0A66C2";
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -181,9 +181,9 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
 
       {/* header */}
       <div className="cat2-wrap" style={{ paddingTop: 44 }}>
-        <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, marginBottom: 14 }}>{isArmy ? "The roster" : "Marketplace"}</div>
-        <h1 style={{ font: `700 clamp(30px,4vw,44px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 12px" }}>{isArmy ? "Browse the roster" : "Browse available accounts"}</h1>
-        <p style={{ fontSize: 17, color: "#5A6473", margin: 0 }}>{isArmy ? "Verified, pre-warmed profiles — ready to deploy." : "Verified, pre-warmed profiles — ready to rent right now."}</p>
+        <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, marginBottom: 14 }}>Marketplace</div>
+        <h1 style={{ font: `700 clamp(30px,4vw,44px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 12px" }}>{isArmy ? "Browse available ambassadors" : "Browse available accounts"}</h1>
+        <p style={{ fontSize: 17, color: "#5A6473", margin: 0 }}>{isArmy ? "Verified, pre-warmed ambassadors — ready to hire right now." : "Verified, pre-warmed profiles — ready to rent right now."}</p>
       </div>
 
       {/* controls */}
@@ -348,7 +348,7 @@ function Actions({ a, isArmy }: { a: Account; isArmy: boolean }) {
   const soon = !!a.availableSoon;
   const isAvailable = a.status === "available" && !soon;
   const verb = isArmy ? "Hire" : "Rent";
-  const viewStyle = { fontSize: 13, fontWeight: 600, color: isArmy ? "#0e404b" : "#0A66C2", background: isArmy ? "#E4EEF0" : "#EAF2FC", borderRadius: 9, padding: "9px 13px", textDecoration: "none", whiteSpace: "nowrap" } as const;
+  const viewStyle = { fontSize: 13, fontWeight: 600, color: "#0A66C2", background: "#EAF2FC", borderRadius: 9, padding: "9px 13px", textDecoration: "none", whiteSpace: "nowrap" } as const;
   // Pool teasers 404 on the account-detail page, so only link out to the real LinkedIn
   // profile when we have a URL — otherwise drop the View action for them.
   const view = a.linkedinUrl ? (
@@ -360,7 +360,7 @@ function Actions({ a, isArmy }: { a: Account; isArmy: boolean }) {
     <>
       {view}
       {isAvailable ? (
-        <Link href={`/account/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: isArmy ? "#0e404b" : "#00A150", borderRadius: 9, padding: "9px 17px", textDecoration: "none", whiteSpace: "nowrap" }}>{verb}</Link>
+        <Link href={`/account/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "#fff", background: "#00A150", borderRadius: 9, padding: "9px 17px", textDecoration: "none", whiteSpace: "nowrap" }}>{verb}</Link>
       ) : soon ? (
         // "Available soon" is already shown by the status badge (list) / corner tag
         // (grid) — no second action pill, which kept overflowing onto the price column.
