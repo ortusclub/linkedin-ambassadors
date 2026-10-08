@@ -12,6 +12,7 @@ import { formatName } from "@/lib/utils";
 import { AccountNotes } from "@/components/admin/account-notes";
 import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions";
 import { PipelineReferralInvite } from "@/components/admin/pipeline-referral-invite";
+import { OnboardingNotes } from "@/components/admin/onboarding-notes";
 import { ambassadorIssueContact } from "@/lib/issue-contacts";
 import { isApplicationReceived, receiptPatch } from "@/lib/pipeline-received";
 import { useQcChecks } from "@/components/admin/use-qc-checks";
@@ -624,7 +625,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
 
           {(r.accountId || r.adminNotes || r.applicationNotes || r.accountNotes) && (
             <PanelCard title="Admin notes" tone="notes">
-              {r.adminNotes && <div style={{ font: `500 12.5px/1.55 ${F_SANS}`, color: "var(--fg,#444)", whiteSpace: "pre-wrap" }}>{r.adminNotes}</div>}
+              {r.adminNotes && <OnboardingNotes text={r.adminNotes} />}
               {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
               {r.accountId && <AccountNotes accountId={r.accountId} notes={r.accountNotes} proof={null} sharedLog={r.outreachLog} onNotesSaved={() => void workflow(r.id, {})} onProofSaved={async () => {}} />}
             </PanelCard>
