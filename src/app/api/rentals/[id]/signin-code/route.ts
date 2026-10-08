@@ -6,7 +6,8 @@ import { generateTotp } from "@/lib/totp";
 
 // Renter-facing live 2FA code for an account they rent — ONLY for renters with tiered
 // credential access (User.credentialAccess). This is a dedicated renter path: it requires
-// the flag and that the caller owns an ACTIVE, non-shadow rental of the account, so the
+// the flag and that the caller owns a CURRENT rental of the account (active / pending /
+// payment_failed — shadow included, since the flag is an explicit opt-in), so the
 // owner/referrer gate in owner-sign-in-code.ts (which blocks codes for rented accounts)
 // stays untouched. Returns the current TOTP code + when it rolls over.
 export async function GET(
@@ -25,8 +26,9 @@ export async function GET(
       where: {
         id,
         userId: user.id,
-        isShadow: false,
-        status: { in: ["active", "pending_access"] },
+        // Any account they currently rent (shadow included — credentialAccess is an explicit
+        // per-renter opt-in). Excludes expired/cancelled rentals.
+        status: { in: ["active", "pending_access", "payment_failed"] },
       },
       select: {
         linkedinAccount: { select: { twoFactor: true, loginEmail: true, removedAt: true } },
