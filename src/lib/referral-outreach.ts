@@ -10,7 +10,7 @@ export const SEGMENT_LABEL: Record<OutreachSegment, string> = {
   "1a": "Referrer · never referred",
   "1b": "Referrer · gone quiet",
   "2": "Ambassador",
-  "3": "Restricted / didn't finish",
+  "3": "Rejected / unreachable",
 };
 
 export type OutreachRow = {
