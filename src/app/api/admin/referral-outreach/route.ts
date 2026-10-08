@@ -43,12 +43,14 @@ function pickChat(method?: string | null, handle?: string | null, contacts?: unk
 export async function GET() {
   try {
     await requireAdmin();
-    const [referrers, apps] = await Promise.all([
-      prisma.referrer.findMany({ select: { id: true, slug: true, name: true, email: true, contactMethod: true, contactHandle: true, contacts: true } }),
+    const [referrers, apps, suppressions] = await Promise.all([
+      prisma.referrer.findMany({ select: { id: true, slug: true, name: true, email: true, contactMethod: true, contactHandle: true, contacts: true, createdAt: true } }),
       prisma.ambassadorApplication.findMany({ select: { id: true, fullName: true, email: true, status: true, referredBy: true, referrerId: true, createdAt: true, onboardedAt: true, contactNumber: true, contactChannel: true } }),
+      prisma.outreachSuppression.findMany({ select: { email: true, reason: true } }).catch(() => [] as Array<{ email: string; reason: string | null }>),
     ]);
     // Best-effort: an email-log hiccup must not break the page (just no "contacted" badges).
     const logs = await prisma.$queryRaw<Array<{ to: string; subject: string }>>`SELECT lower("to") AS to, subject FROM email_log WHERE created_at > NOW() - INTERVAL '45 days' AND status <> 'failed'`.catch(() => []);
+    const suppressed = new Map(suppressions.map(s => [norm(s.email), s.reason]));
 
     // referrals per slug + latest referral date (for 1a/1b)
     const refdCount = new Map<string, number>(), lastRefd = new Map<string, number>();
@@ -75,7 +77,7 @@ export async function GET() {
       else if (last && last < Date.now() - QUIET_DAYS * 864e5) seg = "1b";
       if (!seg) continue;
       const chat = pickChat(r.contactMethod, r.contactHandle, r.contacts);
-      rows.push({ kind: "referrer", id: r.id, name: r.name, segment: seg, email: r.email || null, chatMethod: chat?.method || null, chatHandle: chat?.handle || null, link: `${APP_URL}/r/${r.slug}`, isSignup: false, contacted: !!r.email && contactedEmails.has(norm(r.email)) });
+      rows.push({ kind: "referrer", id: r.id, name: r.name, segment: seg, email: r.email || null, chatMethod: chat?.method || null, chatHandle: chat?.handle || null, link: `${APP_URL}/r/${r.slug}`, isSignup: false, contacted: !!r.email && contactedEmails.has(norm(r.email)), signedUpAt: r.createdAt.toISOString(), suppressed: !!r.email && suppressed.has(norm(r.email)), suppressReason: r.email ? suppressed.get(norm(r.email)) ?? null : null });
       if (r.email) takenEmails.add(norm(r.email));
       takenRefIds.add(r.id);
     }
@@ -93,7 +95,7 @@ export async function GET() {
       if (!seg) continue;
       const linkedRef = a.referrerId ? refById.get(a.referrerId) : null;
       const chat = pickChat(a.contactChannel, a.contactNumber, null);
-      rows.push({ kind: "ambassador", id: a.id, name: a.fullName, segment: seg, email: a.email || null, chatMethod: chat?.method || null, chatHandle: chat?.handle || null, link: linkedRef ? `${APP_URL}/r/${linkedRef.slug}` : SIGNUP_URL, isSignup: !linkedRef, contacted: !!a.email && contactedEmails.has(norm(a.email)) });
+      rows.push({ kind: "ambassador", id: a.id, name: a.fullName, segment: seg, email: a.email || null, chatMethod: chat?.method || null, chatHandle: chat?.handle || null, link: linkedRef ? `${APP_URL}/r/${linkedRef.slug}` : SIGNUP_URL, isSignup: !linkedRef, contacted: !!a.email && contactedEmails.has(norm(a.email)), signedUpAt: a.createdAt.toISOString(), suppressed: !!a.email && suppressed.has(norm(a.email)), suppressReason: a.email ? suppressed.get(norm(a.email)) ?? null : null });
       if (a.email) takenEmails.add(norm(a.email));
     }
 

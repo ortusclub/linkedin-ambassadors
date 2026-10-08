@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { sendReferralOutreachEmail } from "@/services/email";
 
 // Sends ONE referral-outreach email (from the admin page). Chat channels open prefilled
@@ -16,6 +17,10 @@ export async function POST(req: Request) {
   try {
     await requireAdmin();
     const { email, subject, text } = schema.parse(await req.json());
+    // Never email someone on the do-not-contact list, even if the page is stale.
+    if (await prisma.outreachSuppression.findUnique({ where: { email: email.toLowerCase() } })) {
+      return NextResponse.json({ error: "This person is on the do-not-contact list." }, { status: 409 });
+    }
     await sendReferralOutreachEmail(email, subject, text);
     return NextResponse.json({ ok: true, to: email });
   } catch (error) {

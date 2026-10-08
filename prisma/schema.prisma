@@ -488,6 +488,18 @@ model Referrer {
   @@map("referrers")
 }
 
+// Do-not-contact list for referral outreach, keyed by email. A person on here is never
+// shown as contactable on /admin/referral-outreach and the send endpoint refuses them.
+model OutreachSuppression {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  reason    String?
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("outreach_suppression")
+}
+
 // One row per payment owed to a marketer. Cash leaves no trace, so the row carries
 // BOTH sides: what we say we paid (paidAt/method/reference) and the marketer's own
 // acknowledgement from their portal (confirmedAt) — that second half is the evidence.
