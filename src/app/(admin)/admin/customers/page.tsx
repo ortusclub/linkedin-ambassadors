@@ -19,6 +19,8 @@ interface Customer {
   vettedAt: string | null;
   vettingInfo: { company?: string; website?: string; role?: string; useCase?: string; tools?: string } | null;
   vettingReview: string | null;
+  dailyRentalLimit: number;
+  credentialAccess: boolean;
 }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
@@ -35,7 +37,7 @@ function vettingPill(c: Customer): { label: string; bg: string; fg: string; clic
   return { label: "Not vetted", bg: "var(--vet-bg)", fg: "var(--vet-fg)", clickable: false };
 }
 
-const GRID = "1fr 172px 120px 120px 104px";
+const GRID = "1fr 172px 108px 108px 184px";
 
 // payment pill: colour by funding type; blank/"—" => "No method"
 function paymentPill(pm: string): { label: string; bg: string; fg: string } {
@@ -72,6 +74,22 @@ export default function AdminCustomersPage() {
     setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, isTest: next } : x));
     const res = await fetch("/api/admin/customers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: c.id, isTest: next }) });
     if (!res.ok) { setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, isTest: !next } : x)); alert("Failed to update test flag"); }
+  };
+
+  const toggleCredAccess = async (c: Customer) => {
+    const next = !c.credentialAccess;
+    setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, credentialAccess: next } : x));
+    const res = await fetch("/api/admin/customers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: c.id, credentialAccess: next }) });
+    if (!res.ok) { setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, credentialAccess: !next } : x)); alert("Failed to update sign-in access"); }
+  };
+
+  const setCap = async (c: Customer, value: number) => {
+    const next = Math.max(0, Math.min(100, Math.round(value)));
+    if (next === c.dailyRentalLimit) return;
+    const prevVal = c.dailyRentalLimit;
+    setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, dailyRentalLimit: next } : x));
+    const res = await fetch("/api/admin/customers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: c.id, dailyRentalLimit: next }) });
+    if (!res.ok) { setCustomers((prev) => prev.map((x) => x.id === c.id ? { ...x, dailyRentalLimit: prevVal } : x)); alert("Failed to update daily cap"); }
   };
 
   const handleDelete = async (c: Customer) => {
@@ -184,11 +202,30 @@ export default function AdminCustomersPage() {
               {/* joined */}
               <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--text2)" }}>{formatDate(c.createdAt)}</span>
               {/* actions */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
-                <button onClick={() => toggleTest(c)} title="Toggle test flag — test customers are hidden from live dashboard numbers"
-                  style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: "var(--test-bg)", color: "var(--test-fg)" }}>{c.isTest ? "Unmark test" : "Mark test"}</button>
-                <button onClick={() => handleDelete(c)} disabled={deleting === c.id} title="Permanently delete this customer + all their data"
-                  style={{ font: `600 12px ${F_SANS}`, color: "var(--delete-color)", background: "transparent", border: "none", cursor: "pointer", padding: "4px 6px", opacity: deleting === c.id ? 0.5 : 1 }}>{deleting === c.id ? "…" : "Delete"}</button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                {/* Tiered sign-in access: on => this renter sees login + password + 2FA for
+                    every account they rent. Off (default) => GoLogin share only. */}
+                <button onClick={() => toggleCredAccess(c)} title="Sign-in access: when on, this renter sees login email, password and a live 2FA code for every account they rent. Off = GoLogin share only."
+                  style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, border: "none", cursor: "pointer", whiteSpace: "nowrap",
+                    ...(c.credentialAccess ? { background: "var(--st-active-bg)", color: "var(--st-active-fg)" } : { background: "var(--btn-secondary-bg)", color: "var(--muted)" }) }}>
+                  <span style={{ width: 7, height: 7, borderRadius: 999, background: "currentColor" }} />{c.credentialAccess ? "Sign-in access on" : "Sign-in access off"}
+                </button>
+                {/* Daily rental cap — how many accounts this renter can start per day. */}
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }} title="Daily rental cap — how many accounts this renter can start per day.">
+                  <span style={{ font: `600 10px ${F_SANS}`, color: "var(--label)", textTransform: "uppercase", letterSpacing: ".04em" }}>Cap</span>
+                  <button onClick={() => setCap(c, c.dailyRentalLimit - 1)} disabled={c.dailyRentalLimit <= 0}
+                    style={{ width: 20, height: 20, lineHeight: "1", font: `600 13px ${F_SANS}`, borderRadius: 6, cursor: "pointer", border: "1px solid var(--btn-secondary-border)", background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-fg)", opacity: c.dailyRentalLimit <= 0 ? 0.4 : 1 }}>−</button>
+                  <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--text)", minWidth: 16, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{c.dailyRentalLimit}</span>
+                  <button onClick={() => setCap(c, c.dailyRentalLimit + 1)}
+                    style={{ width: 20, height: 20, lineHeight: "1", font: `600 13px ${F_SANS}`, borderRadius: 6, cursor: "pointer", border: "1px solid var(--btn-secondary-border)", background: "var(--btn-secondary-bg)", color: "var(--btn-secondary-fg)" }}>+</button>
+                  <span style={{ font: `500 10px ${F_SANS}`, color: "var(--label)" }}>/day</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button onClick={() => toggleTest(c)} title="Toggle test flag — test customers are hidden from live dashboard numbers"
+                    style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: "var(--test-bg)", color: "var(--test-fg)" }}>{c.isTest ? "Unmark test" : "Mark test"}</button>
+                  <button onClick={() => handleDelete(c)} disabled={deleting === c.id} title="Permanently delete this customer + all their data"
+                    style={{ font: `600 12px ${F_SANS}`, color: "var(--delete-color)", background: "transparent", border: "none", cursor: "pointer", padding: "4px 6px", opacity: deleting === c.id ? 0.5 : 1 }}>{deleting === c.id ? "…" : "Delete"}</button>
+                </div>
               </div>
             </div>
           );

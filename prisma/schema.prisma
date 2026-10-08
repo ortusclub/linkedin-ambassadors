@@ -81,6 +81,15 @@ model User {
   // which yields (ends) the shadow rental. Flagged on the User; each of their rentals
   // inherits it via Rental.isShadow.
   isShadowRenter    Boolean    @default(false) @map("is_shadow_renter")
+  // Max rentals a renter may start per calendar day (anti-burn speed limit). Admin-set
+  // per renter in /admin/customers; enforced in checkout. Shadow renters are exempt;
+  // replacements (Phase 2) don't count. Default 5.
+  dailyRentalLimit  Int        @default(5) @map("daily_rental_limit")
+  // Tiered credential access: when ON, this renter also sees the account login email,
+  // password and a live 2FA code on their dashboard (for ALL accounts they rent), not just
+  // the GoLogin share. Default OFF = GoLogin-only, as it has always been. Admin-toggled
+  // per renter in /admin/customers; each toggle is logged.
+  credentialAccess  Boolean    @default(false) @map("credential_access")
   reengageNudgeAt    DateTime? @map("reengage_nudge_at")    // dormant-signup re-engagement email 1 sent
   reengageFollowupAt DateTime? @map("reengage_followup_at") // dormant-signup re-engagement email 2 sent
   createdAt         DateTime   @default(now()) @map("created_at")
@@ -170,7 +179,8 @@ model LinkedInAccount {
   proxyPassword         String?       @map("proxy_password")
   proxyLocation         String?       @map("proxy_location")  // geo of the proxy egress (e.g. "US", "United States · New York") — for verifying geo-match to the account
   // Login credentials for the ambassador's LinkedIn account (we hold the login).
-  // Admin-only, never exposed to renters. loginEmail = the email WE sign in with
+  // Admin-only by default; exposed to a renter ONLY when that renter has User.credentialAccess
+  // set (tiered access), and only for accounts they actively rent. loginEmail = the email WE sign in with
   // (our klabber.co / ortus.solutions address, added at onboarding); personalEmail =
   // the ambassador's own original email on the account; workEmail = recovery/secondary.
   loginEmail            String?       @map("login_email")

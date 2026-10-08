@@ -55,6 +55,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No selected accounts are available" }, { status: 400 });
     }
 
+    // Daily rental cap (anti-burn speed limit). A real renter may start at most
+    // user.dailyRentalLimit rentals per calendar day. Shadow renters (Apex) are exempt —
+    // their automated idle-account renting isn't a burn risk. Cancelled rentals don't count
+    // (the account was freed again). Replacements (Phase 2) will be exempt here too.
+    if (!isShadow) {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const startedToday = await prisma.rental.count({
+        where: {
+          userId: user.id,
+          isShadow: false,
+          status: { not: "cancelled" },
+          createdAt: { gte: startOfToday },
+        },
+      });
+      const limit = user.dailyRentalLimit ?? 5;
+      if (startedToday + accounts.length > limit) {
+        const remaining = Math.max(0, limit - startedToday);
+        return NextResponse.json(
+          {
+            error:
+              remaining === 0
+                ? `Daily rental limit reached (${limit}/day). Try again tomorrow, or contact us to raise your limit.`
+                : `This would pass your daily rental limit (${limit}/day). You can start ${remaining} more today.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Voucher / discount code (not applicable to shadow renters, who pay a fixed flat rate).
     // Validate up front so a bad code fails the whole order cleanly; the discounted rate is
     // locked onto each rental so renewals keep it.

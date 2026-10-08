@@ -40,6 +40,31 @@ export async function POST(req: Request) {
       );
     }
 
+    // Daily rental cap — mirror the wallet checkout so the limit can't be bypassed by card.
+    // The rental itself is created by the Stripe webhook; this entry guard is the practical
+    // gate (we stop the Stripe session before the payer ever pays). Cancelled rentals don't
+    // count. (No shadow path here — shadow renters fund via wallet.)
+    {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const startedToday = await prisma.rental.count({
+        where: { userId: user.id, isShadow: false, status: { not: "cancelled" }, createdAt: { gte: startOfToday } },
+      });
+      const limit = user.dailyRentalLimit ?? 5;
+      if (startedToday + accounts.length > limit) {
+        const remaining = Math.max(0, limit - startedToday);
+        return NextResponse.json(
+          {
+            error:
+              remaining === 0
+                ? `Daily rental limit reached (${limit}/day). Try again tomorrow, or contact us to raise your limit.`
+                : `This would pass your daily rental limit (${limit}/day). You can start ${remaining} more today.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Get or create Stripe customer
     let stripeCustomerId = user.stripeCustomerId;
     if (!stripeCustomerId) {
