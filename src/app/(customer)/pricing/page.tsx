@@ -7,9 +7,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const brand = await getBrand();
   const isArmy = brand.id === "linkedarmy";
   return {
-    title: isArmy ? "Pricing — How LinkedArmy Ambassador Pricing Works" : "Pricing — How LinkedVelocity Account Rental Pricing Works",
+    title: isArmy ? "Pricing — How LinkedArmy Operator Pricing Works" : "Pricing — How LinkedVelocity Account Rental Pricing Works",
     description: isArmy
-      ? "Every LinkedIn Ambassador is priced by quality — connections, account age, Sales Navigator and more. See the pricing tiers and what sets each price."
+      ? "Every LinkedIn Operator is priced by quality — connections, account age, Sales Navigator and more. See the pricing tiers and what sets each price."
       : "Every LinkedIn account is priced by quality — connections, account age, Sales Navigator and more. See the pricing tiers and what sets each price.",
     alternates: { canonical: "/pricing" },
   };
@@ -82,7 +82,7 @@ export default async function PricingPage() {
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#FFFFFF", border: "1px solid #E6E8EC", borderRadius: 999, padding: "6px 14px", fontSize: 12.5, fontWeight: 600, color: "#3F4856", marginBottom: 22, boxShadow: "0 1px 2px rgba(16,24,40,0.04)" }}>
           <span style={{ width: 9, height: 9, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%, #4BE08C 0%, #00B85C 65%)", boxShadow: "0 0 5px 1px rgba(0,184,92,0.40), 0 0 12px 4px rgba(0,184,92,0.22), 0 0 20px 7px rgba(0,184,92,0.12)" }} />Pricing
         </div>
-        <h1 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(34px,4.6vw,54px)", lineHeight: 1.04, letterSpacing: "-0.03em", margin: "0 0 20px" }}>{isArmy ? "Pay per ambassador —" : "Pay per account —"}<br />priced by quality</h1>
+        <h1 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(34px,4.6vw,54px)", lineHeight: 1.04, letterSpacing: "-0.03em", margin: "0 0 20px" }}>{isArmy ? "Pay per operator —" : "Pay per account —"}<br />priced by quality</h1>
         <p style={{ fontSize: 19, lineHeight: 1.55, color: "#5A6473", margin: "0 auto", maxWidth: 560 }}>Every profile is priced on its own merits, so costs range. Here&apos;s what you&apos;re paying for, and how to pick the right fit.</p>
       </div>
 
@@ -149,7 +149,7 @@ export default async function PricingPage() {
       <div className="pp2-wrap" style={{ maxWidth: 1160, margin: "40px auto 0", padding: "0 40px" }}>
         <div style={{ background: "#FFFFFF", border: "1px solid #EAECEF", borderRadius: 20, padding: "36px 36px 40px", boxShadow: "0 1px 2px rgba(16,24,40,0.03)" }}>
           <h2 style={{ fontFamily: POP, fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", margin: "0 0 8px" }}>What sets each price</h2>
-          <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 26px", maxWidth: 720 }}>{isArmy ? "Every ambassador is scored on the same factors" : "Every account is scored on the same factors"} — the higher it scores, the more reach and trust it carries (and the more it costs).</p>
+          <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#5A6473", margin: "0 0 26px", maxWidth: 720 }}>{isArmy ? "Every operator is scored on the same factors" : "Every account is scored on the same factors"} — the higher it scores, the more reach and trust it carries (and the more it costs).</p>
           <div className="pp2-factors">
             {FACTORS.map((f) => (
               <div key={f.title} className="pp2-factor" style={{ background: "#FFFFFF", border: "1px solid #EAECEF", borderRadius: 16, padding: "26px 18px 24px", textAlign: "center", boxShadow: "0 6px 18px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.04)" }}>
@@ -174,7 +174,7 @@ export default async function PricingPage() {
 
       {/* dark CTA */}
       <div style={{ marginTop: 64, background: "radial-gradient(120% 130% at 22% 0%, #12305F 0%, #0A1826 62%)", padding: "72px 40px 78px", textAlign: "center" }}>
-        <h2 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(28px,3.6vw,40px)", letterSpacing: "-0.02em", color: "#fff", margin: "0 0 14px" }}>Find the right {isArmy ? "ambassador" : "account"} for your budget</h2>
+        <h2 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(28px,3.6vw,40px)", letterSpacing: "-0.02em", color: "#fff", margin: "0 0 14px" }}>Find the right {isArmy ? "operator" : "account"} for your budget</h2>
         <p style={{ fontSize: 17, color: "#AFC0D6", margin: "0 auto 30px", maxWidth: 480 }}>Browse live profiles and see the real price for each.</p>
         <Link href="/catalogue" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", color: "#0B1220", fontSize: 16, fontWeight: 600, padding: "15px 28px", borderRadius: 12, textDecoration: "none" }}>Browse available profiles →</Link>
       </div>

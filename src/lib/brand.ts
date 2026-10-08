@@ -29,13 +29,13 @@ export interface BrandMeta {
 export interface BrandTerm {
   verb: string; // "Rent" | "Hire"
   verbLower: string; // "rent" | "hire"
-  noun: string; // "account" | "ambassador"
-  nounPlural: string; // "accounts" | "ambassadors"
+  noun: string; // "account" | "operator"
+  nounPlural: string; // "accounts" | "operators"
   catalogue: string; // "Catalogue" | "Roster"
-  browse: string; // nav label: "Browse Accounts" | "Meet Ambassadors"
+  browse: string; // nav label: "Browse Accounts" | "Meet Operators"
   slogan: string; // footer small-caps line
   footerBlurb: string; // footer one-liner
-  earnCta: string; // "Earn passive income sharing it" | "Earn as an ambassador"
+  earnCta: string; // "Earn passive income sharing it" | "Earn as an operator"
   tagline: string;
 }
 
@@ -111,7 +111,7 @@ const linkedvelocity: Brand = {
   },
 };
 
-// LinkedArmy — SAME LinkedVelocity layout + product, worded as "hire a LinkedIn Ambassador"
+// LinkedArmy — SAME LinkedVelocity layout + product, worded as "hire a LinkedIn Operator"
 // instead of "rent an account" (subtle, compliant-sounding; Sam's direction). To switch the
 // public noun to "LinkedIn support", change noun/nounPlural/browse below.
 // TODO(assets): add /public/linkedarmy-mark.png (nav/footer render a CSS mark meanwhile).
@@ -129,13 +129,13 @@ const linkedarmy: Brand = {
   ogImage: "/brand-og", // generated OG image (src/app/brand-og) — no static asset needed
   palette: { primary: "#0A66C2", ink: "#1D1B16" },
   meta: {
-    titleDefault: "LinkedArmy — Hire Verified LinkedIn Ambassadors for Outreach",
+    titleDefault: "LinkedArmy — Hire Verified LinkedIn Operators for Outreach",
     titleTemplate: "%s | LinkedArmy",
     description:
-      "Hire verified LinkedIn Ambassadors with established networks to run your outreach and hit pipeline targets. Month to month, cancel anytime.",
+      "Hire verified LinkedIn Operators with established networks to run your outreach and hit pipeline targets. Month to month, cancel anytime.",
     keywords: [
-      "hire LinkedIn ambassador",
-      "LinkedIn ambassadors",
+      "hire LinkedIn operator",
+      "LinkedIn operators",
       "LinkedIn outreach",
       "LinkedIn lead generation",
       "B2B outreach",
@@ -143,26 +143,26 @@ const linkedarmy: Brand = {
       "LinkedIn campaigns",
       "LinkedIn marketing support",
     ],
-    ogTitle: "LinkedArmy — Hire Verified LinkedIn Ambassadors for Outreach",
+    ogTitle: "LinkedArmy — Hire Verified LinkedIn Operators for Outreach",
     ogDescription:
-      "Hire verified LinkedIn Ambassadors with established networks to run your outreach and hit pipeline targets. Month to month.",
-    ogImageAlt: "LinkedArmy — Hire verified LinkedIn Ambassadors",
-    twitterTitle: "LinkedArmy — Hire LinkedIn Ambassadors",
+      "Hire verified LinkedIn Operators with established networks to run your outreach and hit pipeline targets. Month to month.",
+    ogImageAlt: "LinkedArmy — Hire verified LinkedIn Operators",
+    twitterTitle: "LinkedArmy — Hire LinkedIn Operators",
     twitterDescription:
-      "Hire verified LinkedIn Ambassadors to run your outreach. Month to month, cancel anytime.",
+      "Hire verified LinkedIn Operators to run your outreach. Month to month, cancel anytime.",
   },
   term: {
     verb: "Hire",
     verbLower: "hire",
-    noun: "ambassador",
-    nounPlural: "ambassadors",
+    noun: "operator",
+    nounPlural: "operators",
     catalogue: "Catalogue",
-    browse: "Browse Ambassadors",
+    browse: "Browse Operators",
     slogan: "Accelerate your network",
     footerBlurb:
-      "Hire verified LinkedIn Ambassadors with established networks to run your outreach — or become an ambassador and earn.",
-    earnCta: "Become an ambassador",
-    tagline: "Hire verified LinkedIn Ambassadors for outreach.",
+      "Hire verified LinkedIn Operators with established networks to run your outreach — or become an operator and earn.",
+    earnCta: "Become an operator",
+    tagline: "Hire verified LinkedIn Operators for outreach.",
   },
 };
 

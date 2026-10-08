@@ -7,15 +7,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const brand = await getBrand();
   const isArmy = brand.id === "linkedarmy";
   return {
-    title: isArmy ? "FAQs — Hiring a LinkedIn Ambassador" : "FAQs — LinkedIn Account Rental Questions Answered",
+    title: isArmy ? "FAQs — Hiring a LinkedIn Operator" : "FAQs — LinkedIn Account Rental Questions Answered",
     description: isArmy
-      ? "Common questions about hiring LinkedIn Ambassadors on LinkedArmy, and about becoming an ambassador — safety, pricing, payouts, and more."
+      ? "Common questions about hiring LinkedIn Operators on LinkedArmy, and about becoming an operator — safety, pricing, payouts, and more."
       : "Common questions about renting LinkedIn accounts on LinkedVelocity, and about earning as an ambassador — safety, pricing, payouts, and more.",
     alternates: { canonical: "/faqs" },
     openGraph: {
       title: isArmy ? "Frequently Asked Questions | LinkedArmy" : "Frequently Asked Questions | LinkedVelocity",
       description: isArmy
-        ? "Everything you need to know about hiring LinkedIn Ambassadors and becoming an ambassador."
+        ? "Everything you need to know about hiring LinkedIn Operators and becoming an operator."
         : "Everything you need to know about renting LinkedIn accounts safely and earning as an ambassador.",
       url: `${brand.url}/faqs`,
     },
@@ -63,33 +63,33 @@ const FAQ_GROUPS_LA: FaqGroup[] = [
     label: "Getting started",
     color: "#0A66C2",
     items: [
-      { q: "What is LinkedArmy?", a: "A marketplace where growth teams hire verified LinkedIn Ambassadors for outreach — and professionals earn by becoming an ambassador with an account they no longer actively use. Every ambassador is a consenting real person; we handle secure access, warm-up, and support." },
-      { q: "How does hiring work?", a: "Browse the catalogue, hire an ambassador monthly, and open their profile in a secure browser. You're running outreach from an established profile in minutes — no warm-up period — while we manage the login layer and ongoing support." },
-      { q: "What tools can I use with an ambassador?", a: "Any Chrome extension or LinkedIn automation tool — Dripify, Expandi, Linked Helper and others all work inside the browser session. Sales Navigator is available on ambassadors that include it. We recommend keeping activity within safe limits (roughly 100–200 actions a week), and we'll share recommended ranges to guide you." },
-      { q: "How fast do I get access after hiring?", a: "Typically within minutes. Once you've completed the quick one-time browser setup, we grant access to your ambassador and you can start outreach straight away." },
-      { q: "Which regions are the ambassadors based in?", a: "We have ambassadors across the US, UK, Canada, Australia and other regions. Browse the catalogue to filter by location, or tell us your target market and we'll match you to the best fit." },
-      { q: "Can I hire more than one ambassador?", a: "Yes — hire as many as you need. Each is billed separately, and teams running higher volume often work with several ambassadors at once." },
+      { q: "What is LinkedArmy?", a: "A marketplace where growth teams hire verified LinkedIn Operators for outreach — and professionals earn by becoming an operator with an account they no longer actively use. Every operator is a consenting real person; we handle secure access, warm-up, and support." },
+      { q: "How does hiring work?", a: "Browse the catalogue, hire an operator monthly, and open their profile in a secure browser. You're running outreach from an established profile in minutes — no warm-up period — while we manage the login layer and ongoing support." },
+      { q: "What tools can I use with an operator?", a: "Any Chrome extension or LinkedIn automation tool — Dripify, Expandi, Linked Helper and others all work inside the browser session. Sales Navigator is available on operators that include it. We recommend keeping activity within safe limits (roughly 100–200 actions a week), and we'll share recommended ranges to guide you." },
+      { q: "How fast do I get access after hiring?", a: "Typically within minutes. Once you've completed the quick one-time browser setup, we grant access to your operator and you can start outreach straight away." },
+      { q: "Which regions are the operators based in?", a: "We have operators across the US, UK, Canada, Australia and other regions. Browse the catalogue to filter by location, or tell us your target market and we'll match you to the best fit." },
+      { q: "Can I hire more than one operator?", a: "Yes — hire as many as you need. Each is billed separately, and teams running higher volume often work with several operators at once." },
     ],
   },
   {
     label: "Safety & compliance",
     color: "#0E7C74",
     items: [
-      { q: "Will an ambassador get restricted?", a: "Every session runs through a secure browser with a dedicated proxy and isolated fingerprint, so LinkedIn sees one consistent user, and we enforce safe sending limits to protect the profile. Profiles are actively monitored — and in the rare case one is restricted, we pause billing for it and move you to a replacement quickly, so your campaigns keep running." },
-      { q: "Is this compliant and safe for the ambassador?", a: "Every ambassador takes part with their explicit, ongoing consent. They commit to a light 6-month minimum and can withdraw after that (or sooner if they're ever concerned). We secure access, mask credentials, and never expose anyone's password to clients." },
+      { q: "Will an operator get restricted?", a: "Every session runs through a secure browser with a dedicated proxy and isolated fingerprint, so LinkedIn sees one consistent user, and we enforce safe sending limits to protect the profile. Profiles are actively monitored — and in the rare case one is restricted, we pause billing for it and move you to a replacement quickly, so your campaigns keep running." },
+      { q: "Is this compliant and safe for the operator?", a: "Every operator takes part with their explicit, ongoing consent. They commit to a light 6-month minimum and can withdraw after that (or sooner if they're ever concerned). We secure access, mask credentials, and never expose anyone's password to clients." },
       { q: "What sending limits should I stay within?", a: "We recommend keeping activity within safe limits — roughly 100–200 actions per week — to keep the profile healthy, and we'll share recommended ranges so you can set your outreach tool accordingly." },
-      { q: "What happens if an ambassador is restricted mid-campaign?", a: "We pause billing for that ambassador immediately, credit you for the downtime, and move you to a replacement so your outreach keeps running with minimal disruption." },
+      { q: "What happens if an operator is restricted mid-campaign?", a: "We pause billing for that operator immediately, credit you for the downtime, and move you to a replacement so your outreach keeps running with minimal disruption." },
     ],
   },
   {
     label: "Billing",
     color: "#946011",
     items: [
-      { q: "How am I charged, and can I cancel?", a: "A flat monthly fee per ambassador, paid by card (Stripe) or USDC. No contracts — cancel anytime and keep access through the end of your current billing period." },
-      { q: "What does an ambassador cost?", a: "Pricing depends on the ambassador's seniority, connections, and whether Sales Navigator is included. Most fall between $45 and $110 per month, with Sales Navigator available as a +$70/mo add-on, and you'll see the exact price before you commit." },
+      { q: "How am I charged, and can I cancel?", a: "A flat monthly fee per operator, paid by card (Stripe) or USDC. No contracts — cancel anytime and keep access through the end of your current billing period." },
+      { q: "What does an operator cost?", a: "Pricing depends on the operator's seniority, connections, and whether Sales Navigator is included. Most fall between $45 and $110 per month, with Sales Navigator available as a +$70/mo add-on, and you'll see the exact price before you commit." },
       { q: "Can I set up auto-renew?", a: "Yes. You can switch on monthly auto-renew so your engagement continues without interruption, and turn it off anytime." },
       { q: "What payment methods do you accept?", a: "Card via Stripe, or USDC (on Base). You'll choose at checkout." },
-      { q: "Is there a setup fee or minimum term?", a: "No setup fee and no minimum term — you pay a flat monthly fee per ambassador and can cancel anytime." },
+      { q: "Is there a setup fee or minimum term?", a: "No setup fee and no minimum term — you pay a flat monthly fee per operator and can cancel anytime." },
     ],
   },
 ];

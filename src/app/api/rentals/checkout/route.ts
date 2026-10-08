@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const baseUrl = baseUrlFromRequest(req);
     const brand = brandFromRequest(req);
     // What the payer sees on the Stripe line item — brand-correct, no cross-brand leak.
-    const lineItemName = brand.id === "linkedarmy" ? "LinkedArmy — LinkedIn Ambassador" : "LinkedVelocity account rental";
+    const lineItemName = brand.id === "linkedarmy" ? "LinkedArmy — LinkedIn Operator" : "LinkedVelocity account rental";
 
     // Support both single accountId and array of accountIds
     const accountIds: string[] = body.accountIds
