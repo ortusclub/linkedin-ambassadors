@@ -13,6 +13,8 @@ const CALENDAR_URL =
 export function Footer({ brand }: { brand: Brand }) {
   const pathname = usePathname() || "";
   if (HIDE_PREFIXES.some((p) => pathname.startsWith(p))) return null;
+  // LinkedArmy homepage ships its own footer.
+  if (brand.id === "linkedarmy" && pathname === "/") return null;
   const telegramUrl = `https://t.me/${brand.supportTelegram.replace(/^@/, "")}`;
   const brandSuffix = brand.name.replace(/^Linked/, "");
 
