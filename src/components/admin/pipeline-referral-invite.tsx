@@ -27,13 +27,23 @@ export function PipelineReferralInvite({ id, ambassadorName, referrerName, ambas
   };
 
   return <div style={{ display: "grid", gap: 10 }}>
-    <b style={{ fontSize: 12 }}>Referral program invite</b>
-    <small style={{ color: "var(--muted,#647189)" }}>Invite {ambassadorName} to refer (₱500) or onboard accounts themselves (up to ₱1,000){portalUrl ? ", and nudge the referrer who brought them in" : ""}.</small>
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{(["email", "whatsapp", "telegram", "viber"] as const).flatMap(channel => (["ambassador", "referrer"] as const).map(recipient => {
-      const contact = recipient === "ambassador" ? ambassador : referrer;
-      const valid = !!contactLink(channel, contact?.[channel], "");
-      return <button key={`${channel}-${recipient}`} style={{ ...button, opacity: valid ? 1 : .45 }} disabled={!valid || busy} title={valid ? "Review the message before sending" : `No ${recipient} ${channel} contact saved`} onClick={() => { setResult(""); setPreview({ recipient, channel, ...build(recipient, channel) }); }}>{({ email: "Email", whatsapp: "WhatsApp", telegram: "Telegram", viber: "Viber" })[channel]} {recipient}</button>;
-    }))}</div>
+    <small style={{ color: "var(--muted,#647189)" }}>₱500 per referral · up to ₱1,000 if they onboard it themselves.</small>
+    {([
+      { key: "ambassador" as InviteRecipient, name: ambassadorName, role: ambassadorPortalUrl ? "Ambassador · nudge to refer more" : "Ambassador · invite to refer", contact: ambassador },
+      ...(referrer ? [{ key: "referrer" as InviteRecipient, name: referrerName || "Referrer", role: "Referrer · nudge for more", contact: referrer }] : []),
+    ]).map(row => {
+      const valid = (["email", "whatsapp", "telegram", "viber"] as const).filter(ch => !!contactLink(ch, row.contact?.[ch], ""));
+      return <div key={row.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", background: "var(--inset,#f7f8fa)", border: "1px solid var(--card-border,#e7ebf0)", borderRadius: 10, padding: "10px 12px" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "var(--fg,#111)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.name || "—"}</div>
+          <div style={{ fontWeight: 500, fontSize: 11.5, color: "var(--muted,#8a97ad)", marginTop: 1 }}>{row.role}</div>
+        </div>
+        <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+          {valid.length ? valid.map(ch => <button key={ch} style={button} disabled={busy} title="Review the message before sending" onClick={() => { setResult(""); setPreview({ recipient: row.key, channel: ch, ...build(row.key, ch) }); }}>{({ email: "Email", whatsapp: "WhatsApp", telegram: "Telegram", viber: "Viber" } as Record<string, string>)[ch]}</button>)
+            : <span style={{ fontSize: 11, color: "var(--muted2,#9aa0a6)" }}>no contact saved</span>}
+        </div>
+      </div>;
+    })}
     {preview && <div role="dialog" aria-label="Review referral invite message" style={{ border: "1px solid var(--line,#d6e4fb)", borderRadius: 12, padding: 16, display: "grid", gap: 10 }}>
       <b>Review message to {preview.recipient}</b><span>To: {(preview.recipient === "ambassador" ? ambassador : referrer)?.[preview.channel]}</span>
       {preview.channel === "email" && <input aria-label="Email subject" style={button} value={preview.subject} onChange={e => setPreview({ ...preview, subject: e.target.value })} />}
