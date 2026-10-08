@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { requireAuth } from "@/lib/auth";
-import { baseUrlFromRequest } from "@/lib/brand";
+import { baseUrlFromRequest, brandFromRequest } from "@/lib/brand";
 
 export async function POST(req: Request) {
   try {
@@ -12,6 +12,9 @@ export async function POST(req: Request) {
     // Return to the SAME domain the checkout was started on, so a linkedarmy.com
     // customer lands back on linkedarmy.com (not the LinkedVelocity fallback).
     const baseUrl = baseUrlFromRequest(req);
+    const brand = brandFromRequest(req);
+    // What the payer sees on the Stripe line item — brand-correct, no cross-brand leak.
+    const lineItemName = brand.id === "linkedarmy" ? "LinkedArmy — LinkedIn Ambassador" : "LinkedVelocity account rental";
 
     // Support both single accountId and array of accountIds
     const accountIds: string[] = body.accountIds
@@ -57,7 +60,7 @@ export async function POST(req: Request) {
       mode: "subscription",
       allow_promotion_codes: true,
       line_items: accounts.map((a) => ({
-        price_data: { currency: "usd", unit_amount: monthlyRentalPrice(a) * 100, recurring: { interval: "month" }, product_data: { name: "LinkedVelocity account rental" } },
+        price_data: { currency: "usd", unit_amount: monthlyRentalPrice(a) * 100, recurring: { interval: "month" }, product_data: { name: lineItemName } },
         quantity: 1,
       })),
       metadata: {

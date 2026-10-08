@@ -1,32 +1,56 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { blogFontVars } from "@/lib/blog-fonts";
+import { getBrand } from "@/lib/brand";
 
-export const metadata: Metadata = {
-  title: "How It Works — Renting & Sharing LinkedIn Accounts",
-  description:
-    "Step-by-step guide to how LinkedVelocity works. Rent a verified, pre-warmed LinkedIn account in minutes with GoLogin browser access, or earn $10-500/month sharing an account you no longer use.",
-  alternates: { canonical: "/how-it-works" },
-  openGraph: {
-    title: "How LinkedVelocity Works — Rent or Share LinkedIn Accounts",
-    description:
-      "Browse, rent, and access pre-warmed LinkedIn accounts in minutes. Or earn passive income by sharing accounts you no longer use.",
-    url: "https://linkedvelocity.com/how-it-works",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getBrand();
+  const isArmy = brand.id === "linkedarmy";
+  return {
+    title: isArmy
+      ? "How It Works — Hiring a LinkedIn Ambassador"
+      : "How It Works — Renting & Sharing LinkedIn Accounts",
+    description: isArmy
+      ? "Step-by-step guide to how LinkedArmy works. Hire a verified LinkedIn Ambassador in minutes with GoLogin browser access, or become an ambassador and earn."
+      : "Step-by-step guide to how LinkedVelocity works. Rent a verified, pre-warmed LinkedIn account in minutes with GoLogin browser access, or earn $10-500/month sharing an account you no longer use.",
+    alternates: { canonical: "/how-it-works" },
+    openGraph: {
+      title: isArmy
+        ? "How LinkedArmy Works — Hire LinkedIn Ambassadors"
+        : "How LinkedVelocity Works — Rent or Share LinkedIn Accounts",
+      description: isArmy
+        ? "Browse, hire, and work with verified LinkedIn Ambassadors in minutes. Or become an ambassador and earn."
+        : "Browse, rent, and access pre-warmed LinkedIn accounts in minutes. Or earn passive income by sharing accounts you no longer use.",
+      url: `${brand.url}/how-it-works`,
+    },
+  };
+}
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 
-const STEPS = [
-  { n: "1", tag: "Browse", title: "Browse the catalogue", body: "Open the catalogue and filter by industry, connection count, geography, and Sales Navigator availability. Every account shows its price, stats, and current status." },
-  { n: "2", tag: "Select", title: "Select your account(s)", body: "Tick one or more accounts and proceed to checkout. Rent a single account, or bulk-rent across a multi-account campaign in one flow." },
-  { n: "3", tag: "Top up", title: "Top up your balance", body: "Add funds to your wallet — pay by card via Stripe, or deposit USDC on Base from any wallet. Your balance updates within seconds." },
-  { n: "4", tag: "Confirm", title: "Pay and confirm rental", body: "Rentals are monthly and paid from your balance, renewing automatically. Cancel anytime from your dashboard — no penalty." },
-  { n: "5", tag: "Connect", title: "Open your account in GoLogin", body: "Each rented account's browser profile is shared straight to your own GoLogin account — its own isolated profile with a dedicated proxy. No password to manage." },
-  { n: "6", tag: "Launch", title: "Run your campaigns", body: "Click the account to open it as a real Chrome session. Install Dripify, Expandi, Linked Helper, or any extension, and run connection, intro, and open-profile campaigns exactly as you would on your own account." },
-];
+const STEPS_BY_BRAND = {
+  linkedvelocity: [
+    { n: "1", tag: "Browse", title: "Browse the catalogue", body: "Open the catalogue and filter by industry, connection count, geography, and Sales Navigator availability. Every account shows its price, stats, and current status." },
+    { n: "2", tag: "Select", title: "Select your account(s)", body: "Tick one or more accounts and proceed to checkout. Rent a single account, or bulk-rent across a multi-account campaign in one flow." },
+    { n: "3", tag: "Top up", title: "Top up your balance", body: "Add funds to your wallet — pay by card via Stripe, or deposit USDC on Base from any wallet. Your balance updates within seconds." },
+    { n: "4", tag: "Confirm", title: "Pay and confirm rental", body: "Rentals are monthly and paid from your balance, renewing automatically. Cancel anytime from your dashboard — no penalty." },
+    { n: "5", tag: "Connect", title: "Open your account in GoLogin", body: "Each rented account's browser profile is shared straight to your own GoLogin account — its own isolated profile with a dedicated proxy. No password to manage." },
+    { n: "6", tag: "Launch", title: "Run your campaigns", body: "Click the account to open it as a real Chrome session. Install Dripify, Expandi, Linked Helper, or any extension, and run connection, intro, and open-profile campaigns exactly as you would on your own account." },
+  ],
+  linkedarmy: [
+    { n: "1", tag: "Browse", title: "Browse the catalogue", body: "Open the catalogue and filter by industry, connection count, geography, and Sales Navigator availability. Every ambassador shows its price, stats, and current status." },
+    { n: "2", tag: "Select", title: "Select your ambassador(s)", body: "Tick one or more ambassadors and proceed to checkout. Hire a single ambassador, or hire several across a multi-ambassador campaign in one flow." },
+    { n: "3", tag: "Top up", title: "Top up your balance", body: "Add funds to your wallet — pay by card via Stripe, or deposit USDC on Base from any wallet. Your balance updates within seconds." },
+    { n: "4", tag: "Confirm", title: "Pay and confirm", body: "Engagements are monthly and paid from your balance, renewing automatically. Cancel anytime from your dashboard — no penalty." },
+    { n: "5", tag: "Connect", title: "Open your ambassador in GoLogin", body: "Each ambassador's profile is shared straight to your own GoLogin account — its own isolated profile with a dedicated proxy. No password to manage." },
+    { n: "6", tag: "Launch", title: "Run your campaigns", body: "Open the ambassador's profile as a real Chrome session. Install Dripify, Expandi, Linked Helper, or any extension, and run connection, intro, and open-profile campaigns." },
+  ],
+} as const;
 
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
+  const brand = await getBrand();
+  const isArmy = brand.id === "linkedarmy";
+  const steps = STEPS_BY_BRAND[brand.id];
   return (
     <div className={blogFontVars} style={{ fontFamily: INT, color: "#0B1220", background: "#FBFCFD" }}>
       <style>{`
@@ -40,11 +64,11 @@ export default function HowItWorksPage() {
       <section style={{ position: "relative", overflow: "hidden", background: "radial-gradient(80% 70% at 50% -10%, rgba(10,102,194,0.28) 0%, rgba(10,24,38,0) 60%), radial-gradient(60% 60% at 88% 15%, rgba(38,120,220,0.16) 0%, rgba(10,24,38,0) 60%), linear-gradient(180deg,#0F2439 0%,#0A1826 100%)", padding: "60px 24px 84px", color: "#EAF0FA" }}>
         <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
           <div style={{ fontSize: 13, color: "#7FA0C4", marginBottom: 22 }}>Home · How It Works</div>
-          <h1 style={{ font: `800 clamp(34px,5.6vw,56px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 auto 22px", color: "#fff", maxWidth: 760 }}>Rent a LinkedIn account in minutes — no warm-up, no setup wizard</h1>
-          <p style={{ fontSize: 19, lineHeight: 1.6, color: "#AFC4DB", margin: "0 auto", maxWidth: 600 }}>Every rented account comes with its own GoLogin anti-detect browser profile and dedicated proxy. No password to manage, no verification step — click an account and you&apos;re in.</p>
+          <h1 style={{ font: `800 clamp(34px,5.6vw,56px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 auto 22px", color: "#fff", maxWidth: 760 }}>{isArmy ? "Hire a LinkedIn Ambassador in minutes — no warm-up, no setup wizard" : "Rent a LinkedIn account in minutes — no warm-up, no setup wizard"}</h1>
+          <p style={{ fontSize: 19, lineHeight: 1.6, color: "#AFC4DB", margin: "0 auto", maxWidth: 600 }}>{isArmy ? "Every ambassador comes with its own GoLogin secure browser profile and dedicated proxy. No password to manage, no verification step — pick an ambassador and you're in." : "Every rented account comes with its own GoLogin anti-detect browser profile and dedicated proxy. No password to manage, no verification step — click an account and you're in."}</p>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "center", marginTop: 34 }}>
-            <Link href="/catalogue" style={{ background: "#fff", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>Browse Available Accounts →</Link>
-            <Link href="/faqs" style={{ background: "rgba(255,255,255,0.08)", color: "#EAF0FA", border: "1px solid rgba(255,255,255,0.18)", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>Renter FAQs</Link>
+            <Link href="/catalogue" style={{ background: "#fff", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>{isArmy ? "Browse Ambassadors →" : "Browse Available Accounts →"}</Link>
+            <Link href="/faqs" style={{ background: "rgba(255,255,255,0.08)", color: "#EAF0FA", border: "1px solid rgba(255,255,255,0.18)", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>FAQs</Link>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "#8FA8C6", marginLeft: 4 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00E676", boxShadow: "0 0 6px 2px rgba(0,230,118,0.4)" }} />Ready in minutes</span>
           </div>
         </div>
@@ -59,7 +83,7 @@ export default function HowItWorksPage() {
           <div style={{ position: "relative" }}>
             <div className="hiw-line" />
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {STEPS.map((s) => (
+              {steps.map((s) => (
                 <div key={s.n} style={{ position: "relative", zIndex: 1, display: "flex", gap: 24, alignItems: "flex-start" }}>
                   <div className="hiw-node" style={{ flexShrink: 0, width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(150deg,#0A66C2,#2678DC)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", font: `700 18px ${POP}`, boxShadow: "0 8px 18px rgba(10,102,194,0.28)", border: "4px solid #FBFCFD" }}>{s.n}</div>
                   <div className="hiw-card" style={{ flex: 1, background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, padding: "20px 24px", boxShadow: "0 4px 14px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.04)" }}>
@@ -75,13 +99,13 @@ export default function HowItWorksPage() {
           </div>
 
           <div className="hiw-cta" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 40, paddingLeft: 47 }}>
-            <Link href="/catalogue" style={{ background: "#0A66C2", color: "#fff", fontSize: 15, fontWeight: 600, padding: "13px 22px", borderRadius: 12, textDecoration: "none", boxShadow: "0 10px 26px rgba(10,102,194,0.24)" }}>Browse Available Accounts →</Link>
-            <Link href="/faqs" style={{ background: "#fff", border: "1px solid #DFE3E9", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "13px 22px", borderRadius: 12, textDecoration: "none" }}>Renter FAQs</Link>
+            <Link href="/catalogue" style={{ background: "#0A66C2", color: "#fff", fontSize: 15, fontWeight: 600, padding: "13px 22px", borderRadius: 12, textDecoration: "none", boxShadow: "0 10px 26px rgba(10,102,194,0.24)" }}>{isArmy ? "Browse Ambassadors →" : "Browse Available Accounts →"}</Link>
+            <Link href="/faqs" style={{ background: "#fff", border: "1px solid #DFE3E9", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "13px 22px", borderRadius: 12, textDecoration: "none" }}>FAQs</Link>
           </div>
         </div>
       </section>
 
-      {/* WHY GOLOGIN — honest (no fabricated 0% stat) */}
+      {/* WHY GOLOGIN */}
       <section style={{ background: "#FBFCFD", padding: "24px 24px 88px" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <div style={{ display: "flex", gap: 18, alignItems: "flex-start", background: "#F2F7FF", border: "1px solid #DCE9FB", borderLeft: "4px solid #0A66C2", borderRadius: 16, padding: "26px 28px" }}>
@@ -90,7 +114,7 @@ export default function HowItWorksPage() {
             </span>
             <div>
               <div style={{ font: `600 17px ${POP}`, color: "#0B1220", marginBottom: 6 }}>Why GoLogin matters</div>
-              <p style={{ fontSize: 15, lineHeight: 1.7, color: "#37424F", margin: 0 }}>Each rented account runs in an isolated browser fingerprint with its own dedicated IP. To LinkedIn, the session looks like the original account holder logging in from their usual location — one consistent user. And in the rare case an account is ever restricted, we <strong>pause your billing for it and move you to a replacement</strong> so your campaigns keep running.</p>
+              <p style={{ fontSize: 15, lineHeight: 1.7, color: "#37424F", margin: 0 }}>{isArmy ? <>Each ambassador works in an isolated browser profile with its own dedicated IP, so every session stays consistent and secure. And in the rare case an ambassador is ever restricted, we <strong>pause your billing for it and move you to a replacement</strong> so your campaigns keep running.</> : <>Each rented account runs in an isolated browser fingerprint with its own dedicated IP. To LinkedIn, the session looks like the original account holder logging in from their usual location — one consistent user. And in the rare case an account is ever restricted, we <strong>pause your billing for it and move you to a replacement</strong> so your campaigns keep running.</>}</p>
             </div>
           </div>
         </div>
@@ -103,8 +127,8 @@ export default function HowItWorksPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <span style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 11, background: "#E4F6EC", color: "#067A45", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700 }}>$</span>
               <div>
-                <div style={{ font: `600 16px ${POP}`, color: "#0B1220" }}>Have an account instead of needing one?</div>
-                <div style={{ fontSize: 14, color: "#5A6473", marginTop: 2 }}>Professionals earn $10–500/month sharing a dormant profile — you keep full ownership.</div>
+                <div style={{ font: `600 16px ${POP}`, color: "#0B1220" }}>{isArmy ? "Have a strong LinkedIn presence?" : "Have an account instead of needing one?"}</div>
+                <div style={{ fontSize: 14, color: "#5A6473", marginTop: 2 }}>{isArmy ? "Become an ambassador and earn $10–500/month — you keep full ownership of your profile." : "Professionals earn $10–500/month sharing a dormant profile — you keep full ownership."}</div>
               </div>
             </div>
             <Link href="/become-ambassador" style={{ flexShrink: 0, color: "#00A150", fontWeight: 600, fontSize: 14.5, textDecoration: "none" }}>See how earning works →</Link>
