@@ -28,7 +28,6 @@ const sections = [
   { name: "Ambassadors", items: [
     // Pipeline replaces the old Applications / Ambassadors(owners) / Onboarding tabs.
     { href: "/admin/pipeline", label: "Pipeline" },
-    { href: "/admin/pipeline-new", label: "Pipeline (New)" },
     { href: "/admin/referrals", label: "Referrals" },
     { href: "/admin/balances", label: "Payouts" },
     { href: "/admin/accounts", label: "Inventory" },

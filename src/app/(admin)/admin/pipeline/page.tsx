@@ -1,541 +1,81 @@
 "use client";
 
-// Pipeline — one card per ambassador, signup → working, paid account.
-// ---------------------------------------------------------------------------
-// This is the single-record merge of Applications + Onboarding + Payouts. Every
-// mechanism the three old tabs run is wired here to the SAME endpoints, so the
-// data can never diverge:
-//   • application + payout + workflow + outreach  → PATCH /api/admin/ambassadors/{id}
-//   • account fields + credentials                → PATCH /api/admin/accounts/{accountId}
-//   • stage dropdown (guarded onboarding/onboard) → POST  /api/admin/onboarding/status
-//   • payments (log / proof / notified / ack)     → PATCH /api/admin/ambassadors/{id}
-//                                                     (addMonthlyPayout / updateMonthlyPayout)
-//   • payments-due digest email                   → POST  /api/admin/payments-due
-//
-// Data spine = /api/admin/onboarding (account-joined). We overlay the call
-// state, onboardingStartedAt/paidAt/verifiedAt and the monthlyPayouts ledger
-// from /api/admin/ambassadors, merged by id. The old Applications, Onboarding,
-// Ambassadors and Payouts tabs are untouched.
-//
-// Three lenses on the same cards:
-//   • By stage        — Initial / Processing / Accepted / Onboarded / Unreachable / Rejected
-//   • By next action  — what to do next (blocked / message / awaiting / chase / decide / setup / live / closed)
-//   • Onboarded · payments — live accounts only, with the money surface
-
+// Pipeline (New) — v2 triage view. Same data + same endpoints as /admin/pipeline
+// (nothing here writes anywhere the live pipeline doesn't), reorganised around
+// WHOSE TURN it is: To action / Waiting on them / Maturing / Onboarded / Stopped,
+// with a handler lens, claim/bulk-assign, and the same expanded-row panel.
 import { useEffect, useMemo, useState } from "react";
-import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
+import { formatMoney } from "@/lib/referral-currency";
 import { formatName } from "@/lib/utils";
-import { AccountNotes } from "@/components/admin/account-notes";
-import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions";
-import { ambassadorIssueContact } from "@/lib/issue-contacts";
-import { ONBOARDING_ISSUES } from "@/lib/onboarding-issue-message";
-import { isApplicationReceived, receiptPatch } from "@/lib/pipeline-received";
-import { useQcChecks } from "@/components/admin/use-qc-checks";
-import TotpCode from "@/app/m/[token]/onboarding/totp";
 import { isLikelyTestEmail } from "@/lib/test-mode";
+import { CardDetail, AccountOnlyCard } from "@/components/admin/pipeline-panel";
+import {
+  type Row, type Status, type Turn, F_SANS, F_GRO, labelCss, inputCss,
+  applicationType, effectiveType, effectiveTypeKey, APPLICATION_TYPES, levelOf, levelKey, LEVEL_CHIP, LEVEL_GROUPS,
+  healthOf, HEALTH_OPTIONS, isRestricted, turnOf,
+  cfgOf, monthlyAmt, fmtDate, ageDays, initialsOf, lastTouchActivity,
+} from "@/lib/pipeline-model";
 
-// How someone applied — the route in, not how far the team has since taken them.
-// A referrer OR the person themselves (signing up from the website) can drive the
-// Email/2FA and Full-service routes; whoever does the onboarding collects the fees.
-//   Form         → signed up via a referrer's QR code, or filled the form themselves
-//   Email/2FA    → onboarded up to email + 2FA, but stopped before the GoLogin step
-//   Full-service → taken all the way past the GoLogin step
-const APPLICATION_TYPES = [
-  { key: "standard", label: "Form" },
-  { key: "partial", label: "Email/2FA" },
-  { key: "full", label: "Full-service" },
-  { key: "unknown", label: "Not recorded" },
-] as const;
-// Do not infer how someone applied from work the team completed afterwards.
-const applicationType = (r: { diyTier?: string | null }) => APPLICATION_TYPES.find(t => t.key === r.diyTier) || APPLICATION_TYPES[3];
-
-const F_SANS = "var(--font-sans),system-ui,sans-serif";
-const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
-
-type Status = "pending" | "reviewing" | "approved" | "rejected" | "onboarding" | "onboarded" | "unreachable" | "contacted" | "on_hold";
-type Stage = "initial" | "processing" | "accepted" | "onboarded" | "unreachable" | "rejected";
-type Mode = "stage" | "action" | "live";
-type Touch = { ch: string; text: string; by?: string; at: string; bookingKey?: string; scheduledAt?: string; cancelled?: boolean };
-type Payout = {
-  paidAt: string; amount: number; kind?: "setup" | "monthly"; method?: string | null;
-  proofUrl?: string | null; note?: string | null; accountId?: string | null; by?: string;
-  notified?: boolean; notifiedAt?: string | null; acknowledged?: boolean; acknowledgedAt?: string | null;
+// Tile / turn-chip vocabulary.
+const TURN_META: Record<Turn, { tile: string; chip: string; bg: string; fg: string; dot: string; sub: string }> = {
+  us:    { tile: "To action",       chip: "ACTION",    bg: "var(--warn-badge-bg,#fef3e2)", fg: "var(--warn-badge-text,#b7791f)", dot: "var(--warn-badge-text,#b7791f)", sub: "needs us now" },
+  them:  { tile: "Waiting on them", chip: "WAITING",   bg: "var(--blue-chip-bg,#e8f0fe)",  fg: "var(--blue-chip-text,#1a56db)",  dot: "var(--blue-chip-text,#1a56db)",  sub: "applicant or referrer" },
+  timer: { tile: "Maturing",        chip: "TIMER",     bg: "var(--st-conv-bg,#efe8fd)",    fg: "var(--st-conv-fg,#6d28d9)",      dot: "var(--st-conv-fg,#6d28d9)",      sub: "1-week hold" },
+  live:  { tile: "Onboarded",       chip: "ONBOARDED", bg: "var(--st-active-bg,#e6f4ea)",  fg: "var(--st-active-fg,#188038)",    dot: "var(--st-active-fg,#188038)",    sub: "live & earning" },
+  dead:  { tile: "Stopped",         chip: "STOPPED",   bg: "var(--st-cancel-bg,#fdecea)",  fg: "var(--st-cancel-fg,#c0392b)",    dot: "var(--st-cancel-fg,#c0392b)",    sub: "not progressing" },
 };
-
-interface Row {
-  id: string;
-  // True for an inventory-only account (a LinkedIn account we hold with no ambassador
-  // application). These are surfaced only when restricted, render as a compact card, and
-  // are excluded from the level / onboarding metrics. See the onboarding route.
-  accountOnly?: boolean;
-  applicationReceived?: boolean;
-  setupInProgress?: boolean;
-  existingAccountSubmission?: boolean;
-  referrerResumeUrl?: string | null;
-  meetingRequested?: boolean;
-  fullName: string;
-  email: string;
-  contactNumber: string | null;
-  contactChannel: string | null;
-  linkedinUrl: string | null;
-  location: string | null;
-  status: Status;
-  createdAt: string;
-  onboardedAt: string | null;
-  accountIssue: string | null;
-  onboardingFix: { issues: ("application_incomplete" | "email_added" | "email_primary" | "twofa" | "password")[]; state: "open" | "referrer_done"; raisedAt: string; doneAt?: string } | null;
-  restrictionReport: { type: "qr_done" | "recovered"; at: string; by?: string } | null;
-  referrer: { email?: string | null; viber?: string | null; name: string; token: string | null; whatsapp: string | null; telegram: string | null; preferred: string | null } | null;
-  reason: string;
-  phoneHandoffPending?: boolean;
-  latestCode?: string | null;
-  hasGologin: boolean;
-  hasLogin: boolean;
-  accountId: string | null;
-  accountName: string | null;
-  accountStatus: string | null;
-  loginEmail: string | null;
-  gologinShareLink: string | null;
-  gologinProfileId: string | null;
-  connectionCount: number | null;
-  adminNotes: string | null;
-  applicationNotes: string | null;
-  accountNotes: string | null;
-  referredBy: string | null;
-  payoutCurrency: string | null;
-  referralSource: string | null;
-  industry: string | null;
-  poc: string | null;
-  linkedinEmail: string | null;
-  bookingEmail: string | null;
-  diyTier?: string | null;
-  accountFreshness: string | null;
-  ownerStatus: string | null;
-  paymentMethod: string | null;
-  paymentDetails: string | null;
-  payoutName: string | null;
-  verifiedAt: string | null;
-  qcChecks: { photo?: boolean; headline?: boolean; about?: boolean; connections?: boolean; experiences?: boolean; education?: boolean } | null;
-  emailPrimaryAt: string | null;
-  linkedinVerified: boolean;
-  provisionStatus: string | null;
-  setupPaidAt: string | null;
-  personalEmail: string | null;
-  workEmail: string | null;
-  hasPassword: boolean;
-  has2fa: boolean;
-  accountPassword: string | null;
-  twoFactor: string | null;
-  proxyHost: string | null;
-  proxyPort: number | null;
-  proxyUsername: string | null;
-  proxyPassword: string | null;
-  proxyLocation: string | null;
-  accountRestrictedAt: string | null;
-  accountRestrictionLog: { at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }[] | null;
-  monthlyPrice: number | null;
-  ambassadorPayment: number | null;
-  outreachLog: Touch[] | null;
-  nextFollowUp: string | null;
-  callOutcome: string | null;
-  // ---- overlaid from /api/admin/ambassadors ----
-  onboardingStartedAt: string | null;
-  paidAt: string | null;
-  monthlyPayouts: Payout[] | null;
-  call: { stage: "none" | "booked" | "done"; scheduledAt: string | null; meetLink: string | null } | null;
-}
-
-// ---------------------------------------------------------------------------
-// Status ↔ stage. We keep the real 9-value backend enum (shared with the other
-// tabs) and fold it into the 6 stage groups shown here.
-const stageOf = (r: Row): Stage => {
-  if (r.status === "rejected") return "rejected";
-  if (r.status === "unreachable") return "unreachable";
-  if (r.status === "onboarded") return "onboarded";
-  if (r.status === "approved") return "accepted";
-  if (r.status === "onboarding" || r.status === "on_hold") return "processing";
-  return "initial"; // pending, contacted, reviewing (a fresh signup being reviewed — not warming up yet)
-};
-// "Payment-relevant" = Level 2 (approved — logged in, at the payout stage) and Onboarded
-// (paid & earning). A setup fee is owed from Level 2 on, so these belong in the payments
-// view. Level 1 (still warming up, not logged in) is not.
-const isLive = (r: Row) => r.status === "approved" || r.status === "onboarded";
-
-// ── Two axes ────────────────────────────────────────────────────────────────
-// LEVEL = progress on the onboarding ladder (1→5), derived from milestone
-// timestamps, always moves forward. HEALTH = how the account is doing right now
-// (active / awaiting reply / in review / on hold / unreachable / rejected), from
-// the status field. They're independent: an account is e.g. "Level 3 · Active".
-type Health = "active" | "awaiting" | "review" | "hold" | "unreachable" | "rejected";
-
-// Account statuses that mean the account is genuinely live and earning (counts as Level 5).
-const EARNING_INVENTORY = new Set(["available", "rented", "trial"]);
-const levelOf = (r: Row): 0 | 0.5 | 1 | 2 | 3 | 4 | 5 => {
-  if (r.setupInProgress && !["rejected", "unreachable", "onboarded"].includes(r.status)) return 0.5;
-  if (!isApplicationReceived(r)) return 0;
-  if (r.status === "onboarded") return 5;          // matured + paid — live and earning
-  // A genuinely live, earning account (available / rented / trial) is Level 5 even when the
-  // application status lags — but ONLY once the setup fee is paid. An account listed available
-  // before the fee is paid is still maturing, not onboarded ("Onboarded = paid"); promoting it
-  // here contradicts the workflow rail (which stays on maturing) and shows "Pay setup fee" under
-  // a Level-5 header. A restricted or non-earning account (unavailable, retired, maintenance)
-  // stays at its real milestone level with a restricted/problem badge, never inflating Onboarded.
-  const feePaidLevel = !!r.paidAt || !!r.setupPaidAt || (r.monthlyPayouts || []).some((p) => p.kind === "setup");
-  if (r.accountStatus && EARNING_INVENTORY.has(r.accountStatus) && !r.accountRestrictedAt && feePaidLevel) return 5;
-  // Milestone-derived progress (the timestamps are the source of truth when present).
-  let n = 1;
-  if (r.verifiedAt) n = 4;                          // passed QC — maturing
-  else if (r.onboardedAt) n = 3;                    // logged into GoLogin
-  else if (r.emailPrimaryAt) n = 2;                 // email added & primary + 2FA
-  // Status floor — an approved (logged-in) account that predates the milestone
-  // timestamps still counts as at least Level 3. The Progress dropdown stamps the
-  // real timestamps, so a manual change always wins over this fallback.
-  if (r.status === "approved" && n < 3) n = 3;                                   // logged in
-  return n as 0 | 1 | 2 | 3 | 4 | 5;
-};
-const levelKey = (r: Row): number => levelOf(r);
-
-const healthOf = (r: Row): Health => {
-  switch (r.status) {
-    case "rejected": return "rejected";
-    case "unreachable": return "unreachable";
-    case "on_hold": return "hold";
-    case "contacted": return "awaiting";
-    case "pending":
-    case "reviewing": return "review";
-    default: return "active"; // onboarding, approved, onboarded
-  }
-};
-
-const LEVEL_GROUPS: { key: number; label: string; dot: string; note: string }[] = [
-  { key: 0.5, label: "Level 0.5 · Setup in progress", dot: "var(--warn-badge-text,#b7791f)", note: "started the wizard — saved details, not yet submitted for completion" },
-  { key: 1, label: "Level 1 · Application received", dot: "var(--blue-chip-text,#1a56db)", note: "signed up — our email & 2FA not added yet" },
-  { key: 2, label: "Level 2 · Email & 2FA", dot: "var(--blue-chip-text,#1a56db)", note: "our email added & primary, 2FA set — not logged in yet" },
-  { key: 3, label: "Level 3 · Logged into GoLogin", dot: "var(--warn-badge-text,#b7791f)", note: "signed in via GoLogin — going through QC checks" },
-  { key: 4, label: "Level 4 · Maturing", dot: "var(--st-conv-fg,#6d28d9)", note: "passed QC — in the 1-week maturation hold" },
-  { key: 5, label: "Level 5 · Onboarded", dot: "var(--st-active-fg,#188038)", note: "matured & paid — live and earning (also in the payments view)" },
-  { key: 0, label: "Level 0 · Not progressing", dot: "var(--st-cancel-fg,#c0392b)", note: "rejected or unreachable — not moving through the pipeline" },
+const TURN_ORDER: Turn[] = ["us", "them", "timer", "live", "dead"];
+const GROUP_OPTS: { key: string; label: string }[] = [
+  { key: "level", label: "Level" }, { key: "handler", label: "Handler" }, { key: "referrer", label: "Referrer" }, { key: "none", label: "None" },
 ];
-
-const HEALTH_OPTIONS: { key: Health; label: string; dot: string }[] = [
-  { key: "active", label: "Active", dot: "var(--st-active-fg,#188038)" },
-  { key: "awaiting", label: "Awaiting reply", dot: "var(--blue-chip-text,#1a56db)" },
-  { key: "review", label: "In review", dot: "var(--muted2,#9aa0a6)" },
-  { key: "hold", label: "On hold", dot: "var(--warn-badge-text,#b7791f)" },
-  { key: "unreachable", label: "Unreachable", dot: "var(--st-unreach-fg,#c0392b)" },
-  { key: "rejected", label: "Rejected", dot: "var(--st-cancel-fg,#c0392b)" },
-];
-const LEVEL_CHIP: Record<string, string> = { "0.5": "0.5 · Setup in progress", "0": "0 · Not progressing", "1": "1 · Received", "2": "2 · Email & 2FA", "3": "3 · Logged in", "4": "4 · Maturing", "5": "5 · Onboarded" };
-
-// By next action -------------------------------------------------------------
-type ActionKey = "blocked" | "message" | "awaiting" | "noreply" | "replied" | "setup" | "live" | "closed";
-const ACTION_GROUPS: { key: ActionKey; label: string; dot: string; note: string }[] = [
-  { key: "blocked", label: "Blocked — fix the account", dot: "var(--st-cancel-fg,#c0392b)", note: "restricted, no GoLogin or a login issue" },
-  { key: "message", label: "Needs first message", dot: "var(--st-unreach-fg,#c0392b)", note: "signed up, nobody has reached out" },
-  { key: "awaiting", label: "Awaiting reply", dot: "var(--warn-badge-text,#b7791f)", note: "messaged once — give it a nudge" },
-  { key: "noreply", label: "No response — chase", dot: "var(--st-unreach-fg,#c0392b)", note: "2+ touches, still nothing back" },
-  { key: "replied", label: "Replied — decide", dot: "var(--blue-chip-text,#1a56db)", note: "they came back — accept or reject" },
-  { key: "setup", label: "Warm-up & setup", dot: "var(--st-conv-fg,#6d28d9)", note: "accepted — run the workflow" },
-  { key: "live", label: "Live", dot: "var(--st-active-fg,#188038)", note: "onboarded and earning" },
-  { key: "closed", label: "Closed", dot: "var(--muted2,#9aa0a6)", note: "rejected or not a fit" },
-];
-// Why an account can't earn, most-terminal first. Uses data we already have:
-//   removed  → the ambassador pulled their account back (withdrawn)
-//   retired  → LinkedIn permanently restricted it (inaccessible)
-//   restricted (restrictedAt) → temporarily flagged by LinkedIn, may recover
-//   setup    → no GoLogin yet, or a login issue we need to fix
-type BlockKind = "withdrawn" | "retired" | "restricted" | "setup";
-// A GoLogin is only EXPECTED from Level 2 onward ("GoLogin ready, verifying") and when
-// onboarded. Initial / awaiting-reply / Level-1-warm-up leads don't have one yet by
-// design, so a missing GoLogin there is normal — not a problem to flag.
-const needsGologin = (r: Row) => r.status === "approved" || r.status === "onboarded";
-const missingGologin = (r: Row) => needsGologin(r) && !!r.accountId && !r.hasGologin;
-const blockKind = (r: Row): BlockKind | null => {
-  // A restriction can be recorded on the account (status / restrictedAt) OR — for a
-  // lead with no linked account yet — as a keyword on the application's accountIssue.
-  const issue = (r.accountIssue || "").toLowerCase();
-  if (r.accountStatus === "removed" || issue.includes("withdrawn")) return "withdrawn";
-  if (r.accountStatus === "retired" || issue.includes("permanent")) return "retired";
-  if (r.accountRestrictedAt || issue.includes("restricted")) return "restricted";
-  if (r.accountIssue || missingGologin(r)) return "setup";
-  return null;
+// A distinct, stable colour per handler so the "Handled by" chips read at a glance.
+// Known handlers get fixed colours; anyone else is hashed into the palette.
+const HANDLER_PALETTE = ["#2563eb", "#db2777", "#059669", "#d97706", "#7c3aed", "#0891b2", "#dc2626", "#4f46e5", "#ca8a04", "#be185d"];
+const HANDLER_FIXED: Record<string, string> = { ardi: "#2563eb", giana: "#db2777", sam: "#059669", ton: "#d97706", milee: "#7c3aed" };
+const handlerColor = (name: string): string => {
+  const key = (name || "").trim().toLowerCase().split(/\s+/)[0];
+  if (HANDLER_FIXED[key]) return HANDLER_FIXED[key];
+  let h = 0; for (const ch of key) h = (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0;
+  return HANDLER_PALETTE[h % HANDLER_PALETTE.length];
 };
-const isBlocked = (r: Row) => blockKind(r) !== null;
-// Restriction is orthogonal to Health (a restricted account can still read as "active"
-// from its status), so it's a cross-cutting filter, not one of the Health states.
-const isRestricted = (r: Row) => blockKind(r) === "restricted";
-const REPLY_CH: Record<string, 1> = { reply: 1, booked: 1, done: 1 };
-const actionBucket = (r: Row): ActionKey => {
-  if (r.status === "rejected") return "closed";
-  if (r.status === "onboarded") return "live";
-  if (isBlocked(r)) return "blocked";
-  if (r.status === "approved" || r.status === "onboarding") return "setup";
-  const log = r.outreachLog || [];
-  const outbound = log.filter((t) => !REPLY_CH[t.ch] && t.ch !== "note");
-  if (log.some((t) => REPLY_CH[t.ch])) return "replied";
-  if (r.status === "unreachable" || outbound.length >= 2) return "noreply";
-  if (outbound.length === 1) return "awaiting";
-  return "message";
+// Application-type pill colours (matches the mock: Form grey, Email/2FA blue, Full-service purple).
+const TYPE_COLOR: Record<string, [string, string]> = {
+  standard: ["#eef1f5", "#334155"], partial: ["#e0f2fe", "#075985"], full: ["#ede9fe", "#5b21b6"], unknown: ["#f1f3f6", "#9aa0a6"],
 };
-
-// Live (payments) ------------------------------------------------------------
-type LiveKey = "due" | "restricted" | "setup" | "ok" | "retired" | "withdrawn";
-const LIVE_GROUPS: { key: LiveKey; label: string; dot: string; note: string }[] = [
-  { key: "due", label: "Payment due", dot: "var(--warn-badge-text,#b7791f)", note: "setup fee or a monthly payout owed now" },
-  { key: "restricted", label: "Restricted — check", dot: "var(--st-cancel-fg,#c0392b)", note: "flagged by LinkedIn — may recover; don't pay yet" },
-  { key: "setup", label: "Blocked — setup", dot: "var(--st-unreach-fg,#c0392b)", note: "no GoLogin or a login issue — fix before paying" },
-  { key: "ok", label: "Up to date", dot: "var(--st-active-fg,#188038)", note: "nothing owed right now" },
-  { key: "retired", label: "Permanently restricted", dot: "var(--st-cancel-fg,#c0392b)", note: "heard from LinkedIn — inaccessible, won't come back" },
-  { key: "withdrawn", label: "Withdrawn — account pulled", dot: "var(--muted2,#9aa0a6)", note: "ambassador took their account back" },
-];
-const setupPaid = (r: Row) => (r.monthlyPayouts || []).some((p) => p.kind === "setup") || !!r.setupPaidAt || !!r.paidAt;
-
-// Formatting -----------------------------------------------------------------
-const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—");
-const fmtDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
-// Whole-CALENDAR-days ago, in local time — so it agrees with fmtDate (which shows the local
-// calendar date). A raw 24h-bucket floor would call a late-yesterday timestamp "today" the
-// next morning (e.g. "Oct 1 (today)" when it's already Oct 2).
-const ageDays = (iso: string) => {
-  const d = new Date(iso), n = new Date();
-  const d0 = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
-  const n0 = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
-  return Math.max(0, Math.round((n0 - d0) / 86400000));
+const typeColor = (r: Row) => TYPE_COLOR[effectiveTypeKey(r)] || TYPE_COLOR.unknown;
+// Level pill colours by ladder stage (matches the mock STAGES palette).
+const LEVEL_PILL: Record<string, [string, string]> = {
+  "0.5": ["#fef3c7", "#92400e"], "1": ["#dbeafe", "#1e40af"], "2": ["#dbeafe", "#1e40af"], "3": ["#ffedd5", "#9a3412"], "4": ["#ede9fe", "#5b21b6"], "5": ["#dcfce7", "#166534"], "0": ["#fee2e2", "#991b1b"],
 };
-const initialsOf = (name: string) => { const p = (name || "?").trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : name.slice(0, 2)).toUpperCase() || "?"; };
-const liHref = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
-const cfgOf = (r: Row) => currencyConfigFor(r.payoutCurrency, r.referredBy, r);
-const monthlyAmt = (r: Row) => (r.ambassadorPayment && r.ambassadorPayment > 0 ? r.ambassadorPayment : cfgOf(r).monthlyAmount);
-const totalPaid = (r: Row) => (r.monthlyPayouts || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+const levelPill = (lvl: number) => LEVEL_PILL[String(lvl)] || LEVEL_PILL["1"];
 
-const TOUCH: Record<string, [string, string, string]> = {
-  whatsapp: ["WhatsApp", "--green-chip-bg,#e6f4ea", "--green-chip-text,#188038"],
-  viber: ["Viber", "--st-conv-bg,#efe8fd", "--st-conv-fg,#6d28d9"],
-  telegram: ["Telegram", "--blue-chip-bg,#e8f0fe", "--blue-chip-text,#1a56db"],
-  email: ["Email", "--blue-chip-bg,#e8f0fe", "--blue-chip-text,#1a56db"],
-  call: ["Call", "--st-unreach-bg,#fdecea", "--st-unreach-fg,#c0392b"],
-  text: ["Text", "--st-conv-bg,#efe8fd", "--st-conv-fg,#6d28d9"],
-  reply: ["Reply", "--st-replied-bg,#e6f4ea", "--st-replied-fg,#188038"],
-  booked: ["Booked", "--st-conv-bg,#efe8fd", "--st-conv-fg,#6d28d9"],
-  done: ["Call", "--st-active-bg,#e6f4ea", "--st-active-fg,#188038"],
-  note: ["Note", "--tag-bg,#f1f1f2", "--muted,#6b7280"],
-};
-const touchLabel = (ch: string) => (TOUCH[ch] || TOUCH.note)[0];
-const touchChipStyle = (ch: string): React.CSSProperties => {
-  const c = TOUCH[ch] || TOUCH.note;
-  return { font: `600 9.5px ${F_SANS}`, letterSpacing: ".04em", textTransform: "uppercase", padding: "4px 0", borderRadius: 6, flex: "none", width: 72, textAlign: "center", background: `var(${c[1]})`, color: `var(${c[2]})` };
-};
-const messagingChannel = (r: Row): "viber" | "telegram" | "whatsapp" => {
-  const c = `${r.contactChannel || ""} ${r.contactNumber || ""}`.toLowerCase();
-  if (c.includes("viber")) return "viber";
-  if (c.includes("telegram") || c.includes("tg")) return "telegram";
-  return "whatsapp";
-};
-const lastTouchAt = (log: Touch[] | null) => (log && log.length ? fmtDateTime(log[log.length - 1].at) : "");
-const touchCount = (log: Touch[] | null) => (log || []).filter((t) => t.ch !== "note").length;
-
-// Warm-up window before we log in: 3 days established, 1 week fresh.
-// Maturation window: a fixed 1 week for every account (the old 3-day "established"
-// option was removed — accounts must warm up for at least a week).
-const holdDays = (_r: Row) => 7;
-
-// The QC checklist behind "Passed QC" (Step 4). All must be ticked before the
-// account can pass. Stored per-application in qcChecks.
-const QC_ITEMS: [keyof NonNullable<Row["qcChecks"]>, string][] = [
-  ["photo", "Profile picture is sufficient"],
-  ["headline", "Headline is filled in"],
-  ["about", "About section is filled in"],
-  ["experiences", "Has at least two experiences"],
-  ["education", "Has education listed"],
-  ["connections", "Has sent new connection requests"],
-];
-const eligibleMs = (r: Row): number | null => (r.onboardedAt ? new Date(r.onboardedAt).getTime() + 86400000 : null);
-// Setup fee is "due" only once it's been 24h since login — not the moment they log in.
-const setupDue = (r: Row): boolean => { if (setupPaid(r)) return false; const due = eligibleMs(r); return due !== null && Date.now() >= due; };
-
-// ── "Next step" — one clear read on each card of whether it needs the admin NOW, is
-// WAITING on a timer / the person, or is DONE. Collapses level + milestones + timers +
-// the outreach log into a single line so the pipeline is scannable ("what needs me?").
-type StepState = "now" | "waiting" | "done";
-type NextStep = { state: StepState; label: string; timing?: string; last?: string };
-const STEP_RANK: Record<StepState, number> = { now: 0, waiting: 1, done: 2 };
-const daysUntil = (ms: number) => Math.max(1, Math.ceil((ms - Date.now()) / 86400000));
-// Maturation is a DATE threshold, not a precise time: an account is "matured" once the
-// Manila calendar date reaches its ready date, so it reads ready all day on that date
-// (not "1 day left" until the exact QC time-of-day). Compare whole Manila days.
-const manilaDay = (ms: number) => Math.floor((ms + 8 * 3600000) / 86400000);
-const matureDaysLeft = (matureAtMs: number) => manilaDay(matureAtMs) - manilaDay(Date.now());
-
-// The most recent thing that happened to this row, so the admin can tell whether they've
-// already touched it. Prefers the last real outreach touch, else the latest milestone.
-const lastActivity = (r: Row): string | undefined => {
-  const cands: { at: string; what: string }[] = [];
-  const touches = (r.outreachLog || []).filter((t) => t.ch !== "note");
-  if (touches.length) { const t = touches[touches.length - 1]; cands.push({ at: t.at, what: t.ch === "reply" ? "they replied" : t.ch === "booked" ? "call booked" : "you reached out" }); }
-  const miles: [string | null, string][] = [[r.verifiedAt, "passed QC"], [r.onboardedAt, "logged in"], [r.emailPrimaryAt, "email & 2FA set"]];
-  for (const [d, w] of miles) if (d) { cands.push({ at: d, what: w }); break; }
-  if (!cands.length) return undefined;
-  cands.sort((a, b) => +new Date(b.at) - +new Date(a.at));
-  const c = cands[0]; const dd = ageDays(c.at);
-  return `${c.what} ${fmtDate(c.at)}${dd > 0 ? ` (${dd}d ago)` : " (today)"}`;
-};
-
-// Timestamp of the most recent signal for this row (last outreach touch or milestone),
-// falling back to signup — the clock the ACTION-NOW grace period counts from.
-const lastActivityAt = (r: Row): string => {
-  let best = r.createdAt;
-  const touches = (r.outreachLog || []).filter((t) => t.ch !== "note");
-  if (touches.length && +new Date(touches[touches.length - 1].at) > +new Date(best)) best = touches[touches.length - 1].at;
-  for (const d of [r.verifiedAt, r.onboardedAt, r.emailPrimaryAt]) if (d && +new Date(d) > +new Date(best)) best = d;
-  return best;
-};
-
-const nextStep = (r: Row): NextStep => {
-  const last = lastActivity(r);
-  const at = lastActivityAt(r);
-  const idle = ageDays(at);
-  // A routine task only escalates to ACTION NOW after a grace period of no activity, so
-  // fresh or just-touched cards stay calm (a same-day signup highlights the NEXT day). Until
-  // then it reads as WAITING with the date it becomes due. Urgent things — a restriction,
-  // a referrer reply, a follow-up the admin scheduled, money owed — skip the grace entirely.
-  const gate = (label: string, graceDays: number): NextStep => {
-    if (idle >= graceDays) return { state: "now", label, last };
-    const dueAt = new Date(new Date(at).getTime() + graceDays * 86400000).toISOString();
-    return { state: "waiting", label, timing: `from ${fmtDate(dueAt)}`, last };
-  };
-
-  // Terminal — nothing to action.
-  if (r.status === "rejected") return { state: "done", label: "Closed — rejected" };
-  if (r.accountStatus === "removed") return { state: "done", label: "Withdrawn — account pulled" };
-  if (r.accountStatus === "retired") return { state: "done", label: "Permanently restricted" };
-
-  // Urgent — highlighted immediately, no grace.
-  if (r.accountRestrictedAt || (r.accountIssue || "").toLowerCase().includes("restricted")) {
-    if (r.restrictionReport) return { state: "now", label: `Verify restriction — referrer says ${r.restrictionReport.type === "recovered" ? "it's unrestricted" : "the QR check is done"}`, last };
-    return { state: "now", label: "Restricted — chase the owner to clear it", timing: r.accountRestrictedAt ? `since ${fmtDate(r.accountRestrictedAt)}` : undefined, last };
-  }
-  if (r.meetingRequested) return { state: "now", label: "Arrange a setup meeting — requested by referrer", last };
-  if (r.onboardingFix?.state === "referrer_done") return { state: "now", label: "Recheck — referrer marked the fix done", last };
-  if (r.onboardingFix?.issues?.length) return { state: "waiting", label: `Waiting on referrer: ${r.onboardingFix.issues.map((i) => ONBOARDING_ISSUES[i]?.label || i).join(", ")}`, last };
-  if (r.nextFollowUp) {
-    const t = new Date(r.nextFollowUp).getTime();
-    if (Date.now() >= t) return { state: "now", label: "Follow-up due", timing: `set for ${fmtDate(r.nextFollowUp)}`, last };
-    return { state: "waiting", label: "Follow-up scheduled", timing: `${fmtDate(r.nextFollowUp)} · ${daysUntil(t)}d`, last };
-  }
-  // Blocked on infra (no GoLogin / login issue) — routine, 1-day grace.
-  if (blockKind(r) === "setup") return gate(missingGologin(r) ? "Add a GoLogin so the account can run" : "Fix the login issue", 1);
-
-  // Lead states. Unresponsive people (contacted/unreachable) get a longer 3-day leash
-  // before we shout "chase"; a brand-new application highlights the next day.
-  if (r.status === "unreachable") return gate(`Chase — unresponsive${idle > 0 ? ` (${idle}d quiet)` : ""}`, 3);
-  if (r.status === "contacted") {
-    if (idle >= 3) return { state: "now", label: `Chase — no reply in ${idle}d`, last };
-    return { state: "waiting", label: "Awaiting their reply", timing: idle > 0 ? `${idle}d` : "today", last };
-  }
-  if (levelOf(r) === 0.5) return { state: "waiting", label: "Setup in progress — waiting for the applicant to finish the wizard", last };
-  if (r.status === "pending") return gate("Reach out — new application", 1);
-  if (r.status === "reviewing") return { state: "waiting", label: "In review", last };
-  if (r.status === "on_hold") return { state: "waiting", label: "On hold", last };
-
-  // The onboarding ladder — the admin's own steps, 1-day grace so a same-day move stays calm.
-  const lvl = levelOf(r);
-  if (lvl <= 1) return gate("Add our email (set primary) + 2FA", 1);
-  if (lvl === 2) return gate("Log in via GoLogin", 1);
-  if (lvl === 3) { const done = QC_ITEMS.filter(([k]) => r.qcChecks?.[k]).length; return gate(`Run QC checks (${done}/${QC_ITEMS.length} done)`, 1); }
-  if (lvl === 4) {
-    // Maturation counts from QC-passed (verifiedAt), same as the Step 5 card — NOT from
-    // onboardedAt (the login moment), or the header and the workflow card disagree.
-    const matureAt = r.verifiedAt ? new Date(r.verifiedAt).getTime() + holdDays(r) * 86400000 : null;
-    if (matureAt && matureDaysLeft(matureAt) > 0) { const d = matureDaysLeft(matureAt); return { state: "waiting", label: "Maturing", timing: `${d} day${d === 1 ? "" : "s"} left · ready ${fmtDate(new Date(matureAt).toISOString())}`, last }; }
-    return { state: "now", label: setupPaid(r) ? "Matured — mark onboarded (live)" : "Matured — pay setup fee & mark onboarded", last };
-  }
-  if (!setupPaid(r)) return { state: "now", label: "Pay setup fee", last };
-  return { state: "done", label: "Live & earning", last };
-};
-// Proxy as one line: host:port:user:pass (trailing empties trimmed).
-const proxyCombined = (r: Row): string | null => {
-  const parts = [r.proxyHost || "", r.proxyPort != null ? String(r.proxyPort) : "", r.proxyUsername || "", r.proxyPassword || ""];
-  return parts.some(Boolean) ? parts.join(":").replace(/:+$/, "") : null;
-};
-const parseProxy = (v: string | number | null): Record<string, unknown> => {
-  const s = v == null ? "" : String(v).trim();
-  if (!s) return { proxyHost: null, proxyPort: null, proxyUsername: null, proxyPassword: null };
-  const p = s.split(":");
-  const port = p[1] ? parseInt(p[1].replace(/[^0-9]/g, ""), 10) : NaN;
-  return { proxyHost: p[0] || null, proxyPort: Number.isFinite(port) ? port : null, proxyUsername: p[2] || null, proxyPassword: p.slice(3).join(":") || null };
-};
-
-// Status pill / dropdown vocabulary (all real backend statuses).
-const STATUS_STYLE: Record<Status, [string, string]> = {
-  pending: ["--blue-chip-bg,#e8f0fe", "--blue-chip-text,#1a56db"],
-  contacted: ["--blue-chip-bg,#e8f0fe", "--blue-chip-text,#1a56db"],
-  reviewing: ["--warn-badge-bg,#fef3e2", "--warn-badge-text,#b7791f"],
-  on_hold: ["--warn-badge-bg,#fef3e2", "--warn-badge-text,#b7791f"],
-  onboarding: ["--warn-badge-bg,#fef3e2", "--warn-badge-text,#b7791f"],
-  approved: ["--st-conv-bg,#efe8fd", "--st-conv-fg,#6d28d9"],
-  onboarded: ["--st-active-bg,#e6f4ea", "--st-active-fg,#188038"],
-  unreachable: ["--st-unreach-bg,#fdecea", "--st-unreach-fg,#c0392b"],
-  rejected: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"],
-};
-const STAGE_ACCENT: Record<Stage, string> = {
-  initial: "var(--blue-chip-text,#1a56db)",
-  processing: "var(--warn-badge-text,#b7791f)",
-  accepted: "var(--st-conv-fg,#6d28d9)",
-  onboarded: "var(--st-active-fg,#188038)",
-  unreachable: "var(--st-unreach-fg,#c0392b)",
-  rejected: "var(--st-cancel-fg,#c0392b)",
-};
-const STATUS_OPTIONS: { value: Status; label: string }[] = [
-  { value: "pending", label: "Initial" },
-  { value: "contacted", label: "Awaiting reply" },
-  { value: "onboarding", label: "Onboarding" },
-  { value: "approved", label: "Logged in" },
-  { value: "onboarded", label: "Onboarded" },
-  { value: "reviewing", label: "In review" },
-  { value: "on_hold", label: "On hold" },
-  { value: "unreachable", label: "Unreachable" },
-  { value: "rejected", label: "Rejected" },
-];
-const ACCOUNT_STATUS_OPTIONS = ["under_review", "available", "rented", "unavailable", "maintenance", "under_construction", "construction_immature", "retired"];
-const OWNER_STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "Auto" }, { value: "active", label: "Active" }, { value: "waiting_us", label: "Waiting on us" },
-  { value: "waiting_them", label: "Waiting on them" }, { value: "offline", label: "Offline" }, { value: "onboarding", label: "Onboarding" },
-  { value: "paused", label: "Paused" }, { value: "lost", label: "Lost" },
-];
-
-const labelCss: React.CSSProperties = { font: `700 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label,#7c8597)" };
-const inputCss: React.CSSProperties = { width: "100%", boxSizing: "border-box", background: "var(--input-bg,#fff)", border: "1px solid var(--input-border,#dcdce0)", borderRadius: 8, padding: "7px 9px", font: `500 13px ${F_SANS}`, color: "var(--text,#111)", outline: "none" };
-const btnSec: React.CSSProperties = { font: `600 12px ${F_SANS}`, color: "var(--btn-secondary-fg,#333)", background: "var(--btn-secondary-bg,#fff)", border: "1px solid var(--btn-secondary-border,#dcdce0)", padding: "7px 12px", borderRadius: 8, cursor: "pointer" };
-const btnPrimary: React.CSSProperties = { font: `600 12px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg,#1a56db)", border: "none", padding: "8px 13px", borderRadius: 8, cursor: "pointer" };
-
-export default function AdminPipelinePage() {
+export default function PipelineNewPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
-  const [mode, setMode] = useState<Mode>("stage");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [levelFilter, setLevelFilter] = useState<number | "all">("all");
-  const [healthFilter, setHealthFilter] = useState<Health | "restricted" | "all">("all");
-  const [applicationTypeFilter, setApplicationTypeFilter] = useState<string>("all");
-  const [pocFilter, setPocFilter] = useState<string>("all");
+  const [me, setMe] = useState<string>("");
+  const [turnF, setTurnF] = useState<Turn | "all">("us");
+  const [whoF, setWhoF] = useState<string>("all"); // "all" | "__me" | "__unassigned" | <poc>
+  const [levelF, setLevelF] = useState<number | "all">("all");
+  const [healthF, setHealthF] = useState<string>("all");
+  const [typeF, setTypeF] = useState<string>("all");
+  const [groupBy, setGroupBy] = useState<string>("level");
   const [query, setQuery] = useState("");
-  const [flagged, setFlagged] = useState(false);
-  const [actionNowOnly, setActionNowOnly] = useState(false);
-  const [bulkPoc, setBulkPoc] = useState("");
-  const [busy, setBusy] = useState<string | null>(null);
-  // Save feedback so edits never fail silently: "Saved ✓" on success, an error on failure.
-  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const flashSave = (ok: boolean, text: string) => { setSaveMsg({ ok, text }); window.setTimeout(() => setSaveMsg((m) => (m && m.text === text ? null : m)), ok ? 1800 : 6000); };
   const [open, setOpen] = useState<Set<string>>(new Set());
-  const [dueInfo, setDueInfo] = useState<{ emails: Set<string>; items: { email: string; amount: number; currency: "PHP" | "USD"; kind: string; blocked: boolean }[] } | null>(null);
-  const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const flashSave = (ok: boolean, text: string) => { setSaveMsg({ ok, text }); window.setTimeout(() => setSaveMsg((m) => (m && m.text === text ? null : m)), ok ? 1800 : 6000); };
   const toggle = (id: string) => setOpen((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleGroup = (k: string) => setClosed((p) => { const n = new Set(p); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  const toggleSel = (id: string) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const load = async () => {
     try {
-      const [onb, amb, due] = await Promise.all([
+      const [onb, amb] = await Promise.all([
         fetch("/api/admin/onboarding", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { rows: [] })),
         fetch("/api/admin/ambassadors", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { applications: [] })),
-        fetch("/api/admin/payments-due", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       const overlay = new Map<string, Pick<Row, "onboardingStartedAt" | "paidAt" | "verifiedAt" | "monthlyPayouts" | "call">>();
       for (const a of (amb.applications || [])) {
@@ -549,84 +89,50 @@ export default function AdminPipelinePage() {
       }
       const merged: Row[] = (onb.rows || []).map((r: Row) => {
         const o = overlay.get(r.id);
-        return {
-          ...r,
-          onboardingStartedAt: o?.onboardingStartedAt ?? null,
-          paidAt: o?.paidAt ?? r.setupPaidAt ?? null,
-          verifiedAt: o?.verifiedAt ?? r.verifiedAt ?? null,
-          monthlyPayouts: o?.monthlyPayouts ?? null,
-          call: o?.call ?? null,
-        };
+        return { ...r, onboardingStartedAt: o?.onboardingStartedAt ?? null, paidAt: o?.paidAt ?? r.setupPaidAt ?? null, verifiedAt: o?.verifiedAt ?? r.verifiedAt ?? null, monthlyPayouts: o?.monthlyPayouts ?? null, call: o?.call ?? null };
       });
       setRows(merged);
-      if (due) {
-        const raw = [...(due.setup || []), ...(due.monthly || [])] as { email?: string; amount?: number; currency?: string; kind?: string; blocked?: boolean }[];
-        const items = raw.map((d) => ({ email: (d.email || "").toLowerCase(), amount: Number(d.amount) || 0, currency: (d.currency === "USD" ? "USD" : "PHP") as "PHP" | "USD", kind: d.kind || "", blocked: !!d.blocked }));
-        const emails = new Set(items.filter((i) => !i.blocked && i.email).map((i) => i.email));
-        setDueInfo({ emails, items });
-      }
     } catch { setError(true); }
   };
   useEffect(() => { load(); }, []);
-  // Keep a visible pipeline current as signup forms create new applications.
+  useEffect(() => { fetch("/api/auth/me", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.user) setMe(d.user.fullName || d.user.email || ""); }).catch(() => {}); }, []);
+  // Background refresh — keep the pipeline current, preserve overlay fields.
   useEffect(() => {
-    let stopped = false;
-    let refreshing = false;
+    let stopped = false; let refreshing = false;
     const refresh = async () => {
       if (document.visibilityState !== "visible" || refreshing) return;
       refreshing = true;
       try {
-        const response = await fetch("/api/admin/onboarding", { cache: "no-store" });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (stopped || !Array.isArray(data.rows)) return;
-        setRows(previous => {
-          const existing = new Map((previous || []).map(row => [row.id, row]));
-          return data.rows.map((row: Row) => {
-            const prior = existing.get(row.id);
-            return { ...row, onboardingStartedAt: prior?.onboardingStartedAt ?? null,
-              paidAt: prior?.paidAt ?? row.setupPaidAt ?? null,
-              verifiedAt: row.verifiedAt ?? prior?.verifiedAt ?? null,
-              monthlyPayouts: prior?.monthlyPayouts ?? null, call: prior?.call ?? null };
-          });
+        const res = await fetch("/api/admin/onboarding", { cache: "no-store" });
+        if (!res.ok) return; const data = await res.json(); if (stopped || !Array.isArray(data.rows)) return;
+        setRows((previous) => {
+          const existing = new Map((previous || []).map((row) => [row.id, row]));
+          return data.rows.map((row: Row) => { const prior = existing.get(row.id); return { ...row, onboardingStartedAt: prior?.onboardingStartedAt ?? null, paidAt: prior?.paidAt ?? row.setupPaidAt ?? null, verifiedAt: row.verifiedAt ?? prior?.verifiedAt ?? null, monthlyPayouts: prior?.monthlyPayouts ?? null, call: prior?.call ?? null }; });
         });
-      } catch { /* Keep the current pipeline if a background refresh fails. */ }
-      finally { refreshing = false; }
+      } catch { /* keep current */ } finally { refreshing = false; }
     };
     const timer = window.setInterval(refresh, 10000);
-    document.addEventListener("visibilitychange", refresh);
-    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh); window.addEventListener("focus", refresh);
     return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); };
   }, []);
 
-
-  // ---- mutations (all reuse existing endpoints) ----
+  // ---- mutations (identical endpoints to the live pipeline) ----
   const patchApp = async (id: string, patch: Record<string, unknown>, reload = false) => {
     setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, ...patch } : r)) : prev));
     try {
       const res = await fetch(`/api/admin/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Save failed (${res.status})`);
-      flashSave(true, "Saved ✓");
-      if (reload) await load();
-    } catch (e) {
-      // Never leave a false "saved" on screen: surface the error and re-load to the real values.
-      flashSave(false, e instanceof Error ? e.message : "Save failed — not saved. Please retry.");
-      await load();
-    }
+      flashSave(true, "Saved ✓"); if (reload) await load();
+    } catch (e) { flashSave(false, e instanceof Error ? e.message : "Save failed — not saved. Please retry."); await load(); }
   };
   const patchAccount = async (id: string, accountId: string, patch: Record<string, unknown>, reload = false) => {
     setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, ...patch } : r)) : prev));
     try {
       const res = await fetch(`/api/admin/accounts/${accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Save failed (${res.status})`);
-      flashSave(true, "Saved ✓");
-      if (reload) await load();
-    } catch (e) {
-      flashSave(false, e instanceof Error ? e.message : "Save failed — not saved. Please retry.");
-      await load();
-    }
+      flashSave(true, "Saved ✓"); if (reload) await load();
+    } catch (e) { flashSave(false, e instanceof Error ? e.message : "Save failed — not saved. Please retry."); await load(); }
   };
-  // Delete one mistaken entry from an account's restriction history (by its `at` timestamp).
   const deleteRestrictionEvent = async (accountId: string, at: string) => {
     try { await fetch(`/api/admin/accounts/${accountId}/restricted`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at }) }); } catch {}
     await load();
@@ -640,53 +146,62 @@ export default function AdminPipelinePage() {
     } finally { setBusy(null); }
   };
   const workflow = async (id: string, patch: Record<string, unknown>) => { setBusy(id); try { await patchApp(id, patch, true); } finally { setBusy(null); } };
-
-  // Create GoLogin button — runs the same provisioning the cron does for one account
-  // (profile + proxy + share link). Reports if no free proxy of the right tier.
   const provisionGologin = async (r: Row) => {
-    if (!r.accountId) return;
-    setBusy(r.id);
+    if (!r.accountId) return; setBusy(r.id);
     try {
       const res = await fetch("/api/admin/onboarding/provision-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
       const d = await res.json().catch(() => ({}));
-      if (!res.ok) { alert(typeof d.error === "string" ? d.error : `Could not create GoLogin (${res.status}).`); }
-      else if (d.result?.proxy === "flagged") { const why = d.result?.errors?.length ? d.result.errors.join("; ") : "no proxy could be assigned (reuse pool empty or a purchase is mid-flight)"; alert(`Couldn't attach a proxy — ${why}. The account still needs one; resolve the cause (or assign a proxy manually) and re-run "Create GoLogin".`); }
-      else if (d.result?.errors?.length) { alert(`Partly done: ${d.result.errors.join("; ")}`); }
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not create GoLogin (${res.status}).`);
+      else if (d.result?.proxy === "flagged") { const why = d.result?.errors?.length ? d.result.errors.join("; ") : "no proxy could be assigned"; alert(`Couldn't attach a proxy — ${why}.`); }
+      else if (d.result?.errors?.length) alert(`Partly done: ${d.result.errors.join("; ")}`);
       await load();
     } finally { setBusy(null); }
   };
-
-  // Delete the GoLogin profile off an account (confirmed first). Proxy stays assigned.
+  // Spin up an inventory account linked to this application so the login/2FA/GoLogin fields
+  // open up right here — matched back to the app by its LinkedIn URL and an "Owner: email"
+  // note. For an app with no account yet (nothing matched), so it can't create a duplicate.
+  const createAccount = async (r: Row) => {
+    if (r.accountId) return; setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        linkedinName: formatName(r.fullName) || r.fullName || r.email,
+        linkedinUrl: r.linkedinUrl || undefined,
+        notes: `Owner: ${r.email}`,
+        status: "under_construction",
+      }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not create account (${res.status}).`);
+      await load();
+    } finally { setBusy(null); }
+  };
+  // Resolve a self-service PC sign-in the referrer self-reported: confirm it's actually signed in,
+  // send it back for the referrer to retry, or take over the sign-in ourselves (drops to email/2FA tier).
+  const verifySignin = async (r: Row, action: "confirm" | "retry" | "takeover") => {
+    if (action === "takeover" && !confirm(`Take over ${formatName(r.fullName) || "this"} sign-in?\n\nThe referrer's commission drops to the email/2FA tier and it moves to our sign-in queue.`)) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/verify-signin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, action }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not update (${res.status}).`);
+      await load();
+    } finally { setBusy(null); }
+  };
   const deleteGologin = async (r: Row) => {
     if (!r.accountId) return;
-    if (!confirm(`Delete the GoLogin profile for ${r.accountName || r.fullName || "this account"}?\n\nThis removes the browser profile, clears the share link, and unassigns the proxy (freeing it for another account). You can re-create everything later with "Create GoLogin".`)) return;
+    if (!confirm(`Delete the GoLogin profile for ${r.accountName || r.fullName || "this account"}?\n\nThis removes the browser profile, clears the share link, and unassigns the proxy.`)) return;
     setBusy(r.id);
     try {
       const res = await fetch("/api/admin/onboarding/delete-gologin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: r.accountId }) });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not delete GoLogin (${res.status}).`);
-      else if (d.warning) alert(d.warning);
+      const d = await res.json().catch(() => ({})); if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not delete GoLogin (${res.status}).`); else if (d.warning) alert(d.warning);
       await load();
     } finally { setBusy(null); }
   };
-
-  // Email the referrer a guided fix for a common problem.
   const emailIssue = async (r: Row, issue: string) => {
     setBusy(r.id);
     try {
       const res = await fetch("/api/admin/onboarding/email-issue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, issue, loginEmail: r.loginEmail, ambassadorName: r.fullName, referrerSlug: r.referredBy }) });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not send (${res.status}).`);
-      else { alert(`Sent to ${d.to} — it's now with the referrer. When they mark it fixed, this button will ask you to re-check.`); await load(); }
+      const d = await res.json().catch(() => ({})); if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not send (${res.status}).`); else { alert(`Sent to ${d.to}.`); await load(); }
     } finally { setBusy(null); }
-  };
-  // Change stage keeping the model consistent: Level 2 (approved) ALWAYS means logged in,
-  // so stamp onboardedAt when moving there; Level 1 (onboarding) means not logged in yet,
-  // so clear it. Everything else goes through the guarded status route.
-  const changeStatus = (r: Row, status: Status) => {
-    if (status === "approved") return workflow(r.id, { status: "approved", ...(r.onboardedAt ? {} : { onboardedAt: new Date().toISOString() }) });
-    if (status === "onboarding") return workflow(r.id, { status: "onboarding", onboardedAt: null });
-    return setStage(r, status);
   };
   const logTouch = async (id: string, ch: string, text: string, by: string) => {
     const body = text || (({ whatsapp: "WhatsApp message sent", viber: "Viber message sent", telegram: "Telegram message sent", email: "Email sent", call: "Call attempted — no answer", text: "Text message sent", note: "Note added" } as Record<string, string>)[ch] || "Note added");
@@ -697,1096 +212,303 @@ export default function AdminPipelinePage() {
       if (res.ok) { const d = await res.json(); if (d.application?.outreachLog) setRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, outreachLog: d.application.outreachLog } : r)) : prev)); }
     } catch {} finally { setBusy(null); }
   };
-  // Payments — same ledger the Owners tab writes.
   const logPayment = async (r: Row, kind: "setup" | "monthly") => {
-    const cfg = cfgOf(r);
-    const amount = kind === "setup" ? cfg.setupAmount : monthlyAmt(r);
+    const cfg = cfgOf(r); const amount = kind === "setup" ? cfg.setupAmount : monthlyAmt(r);
     const payout: Record<string, unknown> = { amount, kind, method: r.paymentMethod || undefined };
     if (kind === "setup" && r.accountId) payout.accountId = r.accountId;
     const patch: Record<string, unknown> = { addMonthlyPayout: payout };
-    // Logging the setup fee records it but does NOT advance to Onboarded yet — that
-    // happens once the receipt/proof is attached (see updatePayout).
     if (kind === "setup") patch.paidAt = new Date().toISOString();
     await workflow(r.id, patch);
   };
   const updatePayout = async (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => {
-    // No auto-advance — moving to Onboarded is an explicit "Mark onboarded" step so
-    // logging a payment or attaching a receipt never surprises you by jumping stages.
     await workflow(r.id, { updateMonthlyPayout: { index, ...patch } });
-  };
-  const emailDue = async () => {
-    setEmailState("sending");
-    try { const res = await fetch("/api/admin/payments-due", { method: "POST" }); setEmailState(res.ok ? "sent" : "error"); }
-    catch { setEmailState("error"); }
-    setTimeout(() => setEmailState("idle"), 2600);
   };
   const deleteApp = async (r: Row) => {
     if (!confirm(`Delete ${formatName(r.fullName) || r.email}'s application permanently? This cannot be undone.`)) return;
     setBusy(r.id);
     try {
-      const res = await fetch(`/api/admin/ambassadors/${r.id}`, { method: "DELETE" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        alert(`Couldn't delete: ${data.error || res.statusText}`);
-        return;
-      }
-      // DIY signups also create a LinkedIn account. We only remove it when it's
-      // throwaway test data; if it's a real (listed/rented) account we keep it.
-      if (data.accountKept) {
-        alert("Application deleted. The linked LinkedIn account was kept because it's listed or has been rented — remove it from Inventory if you also want it gone.");
-      }
+      const res = await fetch(`/api/admin/ambassadors/${r.id}`, { method: "DELETE" }); const data = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(`Couldn't delete: ${data.error || res.statusText}`); return; }
+      if (data.accountKept) alert("Application deleted. The linked LinkedIn account was kept because it's listed or has been rented.");
       await load();
     } finally { setBusy(null); }
   };
+  // Assign a handler (POC) to a set of rows — app rows via bulk-poc, inventory-only via account PATCH.
+  const assignMany = async (ids: string[], poc: string | null) => {
+    if (!ids.length) return;
+    const byId = new Map((rows || []).map((r) => [r.id, r]));
+    const picked = ids.map((id) => byId.get(id)).filter(Boolean) as Row[];
+    const appIds = picked.filter((r) => !r.accountOnly).map((r) => r.id);
+    const acctRows = picked.filter((r) => r.accountOnly && r.accountId);
+    const idSet = new Set(ids);
+    setRows((prev) => (prev ? prev.map((r) => (idSet.has(r.id) ? { ...r, poc: poc || null } : r)) : prev));
+    try {
+      if (appIds.length) { const res = await fetch("/api/admin/ambassadors/bulk-poc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: appIds, poc }) }); if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Failed (${res.status})`); }
+      if (acctRows.length) await Promise.all(acctRows.map((r) => fetch(`/api/admin/accounts/${r.accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc }) }).then((res) => { if (!res.ok) throw new Error("account PoC save failed"); })));
+      flashSave(true, `${poc ? "Assigned" : "Unassigned"} ${ids.length} ${ids.length === 1 ? "row" : "rows"}${poc ? " → " + poc : ""} ✓`);
+    } catch (e) { flashSave(false, e instanceof Error ? e.message : "Assign failed — not saved."); await load(); }
+  };
+  const claim = (r: Row) => { if (me) assignMany([r.id], me); };
 
-  // ---- filtering / grouping ----
-  // Payments view = anyone whose money clock has started (logged in or onboarded).
-  // Stage/action views = everyone not yet fully onboarded — so a logged-in Level-2
-  // (approved) person shows in BOTH: still "Accepted" in the pipeline, and "Payment
-  // due" for their setup fee.
-  // By-level (stage) mode keeps onboarded rows visible (their own bottom section);
-  // the other modes exclude them (they live in the payments view).
-  const scoped = useMemo(() => (rows || []).filter((r) => (mode === "live" ? isLive(r) : mode === "stage" ? true : r.status !== "onboarded")), [rows, mode]);
+  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, createAccount, verifySignin, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
+
+  // Distinct handlers present (for chips + bulk menu).
+  const handlerNames = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of rows || []) { const p = (r.poc || "").trim(); if (p) s.add(p); }
+    if (me) s.add(me);
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [rows, me]);
+
+  const withTurn = useMemo(() => (rows || []).map((r) => ({ r, t: turnOf(r) })), [rows]);
+
+  // Tile counts — over everything (ignores the who/level/search filters, like a scoreboard).
+  const tileCounts = useMemo(() => {
+    const c: Record<Turn, number> = { us: 0, them: 0, timer: 0, live: 0, dead: 0 };
+    for (const { t } of withTurn) c[t.turn]++;
+    return c;
+  }, [withTurn]);
+  // Per-handler open-action load (turn === us), including resurfaced chases.
+  const handlerLoad = useMemo(() => {
+    const m = new Map<string, number>(); let unclaimed = 0;
+    for (const { r, t } of withTurn) if (t.turn === "us") { const p = (r.poc || "").trim(); if (p) m.set(p, (m.get(p) || 0) + 1); else unclaimed++; }
+    return { m, unclaimed, total: withTurn.filter((x) => x.t.turn === "us").length };
+  }, [withTurn]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return scoped.filter((r) => {
-      if (applicationTypeFilter !== "all" && applicationType(r).key !== applicationTypeFilter) return false;
-      if (flagged && !isBlocked(r)) return false;
-      if (actionNowOnly && nextStep(r).state !== "now") return false;
-      // Stage mode filters on the two axes (level + health); other modes on status.
-      if (mode === "stage") {
-        if (levelFilter !== "all" && levelKey(r) !== levelFilter) return false;
-        if (healthFilter === "restricted") { if (!isRestricted(r)) return false; }
-        else if (healthFilter !== "all" && healthOf(r) !== healthFilter) return false;
-      } else if (statusFilter !== "all" && r.status !== statusFilter) return false;
-      if (pocFilter !== "all") { const p = (r.poc || "").trim(); if (pocFilter === "__unassigned" ? p !== "" : p !== pocFilter) return false; }
+    return withTurn.filter(({ r, t }) => {
+      if (turnF !== "all" && t.turn !== turnF) return false;
+      if (whoF !== "all") { const p = (r.poc || "").trim(); if (whoF === "__unassigned" ? p !== "" : whoF === "__me" ? p !== me : p !== whoF) return false; }
+      if (levelF !== "all" && levelKey(r) !== levelF) return false;
+      if (healthF !== "all") { if (healthF === "restricted") { if (!isRestricted(r)) return false; } else if (healthOf(r) !== healthF) return false; }
+      if (typeF !== "all" && effectiveTypeKey(r) !== typeF) return false;
       if (!q) return true;
-      return [r.fullName, r.email, r.contactNumber, r.accountName, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc,
-        ...(r.outreachLog || []).map((t) => t.text)].some((v) => (v || "").toLowerCase().includes(q));
+      return [r.fullName, r.email, r.contactNumber, r.loginEmail, r.personalEmail, r.linkedinEmail, r.referredBy, r.poc, ...(r.outreachLog || []).map((x) => x.text)].some((v) => (v || "").toLowerCase().includes(q));
     });
-  }, [scoped, query, flagged, actionNowOnly, mode, statusFilter, levelFilter, healthFilter, pocFilter, applicationTypeFilter]);
+  }, [withTurn, turnF, whoF, me, levelF, healthF, typeF, query]);
 
-  // Count of rows that need acting on NOW (past their grace) within the current scope —
-  // the handler's live to-do count for the "Action now" filter.
-  const actionNowCount = useMemo(() => scoped.filter((r) => nextStep(r).state === "now").length, [scoped]);
-
-  // Bulk-assign the LV handler to every application currently shown (whatever the filters
-  // are). Lets a batch — e.g. all Level 1 — be handed to one person in a click.
-  const bulkAssign = async () => {
-    const name = bulkPoc.trim();
-    const shown = filtered;
-    if (!name || shown.length === 0) return;
-    if (!confirm(`Assign ${shown.length} ${shown.length === 1 ? "row" : "rows"} (everything shown) to "${name}" as LV handler? This replaces any current handler on them.`)) return;
-    // Application rows carry the PoC on the application; inventory-only rows carry it on the
-    // account (they have no application), so they go to the accounts endpoint instead.
-    const appIds = shown.filter((r) => !r.accountOnly).map((r) => r.id);
-    const acctRows = shown.filter((r) => r.accountOnly && r.accountId);
-    const idSet = new Set(shown.map((r) => r.id));
-    setRows((prev) => (prev ? prev.map((r) => (idSet.has(r.id) ? { ...r, poc: name } : r)) : prev));
-    try {
-      if (appIds.length) {
-        const res = await fetch("/api/admin/ambassadors/bulk-poc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: appIds, poc: name }) });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Failed (${res.status})`);
-      }
-      if (acctRows.length) {
-        await Promise.all(acctRows.map((r) => fetch(`/api/admin/accounts/${r.accountId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poc: name }) }).then((res) => { if (!res.ok) throw new Error("account PoC save failed"); })));
-      }
-      flashSave(true, `Assigned ${shown.length} to ${name} ✓`);
-      setBulkPoc("");
-    } catch (e) {
-      flashSave(false, e instanceof Error ? e.message : "Bulk assign failed — not saved.");
-      await load();
+  type Grp = { key: string; title: string; dot: string; note: string; items: { r: Row; t: ReturnType<typeof turnOf> }[] };
+  const groups: Grp[] = useMemo(() => {
+    const byNewest = (a: { r: Row }, b: { r: Row }) => +new Date(b.r.createdAt) - +new Date(a.r.createdAt);
+    const sorted = [...filtered].sort(byNewest);
+    if (groupBy === "none") return [{ key: "all", title: "All", dot: "var(--fg,#111)", note: "newest first", items: sorted }];
+    if (groupBy === "handler") {
+      const defs = [...handlerNames.map((n) => ({ k: n, t: n, c: handlerColor(n) })), { k: "__un", t: "Unclaimed", c: "var(--warn-badge-text,#b7791f)" }];
+      return defs.map((d) => ({ key: "h" + d.k, title: d.t, dot: d.c, note: "", items: sorted.filter(({ r }) => (d.k === "__un" ? !(r.poc || "").trim() : (r.poc || "").trim() === d.k)) })).filter((g) => g.items.length);
     }
-  };
-
-  const groups = useMemo(() => {
-    const defs = mode === "stage" ? LEVEL_GROUPS : mode === "live" ? LIVE_GROUPS : ACTION_GROUPS;
-    // "Owes money" = setup fee not yet paid (they've logged in — the fee is due), OR a
-    // monthly cycle has come due per the payments-due feed. An unacknowledged-but-paid
-    // payout is NOT a debt, so it does not count here.
-    const liveKey = (r: Row): LiveKey => blockKind(r) ?? ((setupDue(r) || (dueInfo?.emails.has((r.email || "").toLowerCase()) ?? false)) ? "due" : "ok");
-    const keyOf: (r: Row) => string | number = mode === "stage" ? (r: Row) => levelKey(r) : mode === "live" ? liveKey : (r: Row) => actionBucket(r);
-    return defs
-      // Pipeline levels follow application date, newest first. Action/payment views
-      // retain their action-priority ordering.
-      .map((d) => ({ ...d, items: filtered.filter((r) => String(keyOf(r)) === String(d.key)).sort((a, b) => {
-        const newestFirst = +new Date(b.createdAt) - +new Date(a.createdAt);
-        if (mode === "stage") return newestFirst;
-        return (STEP_RANK[nextStep(a).state] - STEP_RANK[nextStep(b).state]) || newestFirst;
-      }) }))
-      .filter((g) => g.items.length > 0);
-  }, [filtered, mode, dueInfo]);
-
-  // ---- header / strip metrics (from the full scoped set, ignoring filters) ----
-  const metrics = useMemo(() => {
-    // Inventory-only account rows are not applications, so they never count toward the
-    // onboarding-ladder metrics — only toward the "problem accounts" issue tally below.
-    const all = (rows || []).filter((r) => !r.accountOnly);
-    // Level = the ambassador's real STATUS, not whether they've logged in. A Level-2
-    // (approved) person who has logged in is still Level 2 (warming up / verifying)
-    // until their setup fee is paid — they must keep counting here.
-    const lvl1 = all.filter((r) => ["onboarding", "on_hold"].includes(r.status)); // warming up — reviewing/pending/contacted are Initial
-    const lvl2 = all.filter((r) => r.status === "approved");
-    const earning = all.filter((r) => r.status === "onboarded");          // fully onboarded = live/earning
-    const earningOk = earning.filter((r) => !isBlocked(r));
-    const inPayments = all.filter(isLive);                                 // logged in or onboarded (the payments view)
-    const noGologin = all.filter(missingGologin).length;
-    const issues = (rows || []).filter(isBlocked).length; // includes inventory-only restricted accounts
-    const monthly = earningOk.reduce((s, r) => s + monthlyAmt(r), 0);
-    const setupsDue = inPayments.filter((r) => !isBlocked(r) && setupDue(r)).length;   // setup fee owed now (24h after login, unpaid)
-    const setupTotals = inPayments.filter(r => !isBlocked(r) && setupDue(r)).reduce((sum, r) => { const cfg = cfgOf(r); sum[cfg.currency] += cfg.setupAmount; return sum; }, { PHP: 0, USD: 0 });
-    const setupTotalLabel = (["PHP", "USD"] as const).filter(c => setupTotals[c]).map(c => formatMoney(setupTotals[c], c)).join(" + ") || "₱0";
-    const liveBlocked = inPayments.filter(isBlocked).length;
-    return {
-      total: all.length, live: earningOk.length, monthly, noGologin, issues,
-      lvl1: lvl1.filter((r) => !isBlocked(r)).length, lvl1Blocked: lvl1.filter(isBlocked).length,
-      lvl2: lvl2.filter((r) => !isBlocked(r)).length, lvl2Blocked: lvl2.filter(isBlocked).length,
-      onboardedTotal: earning.length, setupsDue, setupTotalLabel, liveBlocked,
-    };
-  }, [rows]);
-
-  const chips = useMemo(() => {
-    const opts = STATUS_OPTIONS.filter((s) => (mode === "live" ? s.value === "onboarded" : s.value !== "onboarded"));
-    return [{ value: "all", label: "All", count: scoped.length, dot: null as string | null }].concat(
-      opts.map((s) => ({ value: s.value, label: s.label, count: scoped.filter((r) => r.status === s.value).length, dot: `var(${STATUS_STYLE[s.value][1]})` }))
-    ).filter((c) => c.value === "all" || c.count > 0);
-  }, [scoped, mode]);
-
-  // What's actually owed, money and count from the SAME source: only people visible
-  // and payable here (logged in / onboarded, not blocked). Feed items (monthly + any
-  // server-side setup) count only if their owner is one of those; then add setup fees
-  // for visible people the feed didn't already bill. Blocked accounts never count —
-  // that's why a server "due" total for a blocked account no longer shows as phantom money.
-  const dueAgg = (() => {
-    let php = 0, usd = 0; const people = new Set<string>();
-    const visible = new Map<string, Row>();
-    for (const r of (rows || [])) if (isLive(r) && !isBlocked(r)) visible.set((r.email || "").toLowerCase(), r);
-    const feedSetupEmails = new Set<string>();
-    for (const it of (dueInfo?.items || [])) {
-      if (it.blocked || !visible.has(it.email)) continue;
-      if (it.currency === "USD") usd += it.amount; else php += it.amount;
-      people.add(it.email);
-      if (it.kind === "setup") feedSetupEmails.add(it.email);
+    if (groupBy === "referrer") {
+      const refs = [...new Set(sorted.map(({ r }) => (r.referredBy || "—")))].sort();
+      return refs.map((rf) => ({ key: "r" + rf, title: rf, dot: "var(--blue-chip-text,#1a56db)", note: "", items: sorted.filter(({ r }) => (r.referredBy || "—") === rf) })).filter((g) => g.items.length);
     }
-    for (const [em, r] of visible) {
-      if (setupDue(r) && !feedSetupEmails.has(em)) { const cfg = cfgOf(r); if (cfg.currency === "USD") usd += cfg.setupAmount; else php += cfg.setupAmount; people.add(em); }
-    }
-    return { php, usd, count: people.size };
-  })();
-  const dueLabel = dueInfo ? ([dueAgg.php ? formatMoney(dueAgg.php, "PHP") : "", dueAgg.usd ? formatMoney(dueAgg.usd, "USD") : ""].filter(Boolean).join(" + ") || "₱0") : "…";
-  const dueCount = dueAgg.count;
-  const anyOpen = open.size > 0;
+    // level
+    return LEVEL_GROUPS.map((d) => ({ key: "l" + d.key, title: d.label, dot: d.dot, note: d.note, items: sorted.filter(({ r }) => levelKey(r) === d.key) })).filter((g) => g.items.length);
+  }, [filtered, groupBy, handlerNames]);
 
-  const modeBtn = (m: Mode): React.CSSProperties => ({ font: `600 12.5px ${F_SANS}`, padding: "7px 14px", borderRadius: 8, cursor: "pointer", border: "none", background: mode === m ? "var(--sheets-btn-bg,#1a56db)" : "transparent", color: mode === m ? "#fff" : "var(--muted,#777)" });
+  const selArr = [...sel];
+  const totalLive = useMemo(() => (rows || []).filter((r) => levelOf(r) === 5).length, [rows]);
+
+  if (error) return <div style={{ padding: 40, font: `500 14px ${F_SANS}`, color: "var(--muted,#777)" }}>Couldn’t load the pipeline. Refresh to retry.</div>;
 
   return (
-    <div style={{ maxWidth: 1240, margin: "0 auto", padding: "8px 4px 60px" }}>
+    <div style={{ maxWidth: 1320, margin: "0 auto", padding: "8px 4px 60px" }}>
       {saveMsg && <div role="status" onClick={() => setSaveMsg(null)} style={{ position: "fixed", top: 14, left: "50%", transform: "translateX(-50%)", zIndex: 100, cursor: "pointer", font: `700 13px ${F_SANS}`, padding: "10px 16px", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,.14)", background: saveMsg.ok ? "var(--st-active-bg,#e6f4ea)" : "var(--st-cancel-bg,#fdecea)", color: saveMsg.ok ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)", border: `1px solid ${saveMsg.ok ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)"}` }}>{saveMsg.ok ? saveMsg.text : `⚠ ${saveMsg.text}`}</div>}
-      {/* title */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, flexWrap: "wrap", marginBottom: 16 }}>
-        <div style={{ maxWidth: 700 }}>
-          <h1 style={{ font: `800 28px ${F_GRO}`, margin: "0 0 6px", color: "var(--fg,#111)" }}>Pipeline</h1>
-          <p style={{ font: `500 13.5px/1.55 ${F_SANS}`, color: "var(--muted,#777)", margin: 0 }}>
-            Every ambassador from signup to a working, paid account — one card each. Applications, onboarding and payouts in a single
-            record. An account <b style={{ color: "var(--fg,#333)" }}>can&apos;t run without a GoLogin</b>, so those are badged.
-          </p>
+
+      {/* title + viewing-as */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
+        <div>
+          <h1 style={{ font: `800 28px ${F_GRO}`, margin: "0 0 4px", color: "var(--fg,#111)" }}>Pipeline</h1>
+          <p style={{ font: `500 13.5px ${F_SANS}`, color: "var(--muted,#777)", margin: 0 }}>Who needs what, and who’s on it. {(rows || []).length} in pipeline · {totalLive} live.</p>
         </div>
-        <div style={{ textAlign: "right", flex: "none" }}>
-          <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted,#777)" }}>{metrics.total} in pipeline · {metrics.live} live</div>
-          <div style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{formatMoney(metrics.monthly, "PHP")}/mo committed</div>
-        </div>
-      </div>
-
-      {/* health strip */}
-      <div style={{ display: "flex", alignItems: "stretch", flexWrap: "wrap", background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
-        {(mode === "live"
-          ? [
-              { label: "Setup fees outstanding", value: metrics.setupTotalLabel, hint: `${metrics.setupsDue} unpaid`, color: metrics.setupsDue ? "var(--warn-badge-text,#b7791f)" : "var(--fg,#111)" },
-              { label: "Monthly commitment", value: `${formatMoney(metrics.monthly, "PHP")}/mo`, hint: "earning accounts only", color: "var(--fg,#111)" },
-              { label: "Blocked — can't pay", value: String(metrics.liveBlocked), hint: metrics.liveBlocked === 1 ? "1 account on hold" : `${metrics.liveBlocked} accounts on hold`, color: metrics.liveBlocked ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" },
-            ]
-          : [
-              { label: "Warming up", value: String(metrics.lvl1), hint: metrics.lvl1Blocked ? `not logged in · ${metrics.lvl1Blocked} blocked` : "email & 2FA, not logged in yet", color: "var(--blue-chip-text,#1a56db)" },
-              { label: "Logged in", value: String(metrics.lvl2), hint: metrics.lvl2Blocked ? `payout stage · ${metrics.lvl2Blocked} blocked` : "logged in, payout stage", color: "var(--st-conv-fg,#6d28d9)" },
-              { label: "Live accounts", value: String(metrics.live), hint: metrics.onboardedTotal > metrics.live ? `earning · ${metrics.onboardedTotal - metrics.live} blocked` : "onboarded and earning", color: "var(--st-active-fg,#188038)" },
-              { label: "No GoLogin", value: String(metrics.noGologin), hint: "can't be run", color: metrics.noGologin ? "var(--warn-badge-text,#b7791f)" : "var(--fg,#111)" },
-              { label: "Problem accounts", value: String(metrics.issues), hint: "GoLogin / login / restricted", color: metrics.issues ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" },
-            ]
-        ).map((s, i) => (
-          <div key={i} style={{ flex: "1 1 150px", padding: "13px 18px", borderRight: "1px solid var(--divider,#eee)" }}>
-            <div style={{ ...labelCss, marginBottom: 5 }}>{s.label}</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ font: `700 18px ${F_GRO}`, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</span>
-              <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>{s.hint}</span>
-            </div>
-          </div>
-        ))}
-        {mode === "live" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 18px", flex: "none" }}>
-            <div>
-              <span style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)", fontVariantNumeric: "tabular-nums" }}>{dueLabel}</span>
-              <div style={{ font: `600 11.5px ${F_SANS}`, color: "var(--link,#0a66c2)", whiteSpace: "nowrap" }}>due now · {dueCount} payout{dueCount === 1 ? "" : "s"}</div>
-            </div>
-            <button onClick={emailDue} disabled={emailState === "sending"} style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)", whiteSpace: "nowrap" }}>
-              {emailState === "sent" ? "Sent ✓" : emailState === "error" ? "Failed — retry" : emailState === "sending" ? "Sending…" : "✉ Email Milee"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* chips — two axes (Level + Health) + PoC */}
-      {mode === "stage" ? (() => {
-        const chipBtn = (active: boolean, dot: string | null, label: string, count: number, onClick: () => void, key: string) => (
-          <button key={key} onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 12px ${F_SANS}`, padding: "6px 11px", borderRadius: 999, border: "1px solid", borderColor: active ? "transparent" : "var(--input-border,#dcdce0)", background: active ? "var(--chip-active-bg,#eaf1ff)" : "transparent", color: active ? "var(--chip-active-text,#1a56db)" : "var(--muted,#555)" }}>
-            {dot && <span style={{ width: 6, height: 6, borderRadius: 999, background: dot }} />}
-            {label}
-            <span style={{ font: `700 10.5px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 5px", borderRadius: 5, background: "var(--band,#f1f1f2)", color: "var(--muted,#888)" }}>{count}</span>
-          </button>
-        );
-        const axisLabel = (t: string) => <span style={{ font: `700 9.5px ${F_SANS}`, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--muted2,#9aa0a6)", width: 100, flex: "none" }}>{t}</span>;
-        return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
-              {axisLabel("Level")}
-              {chipBtn(levelFilter === "all", null, "All", scoped.length, () => setLevelFilter("all"), "lvl-all")}
-              {LEVEL_GROUPS.map((g) => chipBtn(levelFilter === g.key, g.dot, LEVEL_CHIP[String(g.key)], scoped.filter((r) => levelKey(r) === g.key).length, () => setLevelFilter(g.key), `lvl-${g.key}`))}
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
-              {axisLabel("Health")}
-              {chipBtn(healthFilter === "all", null, "All", scoped.length, () => setHealthFilter("all"), "hl-all")}
-              {HEALTH_OPTIONS.map((h) => { const n = scoped.filter((r) => healthOf(r) === h.key).length; return n > 0 ? chipBtn(healthFilter === h.key, h.dot, h.label, n, () => setHealthFilter(h.key), `hl-${h.key}`) : null; })}
-              {(() => { const n = scoped.filter(isRestricted).length; return n > 0 ? chipBtn(healthFilter === "restricted", "var(--st-cancel-fg,#c0392b)", "Restricted", n, () => setHealthFilter("restricted"), "hl-restricted") : null; })()}
-            </div>
-            {(() => {
-              // LV PoC = the LinkedVelocity rep responsible for onboarding this account.
-              // Only LV reps can be a PoC — never the ambassador themselves — so ignore any
-              // poc value that matches an applicant's own name (bad/self-referential data).
-              const applicantNames = new Set((rows || []).map((r) => (r.fullName || "").trim().toLowerCase()).filter(Boolean));
-              const m = new Map<string, number>(); let unassigned = 0;
-              for (const r of scoped) {
-                const p = (r.poc || "").trim();
-                if (!p || applicantNames.has(p.toLowerCase())) { unassigned++; continue; }
-                m.set(p, (m.get(p) || 0) + 1);
-              }
-              const entries = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-              if (entries.length === 0) return null;
-              return (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
-                  {axisLabel("PoC")}
-                  {chipBtn(pocFilter === "all", null, "All", scoped.length, () => setPocFilter("all"), "poc-all")}
-                  {entries.map(([name, n]) => chipBtn(pocFilter === name, "var(--st-conv-fg,#6d28d9)", name, n, () => setPocFilter(name), `poc-${name}`))}
-                  {unassigned > 0 && chipBtn(pocFilter === "__unassigned", "var(--muted2,#9aa0a6)", "Unassigned", unassigned, () => setPocFilter("__unassigned"), "poc-un")}
-                </div>
-              );
-            })()}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
-              {axisLabel("Application Type")}
-              {chipBtn(applicationTypeFilter === "all", null, "All", scoped.length, () => setApplicationTypeFilter("all"), "type-all")}
-              {APPLICATION_TYPES.map(type => chipBtn(applicationTypeFilter === type.key, null, type.label, scoped.filter(r => applicationType(r).key === type.key).length, () => setApplicationTypeFilter(type.key), `type-${type.key}`))}
-            </div>
-          </div>
-        );
-      })() : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
-          {chips.map((c) => (
-            <button key={c.value} onClick={() => setStatusFilter(c.value)} style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", font: `600 12px ${F_SANS}`, padding: "7px 12px", borderRadius: 999, border: "1px solid", borderColor: statusFilter === c.value ? "transparent" : "var(--input-border,#dcdce0)", background: statusFilter === c.value ? "var(--chip-active-bg,#eaf1ff)" : "transparent", color: statusFilter === c.value ? "var(--chip-active-text,#1a56db)" : "var(--muted,#555)" }}>
-              {c.dot && <span style={{ width: 6, height: 6, borderRadius: 999, background: c.dot }} />}
-              {c.label}
-              <span style={{ font: `700 10.5px ${F_GRO}`, fontVariantNumeric: "tabular-nums", padding: "1px 5px", borderRadius: 5, background: "var(--band,#f1f1f2)", color: "var(--muted,#888)" }}>{c.count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* search + toggles */}
-      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 22, flexWrap: "wrap" }}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact, account or referrer…" style={{ ...inputCss, flex: "1 1 280px", padding: "11px 14px", font: `500 13.5px ${F_SANS}` }} />
-        <button onClick={() => setActionNowOnly((a) => !a)} title="Only rows that need acting on now — past their 1-day grace and not waiting/maturing. Your live to-do list." style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(actionNowOnly ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>● Action now{actionNowCount ? ` (${actionNowCount})` : ""}</button>
-        <button onClick={() => setFlagged((f) => !f)} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px", ...(flagged ? { background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)", borderColor: "var(--warn-badge-text,#b7791f)" } : {}) }}>⚠ Problems only</button>
-        <button onClick={() => setOpen(anyOpen ? new Set() : new Set(filtered.map((r) => r.id)))} style={{ ...btnSec, whiteSpace: "nowrap", padding: "11px 15px" }}>{anyOpen ? "Collapse all" : "Expand all"}</button>
-      </div>
-
-      {/* Bulk-assign handler — acts on exactly what the current filters show. */}
-      {rows && filtered.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap", padding: "11px 14px", background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 11 }}>
-          <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--muted,#555)" }}>Assign all <b style={{ color: "var(--fg,#111)" }}>{filtered.length}</b> shown to handler</span>
-          <input value={bulkPoc} onChange={(e) => setBulkPoc(e.target.value)} placeholder="handler name — e.g. Giana" style={{ ...inputCss, flex: "0 1 220px", padding: "8px 11px", font: `500 13px ${F_SANS}` }} />
-          <button onClick={bulkAssign} disabled={!bulkPoc.trim()} style={{ ...btnPrimary, padding: "9px 15px", whiteSpace: "nowrap", opacity: bulkPoc.trim() ? 1 : 0.5, cursor: bulkPoc.trim() ? "pointer" : "not-allowed" }}>Assign {filtered.length}</button>
-          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", flex: "1 1 200px" }}>Narrow with the Level / PoC filters first (e.g. Level 1 + PoC: Unassigned) to hand just those to a new teammate.</span>
-        </div>
-      )}
-
-      {error && <p style={{ color: "var(--st-cancel-fg,#b00)", font: `600 14px ${F_SANS}` }}>Failed to load.</p>}
-      {!rows && !error && <p style={{ font: `500 14px ${F_SANS}`, color: "var(--muted,#888)" }}>Loading…</p>}
-
-      {rows && groups.map((g) => (
-        <GroupSection key={g.key} title={g.label} tone={g.dot} note={g.note} count={g.items.length}
-          subtotal={mode === "live" ? formatMoney(g.items.filter((r) => !isBlocked(r)).reduce((s, r) => s + monthlyAmt(r), 0), "PHP") + "/mo" : ""}>
-          {g.items.map((r) => (
-            r.accountOnly
-              ? <AccountOnlyCard key={r.id} r={r} patchAccount={patchAccount} deleteRestrictionEvent={deleteRestrictionEvent} />
-              : <Card key={r.id} r={r} busy={busy === r.id} open={open.has(r.id)} onToggle={() => toggle(r.id)}
-                  patchApp={patchApp} patchAccount={patchAccount} deleteRestrictionEvent={deleteRestrictionEvent} setStage={changeStatus} workflow={workflow}
-                  provisionGologin={provisionGologin} deleteGologin={deleteGologin} emailIssue={emailIssue}
-                  logTouch={logTouch} logPayment={logPayment} updatePayout={updatePayout} onFilterText={setQuery} onDeleteApp={() => deleteApp(r)} />
-          ))}
-        </GroupSection>
-      ))}
-      {rows && groups.length === 0 && (
-        <div style={{ padding: 44, textAlign: "center", background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, font: `500 13.5px ${F_SANS}`, color: "var(--muted,#888)" }}>Nobody matches these filters.</div>
-      )}
-    </div>
-  );
-}
-
-function GroupSection({ title, tone, note, count, subtotal, children }: { title: string; tone: string; note: string; count: number; subtotal?: string; children: React.ReactNode }) {
-  const [closed, setClosed] = useState(false);
-  return (
-    <section style={{ marginTop: 26 }}>
-      <div onClick={() => setClosed((c) => !c)} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap", borderBottom: "1px solid var(--divider,#eee)", paddingBottom: 8, cursor: "pointer", userSelect: "none" }}>
-        <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", width: 10, display: "inline-block", transform: closed ? "none" : "rotate(90deg)", transition: "transform .15s" }}>▸</span>
-        <span style={{ width: 9, height: 9, borderRadius: 999, background: tone }} />
-        <h2 style={{ font: `700 16px ${F_GRO}`, margin: 0, color: "var(--fg,#111)" }}>{title}</h2>
-        <span style={{ font: `700 12px ${F_GRO}`, padding: "2px 8px", borderRadius: 7, background: "var(--band,#f1f1f2)", color: "var(--muted,#888)" }}>{count}</span>
-        <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", flex: 1 }}>{note}</span>
-        {subtotal && <span style={{ font: `600 13px ${F_GRO}`, color: "var(--muted,#888)", fontVariantNumeric: "tabular-nums" }}>{subtotal}</span>}
-      </div>
-      {!closed && <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>{children}</div>}
-    </section>
-  );
-}
-
-// -- shared small pieces -----------------------------------------------------
-function D({ label, children }: { label: string; children?: React.ReactNode }) {
-  const empty = children === null || children === undefined || children === "" || children === false;
-  return (
-    <div style={{ minWidth: 0 }}>
-      <div style={{ ...labelCss, marginBottom: 3 }}>{label}</div>
-      <div style={{ font: `600 13px ${F_SANS}`, color: empty ? "var(--muted2,#b6bbc2)" : "var(--fg,#111)", wordBreak: "break-word" }}>{empty ? "—" : children}</div>
-    </div>
-  );
-}
-function Edit({ label, value, onSave, placeholder, numeric, hint, secret, openHref }: { label: string; value: string | number | null; onSave: (v: string | number | null) => void; placeholder?: string; numeric?: boolean; hint?: string; secret?: boolean; openHref?: string | null }) {
-  const [reveal, setReveal] = useState(false);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
-      <span style={labelCss}>{label}{hint && <span style={{ color: "var(--muted2,#9aa0a6)", textTransform: "none", letterSpacing: 0, fontWeight: 500 }}> · {hint}</span>}</span>
-      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-        <input defaultValue={value == null ? "" : String(value)} placeholder={placeholder} inputMode={numeric ? "numeric" : undefined} type={secret && !reveal ? "password" : "text"}
-          onClick={(e) => e.stopPropagation()}
-          onBlur={(e) => {
-            const raw = e.target.value.trim();
-            if (raw === (value == null ? "" : String(value))) return;
-            onSave(numeric ? (raw === "" ? null : (parseInt(raw.replace(/[^0-9]/g, ""), 10) || null)) : (raw === "" ? null : raw));
-          }} style={inputCss} />
-        {openHref && <a href={liHref(openHref)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Open link" style={{ font: `600 12px ${F_SANS}`, color: "var(--link,#0a66c2)", flex: "none", textDecoration: "none" }}>↗</a>}
-        {secret && <span onClick={(e) => { e.stopPropagation(); setReveal((s) => !s); }} style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer", flex: "none" }}>{reveal ? "Hide" : "Show"}</span>}
-      </div>
-    </div>
-  );
-}
-function EditSelect({ label, value, options, onSave }: { label: string; value: string; options: { value: string; label: string }[]; onSave: (v: string) => void }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
-      <span style={labelCss}>{label}</span>
-      <select value={value} onClick={(e) => e.stopPropagation()} onChange={(e) => onSave(e.target.value)} style={{ ...inputCss, cursor: "pointer" }}>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
-}
-function SectionLabel({ children, num }: { children: React.ReactNode; num?: number }) {
-  return <div style={{ ...labelCss, marginBottom: 10 }}>{num ? `${num} · ` : ""}{children}</div>;
-}
-function Note({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div style={{ ...labelCss, marginBottom: 3 }}>{label}</div>
-      <div style={{ font: `500 12.5px/1.55 ${F_SANS}`, color: "var(--fg,#444)", whiteSpace: "pre-wrap" }}>{children}</div>
-    </div>
-  );
-}
-
-const GRID4: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "12px 14px" };
-
-function Card({ r, busy, open, onToggle, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onFilterText, onDeleteApp }: {
-  r: Row; busy: boolean; open: boolean; onToggle: () => void;
-  onFilterText: (t: string) => void;
-  onDeleteApp: () => void;
-  patchApp: (id: string, patch: Record<string, unknown>, reload?: boolean) => void;
-  patchAccount: (id: string, accountId: string, patch: Record<string, unknown>, reload?: boolean) => void;
-  deleteRestrictionEvent: (accountId: string, at: string) => void;
-  setStage: (r: Row, s: Status) => void;
-  workflow: (id: string, patch: Record<string, unknown>) => void;
-  provisionGologin: (r: Row) => void;
-  deleteGologin: (r: Row) => void;
-  emailIssue: (r: Row, issue: string) => void;
-  logTouch: (id: string, ch: string, text: string, by: string) => Promise<void>;
-  logPayment: (r: Row, kind: "setup" | "monthly") => Promise<void>;
-  updatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>;
-}) {
-  const stage = stageOf(r);
-  const live = isLive(r);                    // logged in or onboarded — payment surface applies
-  const onboarded = r.status === "onboarded"; // fully onboarded — workflow finished
-  const blocked = isBlocked(r);
-  const accent = STAGE_ACCENT[stage];
-  const lvlKey = levelKey(r);
-  const health = healthOf(r);
-  const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
-  const st = STATUS_STYLE[r.status];
-
-  return (
-    <div style={{ border: `1px solid ${blocked ? "var(--warn-badge-text,#b7791f)" : "var(--card-border,#e3e3e6)"}`, borderLeft: `3px solid ${accent}`, borderRadius: 12, background: "var(--card,#fff)", overflow: "hidden" }}>
-      {/* header */}
-      <div style={{ padding: "12px 15px", display: "flex", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
-        <div onClick={onToggle} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} style={{ flex: "1 1 320px", minWidth: 0, cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 12 }}>
-          <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", width: 10, flex: "none", marginTop: 12, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>▸</span>
-          <div style={{ width: 38, height: 38, borderRadius: 11, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", font: `600 14px ${F_GRO}`, background: "var(--avatar-bg,#eef)", color: "var(--avatar-fg,#557)" }}>{initialsOf(r.fullName)}</div>
-          <div data-profile-summary style={{ minWidth: 0, display: "grid", gridTemplateColumns: "minmax(0, 1fr)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", gridRow: 1 }}>
-              <span style={{ font: `700 16px ${F_GRO}`, color: "var(--fg,#111)" }}>{formatName(r.fullName) || "—"}</span>
-              {r.linkedinUrl && <a href={liHref(r.linkedinUrl)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 8px", borderRadius: 6 }}>↗ profile</a>}
-              <span title={"How they applied. Form: signed up via a referrer's QR code or filled the form themselves. Email/2FA: onboarded up to email + 2FA but stopped before the GoLogin step. Full-service: taken all the way past the GoLogin step. A referrer or the person themselves (self-serve from the website) can do the Email/2FA and Full-service routes — whoever does collects the fees."} style={{ font: `700 10px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: "var(--blue-chip-bg,#e7effd)", color: "var(--blue-chip-text,#1a56db)" }}>{applicationType(r).label}</span>
-
-            </div>
-            <div style={{ gridRow: 2, font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a9099)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {r.email}{r.contactNumber ? ` · ${r.contactNumber}` : ""}
-            </div>
-            <div data-profile-dates style={{ gridRow: 3, display: "flex", flexWrap: "wrap", gap: "2px 14px", marginTop: 4, font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>
-              <span>Applied <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.createdAt)}</b> ({ageDays(r.createdAt)}d)</span>
-              {r.onboardedAt && <span>Logged in <b style={{ color: "var(--fg,#444)" }}>{fmtDate(r.onboardedAt)}</b></span>}
-              {(() => {
-                if (!r.accountId) return <span>Account <b style={{ color: "var(--st-cancel-fg,#c0392b)" }}>none linked</b></span>;
-                const an = r.accountName ? formatName(r.accountName) : "";
-                const differs = !!an && an.trim().toLowerCase() !== (formatName(r.fullName) || "").trim().toLowerCase();
-                return differs ? <span>Account <b style={{ color: "var(--fg,#444)" }}>{an}</b></span> : null;
-              })()}
-              {r.referredBy && <span>Referrer <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} title="Open this referrer's profile to add their email / contact / payout" onClick={(e) => e.stopPropagation()} style={{ color: "var(--link,#0a66c2)", cursor: "pointer", fontWeight: 700, textDecoration: "none" }}>{r.referredBy}</a></span>}
-            </div>
-            <div data-profile-tags style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 7, gridRow: 4 }}>
-              {r.existingAccountSubmission && <span title="We have already received an application for this account. This duplicate will likely be rejected. Review the admin notes before creating another account or payout." style={{ font: `700 10px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: "#FFF1CC", color: "#854D0E" }}>⚠ Already in system</span>}
-              {r.linkedinVerified && <span style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)" }}>✓ Verified</span>}
-              {r.accountStatus === "removed" && <span title="Ambassador pulled their account back" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--neutral-bg,#eef1f5)", color: "var(--muted,#647189)" }}>↩ Withdrawn</span>}
-              {r.accountStatus === "retired" && <span title="LinkedIn permanently restricted — inaccessible" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⛔ Permanently restricted</span>}
-              {r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={`Restricted ${fmtDate(r.accountRestrictedAt)} — flagged by LinkedIn, may recover`} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ Restricted</span>}
-              {missingGologin(r) && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No GoLogin — account can't be run until one is added" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin</span>}
-              {r.accountIssue && !r.accountRestrictedAt && r.accountStatus !== "retired" && r.accountStatus !== "removed" && <span title={r.accountIssue} style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ {r.accountIssue.length > 22 ? "login issue" : r.accountIssue}</span>}
-              {isLikelyTestEmail(r.email) && <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
-              {r.latestCode && <span title="Latest LinkedIn code forwarded during onboarding — expires fast. Clears once onboarded." style={{ font: `800 11px ${F_SANS}`, letterSpacing: ".08em", padding: "2px 9px", borderRadius: 999, background: "var(--st-active-bg,#e6f4ea)", color: "var(--st-active-fg,#188038)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(r.latestCode!); }}>🔑 {r.latestCode}</span>}
-              {r.provisionStatus === "ready_to_buy_cheap" && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No proxy-cheap residential free for this account — buy one to finish auto-provisioning" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>🛒 Ready to buy proxy-cheap</span>}
-              {r.provisionStatus === "needs_proxy6" && r.accountStatus !== "removed" && r.accountStatus !== "retired" && <span title="No Proxy 6 datacenter IP free for this verified account — buy one (no Proxy 6 API)" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--warn-badge-bg,#fef3e2)", color: "var(--warn-badge-text,#b7791f)" }}>⚠ Needs Proxy 6</span>}
-            </div>
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flex: "none" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Health status</span>
-            <select value={health} disabled={busy} title="How the account is doing — independent of progress." onClick={(e) => e.stopPropagation()}
-              onChange={(e) => {
-                const h = e.target.value as Health;
-                const status: Status = h === "active"
-                  ? ((["onboarding", "approved", "onboarded"] as string[]).includes(r.status) ? (r.status as Status) : (r.onboardedAt ? "approved" : "onboarding"))
-                  : (({ awaiting: "contacted", review: "reviewing", hold: "on_hold", unreachable: "unreachable", rejected: "rejected" } as Record<string, Status>)[h]);
-                setStage(r, status);
-              }}
-              style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, border: "none", cursor: busy ? "wait" : "pointer", outline: "none", background: `var(${st[0]})`, color: `var(${st[1]})` }}>
-              {HEALTH_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </select>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <span style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Progress</span>
-            <select value={String(lvlKey)} disabled={busy || lvlKey === 0 || lvlKey === 0.5} title={lvlKey === 0.5 ? "Setup is saved but the wizard is not complete yet." : lvlKey === 0 ? "Not progressing. Mark Application received complete in the workflow to resume." : "Progress on the onboarding ladder — changing it stamps the matching milestones (same as the Workflow steps)."} onClick={(e) => e.stopPropagation()}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                const now = new Date().toISOString();
-                const patch: Record<string, unknown> = {
-                  applicationReceived: n >= 1,
-                  emailPrimaryAt: n >= 2 ? (r.emailPrimaryAt || now) : null,
-                  onboardedAt: n >= 3 ? (r.onboardedAt || now) : null,
-                  verifiedAt: n >= 4 ? (r.verifiedAt || now) : null,
-                  onboardingStartedAt: n >= 4 ? (r.onboardingStartedAt || now) : null,
-                };
-                if (health === "active") patch.status = n >= 5 ? "onboarded" : n >= 3 ? "approved" : "onboarding";
-                workflow(r.id, patch);
-              }}
-              style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, border: "none", cursor: busy ? "wait" : "pointer", outline: "none", background: "var(--band,#f1f1f2)", color: "var(--fg,#333)" }}>
-              {(lvlKey === 0.5 ? [0.5] : lvlKey === 0 ? [0, 1, 2, 3, 4, 5] : [1, 2, 3, 4, 5]).map((n) => <option key={n} value={n}>{n === 0 ? "Level 0 · Not progressing" : n === 5 ? "Level 5 · Onboarded" : `Level ${n}`}</option>)}
-            </select>
-            {live && <span style={{ font: `600 13px ${F_GRO}`, color: "var(--fg,#111)", fontVariantNumeric: "tabular-nums" }}>{formatMoney(monthlyAmt(r), cfgOf(r).currency)}/mo</span>}
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, font: `600 13px ${F_SANS}`, color: "var(--muted,#777)" }}>
+          Viewing as
+          <span style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 999, padding: "4px 11px 4px 4px", color: "var(--fg,#111)" }}>
+            <span style={{ width: 22, height: 22, borderRadius: "50%", background: me ? handlerColor(me) : "var(--muted2,#9aa0a6)", color: "#fff", font: `700 10px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{me ? initialsOf(me) : "?"}</span>
+            {me || "—"}
+          </span>
         </div>
       </div>
 
-      {/* Next step — the one-line "do I act on this now?" read (always visible). */}
-      {(() => {
-        const ns = nextStep(r);
-        const p = ns.state === "now"
-          ? { bg: "var(--warn-badge-bg,#fef3e2)", fg: "var(--warn-badge-text,#b7791f)", dot: "●", tag: "ACTION NOW" }
-          : ns.state === "waiting"
-          ? { bg: "var(--blue-chip-bg,#e8f0fe)", fg: "var(--blue-chip-text,#1a56db)", dot: "○", tag: "WAITING" }
-          : { bg: "var(--st-active-bg,#e6f4ea)", fg: "var(--st-active-fg,#188038)", dot: "✓", tag: "UP TO DATE" };
-        return (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 15px", background: p.bg, borderTop: "1px solid var(--divider,#eee)", flexWrap: "wrap" }}>
-            <span style={{ font: `800 9.5px ${F_SANS}`, letterSpacing: ".06em", color: p.fg, whiteSpace: "nowrap" }}>{p.dot} {p.tag}</span>
-            <span style={{ font: `700 12.5px ${F_SANS}`, color: "var(--fg,#222)" }}>{ns.label}</span>
-            {ns.timing && <span style={{ font: `600 11.5px ${F_SANS}`, color: p.fg }}>· {ns.timing}</span>}
-            {ns.last && <span style={{ marginLeft: "auto", font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap" }}>last: {ns.last}</span>}
-          </div>
-        );
-      })()}
-
-      {open && (
-        <div style={{ borderTop: "1px solid var(--divider,#eee)", background: "var(--panel,#fafafa)", padding: "16px" }}>
-          {/* workflow rail — until fully onboarded (stability check lives here) */}
-          {!onboarded && (
-            <WorkflowRail r={r} busy={busy} workflow={workflow} />
-          )}
-
-          <div style={{ marginBottom: 16, padding: 12, border: "1px solid var(--divider,#eee)", borderRadius: 10 }}>
-            <PipelineIssueActions referrerResumeUrl={r.referrerResumeUrl} id={r.id} name={r.fullName} profile={r.linkedinUrl} lvEmail={r.loginEmail}
-              ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)} referrer={r.referrer}
-              onboarded={onboarded} onSent={() => void workflow(r.id, {})} />
-            {!!r.onboardingFix?.issues.length && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-              {r.onboardingFix.issues.map(issue => <button key={issue} style={btnSec} disabled={busy} onClick={() => {
-                const remaining = r.onboardingFix!.issues.filter(value => value !== issue);
-                void workflow(r.id, { setOnboardingFix: remaining.length ? { ...r.onboardingFix, issues: remaining } : null });
-              }}>{r.onboardingFix?.state === "referrer_done" ? "Reported fixed" : "Open"}: {({ application_incomplete: "Application not complete", email_added: "Email not added", email_primary: "Email not primary", twofa: "2FA", password: "Password" })[issue]} · Mark resolved</button>)}
-            </div>}
-            {r.referredBy && <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} style={{ display: "inline-block", marginTop: 10, fontSize: 12 }}>View referrer →</a>}
-          </div>
-
-          {/* BLOCK 1 — applicant & payout */}
-          <SectionLabel num={1}>Applicant &amp; payout</SectionLabel>
-          <div style={{ ...GRID4, marginBottom: 20 }}>
-            <Edit label="Contact number / handle" value={r.contactNumber} placeholder="phone / handle" onSave={(v) => patchApp(r.id, { contactNumber: v })} />
-            <Edit label="Contact channel" value={r.contactChannel} placeholder="Viber / Telegram / WhatsApp" onSave={(v) => patchApp(r.id, { contactChannel: v })} />
-            <Edit label="Location" value={r.location} placeholder="city / country" onSave={(v) => patchApp(r.id, { location: v })} />
-            <Edit label="Industry" value={r.industry} placeholder="—" onSave={(v) => patchApp(r.id, { industry: v })} />
-            <Edit label="LinkedIn URL" value={r.linkedinUrl} placeholder="linkedin.com/in/…" onSave={(v) => patchApp(r.id, { linkedinUrl: v })} />
-            <Edit label="LinkedIn email (applied with)" value={r.linkedinEmail} placeholder="same as owner" onSave={(v) => patchApp(r.id, { linkedinEmail: v })} />
-            <Edit label="Booking email" value={r.bookingEmail} placeholder="if booked with another email" onSave={(v) => patchApp(r.id, { bookingEmail: v })} />
-            <Edit label="Connections" value={r.connectionCount} numeric placeholder="e.g. 500" onSave={(v) => patchApp(r.id, { connectionCount: v })} />
-            <Edit label="Referred by" value={r.referredBy} placeholder="marketer code" onSave={(v) => patchApp(r.id, { referredBy: v })} />
-            <Edit label="LV handler (POC)" value={r.poc} placeholder="who's handling this — e.g. Ardi / Sam / a name" onSave={(v) => { if (!r.accountOnly) patchApp(r.id, { poc: v }); if (r.accountId) patchAccount(r.id, r.accountId, { poc: v }); }} />
-            <Edit label="Referral source" value={r.referralSource} placeholder="flyer / FB / referral" onSave={(v) => patchApp(r.id, { referralSource: v })} />
-            <Edit label="Payout method" value={r.paymentMethod} placeholder="Wise / PayPal / GCash" onSave={(v) => patchApp(r.id, { paymentMethod: v })} />
-            <Edit label="Payout handle / account no." value={r.paymentDetails} placeholder="email / number / account" onSave={(v) => patchApp(r.id, { paymentDetails: v })} />
-            <Edit label="Payout name" value={r.payoutName} placeholder="name on the account" onSave={(v) => patchApp(r.id, { payoutName: v })} />
-            <EditSelect label="Payout currency" value={r.payoutCurrency || ""} options={[{ value: "", label: "Auto" }, { value: "PHP", label: "PHP ₱" }, { value: "USD", label: "USD $" }]} onSave={(v) => patchApp(r.id, { payoutCurrency: v || null })} />
-            <EditSelect label="Owner status" value={r.ownerStatus || ""} options={OWNER_STATUS_OPTIONS} onSave={(v) => patchApp(r.id, { ownerStatus: v || null })} />
-            <Edit label="Account issue" value={r.accountIssue} placeholder="login problem, restriction…" onSave={(v) => patchApp(r.id, { accountIssue: v })} />
-          </div>
-
-          {/* BLOCK 2 — account & credentials */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 12, flexWrap: "wrap" }}>
-            <SectionLabel num={2}>Account &amp; credentials</SectionLabel>
-            {!r.accountId ? (
-              <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>no account linked</span>
-            ) : !r.hasGologin ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ font: `600 11px ${F_SANS}`, color: needsGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--muted,#8a97ad)" }}>{needsGologin(r) ? "⚠ No GoLogin — this account cannot be run" : "GoLogin not added yet"}</span>
-                <button onClick={(e) => { e.stopPropagation(); void provisionGologin(r); }} disabled={busy} title="Create the GoLogin profile, assign an available proxy, and generate the share link — all onto this account" style={{ font: `700 11px ${F_SANS}`, color: "#fff", background: "var(--st-active-fg,#188038)", border: "none", padding: "6px 12px", borderRadius: 8, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Creating…" : "+ Create GoLogin (profile · proxy · share link)"}</button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                {r.gologinShareLink ? (
-                  <a href={liHref(r.gologinShareLink)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `600 11px ${F_SANS}`, color: "var(--link,#0a66c2)", background: "var(--link-bg,#eaf1ff)", padding: "3px 9px", borderRadius: 6 }}>↗ Open GoLogin</a>
-                ) : (
-                  <span style={{ font: `600 11px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>GoLogin {r.gologinProfileId ? r.gologinProfileId.slice(0, 10) + "…" : "ready"}</span>
-                )}
-                <button onClick={(e) => { e.stopPropagation(); void deleteGologin(r); }} disabled={busy} title="Delete the GoLogin browser profile, clear its share link, and unassign the proxy (you'll be asked to confirm)" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e5b4ad)", padding: "3px 9px", borderRadius: 6, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>{busy ? "Deleting…" : "🗑 Delete GoLogin"}</button>
-              </div>
-            )}
-          </div>
-          <RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} />
-          {r.accountId ? (
-            <div style={{ background: "var(--inset,#fafbfc)", border: `1px solid ${missingGologin(r) ? "var(--warn-badge-text,#b7791f)" : "var(--divider,#eee)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
-              <div style={GRID4}>
-                <Edit label="Login email (work)" value={r.loginEmail} placeholder="klabber address we sign in with" onSave={(v) => acctSave({ loginEmail: v })} />
-                <Edit label="Personal email (on account)" value={r.personalEmail} placeholder="ambassador's own" onSave={(v) => acctSave({ personalEmail: v })} />
-                <Edit label="Work / recovery email" value={r.workEmail} placeholder="recovery email on the account" onSave={(v) => acctSave({ workEmail: v })} />
-                <Edit label="GoLogin share link" value={r.gologinShareLink} openHref={r.gologinShareLink} placeholder="https://app.gologin.com/share/…" onSave={(v) => acctSave({ gologinShareLink: v }, true)} />
-                <Edit label="Password" value={r.accountPassword} secret placeholder="set account password" onSave={(v) => acctSave({ accountPassword: v })} />
-                <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "flex-end", flexWrap: "wrap", gap: 14 }}>
-                  <div style={{ flex: "0 1 440px", minWidth: 0 }}>
-                    <Edit label="2FA / TOTP" hint="backup code / secret" value={r.twoFactor} secret placeholder="2FA secret / backup" onSave={(v) => acctSave({ twoFactor: v })} />
-                  </div>
-                  <TotpCode key={r.twoFactor || "empty"} secretKey={r.twoFactor || ""} compact />
-                </div>
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <Edit label="Proxy · host:port:user:pass" value={proxyCombined(r)} placeholder="1.2.3.4:8000:username:password" onSave={(v) => acctSave(parseProxy(v))} />
-                </div>
-                <Edit label="Proxy location" value={r.proxyLocation} placeholder="City, Country" onSave={(v) => acctSave({ proxyLocation: v })} />
-                <EditSelect label="Account status" value={r.accountStatus || "under_review"} options={ACCOUNT_STATUS_OPTIONS.map((s) => ({ value: s, label: s === "under_construction" ? "Pipeline" : s === "construction_immature" ? "Construction (Immature)" : s.replace(/_/g, " ") }))} onSave={(v) => acctSave({ status: v }, true)} />
-                <Edit label="Rent price ($/mo)" value={r.monthlyPrice} numeric placeholder="e.g. 50" onSave={(v) => acctSave({ monthlyPrice: v ?? 0 })} />
-                <Edit label="Ambassador payout /mo" value={r.ambassadorPayment} numeric placeholder="amount" onSave={(v) => acctSave({ ambassadorPayment: v ?? 0 })} />
-                <EditSelect label="LinkedIn verified" value={r.linkedinVerified ? "yes" : "no"} options={[{ value: "no", label: "No" }, { value: "yes", label: "✓ Yes" }]} onSave={(v) => acctSave({ linkedinVerified: v === "yes" }, true)} />
-                <D label="Restricted">{r.accountRestrictedAt ? `Restricted · ${fmtDate(r.accountRestrictedAt)}` : "No"}</D>
-              </div>
-            </div>
-          ) : (
-            <div style={{ background: "var(--inset,#fafbfc)", border: "1px dashed var(--divider,#ddd)", borderRadius: 12, padding: 16, marginBottom: 20, font: `500 12.5px ${F_SANS}`, color: "var(--muted,#888)" }}>
-              No account linked yet — link one on Inventory once they&apos;ve handed over the login (matched by LinkedIn URL or an “Owner: email” note), then GoLogin, proxy, 2FA and pricing open up here.
-            </div>
-          )}
-
-          {(() => {
-            const meetings = new Map<string, Touch>();
-            for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) meetings.set(entry.bookingKey, entry);
-            if (!meetings.size) return null;
-            return <div style={{ padding: 14, marginBottom: 20, border: "1px solid var(--divider,#ddd)", borderRadius: 12 }}>
-              <b>Meeting booked for</b>
-              {[...meetings.values()].sort((a, b) => b.scheduledAt!.localeCompare(a.scheduledAt!)).map(meeting => <div key={meeting.bookingKey} style={{ marginTop: 8 }}><time dateTime={meeting.scheduledAt}>{new Date(meeting.scheduledAt!).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time>{meeting.cancelled && " · Cancelled"}</div>)}
-              <small>Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone}.</small>
-            </div>;
-          })()}
-
-          {/* BLOCK 3 — outreach log */}
-          <SectionLabel num={3}>Outreach log</SectionLabel>
-          <OutreachLog r={r} busy={busy} onLog={logTouch} onSetFollowUp={(iso) => patchApp(r.id, { nextFollowUp: iso })} onDelete={(at) => patchApp(r.id, { removeTouch: at }, true)} />
-
-          {(() => {
-            const m = (r.adminNotes || "").match(/Owner photo:\s*(https?:\/\/\S+)/);
-            if (!m) return null;
-            const url = m[1];
-            return (
-              <div style={{ marginTop: 14 }}>
-                <div style={{ ...labelCss, marginBottom: 6 }}>Owner photo (from onboarding)</div>
-                <a href={url} target="_blank" rel="noreferrer" style={{ display: "inline-block" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="Owner photo" style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 12, border: "1px solid var(--line,#e6e8ec)", display: "block" }} />
-                </a>
-                <a href={url} target="_blank" rel="noreferrer" style={{ font: `600 12px ${F_SANS}`, color: "var(--green,#15803d)", display: "inline-block", marginTop: 6 }}>Open full size ↗</a>
-              </div>
-            );
-          })()}
-
-          {(r.accountId || r.adminNotes || r.applicationNotes || r.accountNotes) && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
-              {r.adminNotes && <Note label="Admin notes">{r.adminNotes}</Note>}
-              {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
-              {r.accountId && <AccountNotes accountId={r.accountId} notes={r.accountNotes} proof={null} sharedLog={r.outreachLog} onNotesSaved={() => void workflow(r.id, {})} onProofSaved={async () => {}} />}
-            </div>
-          )}
-
-          {/* BLOCK 4 — payments (onboarded only) */}
-          {live && <PaymentBlock r={r} busy={busy} workflow={workflow} logPayment={logPayment} updatePayout={updatePayout} />}
-
-          {/* decision / live bar */}
-          {!live ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)", flexWrap: "wrap" }}>
-              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                {r.status !== "approved" && r.status !== "onboarding" && <button onClick={() => workflow(r.id, { status: "onboarding", applicationReceived: true })} disabled={busy} title="They've agreed — start onboarding (Level 1 · add email & 2FA)" style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)" }}>✓ Accept → Level 1</button>}
-              </div>
-              <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Accepting reveals the inventory profile · other states from the status dropdown</span>
-            </div>
-          ) : onboarded ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 14, marginTop: 16, borderTop: "1px solid var(--divider,#eee)" }}>
-              <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>Onboarding complete — warm-up and setup are done. Use the status dropdown to move them back into the pipeline.</span>
-            </div>
-          ) : null}
-
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-            <button onClick={onDeleteApp} disabled={busy} title="Permanently delete this application" style={{ font: `600 11px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>Delete application</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// -- workflow rail (pre-onboarded): 4 sequential step cards -------------------
-function SignupMeeting({ r }: { r: Row }) {
-  const latest = new Map<string, Touch>();
-  for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) latest.set(entry.bookingKey, entry);
-  const meetings = [...latest.values()].sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!));
-  const active = meetings.filter(m => !m.cancelled);
-  const meeting = active.find(m => new Date(m.scheduledAt!).getTime() >= Date.now()) || active[active.length - 1];
-  const when = meeting?.scheduledAt || (!meetings.length && r.call?.stage !== "none" ? r.call?.scheduledAt : null);
-  return <div style={{ padding: 9, borderRadius: 8, background: "var(--link-bg,#eaf1ff)", fontSize: 11, lineHeight: 1.5 }}>
-    <b>{when ? "Meeting booked" : meetings.length ? "Meeting cancelled · no active booking" : "No meeting booking recorded yet"}</b>
-    {when ? <div><time dateTime={when}>{new Date(when).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time><br /><small>{Intl.DateTimeFormat().resolvedOptions().timeZone}</small></div> : <div>Calendar updates can take a few minutes to sync.</div>}
-  </div>;
-}
-
-function WorkflowRail({ r, busy, workflow }: { r: Row; busy: boolean; workflow: (id: string, patch: Record<string, unknown>) => void }) {
-  // Maturation only begins once QC (Step 4) is passed — the clock counts from verifiedAt,
-  // never before, and the hold is a flat 1 week (holdDays) — the same clock the referrer
-  // portal shows, so the "ready" date matches everywhere.
-  const qcPassed = !!r.verifiedAt;
-  const matureStartMs = r.verifiedAt ? new Date(r.verifiedAt).getTime() : null;
-  const matureDue = matureStartMs !== null ? matureStartMs + holdDays(r) * 86400000 : null;
-  const matured = matureDue !== null && matureDaysLeft(matureDue) <= 0;
-  const gated = false;                             // level ladder isn't gated behind "accept"
-
-  // QC checklist state (Step 4). All items must be ticked before QC can pass.
-  const qcState = useQcChecks(r.id, r.qcChecks);
-  const qc = qcState.checks;
-  const qcCount = QC_ITEMS.filter(([k]) => qc[k]).length;
-  const allQc = qcCount === QC_ITEMS.length;
-
-  type Step = { label: string; title: string; sub: string; done: boolean; render: (isNext: boolean) => React.ReactNode };
-  const stepCard = (label: string, title: string, sub: string, isNext: boolean, done: boolean, body: React.ReactNode) => (
-    <div style={{ flex: "1 1 190px", minWidth: 180, background: "var(--card,#fff)", border: `1px solid ${done ? "var(--st-active-fg,#188038)" : isNext ? "#1a56db" : "var(--divider,#eee)"}`, borderRadius: 10, padding: "11px 12px" }}>
-      <div style={{ ...labelCss, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 6, color: done ? "var(--st-active-fg,#188038)" : isNext ? "#1a56db" : "var(--muted,#8a97ad)" }}>{done ? "COMPLETED" : isNext ? "NOT COMPLETED · NEXT STEP" : "NOT COMPLETED"}</div>
-      <div style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)", marginBottom: 3 }}>{title}</div>
-      <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted,#8a97ad)", marginBottom: 8, minHeight: 15 }}>{sub}</div>
-      {body}
-    </div>
-  );
-  const doneBadge = (text: string) => <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "var(--st-active-bg,#e6f4ea)", padding: "6px 10px", borderRadius: 7, display: "inline-block" }}>✓ {text}</span>;
-  const undoLink = (patch: Record<string, unknown>) => <button disabled={busy} onClick={() => workflow(r.id, patch)} style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted,#8a97ad)", cursor: "pointer", background: "transparent", border: "none", padding: 0, textAlign: "left" }}>Undo completion</button>;
-  const primaryBtn = (isNext: boolean): React.CSSProperties => ({ ...btnPrimary, width: "100%", background: isNext ? "#1a56db" : "var(--btn-secondary-bg,#fff)", color: isNext ? "#fff" : "var(--btn-secondary-fg,#333)", border: isNext ? "none" : "1px solid var(--btn-secondary-border,#dcdce0)" });
-  const doneCol = (badge: string, undo: Record<string, unknown>) => <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{doneBadge(badge)}{undoLink(undo)}</div>;
-
-  const steps: Step[] = [
-    {
-      label: "Step 1", title: "Application received", sub: r.createdAt ? `applied ${fmtDate(r.createdAt)}` : "in the pipeline", done: isApplicationReceived(r),
-      render: (isNext) => <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-        {isApplicationReceived(r) ? doneCol("Received", receiptPatch(r, false)) : <button onClick={() => workflow(r.id, receiptPatch(r, true))} disabled={busy} style={primaryBtn(isNext)}>Mark received</button>}
-        <div style={{ fontSize: 12, lineHeight: 1.5, color: "var(--fg,#111)" }}>
-          <b>{r.diyTier === "standard" ? "Option 1 · Form" : r.diyTier === "partial" ? "Option 2 · Email/2FA" : r.diyTier === "full" ? "Option 3 · Full-service" : "Signup option not recorded"}</b>
-          {r.diyTier && <div style={{ color: "var(--muted,#8a97ad)", marginTop: 4 }}>{r.diyTier === "standard" ? "Submitted the form for our team to handle setup." : r.diyTier === "partial" ? "Chose to add the LV email and set up 2FA themselves." : "Chose to handle email, 2FA and GoLogin themselves."}</div>}
-          {r.diyTier !== "standard" && r.diyTier && <small>Chosen route — completion is tracked in the steps below.</small>}
-        </div>
-        {r.diyTier === "standard" && <SignupMeeting r={r} />}
-        {!isLive(r) && r.status !== "rejected" && <button onClick={() => workflow(r.id, { status: "rejected" })} disabled={busy} style={{ font: `600 12px ${F_SANS}`, color: "var(--danger,#c0392b)", background: "transparent", border: "1px solid var(--danger-border,#e6b4ad)", padding: "8px 13px", borderRadius: 8, cursor: "pointer" }}>Reject</button>}
-      </div>,
-    },
-    {
-      label: "Step 2", title: "LV email added & primary", sub: r.emailPrimaryAt ? `done ${fmtDate(r.emailPrimaryAt)}` : "our email is on the account & set primary", done: !!r.emailPrimaryAt,
-      render: (isNext) => r.emailPrimaryAt ? doneCol("Email primary", { emailPrimaryAt: null })
-        : <button onClick={() => workflow(r.id, { emailPrimaryAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>Mark email added &amp; primary</button>,
-    },
-    {
-      label: "Step 3", title: "Logged into GoLogin", sub: r.onboardedAt ? `logged in ${fmtDate(r.onboardedAt)}` : "sign in via the GoLogin profile", done: !!r.onboardedAt,
-      render: (isNext) => r.onboardedAt ? doneCol("Logged in", { onboardedAt: null })
-        : <button onClick={() => workflow(r.id, { status: "approved", onboardedAt: new Date().toISOString() })} disabled={busy} style={primaryBtn(isNext)}>Mark logged in</button>,
-    },
-    {
-      label: "Step 4", title: "Passed checks & QC",
-      sub: r.verifiedAt ? `passed ${fmtDate(r.verifiedAt)}` : `quality control · ${qcCount}/${QC_ITEMS.length} checks`,
-      done: !!r.verifiedAt,
-      render: (isNext) => r.verifiedAt
-        ? doneCol("Passed QC", { verifiedAt: null, onboardingStartedAt: null })
-        : (<div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {QC_ITEMS.map(([key, lbl]) => {
-              const on = !!qc[key];
-              return (
-                <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: 7, cursor: busy ? "wait" : "pointer", font: `500 11px ${F_SANS}`, color: on ? "var(--st-active-fg,#188038)" : "var(--fg,#111)" }}>
-                  <input type="checkbox" checked={on} onChange={event => qcState.toggle(key, event.target.checked)} style={{ width: 15, height: 15, marginTop: 1, accentColor: "var(--st-active-fg,#188038)", flex: "none", cursor: "pointer" }} />
-                  <span>{lbl}</span>
-                </label>
-              );
-            })}
-            {qcState.saving && <small role="status">Saving checks…</small>}
-            {qcState.error && <div role="alert" style={{ fontSize: 11, color: "#b91c1c" }}>{qcState.error} <button onClick={qcState.retry}>Retry</button></div>}
-            <button onClick={() => workflow(r.id, { verifiedAt: new Date().toISOString(), onboardingStartedAt: new Date().toISOString() })} disabled={busy || !allQc || qcState.saving || !!qcState.error} title={allQc ? "Mark QC as passed" : "Tick all checks first"} style={{ ...primaryBtn(isNext), marginTop: 2, opacity: allQc ? 1 : 0.5, cursor: allQc ? "pointer" : "not-allowed" }}>Mark QC passed</button>
-          </div>),
-    },
-    {
-      label: "Step 5", title: "Matured — ready to onboard",
-      sub: !qcPassed ? "starts once QC is passed" : matured ? "maturation complete" : `maturing · ready ${matureDue ? fmtDate(new Date(matureDue).toISOString()) : "—"}`,
-      done: matured,
-      render: () => !qcPassed
-        ? <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>🔒 pass QC to begin</span>
-        : matured
-          ? doneBadge("Matured — ready")
-          : <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>maturing · 1 week hold…</span>,
-    },
-  ];
-  let unlocked = true;
-
-  // Effective level = the lowest step not yet complete. Steps can be ticked out of
-  // order (a later step done while an earlier one isn't), but the account's level only
-  // counts the unbroken run from Step 1 — so a gap holds it at the lower stage.
-  let effLevel = 0;
-  for (const s of steps) { if (s.done) effLevel++; else break; }
-
-  return (
-    <div style={{ background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
-      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <SectionLabel>Workflow</SectionLabel>
-        <span title="The account's stage = the lowest step not yet complete. Ticking a later step doesn't advance the level until the steps before it are done." style={{ font: `700 11px ${F_SANS}`, color: effLevel >= steps.length ? "var(--st-active-fg,#188038)" : "var(--sheets-btn-bg,#1a56db)", background: effLevel >= steps.length ? "var(--st-active-bg,#e6f4ea)" : "var(--link-bg,#eaf1ff)", padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>Level {effLevel}/{steps.length}</span>
-      </div>
-      <div style={{ display: "flex", alignItems: "stretch", gap: 8, flexWrap: "wrap" }}>
-        {steps.map((s, i) => {
-          const isNext = !s.done && unlocked && !gated;
-          if (!s.done) unlocked = false;
-          return <div key={i} style={{ flex: "1 1 190px", minWidth: 180 }}>{stepCard(s.label, s.title, s.sub, isNext, s.done, s.render(isNext))}</div>;
-        })}
-      </div>
-    </div>
-  );
-}
-
-// -- payment block (onboarded) -----------------------------------------------
-function PaymentBlock({ r, busy, workflow, logPayment, updatePayout }: {
-  r: Row; busy: boolean;
-  workflow: (id: string, patch: Record<string, unknown>) => void;
-  logPayment: (r: Row, kind: "setup" | "monthly") => Promise<void>;
-  updatePayout: (r: Row, index: number, patch: { proofUrl?: string | null; notified?: boolean; acknowledged?: boolean }) => Promise<void>;
-}) {
-  const [okPay, setOkPay] = useState<{ setup: boolean; monthly: boolean }>({ setup: false, monthly: false });
-  const [copied, setCopied] = useState(false);
-  const cfg = cfgOf(r);
-  const pays = r.monthlyPayouts || [];
-  const setupDone = setupPaid(r);
-  const verified = !!r.verifiedAt;
-
-  // Copy the whole schedule + payment history as plain text (tab-separated rows, so it
-  // pastes cleanly into a message or a spreadsheet) for records / sharing.
-  const copyHistory = () => {
-    const who = r.payoutName?.trim() || r.fullName;
-    const setupLine = setupDone ? `Paid ${fmtDate(pays.find((p) => p.kind === "setup")?.paidAt || r.paidAt)}` : "Not paid";
-    const lines = [
-      `${who} — Payment history`,
-      `Setup fee · ${formatMoney(cfg.setupAmount, cfg.currency)} — ${setupLine}`,
-      `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
-      `Total paid: ${formatMoney(totalPaid(r), cfg.currency)}`,
-      "",
-      ["Date", "Payment", "By", "Notified", "Acknowledged", "Proof"].join("\t"),
-      ...(pays.length ? pays.map((p) => [
-        fmtDate(p.paidAt),
-        `${formatMoney(Number(p.amount) || 0, cfg.currency)} · ${p.kind === "setup" ? "Setup fee" : "Monthly"}`,
-        p.by || "—",
-        p.notified ? "Notified" : "Not notified",
-        p.acknowledged ? (p.acknowledgedAt ? `Ack ${fmtDate(p.acknowledgedAt)}` : "Acknowledged") : "Awaiting ack",
-        p.proofUrl || "—",
-      ].join("\t")) : ["No payments logged yet."]),
-    ];
-    navigator.clipboard?.writeText(lines.join("\n")).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
-  };
-
-  const schedRow = (key: "setup" | "monthly", title: string, sub: string, done: boolean, onLog: () => void, logLabel: string, confirm?: { ok: boolean; onToggle: () => void; label: string }) => {
-    const ok = confirm ? confirm.ok : okPay[key];
-    const onToggle = confirm ? confirm.onToggle : () => setOkPay((p) => ({ ...p, [key]: !p[key] }));
-    const confirmText = confirm ? confirm.label : (ok ? "● Ok to pay" : "○ Confirm ok to pay");
-    return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, background: "var(--inset,#fafbfc)", border: "1px solid var(--divider,#eee)", borderRadius: 11, padding: "12px 14px", flexWrap: "wrap" }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ font: `600 14px ${F_SANS}`, color: "var(--fg,#111)" }}>{title}</div>
-        <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)", marginTop: 2 }}>{sub}</div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
-        {done ? <span style={{ font: `700 11.5px ${F_SANS}`, color: "var(--st-active-fg,#188038)", background: "var(--st-active-bg,#e6f4ea)", padding: "8px 12px", borderRadius: 8 }}>✓ Paid</span>
-          : (<>
-              <button onClick={onToggle} style={{ font: `700 11.5px ${F_SANS}`, padding: "8px 12px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: ok ? "var(--st-active-bg,#e6f4ea)" : "var(--warn-badge-bg,#fef3e2)", color: ok ? "var(--st-active-fg,#188038)" : "var(--warn-badge-text,#b7791f)" }}>{confirmText}</button>
-              <button onClick={onLog} disabled={busy || !ok} style={{ font: `600 12px ${F_SANS}`, padding: "8px 13px", borderRadius: 8, border: "1px solid var(--divider,#ddd)", cursor: ok ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: ok ? 1 : 0.55, background: ok ? "var(--btn-dark-bg,#111)" : "transparent", color: ok ? "#fff" : "var(--muted2,#9aa0a6)" }}>{logLabel}</button>
-            </>)}
-      </div>
-    </div>
-    );
-  };
-
-  return (
-    <div style={{ marginTop: 20 }}>
-      <SectionLabel num={4}>Payment schedule</SectionLabel>
-      {!verified && <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)", marginBottom: 8 }}>⚠ Stability check not done yet — confirm the account is good to go (Step 3) before paying.</div>}
-      <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 18 }}>
-        {schedRow(
-          "setup",
-          `Setup fee · ${formatMoney(cfg.setupAmount, cfg.currency)}`,
-          setupDone ? `Paid ${fmtDate(pays.find((p) => p.kind === "setup")?.paidAt || r.paidAt)}` : `Due 24h after login · ${r.onboardedAt ? "logged in " + fmtDate(r.onboardedAt) : "not logged in yet"}`,
-          setupDone, () => logPayment(r, "setup"), `+ Log ${formatMoney(cfg.setupAmount, cfg.currency)}`,
-          // Setup fee ok-to-pay is gated by the Step 3 "Account OK" (stability) check.
-          { ok: verified, onToggle: () => workflow(r.id, { verifiedAt: verified ? null : new Date().toISOString() }), label: verified ? "● Account OK" : "○ Mark account OK" }
-        )}
-        {schedRow(
-          "monthly",
-          `Monthly · ${formatMoney(monthlyAmt(r), cfg.currency)}/mo`,
-          "In the first few days of the month, after one full month of service",
-          false, () => logPayment(r, "monthly"), `+ Log ${formatMoney(monthlyAmt(r), cfg.currency)}`
-        )}
-      </div>
-
-      {setupDone && r.status !== "onboarded" && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "var(--st-active-bg,#e6f4ea)", border: "1px solid var(--st-active-fg,#188038)", borderRadius: 11, padding: "10px 14px", marginBottom: 18, flexWrap: "wrap" }}>
-          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--st-active-fg,#188038)" }}>Setup fee paid. Finish attaching the receipt and details, then mark them onboarded.</span>
-          <button onClick={() => workflow(r.id, { status: "onboarded" })} style={{ ...btnPrimary, background: "var(--st-active-fg,#188038)", flex: "none" }}>✓ Mark onboarded</button>
-        </div>
-      )}
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={labelCss}>Payment record</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>Total paid <b style={{ color: "var(--st-active-fg,#188038)" }}>{formatMoney(totalPaid(r), cfg.currency)}</b></span>
-          <button onClick={copyHistory} style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 10px", borderRadius: 7, border: "1px solid var(--divider,#ddd)", cursor: "pointer", whiteSpace: "nowrap", background: copied ? "var(--st-active-bg,#e6f4ea)" : "transparent", color: copied ? "var(--st-active-fg,#188038)" : "var(--fg,#444)" }}>{copied ? "✓ Copied" : "⧉ Copy history"}</button>
-        </div>
-      </div>
-      <div style={{ border: "1px solid var(--divider,#eee)", borderRadius: 11, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 108px 116px 128px", gap: 10, padding: "9px 14px", background: "var(--band,#f6f7f8)", borderBottom: "1px solid var(--divider,#eee)" }}>
-          {["Date", "Payment", "Proof", "Notified", "Acknowledged"].map((h) => <span key={h} style={{ font: `700 9px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>{h}</span>)}
-        </div>
-        {pays.length ? pays.map((p, i) => (
-          <div key={i} style={{ display: "grid", gridTemplateColumns: "100px 1fr 108px 116px 128px", gap: 10, alignItems: "center", padding: "11px 14px", borderBottom: "1px solid var(--divider,#eee)" }}>
-            <span style={{ font: `500 12px ${F_SANS}`, color: "var(--fg,#444)", whiteSpace: "nowrap" }}>{fmtDate(p.paidAt)}</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)" }}>{formatMoney(Number(p.amount) || 0, cfg.currency)} <span style={{ fontWeight: 500, color: "var(--muted,#8a97ad)" }}>· {p.kind === "setup" ? "Setup fee" : "Monthly"}</span></div>
-              {p.by && <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>by {p.by}</div>}
-            </div>
-            <ToggleChip on={!!p.proofUrl} onLabel="↗ Receipt" offLabel="+ Attach" href={p.proofUrl || undefined}
-              onClick={() => { const url = prompt("Paste the proof-of-payment link (receipt / screenshot URL):"); if (url && url.trim()) updatePayout(r, i, { proofUrl: url.trim() }); }} />
-            <ToggleChip on={!!p.notified} onLabel="Notified" offLabel="Mark notified" onClick={() => updatePayout(r, i, { notified: !p.notified })} />
-            <ToggleChip on={!!p.acknowledged} green onLabel={p.acknowledgedAt ? `Ack ${fmtDate(p.acknowledgedAt)}` : "Acknowledged"} offLabel="Awaiting ack" onClick={() => updatePayout(r, i, { acknowledged: !p.acknowledged })} />
-          </div>
-        )) : <div style={{ padding: 16, textAlign: "center", font: `500 12.5px ${F_SANS}`, color: "var(--muted,#8a97ad)" }}>No payments logged yet.</div>}
-      </div>
-    </div>
-  );
-}
-
-function ToggleChip({ on, onLabel, offLabel, onClick, href, green }: { on: boolean; onLabel: string; offLabel: string; onClick: () => void; href?: string; green?: boolean }) {
-  const style: React.CSSProperties = { font: `600 11.5px ${F_SANS}`, padding: "5px 9px", borderRadius: 7, border: "none", cursor: "pointer", textAlign: "center", whiteSpace: "nowrap", background: on ? (green ? "var(--st-active-bg,#e6f4ea)" : "var(--blue-chip-bg,#e8f0fe)") : "var(--tag-bg,#f1f1f2)", color: on ? (green ? "var(--st-active-fg,#188038)" : "var(--blue-chip-text,#1a56db)") : "var(--muted,#8a97ad)" };
-  if (on && href) return <a href={href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ ...style, display: "inline-block", textDecoration: "none" }}>{onLabel}</a>;
-  return <button onClick={(e) => { e.stopPropagation(); onClick(); }} style={style}>{on ? onLabel : offLabel}</button>;
-}
-
-// Set the account's earning/restriction state in one tap. Maps to the fields the rest
-// of the app already uses: restrictedAt (temporary), status retired (permanent), status
-// removed (withdrawn). "Active" clears the restriction and puts it back in-hand.
-// Compact card for an inventory-only account (a LinkedIn account we hold with no ambassador
-// application). It carries no onboarding lifecycle, so we show just enough to see what it is
-// and the same Restriction control the full card uses — writing to the account, so a
-// recover/restrict here matches the inventory view exactly.
-function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
-  r: Row;
-  patchAccount: (id: string, accountId: string, patch: Record<string, unknown>, reload?: boolean) => void;
-  deleteRestrictionEvent: (accountId: string, at: string) => void;
-}) {
-  const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
-  const facts = [
-    r.loginEmail && `Login: ${r.loginEmail}`,
-    r.connectionCount != null && `${r.connectionCount} connections`,
-    r.linkedinVerified && "Verified",
-    r.proxyLocation && `Proxy: ${r.proxyLocation}`,
-    r.accountStatus && `Status: ${r.accountStatus}`,
-  ].filter(Boolean) as string[];
-  return (
-    <div style={{ background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, padding: "14px 16px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-        <span style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)" }}>{r.fullName}</span>
-        <span title="Inventory account with no ambassador application" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--band,#f1f1f2)", color: "var(--muted,#647189)" }}>Inventory only · no application</span>
-        {r.accountRestrictedAt && <span style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ Restricted {fmtDate(r.accountRestrictedAt)}</span>}
-        <a href="/admin/accounts" style={{ marginLeft: "auto", font: `600 11.5px ${F_SANS}`, color: "var(--link,#1a56db)", textDecoration: "none" }}>Open in Inventory →</a>
-      </div>
-      {facts.length > 0 && <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#647189)", marginBottom: 10 }}>{facts.join("  ·  ")}</div>}
-      <RestrictionControl r={r} onAccount={acctSave} onApp={() => {}} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} />
-    </div>
-  );
-}
-
-function RestrictionControl({ r, onAccount, onApp, onDeleteEvent }: { r: Row; onAccount: (patch: Record<string, unknown>, reload?: boolean) => void; onApp: (patch: Record<string, unknown>) => void; onDeleteEvent: (at: string) => void }) {
-  const hasAcct = !!r.accountId;
-  const issue = (r.accountIssue || "").toLowerCase();
-  const restrictIssue = issue.includes("withdrawn") || issue.includes("permanent") || issue.includes("restricted");
-  const current: "active" | "restricted" | "retired" | "withdrawn" =
-    r.accountStatus === "removed" || issue.includes("withdrawn") ? "withdrawn"
-      : r.accountStatus === "retired" || issue.includes("permanent") ? "retired"
-        : r.accountRestrictedAt || issue.includes("restricted") ? "restricted"
-          : "active";
-  // With a linked account, restriction lives on the account (status / restrictedAt);
-  // without one, flag it on the application's accountIssue so a lead can be marked
-  // restricted at Initial/Level 1 before an account exists.
-  const dead = r.accountStatus === "retired" || r.accountStatus === "removed";
-  const undead = dead ? { status: "unavailable" } : {};
-  const apply = (key: "active" | "restricted" | "retired" | "withdrawn") => {
-    // Clearing a restriction also clears any pending referrer report (it's been actioned).
-    // Send the API key (setRestrictionReport) plus the local field so the banner hides at once.
-    if (key === "active" && r.restrictionReport) onApp({ setRestrictionReport: null, restrictionReport: null });
-    if (hasAcct) {
-      const patch: Record<string, unknown> = key === "active" ? { restrictedAt: null, ...undead } : key === "restricted" ? { restrictedAt: new Date().toISOString(), ...undead } : key === "retired" ? { status: "retired", restrictedAt: new Date().toISOString() } : { status: "removed" };
-      if (key === "active" && restrictIssue) patch.accountIssue = null; // also lift a restriction note
-      onAccount(patch, true);
-    } else {
-      onApp({ accountIssue: key === "active" ? null : key === "restricted" ? "Restricted" : key === "retired" ? "Permanently restricted" : "Withdrawn" });
-    }
-  };
-  const opts: { key: "active" | "restricted" | "retired" | "withdrawn"; label: string; tone: [string, string] }[] = [
-    { key: "active", label: "Active", tone: ["--st-active-bg,#e6f4ea", "--st-active-fg,#188038"] },
-    { key: "restricted", label: "Restricted", tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
-    { key: "retired", label: "Permanently restricted", tone: ["--st-cancel-bg,#fdecea", "--st-cancel-fg,#c0392b"] },
-    { key: "withdrawn", label: "Withdrawn", tone: ["--neutral-bg,#eef1f5", "--muted,#647189"] },
-  ];
-  const history = Array.isArray(r.accountRestrictionLog) ? r.accountRestrictionLog : [];
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span style={labelCss}>Restriction</span>
-        {opts.map((o) => {
-          const on = current === o.key;
+      {/* turn tiles */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, marginBottom: 14 }}>
+        {TURN_ORDER.map((k) => {
+          const m = TURN_META[k]; const active = turnF === k;
           return (
-            <button key={o.key} onClick={(e) => { e.stopPropagation(); apply(o.key); }}
-              style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap", border: "1px solid", borderColor: on ? "transparent" : "var(--input-border,#dcdce0)", background: on ? `var(${o.tone[0]})` : "transparent", color: on ? `var(${o.tone[1]})` : "var(--muted,#647189)" }}>
-              {on ? "● " : ""}{o.label}
+            <button key={k} onClick={() => { setTurnF(active ? "all" : k); setOpen(new Set()); }} style={{ textAlign: "left", cursor: "pointer", background: active ? "var(--card,#fff)" : "var(--band,#f6f7f9)", border: `1.5px solid ${active ? m.dot : "var(--card-border,#e3e3e6)"}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 3 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 7, font: `700 11px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: m.fg }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: m.dot }} />{m.tile}</span>
+              <span style={{ font: `800 24px ${F_GRO}`, color: "var(--fg,#111)" }}>{tileCounts[k]}</span>
+              <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>{k === "us" ? `${handlerLoad.unclaimed} unclaimed` : m.sub}</span>
             </button>
           );
         })}
       </div>
-      {history.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 7, paddingLeft: 2 }}>
-          {history.slice().reverse().map((e, i) => (
-            <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `500 10.5px ${F_SANS}`, color: e.event === "recovered" ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)" }}>
-              {e.event === "recovered" ? "✓ Recovered" : "⚠ Restricted"} {fmtDate(e.at)}{e.creditedDays ? ` (+${e.creditedDays}d credit)` : ""}{e.note ? ` (${e.note})` : ""}
-              {hasAcct && (
-                <button
-                  title="Delete this entry (added by mistake)"
-                  onClick={(ev) => { ev.stopPropagation(); if (confirm(`Delete this ${e.event === "recovered" ? "recovered" : "restricted"} entry from ${fmtDate(e.at)}? This only fixes the history — it doesn't restrict or recover the account.`)) onDeleteEvent(e.at); }}
-                  style={{ font: `700 11px ${F_SANS}`, lineHeight: 1, color: "var(--muted2,#9aa0a6)", background: "none", border: "none", cursor: "pointer", padding: "0 1px" }}>×</button>
-              )}
-            </span>
+
+      {/* handler chips */}
+      <div style={{ background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, padding: "11px 14px", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ ...labelCss, marginRight: 4 }}>Handled by</span>
+          {([{ k: "all", label: "Everyone", cnt: handlerLoad.total, color: "var(--muted,#8a9099)", ini: null as string | null }, ...(me ? [{ k: "__me", label: "Me", cnt: handlerLoad.m.get(me) || 0, color: handlerColor(me), ini: initialsOf(me) as string | null }] : []), ...handlerNames.filter((n) => n !== me).map((n) => ({ k: n, label: n, cnt: handlerLoad.m.get(n) || 0, color: handlerColor(n), ini: initialsOf(n) as string | null })), { k: "__unassigned", label: "Unclaimed", cnt: handlerLoad.unclaimed, color: "var(--warn-badge-text,#b7791f)", ini: null as string | null }]).map((c) => {
+            const active = whoF === c.k;
+            const tint = c.color.startsWith("#") ? c.color + "22" : "var(--band,#f1f3f6)";
+            return (
+              <button key={c.k} onClick={() => setWhoF(active ? "all" : c.k)} style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", border: `1.5px solid ${active ? c.color : "var(--card-border,#e3e3e6)"}`, background: active ? tint : "var(--card,#fff)", borderRadius: 999, padding: "4px 11px 4px 5px", font: `700 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap" }}>
+                {c.ini
+                  ? <span style={{ width: 18, height: 18, borderRadius: "50%", background: c.color, color: "#fff", font: `700 8.5px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{c.ini}</span>
+                  : <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flex: "none" }} />}
+                {c.label}
+                <span style={{ font: `700 11px ${F_GRO}`, color: c.cnt ? "var(--warn-badge-text,#b7791f)" : "var(--muted2,#9aa0a6)", background: c.cnt ? "var(--warn-badge-bg,#fef3e2)" : "var(--band,#f1f3f6)", borderRadius: 999, padding: "1px 7px" }}>{c.cnt}</span>
+              </button>
+            );
+          })}
+          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", marginLeft: "auto" }}>Count = open actions</span>
+        </div>
+        {/* filters */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", borderTop: "1px solid var(--divider,#f0f2f5)", paddingTop: 10 }}>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email, contact or referrer…" style={{ ...inputCss, flex: 1, minWidth: 220 }} />
+          <select value={String(levelF)} onChange={(e) => setLevelF(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ ...inputCss, width: "auto", cursor: "pointer" }}>
+            <option value="all">All levels</option>
+            {[0.5, 1, 2, 3, 4, 5, 0].map((n) => <option key={n} value={n}>Level {LEVEL_CHIP[String(n)]}</option>)}
+          </select>
+          <select value={healthF} onChange={(e) => setHealthF(e.target.value)} style={{ ...inputCss, width: "auto", cursor: "pointer" }}>
+            <option value="all">Any status</option>
+            <option value="restricted">Restricted</option>
+            {HEALTH_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+          <select value={typeF} onChange={(e) => setTypeF(e.target.value)} style={{ ...inputCss, width: "auto", cursor: "pointer" }}>
+            <option value="all">All types</option>
+            {APPLICATION_TYPES.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+          <div style={{ display: "flex", gap: 3, background: "var(--band,#eef0f4)", borderRadius: 10, padding: 3 }}>
+            <span style={{ font: `600 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", padding: "0 6px", alignSelf: "center" }}>Group</span>
+            {GROUP_OPTS.map((g) => <button key={g.key} onClick={() => setGroupBy(g.key)} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 11px", whiteSpace: "nowrap", font: `700 12px ${F_SANS}`, background: groupBy === g.key ? "var(--card,#fff)" : "transparent", color: groupBy === g.key ? "var(--fg,#111)" : "var(--muted,#8a9099)" }}>{g.label}</button>)}
+          </div>
+        </div>
+      </div>
+
+      {/* bulk assign bar */}
+      {sel.size > 0 && (
+        <div style={{ position: "sticky", top: 10, zIndex: 5, background: "var(--btn-dark-bg,#0b1220)", color: "#fff", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", boxShadow: "0 10px 30px rgba(11,18,32,.25)", marginBottom: 12 }}>
+          <span style={{ font: `700 13.5px ${F_SANS}` }}>{sel.size} selected</span>
+          <span style={{ font: `500 13px ${F_SANS}`, color: "#a7b0bf" }}>Assign to</span>
+          {(me ? [me, ...handlerNames.filter((n) => n !== me)] : handlerNames).map((n) => (
+            <button key={n} onClick={() => { void assignMany(selArr, n); setSel(new Set()); }} style={{ display: "flex", alignItems: "center", gap: 6, border: "1px solid #2a3344", background: "#151d2c", color: "#fff", borderRadius: 8, padding: "6px 10px", font: `700 12px ${F_SANS}`, cursor: "pointer" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: handlerColor(n), flex: "none" }} />{n === me ? "Me" : n}</button>
           ))}
+          <button onClick={() => { void assignMany(selArr, null); setSel(new Set()); }} style={{ border: "1px solid #2a3344", background: "#151d2c", color: "#fff", borderRadius: 8, padding: "6px 10px", font: `700 12px ${F_SANS}`, cursor: "pointer" }}>Unassign</button>
+          <button onClick={() => setSel(new Set())} style={{ marginLeft: "auto", border: "none", background: "none", color: "#a7b0bf", font: `700 12.5px ${F_SANS}`, cursor: "pointer" }}>Clear</button>
         </div>
       )}
-      {r.restrictionReport && current === "restricted" && (
-        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: "var(--purple-chip-bg,#efe7fd)", border: "1px solid var(--purple-chip-border,#d9c9fb)", borderRadius: 8, padding: "6px 10px" }}>
-          <span style={{ font: `700 10.5px ${F_SANS}`, color: "var(--purple-chip-text,#6b3fd4)" }}>
-            Referrer says {r.restrictionReport.type === "recovered" ? "it's unrestricted now" : "the owner did LinkedIn's QR/ID check"} · {fmtDate(r.restrictionReport.at)} — verify, then set Active to recover
-          </span>
-          <button onClick={(e) => { e.stopPropagation(); onApp({ setRestrictionReport: null, restrictionReport: null }); }} style={{ marginLeft: "auto", font: `700 10px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, cursor: "pointer", border: "none", background: "var(--neutral-bg,#eef1f5)", color: "var(--muted,#647189)" }}>Dismiss</button>
+
+      {/* table */}
+      {rows === null ? (
+        <div style={{ padding: 40, textAlign: "center", font: `500 13px ${F_SANS}`, color: "var(--muted,#777)" }}>Loading…</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {groups.map((g) => {
+            const gClosed = closed.has(g.key);
+            const stale = g.items.filter(({ t }) => t.chaseDue).length;
+            const uncl = g.items.filter(({ r, t }) => t.turn === "us" && !(r.poc || "").trim()).length;
+            return (
+              <div key={g.key} style={{ background: "var(--card,#fff)", border: "1px solid var(--card-border,#e3e3e6)", borderRadius: 14, overflow: "hidden" }}>
+                <button onClick={() => toggleGroup(g.key)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, border: "none", background: "var(--band,#f6f7f9)", borderBottom: "1px solid var(--divider,#eef0f4)", padding: "9px 16px", cursor: "pointer", textAlign: "left" }}>
+                  <span style={{ font: `700 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", display: "inline-block", transform: gClosed ? "none" : "rotate(90deg)", transition: "transform .15s" }}>›</span>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: g.dot }} />
+                  <span style={{ font: `700 13.5px ${F_SANS}`, color: "var(--fg,#111)" }}>{g.title}</span>
+                  <span style={{ font: `700 11.5px ${F_GRO}`, color: "var(--muted,#888)", background: "var(--band,#e9ecf1)", borderRadius: 999, padding: "1px 8px" }}>{g.items.length}</span>
+                  <span style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>{g.note}</span>
+                  <span style={{ marginLeft: "auto", font: `700 11.5px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>{stale ? `${stale} to chase` : uncl ? `${uncl} unclaimed` : ""}</span>
+                </button>
+                {!gClosed && (
+                  <div style={{ overflowX: "auto" }}>
+                    <div style={{ minWidth: 1180 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "32px minmax(0,2fr) 104px 96px 70px 60px 112px minmax(0,1.5fr) 118px 84px 22px", gap: 12, alignItems: "center", padding: "8px 16px", borderBottom: "1px solid var(--divider,#eef0f4)", font: `700 9.5px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>
+                        <span /><span>Ambassador</span><span>Referrer</span><span>Type</span><span>Applied</span><span>Verified</span><span>Level</span><span>Next step</span><span>Handler</span><span>Last touch</span><span />
+                      </div>
+                      {g.items.map(({ r, t }) => (
+                        <Rowline key={r.id} r={r} t={t} open={open.has(r.id)} selected={sel.has(r.id)} me={me} handlerNames={handlerNames}
+                          onToggle={() => toggle(r.id)} onSel={() => toggleSel(r.id)} onClaim={() => claim(r)} onAssign={(p) => assignMany([r.id], p)} handlers={handlers} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {!groups.length && <div style={{ padding: 40, textAlign: "center", font: `600 14px ${F_SANS}`, color: "var(--muted,#777)" }}>Nothing here.</div>}
         </div>
       )}
     </div>
   );
 }
 
-function OutreachLog({ r, busy, onLog, onSetFollowUp, onDelete }: { r: Row; busy: boolean; onLog: (id: string, ch: string, text: string, by: string) => Promise<void>; onSetFollowUp: (iso: string | null) => void; onDelete: (at: string) => void }) {
-  const [draft, setDraft] = useState("");
-  const [by, setBy] = useState("");
-  const log = r.outreachLog;
-  const chan = messagingChannel(r);
-  const send = async (ch: string) => { await onLog(r.id, ch, draft.trim(), by.trim()); setDraft(""); };
-  const followVal = r.nextFollowUp ? new Date(r.nextFollowUp).toISOString().slice(0, 10) : "";
+function Rowline({ r, t, open, selected, me, handlerNames, onToggle, onSel, onClaim, onAssign, handlers }: {
+  r: Row; t: ReturnType<typeof turnOf>; open: boolean; selected: boolean; me: string; handlerNames: string[];
+  onToggle: () => void; onSel: () => void; onClaim: () => void; onAssign: (poc: string | null) => void;
+  handlers: Parameters<typeof CardDetail>[0]["h"];
+}) {
+  const m = TURN_META[t.turn];
+  const lvl = levelKey(r);
+  const applied = ageDays(r.createdAt);
+  const h = (r.poc || "").trim();
+  const lt = lastTouchActivity(r);
+  const lastTouch = lt ? ageDays(lt) : null;
+  const restricted = isRestricted(r);
   return (
-    <div style={{ border: "1px solid var(--divider,#e3e3e6)", borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", background: "var(--band,#f6f7f8)", borderBottom: "1px solid var(--divider,#e3e3e6)", flexWrap: "wrap" }}>
-        <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#777)" }}>{touchCount(log)} {touchCount(log) === 1 ? "touch" : "touches"} · last {lastTouchAt(log) || "—"}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, font: `500 11.5px ${F_SANS}`, color: "var(--muted,#777)" }}>Next <input type="date" value={followVal} onChange={(e) => onSetFollowUp(e.target.value ? new Date(e.target.value).toISOString() : null)} style={{ ...inputCss, width: "auto", padding: "4px 7px", cursor: "pointer" }} /></span>
-          <span style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#777)" }}>Handler <b style={{ color: "var(--fg,#333)" }}>{r.poc || "—"}</b></span>
-        </div>
-      </div>
-      <div style={{ padding: "8px 14px" }}>
-        {log && log.length ? [...log].reverse().map((t, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "6px 0" }}>
-            <span style={touchChipStyle(t.ch)}>{touchLabel(t.ch)}</span>
-            <span style={{ flex: 1, font: `500 12.5px ${F_SANS}`, color: "var(--text2,#333)", lineHeight: 1.4 }}>{t.text}</span>
-            <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap" }}>{(t.by ? t.by + " · " : "") + fmtDateTime(t.at)}</span>
-            <span onClick={() => { if (confirm("Delete this outreach entry?")) onDelete(t.at); }} title="Delete entry" style={{ font: `600 13px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", cursor: "pointer", flex: "none", lineHeight: 1.2 }}>×</span>
+    <div style={{ borderBottom: "1px solid var(--divider,#f0f2f5)", background: open ? "var(--band,#fafbfc)" : "var(--card,#fff)" }}>
+      <div onClick={onToggle} style={{ display: "grid", gridTemplateColumns: "32px minmax(0,2fr) 104px 96px 70px 60px 112px minmax(0,1.5fr) 118px 84px 22px", gap: 12, alignItems: "center", padding: "9px 16px", cursor: "pointer", boxShadow: `inset 3px 0 0 ${t.chaseDue ? "var(--st-cancel-fg,#c0392b)" : t.turn === "us" && !h ? "var(--warn-badge-text,#f59e0b)" : "transparent"}` }}>
+        <input type="checkbox" checked={selected} onClick={(e) => e.stopPropagation()} onChange={onSel} style={{ width: 16, height: 16, cursor: "pointer" }} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+            <span style={{ font: `700 14px/1.3 ${F_SANS}`, color: "var(--fg,#111)" }}>{formatName(r.fullName) || "—"}</span>
+            {r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Open LinkedIn profile ↗" style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2, font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)", textDecoration: "none" }}>in ↗</a>}
+            {restricted && <span style={{ flex: "none", font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>Restricted</span>}
+            {r.linkedinVerified && <span style={{ flex: "none", font: `700 10px ${F_SANS}`, padding: "2px 7px", borderRadius: 999, background: "var(--blue-chip-bg,#e8f0fe)", color: "var(--blue-chip-text,#1a56db)" }}>✓</span>}
+            {isLikelyTestEmail(r.email) && <span style={{ flex: "none", font: `700 9px ${F_SANS}`, padding: "2px 6px", borderRadius: 5, background: "var(--test-bg,#fde68a)", color: "var(--test-fg,#92400e)" }}>TEST</span>}
           </div>
-        )) : <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted,#777)" }}>No outreach logged yet.</span>}
-      </div>
-      <div style={{ padding: "2px 14px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="What did you say? — logged with the touch (optional)" style={{ ...inputCss, flex: 1, minWidth: 220 }} />
-          <input value={by} onChange={(e) => setBy(e.target.value)} placeholder="Who sent it?" style={{ ...inputCss, width: 150, flex: "none" }} />
+          <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.loginEmail || r.email}{r.contactNumber ? ` · ${r.contactNumber}` : ""}</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-          <span style={{ font: `600 10.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>LOG</span>
-          {[chan, "email", "text", "note"].map((ch) => <button key={ch} onClick={() => send(ch)} disabled={busy} style={btnSec}>+ {touchLabel(ch)}</button>)}
+        {r.referredBy ? <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} onClick={(e) => e.stopPropagation()} style={{ font: `700 12.5px ${F_SANS}`, color: "var(--link,#0a66c2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.referredBy}</a> : <span style={{ color: "var(--muted2,#b6bbc2)" }}>—</span>}
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 7, background: typeColor(r)[0], color: typeColor(r)[1], whiteSpace: "nowrap" }}>{effectiveType(r).label}</span>
+        <div style={{ display: "flex", flexDirection: "column" }}><span style={{ font: `700 12.5px ${F_GRO}`, color: applied >= 14 && !["live", "dead"].includes(t.turn) ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" }}>{applied === 0 ? "Today" : applied + "d"}</span><span style={{ font: `500 10px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>{fmtDate(r.createdAt)}</span></div>
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 8px", borderRadius: 999, background: r.linkedinVerified ? "#dcfce7" : "#f1f3f6", color: r.linkedinVerified ? "#15803d" : "#9aa0a6", whiteSpace: "nowrap" }}>{r.linkedinVerified ? "✓ Yes" : "No"}</span>
+        <span style={{ justifySelf: "start", font: `700 11px ${F_SANS}`, padding: "3px 9px", borderRadius: 999, background: levelPill(lvl)[0], color: levelPill(lvl)[1], whiteSpace: "nowrap" }}>{LEVEL_CHIP[String(lvl)]}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <span style={{ flex: "none", font: `800 9px ${F_SANS}`, letterSpacing: ".05em", padding: "3px 7px", borderRadius: 6, background: m.bg, color: m.fg }}>{m.chip}</span>
+            <span title={t.label} style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "help" }}>{t.label}</span>
+          </div>
+          {(t.stopSuggested || (t.recheckDue && !!r.accountId)) && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {t.stopSuggested && <button onClick={(e) => { e.stopPropagation(); void handlers.setStage(r, "unreachable"); }} title="Stop chasing — mark Unresponsive" style={{ flex: "none", border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", borderRadius: 7, padding: "3px 8px", font: `700 11px ${F_SANS}`, cursor: "pointer", whiteSpace: "nowrap" }}>Mark Stopped</button>}
+              {t.recheckDue && (<>
+                <button onClick={(e) => { e.stopPropagation(); if (r.accountId) { handlers.patchAccount(r.id, r.accountId, { linkedinAccountHealth: "restricted" }, true); } else { const d = new Date(); d.setDate(d.getDate() + 1); handlers.patchApp(r.id, { nextFollowUp: d.toISOString() }, true); } }} title="Still restricted — snooze the re-check to tomorrow" style={{ flex: "none", border: "1px solid #fcd34d", background: "#fffbeb", color: "#92400e", borderRadius: 7, padding: "3px 8px", font: `700 11px ${F_SANS}`, cursor: "pointer", whiteSpace: "nowrap" }}>Still restricted</button>
+                <button onClick={(e) => { e.stopPropagation(); if (r.accountId) { handlers.patchAccount(r.id, r.accountId, { restrictedAt: null, linkedinAccountHealth: "active" }, true); } else { handlers.patchApp(r.id, { accountIssue: "", nextFollowUp: null }, true); } }} title="Restriction cleared — remove from To action" style={{ flex: "none", border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#15803d", borderRadius: 7, padding: "3px 8px", font: `700 11px ${F_SANS}`, cursor: "pointer", whiteSpace: "nowrap" }}>Cleared</button>
+              </>)}
+            </div>
+          )}
         </div>
+        <div onClick={(e) => e.stopPropagation()} style={{ minWidth: 0 }}>
+          {!h ? (
+            <button onClick={onClaim} disabled={!me} style={{ border: "1.5px dashed var(--input-border,#c5cbd3)", background: "var(--card,#fff)", color: "var(--fg,#111)", borderRadius: 999, padding: "4px 12px", font: `700 12px ${F_SANS}`, cursor: me ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}>+ Claim</button>
+          ) : (
+            <label style={{ position: "relative", display: "flex", alignItems: "center", gap: 7, cursor: "pointer", minWidth: 0 }}>
+              <span style={{ flex: "none", width: 24, height: 24, borderRadius: "50%", background: handlerColor(h), color: "#fff", font: `700 10px ${F_SANS}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{initialsOf(h)}</span>
+              <span style={{ font: `600 12.5px ${F_SANS}`, color: "var(--fg,#111)", whiteSpace: "nowrap" }}>{h === me ? "Me" : h}</span>
+              <span style={{ font: `600 10px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>▾</span>
+              <select value={h} onChange={(e) => onAssign(e.target.value || null)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}>
+                {[...(me && !handlerNames.includes(me) ? [me] : []), ...handlerNames].map((n) => <option key={n} value={n}>{n === me ? "Me (" + n + ")" : n}</option>)}
+                <option value="">Unassign</option>
+              </select>
+            </label>
+          )}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}><span style={{ font: `700 12.5px ${F_GRO}`, color: t.chaseDue ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" }}>{lastTouch === null ? "—" : lastTouch === 0 ? "Today" : lastTouch + "d"}</span><span style={{ font: `600 10px ${F_SANS}`, color: t.chaseDue ? "var(--st-cancel-fg,#c0392b)" : "var(--muted2,#9aa0a6)" }}>{t.chaseDue ? "chase due" : t.turn === "us" && !h ? "unclaimed" : ""}</span></div>
+        <span style={{ font: `700 14px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", display: "inline-block", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
       </div>
+      {open && (r.accountOnly ? (
+        <div style={{ padding: 16 }}><AccountOnlyCard r={r} patchAccount={handlers.patchAccount} deleteRestrictionEvent={handlers.deleteRestrictionEvent} /></div>
+      ) : (
+        <CardDetail r={r} h={handlers} />
+      ))}
     </div>
   );
 }
