@@ -32,8 +32,8 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: "verified", title: "Is it verified?", body: "Check their profile for a Verified badge. A verified account pays you the top rate, so check rather than guess." },
   ],
   email: [
-    { target: "email-why", title: "Why an email at all?", body: "This trips people up. We're adding a LinkedVelocity work email to their LinkedIn and making it primary — that's how we manage the account. LinkedIn has to verify that new email first." },
-    { target: "email-inbox", title: "Whose email goes here?", body: "This inbox just catches LinkedIn's verification message so it can be opened. It can be yours (the referrer's) or the owner's — whichever you can open right now. Yours is usually easiest." },
+    { target: "email-why", title: "Why add an email?", body: "LinkedIn's routine security checks go to the primary email. Making ours primary means they come to us — not the owner. The owner keeps full access and their own email stays on the account." },
+    { target: "email-inbox", title: "Whose email goes here?", body: "Any inbox you can open right now — yours or the owner's. Yours is usually easiest." },
   ],
   payout: [
     { target: "payout-method", title: "Where THEY get paid", body: "These are the account owner's payout details. Your own commission uses the details on your portal, not this." },
@@ -44,8 +44,8 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   twofa: [
     { title: "Why 2FA first", body: "Without it, LinkedIn pings the owner's phone and you're stuck waiting. With it, you just type the code this page gives you." },
-    { target: "twofa-key", title: "Copy the KEY here — don't scan it", body: "In the LinkedIn app: Settings → Sign in & security → Two-step verification → Authenticator app. On the QR screen tap \"Can't scan the QR code?\" to reveal the KEY, and paste it here. The mistake people make: scanning the QR into their own authenticator app instead — then we don't have the key and can't generate the code, and you're stuck. Paste the key here so this page becomes the authenticator." },
-    { target: "twofa-code", title: "This is your authenticator", body: "Once the key's pasted here, we show the live 6-digit code — no separate app. Type it into LinkedIn to finish turning 2FA on. The same code appears at sign-in whenever LinkedIn asks." },
+    { target: "twofa-key", title: "Copy the key — don't scan it", body: "LinkedIn app: Settings → Sign in & security → Two-step verification → Authenticator app. Copy the long key (the sample below shows what it looks like) and paste it below — not the QR." },
+    { target: "twofa-code", title: "This is your authenticator", body: "No separate app needed. Type this code into LinkedIn to turn 2FA on — it changes every 30 seconds." },
   ],
   signinPc: [
     { title: "You're doing the sign-in", body: "This is the highest-rate path. You'll open the protected GoLogin browser and sign in to their LinkedIn together — the steps below walk you through it. You're not finished until you've signed in and confirmed." },
@@ -123,6 +123,9 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   // token + the /api/self-onboarding mirror. Everything else is shared with the referral flow.
   const endpoint = endpointProp ?? `/api/m/${encodeURIComponent(token)}/onboarding`;
   const phoneEndpoint = `${endpoint}/phone`;
+  // In demo, every "leave this flow" link loops back to a fresh demo run instead
+  // of dropping the ?demo=1 param (which would dead-end on the real invalid-token flow).
+  const demoHome = `/m/${token}/onboarding?demo=1`;
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
   const preference = useDisplayCurrency(selfMode ? "public-diy" : token, selfMode ? undefined : bootstrap?.displayCurrency, selfMode ? undefined : token);
   const [step, setStep] = useState(0);
@@ -161,7 +164,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const [form, setForm] = useState({ fullName: "", email: "", linkedinUrl: "", country: "", contactNumber: "", phoneVerificationToken: "", accountFreshness: "established", paymentMethod: "", paymentDetails: "", payoutName: "", bankName: "", bankAccountNumber: "", bankRoutingNumber: "", ownerPhotoUrl: "" });
 
   // --- Demo mode: fabricate everything the UI would otherwise fetch, with no writes. ---
-  const demoProgress = useRef<{ twoFa: boolean; email: "add" | "verify" | "primary" | "done"; confirmed: boolean }>({ twoFa: false, email: "add", confirmed: false });
+  const demoProgress = useRef<{ twoFa: boolean; email: "add" | "verify" | "primary" | "done"; browser: "reserved" | "ready" | "opened"; confirmed: boolean }>({ twoFa: false, email: "add", browser: "reserved", confirmed: false });
   function demoBootstrap(): Bootstrap {
     return { displayCurrency: "PHP", emailEnabled: true, phoneVerificationEnabled: false, countries: ["Philippines"], autoPurchase: true, config: currencyConfig("demo"), configured: true, doneComputer: false, donePhone: false, sessions: [] };
   }
@@ -179,7 +182,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
       emailSetup: demoEmailSetup(p.email), diyTier: null, twoFactorSaved: p.twoFa, meetingRequested: false,
       savedDetails: { fullName: form.fullName, email: form.email, linkedinUrl: form.linkedinUrl, contactNumber: form.contactNumber, paymentMethod: form.paymentMethod, paymentDetails: form.paymentDetails, payoutName: form.payoutName, bankName: form.bankName, bankAccountNumber: form.bankAccountNumber, bankRoutingNumber: form.bankRoutingNumber },
       duplicateWarning: null, country: "PH", proxyAssigned: true, proxyPriceLimit: 10,
-      id: "demo", name: form.fullName || "Demo Owner", state: p.confirmed ? "confirmed" : "reserved", opened: true,
+      id: "demo", name: form.fullName || "Demo Owner", state: p.confirmed ? "confirmed" : p.browser === "reserved" ? "reserved" : "ready", opened: p.browser === "opened",
       shareLink: "https://app.gologin.com/share/demo-profile", confirmedAt: p.confirmed ? new Date().toISOString() : null,
       accountFreshness: form.accountFreshness, setupDueAt: null, setupAmount: cfg.offer.setup, monthlyAmount: cfg.offer.monthly,
       commission: cfg.symbol + (800).toLocaleString("en-US"), verified: accountVerified === "yes", ...over,
@@ -190,6 +193,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
     if (demo) {
       const act = body && typeof body === "object" ? (body as { action?: string }).action : undefined;
       if (act === "twofactor") demoProgress.current.twoFa = true;
+      if (act === "prepare") demoProgress.current.browser = "ready";
+      if (act === "opened") demoProgress.current.browser = "opened";
       if (act === "confirm") { demoProgress.current.twoFa = true; demoProgress.current.confirmed = true; }
       if (act === "meeting") return { session: demoSession({ meetingRequested: true }) };
       if (act === "undo_meeting") return { session: demoSession({ meetingRequested: false }) };
@@ -509,7 +514,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
       <header className={styles.header}>
         <div className={styles.headerRow}>
           {canGoBack ? <button type="button" className={styles.headerBack} disabled={busy} onClick={goBack}>← Back</button>
-            : <Link href={selfMode ? "/dashboard" : `/m/${token}`} className={styles.headerBack}>← Dashboard</Link>}
+            : <Link href={demo ? demoHome : selfMode ? "/dashboard" : `/m/${token}`} className={styles.headerBack}>← Dashboard</Link>}
           <span className={styles.headerTitle}>DIY onboarding</span>
           {bootstrap && !setupChoice && <span className={styles.headerStep}>Step {currentPos + 1} of {wizardSteps.length}</span>}
         </div>
@@ -729,8 +734,17 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <li>Tap <strong>&ldquo;Can&apos;t scan the QR code?&rdquo;</strong> and copy the key</li>
               <li>Paste it below, then type the 6-digit code into LinkedIn</li>
             </ol>
+            <div data-tour="twofa-key" style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 14px", margin: "0 0 14px", background: "#fafafa" }}>
+              <div style={{ font: "700 12px var(--font-sans), system-ui, sans-serif", color: "#6b7280", marginBottom: 6 }}>What the key looks like in LinkedIn</div>
+              <p style={{ font: "500 12.5px/1.5 var(--font-sans), system-ui, sans-serif", color: "#4b5563", margin: "0 0 8px" }}>You may also enter the key manually and use <strong>&ldquo;LinkedIn&rdquo;</strong> as the account name.</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #fca5a5", borderRadius: 8, padding: "8px 10px", background: "#fff" }}>
+                <code style={{ flex: 1, font: "600 13px ui-monospace, SFMono-Regular, Menlo, monospace", color: "#0b1220", letterSpacing: ".04em", wordBreak: "break-all" }}>K7QXM2VD4HJNP3WLR6TZY8BCE5GS</code>
+                <span aria-hidden="true" style={{ color: "#9ca3af", fontSize: 15 }}>📋</span>
+              </div>
+              <p style={{ font: "600 11.5px var(--font-sans), system-ui, sans-serif", color: "#b45309", margin: "8px 0 0" }}>Copy this line — not the QR above it.</p>
+            </div>
             <a href={`https://linkedvelocity.com/guide/two-step-verification?for=${selfMode ? "owner" : "referrer"}`} target="_blank" rel="noreferrer" style={{ display: "inline-block", margin: "0 0 14px", color: "#15803d", font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none" }}>Step-by-step guide with screenshots ↗</a>
-            <label className={styles.field} data-tour="twofa-key">2FA setup key
+            <label className={styles.field}>2FA setup key
               <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. JBSWY3DPEHPK3PXP" />
             </label>
             {session.twoFactorSaved && !twoFactorKey.trim() && <p className={styles.note}>Your 2FA setup is already saved. You can continue, or enter a replacement key if you changed it.</p>}
@@ -746,7 +760,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <div className={styles.success}>✓</div>
             <h1 className={styles.heroTitle}>Handed off to the team</h1>
             <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup fee follows <strong>{checkWindow(session.accountFreshness)}</strong> after we sign in and the account passes our checks (QC), and your commission at the same time. Nothing more to do here.</p>
-            {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`}>Onboard another account owner</a>}
+            {!selfMode && <a className={styles.secondary} href={demo ? demoHome : `/m/${token}/onboarding`}>Onboard another account owner</a>}
           </> : browserMode === "" ? <>
             {setupOptions()}
           </> : browserMode === "phone" ? <>
@@ -777,8 +791,8 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
               <p className={styles.cardSub} style={{ marginBottom: 8 }}>Don&apos;t post, message or browse from your own phone while it&apos;s with us — being logged in from two places is what causes restrictions.</p>
               <p className={styles.cardSub} style={{ margin: 0 }}>{selfMode ? "Keep your contact details up to date so our team can reach you if a check is needed." : "And if anything is ever needed on the account, it comes through you — so make sure they’ll pick up when you call."}</p>
             </div>
-            <Link className={styles.primary} href={selfMode ? "/dashboard" : `/m/${token}`}>{selfMode ? "Go to my dashboard →" : "Back to my portal →"}</Link>
-            {!selfMode && <a className={styles.secondary} href={`/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard someone else</a>}
+            <Link className={styles.primary} href={demo ? demoHome : selfMode ? "/dashboard" : `/m/${token}`}>{selfMode ? "Go to my dashboard →" : "Back to my portal →"}</Link>
+            {!selfMode && <a className={styles.secondary} href={demo ? demoHome : `/m/${token}/onboarding`} style={{ marginTop: 9 }}>Onboard someone else</a>}
           </>}
           </div>
         </>}

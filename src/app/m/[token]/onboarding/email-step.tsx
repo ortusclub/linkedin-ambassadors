@@ -75,8 +75,8 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
     {/* People get confused about "whose email" — spell out what this step is FOR. */}
     <div className={styles.why} data-tour="email-why">
       <strong>What this step is for</strong>
-      <p>We&apos;re adding a LinkedVelocity work email to {selfMode ? "your" : "their"} LinkedIn and making it the primary one — that&apos;s how we manage the account. LinkedIn has to <strong>verify</strong> that new email, so its verification message needs to land in an inbox someone can open and click.</p>
-      <p>{selfMode ? "Choose an inbox you can open now. We only forward LinkedIn’s verification messages there, for up to one hour." : "The receiving inbox can be yours or the account owner’s. We only forward LinkedIn’s messages there, for up to one hour."}</p>
+      <p>LinkedIn emails a code to confirm the new address. We forward it to the inbox below.</p>
+      <div className={styles.note} style={{ margin: "8px 0 0" }}>✉️ {selfMode ? "Use an inbox you can open now" : "The inbox can be yours or the owner’s"}. We only forward LinkedIn’s messages, for up to one hour.</div>
     </div>
 
     <ol className={styles.miniSteps} aria-label="LinkedIn email setup progress">
@@ -106,8 +106,8 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
     {!setup.configured ? <div className={styles.note}>Email receiving is not live yet. Your progress is saved; the team must finish configuring and testing the domains before this step can continue.</div> : <>
       {miniStep === 1 && <section className={styles.miniPanel} data-tour="email-inbox">
         <div className={styles.stepLabel}>EMAIL STEP 1 OF 4</div>
-        <h3>{previouslyVerified && !editingInbox ? "Your verification inbox" : "Pick an inbox to catch the verification"}</h3>
-        {previouslyVerified && !editingInbox ? <p>We’ll forward LinkedIn’s verification email to <strong>{destination}</strong>. You’ve already verified this address, so you don’t need another code.</p> : <p>Enter an inbox you can open now. We’ll send a six-digit code to verify a different address, then temporarily forward LinkedIn’s verification message there.</p>}
+        <h3>{previouslyVerified && !editingInbox ? "Your verification inbox" : "Pick an inbox"}</h3>
+        {previouslyVerified && !editingInbox ? <p>We’ll forward LinkedIn’s verification email to <strong>{destination}</strong>. You’ve already verified this address, so you don’t need another code.</p> : <p>We’ll send a 6-digit code to check it, then forward LinkedIn’s message there.</p>}
         {previouslyVerified && !editingInbox && <button type="button" className={styles.linkBtn} disabled={busy} onClick={() => setEditingInbox(true)}>Change email</button>}
 
         {setup.destinationVerified && !setup.forwardingActive ? <>
@@ -115,8 +115,8 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
           <button className={styles.primary} disabled={busy} onClick={() => void restart()}>Start this email step again →</button>
         </> : <>
           <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }}>
-            {(!previouslyVerified || editingInbox) && <label className={styles.field}>{selfMode ? "Your inbox for verification codes" : "Email for the codes (yours or the owner’s)"}<input type="email" required maxLength={254} value={destination} onChange={e => { setDestination(e.target.value); setCode(""); }} placeholder="you@example.com" /></label>}
-            <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>{selfMode ? "I agree" : "The account owner agrees"} to add a LinkedVelocity-managed primary email and to onboarding messages being forwarded to this inbox for up to one hour.</span></label>
+            {(!previouslyVerified || editingInbox) && <label className={styles.field}>{selfMode ? "Your inbox for the code" : "Inbox for the code (yours or the owner’s)"}<input type="email" required maxLength={254} value={destination} onChange={e => { setDestination(e.target.value); setCode(""); }} placeholder="name@gmail.com" /></label>}
+            <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>{selfMode ? "I agree" : "The owner agrees"} to add a LinkedVelocity primary email and have LinkedIn’s messages forwarded here for one hour.</span></label>
             <button className={styles.primary} disabled={busy || !consent}>{previouslyVerified ? "Continue with this email →" : setup.verificationCodePending ? "Send another six-digit code" : "Send six-digit code →"}</button>
           </form>
           {setup.verificationCodePending && !previouslyVerified && <form onSubmit={e => { e.preventDefault(); void submit({ action: "verify", code }); }}>

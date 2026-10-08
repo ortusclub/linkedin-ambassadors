@@ -49,7 +49,7 @@
 /* In-wizard 2FA authenticator — live TOTP code */
 .totpCard { background: #0b1220; border-radius: 14px; padding: 14px 16px; margin: 10px 0 4px; }
 .totpHead { margin-bottom: 6px; }
-.totpLabel { font: 600 10px 'Plus Jakarta Sans'; letter-spacing: .05em; text-transform: uppercase; color: #94a3b8; }
+.totpLabel { font: 600 11px 'Plus Jakarta Sans'; letter-spacing: .01em; color: #94a3b8; }
 .totpRow { display: flex; align-items: center; gap: 12px; }
 .totpCode { font: 600 30px/1 'Space Grotesk'; letter-spacing: .04em; color: #fff; font-variant-numeric: tabular-nums; }
 .totpCopy { margin-left: auto; flex: none; font: 700 12px 'Plus Jakarta Sans'; color: #0b1220; background: #fff; border: none; padding: 9px 13px; border-radius: 9px; cursor: pointer; }
