@@ -10,7 +10,7 @@ const TG_URL = "https://t.me/linkedvelocity_support_bot";
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-export default function FaqView({ groups }: { groups: FaqGroup[] }) {
+export default function FaqView({ groups, isArmy }: { groups: FaqGroup[]; isArmy?: boolean }) {
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
     const o: Record<string, boolean> = {};
     groups.forEach((g, gi) => g.items.forEach((_, ii) => { o[`${gi}-${ii}`] = gi === 0 && ii === 0; }));
@@ -59,7 +59,7 @@ export default function FaqView({ groups }: { groups: FaqGroup[] }) {
         <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 16 }}>Frequently Asked Questions</div>
         <h1 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(32px,4.4vw,52px)", lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 18px" }}>Questions, answered</h1>
         <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: "0 auto", maxWidth: 600 }}>
-          Everything you need to know about renting a verified LinkedIn account. Want to <a href="/become-ambassador" style={{ color: "#00A150", fontWeight: 600, textDecoration: "none" }}>earn by sharing yours →</a>
+          {isArmy ? "Everything you need to know about hiring a verified LinkedIn Ambassador." : "Everything you need to know about renting a verified LinkedIn account."} Want to <a href="/become-ambassador" style={{ color: "#00A150", fontWeight: 600, textDecoration: "none" }}>{isArmy ? "become an ambassador →" : "earn by sharing yours →"}</a>
         </p>
       </div>
 
