@@ -22,7 +22,7 @@ export function GET() {
       >
         <div style={{ display: "flex", fontSize: 44, fontWeight: 700, letterSpacing: "-0.02em" }}>LinkedArmy</div>
         <div style={{ display: "flex", fontSize: 72, fontWeight: 800, lineHeight: 1.05, marginTop: 28, maxWidth: 1000 }}>
-          Hire verified LinkedIn Ambassadors
+          Hire verified LinkedIn Operators
         </div>
         <div style={{ display: "flex", fontSize: 30, color: "#AFC0D6", marginTop: 24, maxWidth: 900 }}>
           Established networks that run your outreach — hit pipeline targets in weeks, not quarters.

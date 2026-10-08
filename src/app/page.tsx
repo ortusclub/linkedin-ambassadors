@@ -7,7 +7,7 @@ import { getBrand } from "@/lib/brand";
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
 
 // Per-brand homepage. SAME LinkedVelocity layout for both; LinkedArmy swaps the wording
-// from "rent an account" to "hire a LinkedIn Ambassador" (subtle, compliant-sounding).
+// from "rent an account" to "hire a LinkedIn Operator" (subtle, compliant-sounding).
 // The one-word noun lives in brand.ts term — flip to "LinkedIn support" there if preferred.
 
 const HERO = {
@@ -28,16 +28,16 @@ const HERO = {
   linkedarmy: {
     h1a: "Scale LinkedIn outreach",
     h1b: "without the limits",
-    sub: "Hire verified LinkedIn Ambassadors with a mature online presence and established networks to run campaigns for you and hit pipeline targets in weeks, not quarters.",
-    cta: "Browse Ambassadors →",
-    trust: "Real, verified ambassadors · GoLogin-protected · Cancel anytime",
+    sub: "Hire verified LinkedIn Operators with a mature online presence and established networks to run campaigns for you and hit pipeline targets in weeks, not quarters.",
+    cta: "Browse Operators →",
+    trust: "Real, verified operators · GoLogin-protected · Cancel anytime",
     tiles: [
       ["#4B9BEA", "Verified", "real, consenting professionals"],
       ["#4B9BEA", "Protected", "secure, consistent sessions"],
       ["#26C879", "Flexible", "cancel anytime, no contracts"],
     ],
     ownLead: "Have a strong LinkedIn presence?",
-    ownCta: "Become an ambassador and earn →",
+    ownCta: "Become an operator and earn →",
   },
 } as const;
 
@@ -48,9 +48,9 @@ const STEPS_BY_BRAND = {
     { n: "3", tag: "Launch", title: "Launch campaigns", body: "Open the account in a secure browser and run your outreach tool. Each account has its own limits — multiply your reach, not your risk." },
   ],
   linkedarmy: [
-    { n: "1", tag: "Browse", title: "Browse & select", body: "Filter ambassadors by industry, location and connection count. Every ambassador is a real, established professional — verified, with genuine history." },
-    { n: "2", tag: "Hire", title: "Hire monthly", body: "Pay a flat monthly fee per ambassador. No contracts, no setup fees. Scale up or down anytime — add a few this month, more the next." },
-    { n: "3", tag: "Launch", title: "Launch campaigns", body: "Your ambassador's established profile runs your outreach in a secure browser. Multiply your reach, not your risk." },
+    { n: "1", tag: "Browse", title: "Browse & select", body: "Filter operators by industry, location and connection count. Every operator is a real, established professional — verified, with genuine history." },
+    { n: "2", tag: "Hire", title: "Hire monthly", body: "Pay a flat monthly fee per operator. No contracts, no setup fees. Scale up or down anytime — add a few this month, more the next." },
+    { n: "3", tag: "Launch", title: "Launch campaigns", body: "Your operator's established profile runs your outreach in a secure browser. Multiply your reach, not your risk." },
   ],
 } as const;
 
@@ -62,9 +62,9 @@ const GO_FEATURES_BY_BRAND = {
     { icon: "👤", title: "One consistent user", body: "LinkedIn sees a single, stable login — no matter who's on it." },
   ],
   linkedarmy: [
-    { icon: "🌐", title: "Dedicated proxy", body: "Each ambassador works from a consistent IP location, every session." },
+    { icon: "🌐", title: "Dedicated proxy", body: "Each operator works from a consistent IP location, every session." },
     { icon: "🧬", title: "Isolated fingerprint", body: "A unique browser fingerprint per profile — no overlap." },
-    { icon: "🍪", title: "Separate cookies", body: "Sessions never cross-contaminate between ambassadors." },
+    { icon: "🍪", title: "Separate cookies", body: "Sessions never cross-contaminate between operators." },
     { icon: "👤", title: "One consistent presence", body: "LinkedIn sees a single, stable, professional presence." },
   ],
 } as const;
@@ -77,10 +77,10 @@ const WHY_BY_BRAND = {
     { title: "Real, consenting people", body: "Every profile is a real professional who has opted in." },
   ],
   linkedarmy: [
-    { title: "No warm-up", body: "Established ambassadors are ready from day one — no aging period." },
-    { title: "Secure sessions", body: "Each ambassador works from their own fingerprint, proxy and cookies." },
-    { title: "Cancel anytime", body: "Flat monthly fee per ambassador. No contracts — scale up or down." },
-    { title: "Real, consenting people", body: "Every ambassador is a real professional who has opted in." },
+    { title: "No warm-up", body: "Established operators are ready from day one — no aging period." },
+    { title: "Secure sessions", body: "Each operator works from their own fingerprint, proxy and cookies." },
+    { title: "Cancel anytime", body: "Flat monthly fee per operator. No contracts — scale up or down." },
+    { title: "Real, consenting people", body: "Every operator is a real professional who has opted in." },
   ],
 } as const;
 
@@ -166,8 +166,8 @@ export default async function HomePage() {
               <span style={{ font: `500 11px ${MONO}`, letterSpacing: "0.12em", textTransform: "uppercase", color: "#5A6473" }}>Powered by</span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#0D1B2A", color: "#fff", borderRadius: 999, padding: "5px 13px", font: `600 13px ${POP}` }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#E0710E" }} />GoLogin</span>
             </div>
-            <h2 style={{ font: `700 clamp(28px,3.6vw,38px) ${POP}`, lineHeight: 1.12, letterSpacing: "-0.025em", margin: "0 0 20px" }}>{isArmy ? "Every ambassador works from a secure, consistent environment" : "Account sharing that's invisible to LinkedIn"}</h2>
-            <p style={{ fontSize: 16.5, lineHeight: 1.7, color: "#5A6473", margin: "0 0 32px" }}>{isArmy ? <>We&apos;ve partnered with <strong>GoLogin</strong>, a leading secure-browser platform. Each ambassador&apos;s profile runs through a dedicated environment with its own proxy, cookies and fingerprint — so every session stays consistent and secure.</> : <>We&apos;ve partnered with <strong>GoLogin</strong>, a leading anti-detect browser. Each shared account runs through a dedicated profile with its own proxy, cookies and fingerprint — so LinkedIn sees one consistent user, no matter who&apos;s logged in.</>}</p>
+            <h2 style={{ font: `700 clamp(28px,3.6vw,38px) ${POP}`, lineHeight: 1.12, letterSpacing: "-0.025em", margin: "0 0 20px" }}>{isArmy ? "Every operator works from a secure, consistent environment" : "Account sharing that's invisible to LinkedIn"}</h2>
+            <p style={{ fontSize: 16.5, lineHeight: 1.7, color: "#5A6473", margin: "0 0 32px" }}>{isArmy ? <>We&apos;ve partnered with <strong>GoLogin</strong>, a leading secure-browser platform. Each operator&apos;s profile runs through a dedicated environment with its own proxy, cookies and fingerprint — so every session stays consistent and secure.</> : <>We&apos;ve partnered with <strong>GoLogin</strong>, a leading anti-detect browser. Each shared account runs through a dedicated profile with its own proxy, cookies and fingerprint — so LinkedIn sees one consistent user, no matter who&apos;s logged in.</>}</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               {goFeatures.map((g) => (
                 <div key={g.title} className="lvh-lift" style={{ background: "#fff", border: "1px solid #E9ECF0", borderRadius: 14, padding: 18, boxShadow: "0 4px 14px rgba(16,24,40,0.05)" }}>
@@ -181,9 +181,9 @@ export default async function HomePage() {
           <div style={{ background: "#fff", border: "1px solid #E6E8EC", borderRadius: 18, padding: 16, boxShadow: "0 24px 60px rgba(16,24,40,0.12)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F7FA", border: "1px solid #EDEFF2", borderRadius: 10, padding: "9px 12px", marginBottom: 16 }}>
               <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#FF5F57" }} /><span style={{ width: 11, height: 11, borderRadius: "50%", background: "#FEBC2E" }} /><span style={{ width: 11, height: 11, borderRadius: "50%", background: "#28C840" }} />
-              <span style={{ flex: 1, textAlign: "center", fontSize: 13, color: "#6B7484" }}>🔒 linkedin.com/in/{isArmy ? "your-ambassador" : "your-rented-account"}</span>
+              <span style={{ flex: 1, textAlign: "center", fontSize: 13, color: "#6B7484" }}>🔒 linkedin.com/in/{isArmy ? "your-operator" : "your-rented-account"}</span>
             </div>
-            {[["#00B85C", "Ambassador connected", "via proxy: San Francisco, CA"], ["#0A66C2", isArmy ? "You connected" : "Renter connected", "via proxy: San Francisco, CA"]].map(([d, a, b]) => (
+            {[["#00B85C", "Operator connected", "via proxy: San Francisco, CA"], ["#0A66C2", isArmy ? "You connected" : "Renter connected", "via proxy: San Francisco, CA"]].map(([d, a, b]) => (
               <div key={a} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, marginBottom: 12 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#0B1220", fontWeight: 500 }}><span style={{ width: 9, height: 9, borderRadius: "50%", background: d }} />{a}</span><span style={{ color: "#96A0AD" }}>{b}</span>
               </div>
@@ -196,18 +196,18 @@ export default async function HomePage() {
       {/* ================= CATALOGUE ================= */}
       <section style={{ background: "#FBFCFD", padding: "72px 24px", borderTop: "1px solid #EEF0F3", textAlign: "center" }}>
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
-          <h2 style={{ font: `700 clamp(28px,4vw,40px) ${POP}`, lineHeight: 1.15, letterSpacing: "-0.03em", margin: "0 0 16px" }}>{isArmy ? "Find your next ambassador" : "Find your next account"}</h2>
-          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 28px" }}>{isArmy ? "Explore the catalogue to compare ambassadors and find the right fit for your campaigns." : "Explore the catalogue to compare accounts and find one that fits your needs."}</p>
-          <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", maxWidth: "100%", boxSizing: "border-box", background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, padding: "14px 24px", borderRadius: 10, textDecoration: "none", boxShadow: "0 4px 12px rgba(10,102,194,0.12)" }}>{isArmy ? "See the ambassadors you can hire →" : "See the accounts you can rent →"}</Link>
+          <h2 style={{ font: `700 clamp(28px,4vw,40px) ${POP}`, lineHeight: 1.15, letterSpacing: "-0.03em", margin: "0 0 16px" }}>{isArmy ? "Find your next operator" : "Find your next account"}</h2>
+          <p style={{ fontSize: 17, lineHeight: 1.6, color: "#5A6473", margin: "0 0 28px" }}>{isArmy ? "Explore the catalogue to compare operators and find the right fit for your campaigns." : "Explore the catalogue to compare accounts and find one that fits your needs."}</p>
+          <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", maxWidth: "100%", boxSizing: "border-box", background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, padding: "14px 24px", borderRadius: 10, textDecoration: "none", boxShadow: "0 4px 12px rgba(10,102,194,0.12)" }}>{isArmy ? "See the operators you can hire →" : "See the accounts you can rent →"}</Link>
         </div>
       </section>
 
       {/* ================= WHY ================= */}
       <section style={{ background: "radial-gradient(120% 120% at 80% 0%, #17457F 0%, #0F2C4E 45%, #0A1626 100%)", padding: "88px 24px 96px", textAlign: "center" }}>
         <div style={{ maxWidth: 1160, margin: "0 auto" }}>
-          <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#7FA8E0", marginBottom: 18 }}>{isArmy ? "Why hire ambassadors" : "Why rent accounts"}</div>
+          <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: "#7FA8E0", marginBottom: 18 }}>{isArmy ? "Why hire operators" : "Why rent accounts"}</div>
           <h2 style={{ font: `700 clamp(30px,4vw,44px) ${POP}`, letterSpacing: "-0.03em", margin: "0 0 20px", color: "#fff" }}>LinkedIn is powerful — but limited</h2>
-          <p style={{ fontSize: 17, lineHeight: 1.7, color: "#AFC4DB", margin: "0 auto 48px", maxWidth: 600 }}>{isArmy ? "A single account caps how far you can reach. LinkedArmy removes the ceiling by putting multiple verified LinkedIn Ambassadors to work for you in parallel." : "A single account caps how far you can reach. LinkedVelocity removes the ceiling by giving you multiple verified accounts running in parallel."}</p>
+          <p style={{ fontSize: 17, lineHeight: 1.7, color: "#AFC4DB", margin: "0 auto 48px", maxWidth: 600 }}>{isArmy ? "A single account caps how far you can reach. LinkedArmy removes the ceiling by putting multiple verified LinkedIn Operators to work for you in parallel." : "A single account caps how far you can reach. LinkedVelocity removes the ceiling by giving you multiple verified accounts running in parallel."}</p>
           <div className="lvh-ba">
             <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 18, padding: "28px 30px", textAlign: "left" }}>
               <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8CA0BC", marginBottom: 22 }}>With one profile</div>
@@ -217,7 +217,7 @@ export default async function HomePage() {
             </div>
             <div className="lvh-arrow" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "#26C879", fontSize: 30 }}>→</div>
             <div style={{ position: "relative", background: "linear-gradient(160deg, rgba(0,184,92,0.16), rgba(0,184,92,0.04))", border: "1px solid rgba(38,200,121,0.38)", borderRadius: 18, padding: "28px 30px", textAlign: "left", boxShadow: "0 0 44px rgba(0,184,92,0.12)" }}>
-              <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.12em", textTransform: "uppercase", color: "#7FE3AB", marginBottom: 22 }}>{isArmy ? "Across multiple ambassadors" : "Across multiple accounts"}</div>
+              <div style={{ font: `500 11px ${MONO}`, letterSpacing: "0.12em", textTransform: "uppercase", color: "#7FE3AB", marginBottom: 22 }}>{isArmy ? "Across multiple operators" : "Across multiple accounts"}</div>
               {[["1,000+", "connection requests / week"], ["500+", "messages & InMails"], ["Unlimited", "parallel campaigns"]].map(([v, l]) => (
                 <div key={l} style={{ marginBottom: 18 }}><div style={{ font: `800 30px ${POP}`, color: v === "Unlimited" ? "#3EDC8C" : "#fff", lineHeight: 1 }}>{v}</div><div style={{ fontSize: 13, color: "#B7D6C6", marginTop: 5 }}>{l}</div></div>
               ))}
@@ -242,9 +242,9 @@ export default async function HomePage() {
             <div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `500 11px ${MONO}`, letterSpacing: "0.14em", textTransform: "uppercase", color: "#D3F5E0", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 999, padding: "6px 13px", marginBottom: 18 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />For professionals</div>
               <div style={{ font: `700 clamp(24px,3vw,30px) ${POP}`, color: "#fff", marginBottom: 12, letterSpacing: "-0.015em", lineHeight: 1.12 }}>{isArmy ? "Have a strong LinkedIn presence?" : "Own a LinkedIn account?"}<br />Get paid every month.</div>
-              <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#DBF3E4", margin: "0 0 26px", maxWidth: 440 }}>{isArmy ? "Join as an ambassador and receive a fixed monthly payment, whether or not you're currently on a campaign. You stay in control and can leave anytime after a light 6-month minimum — your password is never shared." : "Share your account and receive a fixed monthly payment, whether or not it is currently rented. You stay in control and can leave anytime after a light 6-month minimum — your password is never shared."}</p>
+              <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#DBF3E4", margin: "0 0 26px", maxWidth: 440 }}>{isArmy ? "Join as an operator and receive a fixed monthly payment, whether or not you're currently on a campaign. You stay in control and can leave anytime after a light 6-month minimum — your password is never shared." : "Share your account and receive a fixed monthly payment, whether or not it is currently rented. You stay in control and can leave anytime after a light 6-month minimum — your password is never shared."}</p>
               <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-                <Link href="/become-ambassador" className="lvh-cta" style={{ background: "#fff", color: "#0A7A45", fontSize: 15, fontWeight: 700, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>{isArmy ? "Become an ambassador →" : "Rent us your account →"}</Link>
+                <Link href="/become-ambassador" className="lvh-cta" style={{ background: "#fff", color: "#0A7A45", fontSize: 15, fontWeight: 700, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>{isArmy ? "Become an operator →" : "Rent us your account →"}</Link>
                 <span style={{ fontSize: 13.5, color: "#CFEFDC" }}>Free to join · Cancel anytime after 6 months</span>
               </div>
             </div>
@@ -268,9 +268,9 @@ export default async function HomePage() {
       <section style={{ background: "#F6F5F1", padding: "40px 24px 96px", textAlign: "center" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
           <h2 style={{ font: `700 clamp(32px,5vw,52px) ${POP}`, lineHeight: 1.08, letterSpacing: "-0.03em", margin: "0 0 18px" }}>Ready to break through LinkedIn&apos;s ceiling?</h2>
-          <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: "0 0 34px" }}>{isArmy ? "Hire verified LinkedIn Ambassadors and scale your outreach today." : "Rent verified, pre-warmed accounts and scale your outreach today."}</p>
-          <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, padding: "16px 30px", borderRadius: 12, textDecoration: "none", boxShadow: "0 12px 30px rgba(10,102,194,0.28)" }}>{isArmy ? "Browse Ambassadors →" : "Browse Accounts →"}</Link>
-          <div style={{ marginTop: 24, fontSize: 15, color: "#8A93A2" }}>{isArmy ? "Have a strong LinkedIn presence?" : "Own a LinkedIn account?"} <Link href="/become-ambassador" style={{ color: "#0A66C2", fontWeight: 600, textDecoration: "none" }}>{isArmy ? "Become an ambassador →" : "Earn by sharing it →"}</Link></div>
+          <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: "0 0 34px" }}>{isArmy ? "Hire verified LinkedIn Operators and scale your outreach today." : "Rent verified, pre-warmed accounts and scale your outreach today."}</p>
+          <Link href="/catalogue" className="lvh-cta" style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "#0A66C2", color: "#fff", fontSize: 16, fontWeight: 600, padding: "16px 30px", borderRadius: 12, textDecoration: "none", boxShadow: "0 12px 30px rgba(10,102,194,0.28)" }}>{isArmy ? "Browse Operators →" : "Browse Accounts →"}</Link>
+          <div style={{ marginTop: 24, fontSize: 15, color: "#8A93A2" }}>{isArmy ? "Have a strong LinkedIn presence?" : "Own a LinkedIn account?"} <Link href="/become-ambassador" style={{ color: "#0A66C2", fontWeight: 600, textDecoration: "none" }}>{isArmy ? "Become an operator →" : "Earn by sharing it →"}</Link></div>
         </div>
       </section>
     </div>

@@ -65,8 +65,8 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
   // LinkedArmy reword + accent nudge; LinkedVelocity unchanged. Status words ("Rented",
   // "Available") stay factual — only the action verb changes.
   const verb = isArmy ? "Hire" : "Rent";
-  const noun = isArmy ? "ambassador" : "account";
-  const Noun = isArmy ? "Ambassador" : "Account";
+  const noun = isArmy ? "operator" : "account";
+  const Noun = isArmy ? "Operator" : "Account";
   const ACCENT = "#0A66C2";
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,8 +182,8 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
       {/* header */}
       <div className="cat2-wrap" style={{ paddingTop: 44 }}>
         <div style={{ font: `500 12px ${MONO}`, letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, marginBottom: 14 }}>Marketplace</div>
-        <h1 style={{ font: `700 clamp(30px,4vw,44px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 12px" }}>{isArmy ? "Browse available ambassadors" : "Browse available accounts"}</h1>
-        <p style={{ fontSize: 17, color: "#5A6473", margin: 0 }}>{isArmy ? "Verified, pre-warmed ambassadors — ready to hire right now." : "Verified, pre-warmed profiles — ready to rent right now."}</p>
+        <h1 style={{ font: `700 clamp(30px,4vw,44px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 12px" }}>{isArmy ? "Browse available operators" : "Browse available accounts"}</h1>
+        <p style={{ fontSize: 17, color: "#5A6473", margin: 0 }}>{isArmy ? "Verified, pre-warmed operators — ready to hire right now." : "Verified, pre-warmed profiles — ready to rent right now."}</p>
       </div>
 
       {/* controls */}

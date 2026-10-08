@@ -59,7 +59,7 @@ export default function FaqView({ groups, isArmy }: { groups: FaqGroup[]; isArmy
         <div style={{ fontFamily: MONO, fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#0A66C2", marginBottom: 16 }}>Frequently Asked Questions</div>
         <h1 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(32px,4.4vw,52px)", lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 18px" }}>Questions, answered</h1>
         <p style={{ fontSize: 18, lineHeight: 1.55, color: "#5A6473", margin: "0 auto", maxWidth: 600 }}>
-          {isArmy ? "Everything you need to know about hiring a verified LinkedIn Ambassador." : "Everything you need to know about renting a verified LinkedIn account."} Want to <a href="/become-ambassador" style={{ color: "#00A150", fontWeight: 600, textDecoration: "none" }}>{isArmy ? "become an ambassador →" : "earn by sharing yours →"}</a>
+          {isArmy ? "Everything you need to know about hiring a verified LinkedIn Operator." : "Everything you need to know about renting a verified LinkedIn account."} Want to <a href="/become-ambassador" style={{ color: "#00A150", fontWeight: 600, textDecoration: "none" }}>{isArmy ? "become an operator →" : "earn by sharing yours →"}</a>
         </p>
       </div>
 
