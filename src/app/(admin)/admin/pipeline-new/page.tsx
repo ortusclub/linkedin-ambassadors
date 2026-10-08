@@ -174,6 +174,18 @@ export default function PipelineNewPage() {
       await load();
     } finally { setBusy(null); }
   };
+  // Resolve a self-service PC sign-in the referrer self-reported: confirm it's actually signed in,
+  // send it back for the referrer to retry, or take over the sign-in ourselves (drops to email/2FA tier).
+  const verifySignin = async (r: Row, action: "confirm" | "retry" | "takeover") => {
+    if (action === "takeover" && !confirm(`Take over ${formatName(r.fullName) || "this"} sign-in?\n\nThe referrer's commission drops to the email/2FA tier and it moves to our sign-in queue.`)) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/verify-signin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, action }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not update (${res.status}).`);
+      await load();
+    } finally { setBusy(null); }
+  };
   const deleteGologin = async (r: Row) => {
     if (!r.accountId) return;
     if (!confirm(`Delete the GoLogin profile for ${r.accountName || r.fullName || "this account"}?\n\nThis removes the browser profile, clears the share link, and unassigns the proxy.`)) return;
@@ -238,7 +250,7 @@ export default function PipelineNewPage() {
   };
   const claim = (r: Row) => { if (me) assignMany([r.id], me); };
 
-  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, createAccount, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
+  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, createAccount, verifySignin, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
 
   // Distinct handlers present (for chips + bulk menu).
   const handlerNames = useMemo(() => {
