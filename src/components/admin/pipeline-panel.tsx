@@ -9,7 +9,6 @@ import { useState } from "react";
 import type { CSSProperties, ReactNode, MouseEvent } from "react";
 import { formatMoney } from "@/lib/referral-currency";
 import { formatName } from "@/lib/utils";
-import { AccountNotes } from "@/components/admin/account-notes";
 import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions";
 import { PipelineReferralInvite } from "@/components/admin/pipeline-referral-invite";
 import { OnboardingNotes } from "@/components/admin/onboarding-notes";
@@ -623,11 +622,12 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
             <a href="/admin/balances" style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>Pay, attach receipts &amp; full history in Payouts →</a>
           </PanelCard>
 
-          {(r.accountId || r.adminNotes || r.applicationNotes || r.accountNotes) && (
+          {(r.adminNotes || r.applicationNotes) && (
+            // Read-only onboarding summary. Adding/logging updates lives in the Activity card
+            // (the shared outreach log) so there's one place to post an update, not three.
             <PanelCard title="Admin notes" tone="notes">
               {r.adminNotes && <OnboardingNotes text={r.adminNotes} />}
               {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
-              {r.accountId && <AccountNotes accountId={r.accountId} notes={r.accountNotes} proof={null} sharedLog={r.outreachLog} onNotesSaved={() => void workflow(r.id, {})} onProofSaved={async () => {}} />}
             </PanelCard>
           )}
         </div>
