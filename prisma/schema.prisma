@@ -37,6 +37,7 @@ enum RentalStatus {
   cancelled
   payment_failed
   pending_access
+  replaced
 }
 
 model User {
@@ -325,6 +326,12 @@ model Rental {
   // flip the account to "rented" (stays catalogue-available), and is auto-yielded when
   // a real customer rents the same account.
   isShadow              Boolean      @default(false) @map("is_shadow")
+  // Self-serve replacement: when a restricted account is swapped out, the NEW rental points
+  // back to the OLD one here, and the old rental's status becomes "replaced". Keeps account
+  // counts honest and makes "what replaced what" unambiguous even if the old account recovers.
+  replacesRentalId      String?      @map("replaces_rental_id") @db.Uuid
+  replaces              Rental?      @relation("RentalReplacement", fields: [replacesRentalId], references: [id], onDelete: SetNull)
+  replacedBy            Rental[]     @relation("RentalReplacement")
   notes                 String?
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")
@@ -333,6 +340,7 @@ model Rental {
   linkedinAccount       LinkedInAccount @relation(fields: [linkedinAccountId], references: [id])
   transactions          Transaction[]
 
+  @@index([replacesRentalId])
   @@map("rentals")
 }
 

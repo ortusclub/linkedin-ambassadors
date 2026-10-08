@@ -17,6 +17,7 @@ import { CardTopUp } from "./card-topup";
 import { AutoRecharge } from "./auto-recharge";
 import { canShowRentalShareLink, isRentalBeingPrepared } from "@/lib/rental-dashboard-access";
 import { startDashboardTour } from "@/lib/dashboard-tour";
+import { canReplaceNow, replacementUnlockAt } from "@/lib/replacement";
 
 // Renter action: reveal the two links for a rented account, each clearly
 // labelled — the LinkedIn profile URL (opens the actual LinkedIn page) and the
@@ -154,6 +155,101 @@ function RentalCredentials({ rental }: { rental: Rental }) {
   );
 }
 
+interface ReplacementOption {
+  id: string;
+  linkedinName: string;
+  linkedinHeadline: string | null;
+  connectionCount: number;
+  industry: string | null;
+  location: string | null;
+  profilePhotoUrl: string | null;
+  linkedinVerified: boolean;
+  monthlyPrice: number;
+}
+
+// Picker modal for swapping a restricted rental to an equivalent available account.
+function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; onClose: () => void; onReplaced: () => void }) {
+  const [options, setOptions] = useState<ReplacementOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let stop = false;
+    fetch(`/api/rentals/${rental.id}/replacement-options`)
+      .then(async (r) => ({ ok: r.ok, data: await r.json() }))
+      .then(({ ok, data }) => { if (stop) return; if (!ok) setError(data.error || "Couldn't load options."); else setOptions(data.options || []); })
+      .catch(() => { if (!stop) setError("Couldn't load options."); })
+      .finally(() => { if (!stop) setLoading(false); });
+    return () => { stop = true; };
+  }, [rental.id]);
+
+  const confirm = async () => {
+    if (!selected) return;
+    setSubmitting(true); setError(null);
+    try {
+      const res = await fetch(`/api/rentals/${rental.id}/replace`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newAccountId: selected }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Replacement failed."); setSubmitting(false); return; }
+      onReplaced();
+    } catch { setError("Replacement failed — try again."); setSubmitting(false); }
+  };
+
+  const initials = (name: string) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div onClick={(e) => e.stopPropagation()} className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b px-6 py-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Replace {rental.linkedinAccount.linkedinName}</h2>
+            <p className="mt-0.5 text-sm text-gray-500">Pick an available account to switch to. You keep your current price and billing date, plus credit for the downtime.</p>
+          </div>
+          <button onClick={onClose} className="ml-3 text-2xl leading-none text-gray-400 hover:text-gray-600">×</button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          {loading ? (
+            <p className="py-8 text-center text-sm text-gray-500">Loading available accounts…</p>
+          ) : error && options.length === 0 ? (
+            <p className="py-8 text-center text-sm text-red-600">{error}</p>
+          ) : options.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500">No equivalent accounts are available right now. Please check back soon or contact our team.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {options.map((o) => (
+                <button key={o.id} onClick={() => setSelected(o.id)}
+                  className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${selected === o.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
+                    {o.profilePhotoUrl ? <img src={o.profilePhotoUrl} alt={o.linkedinName} className="h-full w-full object-cover" /> : initials(o.linkedinName)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-900">{o.linkedinName}{o.linkedinVerified && <span className="ml-1.5 text-blue-600" title="Verified">✓</span>}</p>
+                    {o.linkedinHeadline && <p className="truncate text-xs text-gray-500">{o.linkedinHeadline}</p>}
+                    <p className="mt-0.5 text-[11px] text-gray-400">{o.connectionCount.toLocaleString()} connections{o.location ? ` · ${o.location}` : ""}</p>
+                  </div>
+                  <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border ${selected === o.id ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300"}`}>{selected === o.id ? "✓" : ""}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
+          {error && options.length > 0 ? <span className="text-xs text-red-600">{error}</span> : <span />}
+          <div className="flex gap-2">
+            <button onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button onClick={confirm} disabled={!selected || submitting} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{submitting ? "Switching…" : "Confirm replacement"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface Rental {
   id: string;
   status: string;
@@ -167,6 +263,10 @@ interface Rental {
   // Tiered credential access: true when this renter is flagged to see sign-in details
   // (login email, password, live 2FA) for the accounts they rent. Default false.
   credentialAccess?: boolean;
+  // Self-serve replacement: set on a NEW rental that replaced a restricted one (points to
+  // the old rental's id). The old rental carries status "replaced".
+  replacesRentalId?: string | null;
+  createdAt?: string;
   linkedinAccount: {
     id: string;
     linkedinName: string;
@@ -236,6 +336,15 @@ function DashboardContent() {
   const [meetingSubmissionId, setMeetingSubmissionId] = useState<string | null>(null);
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [openCredsId, setOpenCredsId] = useState<string | null>(null);
+  const [replacingRental, setReplacingRental] = useState<Rental | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 60000); return () => clearInterval(t); }, []);
+  const refreshRentals = () => {
+    fetch("/api/rentals", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.rentals)) setRentals(d.rentals); })
+      .catch(() => {});
+  };
   const [ambassadorAccounts, setAmbassadorAccounts] = useState<AmbassadorAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [usdcBalance, setUsdcBalance] = useState<string>("0");
@@ -460,8 +569,18 @@ function DashboardContent() {
     );
   };
 
-  const activeRentals = rentals.filter((r) => r.status === "active" || r.status === "payment_failed" || r.status === "pending_access");
+  const currentRentals = rentals.filter((r) => r.status === "active" || r.status === "payment_failed" || r.status === "pending_access");
+  // Restricted rentals move to the dedicated Replacements section so the main list stays clean.
+  const restrictedRentals = currentRentals.filter((r) => !!r.linkedinAccount.restrictedAt);
+  const activeRentals = currentRentals.filter((r) => !r.linkedinAccount.restrictedAt);
   const pastRentals = rentals.filter((r) => r.status === "expired" || r.status === "cancelled");
+  // Replacement history: each NEW rental that replaced an old one, paired with the old
+  // (status "replaced") rental so we can show "X → Y". Both are in the rentals list.
+  const rentalById = new Map(rentals.map((r) => [r.id, r]));
+  const replacementHistory = rentals
+    .filter((r) => !!r.replacesRentalId)
+    .map((r) => ({ to: r, from: r.replacesRentalId ? rentalById.get(r.replacesRentalId) : undefined }))
+    .sort((a, b) => (b.to.createdAt || "").localeCompare(a.to.createdAt || ""));
   // Adaptive dashboard: lean ambassador-first if they share/submit accounts.
   const profileKey = (url?: string | null) => (url || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split(/[?#]/)[0].replace(/\/$/, "");
   const matchedAccounts = new Set<string>();
@@ -1139,9 +1258,98 @@ function DashboardContent() {
         )}
       </section>
 
+      {/* Replacements — accounts under recovery + swap flow + history */}
+      {(restrictedRentals.length > 0 || replacementHistory.length > 0) && (
+        <section className="mb-12 order-2">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-1.5 h-10 rounded bg-gradient-to-b from-orange-500 to-orange-700 shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold text-orange-700 leading-tight">Replacements</h2>
+              <p className="text-sm text-gray-500 leading-snug">If an account gets restricted and we can&apos;t recover it, swap it for an equivalent one at no extra cost. You keep your price, billing date, and get credit for the downtime.</p>
+            </div>
+          </div>
+
+          {restrictedRentals.length > 0 && (
+            <Card className="mb-4">
+              <CardContent className="p-0 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3">Account</th>
+                      <th className="px-4 py-3">Restricted</th>
+                      <th className="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {restrictedRentals.map((rental) => {
+                      const initials = rental.linkedinAccount.linkedinName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+                      const restrictedAt = rental.linkedinAccount.restrictedAt!;
+                      const eligible = canReplaceNow(restrictedAt);
+                      const unlockAt = replacementUnlockAt(restrictedAt);
+                      const remMs = Math.max(0, unlockAt - nowTick);
+                      const remH = Math.floor(remMs / 3600000);
+                      const remM = Math.floor((remMs % 3600000) / 60000);
+                      return (
+                        <tr key={rental.id} className="border-b last:border-b-0">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
+                                {rental.linkedinAccount.profilePhotoUrl ? <img src={rental.linkedinAccount.profilePhotoUrl} alt={rental.linkedinAccount.linkedinName} className="h-full w-full object-cover" /> : initials}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900">{rental.linkedinAccount.linkedinName}</p>
+                                <p className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600"><span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />Restricted — recovering it</p>
+                                <p className="text-[10px] text-gray-400">Billing paused while it&apos;s down</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(restrictedAt)}</td>
+                          <td className="px-4 py-3 text-right">
+                            {eligible ? (
+                              <button onClick={() => setReplacingRental(rental)} className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-700 transition-colors whitespace-nowrap">Replace this account</button>
+                            ) : (
+                              <span className="text-[11px] text-gray-500 whitespace-nowrap">We&apos;re recovering it — Replace unlocks in {remH > 0 ? `${remH}h ` : ""}{remM}m</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+
+          {replacementHistory.length > 0 && (
+            <Card>
+              <CardContent className="p-0 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3">Replaced</th>
+                      <th className="px-4 py-3">Now renting</th>
+                      <th className="px-4 py-3">When</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {replacementHistory.map(({ to, from }) => (
+                      <tr key={to.id} className="border-b last:border-b-0">
+                        <td className="px-4 py-3 text-gray-500">{from ? from.linkedinAccount.linkedinName : "A restricted account"}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{to.linkedinAccount.linkedinName}</td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{to.createdAt ? formatDate(to.createdAt) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+        </section>
+      )}
+
       {/* Past Rentals */}
       {pastRentals.length > 0 && (
-        <section className="mb-12 order-2">
+        <section className="mb-12 order-5">
           <details className="group">
             <summary className="mb-4 flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 focus-visible:outline-2 focus-visible:outline-blue-500 [&::-webkit-details-marker]:hidden">
               <h2 className="text-xl font-semibold text-gray-900">Past Rentals <span className="ml-2 text-sm font-normal text-gray-500">({pastRentals.length})</span></h2>
@@ -1191,6 +1399,15 @@ function DashboardContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Replacement picker */}
+      {replacingRental && (
+        <ReplacementPicker
+          rental={replacingRental}
+          onClose={() => setReplacingRental(null)}
+          onReplaced={() => { setReplacingRental(null); refreshRentals(); }}
+        />
       )}
 
       {/* Edit Listing Modal */}
