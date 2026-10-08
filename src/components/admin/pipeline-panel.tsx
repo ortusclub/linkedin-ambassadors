@@ -12,7 +12,7 @@ import { formatName } from "@/lib/utils";
 import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions";
 import { PipelineReferralInvite } from "@/components/admin/pipeline-referral-invite";
 import { OnboardingNotes } from "@/components/admin/onboarding-notes";
-import { ambassadorIssueContact } from "@/lib/issue-contacts";
+import { ambassadorIssueContact, messagingLinks } from "@/lib/issue-contacts";
 import { isApplicationReceived, receiptPatch } from "@/lib/pipeline-received";
 import { useQcChecks } from "@/components/admin/use-qc-checks";
 import TotpCode from "@/app/m/[token]/onboarding/totp";
@@ -541,6 +541,16 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
               </div>
             </div>
             <ToggleFields fields={applicantFields} editing={appEditing} onEdit={() => setEditSec("applicant")} />
+            {!appEditing && r.contactNumber && (() => {
+              const links = messagingLinks(r.contactNumber, r.location);
+              const apps: [keyof typeof links, string][] = [["viber", "Viber"], ["whatsapp", "WhatsApp"], ["telegram", "Telegram"]];
+              const avail = apps.filter(([k]) => links[k]);
+              if (!avail.length) return null;
+              return <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 2 }}>
+                <span style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>Message</span>
+                {avail.map(([k, label]) => <a key={k} href={links[k]} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 11px ${F_SANS}`, color: "var(--link,#0a66c2)", border: "1px solid var(--line,#d6e4fb)", borderRadius: 8, padding: "5px 10px", textDecoration: "none", whiteSpace: "nowrap" }}>{label}</a>)}
+              </div>;
+            })()}
           </PanelCard>
 
           <PanelCard title="Sign-in & credentials" right={
