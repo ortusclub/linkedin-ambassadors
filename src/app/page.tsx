@@ -183,7 +183,7 @@ export default async function HomePage() {
               <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#FF5F57" }} /><span style={{ width: 11, height: 11, borderRadius: "50%", background: "#FEBC2E" }} /><span style={{ width: 11, height: 11, borderRadius: "50%", background: "#28C840" }} />
               <span style={{ flex: 1, textAlign: "center", fontSize: 13, color: "#6B7484" }}>🔒 linkedin.com/in/{isArmy ? "your-operator" : "your-rented-account"}</span>
             </div>
-            {[["#00B85C", "Operator connected", "via proxy: San Francisco, CA"], ["#0A66C2", isArmy ? "You connected" : "Renter connected", "via proxy: San Francisco, CA"]].map(([d, a, b]) => (
+            {[["#00B85C", isArmy ? "Operator connected" : "Ambassador connected", "via proxy: San Francisco, CA"], ["#0A66C2", isArmy ? "You connected" : "Renter connected", "via proxy: San Francisco, CA"]].map(([d, a, b]) => (
               <div key={a} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, marginBottom: 12 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#0B1220", fontWeight: 500 }}><span style={{ width: 9, height: 9, borderRadius: "50%", background: d }} />{a}</span><span style={{ color: "#96A0AD" }}>{b}</span>
               </div>
