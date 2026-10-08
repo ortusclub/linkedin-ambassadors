@@ -11,6 +11,7 @@ import { formatMoney } from "@/lib/referral-currency";
 import { formatName } from "@/lib/utils";
 import { AccountNotes } from "@/components/admin/account-notes";
 import { PipelineIssueActions } from "@/components/admin/pipeline-issue-actions";
+import { PipelineReferralInvite } from "@/components/admin/pipeline-referral-invite";
 import { ambassadorIssueContact } from "@/lib/issue-contacts";
 import { isApplicationReceived, receiptPatch } from "@/lib/pipeline-received";
 import { useQcChecks } from "@/components/admin/use-qc-checks";
@@ -426,6 +427,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
   const [editSec, setEditSec] = useState<string | null>(null);
   const live = isLive(r);
   const onboarded = r.status === "onboarded";
+  const paid = setupPaid(r);
   const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
   const photoUrl = (r.adminNotes || "").match(/Owner photo:\s*(https?:\/\/\S+)/)?.[1] || null;
   const col: CSSProperties = { flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column", gap: 14 };
@@ -550,6 +552,14 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
             </div>}
             {r.referredBy && <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>View referrer →</a>}
           </PanelCard>
+
+          {onboarded && paid && (
+            <PanelCard title="Referral program">
+              <PipelineReferralInvite id={r.id} ambassadorName={r.fullName} referrerName={r.referrer?.name ?? null}
+                ambassador={ambassadorIssueContact(r.email, r.contactNumber, r.contactChannel, r.location)}
+                referrer={r.referrer} referrerToken={r.referrer?.token ?? null} onSent={() => void workflow(r.id, {})} />
+            </PanelCard>
+          )}
 
           <PanelCard title="Activity">
             {meetings.size > 0 && <div style={{ padding: "8px 10px", background: "var(--link-bg,#eaf1ff)", borderRadius: 8, font: `500 11.5px ${F_SANS}`, color: "var(--fg,#111)" }}>
