@@ -359,21 +359,32 @@ export function RestrictionControl({ r, onAccount, onApp, onDeleteEvent }: { r: 
           );
         })}
       </div>
-      {history.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 7, paddingLeft: 2 }}>
-          {history.slice().reverse().map((e, i) => (
-            <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `500 10.5px ${F_SANS}`, color: e.event === "recovered" ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)" }}>
-              {e.event === "recovered" ? "✓ Recovered" : "⚠ Restricted"} {fmtDate(e.at)}{e.creditedDays ? ` (+${e.creditedDays}d credit)` : ""}{e.note ? ` (${e.note})` : ""}
-              {hasAcct && (
-                <button
-                  title="Delete this entry (added by mistake)"
-                  onClick={(ev) => { ev.stopPropagation(); if (confirm(`Delete this ${e.event === "recovered" ? "recovered" : "restricted"} entry from ${fmtDate(e.at)}? This only fixes the history — it doesn't restrict or recover the account.`)) onDeleteEvent(e.at); }}
-                  style={{ font: `700 11px ${F_SANS}`, lineHeight: 1, color: "var(--muted2,#9aa0a6)", background: "none", border: "none", cursor: "pointer", padding: "0 1px" }}>×</button>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
+      {history.length > 0 && (() => {
+        const restrictedCount = history.filter((e) => e.event !== "recovered").length;
+        const rel = (at: string) => { const d = ageDays(at); return d <= 0 ? "today" : d === 1 ? "1d ago" : `${d}d ago`; };
+        return (
+          <div style={{ marginTop: 8, background: "var(--inset,#f7f8fa)", border: "1px solid var(--card-border,#e7ebf0)", borderRadius: 10, padding: "8px 11px" }}>
+            <div style={{ font: `700 9.5px ${F_SANS}`, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--muted2,#9aa0a6)", marginBottom: 7 }}>Restriction history · Restricted {restrictedCount}×</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {history.slice().reverse().map((e, i) => {
+                const recovered = e.event === "recovered";
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
+                    <span style={{ flex: "none", width: 54, font: `500 10.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)", whiteSpace: "nowrap" }} title={fmtDate(e.at)}>{rel(e.at)}</span>
+                    <span style={{ flex: "none", width: 66, font: `700 10.5px ${F_SANS}`, color: recovered ? "var(--st-active-fg,#188038)" : "var(--st-cancel-fg,#c0392b)" }}>{recovered ? "Active" : "Restricted"}</span>
+                    <span style={{ flex: 1, minWidth: 0, font: `500 11px/1.35 ${F_SANS}`, color: "var(--fg,#444)" }}>{recovered ? (e.note ? `Cleared — ${e.note}` : "Cleared") : (e.note || "Restricted")}{e.creditedDays ? ` · +${e.creditedDays}d credit` : ""}</span>
+                    {hasAcct && (
+                      <button title="Delete this entry (added by mistake)"
+                        onClick={(ev) => { ev.stopPropagation(); if (confirm(`Delete this ${recovered ? "recovered" : "restricted"} entry from ${fmtDate(e.at)}? This only fixes the history — it doesn't restrict or recover the account.`)) onDeleteEvent(e.at); }}
+                        style={{ flex: "none", font: `700 12px ${F_SANS}`, lineHeight: 1, color: "var(--muted2,#9aa0a6)", background: "none", border: "none", cursor: "pointer", padding: "0 1px" }}>×</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
       {r.restrictionReport && current === "restricted" && (
         <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: "var(--purple-chip-bg,#efe7fd)", border: "1px solid var(--purple-chip-border,#d9c9fb)", borderRadius: 8, padding: "6px 10px" }}>
           <span style={{ font: `700 10.5px ${F_SANS}`, color: "var(--purple-chip-text,#6b3fd4)" }}>
