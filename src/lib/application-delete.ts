@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { deleteProfile, tokenForAccount } from "@/services/gologin";
 
 // Permanently remove an ambassador application and its onboarding tail.
 //
@@ -27,9 +28,18 @@ export async function deleteApplicationCascade(applicationId: string): Promise<{
   // DIY case: decide whether the created account is safe to remove.
   const account = await prisma.linkedInAccount.findUnique({
     where: { id: onboarding.accountId },
-    select: { id: true, listed: true, _count: { select: { rentals: true } } },
+    select: { id: true, listed: true, gologinProfileId: true, gologinAccount: true, _count: { select: { rentals: true } } },
   });
   const accountSafeToDelete = !!account && !account.listed && account._count.rentals === 0;
+
+  // The created account is throwaway and about to be deleted — remove its GoLogin browser
+  // profile first so it isn't left orphaned in GoLogin (the proxy frees itself: it lives on the
+  // account row, which is going away). Best-effort; a failed remote delete must not block the
+  // local cleanup, or the application could never be deleted.
+  if (accountSafeToDelete && account?.gologinProfileId) {
+    try { await deleteProfile(account.gologinProfileId, tokenForAccount(account.gologinAccount)); }
+    catch (e) { console.error("deleteApplicationCascade: GoLogin profile delete failed (continuing):", e); }
+  }
 
   await prisma.$transaction(async (tx) => {
     // Onboarding email records (session_id -> SelfServiceOnboarding.id).
