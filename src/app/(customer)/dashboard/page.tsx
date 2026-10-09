@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { formatMoney } from "@/lib/referral-currency";
 import { useMeetingTimeZone } from "@/components/use-meeting-time-zone";
 import { CompactDetail } from "@/components/compact-detail";
@@ -17,40 +17,45 @@ import { CardTopUp } from "./card-topup";
 import { AutoRecharge } from "./auto-recharge";
 import { canShowRentalShareLink, isRentalBeingPrepared } from "@/lib/rental-dashboard-access";
 import { startDashboardTour } from "@/lib/dashboard-tour";
-import { canReplaceNow, replacementUnlockAt } from "@/lib/replacement";
+import { canReplaceNow, replacementUnlockAt, REPLACEMENT_HOLD_MS } from "@/lib/replacement";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 
-// Renter action: reveal the two links for a rented account, each clearly
-// labelled — the LinkedIn profile URL (opens the actual LinkedIn page) and the
-// GoLogin share link (opens the profile in GoLogin). Click to reveal + copy.
-function RevealShareLink({ link }: { link: string | null; linkedinUrl?: string | null }) {
-  const [shown, setShown] = useState(false);
-  const [copied, setCopied] = useState(false);
-  if (!link) return null;
-  const copy = () => {
-    try { navigator.clipboard?.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch {}
-  };
-  if (!shown) {
-    return (
-      <button
-        onClick={() => setShown(true)}
-        className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap cursor-pointer border-none"
-      >
-        Reveal GoLogin share link
-      </button>
-    );
-  }
+// Renter Dashboard v2 typography (scoped to this page, no layout change).
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["500", "700"], display: "swap" });
+
+// v2 palette
+const V = {
+  blue: "#1550e8", green: "#12a150", ground: "#f6f8fb", text: "#0b1220",
+  muted: "#5b6779", faint: "#8a93a3", border: "#e6e9ee", line: "#eef0f4",
+  orange: "#ea580c", orangeDeep: "#c2410c", warnBg: "#fff7ed", warnBorder: "#fed7aa",
+};
+
+// Human-friendly duration from a start date to now (e.g. "3 months", "5 days", "today").
+function humanDuration(from: string | Date): string {
+  const d = Math.round((Date.now() - new Date(from).getTime()) / 864e5);
+  if (d < 1) return "today";
+  if (d < 31) return `${d} ${d === 1 ? "day" : "days"}`;
+  const m = Math.floor(d / 30.4);
+  return `${m} ${m === 1 ? "month" : "months"}`;
+}
+
+const initialsOf = (name: string) => name.split(" ").filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+
+// Small "in ↗" chip linking out to the real LinkedIn profile.
+function LinkedInChip({ url, onClick }: { url?: string | null; onClick?: (e: React.MouseEvent) => void }) {
+  if (!url) return null;
   return (
-    <span className="inline-flex items-center gap-2">
-      <a href={link} target="_blank" rel="noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap no-underline">
-        Open in GoLogin ↗
-      </a>
-      <button
-        onClick={copy}
-        className="shrink-0 rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer whitespace-nowrap"
-      >
-        {copied ? "Copied" : "Copy link"}
-      </button>
+    <a href={url} target="_blank" rel="noreferrer" title="View LinkedIn profile" onClick={onClick}
+      style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 7px", borderRadius: 7, background: "#e8f0fe", color: "#0a66c2", font: "800 11.5px/1.2 inherit", textDecoration: "none" }}>
+      in <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}><path d="M2.5 7.5L7.5 2.5M3.5 2.5h4v4" /></svg>
+    </a>
+  );
+}
+function VerifiedBadge() {
+  return (
+    <span title="Verified account" style={{ flex: "none", display: "inline-grid", placeItems: "center", width: 22, height: 19, borderRadius: 7, background: "#e8f0fe", color: V.blue }}>
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}><path d="M2.5 6.3l2.3 2.3 4.7-5" /></svg>
     </span>
   );
 }
@@ -168,13 +173,14 @@ interface ReplacementOption {
   monthlyPrice: number;
 }
 
-// Picker modal for swapping a restricted rental to an equivalent available account.
+// Picker modal for swapping a restricted rental to an equivalent available account (v2).
 function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; onClose: () => void; onReplaced: () => void }) {
   const [options, setOptions] = useState<ReplacementOption[]>([]);
   const [oldPrice, setOldPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [filt, setFilt] = useState<"all" | "same" | "lower">("all");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -200,58 +206,59 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
     } catch { setError("Replacement failed — try again."); setSubmitting(false); }
   };
 
-  const initials = (name: string) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  const shown = options.filter((o) => filt === "all" ? true : filt === "same" ? (oldPrice != null && o.monthlyPrice === oldPrice) : (oldPrice != null && o.monthlyPrice < oldPrice));
+  const picked = options.find((o) => o.id === selected);
+  const summary = picked && oldPrice != null
+    ? (picked.monthlyPrice < oldPrice ? `New rate $${picked.monthlyPrice}/mo from your next billing (was $${oldPrice}).` : `Same rate, $${oldPrice}/mo.`)
+    : "Pick an account to continue.";
+  const chip = (k: "all" | "same" | "lower", label: string) => (
+    <button onClick={() => setFilt(k)} style={{ borderRadius: 999, padding: "5px 12px", font: "700 12px inherit", cursor: "pointer", border: `1px solid ${filt === k ? V.text : "#d5dbe5"}`, background: filt === k ? V.text : "#fff", color: filt === k ? "#fff" : V.text }}>{label}</button>
+  );
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div onClick={(e) => e.stopPropagation()} className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between border-b px-6 py-4">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Replace {rental.linkedinAccount.linkedinName}</h2>
-            <p className="mt-0.5 text-sm text-gray-500">Pick an available account to switch to. You keep your current price and billing date, plus credit for the downtime.</p>
-            {oldPrice != null && <p className="mt-1 text-xs text-gray-400">Showing accounts at the same tier or lower{oldPrice ? ` (up to the $${oldPrice}/mo tier)` : ""}. Your rate doesn&apos;t change.</p>}
+    <div onClick={onClose} className={jakarta.className} style={{ position: "fixed", inset: 0, background: "rgba(11,18,32,.45)", display: "grid", placeItems: "center", padding: 20, zIndex: 50, color: V.text }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, maxHeight: "calc(100vh - 40px)", background: "#fff", borderRadius: 18, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px rgba(11,18,32,.25)" }}>
+        <div style={{ padding: "20px 22px 14px", display: "flex", flexDirection: "column", gap: 6, borderBottom: `1px solid ${V.line}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ font: "800 19px inherit" }}>Replace {rental.linkedinAccount.linkedinName}</span>
+            <button onClick={onClose} style={{ marginLeft: "auto", border: "none", background: "none", font: "500 22px inherit", color: V.faint, cursor: "pointer", lineHeight: 1 }}>×</button>
           </div>
-          <button onClick={onClose} className="ml-3 text-2xl leading-none text-gray-400 hover:text-gray-600">×</button>
+          <span style={{ font: "500 13px/1.5 inherit", color: V.muted }}>Pick any account at ${oldPrice ?? "—"}/mo or lower. Your billing date stays the same and you keep the downtime credit.</span>
+          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>{chip("all", "All")}{chip("same", "Same price")}{chip("lower", "Lower price")}</div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+        <div style={{ overflow: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
           {loading ? (
-            <p className="py-8 text-center text-sm text-gray-500">Loading available accounts…</p>
+            <p style={{ padding: "32px 0", textAlign: "center", font: "500 13px inherit", color: V.muted }}>Loading available accounts…</p>
           ) : error && options.length === 0 ? (
-            <p className="py-8 text-center text-sm text-red-600">{error}</p>
-          ) : options.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-500">No equivalent accounts are available right now. Please check back soon or contact our team.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {options.map((o) => (
-                <button key={o.id} onClick={() => setSelected(o.id)}
-                  className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-colors ${selected === o.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
-                    {o.profilePhotoUrl ? <img src={o.profilePhotoUrl} alt={o.linkedinName} className="h-full w-full object-cover" /> : initials(o.linkedinName)}
+            <p style={{ padding: "32px 0", textAlign: "center", font: "500 13px inherit", color: "#b91c1c" }}>{error}</p>
+          ) : shown.length === 0 ? (
+            <p style={{ padding: "32px 0", textAlign: "center", font: "500 13px inherit", color: V.muted }}>{options.length === 0 ? "No equivalent accounts are available right now. Please check back soon or contact our team." : "No accounts match this filter."}</p>
+          ) : shown.map((o) => {
+            const on = selected === o.id;
+            return (
+              <div key={o.id} onClick={() => setSelected(o.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", borderRadius: 12, cursor: "pointer", border: `1.5px solid ${on ? V.blue : V.border}`, background: on ? "#f5f8ff" : "#fff" }}>
+                <div style={{ flex: "none", width: 38, height: 38, borderRadius: "50%", background: "#e8eefc", color: V.blue, display: "grid", placeItems: "center", font: "700 13px inherit", overflow: "hidden" }}>
+                  {o.profilePhotoUrl ? <img src={o.profilePhotoUrl} alt={o.linkedinName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initialsOf(o.linkedinName)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <span style={{ font: "700 14px inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.linkedinName}</span>
+                    {o.linkedinVerified && <VerifiedBadge />}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-gray-900">{o.linkedinName}</p>
-                    {o.linkedinHeadline && <p className="truncate text-xs text-gray-500">{o.linkedinHeadline}</p>}
-                    <p className="mt-0.5 text-[11px] text-gray-400">{o.connectionCount.toLocaleString()} connections{o.location ? ` · ${o.location}` : ""}</p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600" title="Standard monthly rate for this account's tier">${o.monthlyPrice}/mo tier</span>
-                      {o.linkedinVerified && <span className="inline-flex items-center gap-0.5 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700" title="LinkedIn verified">✓ Verified</span>}
-                      {o.hasSalesNav && <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700" title="Includes Sales Navigator">Sales Nav</span>}
-                    </div>
-                  </div>
-                  <span className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border ${selected === o.id ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300"}`}>{selected === o.id ? "✓" : ""}</span>
-                </button>
-              ))}
-            </div>
-          )}
+                  <div style={{ font: "500 12px inherit", color: V.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[o.linkedinHeadline, `${o.connectionCount.toLocaleString()} connections`, o.location].filter(Boolean).join(" · ")}</div>
+                </div>
+                <span style={{ flex: "none", font: "700 13px inherit" }}>${o.monthlyPrice}<span style={{ fontWeight: 500, color: V.faint }}>/mo</span></span>
+                <span style={{ flex: "none", width: 18, height: 18, borderRadius: "50%", border: `2px solid ${on ? V.blue : "#c3c9d3"}`, display: "grid", placeItems: "center" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: on ? V.blue : "transparent" }} /></span>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
-          {error && options.length > 0 ? <span className="text-xs text-red-600">{error}</span> : <span />}
-          <div className="flex gap-2">
-            <button onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
-            <button onClick={confirm} disabled={!selected || submitting} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{submitting ? "Switching…" : "Confirm replacement"}</button>
-          </div>
+        <div style={{ padding: "14px 22px", borderTop: `1px solid ${V.line}`, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ flex: "1 1 200px", font: "500 12.5px/1.45 inherit", color: error && options.length > 0 ? "#b91c1c" : V.muted }}>{error && options.length > 0 ? error : summary}</span>
+          <button onClick={onClose} style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 9, padding: "9px 14px", font: "600 13px inherit", cursor: "pointer" }}>Cancel</button>
+          <button onClick={confirm} disabled={!picked || submitting} style={{ border: "none", background: picked && !submitting ? V.blue : "#a9c0f7", color: "#fff", borderRadius: 9, padding: "9px 16px", font: "700 13px inherit", cursor: picked ? "pointer" : "default" }}>{submitting ? "Switching…" : "Confirm replacement"}</button>
         </div>
       </div>
     </div>
@@ -275,6 +282,8 @@ interface Rental {
   // the old rental's id). The old rental carries status "replaced".
   replacesRentalId?: string | null;
   createdAt?: string;
+  // What the renter pays (locked rate, else the account's current tier price).
+  price?: number;
   linkedinAccount: {
     id: string;
     linkedinName: string;
@@ -284,6 +293,7 @@ interface Rental {
     accountPassword?: string | null;
     profilePhotoUrl: string | null;
     connectionCount: number;
+    linkedinVerified?: boolean;
     gologinProfileId: string | null;
     gologinShareLink: string | null;
     restrictedAt: string | null;
@@ -344,6 +354,8 @@ function DashboardContent() {
   const [meetingSubmissionId, setMeetingSubmissionId] = useState<string | null>(null);
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [openCredsId, setOpenCredsId] = useState<string | null>(null);
+  const [openLinkId, setOpenLinkId] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState<string | null>(null);
   const [replacingRental, setReplacingRental] = useState<Rental | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 60000); return () => clearInterval(t); }, []);
@@ -569,26 +581,25 @@ function DashboardContent() {
     setEditingAccount(null);
   };
 
-  const handleCancel = async (rentalId: string) => {
-    if (!confirm("Are you sure you want to cancel this rental?")) return;
-    await fetch(`/api/rentals/${rentalId}/cancel`, { method: "POST" });
-    setRentals((prev) =>
-      prev.map((r) => (r.id === rentalId ? { ...r, autoRenew: false } : r))
-    );
+  const toggleAutoRenew = async (rental: Rental) => {
+    const newVal = !rental.autoRenew;
+    const res = await fetch(`/api/rentals/${rental.id}/auto-renew`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ autoRenew: newVal }),
+    });
+    if (res.ok) setRentals((prev) => prev.map((r) => (r.id === rental.id ? { ...r, autoRenew: newVal } : r)));
   };
 
   const currentRentals = rentals.filter((r) => r.status === "active" || r.status === "payment_failed" || r.status === "pending_access");
-  // Restricted rentals move to the dedicated Replacements section so the main list stays clean.
-  const restrictedRentals = currentRentals.filter((r) => !!r.linkedinAccount.restrictedAt);
-  const activeRentals = currentRentals.filter((r) => !r.linkedinAccount.restrictedAt);
-  const pastRentals = rentals.filter((r) => r.status === "expired" || r.status === "cancelled");
-  // Replacement history: each NEW rental that replaced an old one, paired with the old
-  // (status "replaced") rental so we can show "X → Y". Both are in the rentals list.
-  const rentalById = new Map(rentals.map((r) => [r.id, r]));
-  const replacementHistory = rentals
-    .filter((r) => !!r.replacesRentalId)
-    .map((r) => ({ to: r, from: r.replacesRentalId ? rentalById.get(r.replacesRentalId) : undefined }))
-    .sort((a, b) => (b.to.createdAt || "").localeCompare(a.to.createdAt || ""));
+  // v2: restricted accounts stay inline in the main table, sorted to the top (then active, then preparing).
+  const rentalRank = (r: Rental) => (r.linkedinAccount.restrictedAt ? 0 : isRentalBeingPrepared(r) ? 2 : 1);
+  const sortedRentals = [...currentRentals].sort((a, b) => rentalRank(a) - rentalRank(b));
+  const restrictedCount = currentRentals.filter((r) => !!r.linkedinAccount.restrictedAt).length;
+  // Downtime credit accrued so far across restricted accounts (added to the rental on recovery).
+  const downtimeCreditDays = currentRentals.reduce((t, r) => (r.linkedinAccount.restrictedAt ? t + Math.max(0, Math.round((nowTick - new Date(r.linkedinAccount.restrictedAt).getTime()) / 864e5)) : t), 0);
+  // Past rentals incl. "replaced" (the old side of a swap); newest first.
+  const pastRentals = rentals
+    .filter((r) => ["expired", "cancelled", "replaced"].includes(r.status))
+    .sort((a, b) => (b.createdAt || b.startDate || "").localeCompare(a.createdAt || a.startDate || ""));
   // Adaptive dashboard: lean ambassador-first if they share/submit accounts.
   const profileKey = (url?: string | null) => (url || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split(/[?#]/)[0].replace(/\/$/, "");
   const matchedAccounts = new Set<string>();
@@ -610,22 +621,9 @@ function DashboardContent() {
     { label: "Accounts being onboarded", rows: sharedAccounts.filter(sub => !isOnboardedAccount(sub)) },
   ];
   const isAmbassador = ambassadorAccounts.length > 0 || submissions.length > 0;
-  const hasRealRentals = activeRentals.length > 0 || pastRentals.length > 0;
+  const hasRealRentals = currentRentals.length > 0 || pastRentals.length > 0;
   const showRenterSide = !isAmbassador || hasRealRentals; // pure ambassadors hide renter-only bits
 
-  const statusBadge = (status: string) => {
-    const map: Record<string, "success" | "warning" | "danger" | "default" | "info"> = {
-      active: "success",
-      payment_failed: "danger",
-      expired: "default",
-      cancelled: "default",
-      under_review: "warning",
-      available: "info",
-      rented: "success",
-      maintenance: "warning",
-    };
-    return <Badge variant={map[status] || "default"}>{status.replace("_", " ")}</Badge>;
-  };
 
   if (loading) {
     return (
@@ -640,7 +638,7 @@ function DashboardContent() {
   const showRentalSuccess = searchParams.get("rental") === "success";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className={`mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 ${jakarta.className}`} style={{ color: V.text }}>
       <div className="flex items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
         <div className="flex items-center gap-2">
@@ -751,6 +749,12 @@ function DashboardContent() {
                   <p className="text-xs text-gray-500 font-medium">Balance</p>
                   <p className="text-xl font-bold text-gray-900 -mt-0.5">${parseFloat(usdcBalance).toFixed(2)}</p>
                 </div>
+                {downtimeCreditDays > 0 && (
+                  <div className="pl-4 border-l border-gray-100">
+                    <p className="text-xs text-gray-500 font-medium">Downtime credit <span className="text-gray-400">· added to your rental</span></p>
+                    <p className="text-base font-bold -mt-0.5" style={{ color: V.green }}>+{downtimeCreditDays} {downtimeCreditDays === 1 ? "day" : "days"}</p>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1084,297 +1088,199 @@ function DashboardContent() {
         </section>
       )}
 
-      {/* Accounts I'm Renting — always shown (empty state when none) */}
+      {/* Accounts I'm renting (v2) — restricted sorted to top, inline */}
       <section data-tour="rentals" className="mb-12 order-1">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-1.5 h-10 rounded bg-gradient-to-b from-[#0A66C2] to-[#004182] shrink-0" />
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold text-[#004182] leading-tight">Accounts I&apos;m Renting</h2>
-            <p className="text-sm text-gray-500 leading-snug">Accounts you&apos;re renting from other members — open them in GoLogin. <Link href="/account-guide-v2" className="font-semibold text-[#0A66C2] hover:underline">Account guide →</Link></p>
-          </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+          <h2 style={{ margin: 0, font: "800 20px inherit", letterSpacing: "-.01em", color: V.text }}>Accounts I&apos;m renting</h2>
+          <span style={{ font: "600 13px inherit", color: V.faint }}>{currentRentals.length} {currentRentals.length === 1 ? "account" : "accounts"}</span>
+          <Link href="/account-guide-v2" style={{ marginLeft: "auto", font: "600 13px inherit", color: V.blue, textDecoration: "none" }}>Account guide →</Link>
         </div>
-        {activeRentals.length > 0 && (
-          <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-            <svg className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
-            <p className="leading-snug">
-              <strong>Don&apos;t see your rented profile yet?</strong> Click <strong>Reveal GoLogin share link</strong> beside a ready account, open the URL in a browser signed in to GoLogin with this same email, then <strong>refresh GoLogin (Cmd + R on Mac or Ctrl + R on Windows)</strong> — your profile appears under <strong>&quot;Shared with me.&quot;</strong> It can take a minute or two to appear. Accounts marked Being prepared will show their access link after handover.
-            </p>
+
+        {restrictedCount > 0 && (
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "11px 14px", background: V.warnBg, border: `1px solid ${V.warnBorder}`, borderRadius: 11, font: "500 13px/1.5 inherit", color: "#7c2d12", marginBottom: 12 }}>
+            <span style={{ flex: "none", width: 18, height: 18, borderRadius: "50%", background: V.orange, color: "#fff", display: "grid", placeItems: "center", font: "800 11px inherit", marginTop: 1 }}>!</span>
+            <span><b>{restrictedCount === 1 ? "1 account is restricted." : `${restrictedCount} accounts are restricted.`}</b> Billing is paused and you get those days added back to your rental while we try to recover it (up to 2 days). If we can&apos;t, replace it with any account at the same price or lower.</span>
           </div>
         )}
-        {(activeRentals.length === 0 && isAmbassador) ? (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-gray-500">
-              You&apos;re not renting any accounts yet.{" "}
-              <Link href="/catalogue" className="font-semibold text-[#0A66C2] hover:underline">Browse accounts to rent →</Link>
-            </CardContent>
-          </Card>
+
+        {currentRentals.length === 0 ? (
+          <div style={{ background: "#fff", border: "1px dashed #d5dbe5", borderRadius: 14, padding: 22, textAlign: "center", font: "500 13.5px inherit", color: V.muted }}>
+            You&apos;re not renting any accounts yet. <Link href="/catalogue" style={{ color: V.blue, fontWeight: 600 }}>Browse accounts to rent →</Link>
+          </div>
         ) : (
-        <Card>
-            <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    <th className="px-4 py-3">Profile</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Started</th>
-                    <th className="px-4 py-3">Next Billing</th>
-                    <th className="px-4 py-3">Auto-Renew</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-            {activeRentals.map((rental) => {
-              const initials = rental.linkedinAccount.linkedinName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-              // Tiered credential access is an explicit per-renter admin opt-in, so when it's
-              // on we show sign-in details for every account they currently rent — shadow or
-              // not, and even while GoLogin access is still being prepared (credentials are a
-              // direct-login path that doesn't depend on the GoLogin share). activeRentals is
-              // already limited to current rentals (active / pending_access / payment_failed).
-              const canSeeCreds = !!rental.credentialAccess;
-              const credsOpen = openCredsId === rental.id;
-              return (
-                <Fragment key={rental.id}>
-                <tr className={credsOpen ? "" : "border-b"}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex-shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
-                          {rental.linkedinAccount.profilePhotoUrl ? (
-                            <img src={rental.linkedinAccount.profilePhotoUrl} alt={rental.linkedinAccount.linkedinName} className="h-full w-full rounded-full object-cover" />
-                          ) : (
-                            initials
-                          )}
+          <div style={{ background: "#fff", border: `1px solid ${V.border}`, borderRadius: 14, overflowX: "auto" }}>
+            <div style={{ minWidth: 820 }}>
+              {sortedRentals.map((rental, i) => {
+                const acct = rental.linkedinAccount;
+                const R = !!acct.restrictedAt;
+                const prep = isRentalBeingPrepared(rental);
+                const ready = canShowRentalShareLink(rental) && !!acct.gologinShareLink;
+                const eligible = R && canReplaceNow(acct.restrictedAt!);
+                const remH = R ? Math.max(0, Math.ceil((replacementUnlockAt(acct.restrictedAt!) - nowTick) / 3600000)) : 0;
+                const creditDays = R ? Math.max(0, Math.round((nowTick - new Date(acct.restrictedAt!).getTime()) / 864e5)) : 0;
+                const progress = R ? Math.min(100, Math.max(0, (nowTick - new Date(acct.restrictedAt!).getTime()) / REPLACEMENT_HOLD_MS * 100)) : 0;
+                const canSeeCreds = !!rental.credentialAccess;
+                const credsOpen = openCredsId === rental.id;
+                const linkOpen = openLinkId === rental.id;
+
+                let sc = V.green, sl = "Active", ss = "Ready in GoLogin";
+                if (R) {
+                  sc = eligible ? "#b91c1c" : V.orangeDeep;
+                  sl = eligible ? "Restricted · couldn't recover it" : "Restricted · recovering it";
+                  ss = `Billing paused · ${creditDays >= 1 ? `${creditDays} ${creditDays === 1 ? "day" : "days"} credited` : "credit accruing"}`;
+                } else if (prep) { sc = V.faint; sl = "Being prepared"; ss = "We'll email you at handover"; }
+                else if (rental.paused) { sc = V.faint; sl = "Paused"; ss = "Access paused"; }
+                else if (rental.status === "payment_failed") { sc = "#b91c1c"; sl = "Payment issue"; ss = "Update your balance or card"; }
+                else if (ready) { sc = V.green; sl = "Active"; ss = "Ready in GoLogin"; }
+                else { sc = V.faint; sl = "Awaiting access"; ss = "Share link not available yet"; }
+
+                const billL = R ? "Billing" : prep ? "Billing" : rental.autoRenew ? "Renews" : "Ends";
+                const billV = R ? "Paused" : prep ? "Starts at handover" : rental.currentPeriodEnd ? formatDate(rental.currentPeriodEnd) : "—";
+                const shareUrl = acct.gologinShareLink;
+
+                return (
+                  <div key={rental.id} style={{ borderTop: i === 0 ? "none" : `1px solid ${V.line}`, background: R ? "#fffaf5" : "#fff" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1.2fr) 140px 250px", alignItems: "center", gap: "12px 20px", padding: "14px 18px" }}>
+                      {/* profile */}
+                      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ flex: "none", width: 40, height: 40, borderRadius: "50%", background: "#e8eefc", color: V.blue, display: "grid", placeItems: "center", font: "700 14px inherit", overflow: "hidden" }}>
+                          {acct.profilePhotoUrl ? <img src={acct.profilePhotoUrl} alt={acct.linkedinName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initialsOf(acct.linkedinName)}
                         </div>
-                        {rental.linkedinAccount.linkedinUrl && (
-                          <a href={rental.linkedinAccount.linkedinUrl} target="_blank" rel="noreferrer" title="Open the LinkedIn profile"
-                            className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#0A66C2] text-[9px] font-bold leading-none text-white ring-2 ring-white hover:bg-[#004182]">in</a>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                            <span style={{ font: "700 14.5px inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{acct.linkedinName}</span>
+                            <LinkedInChip url={acct.linkedinUrl} />
+                            {acct.linkedinVerified && <VerifiedBadge />}
+                          </div>
+                          <div style={{ font: "500 12.5px inherit", color: V.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[acct.linkedinHeadline, rental.price != null ? `$${rental.price}/mo` : null].filter(Boolean).join(" · ")}</div>
+                          <div style={{ font: "500 11.5px inherit", color: V.faint, whiteSpace: "nowrap" }}>Renting since {formatDate(rental.startDate)} · {humanDuration(rental.startDate)}</div>
+                        </div>
+                      </div>
+                      {/* status */}
+                      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, font: "700 13px inherit", color: sc }}>
+                          <span style={{ width: 7, height: 7, borderRadius: "50%", background: sc }} />{sl}
+                        </div>
+                        <span style={{ font: "500 12px inherit", color: V.faint }}>{ss}</span>
+                        {R && !eligible && (
+                          <div style={{ height: 4, maxWidth: 170, borderRadius: 4, background: "#fde3cc", overflow: "hidden" }}><div style={{ height: "100%", width: `${progress}%`, background: V.orange }} /></div>
                         )}
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{rental.linkedinAccount.linkedinName}</p>
-                        {rental.linkedinAccount.linkedinHeadline && (
-                          <p className="text-xs text-gray-500">{rental.linkedinAccount.linkedinHeadline}</p>
+                      {/* billing */}
+                      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                        <span style={{ font: "500 12px inherit", color: V.faint }}>{billL}</span>
+                        <span style={{ font: "700 13.5px inherit" }}>{billV}</span>
+                        {!R && !prep && rental.status === "active" && (
+                          <button onClick={() => toggleAutoRenew(rental)} title="Turn auto-renew on or off" style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 999, padding: "3px 10px 3px 4px", font: "700 11.5px inherit", cursor: "pointer", background: rental.autoRenew ? "#e7f7ee" : "#f1f3f6", color: rental.autoRenew ? "#0f7a3d" : V.muted }}>
+                            <span style={{ width: 22, height: 14, borderRadius: 999, background: rental.autoRenew ? V.green : "#c3c9d3", position: "relative", display: "block" }}><span style={{ position: "absolute", top: 2, left: rental.autoRenew ? 10 : 2, width: 10, height: 10, borderRadius: "50%", background: "#fff" }} /></span>
+                            {rental.autoRenew ? "Auto-renew on" : "Auto-renew off"}
+                          </button>
                         )}
-                        {rental.shadowExitAt && <p className="text-xs text-amber-700 mt-1">Exit by {new Date(rental.shadowExitAt).toLocaleString()} — handover notice</p>}
-                        {rental.linkedinAccount.accountEmail && (
-                          <p className="text-xs text-gray-400 mt-0.5 break-all">{rental.linkedinAccount.accountEmail}</p>
+                      </div>
+                      {/* actions */}
+                      <div style={{ minWidth: 0, display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                        {R ? (
+                          eligible ? (
+                            <button onClick={() => setReplacingRental(rental)} style={{ border: "none", background: V.orange, color: "#fff", borderRadius: 8, padding: "8px 14px", font: "700 12.5px inherit", cursor: "pointer", whiteSpace: "nowrap" }}>Replace account</button>
+                          ) : (
+                            <span title="You can replace it if we haven't recovered it by then" style={{ border: "1px dashed #f5c39b", color: "#9a3412", borderRadius: 8, padding: "7px 12px", font: "600 12.5px inherit", whiteSpace: "nowrap" }}>Replace option in {remH}h</span>
+                          )
+                        ) : prep ? (
+                          <span style={{ font: "600 12.5px inherit", color: V.faint, padding: "8px 0" }}>Access link after handover</span>
+                        ) : ready ? (
+                          <>
+                            <button onClick={() => setOpenLinkId((p) => (p === rental.id ? null : rental.id))} style={{ border: "none", background: V.blue, color: "#fff", borderRadius: 8, padding: "8px 13px", font: "700 12.5px inherit", cursor: "pointer", whiteSpace: "nowrap" }}>{linkOpen ? "Hide link" : "Open in GoLogin"}</button>
+                            {canSeeCreds && <button onClick={() => setOpenCredsId((p) => (p === rental.id ? null : rental.id))} style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, borderRadius: 8, padding: "7px 12px", font: "700 12.5px inherit", cursor: "pointer", whiteSpace: "nowrap" }}>{credsOpen ? "Hide sign-in" : "Sign-in details"}</button>}
+                          </>
+                        ) : (
+                          <span style={{ font: "600 12.5px inherit", color: V.faint, padding: "8px 0" }}>Share link not available yet</span>
                         )}
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {rental.linkedinAccount.restrictedAt ? (
-                      <div>
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
-                          <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
-                          Restricted — recovering it
-                        </span>
-                        <div className="text-[10px] text-gray-400 mt-0.5">Billing paused — not charged while it&apos;s down</div>
+
+                    {linkOpen && shareUrl && (
+                      <div style={{ margin: "0 18px 16px", padding: 14, background: "#f5f8ff", border: "1px solid #dfe7fb", borderRadius: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          <span className={mono.className} style={{ flex: "1 1 280px", minWidth: 0, background: "#fff", border: "1px solid #d5dbe5", borderRadius: 8, padding: "8px 10px", font: "500 12.5px inherit", color: V.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shareUrl}</span>
+                          <button onClick={() => { try { navigator.clipboard?.writeText(shareUrl); setLinkCopied(rental.id); setTimeout(() => setLinkCopied(null), 1500); } catch {} }} style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 8, padding: "7px 12px", font: "600 12.5px inherit", cursor: "pointer" }}>{linkCopied === rental.id ? "Copied" : "Copy"}</button>
+                          <a href={shareUrl} target="_blank" rel="noreferrer" style={{ background: V.blue, color: "#fff", borderRadius: 8, padding: "8px 13px", font: "700 12.5px inherit", textDecoration: "none" }}>Open link ↗</a>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10 }}>
+                          {[
+                            "Open the link in a browser signed in to GoLogin with this same email",
+                            "Refresh GoLogin: Cmd + R on Mac, Ctrl + R on Windows",
+                            "Find it under “Shared with me”. It can take a minute or two.",
+                          ].map((step, si) => (
+                            <div key={si} style={{ display: "flex", gap: 8, font: "500 12.5px/1.45 inherit", color: "#3b4657" }}>
+                              <span style={{ flex: "none", width: 20, height: 20, borderRadius: "50%", background: V.blue, color: "#fff", display: "grid", placeItems: "center", font: "700 11px inherit" }}>{si + 1}</span>
+                              <span>{step}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ) : rental.paused ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                        Paused
-                      </span>
-                    ) : canShowRentalShareLink(rental) && rental.linkedinAccount.gologinShareLink ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                        Active
-                      </span>
-                    ) : isRentalBeingPrepared(rental) ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-                        Being prepared
-                      </span>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${rental.status === "active" ? "text-green-600" : "text-red-600"}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${rental.status === "active" ? "bg-green-500" : "bg-red-500"}`} />
-                        {rental.status === "active" ? "Active" : rental.status === "pending_access" ? "Awaiting access" : rental.status.replace("_", " ")}
-                      </span>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{rental.handoverAt ? "Starts on handover" : formatDate(rental.startDate)}</td>
-                  <td className="px-4 py-3 text-gray-500">{rental.handoverAt ? "One month after handover" : rental.currentPeriodEnd ? formatDate(rental.currentPeriodEnd) : "—"}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={async () => {
-                        const newVal = !rental.autoRenew;
-                        const res = await fetch(`/api/rentals/${rental.id}/auto-renew`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ autoRenew: newVal }),
-                        });
-                        if (res.ok) {
-                          setRentals((prev) => prev.map((r) => r.id === rental.id ? { ...r, autoRenew: newVal } : r));
-                        }
-                      }}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${rental.autoRenew ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                    >
-                      <span className={`inline-block w-2 h-2 rounded-full ${rental.autoRenew ? 'bg-green-500' : 'bg-gray-400'}`} />
-                      {rental.autoRenew ? "On" : "Off"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      {/* Shadow renters can use an existing share link while email sharing is pending. */}
-                      {canShowRentalShareLink(rental) && rental.linkedinAccount.gologinShareLink ? (
-                        <RevealShareLink link={rental.linkedinAccount.gologinShareLink} linkedinUrl={rental.linkedinAccount.linkedinUrl} />
-                      ) : rental.linkedinAccount.restrictedAt ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600 whitespace-nowrap" title="LinkedIn restricted this account — we're recovering it. No action needed.">
-                          Recovering…
-                        </span>
-                      ) : rental.paused ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-400 whitespace-nowrap">
-                          Access paused
-                        </span>
-                      ) : rental.status === "pending_access" ? (
-                        <span className="text-[11px] text-gray-400 whitespace-nowrap">{isRentalBeingPrepared(rental) ? "Being prepared" : "Awaiting access"}{isRentalBeingPrepared(rental) && rental.handoverAt ? ` — expected ${formatDate(rental.handoverAt)}. Your paid month starts when access is ready.` : " — share link not available yet."} <a href="/guide" className="text-blue-600 hover:underline">Guide</a></span>
-                      ) : null}
-                      {canSeeCreds && (
-                        <button
-                          onClick={() => setOpenCredsId((prev) => (prev === rental.id ? null : rental.id))}
-                          className="rounded-md border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 transition-colors whitespace-nowrap"
-                        >
-                          {credsOpen ? "Hide sign-in details" : "Show sign-in details"}
-                        </button>
-                      )}
-                      {rental.autoRenew && (
-                        <button
-                          onClick={() => handleCancel(rental.id)}
-                          className="rounded-md border border-yellow-300 px-2.5 py-1 text-xs font-medium text-yellow-700 hover:bg-yellow-50 transition-colors"
-                        >
-                          Cancel Renewal
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-                {canSeeCreds && credsOpen && (
-                  <tr className="border-b">
-                    <td colSpan={6} className="px-4 pb-4 pt-0">
-                      <RentalCredentials rental={rental} />
-                    </td>
-                  </tr>
-                )}
-                </Fragment>
-              );
-            })}
-                </tbody>
-              </table>
-            </CardContent>
-        </Card>
+
+                    {canSeeCreds && credsOpen && (
+                      <div style={{ padding: "0 18px 16px" }}>
+                        <RentalCredentials rental={rental} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </section>
 
-      {/* Replacements — accounts under recovery + swap flow + history */}
-      {(restrictedRentals.length > 0 || replacementHistory.length > 0) && (
-        <section className="mb-12 order-2">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-1.5 h-10 rounded bg-gradient-to-b from-orange-500 to-orange-700 shrink-0" />
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold text-orange-700 leading-tight">Replacements</h2>
-              <p className="text-sm text-gray-500 leading-snug">If an account gets restricted and we can&apos;t recover it, swap it for an equivalent one at no extra cost. You keep your price, billing date, and get credit for the downtime.</p>
-            </div>
-          </div>
-
-          {restrictedRentals.length > 0 && (
-            <Card className="mb-4">
-              <CardContent className="p-0 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      <th className="px-4 py-3">Account</th>
-                      <th className="px-4 py-3">Restricted</th>
-                      <th className="px-4 py-3"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {restrictedRentals.map((rental) => {
-                      const initials = rental.linkedinAccount.linkedinName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-                      const restrictedAt = rental.linkedinAccount.restrictedAt!;
-                      const eligible = canReplaceNow(restrictedAt);
-                      const unlockAt = replacementUnlockAt(restrictedAt);
-                      const remMs = Math.max(0, unlockAt - nowTick);
-                      const remH = Math.floor(remMs / 3600000);
-                      const remM = Math.floor((remMs % 3600000) / 60000);
-                      return (
-                        <tr key={rental.id} className="border-b last:border-b-0">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
-                                {rental.linkedinAccount.profilePhotoUrl ? <img src={rental.linkedinAccount.profilePhotoUrl} alt={rental.linkedinAccount.linkedinName} className="h-full w-full object-cover" /> : initials}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-medium text-gray-900">{rental.linkedinAccount.linkedinName}</p>
-                                <p className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600"><span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />Restricted — recovering it</p>
-                                <p className="text-[10px] text-gray-400">Billing paused while it&apos;s down</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(restrictedAt)}</td>
-                          <td className="px-4 py-3 text-right">
-                            {eligible ? (
-                              <button onClick={() => setReplacingRental(rental)} className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-700 transition-colors whitespace-nowrap">Replace this account</button>
-                            ) : (
-                              <span className="text-[11px] text-gray-500 whitespace-nowrap">We&apos;re recovering it — Replace unlocks in {remH > 0 ? `${remH}h ` : ""}{remM}m</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          )}
-
-          {replacementHistory.length > 0 && (
-            <Card>
-              <CardContent className="p-0 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      <th className="px-4 py-3">Replaced</th>
-                      <th className="px-4 py-3">Now renting</th>
-                      <th className="px-4 py-3">When</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {replacementHistory.map(({ to, from }) => (
-                      <tr key={to.id} className="border-b last:border-b-0">
-                        <td className="px-4 py-3 text-gray-500">{from ? from.linkedinAccount.linkedinName : "A restricted account"}</td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{to.linkedinAccount.linkedinName}</td>
-                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{to.createdAt ? formatDate(to.createdAt) : "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          )}
-        </section>
-      )}
-
-      {/* Past Rentals */}
+      {/* Past Rentals (v2) */}
       {pastRentals.length > 0 && (
         <section className="mb-12 order-5">
           <details className="group">
             <summary className="mb-4 flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 focus-visible:outline-2 focus-visible:outline-blue-500 [&::-webkit-details-marker]:hidden">
-              <h2 className="text-xl font-semibold text-gray-900">Past Rentals <span className="ml-2 text-sm font-normal text-gray-500">({pastRentals.length})</span></h2>
-              <span className="flex items-center gap-2 text-sm font-semibold text-blue-700"><span className="group-open:hidden">Show history</span><span className="hidden group-open:inline">Hide history</span><span aria-hidden="true" className="transition-transform group-open:rotate-180">⌄</span></span>
+              <h2 style={{ margin: 0, font: "800 17px inherit", color: V.text }}>Past rentals <span style={{ font: "600 13px inherit", color: V.faint, marginLeft: 6 }}>({pastRentals.length})</span></h2>
+              <span style={{ font: "700 13px inherit", color: V.blue }}><span className="group-open:hidden">Show history</span><span className="hidden group-open:inline">Hide history</span><span aria-hidden="true" className="transition-transform group-open:rotate-180" style={{ marginLeft: 4, display: "inline-block" }}>⌄</span></span>
             </summary>
-            <Card>
-              <CardContent className="p-0 overflow-x-auto">
-                <table className="w-full whitespace-nowrap text-sm">
-                  <thead><tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-gray-400"><th className="px-5 py-4">Profile</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Started</th></tr></thead>
-                  <tbody>{pastRentals.map(rental => <tr key={rental.id} className="border-b last:border-b-0">
-                    <td className="px-5 py-4 font-semibold text-gray-900">{rental.linkedinAccount.linkedinName}</td>
-                    <td className="px-5 py-4">{statusBadge(rental.status)}</td>
-                    <td className="px-5 py-4 text-gray-500"><time dateTime={rental.startDate}>{formatDate(rental.startDate)}</time></td>
-                  </tr>)}</tbody>
-                </table>
-              </CardContent>
-            </Card>
+            <div style={{ background: "#fff", border: `1px solid ${V.border}`, borderRadius: 14, overflowX: "auto" }}>
+              <div style={{ minWidth: 820 }}>
+                {pastRentals.map((rental, i) => {
+                  const acct = rental.linkedinAccount;
+                  const st = rental.status === "replaced" ? "Replaced" : rental.status === "cancelled" ? "Cancelled" : "Expired";
+                  const [stBg, stFg] = st === "Replaced" ? ["#fff1e6", "#c2410c"] : ["#f1f3f6", "#5b6779"];
+                  const why = rental.status === "replaced" ? "Restricted · swapped for a new account"
+                    : rental.status === "cancelled" ? "You cancelled renewal"
+                    : !rental.autoRenew ? "Auto-renew was off" : "Rental ended";
+                  const end = rental.currentPeriodEnd ? formatDate(rental.currentPeriodEnd) : null;
+                  const range = end ? `${formatDate(rental.startDate)} – ${end}` : formatDate(rental.startDate);
+                  const len = humanDuration(rental.startDate);
+                  return (
+                    <div key={rental.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1.2fr) 160px 150px", gap: "12px 20px", alignItems: "center", padding: "12px 18px", borderTop: i === 0 ? "none" : `1px solid ${V.line}` }}>
+                      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ flex: "none", width: 36, height: 36, borderRadius: "50%", background: "#f1f3f6", color: V.muted, display: "grid", placeItems: "center", font: "700 13px inherit" }}>{initialsOf(acct.linkedinName)}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                            <span style={{ font: "700 14px inherit", color: V.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{acct.linkedinName}</span>
+                            <LinkedInChip url={acct.linkedinUrl} />
+                          </div>
+                          {rental.price != null && <div style={{ font: "500 12px inherit", color: V.muted }}>${rental.price}/mo</div>}
+                        </div>
+                      </div>
+                      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                        <span style={{ alignSelf: "flex-start", borderRadius: 999, padding: "2px 9px", font: "700 11.5px inherit", background: stBg, color: stFg }}>{st}</span>
+                        <span style={{ font: "500 12px inherit", color: V.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{why}</span>
+                      </div>
+                      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                        <span style={{ font: "600 13px inherit", color: V.text }}>{range}</span>
+                        <span style={{ font: "500 12px inherit", color: V.faint }}>{len}</span>
+                      </div>
+                      <div style={{ minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
+                        <Link href="/catalogue" style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, borderRadius: 8, padding: "7px 12px", font: "700 12.5px inherit", textDecoration: "none", whiteSpace: "nowrap" }}>Rent again</Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </details>
         </section>
       )}

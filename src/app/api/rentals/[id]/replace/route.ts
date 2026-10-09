@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { monthlyRentalPrice } from "@/lib/account-pricing";
@@ -57,7 +58,12 @@ export async function POST(
           select: { id: true, linkedinName: true, connectionCount: true, accountAgeMonths: true, hasSalesNav: true, linkedinVerified: true },
         });
         if (!picked) throw new Error("UNAVAILABLE");
-        if (monthlyRentalPrice(picked) > oldPrice) throw new Error("TIER");
+        const newTier = monthlyRentalPrice(picked);
+        if (newTier > oldPrice) throw new Error("TIER");
+        // Rate drops to the cheaper account: new locked price = min(their current effective
+        // rate, the new account's tier). Never higher than what they paid before.
+        const effectiveOld = old.lockedPrice ? Number(old.lockedPrice) : oldPrice;
+        const newRate = Math.min(effectiveOld, newTier);
 
         // Guard against a double-replace: re-read the old rental's status inside the lock.
         const stillOld = await tx.rental.findFirst({ where: { id: old.id, status: { in: ["active", "pending_access", "payment_failed"] } }, select: { id: true } });
@@ -81,7 +87,7 @@ export async function POST(
             // A shadow replacement stays shadow (flat rate, keeps the account catalogue-available);
             // a real replacement takes the new account out of the catalogue.
             isShadow: old.isShadow,
-            lockedPrice: old.lockedPrice,
+            lockedPrice: new Prisma.Decimal(newRate),
             discountCode: old.discountCode,
             replacesRentalId: old.id,
             currentPeriodEnd: carriedPeriodEnd,

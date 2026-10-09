@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { canShowRentalShareLink } from "@/lib/rental-dashboard-access";
 import { requireAuth } from "@/lib/auth";
 import { decryptSecret } from "@/lib/crypto-creds";
+import { monthlyRentalPrice } from "@/lib/account-pricing";
 
 export async function GET() {
   try {
@@ -21,6 +22,9 @@ export async function GET() {
             accountPassword: true,
             profilePhotoUrl: true,
             connectionCount: true,
+            linkedinVerified: true,
+            accountAgeMonths: true,
+            hasSalesNav: true,
             gologinShareLink: true,
             restrictedAt: true,
             twoFactorResetNeeded: true,
@@ -42,15 +46,20 @@ export async function GET() {
     // cancelled rental still in the list.
     const current = new Set(["active", "pending_access", "payment_failed"]);
     const shaped = rentals.map((r) => {
-      const { loginEmail, accountPassword, ...account } = r.linkedinAccount;
+      const { loginEmail, accountPassword, accountAgeMonths, hasSalesNav, ...account } = r.linkedinAccount;
       const ready = canShowRentalShareLink(r);
       const showCreds = credAccess && current.has(r.status);
+      // What the renter actually pays: their locked rate, else the account's current tier price.
+      const price = Number(
+        r.lockedPrice ?? monthlyRentalPrice({ connectionCount: account.connectionCount, accountAgeMonths, hasSalesNav, linkedinVerified: account.linkedinVerified })
+      );
       return {
         ...r,
         gologinShareIds: undefined,
         gologinShareLinkId: undefined,
         gologinShareLinkUrl: ready ? r.gologinShareLinkUrl : null,
         credentialAccess: showCreds,
+        price,
         linkedinAccount: {
           ...account,
           gologinShareLink: ready ? account.gologinShareLink : null,
