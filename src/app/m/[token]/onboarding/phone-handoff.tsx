@@ -27,7 +27,7 @@ export default function PhoneHandoff({ busy, error, submit, selfMode = false, de
 
   return <>
     <div className={styles.stepLabel}>Hand off</div>
-    <h2>Hand off to our team</h2>
+    <h1 className={styles.heroTitle}>Hand off to our team</h1>
     <p>No computer needed. We do the sign-in, the checks and the payment.</p>
     {error && <div className={styles.error} role="alert">{error}</div>}
 
