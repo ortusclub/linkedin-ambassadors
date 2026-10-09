@@ -148,6 +148,14 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
   useEffect(() => { fetchAccounts(); }, [industry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); fetchAccounts(); };
+  const lockFullList = () => {
+    try { sessionStorage.removeItem(FULL_KEY_STORAGE); } catch { /* ignore */ }
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("key")) {
+      const u = new URL(window.location.href); u.searchParams.delete("key"); window.history.replaceState(null, "", u.toString());
+    }
+    setFullList(false);
+    fetchAccounts();
+  };
   const handleFullKey = (e: React.FormEvent) => {
     e.preventDefault();
     const k = fullKeyInput.trim();
@@ -290,6 +298,15 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
         )}
       </div>
 
+      {/* full-roster banner — makes the unlocked state obvious and lets you drop back to the public view */}
+      {!loading && fullList && (
+        <div className="cat2-wrap" style={{ marginTop: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", background: "#FFF7E6", border: "1px solid #F3D9A4", borderRadius: 12, padding: "12px 18px" }}>
+            <span style={{ font: `600 13.5px ${INT}`, color: "#7A4B00" }}>Full roster unlocked — you&apos;re seeing every account, not the public selection.</span>
+            <button onClick={lockFullList} style={{ border: "1px solid #7A4B00", background: "transparent", color: "#7A4B00", borderRadius: 8, padding: "7px 12px", font: `600 13px ${INT}`, cursor: "pointer" }}>Back to public view</button>
+          </div>
+        </div>
+      )}
       {/* inventory gate — the catalogue only ever shows a slice of the roster */}
       {!loading && accounts.length > 0 && !fullList && (
         <div className="cat2-wrap" style={{ marginTop: 18 }}>
