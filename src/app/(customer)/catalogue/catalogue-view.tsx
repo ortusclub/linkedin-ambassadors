@@ -29,7 +29,10 @@ const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font
 const TELEGRAM_URL = "https://t.me/linkedvelocity_support_bot";
 const CALENDAR_URL = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ1he_qAS5s8faJzrAIjTJi8KIX9xvPhGbC4Ipn38lPTLzkfSuoyMIiqUrB0viY2jpXr_W_zLSdq";
 
-const MAX_PER_STATUS = 20;
+// Public catalogue shows at most this many accounts in total (server enforces the same
+// cap in /api/accounts); the full-roster password lifts it.
+const MAX_TOTAL = 20;
+const FULL_KEY_STORAGE = "lv_full_roster_key";
 // Selected accounts persist here so the cart survives "back to browse" / revisits
 // (renters build multi-account orders across several browse sessions). Cleared on a
 // completed checkout. Bumped key = ignore any older/incompatible saved cart.
@@ -84,6 +87,17 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
   // Public share variant: /catalogue?pricing=off hides all prices (for sharing the
   // inventory with prospects/partners without revealing rates). Default = pricing on.
   const [showPricing, setShowPricing] = useState(true);
+  // Full-roster password: from ?key= in the URL or the "Show full roster" box; kept in
+  // sessionStorage so filters/searches keep the unlocked view. Validated server-side only.
+  const [fullList, setFullList] = useState(false);
+  const [fullKeyInput, setFullKeyInput] = useState("");
+  const [fullKeyError, setFullKeyError] = useState(false);
+  const readFullKey = () => {
+    if (typeof window === "undefined") return null;
+    const fromUrl = new URLSearchParams(window.location.search).get("key");
+    if (fromUrl) { try { sessionStorage.setItem(FULL_KEY_STORAGE, fromUrl); } catch { /* ignore */ } return fromUrl; }
+    try { return sessionStorage.getItem(FULL_KEY_STORAGE); } catch { return null; }
+  };
 
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.user) setUser(d.user); }).catch(() => {});
@@ -121,8 +135,12 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
     if (industry) params.set("industry", industry);
+    const key = readFullKey();
+    if (key) params.set("key", key);
     const res = await fetch(`/api/accounts?${params}`);
     const data = await res.json();
+    setFullList(!!data.fullList);
+    if (key && !data.fullList) { setFullKeyError(true); try { sessionStorage.removeItem(FULL_KEY_STORAGE); } catch { /* ignore */ } }
     setAccounts(data.accounts || []);
     setLoading(false);
   };
@@ -130,6 +148,15 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
   useEffect(() => { fetchAccounts(); }, [industry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); fetchAccounts(); };
+  const handleFullKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    const k = fullKeyInput.trim();
+    if (!k) return;
+    setFullKeyError(false);
+    try { sessionStorage.setItem(FULL_KEY_STORAGE, k); } catch { /* ignore */ }
+    setFullKeyInput("");
+    fetchAccounts();
+  };
   const handleFilterClick = (f: string) => { setActiveFilter(f); setIndustry(f === "All" ? "" : f); };
 
   const toggleSelect = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -145,20 +172,18 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
   // rented — chosen sort applied within each group.
   const isRentable = (a: Account) => a.status === "available" && !a.availableSoon;
   const statusRank = (a: Account) => (isRentable(a) ? 0 : a.availableSoon ? 1 : 2);
-  // Only a slice of the inventory is public: at most MAX_PER_STATUS of each group.
-  // Everything beyond that is behind the agent CTA.
+  // Only a slice of the inventory is public (MAX_TOTAL in total, rentable first). The API
+  // already enforces this (see lib/public-inventory); the client cap is belt-and-braces.
+  // The full-roster password lifts it.
   const visible = useMemo(() => {
     const sorted = [...accounts].sort((a, b) => statusRank(a) - statusRank(b) || SORTS[sort](a, b));
-    // The API already serves only a fixed public slice (see lib/public-inventory); this
-    // client-side cap is belt-and-braces and applies to signed-in renters too. The only
-    // extra rows a signed-in viewer gets are the accounts they currently rent.
-    const cap = MAX_PER_STATUS;
-    const avail = sorted.filter(isRentable).slice(0, cap);
-    const soon = sorted.filter((a) => a.availableSoon).slice(0, cap);
-    const rented = sorted.filter((a) => !isRentable(a) && !a.availableSoon).slice(0, cap);
+    const capped = fullList ? sorted : sorted.slice(0, MAX_TOTAL);
+    const avail = capped.filter(isRentable);
+    const soon = capped.filter((a) => a.availableSoon);
+    const rented = capped.filter((a) => !isRentable(a) && !a.availableSoon);
     const groups: Record<string, Account[]> = { All: [...avail, ...soon, ...rented], Available: avail, "Available soon": soon, Rented: rented };
     return groups[availFilter] || groups.All;
-  }, [accounts, sort, availFilter]);
+  }, [accounts, sort, availFilter, fullList]);
   // Bulk-select only ever covers the rentable rows actually on screen (never pool teasers).
   const rentable = visible.filter(isRentable);
   const toggleSelectAll = () => setSelected(selected.size === rentable.length && rentable.length > 0 ? new Set() : new Set(rentable.map((a) => a.id)));
@@ -266,7 +291,7 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
       </div>
 
       {/* inventory gate — the catalogue only ever shows a slice of the roster */}
-      {!loading && accounts.length > 0 && (
+      {!loading && accounts.length > 0 && !fullList && (
         <div className="cat2-wrap" style={{ marginTop: 18 }}>
           <div style={{ background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, padding: "26px 32px", textAlign: "center" }}>
             <h3 style={{ font: `700 19px ${POP}`, color: "#0B1220", margin: "0 0 6px" }}>There&apos;s more where these came from</h3>

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { maskPublicAccount } from "@/lib/mask";
 import { getSession } from "@/lib/auth";
-import { publicInventorySlice } from "@/lib/public-inventory";
+import { publicInventorySlice, hasFullListAccess, PUBLIC_AVAILABLE_WHERE } from "@/lib/public-inventory";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -35,7 +35,19 @@ export async function GET(req: NextRequest) {
     });
     ownIds = own.map((r) => r.linkedinAccountId);
   }
-  if (statusFilter === "available") where.id = { in: availableIds };
+  // ?key=<FULL_LIST_PASSWORD> (entered in the catalogue's "Show full roster" box, or baked
+  // into a link Sam hands out) unlocks the full roster.
+  const fullList = hasFullListAccess(searchParams.get("key"));
+  if (fullList) {
+    where.inventoryPool = { notIn: ["ortus", "apex"] };
+    if (statusFilter === "available") Object.assign(where, PUBLIC_AVAILABLE_WHERE);
+    else if (statusFilter) { where.status = statusFilter; where.listed = true; }
+    else and.push({ OR: [
+      PUBLIC_AVAILABLE_WHERE,
+      { status: { in: ["rented", "trial"] } },
+      { id: { in: [...shadowIds] } },
+    ] });
+  } else if (statusFilter === "available") where.id = { in: availableIds };
   else if (statusFilter) { where.id = { in: [...rentedIds, ...ownIds] }; where.status = statusFilter; }
   else where.id = { in: [...availableIds, ...rentedIds, ...ownIds] };
 
@@ -80,6 +92,7 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({
+    fullList,
     // `availableSoon` = currently shadow-held by Apex / Ortus; rendered as a non-rentable
     // teaser in the catalogue (checkout + account-detail already block non-available ones).
     accounts: accounts.map((a) =>

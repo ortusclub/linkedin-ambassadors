@@ -10,8 +10,15 @@ import { activeShadowAccountIds } from "@/lib/shadow-rental";
 // The slice is deterministic (top-N by connections, id as tiebreak) so search / filter
 // params can't be used to page through the rest of the roster — filters only narrow
 // WITHIN this slice.
-export const PUBLIC_AVAILABLE_CAP = 20;
-export const PUBLIC_RENTED_CAP = 20;
+export const PUBLIC_TOTAL_CAP = 20;
+
+// Password that unlocks the FULL roster on the catalogue / API. Set via the
+// FULL_LIST_PASSWORD env var on Vercel (never in code). Unset = feature off. Works via
+// the "Show full roster" box on /catalogue or a link: /catalogue?key=<password>.
+export const hasFullListAccess = (key: string | null | undefined) => {
+  const pw = process.env.FULL_LIST_PASSWORD;
+  return !!pw && !!key && key === pw;
+};
 
 // Public rentable "available" definition — mirrors the admin canonicalStatus: must be
 // listed, not restricted, and not awaiting a 2FA reset. Segregated pools never show.
@@ -26,8 +33,9 @@ export const PUBLIC_AVAILABLE_WHERE: Prisma.LinkedInAccountWhereInput = {
 export type PublicSlice = { availableIds: string[]; rentedIds: string[]; shadowIds: Set<string> };
 
 /**
- * The fixed public slice of the inventory. `rentedIds` covers rented + trial accounts
- * plus shadow-held ("available soon") teasers, as one capped group.
+ * The fixed public slice of the inventory: at most PUBLIC_TOTAL_CAP accounts in total.
+ * Rentable "available" accounts fill the slice first; any remaining room is filled with
+ * rented / trial / shadow-held ("available soon") accounts as social proof.
  */
 export async function publicInventorySlice(): Promise<PublicSlice> {
   const shadowIds = await activeShadowAccountIds();
@@ -36,7 +44,7 @@ export async function publicInventorySlice(): Promise<PublicSlice> {
     prisma.linkedInAccount.findMany({
       where: { ...PUBLIC_AVAILABLE_WHERE, id: { notIn: [...shadowIds] } },
       orderBy: order,
-      take: PUBLIC_AVAILABLE_CAP,
+      take: PUBLIC_TOTAL_CAP,
       select: { id: true },
     }),
     prisma.linkedInAccount.findMany({
@@ -45,9 +53,11 @@ export async function publicInventorySlice(): Promise<PublicSlice> {
         OR: [{ status: { in: ["rented", "trial"] } }, { id: { in: [...shadowIds] } }],
       },
       orderBy: order,
-      take: PUBLIC_RENTED_CAP,
+      take: PUBLIC_TOTAL_CAP,
       select: { id: true },
     }),
   ]);
-  return { availableIds: avail.map((a) => a.id), rentedIds: rented.map((a) => a.id), shadowIds };
+  const availableIds = avail.map((a) => a.id);
+  const rentedIds = rented.map((a) => a.id).slice(0, Math.max(0, PUBLIC_TOTAL_CAP - availableIds.length));
+  return { availableIds, rentedIds, shadowIds };
 }
