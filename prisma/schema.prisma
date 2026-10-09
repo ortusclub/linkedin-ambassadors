@@ -332,6 +332,10 @@ model Rental {
   replacesRentalId      String?      @map("replaces_rental_id") @db.Uuid
   replaces              Rental?      @relation("RentalReplacement", fields: [replacesRentalId], references: [id], onDelete: SetNull)
   replacedBy            Rental[]     @relation("RentalReplacement")
+  // Renter chose to keep waiting for recovery instead of replacing a restricted account
+  // (set from the dashboard once past the 2-day hold); cleared on recover or replace.
+  waitingForRecovery    Boolean      @default(false) @map("waiting_for_recovery")
+  waitChosenAt          DateTime?    @map("wait_chosen_at")
   notes                 String?
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")

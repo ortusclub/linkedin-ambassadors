@@ -286,6 +286,8 @@ interface Rental {
   price?: number;
   // Set briefly after an account recovers from a restriction (explains the credited renewal date).
   recovery?: { at: string; creditedDays: number } | null;
+  // Renter chose to keep waiting for recovery instead of replacing (persisted).
+  waitingForRecovery?: boolean;
   linkedinAccount: {
     id: string;
     linkedinName: string;
@@ -1098,7 +1100,7 @@ function DashboardContent() {
                 const prep = isRentalBeingPrepared(rental);
                 const ready = canShowRentalShareLink(rental) && !!acct.gologinShareLink;
                 const eligible = R && canReplaceNow(acct.restrictedAt!);
-                const isWaiting = R && waitingIds.has(rental.id);
+                const isWaiting = R && (rental.waitingForRecovery === true || waitingIds.has(rental.id));
                 const remH = R ? Math.max(0, Math.ceil((replacementUnlockAt(acct.restrictedAt!) - nowTick) / 3600000)) : 0;
                 const creditDays = R ? Math.max(1, Math.ceil((nowTick - new Date(acct.restrictedAt!).getTime()) / 3600000 / 24)) : 0;
                 const progress = R ? Math.min(100, Math.max(0, (nowTick - new Date(acct.restrictedAt!).getTime()) / REPLACEMENT_HOLD_MS * 100)) : 0;
@@ -1176,7 +1178,7 @@ function DashboardContent() {
                           {(!R && !prep && ready && canSeeCreds) ? (
                             <button onClick={() => setOpenCredsId((p) => (p === rental.id ? null : rental.id))} style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{credsOpen ? "Hide sign-in" : "Sign-in"}</button>
                           ) : (R && eligible && !isWaiting) ? (
-                            <button onClick={() => setWaitingIds((p) => new Set(p).add(rental.id))} title="Keep this account. We'll keep trying to recover it, and billing stays paused." style={{ border: "1px solid #f5c39b", background: "#fff", color: "#9a3412", width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>I&apos;ll wait</button>
+                            <button onClick={() => { setWaitingIds((p) => new Set(p).add(rental.id)); fetch(`/api/rentals/${rental.id}/wait`, { method: "POST" }).then(() => refreshRentals()).catch(() => {}); }} title="Keep this account. We'll keep trying to recover it, and billing stays paused." style={{ border: "1px solid #f5c39b", background: "#fff", color: "#9a3412", width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>I&apos;ll wait</button>
                           ) : null}
                         </div>
                         <div style={{ display: "flex", justifyContent: "flex-end" }}>
