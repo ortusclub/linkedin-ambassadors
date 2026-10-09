@@ -174,7 +174,7 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 18 }}>
-        <button className={styles.primary} disabled={busy || !primary || !(setup.lastForwardedAt || setup.confirmUrl)} onClick={() => void submit({ action: "primary", consent: true })}>{primary ? "Email is primary — continue to sign-in →" : "Continue to sign-in →"}</button>
+        <button className={styles.primary} disabled={busy || !primary || (!demo && !(setup.lastForwardedAt || setup.confirmUrl))} onClick={() => void submit({ action: "primary", consent: true })}>{primary ? "Email is primary — continue to sign-in →" : "Continue to sign-in →"}</button>
         <p className={styles.hint} style={{ textAlign: "center" }}>Only change the primary email with the {selfMode ? "" : "owner’s "}OK. Unsure? Pause and message us.</p>
       </div>
     </>}
