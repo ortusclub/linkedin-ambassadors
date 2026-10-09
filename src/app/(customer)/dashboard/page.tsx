@@ -301,6 +301,7 @@ interface Rental {
     gologinProfileId: string | null;
     gologinShareLink: string | null;
     restrictedAt: string | null;
+    permanentlyRestricted?: boolean;
   };
 }
 
@@ -1099,7 +1100,9 @@ function DashboardContent() {
                 const R = !!acct.restrictedAt;
                 const prep = isRentalBeingPrepared(rental);
                 const ready = canShowRentalShareLink(rental) && !!acct.gologinShareLink;
-                const eligible = R && canReplaceNow(acct.restrictedAt!);
+                const perm = R && !!acct.permanentlyRestricted;
+                // Permanently-restricted accounts can be replaced right away (no hold to wait out).
+                const eligible = R && (perm || canReplaceNow(acct.restrictedAt!));
                 const isWaiting = R && (rental.waitingForRecovery === true || waitingIds.has(rental.id));
                 const remH = R ? Math.max(0, Math.ceil((replacementUnlockAt(acct.restrictedAt!) - nowTick) / 3600000)) : 0;
                 const creditDays = R ? Math.max(1, Math.ceil((nowTick - new Date(acct.restrictedAt!).getTime()) / 3600000 / 24)) : 0;
@@ -1117,7 +1120,8 @@ function DashboardContent() {
                 if (rec) {
                   sc = V.green; sl = "Active · recovered"; ss = `Back ${recWhen} · ${cDays(rec.creditedDays)} added to your rental`;
                 } else if (R) {
-                  if (isWaiting) { sc = V.orangeDeep; sl = "Restricted · waiting for recovery"; ss = `You chose to wait · billing paused · ${cDays(creditDays)} credited`; }
+                  if (perm) { sc = "#b91c1c"; sl = "Permanently restricted"; ss = "This account can't be recovered. Replace it to keep going."; }
+                  else if (isWaiting) { sc = V.orangeDeep; sl = "Restricted · waiting for recovery"; ss = `You chose to wait · billing paused · ${cDays(creditDays)} credited`; }
                   else { sc = eligible ? "#b91c1c" : V.orangeDeep; sl = eligible ? "Restricted · couldn't recover" : "Restricted · recovering"; ss = `Billing paused · ${cDays(creditDays)} credited`; }
                 } else if (prep) { sc = V.faint; sl = "Being prepared"; ss = "We'll email you at handover"; }
                 else if (rental.paused) { sc = V.faint; sl = "Paused"; ss = "Access paused"; }
@@ -1177,7 +1181,7 @@ function DashboardContent() {
                         <div style={{ display: "flex", justifyContent: "flex-end" }}>
                           {(!R && !prep && ready && canSeeCreds) ? (
                             <button onClick={() => setOpenCredsId((p) => (p === rental.id ? null : rental.id))} style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{credsOpen ? "Hide sign-in" : "Sign-in"}</button>
-                          ) : (R && eligible && !isWaiting) ? (
+                          ) : (R && eligible && !isWaiting && !perm) ? (
                             <button onClick={() => { setWaitingIds((p) => new Set(p).add(rental.id)); fetch(`/api/rentals/${rental.id}/wait`, { method: "POST" }).then(() => refreshRentals()).catch(() => {}); }} title="Keep this account. We'll keep trying to recover it, and billing stays paused." style={{ border: "1px solid #f5c39b", background: "#fff", color: "#9a3412", width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>I&apos;ll wait</button>
                           ) : null}
                         </div>

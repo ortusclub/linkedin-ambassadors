@@ -25,7 +25,7 @@ export async function GET(
         isShadow: true,
         linkedinAccount: {
           select: {
-            id: true, restrictedAt: true,
+            id: true, restrictedAt: true, permanentlyRestricted: true,
             connectionCount: true, accountAgeMonths: true, hasSalesNav: true, linkedinVerified: true,
           },
         },
@@ -37,7 +37,8 @@ export async function GET(
     if (!acct.restrictedAt) {
       return NextResponse.json({ error: "This account isn't restricted, so it can't be replaced." }, { status: 400 });
     }
-    if (!canReplaceNow(acct.restrictedAt)) {
+    // A permanently-restricted account can be replaced right away (no point waiting it out).
+    if (!acct.permanentlyRestricted && !canReplaceNow(acct.restrictedAt)) {
       return NextResponse.json(
         { error: "We're still trying to recover this account. Replacement unlocks after the recovery window.", unlockAt: replacementUnlockAt(acct.restrictedAt) },
         { status: 409 }
