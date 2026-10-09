@@ -151,6 +151,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const [linkCopied, setLinkCopied] = useState(false);
   const [emailCopied, setEmailCopied] = useState(false);
   const [setupChoice, setSetupChoice] = useState(false);
+  const [setupPick, setSetupPick] = useState<"" | "pc" | "phone" | "team">("");
   const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
   const [handedOff, setHandedOff] = useState(false);
   // 2FA is its own step (step 4) after the email is made primary. The key is captured
@@ -474,25 +475,40 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   }
   function setupOptions() {
     if (!session) return null;
+    const optCard = (id: "pc" | "phone", title: string, price: string, body: string, tags: [string, string, string][]) => {
+      const on = setupPick === id;
+      return <button type="button" {...(id === "phone" ? { "data-tour": "signin-choice" } : {})} onClick={() => setSetupPick(id)} style={{ textAlign: "left", cursor: "pointer", background: "#fff", border: `2px solid ${on ? "#16a34a" : "#e3e6ea"}`, borderRadius: 16, padding: 16, display: "flex", gap: 12, alignItems: "flex-start", boxShadow: on ? "0 4px 14px rgba(22,163,74,.12)" : "none", width: "100%", boxSizing: "border-box", font: "inherit" }}>
+        <span style={{ width: 20, height: 20, flex: "none", borderRadius: "50%", border: `2px solid ${on ? "#16a34a" : "#c5cbd3"}`, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2 }}><span style={{ width: 10, height: 10, borderRadius: "50%", background: on ? "#16a34a" : "transparent" }} /></span>
+        <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+          <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ font: "800 16px var(--font-sans), system-ui, sans-serif", color: "#0b1220" }}>{title}</span>
+            <span style={{ font: "700 14px var(--font-sans), system-ui, sans-serif", color: "#15803d", whiteSpace: "nowrap" }}>{price}</span>
+          </span>
+          <span style={{ font: "500 13.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#5b6779" }}>{body}</span>
+          <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{tags.map(([label, bg, fg]) => <span key={label} style={{ font: "700 11px var(--font-sans), system-ui, sans-serif", padding: "3px 8px", borderRadius: 999, background: bg, color: fg }}>{label}</span>)}</span>
+        </span>
+      </button>;
+    };
     return <>
-            <h1 className={styles.heroTitle}>{selfMode ? "Finish your account setup" : "How would you like to complete setup?"}</h1>
-            <p className={styles.lead}>{selfMode ? "Complete Full DIY on a computer for the larger sign-on bonus, or switch to Email + 2FA and let our team finish the sign-in." : "Choose how much you’ll complete with the owner. Your referral fee depends on the option you finish."}</p>
-            <button type="button" data-tour="signin-choice" className={styles.choiceCard} onClick={() => selectSetupMethod("phone")}>
-              <div className={styles.choiceHead}><strong>{selfMode ? "Hand it to us" : "I’ll do email + 2FA"}</strong><span className={styles.rateChip}>{selfMode ? "$24 (₱1,500) sign-on" : phoneRange}</span></div>
-              <p>{selfMode ? "Switch to Email + 2FA setup. Set a temporary password and our team will complete the sign-in." : "Add the assigned email and complete 2FA with the owner. Works on a phone. Then hand over the sign-in to our team."}</p>
-            </button>
-            <button type="button" className={`${styles.choiceCard} ${styles.choiceHi}`} onClick={() => selectSetupMethod("pc")}>
-              <div className={styles.choiceHead}><strong>Full setup on a laptop</strong><span className={`${styles.rateChip} ${styles.rateChipHi}`}>{selfMode ? "$32 (₱2,000) sign-on" : computerRange}</span></div>
-              <p>{selfMode ? "Open the protected browser and sign in to your own LinkedIn account. This completes Full DIY setup." : "You open the protected browser and sign in to their LinkedIn with them beside you. Highest rate."}</p>
-              <div className={styles.choiceNote}>Needs a Windows or Mac computer.</div>
-            </button>
-            {!selfMode && <div className={styles.meetingOption}>
-              <strong>Leave the setup to our team · {refBase} referral fee</strong>
-              <p>We can try to contact the owner and arrange setup. This route is usually slower and less likely to complete. Your referral fee is {refBase}, paid only after successful onboarding. Booking a time with the owner is the better way to help this route succeed.</p>
-              {session.meetingRequested ? <p role="status">Submitted for the team to take over. We’ll try to contact the owner using their saved contact details. A meeting is not booked yet.</p> : <button type="button" className={styles.secondary} disabled={busy} onClick={() => run(async () => { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); })}>{busy ? "Saving…" : "Submit for the team to take over"}</button>}
-              {session.meetingRequested && <button type="button" className={styles.secondary} disabled={busy} onClick={() => run(async () => { const result = await request("PATCH", { id: session.id, action: "undo_meeting" }); setSession(result.session); })}>{busy ? "Undoing…" : "Undo — I’ll continue the setup"}</button>}
-              <p><a href="https://calendly.com/linkedvelocity-info/30min" aria-disabled={busy} onClick={e => { e.preventDefault(); if (busy) return; void run(async () => { if (!session.meetingRequested) { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); } window.location.assign("https://calendly.com/linkedvelocity-info/30min"); }); }}>Book a meeting for the owner →</a></p>
+            <h1 className={styles.heroTitle}>{selfMode ? "Finish your account setup" : "How will you finish setup?"}</h1>
+            <p className={styles.lead}>{selfMode ? "Complete Full DIY on a computer for the larger sign-on bonus, or switch to Email + 2FA and let our team finish." : "The more you do with the owner, the more you earn."}</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {optCard("pc", "Full setup on a laptop", selfMode ? "$32 (₱2,000) sign-on" : computerRange, selfMode ? "Open the protected browser and sign in to your own LinkedIn. Highest sign-on bonus." : "Sign in to their LinkedIn in our secure browser while you’re in touch with the owner — a call or chat works.", [["⏱ ~20–30 min", "#eef4ff", "#1d4ed8"], ["Highest pay", "#dcfce7", "#15803d"], ["Windows or Mac", "#eef0f4", "#3b4556"]])}
+              {optCard("phone", selfMode ? "Hand it to us" : "I’ve done email + 2FA", selfMode ? "$24 (₱1,500) sign-on" : phoneRange, selfMode ? "Set a temporary password and our team completes the sign-in. Works on a phone." : "You’re finished — hand over and our team does the final sign-in.", [["⏱ Done now", "#eef4ff", "#1d4ed8"], ["Works on a phone", "#eef0f4", "#3b4556"]])}
+            </div>
+            {!selfMode && <div style={{ borderTop: "1px solid #e3e6ea", paddingTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              {session.meetingRequested ? <div className={styles.note}>✓ Submitted — our team will try to reach the owner and complete setup. A meeting isn’t booked yet.<div style={{ marginTop: 6 }}><button type="button" className={styles.linkBtn} disabled={busy} onClick={() => run(async () => { const result = await request("PATCH", { id: session.id, action: "undo_meeting" }); setSession(result.session); })}>Undo — I’ll continue the setup</button></div></div> : <>
+                <button type="button" onClick={() => setSetupPick("team")} style={{ textAlign: "left", cursor: "pointer", background: setupPick === "team" ? "#fff" : "transparent", border: `1.5px ${setupPick === "team" ? "solid" : "dashed"} ${setupPick === "team" ? "#5b6779" : "#d5d9e0"}`, borderRadius: 14, padding: "13px 16px", display: "flex", gap: 12, alignItems: "center", width: "100%", boxSizing: "border-box", font: "inherit" }}>
+                  <span style={{ width: 18, height: 18, flex: "none", borderRadius: "50%", border: `2px solid ${setupPick === "team" ? "#5b6779" : "#c5cbd3"}`, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: setupPick === "team" ? "#5b6779" : "transparent" }} /></span>
+                  <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><span style={{ font: "700 14px var(--font-sans), system-ui, sans-serif", color: "#3b4556" }}>Leave it to our team</span><span style={{ font: "700 13px var(--font-sans), system-ui, sans-serif", color: "#5b6779", whiteSpace: "nowrap" }}>{refBase}</span></span>
+                    <span style={{ font: "500 12.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#8a93a3" }}>Can take days to reach the owner, and is less likely to finish. Paid only if it completes.</span>
+                  </span>
+                </button>
+                <a href="https://calendly.com/linkedvelocity-info/30min" onClick={e => { e.preventDefault(); if (busy) return; void run(async () => { if (!session.meetingRequested) { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); } window.location.assign("https://calendly.com/linkedvelocity-info/30min"); }); }} style={{ font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none", paddingLeft: 4, color: "#15803d" }}>Book a time with the owner instead →</a>
+              </>}
             </div>}
+            <button type="button" className={styles.primary} style={{ marginTop: 18, ...(setupPick === "team" ? { background: "#3b4556" } : {}) }} disabled={busy || !setupPick} onClick={() => { if (setupPick === "pc") selectSetupMethod("pc"); else if (setupPick === "phone") selectSetupMethod("phone"); else if (setupPick === "team") void run(async () => { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); }); }}>{!setupPick ? "Choose an option" : setupPick === "team" ? "Hand over to our team →" : "Continue →"}</button>
     </>;
   }
 
