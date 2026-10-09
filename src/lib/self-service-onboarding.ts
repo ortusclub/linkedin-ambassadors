@@ -133,7 +133,10 @@ export async function reserveOnboarding(referrer: { id: string; slug: string; na
       }
       return existing.id;
     }
-    const urlSlug = input.linkedinUrl.split("/in/")[1];
+    // Take ONLY the profile slug — strip any ?utm=… query, #fragment or trailing path, so the
+    // duplicate check below matches an existing record even when a mobile share link carries
+    // junk the stored URL doesn't (otherwise a repeat onboarding slips through and duplicates).
+    const urlSlug = input.linkedinUrl.split("/in/")[1]?.split(/[?#/]/)[0];
     const [application, account] = await Promise.all([
       tx.ambassadorApplication.findFirst({ where: { OR: [{ email: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true, status: true } }),
       tx.linkedInAccount.findFirst({ where: { OR: [{ personalEmail: { equals: input.email, mode: "insensitive" } }, { loginEmail: { equals: input.email, mode: "insensitive" } }, { linkedinUrl: { contains: `/in/${urlSlug}`, mode: "insensitive" } }] }, select: { id: true, status: true } }),
