@@ -605,6 +605,13 @@ function DashboardContent() {
   const pastRentals = rentals
     .filter((r) => ["expired", "cancelled", "replaced"].includes(r.status))
     .sort((a, b) => (b.createdAt || b.startDate || "").localeCompare(a.createdAt || a.startDate || ""));
+  // Replacement pairing (both directions): a NEW rental's replacesRentalId points to the OLD one.
+  const rById = new Map(rentals.map((r) => [r.id, r]));
+  // For a new (replacement) rental -> the account it replaced.
+  const replacedAccountName = (r: Rental) => (r.replacesRentalId ? rById.get(r.replacesRentalId)?.linkedinAccount.linkedinName : undefined);
+  // For an old (replaced) rental -> the account that replaced it.
+  const swappedForName = new Map<string, string>();
+  for (const r of rentals) if (r.replacesRentalId) swappedForName.set(r.replacesRentalId, r.linkedinAccount.linkedinName);
   // Adaptive dashboard: lean ambassador-first if they share/submit accounts.
   const profileKey = (url?: string | null) => (url || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split(/[?#]/)[0].replace(/\/$/, "");
   const matchedAccounts = new Set<string>();
@@ -1137,6 +1144,9 @@ function DashboardContent() {
                           </div>
                           <div style={{ fontWeight: 500, fontSize: 12.5, color: V.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[acct.linkedinHeadline, rental.price != null ? `$${rental.price}/mo` : null].filter(Boolean).join(" · ")}</div>
                           <div style={{ fontWeight: 500, fontSize: 11.5, color: V.faint, whiteSpace: "nowrap" }}>Renting since {formatDate(rental.startDate)} · {humanDuration(rental.startDate)}</div>
+                          {replacedAccountName(rental) && (
+                            <div style={{ fontWeight: 600, fontSize: 11, color: V.orangeDeep, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>↔ Replaced {replacedAccountName(rental)}</div>
+                          )}
                         </div>
                       </div>
                       {/* status */}
@@ -1238,7 +1248,8 @@ function DashboardContent() {
                   const acct = rental.linkedinAccount;
                   const st = rental.status === "replaced" ? "Replaced" : rental.status === "cancelled" ? "Cancelled" : "Expired";
                   const [stBg, stFg] = st === "Replaced" ? ["#fff1e6", "#c2410c"] : ["#f1f3f6", "#5b6779"];
-                  const why = rental.status === "replaced" ? "Restricted · swapped for a new account"
+                  const swappedFor = swappedForName.get(rental.id);
+                  const why = rental.status === "replaced" ? (swappedFor ? `Restricted · swapped for ${swappedFor}` : "Restricted · swapped for a new account")
                     : rental.status === "cancelled" ? "You cancelled renewal"
                     : !rental.autoRenew ? "Auto-renew was off" : "Rental ended";
                   const end = rental.currentPeriodEnd ? formatDate(rental.currentPeriodEnd) : null;

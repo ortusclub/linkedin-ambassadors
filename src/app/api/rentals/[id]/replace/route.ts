@@ -90,6 +90,9 @@ export async function POST(
             lockedPrice: new Prisma.Decimal(newRate),
             discountCode: old.discountCode,
             replacesRentalId: old.id,
+            // Keep the original rental's "renting since" date so the replacement reads as a
+            // continuation, not a brand-new rental.
+            startDate: old.startDate,
             currentPeriodEnd: carriedPeriodEnd,
             notes: `Replacement for ${oldAcct.linkedinName} (restricted ${new Date(oldAcct.restrictedAt!).toISOString().slice(0, 10)})`,
           },
