@@ -21,6 +21,7 @@ const sections = [
   { name: "Renters", items: [
     { href: "/admin/customers", label: "Renters" },
     { href: "/admin/rentals", label: "Rentals" },
+    { href: "/admin/replacements", label: "Replacements" },
     { href: "/admin/transactions", label: "Transactions" },
     { href: "/admin/discounts", label: "Discounts" },
     { href: "/admin/emails", label: "Email log" },
