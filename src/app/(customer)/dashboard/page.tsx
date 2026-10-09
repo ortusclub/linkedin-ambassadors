@@ -357,6 +357,9 @@ function DashboardContent() {
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [openCredsId, setOpenCredsId] = useState<string | null>(null);
   const [openLinkId, setOpenLinkId] = useState<string | null>(null);
+  // Client-side "I'll wait" choice for restricted accounts past the recovery hold (hides the
+  // replace nudge; resets on refresh — it's a soft dismiss, not a persisted decision).
+  const [waitingIds, setWaitingIds] = useState<Set<string>>(new Set());
   const [linkCopied, setLinkCopied] = useState<string | null>(null);
   const [replacingRental, setReplacingRental] = useState<Rental | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
@@ -859,39 +862,18 @@ function DashboardContent() {
       </section>
       )}
 
-      {/* Primary CTA — rent (renters / both). Pure ambassadors add accounts from the summary card. */}
-      {showRenterSide && (
-      <section className="mb-8">
-        <Link
-          href="/catalogue"
-          className="flex items-center justify-between gap-4 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white px-5 py-4 transition-all hover:border-blue-300 hover:shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Rent an Account</p>
-              <p className="text-xs text-gray-500">Browse available LinkedIn accounts in the marketplace</p>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white">
-            Browse Accounts
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </span>
-        </Link>
-      </section>
-      )}
+      {/* (Per v2 design: the old "Rent an Account" card is removed — the header's
+          Browse-accounts button replaces it.) */}
 
       {/* Accounts I'm Renting Out — always shown (empty state when none); ordered to the bottom */}
         <section id="shared-accounts" className="mb-12 order-3">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-1.5 h-10 rounded bg-gradient-to-b from-[#00B85C] to-[#007A3D] shrink-0" />
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold text-[#007A3D] leading-tight">Accounts I&apos;m Renting Out</h2>
-              <p className="text-sm text-gray-500 leading-snug">Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 5, alignSelf: "stretch", minHeight: 40, borderRadius: 4, background: "#12a150", flex: "none" }} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h2 style={{ margin: 0, fontWeight: 800, fontSize: 22, letterSpacing: "-.01em", color: "#0f7a3d", lineHeight: 1.2 }}>Accounts I&apos;m Renting Out</h2>
+              <p style={{ margin: "3px 0 0", fontWeight: 500, fontSize: 13.5, lineHeight: 1.45, color: V.muted }}>Your LinkedIn accounts shared on LinkedVelocity — you earn every month.</p>
             </div>
-            <a href="/onboarding" className="ml-auto shrink-0 inline-flex items-center justify-center rounded-lg bg-[#00B85C] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#00A050]" title="Choose from three account setup options">Add Another Account</a>
+            <a href="/onboarding" title="Choose from three account setup options" style={{ flex: "none", border: "1px solid #bfe6cf", background: "#fff", color: "#0f7a3d", borderRadius: 9, padding: "8px 14px", fontWeight: 700, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap" }}>+ Share an account</a>
           </div>
         {(() => { const sub = submissions.find(s => s.id === meetingSubmissionId); return sub ? <div className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4">
           <div className="flex items-center justify-between gap-3"><strong>{sub.fullName} · Onboarding meeting</strong><button className="text-sm underline" onClick={() => setMeetingSubmissionId(null)}>Close</button></div>
@@ -1011,12 +993,10 @@ function DashboardContent() {
             </CardContent>
           </Card>
           ) : (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-gray-500">
-                You haven&apos;t shared any accounts yet.{" "}
-                <a href="/onboarding" className="font-semibold text-[#007A3D] hover:underline">Share an account to start earning →</a>
-              </CardContent>
-            </Card>
+            <div style={{ background: "#fff", border: `1px solid ${V.border}`, borderRadius: 14, padding: "30px 22px", textAlign: "center", fontWeight: 500, fontSize: 14, color: V.muted }}>
+              You haven&apos;t shared any accounts yet.{" "}
+              <a href="/onboarding" style={{ fontWeight: 700, color: "#0f7a3d", textDecoration: "none" }}>Share an account to start earning →</a>
+            </div>
           )}
         </section>
 
@@ -1083,11 +1063,12 @@ function DashboardContent() {
       {/* Accounts I'm renting (v2) — restricted sorted to top, inline */}
       <section data-tour="rentals" className="mb-12 order-1">
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
-          <div style={{ width: 6, alignSelf: "stretch", minHeight: 40, borderRadius: 4, background: "linear-gradient(to bottom, #0A66C2, #004182)", flex: "none" }} />
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontWeight: 800, fontSize: 20, letterSpacing: "-.01em", color: "#004182", lineHeight: 1.2 }}>Accounts I&apos;m Renting <span style={{ fontWeight: 600, fontSize: 13, color: V.faint }}>· {currentRentals.length} {currentRentals.length === 1 ? "account" : "accounts"}</span></h2>
-            <p style={{ margin: "3px 0 0", fontWeight: 500, fontSize: 13, color: V.muted }}>Accounts you&apos;re renting from other members · open them in GoLogin. <Link href="/account-guide-v2" style={{ color: V.blue, fontWeight: 600, textDecoration: "none" }}>Account guide →</Link></p>
+          <div style={{ width: 5, alignSelf: "stretch", minHeight: 40, borderRadius: 4, background: "#0b4fa8", flex: "none" }} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h2 style={{ margin: 0, fontWeight: 800, fontSize: 22, letterSpacing: "-.01em", color: "#0b4fa8", lineHeight: 1.2 }}>Accounts I&apos;m Renting</h2>
+            <p style={{ margin: "3px 0 0", fontWeight: 500, fontSize: 13.5, lineHeight: 1.45, color: V.muted }}>Accounts you&apos;re renting from other members — open them in GoLogin. <Link href="/account-guide-v2" style={{ color: V.blue, fontWeight: 700, textDecoration: "none" }}>Account guide →</Link></p>
           </div>
+          <span style={{ fontWeight: 600, fontSize: 13, color: V.faint, whiteSpace: "nowrap", marginTop: 2 }}>{currentRentals.length} {currentRentals.length === 1 ? "account" : "accounts"}</span>
         </div>
 
         {restrictedCount > 0 && (
@@ -1110,18 +1091,25 @@ function DashboardContent() {
                 const prep = isRentalBeingPrepared(rental);
                 const ready = canShowRentalShareLink(rental) && !!acct.gologinShareLink;
                 const eligible = R && canReplaceNow(acct.restrictedAt!);
+                const isWaiting = R && waitingIds.has(rental.id);
                 const remH = R ? Math.max(0, Math.ceil((replacementUnlockAt(acct.restrictedAt!) - nowTick) / 3600000)) : 0;
-                const creditDays = R ? Math.max(0, Math.round((nowTick - new Date(acct.restrictedAt!).getTime()) / 864e5)) : 0;
+                const creditDays = R ? Math.max(1, Math.ceil((nowTick - new Date(acct.restrictedAt!).getTime()) / 3600000 / 24)) : 0;
                 const progress = R ? Math.min(100, Math.max(0, (nowTick - new Date(acct.restrictedAt!).getTime()) / REPLACEMENT_HOLD_MS * 100)) : 0;
+                // Recently recovered (active, not restricted/prepping): show the green "recovered" treatment.
+                const rec = (!R && !prep && rental.recovery) ? rental.recovery : null;
+                const recDaysAgo = rec ? Math.floor((Date.now() - new Date(rec.at).getTime()) / 864e5) : 0;
+                const recWhen = recDaysAgo <= 0 ? "today" : `${recDaysAgo} ${recDaysAgo === 1 ? "day" : "days"} ago`;
                 const canSeeCreds = !!rental.credentialAccess;
                 const credsOpen = openCredsId === rental.id;
                 const linkOpen = openLinkId === rental.id;
 
+                const cDays = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
                 let sc = V.green, sl = "Active", ss = "Ready in GoLogin";
-                if (R) {
-                  sc = eligible ? "#b91c1c" : V.orangeDeep;
-                  sl = eligible ? "Restricted · couldn't recover it" : "Restricted · recovering it";
-                  ss = `Billing paused · ${creditDays >= 1 ? `${creditDays} ${creditDays === 1 ? "day" : "days"} credited` : "credit accruing"}`;
+                if (rec) {
+                  sc = V.green; sl = "Active · recovered"; ss = `Back ${recWhen} · ${cDays(rec.creditedDays)} added to your rental`;
+                } else if (R) {
+                  if (isWaiting) { sc = V.orangeDeep; sl = "Restricted · waiting for recovery"; ss = `You chose to wait · billing paused · ${cDays(creditDays)} credited`; }
+                  else { sc = eligible ? "#b91c1c" : V.orangeDeep; sl = eligible ? "Restricted · couldn't recover" : "Restricted · recovering"; ss = `Billing paused · ${cDays(creditDays)} credited`; }
                 } else if (prep) { sc = V.faint; sl = "Being prepared"; ss = "We'll email you at handover"; }
                 else if (rental.paused) { sc = V.faint; sl = "Paused"; ss = "Access paused"; }
                 else if (rental.status === "payment_failed") { sc = "#b91c1c"; sl = "Payment issue"; ss = "Update your balance or card"; }
@@ -1130,10 +1118,11 @@ function DashboardContent() {
 
                 const billL = R ? "Billing" : prep ? "Billing" : rental.autoRenew ? "Renews" : "Ends";
                 const billV = R ? "Paused" : prep ? "Starts at handover" : rental.currentPeriodEnd ? formatDate(rental.currentPeriodEnd) : "—";
+                const billNote = rec ? `+${cDays(rec.creditedDays)}` : "";
                 const shareUrl = acct.gologinShareLink;
 
                 return (
-                  <div key={rental.id} style={{ borderTop: i === 0 ? "none" : `1px solid ${V.line}`, background: R ? "#fffaf5" : "#fff" }}>
+                  <div key={rental.id} style={{ borderTop: i === 0 ? "none" : `1px solid ${V.line}`, background: R ? "#fffaf5" : rec ? "#f4fbf7" : "#fff" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1.2fr) 140px 250px", alignItems: "center", gap: "12px 20px", padding: "14px 18px" }}>
                       {/* profile */}
                       <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
@@ -1156,20 +1145,14 @@ function DashboardContent() {
                           <span style={{ width: 7, height: 7, borderRadius: "50%", background: sc }} />{sl}
                         </div>
                         <span style={{ fontWeight: 500, fontSize: 12, color: V.faint }}>{ss}</span>
-                        {R && !eligible && (
+                        {R && !eligible && !isWaiting && (
                           <div style={{ height: 4, maxWidth: 170, borderRadius: 4, background: "#fde3cc", overflow: "hidden" }}><div style={{ height: "100%", width: `${progress}%`, background: V.orange }} /></div>
-                        )}
-                        {!R && !prep && rental.recovery && (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600, fontSize: 11.5, color: V.green }}>
-                            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.3l2.3 2.3 4.7-5" /></svg>
-                            Recovered {formatDate(rental.recovery.at)}{rental.recovery.creditedDays > 0 ? ` · ${rental.recovery.creditedDays} ${rental.recovery.creditedDays === 1 ? "day" : "days"} credited` : ""}
-                          </span>
                         )}
                       </div>
                       {/* billing */}
                       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                         <span style={{ fontWeight: 500, fontSize: 12, color: V.faint }}>{billL}</span>
-                        <span style={{ fontWeight: 700, fontSize: 13.5 }}>{billV}</span>
+                        <span style={{ fontWeight: 700, fontSize: 13.5 }}>{billV}{billNote && <span style={{ fontWeight: 700, fontSize: 11.5, color: V.green, marginLeft: 6 }}>{billNote}</span>}</span>
                         {!R && !prep && rental.status === "active" && (
                           <button onClick={() => toggleAutoRenew(rental)} title="Turn auto-renew on or off" style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 999, padding: "3px 10px 3px 4px", fontWeight: 700, fontSize: 11.5, cursor: "pointer", background: rental.autoRenew ? "#e7f7ee" : "#f1f3f6", color: rental.autoRenew ? "#0f7a3d" : V.muted }}>
                             <span style={{ width: 22, height: 14, borderRadius: 999, background: rental.autoRenew ? V.green : "#c3c9d3", position: "relative", display: "block" }}><span style={{ position: "absolute", top: 2, left: rental.autoRenew ? 10 : 2, width: 10, height: 10, borderRadius: "50%", background: "#fff" }} /></span>
@@ -1177,24 +1160,32 @@ function DashboardContent() {
                           </button>
                         )}
                       </div>
-                      {/* actions */}
-                      <div style={{ minWidth: 0, display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                        {R ? (
-                          eligible ? (
-                            <button onClick={() => setReplacingRental(rental)} style={{ border: "none", background: V.orange, color: "#fff", borderRadius: 8, padding: "8px 14px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>Replace account</button>
+                      {/* actions — fixed two-column grid: [sign-in / I'll wait] [open / replace] */}
+                      <div style={{ minWidth: 0, display: "grid", gridTemplateColumns: "116px 132px", gap: 8, justifyContent: "end", alignItems: "center" }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                          {(!R && !prep && ready && canSeeCreds) ? (
+                            <button onClick={() => setOpenCredsId((p) => (p === rental.id ? null : rental.id))} style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{credsOpen ? "Hide sign-in" : "Sign-in"}</button>
+                          ) : (R && eligible && !isWaiting) ? (
+                            <button onClick={() => setWaitingIds((p) => new Set(p).add(rental.id))} title="Keep this account. We'll keep trying to recover it, and billing stays paused." style={{ border: "1px solid #f5c39b", background: "#fff", color: "#9a3412", width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>I&apos;ll wait</button>
+                          ) : null}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                          {R ? (
+                            isWaiting ? (
+                              <button onClick={() => setReplacingRental(rental)} style={{ border: "1px solid #f5c39b", background: "#fff", color: "#9a3412", width: 132, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>Replace instead</button>
+                            ) : eligible ? (
+                              <button onClick={() => setReplacingRental(rental)} style={{ border: "none", background: V.orange, color: "#fff", width: 132, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>Replace account</button>
+                            ) : (
+                              <span title="You can replace it if we haven't recovered it by then" style={{ width: 132, boxSizing: "border-box", textAlign: "center", border: "1px dashed #f5c39b", color: "#9a3412", borderRadius: 8, padding: "7px 0", fontWeight: 600, fontSize: 12.5, whiteSpace: "nowrap" }}>Replace in {remH}h</span>
+                            )
+                          ) : prep ? (
+                            <span style={{ width: 132, boxSizing: "border-box", textAlign: "center", border: "1px dashed #d5dbe5", color: V.faint, borderRadius: 8, padding: "7px 0", fontWeight: 600, fontSize: 12.5, whiteSpace: "nowrap" }}>After handover</span>
+                          ) : ready ? (
+                            <button onClick={() => setOpenLinkId((p) => (p === rental.id ? null : rental.id))} style={{ border: "none", background: V.blue, color: "#fff", width: 132, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{linkOpen ? "Hide link" : "Open in GoLogin"}</button>
                           ) : (
-                            <span title="You can replace it if we haven't recovered it by then" style={{ border: "1px dashed #f5c39b", color: "#9a3412", borderRadius: 8, padding: "7px 12px", fontWeight: 600, fontSize: 12.5, whiteSpace: "nowrap" }}>Replace option in {remH}h</span>
-                          )
-                        ) : prep ? (
-                          <span style={{ fontWeight: 600, fontSize: 12.5, color: V.faint, padding: "8px 0" }}>Access link after handover</span>
-                        ) : ready ? (
-                          <>
-                            <button onClick={() => setOpenLinkId((p) => (p === rental.id ? null : rental.id))} style={{ border: "none", background: V.blue, color: "#fff", borderRadius: 8, padding: "8px 13px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{linkOpen ? "Hide link" : "Open in GoLogin"}</button>
-                            {canSeeCreds && <button onClick={() => setOpenCredsId((p) => (p === rental.id ? null : rental.id))} style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{credsOpen ? "Hide sign-in" : "Sign-in details"}</button>}
-                          </>
-                        ) : (
-                          <span style={{ fontWeight: 600, fontSize: 12.5, color: V.faint, padding: "8px 0" }}>Share link not available yet</span>
-                        )}
+                            <span style={{ width: 132, boxSizing: "border-box", textAlign: "center", fontWeight: 600, fontSize: 12, color: V.faint, whiteSpace: "nowrap" }}>Not ready yet</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
