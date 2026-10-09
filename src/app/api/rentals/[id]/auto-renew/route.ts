@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { requireAuth } from "@/lib/auth";
+import { notifyBillingPaused } from "@/lib/billing-pause-notify";
 
 export async function PATCH(
   req: Request,
@@ -15,6 +16,7 @@ export async function PATCH(
 
     const rental = await prisma.rental.findFirst({
       where: { id, userId: user.id, status: "active" },
+      include: { linkedinAccount: { select: { linkedinName: true } } },
     });
 
     if (!rental) {
@@ -41,6 +43,11 @@ export async function PATCH(
       where: { id },
       data: { autoRenew: on },
     });
+
+    // Confirm the pause to the renter only on a real on -> off transition.
+    if (!on && rental.autoRenew) {
+      await notifyBillingPaused(user.id, { trigger: "renewal_off", highlightAccount: rental.linkedinAccount.linkedinName });
+    }
 
     return NextResponse.json({ ok: true, autoRenew: on });
   } catch (error) {

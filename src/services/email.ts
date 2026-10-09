@@ -497,6 +497,65 @@ export async function sendRenewalHeadsUpBatch(
   });
 }
 
+// Sent the moment a renter's billing pauses, so they're never surprised. Two causes, two
+// sections: accounts they've turned renewal OFF for (which return to LinkedVelocity after the
+// period ends) and accounts that got restricted (temporary pause, not charged while down).
+// Always shows the renter's full current picture, not just the one that triggered it.
+export async function sendBillingPausedEmail(
+  email: string,
+  firstName: string,
+  opts: {
+    trigger: "renewal_off" | "restricted";
+    highlightAccount: string;
+    notRenewing: { name: string; endDate: string; returnDate: string }[];
+    restricted: { name: string; restrictedDate: string }[];
+  }
+) {
+  const hi = firstName ? `Hi ${firstName},` : "Hi there,";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+
+  const subject = opts.trigger === "renewal_off"
+    ? "Renewal turned off for your rented accounts"
+    : "An account you rent was restricted";
+
+  const intro = opts.trigger === "renewal_off"
+    ? `You've turned off renewal for <strong>${opts.highlightAccount}</strong>. It stays active until the date shown below, then returns to LinkedVelocity's control, and you won't be charged for it again.`
+    : `<strong>${opts.highlightAccount}</strong> was restricted by LinkedIn. We've paused its billing while we work to recover it, so you're not charged while it's down. If it's still restricted after 2 days, you can swap it for an equivalent account from your dashboard.`;
+
+  const notRenewingTable = opts.notRenewing.length ? `
+    <p style="font-size:13px;font-weight:700;color:#0F1419;margin:22px 0 6px;">Accounts not renewing (returning to LinkedVelocity)</p>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 8px;">
+      <tbody>${opts.notRenewing.map((i) => `<tr>
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:14px;color:#0F1419;">${i.name}</td>
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:13px;color:#536471;">active until ${i.endDate}</td>
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:13px;color:#536471;text-align:right;">returns ${i.returnDate}</td>
+      </tr>`).join("")}</tbody>
+    </table>` : "";
+
+  const restrictedTable = opts.restricted.length ? `
+    <p style="font-size:13px;font-weight:700;color:#0F1419;margin:22px 0 6px;">Accounts temporarily paused (being recovered)</p>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 8px;">
+      <tbody>${opts.restricted.map((i) => `<tr>
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:14px;color:#0F1419;">${i.name}</td>
+        <td style="padding:9px 12px;border-top:1px solid #eef0f2;font-size:13px;color:#536471;">restricted ${i.restrictedDate}, not charged while down</td>
+      </tr>`).join("")}</tbody>
+    </table>` : "";
+
+  return sendEmail({
+    to: email,
+    subject,
+    bcc: billingBcc,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">${hi}</p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">${intro}</p>
+      ${notRenewingTable}
+      ${restrictedTable}
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:18px 0 18px;">You can turn renewal back on or manage any of these anytime from your dashboard.</p>
+      <a href="${appUrl}/dashboard" style="display:inline-block;background:#F3F2EE;color:#0F1419;text-decoration:none;font-weight:600;font-size:14px;padding:11px 22px;border-radius:10px;">Manage billing</a>
+    `),
+  });
+}
+
 // Internal watchdog alert — sent when the daily renewal cron looks like it stopped running
 // (rentals stuck past their renewal date). Goes to milee@ per request.
 export async function sendRenewalCronAlert(stuck: number, activeAutoRenew: number) {

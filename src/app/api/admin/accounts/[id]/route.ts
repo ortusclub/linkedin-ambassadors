@@ -8,6 +8,7 @@ import { decryptSecret } from "@/lib/crypto-creds";
 import { provisionAccount } from "@/lib/provision-account";
 import * as gologin from "@/services/gologin";
 import { restrictionUpdate } from "@/lib/restriction";
+import { notifyBillingPaused } from "@/lib/billing-pause-notify";
 import { setupPaidDate } from "@/lib/payment-schedule";
 
 const updateSchema = z.object({
@@ -184,8 +185,11 @@ export async function PATCH(
     // A restriction change (restrictedAt set or cleared) is recorded to the shared
     // restrictionLog through the same helper the inventory /restricted route uses, so
     // the history is captured no matter which surface set it (pipeline or inventory).
+    let newlyRestricted = false;
     if (data.restrictedAt !== undefined) {
       const cur = await prisma.linkedInAccount.findUnique({ where: { id }, select: { id: true, restrictedAt: true, restrictionLog: true } });
+      // Flag an on-transition (was clear, now being set) so we can notify the renter below.
+      newlyRestricted = data.restrictedAt !== null && !cur?.restrictedAt;
       if (cur) {
         const fields = await restrictionUpdate(cur, data.restrictedAt !== null);
         (data as Record<string, unknown>).restrictedAt = fields.restrictedAt;
@@ -214,6 +218,20 @@ export async function PATCH(
       where: { id },
       data,
     });
+
+    // Newly restricted via this edit: tell any real renter(s) their billing is paused.
+    if (newlyRestricted && account.restrictedAt) {
+      const renters = await prisma.rental.findMany({
+        where: { linkedinAccountId: id, isShadow: false, status: { in: ["active", "pending_access", "payment_failed"] } },
+        select: { userId: true },
+      });
+      const seen = new Set<string>();
+      for (const r of renters) {
+        if (seen.has(r.userId)) continue;
+        seen.add(r.userId);
+        await notifyBillingPaused(r.userId, { trigger: "restricted", highlightAccount: account.linkedinName });
+      }
+    }
 
     // If this edit just made the account runnable (a GoLogin was set/changed), advance
     // the owner's application to onboarded so a referred signup converts automatically on
