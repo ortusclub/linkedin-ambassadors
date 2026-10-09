@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { publicInventorySlice } from "@/lib/public-inventory";
 import { maskName } from "@/lib/mask";
 import { blogFontVars } from "@/lib/blog-fonts";
 
@@ -18,8 +19,11 @@ export const metadata: Metadata = {
 
 async function getCatalogueSchema() {
   try {
+    // Structured data is public page source — only ever list the public slice (see
+    // lib/public-inventory), never the whole roster.
+    const { availableIds } = await publicInventorySlice();
     const accounts = await prisma.linkedInAccount.findMany({
-      where: { status: "available", listed: true },
+      where: { id: { in: availableIds } },
       select: {
         id: true,
         linkedinName: true,
@@ -32,7 +36,6 @@ async function getCatalogueSchema() {
         profilePhotoUrl: true,
       },
       orderBy: { connectionCount: "desc" },
-      take: 100,
     });
 
     if (accounts.length === 0) return null;

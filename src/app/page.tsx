@@ -5,6 +5,7 @@ import { blogFontVars } from "@/lib/blog-fonts";
 import { getBrand } from "@/lib/brand";
 import { LinkedArmyHome, type ArmyRosterCard } from "./linkedarmy-home";
 import { prisma } from "@/lib/prisma";
+import { publicInventorySlice } from "@/lib/public-inventory";
 import { maskName } from "@/lib/mask";
 
 const POP = "var(--font-poppins)", INT = "var(--font-inter)", MONO = "var(--font-jbmono)";
@@ -91,14 +92,11 @@ const WHY_BY_BRAND = {
 // same shared catalogue backend as LinkedVelocity, same public filters.
 async function getArmyRoster(): Promise<ArmyRosterCard[]> {
   try {
+    // Drawn from the public slice only (see lib/public-inventory) so the homepage never
+    // reveals accounts the catalogue itself keeps hidden.
+    const { availableIds, rentedIds } = await publicInventorySlice();
     const rows = await prisma.linkedInAccount.findMany({
-      where: {
-        inventoryPool: { notIn: ["ortus", "apex"] },
-        OR: [
-          { status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false },
-          { status: { in: ["rented", "trial"] }, listed: true },
-        ],
-      },
+      where: { id: { in: [...availableIds, ...rentedIds] } },
       select: { id: true, linkedinName: true, linkedinHeadline: true, connectionCount: true, industry: true, location: true, hasSalesNav: true, linkedinVerified: true },
       orderBy: { connectionCount: "desc" },
       take: 8,

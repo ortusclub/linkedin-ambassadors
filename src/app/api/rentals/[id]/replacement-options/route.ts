@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { publicInventorySlice } from "@/lib/public-inventory";
 import { requireAuth } from "@/lib/auth";
 import { monthlyRentalPrice } from "@/lib/account-pricing";
 import { maskPublicAccount } from "@/lib/mask";
@@ -53,9 +54,12 @@ export async function GET(
 
     // Genuinely-rentable inventory only (mirror the catalogue's "available" branch), minus
     // the restricted account itself (and shadow-held ones for a shadow renter).
+    // Signed-in renters are capped like everyone else: replacement candidates come from the
+    // public slice only (see lib/public-inventory), never the whole roster.
+    const { availableIds } = await publicInventorySlice();
     const candidates = await prisma.linkedInAccount.findMany({
       where: {
-        id: { notIn: excludeIds },
+        id: { in: availableIds.filter((id) => !excludeIds.includes(id)) },
         status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false,
         inventoryPool: { notIn: ["ortus", "apex"] },
       },
