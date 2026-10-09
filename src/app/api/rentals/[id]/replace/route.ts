@@ -99,7 +99,7 @@ export async function POST(
           select: { id: true },
         });
 
-        await tx.rental.update({ where: { id: old.id }, data: { status: "replaced", notes: old.notes ? `${old.notes} · Replaced by ${picked.linkedinName}` : `Replaced by ${picked.linkedinName}` } });
+        await tx.rental.update({ where: { id: old.id }, data: { status: "replaced", waitingForRecovery: false, waitChosenAt: null, notes: old.notes ? `${old.notes} · Replaced by ${picked.linkedinName}` : `Replaced by ${picked.linkedinName}` } });
 
         if (!old.isShadow) {
           // Real rental: new account leaves the catalogue; the old restricted account is freed

@@ -27,6 +27,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       data: { restrictedAt: fields.restrictedAt, ...(fields.restrictionLog ? { restrictionLog: fields.restrictionLog } : {}) },
     });
 
+    // Recovered: clear any "I'll wait" choice on this account's live rentals (there's nothing
+    // left to wait for).
+    if (!restrict && account.restrictedAt) {
+      await prisma.rental.updateMany({
+        where: { linkedinAccountId: id, status: { in: ["active", "pending_access", "payment_failed"] }, waitingForRecovery: true },
+        data: { waitingForRecovery: false, waitChosenAt: null },
+      });
+    }
+
     // Newly restricted (was clear, now set): tell any real renter(s) their billing is paused.
     if (restrict && !account.restrictedAt && updated.restrictedAt) {
       const renters = await prisma.rental.findMany({
