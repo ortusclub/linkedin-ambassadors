@@ -52,11 +52,12 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
   charge_notice: { label: "Charge notice", color: "blue" },
   renewal_confirmed: { label: "Renewal confirmed", color: "green" },
   payment_failed: { label: "Payment failed", color: "red" },
+  billing_change: { label: "Billing change", color: "violet" },
   verification: { label: "Verification", color: "violet" },
   welcome: { label: "Welcome", color: "teal" },
   other: { label: "Other", color: "blue" },
 };
-const CHIP_ORDER = ["all", "renewal_reminder", "charge_notice", "renewal_confirmed", "payment_failed", "verification", "welcome"];
+const CHIP_ORDER = ["all", "renewal_reminder", "charge_notice", "renewal_confirmed", "payment_failed", "billing_change", "verification", "welcome"];
 
 function classify(subject: string, stage?: string): string {
   if (stage) {
@@ -66,6 +67,7 @@ function classify(subject: string, stage?: string): string {
     if (stage === "payment_hiccup" || stage === "access_revoked") return "payment_failed";
   }
   const s = (subject || "").toLowerCase();
+  if (s.includes("renewal turned off") || s.includes("was restricted")) return "billing_change";
   if (s.includes("verification") || s.includes("verify")) return "verification";
   if (s.includes("welcome")) return "welcome";
   if (s.includes("will be charged") || s.includes("heads-up")) return "charge_notice";

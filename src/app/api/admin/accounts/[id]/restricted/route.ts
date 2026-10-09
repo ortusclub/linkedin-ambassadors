@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { restrictionUpdate, type RestrictionEvent } from "@/lib/restriction";
+import { notifyBillingPaused } from "@/lib/billing-pause-notify";
 
 // Admin: mark a rented account as restricted (LinkedIn restricted it, we're recovering)
 // or clear it (recovered). On recover, credit the active rental's downtime by extending
@@ -25,6 +26,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       where: { id },
       data: { restrictedAt: fields.restrictedAt, ...(fields.restrictionLog ? { restrictionLog: fields.restrictionLog } : {}) },
     });
+
+    // Newly restricted (was clear, now set): tell any real renter(s) their billing is paused.
+    if (restrict && !account.restrictedAt && updated.restrictedAt) {
+      const renters = await prisma.rental.findMany({
+        where: { linkedinAccountId: id, isShadow: false, status: { in: ["active", "pending_access", "payment_failed"] } },
+        select: { userId: true },
+      });
+      const seen = new Set<string>();
+      for (const r of renters) {
+        if (seen.has(r.userId)) continue;
+        seen.add(r.userId);
+        await notifyBillingPaused(r.userId, { trigger: "restricted", highlightAccount: account.linkedinName });
+      }
+    }
+
     return NextResponse.json({ restrictedAt: updated.restrictedAt, creditedDays: fields.creditedDays ?? 0, restrictionLog: updated.restrictionLog });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "error";

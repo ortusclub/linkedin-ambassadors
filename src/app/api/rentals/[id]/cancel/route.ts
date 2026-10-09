@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { requireAuth } from "@/lib/auth";
+import { notifyBillingPaused } from "@/lib/billing-pause-notify";
 
 export async function POST(
   _req: Request,
@@ -13,6 +14,7 @@ export async function POST(
 
     const rental = await prisma.rental.findFirst({
       where: { id, userId: user.id, status: "active" },
+      include: { linkedinAccount: { select: { linkedinName: true } } },
     });
 
     if (!rental) {
@@ -39,6 +41,11 @@ export async function POST(
       where: { id },
       data: { autoRenew: false },
     });
+
+    // Confirm the pause to the renter (only if this actually turned renewal off).
+    if (rental.autoRenew) {
+      await notifyBillingPaused(user.id, { trigger: "renewal_off", highlightAccount: rental.linkedinAccount.linkedinName });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
