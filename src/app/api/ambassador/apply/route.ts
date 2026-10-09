@@ -70,13 +70,10 @@ export async function POST(req: Request) {
     // (e.g. the application was deleted) — the two gaps that previously let repeats through.
     const established = await establishedDuplicate(data.email, linkedinUrl);
     if (established) {
-      if (established.applicationId) {
-        const existing = await prisma.ambassadorApplication.findUnique({ where: { id: established.applicationId } });
-        if (existing) {
-          return NextResponse.json({ application: existing, meetingToken: meetingToken(existing.id), assessment: null, duplicate: true }, { status: 200 });
-        }
-      }
-      // Live account but no application to hand back: already registered, do not create one.
+      // Already established with us — an onboarded application OR a live, non-removed account.
+      // They're done, not a new signup, so NEVER hand back an onboarding-call booking: previously
+      // the existing app was returned WITH a meetingToken, which let an already-onboarded owner
+      // re-book the onboarding call just by re-submitting the form. Tell them to contact the team.
       return NextResponse.json({ duplicate: true, alreadyRegistered: true, error: "This account is already registered with LinkedVelocity. If you need to make a change, contact the team instead of submitting a new application." }, { status: 200 });
     }
 
