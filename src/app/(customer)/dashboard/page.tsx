@@ -164,12 +164,14 @@ interface ReplacementOption {
   location: string | null;
   profilePhotoUrl: string | null;
   linkedinVerified: boolean;
+  hasSalesNav: boolean;
   monthlyPrice: number;
 }
 
 // Picker modal for swapping a restricted rental to an equivalent available account.
 function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; onClose: () => void; onReplaced: () => void }) {
   const [options, setOptions] = useState<ReplacementOption[]>([]);
+  const [oldPrice, setOldPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -179,7 +181,7 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
     let stop = false;
     fetch(`/api/rentals/${rental.id}/replacement-options`)
       .then(async (r) => ({ ok: r.ok, data: await r.json() }))
-      .then(({ ok, data }) => { if (stop) return; if (!ok) setError(data.error || "Couldn't load options."); else setOptions(data.options || []); })
+      .then(({ ok, data }) => { if (stop) return; if (!ok) setError(data.error || "Couldn't load options."); else { setOptions(data.options || []); setOldPrice(typeof data.oldPrice === "number" ? data.oldPrice : null); } })
       .catch(() => { if (!stop) setError("Couldn't load options."); })
       .finally(() => { if (!stop) setLoading(false); });
     return () => { stop = true; };
@@ -207,6 +209,7 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
           <div>
             <h2 className="text-lg font-bold text-gray-900">Replace {rental.linkedinAccount.linkedinName}</h2>
             <p className="mt-0.5 text-sm text-gray-500">Pick an available account to switch to. You keep your current price and billing date, plus credit for the downtime.</p>
+            {oldPrice != null && <p className="mt-1 text-xs text-gray-400">Showing accounts at the same tier or lower{oldPrice ? ` (up to the $${oldPrice}/mo tier)` : ""}. Your rate doesn&apos;t change.</p>}
           </div>
           <button onClick={onClose} className="ml-3 text-2xl leading-none text-gray-400 hover:text-gray-600">×</button>
         </div>
@@ -222,16 +225,21 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
             <div className="flex flex-col gap-2">
               {options.map((o) => (
                 <button key={o.id} onClick={() => setSelected(o.id)}
-                  className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${selected === o.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
+                  className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-colors ${selected === o.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
                     {o.profilePhotoUrl ? <img src={o.profilePhotoUrl} alt={o.linkedinName} className="h-full w-full object-cover" /> : initials(o.linkedinName)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-gray-900">{o.linkedinName}{o.linkedinVerified && <span className="ml-1.5 text-blue-600" title="Verified">✓</span>}</p>
+                    <p className="truncate text-sm font-semibold text-gray-900">{o.linkedinName}</p>
                     {o.linkedinHeadline && <p className="truncate text-xs text-gray-500">{o.linkedinHeadline}</p>}
                     <p className="mt-0.5 text-[11px] text-gray-400">{o.connectionCount.toLocaleString()} connections{o.location ? ` · ${o.location}` : ""}</p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600" title="Standard monthly rate for this account's tier">${o.monthlyPrice}/mo tier</span>
+                      {o.linkedinVerified && <span className="inline-flex items-center gap-0.5 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700" title="LinkedIn verified">✓ Verified</span>}
+                      {o.hasSalesNav && <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700" title="Includes Sales Navigator">Sales Nav</span>}
+                    </div>
                   </div>
-                  <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border ${selected === o.id ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300"}`}>{selected === o.id ? "✓" : ""}</span>
+                  <span className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border ${selected === o.id ? "border-blue-500 bg-blue-500 text-white" : "border-gray-300"}`}>{selected === o.id ? "✓" : ""}</span>
                 </button>
               ))}
             </div>
