@@ -606,6 +606,18 @@ export default function AdminAccountsPage() {
       if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, restrictedAt: restricted ? (d.restrictedAt || new Date().toISOString()) : null, restrictionLog: (d.restrictionLog as Account["restrictionLog"]) ?? x.restrictionLog } : x))); if (!restricted && d.creditedDays) alert(`Recovered. Credited ~${d.creditedDays} day(s) of downtime to the renter.`); }
     } finally { setBusy(null); }
   };
+  // Remove a single (mistaken / duplicate) entry from the restriction history. Correction
+  // only — no downtime is credited. Deleting the currently-open restriction also clears the
+  // live flag (handled server-side; the response carries the new restrictedAt).
+  const deleteRestrictionEvent = async (a: Account, at: string) => {
+    if (!confirm("Delete this restriction-history entry? This just removes the log line (no downtime is credited or reversed).")) return;
+    setBusy(a.id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at }) });
+      if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, restrictedAt: (d.restrictedAt as string | null) ?? null, restrictionLog: (d.restrictionLog as Account["restrictionLog"]) ?? x.restrictionLog } : x))); }
+      else { const d = await res.json().catch(() => ({})); alert(d.error || "Could not delete entry"); }
+    } finally { setBusy(null); }
+  };
   const handleDelete = async (a: Account) => {
     if (!confirm(`Remove ${a.linkedinName} from inventory? This can't be undone.`)) return;
     setBusy(a.id);
@@ -1176,7 +1188,8 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                                         <div key={i} style={{ display: "flex", gap: 8, alignItems: "baseline", font: `500 12px ${F_SANS}` }}>
                                           <span title={new Date(e.at).toLocaleString()} style={{ color: "var(--muted2)", whiteSpace: "nowrap", minWidth: 52 }}>{fmtS(e.at)}</span>
                                           <span style={{ color: e.event === "restricted" ? "var(--st-cancel-fg)" : "var(--st-active-fg)", fontWeight: 700, whiteSpace: "nowrap" }}>{e.event === "restricted" ? "⚠ Restricted" : "✓ Recovered"}</span>
-                                          <span style={{ color: "var(--fg)", minWidth: 0 }}>{e.note || ""}{e.creditedDays ? `${e.note ? " · " : ""}credited ${e.creditedDays}d` : ""}</span>
+                                          <span style={{ color: "var(--fg)", minWidth: 0, flex: 1 }}>{e.note || ""}{e.creditedDays ? `${e.note ? " · " : ""}credited ${e.creditedDays}d` : ""}</span>
+                                          <button onClick={() => deleteRestrictionEvent(a, e.at)} disabled={busy === a.id} title="Delete this entry" aria-label="Delete this entry" style={{ marginLeft: "auto", flex: "none", background: "none", border: "none", cursor: busy === a.id ? "default" : "pointer", color: "var(--muted2)", font: `700 14px ${F_SANS}`, lineHeight: 1, padding: "0 2px", opacity: busy === a.id ? 0.4 : 0.7 }}>×</button>
                                         </div>
                                       ))}
                                     </div>
