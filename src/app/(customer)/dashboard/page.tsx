@@ -740,23 +740,26 @@ function DashboardContent() {
       <section id="wallet" data-tour="wallet" className="mb-8">
         <Card>
           <CardContent className="px-5 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A66C2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5c0-1.38-1.34-2.5-3-2.5S9 8.12 9 9.5 10.34 12 12 12s3 1.12 3 2.5-1.34 2.5-3 2.5-3-1.12-3-2.5"/></svg>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Balance</p>
-                  <p className="text-xl font-bold text-gray-900 -mt-0.5">${parseFloat(usdcBalance).toFixed(2)}</p>
-                </div>
-                {downtimeCreditDays > 0 && (
-                  <div className="pl-4 border-l border-gray-100">
-                    <p className="text-xs text-gray-500 font-medium">Downtime credit <span className="text-gray-400">· added to your rental</span></p>
-                    <p className="text-base font-bold -mt-0.5" style={{ color: V.green }}>+{downtimeCreditDays} {downtimeCreditDays === 1 ? "day" : "days"}</p>
-                  </div>
-                )}
+            <div style={{ display: "flex", alignItems: "center", gap: "14px 28px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ font: "600 12px inherit", color: V.faint }}>Balance</span>
+                <span style={{ font: "800 26px inherit", letterSpacing: "-.02em", color: V.text }}>${parseFloat(usdcBalance).toFixed(2)}</span>
               </div>
-              <div className="flex items-center gap-2">
+              {downtimeCreditDays > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 24, borderLeft: `1px solid ${V.line}` }}>
+                  <span style={{ font: "600 12px inherit", color: V.faint }}>Downtime credit <span style={{ color: "#aab2c0" }}>· added to your rental</span></span>
+                  <span style={{ font: "700 16px inherit", color: V.green }}>+{downtimeCreditDays} {downtimeCreditDays === 1 ? "day" : "days"}</span>
+                </div>
+              )}
+              {cardOnFile && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 24, borderLeft: `1px solid ${V.line}` }}>
+                  <span style={{ font: "600 12px inherit", color: V.faint }}>Card on file <span style={{ color: "#aab2c0" }}>· covers renewal shortfalls</span></span>
+                  <span style={{ font: "600 14px inherit", color: V.text }}>{cardOnFile.brand ? `${cardOnFile.brand} ` : ""}•••• {cardOnFile.last4}
+                    <button onClick={removeCard} style={{ border: "none", background: "none", font: "600 12.5px inherit", color: "#b91c1c", cursor: "pointer", marginLeft: 8 }}>Remove</button>
+                  </span>
+                </div>
+              )}
+              <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                 <button
                   onClick={() => {
                     setShowTopUp(!showTopUp);
@@ -767,31 +770,18 @@ function DashboardContent() {
                       }).catch(() => {});
                     }
                   }}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${showTopUp ? 'bg-green-700 text-white' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                  style={{ border: "none", background: V.green, color: "#fff", borderRadius: 9, padding: "9px 16px", font: "700 13.5px inherit", cursor: "pointer" }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                  Deposit
+                  + Deposit
                 </button>
                 <button
                   onClick={() => { setShowWithdraw(!showWithdraw); setShowTopUp(false); }}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showWithdraw ? 'border-gray-400 bg-gray-100 text-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                  style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 9, padding: "9px 14px", font: "600 13.5px inherit", cursor: "pointer" }}
                 >
                   Withdraw
                 </button>
               </div>
             </div>
-
-            {/* Card on file — used to cover any renewal shortfall not met by balance */}
-            {cardOnFile && (
-              <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 text-xs">
-                <span className="inline-flex items-center gap-1.5 text-gray-600">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-                  Card on file: <span className="font-medium text-gray-900">{cardOnFile.brand ? `${cardOnFile.brand} ` : ""}•••• {cardOnFile.last4}</span>
-                  <span className="text-gray-400">— covers any renewal shortfall not met by your balance</span>
-                </span>
-                <button onClick={removeCard} className="font-medium text-red-500 hover:text-red-700">Remove</button>
-              </div>
-            )}
 
             {/* Deposit Panel */}
             {showTopUp && (
@@ -1090,10 +1080,12 @@ function DashboardContent() {
 
       {/* Accounts I'm renting (v2) — restricted sorted to top, inline */}
       <section data-tour="rentals" className="mb-12 order-1">
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-          <h2 style={{ margin: 0, font: "800 20px inherit", letterSpacing: "-.01em", color: V.text }}>Accounts I&apos;m renting</h2>
-          <span style={{ font: "600 13px inherit", color: V.faint }}>{currentRentals.length} {currentRentals.length === 1 ? "account" : "accounts"}</span>
-          <Link href="/account-guide-v2" style={{ marginLeft: "auto", font: "600 13px inherit", color: V.blue, textDecoration: "none" }}>Account guide →</Link>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
+          <div style={{ width: 6, alignSelf: "stretch", minHeight: 40, borderRadius: 4, background: "linear-gradient(to bottom, #0A66C2, #004182)", flex: "none" }} />
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ margin: 0, font: "800 20px inherit", letterSpacing: "-.01em", color: "#004182", lineHeight: 1.2 }}>Accounts I&apos;m Renting <span style={{ font: "600 13px inherit", color: V.faint }}>· {currentRentals.length} {currentRentals.length === 1 ? "account" : "accounts"}</span></h2>
+            <p style={{ margin: "3px 0 0", font: "500 13px inherit", color: V.muted }}>Accounts you&apos;re renting from other members · open them in GoLogin. <Link href="/account-guide-v2" style={{ color: V.blue, fontWeight: 600, textDecoration: "none" }}>Account guide →</Link></p>
+          </div>
         </div>
 
         {restrictedCount > 0 && (
