@@ -61,7 +61,7 @@ const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: "done-next", title: "What happens next", body: "We test the sign-in over the next few days. If LinkedIn asks for a check, WE message you — not them — so keep your phone on. Once it clears, they're paid and your commission goes out at the same time. That's it, you're done." },
   ],
 };
-import { ShareLinks, WaitNotice, type ScriptContext } from "./onboarding-scripts";
+import { ShareLinks, type ScriptContext } from "./onboarding-scripts";
 
 type Session = {
   emailSetup: EmailSetup | null;
@@ -149,7 +149,6 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
-  const [emailCopied, setEmailCopied] = useState(false);
   const [setupChoice, setSetupChoice] = useState(false);
   const [setupPick, setSetupPick] = useState<"" | "pc" | "phone" | "team">("");
   const [browserMode, setBrowserMode] = useState<"" | "pc" | "phone">("");
@@ -830,11 +829,23 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             <PhoneHandoff selfMode={selfMode} demo={demo} busy={busy} error={error} submit={handoff} />
           </> : <>
             <button className={styles.linkBtn} disabled={busy} onClick={() => setBrowserMode("")}>← Back to computer or phone</button>
-            <div className={styles.infoBlue}><div>This step needs a computer</div><p>The sign-in uses GoLogin desktop software. If you&apos;re on a phone, copy this link and open it on a Windows or Mac computer {selfMode ? "to continue your setup" : "with the account owner"}.</p></div>
-            <button type="button" className={styles.secondary} onClick={() => void moveToComputer()}>{linkCopied ? "Onboarding link copied ✓" : "Copy / share this link"}</button>
-            <WaitNotice primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null} />
-            {session.emailSetup && <><div className={styles.emailAddressCard}><span>LinkedIn login email</span><strong>{session.emailSetup.address}</strong><button type="button" onClick={() => { if (session.emailSetup?.address) { navigator.clipboard?.writeText(session.emailSetup.address); setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800); } }}>{emailCopied ? "Copied ✓" : "Copy email"}</button></div><div className={styles.note}>{session.emailSetup.forwardingActive ? "Verification messages are temporarily forwarded to the verified inbox." : "Onboarding forwarding has expired. Re-verify the inbox if you need more login codes."}</div><button className={styles.linkBtn} disabled={busy} onClick={() => setStep(4)}>Manage onboarding email</button></>}
-            <BrowserStep selfMode={selfMode} demo={demo} key={`${session.id}-${session.state}-${session.opened}`} session={session} busy={busy} error={error} twoFactorKey={twoFactorKey.trim()} action={(nextAction) => run(() => action(nextAction))} confirm={confirmLogin} refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))} />
+            <BrowserStep
+              selfMode={selfMode}
+              demo={demo}
+              key={`${session.id}-${session.state}-${session.opened}`}
+              session={session}
+              busy={busy}
+              error={error}
+              twoFactorKey={twoFactorKey.trim()}
+              loginEmail={session.emailSetup?.address || null}
+              primaryConfirmedAt={session.emailSetup?.primaryConfirmedAt || null}
+              linkCopied={linkCopied}
+              copyLink={() => void moveToComputer()}
+              onManageEmail={session.emailSetup ? () => setStep(4) : undefined}
+              action={(nextAction) => run(() => action(nextAction))}
+              confirm={confirmLogin}
+              refresh={() => run(async () => showSession((await request("GET", undefined, session.id)).session))}
+            />
           </>)}
 
           {step === 6 && session && <>
