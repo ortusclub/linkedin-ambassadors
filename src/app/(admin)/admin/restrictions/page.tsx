@@ -14,6 +14,7 @@ type CohortRow = {
   open: number;
   recoveryRate: number | null;
 };
+type StageEventRow = { stage: string; events: number; share: number; recovered: number; open: number; recoveryRate: number | null };
 type FeedItem = { at: string; event: "restricted" | "recovered"; account: string; note?: string; creditedDays?: number };
 type Analytics = {
   generatedAt: string;
@@ -27,6 +28,7 @@ type Analytics = {
     age: CohortRow[]; connections: CohortRow[]; emailDomain: CohortRow[];
   };
   timing: CohortRow[];
+  stageAtRestriction: StageEventRow[];
   feed: FeedItem[];
 };
 
@@ -109,6 +111,58 @@ function CohortTable({ title, hint, rows, denomLabel = "accounts" }: { title: st
   );
 }
 
+// HISTORICAL: how restriction EVENTS distribute across the lifecycle stage the account was
+// in AT THE TIME each one happened (not its current stage). The bar shows each stage's
+// share of all datable restrictions, so the spike shows where accounts actually get hit.
+function StageEventTable({ rows }: { rows: StageEventRow[] }) {
+  const maxShare = Math.max(0.0001, ...rows.map((r) => r.share));
+  const totalEvents = rows.reduce((s, r) => s + r.events, 0);
+  return (
+    <Card style={{ padding: "16px 18px" }}>
+      <h3 style={{ font: `700 14px ${F_GRO}`, color: "var(--text)", margin: 0 }}>Stage when the restriction happened</h3>
+      <p style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)", margin: "4px 0 10px" }}>
+        Each logged restriction attributed to the stage the account was in when it hit — by its event date vs the account&apos;s milestone dates. {totalEvents.toLocaleString()} datable restriction{totalEvents === 1 ? "" : "s"}.
+      </p>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", font: `500 12.5px ${F_SANS}` }}>
+          <thead>
+            <tr style={{ color: "var(--muted)", textAlign: "left", font: `600 11px ${F_SANS}` }}>
+              <th style={{ padding: "6px 8px 6px 0", fontWeight: 600 }}>Stage at restriction</th>
+              <th style={{ padding: "6px 8px", minWidth: 150 }}>Share of restrictions</th>
+              <th style={{ padding: "6px 8px", textAlign: "right" }}>Restrictions</th>
+              <th style={{ padding: "6px 8px", textAlign: "right" }}>Recovered</th>
+              <th style={{ padding: "6px 0 6px 8px", textAlign: "right" }}>Recovery</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr><td colSpan={5} style={{ padding: "12px 0", color: "var(--muted)" }}>No datable restriction events yet.</td></tr>
+            )}
+            {rows.map((r) => (
+              <tr key={r.stage} style={{ borderTop: "1px solid var(--divider)" }}>
+                <td style={{ padding: "9px 8px 9px 0", color: "var(--text)", fontWeight: 600 }}>{r.stage}</td>
+                <td style={{ padding: "9px 8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ flex: 1, height: 7, borderRadius: 999, background: "var(--track)", overflow: "hidden", minWidth: 60 }}>
+                      <div style={{ width: `${(r.share / maxShare) * 100}%`, height: "100%", background: "var(--danger)", borderRadius: 999 }} />
+                    </div>
+                    <span style={{ font: `600 12px ${F_GRO}`, color: "var(--danger)", width: 42, textAlign: "right" }}>{pct(r.share, 0)}</span>
+                  </div>
+                </td>
+                <td style={{ padding: "9px 8px", textAlign: "right", color: "var(--text)" }}>
+                  {r.events}{r.open > 0 && <span style={{ color: "var(--warn-num)" }}> · {r.open} open</span>}
+                </td>
+                <td style={{ padding: "9px 8px", textAlign: "right", color: "var(--green)", fontWeight: 600 }}>{r.recovered || "—"}</td>
+                <td style={{ padding: "9px 0 9px 8px", textAlign: "right", color: r.recoveryRate == null ? "var(--muted)" : "var(--green)", fontWeight: 600 }}>{pct(r.recoveryRate, 0)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
 export default function RestrictionsPage() {
   const [data, setData] = useState<Analytics | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -163,8 +217,9 @@ export default function RestrictionsPage() {
 
       {/* Cohort grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))", gap: 14, alignItems: "start" }}>
+        <StageEventTable rows={data.stageAtRestriction} />
         <CohortTable title="Verified vs unverified" rows={data.cohorts.verified} />
-        <CohortTable title="Lifecycle stage" hint="Onboarding ladder L1→L5, then Rented — where each account is now." rows={data.cohorts.lifecycle} />
+        <CohortTable title="Current stage of accounts" hint="Where each account sits now (L1→L5, then Rented) and its ever-restricted rate — not when the restriction happened." rows={data.cohorts.lifecycle} />
         <CohortTable title="Proxy vs no proxy" rows={data.cohorts.proxy} />
         <CohortTable title="By proxy geo" hint="Leading region token from the proxy location field." rows={data.cohorts.proxyGeo} />
         <CohortTable title="Account age" rows={data.cohorts.age} />

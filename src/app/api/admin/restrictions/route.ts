@@ -10,7 +10,7 @@ export async function GET() {
   try {
     await requireAdmin();
 
-    const [accounts, apps] = await Promise.all([
+    const [accounts, apps, rentals] = await Promise.all([
       prisma.linkedInAccount.findMany({
         where: { status: { not: "removed" } },
         select: {
@@ -21,11 +21,17 @@ export async function GET() {
         },
       }),
       prisma.ambassadorApplication.findMany({
-        select: { linkedinUrl: true, email: true, status: true, emailPrimaryAt: true, onboardedAt: true, verifiedAt: true },
+        select: { linkedinUrl: true, email: true, status: true, emailPrimaryAt: true, onboardedAt: true, verifiedAt: true, paidAt: true },
       }),
+      // Earliest rental start per account — the date it first went out on rent, for the
+      // historical "restriction happened while rented" attribution.
+      prisma.rental.groupBy({ by: ["linkedinAccountId"], _min: { startDate: true } }),
     ]);
 
-    const analytics = computeRestrictionAnalytics(accounts, apps);
+    const rentalStartById: Record<string, Date> = {};
+    for (const r of rentals) if (r._min.startDate) rentalStartById[r.linkedinAccountId] = r._min.startDate;
+
+    const analytics = computeRestrictionAnalytics(accounts, apps, rentalStartById);
     return NextResponse.json(analytics);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "error";

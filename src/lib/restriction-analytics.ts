@@ -38,6 +38,20 @@ export type AnalyticsApp = {
   emailPrimaryAt: Date | string | null;
   onboardedAt: Date | string | null;
   verifiedAt: Date | string | null;
+  paidAt: Date | string | null;
+};
+
+// One row of the historical "stage when the restriction happened" breakdown: each
+// restriction EVENT is attributed to the stage the account was in at that moment
+// (by comparing the event timestamp to the account's milestone dates), not where the
+// account sits now. Denominator is events, not accounts.
+export type StageEventRow = {
+  stage: string;
+  events: number; // restriction events that happened at this stage
+  share: number; // events / all datable restriction events
+  recovered: number; // of those, how many were later cleared
+  open: number; // still restricted / never recovered
+  recoveryRate: number | null; // recovered / events
 };
 
 export type CohortRow = {
@@ -83,6 +97,7 @@ export type RestrictionAnalytics = {
     emailDomain: CohortRow[];
   };
   timing: CohortRow[]; // restriction timing relative to onboarding (denominator = ever-restricted)
+  stageAtRestriction: StageEventRow[]; // HISTORICAL: which stage each restriction happened at
   feed: FeedItem[];
 };
 
@@ -242,6 +257,9 @@ const CONN_ORDER = ["0–99", "100–299", "300–499", "500–999", "1,000–4,
 export function computeRestrictionAnalytics(
   accountsIn: AnalyticsAccount[],
   appsIn: AnalyticsApp[],
+  // Earliest rental start per account id (ISO or Date) — the date the account first went
+  // out on rent, used to attribute a restriction to the "Rented" stage historically.
+  rentalStartById: Record<string, string | Date> = {},
   now: number = Date.now(),
 ): RestrictionAnalytics {
   // Match an account to its application the same way the rest of admin does: by unique
@@ -323,6 +341,79 @@ export function computeRestrictionAnalytics(
     ["Before onboarding", "0–7 days after", "7–30 days after", "30+ days after", "No onboarding date"],
   );
 
+  // HISTORICAL stage-at-restriction: attribute every restriction EVENT to the stage the
+  // account was in WHEN it happened — compare the event date to the account's milestone
+  // dates (email-primary → logged in → verified → setup paid/live → first rented). An
+  // account restricted right after login counts as "Logged in" even if it's rented now.
+  const LADDER = ["Pre-onboarding (L1)", "Email & 2FA (L2)", "Logged in · QC (L3)", "Maturing (L4)", "Onboarded · live (L5)", "Rented", "Undatable"];
+  const ms = (v: Date | string | null | undefined): number | null => {
+    const d = toDate(v ?? null);
+    return d ? d.getTime() : null;
+  };
+  type Milestones = { l2: number | null; l3: number | null; l4: number | null; l5: number | null; rented: number | null };
+  const stageAt = (t: number, m: Milestones): string => {
+    if (m.rented != null && t >= m.rented) return "Rented";
+    if (m.l5 != null && t >= m.l5) return "Onboarded · live (L5)";
+    if (m.l4 != null && t >= m.l4) return "Maturing (L4)";
+    if (m.l3 != null && t >= m.l3) return "Logged in · QC (L3)";
+    if (m.l2 != null && t >= m.l2) return "Email & 2FA (L2)";
+    // Before the earliest known milestone, but we DO know some milestone → pre-onboarding.
+    if (m.l2 != null || m.l3 != null || m.l4 != null || m.l5 != null || m.rented != null) return "Pre-onboarding (L1)";
+    return "Undatable"; // no milestone dates at all (e.g. inventory-only account) — can't place it
+  };
+  // The restriction events for an account, each flagged closed (a recovery followed) or
+  // still open. Falls back to a single synthetic open event at restrictedAt when the log
+  // predates event logging.
+  const restrictEventsOf = (a: AnalyticsAccount): { at: Date; closed: boolean }[] => {
+    const events = parseLog(a.restrictionLog);
+    const out: { at: Date; closed: boolean }[] = [];
+    let openIdx = -1;
+    for (const e of events) {
+      const d = toDate(e.at);
+      if (!d) continue;
+      if (e.event === "restricted") {
+        if (openIdx === -1) { out.push({ at: d, closed: false }); openIdx = out.length - 1; }
+      } else if (e.event === "recovered" && openIdx !== -1) {
+        out[openIdx].closed = true; openIdx = -1;
+      }
+    }
+    if (out.length === 0 && toDate(a.restrictedAt)) out.push({ at: toDate(a.restrictedAt)!, closed: false });
+    return out;
+  };
+  const stageAgg = new Map<string, { events: number; recovered: number }>();
+  let stageTotal = 0;
+  for (const { a } of accounts) {
+    const app = appFor(a);
+    const m: Milestones = {
+      l2: ms(app?.emailPrimaryAt),
+      l3: ms(app?.onboardedAt),
+      l4: ms(app?.verifiedAt),
+      l5: ms(app?.paidAt),
+      rented: ms(rentalStartById[a.id]),
+    };
+    for (const ev of restrictEventsOf(a)) {
+      const s = stageAt(ev.at.getTime(), m);
+      const row = stageAgg.get(s) || { events: 0, recovered: 0 };
+      row.events += 1;
+      if (ev.closed) row.recovered += 1;
+      stageAgg.set(s, row);
+      stageTotal += 1;
+    }
+  }
+  const stageAtRestriction: StageEventRow[] = LADDER
+    .map((stage) => {
+      const r = stageAgg.get(stage) || { events: 0, recovered: 0 };
+      return {
+        stage,
+        events: r.events,
+        share: stageTotal ? r.events / stageTotal : 0,
+        recovered: r.recovered,
+        open: r.events - r.recovered,
+        recoveryRate: r.events ? r.recovered / r.events : null,
+      };
+    })
+    .filter((r) => r.events > 0);
+
   // Email domain cohort — group tiny domains together to keep the table readable.
   const rawDomain = cohort(accounts, (a) => domainOf(a.loginEmail) || domainOf(a.workEmail));
   const bigDomains = new Set(rawDomain.filter((r) => r.total >= 3).map((r) => r.bucket));
@@ -365,6 +456,7 @@ export function computeRestrictionAnalytics(
       emailDomain,
     },
     timing,
+    stageAtRestriction,
     feed: feed.slice(0, 60),
   };
 }
