@@ -6,6 +6,19 @@ import { formatDate } from "@/lib/utils";
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 
+// "in ↗" badge linking to the account's LinkedIn profile (hidden when there's no URL).
+function LiBadge({ url }: { url: string | null }) {
+  const [h, setH] = useState(false);
+  if (!url) return null;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" title="View LinkedIn profile"
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 7px", borderRadius: 7, background: h ? "#0a66c2" : "#e8f0fe", color: h ? "#fff" : "#0a66c2", fontWeight: 800, fontSize: 11.5, lineHeight: 1.2, textDecoration: "none" }}>
+      in <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}><path d="M2.5 7.5L7.5 2.5M3.5 2.5h4v4" /></svg>
+    </a>
+  );
+}
+
 type Status = "recovering" | "failed" | "waiting" | "handover" | "origBack" | "recovered" | "done" | "relisted" | "retired";
 
 interface Case {
@@ -28,7 +41,7 @@ const SMETA: Record<Status, { label: string; bg: string; fg: string }> = {
   recovering: { label: "Recovering", bg: "#fff1e6", fg: "#c2410c" },
   failed: { label: "Couldn't recover", bg: "#fdecec", fg: "#b91c1c" },
   waiting: { label: "Renter waiting", bg: "#fff7ed", fg: "#9a3412" },
-  handover: { label: "Hand over", bg: "#e6eeff", fg: "#1f5ef0" },
+  handover: { label: "Hand over", bg: "#e8f0fe", fg: "#0A66C2" },
   origBack: { label: "Original back", bg: "#fef3c7", fg: "#b45309" },
   recovered: { label: "Recovered", bg: "#e7f7ee", fg: "#0f7a3d" },
   done: { label: "Replaced", bg: "#f1f3f6", fg: "#5b6779" },
@@ -115,7 +128,7 @@ export default function AdminReplacementsPage() {
     if (c.status === "waiting") return mark(true);
     if (c.status === "handover") return (
       <button disabled={busy === c.id} onClick={() => act(c.id, "/api/admin/replacements", { action: "grant", rentalId: c.newRentalId }, "Access shared · renter emailed")}
-        style={{ ...base, border: "none", background: "#1f5ef0", color: "#fff" }}>Access shared ✓</button>
+        style={{ ...base, border: "none", background: "#0A66C2", color: "#fff" }}>Access shared ✓</button>
     );
     if (c.status === "origBack") return (
       <button disabled={busy === c.id} onClick={() => act(c.id, "/api/admin/replacements", { action: "relist", accountId: c.relistAccountId }, `${c.original?.name || "Original"} relisted`)}
@@ -187,14 +200,14 @@ export default function AdminReplacementsPage() {
                 {/* account swap */}
                 <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-                    {nameLink(c.original?.name || "—", c.original?.url || null)}
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>{nameLink(c.original?.name || "—", c.original?.url || null)}<LiBadge url={c.original?.url || null} /></div>
                     <span style={{ fontWeight: 500, fontSize: 12, fontFamily: F_SANS, color: "#8a93a3" }}>Restricted {fmt(c.original?.restrictedAt)} · ${c.original?.price ?? 0}/mo</span>
                   </div>
-                  <span style={{ flex: "none", fontWeight: 700, fontSize: 15, fontFamily: F_SANS, color: c.replacement ? "#1f5ef0" : "#c5cbd3" }}>→</span>
+                  <span style={{ flex: "none", fontWeight: 700, fontSize: 15, fontFamily: F_SANS, color: c.replacement ? "#0A66C2" : "#c5cbd3" }}>→</span>
                   <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
                     {c.replacement ? (
                       <>
-                        {nameLink(c.replacement.name, c.replacement.url)}
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>{nameLink(c.replacement.name, c.replacement.url)}<LiBadge url={c.replacement.url} /></div>
                         <span style={{ fontWeight: 500, fontSize: 12, fontFamily: F_SANS, color: "#8a93a3" }}>${c.replacement.price}/mo {c.replacement.diff < 0 && <span style={{ fontWeight: 700, color: "#12a150" }}>(−${-c.replacement.diff})</span>}</span>
                       </>
                     ) : (
@@ -227,7 +240,7 @@ export default function AdminReplacementsPage() {
       <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontWeight: 500, fontSize: 12.5, lineHeight: 1.5, fontFamily: F_SANS, color: "var(--muted)" }}>
         <span><b style={{ color: "#c2410c" }}>Recovering</b> · first 48h, renter can&apos;t replace yet</span>
         <span><b style={{ color: "#9a3412" }}>Renter waiting</b> · past 48h, renter chose to wait</span>
-        <span><b style={{ color: "#1f5ef0" }}>Hand over</b> · renter picked a new account, share access</span>
+        <span><b style={{ color: "#0A66C2" }}>Hand over</b> · renter picked a new account, share access</span>
         <span><b style={{ color: "#b45309" }}>Original back</b> · old account recovered after the swap, relist or retire it</span>
       </div>
 
