@@ -284,6 +284,8 @@ interface Rental {
   createdAt?: string;
   // What the renter pays (locked rate, else the account's current tier price).
   price?: number;
+  // Set briefly after an account recovers from a restriction (explains the credited renewal date).
+  recovery?: { at: string; creditedDays: number } | null;
   linkedinAccount: {
     id: string;
     linkedinName: string;
@@ -1156,6 +1158,12 @@ function DashboardContent() {
                         <span style={{ fontWeight: 500, fontSize: 12, color: V.faint }}>{ss}</span>
                         {R && !eligible && (
                           <div style={{ height: 4, maxWidth: 170, borderRadius: 4, background: "#fde3cc", overflow: "hidden" }}><div style={{ height: "100%", width: `${progress}%`, background: V.orange }} /></div>
+                        )}
+                        {!R && !prep && rental.recovery && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600, fontSize: 11.5, color: V.green }}>
+                            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.3l2.3 2.3 4.7-5" /></svg>
+                            Recovered {formatDate(rental.recovery.at)}{rental.recovery.creditedDays > 0 ? ` · ${rental.recovery.creditedDays} ${rental.recovery.creditedDays === 1 ? "day" : "days"} credited` : ""}
+                          </span>
                         )}
                       </div>
                       {/* billing */}
