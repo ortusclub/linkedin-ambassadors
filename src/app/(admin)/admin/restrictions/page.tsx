@@ -164,7 +164,7 @@ export default function RestrictionsPage() {
       {/* Cohort grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))", gap: 14, alignItems: "start" }}>
         <CohortTable title="Verified vs unverified" rows={data.cohorts.verified} />
-        <CohortTable title="Lifecycle stage" hint="Current stage of the account." rows={data.cohorts.lifecycle} />
+        <CohortTable title="Lifecycle stage" hint="Onboarding ladder L1→L5, then Rented — where each account is now." rows={data.cohorts.lifecycle} />
         <CohortTable title="Proxy vs no proxy" rows={data.cohorts.proxy} />
         <CohortTable title="By proxy geo" hint="Leading region token from the proxy location field." rows={data.cohorts.proxyGeo} />
         <CohortTable title="Account age" rows={data.cohorts.age} />

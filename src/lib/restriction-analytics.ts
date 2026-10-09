@@ -34,6 +34,8 @@ export type AnalyticsAccount = {
 export type AnalyticsApp = {
   linkedinUrl: string | null;
   email: string;
+  status: string | null;
+  emailPrimaryAt: Date | string | null;
   onboardedAt: Date | string | null;
   verifiedAt: Date | string | null;
 };
@@ -282,16 +284,25 @@ export function computeRestrictionAnalytics(
   }
   const avg = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
 
-  // Lifecycle stage cohort.
+  // Lifecycle stage cohort — the pipeline's onboarding ladder (L1→L5) plus a Rented
+  // split, so restriction rate is visible at each stage: before onboarding, while
+  // warming up / logging in, in the QC-maturation hold, live, and once actually rented.
+  // Mirrors levelOf() in admin/pipeline/page.tsx, from whichever signal is present
+  // (account status first since restricted accounts keep their real status, then the
+  // application milestone timestamps). Rented accounts stay in "Rented" even when their
+  // real lifecycle is further along — that's the split we want to see.
   const lifecycle = cohort(
     accounts,
     (a) => {
       const app = appFor(a);
-      if (a.linkedinVerified || toDate(app?.verifiedAt ?? null)) return "Verified";
-      if (toDate(app?.onboardedAt ?? null) || a.loginEmail) return "Onboarded / logged in";
-      return "Pre-onboarding";
+      if (a.status === "rented") return "Rented";
+      if (a.status === "available" || a.status === "trial" || app?.status === "onboarded") return "Onboarded · live (L5)";
+      if (a.linkedinVerified || toDate(app?.verifiedAt ?? null)) return "Maturing (L4)";
+      if (toDate(app?.onboardedAt ?? null) || a.loginEmail || app?.status === "approved") return "Logged in · QC (L3)";
+      if (toDate(app?.emailPrimaryAt ?? null)) return "Email & 2FA (L2)";
+      return "Pre-onboarding (L1)";
     },
-    ["Pre-onboarding", "Onboarded / logged in", "Verified"],
+    ["Pre-onboarding (L1)", "Email & 2FA (L2)", "Logged in · QC (L3)", "Maturing (L4)", "Onboarded · live (L5)", "Rented"],
   );
 
   // Restriction timing relative to onboarding — denominator is ever-restricted accounts only.

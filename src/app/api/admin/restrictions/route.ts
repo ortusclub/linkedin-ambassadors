@@ -21,7 +21,7 @@ export async function GET() {
         },
       }),
       prisma.ambassadorApplication.findMany({
-        select: { linkedinUrl: true, email: true, onboardedAt: true, verifiedAt: true },
+        select: { linkedinUrl: true, email: true, status: true, emailPrimaryAt: true, onboardedAt: true, verifiedAt: true },
       }),
     ]);
 
