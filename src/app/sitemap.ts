@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
+import { publicInventorySlice } from "@/lib/public-inventory";
 import { getAllBlogPosts } from "@/lib/blog-posts";
 import { getBrand } from "@/lib/brand";
 
@@ -103,8 +104,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Dynamic account pages
   let accountPages: MetadataRoute.Sitemap = [];
   try {
+    // Only the public slice (see lib/public-inventory) — the sitemap must not enumerate
+    // the whole roster.
+    const { availableIds } = await publicInventorySlice();
     const accounts = await prisma.linkedInAccount.findMany({
-      where: { status: "available", listed: true },
+      where: { id: { in: availableIds } },
       select: { id: true, updatedAt: true },
     });
 

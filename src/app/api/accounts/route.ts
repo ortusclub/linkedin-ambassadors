@@ -2,7 +2,8 @@ import { monthlyRentalPrice } from "@/lib/account-pricing";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { maskPublicAccount } from "@/lib/mask";
-import { activeShadowAccountIds } from "@/lib/shadow-rental";
+import { getSession } from "@/lib/auth";
+import { publicInventorySlice } from "@/lib/public-inventory";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -17,36 +18,26 @@ export async function GET(req: NextRequest) {
   const statusFilter = searchParams.get("status");
   const where: Record<string, unknown> = {};
   const and: Record<string, unknown>[] = [];
-  // Segregated pools (Ortus / Apex) are never shown in the public catalogue (or to
-  // shadow renters) — they're owned by their pool account only.
-  where.inventoryPool = { notIn: ["ortus", "apex"] };
-  // Accounts currently shadow-rented by Apex / Ortus are surfaced as non-rentable
-  // "Available soon" teasers (flagged below). They're in use by a shadow renter right
-  // now but a real rental yields them, so they're coming back. Many get flipped to
-  // status "unavailable" / unlisted while held, so we pull them in by id regardless of
-  // status — checkout + the account-detail API still block anything not "available".
-  const shadowIds = await activeShadowAccountIds();
-  const shadowIdList = [...shadowIds];
-  if (statusFilter) {
-    where.status = statusFilter;
-    where.listed = true;
-    // Same guard when explicitly filtering to "available": don't surface restricted /
-    // 2FA-reset accounts that still carry status "available".
-    if (statusFilter === "available") { where.restrictedAt = null; where.twoFactorResetNeeded = false; }
-  } else {
-    // Available accounts must be listed to appear; rented AND trial accounts show
-    // regardless of `listed` — displayed as "Rented" (social proof / real inventory,
-    // including off-platform rentals which are held unlisted). Shadow-held accounts
-    // surface by id as "Available soon" teasers.
-    and.push({ OR: [
-      // "Available" must also be genuinely rentable: a restricted (recovering) or
-      // 2FA-reset-needed account keeps status "available" but must NOT be offered —
-      // mirrors the admin canonicalStatus so the catalogue and inventory agree.
-      { status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false },
-      { status: { in: ["rented", "trial"] } },
-      { id: { in: shadowIdList } },
-    ] });
+  // Only a fixed slice of the roster is ever served here (see lib/public-inventory):
+  // PUBLIC_AVAILABLE_CAP rentable + PUBLIC_RENTED_CAP rented/trial/shadow-held teasers.
+  // Applies to anonymous visitors and signed-in renters alike, and search / filters only
+  // narrow within the slice — so nobody can page through the whole inventory. Segregated
+  // pools (Ortus / Apex) are excluded by the slice itself.
+  const { availableIds, rentedIds, shadowIds } = await publicInventorySlice();
+  // A signed-in renter always sees the accounts they currently rent ("Rented by you"),
+  // even if those fall outside the public slice.
+  const session = await getSession().catch(() => null);
+  let ownIds: string[] = [];
+  if (session) {
+    const own = await prisma.rental.findMany({
+      where: { userId: session.id, status: { in: ["active", "pending_access", "payment_failed"] } },
+      select: { linkedinAccountId: true },
+    });
+    ownIds = own.map((r) => r.linkedinAccountId);
   }
+  if (statusFilter === "available") where.id = { in: availableIds };
+  else if (statusFilter) { where.id = { in: [...rentedIds, ...ownIds] }; where.status = statusFilter; }
+  else where.id = { in: [...availableIds, ...rentedIds, ...ownIds] };
 
   if (industry) where.industry = industry;
   if (location) where.location = { contains: location, mode: "insensitive" };

@@ -149,16 +149,16 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
   // Everything beyond that is behind the agent CTA.
   const visible = useMemo(() => {
     const sorted = [...accounts].sort((a, b) => statusRank(a) - statusRank(b) || SORTS[sort](a, b));
-    // Signed-in renters see the full inventory; the MAX_PER_STATUS teaser cap is only
-    // for anonymous visitors (who get the agent CTA for everything beyond it).
-    const cap = user ? Infinity : MAX_PER_STATUS;
+    // The API already serves only a fixed public slice (see lib/public-inventory); this
+    // client-side cap is belt-and-braces and applies to signed-in renters too. The only
+    // extra rows a signed-in viewer gets are the accounts they currently rent.
+    const cap = MAX_PER_STATUS;
     const avail = sorted.filter(isRentable).slice(0, cap);
     const soon = sorted.filter((a) => a.availableSoon).slice(0, cap);
     const rented = sorted.filter((a) => !isRentable(a) && !a.availableSoon).slice(0, cap);
     const groups: Record<string, Account[]> = { All: [...avail, ...soon, ...rented], Available: avail, "Available soon": soon, Rented: rented };
     return groups[availFilter] || groups.All;
-  }, [accounts, sort, availFilter, user]);
-  const hiddenCount = accounts.length - visible.length;
+  }, [accounts, sort, availFilter]);
   // Bulk-select only ever covers the rentable rows actually on screen (never pool teasers).
   const rentable = visible.filter(isRentable);
   const toggleSelectAll = () => setSelected(selected.size === rentable.length && rentable.length > 0 ? new Set() : new Set(rentable.map((a) => a.id)));
@@ -269,11 +269,9 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
       {!loading && accounts.length > 0 && (
         <div className="cat2-wrap" style={{ marginTop: 18 }}>
           <div style={{ background: "#FFFFFF", border: "1px solid #E9ECF0", borderRadius: 16, padding: "26px 32px", textAlign: "center" }}>
-            <h3 style={{ font: `700 19px ${POP}`, color: "#0B1220", margin: "0 0 6px" }}>{hiddenCount > 0 ? "There's more where these came from" : "Looking for something else?"}</h3>
+            <h3 style={{ font: `700 19px ${POP}`, color: "#0B1220", margin: "0 0 6px" }}>There&apos;s more where these came from</h3>
             <p style={{ fontSize: 14, color: "#5A6473", lineHeight: 1.5, maxWidth: 480, margin: "0 auto 18px" }}>
-              {hiddenCount > 0
-                ? "This is only part of our roster — message an agent and we'll send you profiles that match your industry, region and connection size."
-                : "Message an agent and we'll source a profile that matches your industry, region and connection size."}
+              This is only a selection of our roster — we have plenty of other accounts. Get in touch and we&apos;ll send you the full list to choose from, matched to your industry, region and connection size.
             </p>
             <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 10, background: ACCENT, color: "#fff", fontSize: 14.5, fontWeight: 600, textDecoration: "none" }}>Get in touch with one of our agents →</a>
           </div>
