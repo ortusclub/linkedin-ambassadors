@@ -23,15 +23,27 @@ export async function GET() {
       prisma.ambassadorApplication.findMany({
         select: { linkedinUrl: true, email: true, status: true, emailPrimaryAt: true, onboardedAt: true, verifiedAt: true, paidAt: true },
       }),
-      // Earliest rental start per account — the date it first went out on rent, for the
-      // historical "restriction happened while rented" attribution.
-      prisma.rental.groupBy({ by: ["linkedinAccountId"], _min: { startDate: true } }),
+      // All rentals with their renter — gives both the earliest rental start per account
+      // (the "Rented" boundary for historical staging) and the set of clients per account
+      // (the by-client restriction rate).
+      prisma.rental.findMany({
+        select: { linkedinAccountId: true, startDate: true, user: { select: { fullName: true, email: true } } },
+      }),
     ]);
 
     const rentalStartById: Record<string, Date> = {};
-    for (const r of rentals) if (r._min.startDate) rentalStartById[r.linkedinAccountId] = r._min.startDate;
+    const clientsByAccountId: Record<string, string[]> = {};
+    for (const r of rentals) {
+      const acctId = r.linkedinAccountId;
+      if (r.startDate && (!rentalStartById[acctId] || r.startDate < rentalStartById[acctId])) rentalStartById[acctId] = r.startDate;
+      const label = (r.user?.fullName || r.user?.email || "").trim();
+      if (label) {
+        const list = clientsByAccountId[acctId] || (clientsByAccountId[acctId] = []);
+        if (!list.includes(label)) list.push(label);
+      }
+    }
 
-    const analytics = computeRestrictionAnalytics(accounts, apps, rentalStartById);
+    const analytics = computeRestrictionAnalytics(accounts, apps, rentalStartById, clientsByAccountId);
     return NextResponse.json(analytics);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "error";

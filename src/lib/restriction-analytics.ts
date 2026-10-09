@@ -95,6 +95,7 @@ export type RestrictionAnalytics = {
     age: CohortRow[];
     connections: CohortRow[];
     emailDomain: CohortRow[];
+    client: CohortRow[]; // restriction rate by renter (only rented accounts)
   };
   timing: CohortRow[]; // restriction timing relative to onboarding (denominator = ever-restricted)
   stageAtRestriction: StageEventRow[]; // HISTORICAL: which stage each restriction happened at
@@ -260,6 +261,9 @@ export function computeRestrictionAnalytics(
   // Earliest rental start per account id (ISO or Date) — the date the account first went
   // out on rent, used to attribute a restriction to the "Rented" stage historically.
   rentalStartById: Record<string, string | Date> = {},
+  // Every distinct client (renter) that has rented each account — for the by-client
+  // restriction rate. An account rented by two clients counts under both.
+  clientsByAccountId: Record<string, string[]> = {},
   now: number = Date.now(),
 ): RestrictionAnalytics {
   // Match an account to its application the same way the rest of admin does: by unique
@@ -414,6 +418,46 @@ export function computeRestrictionAnalytics(
     })
     .filter((r) => r.events > 0);
 
+  // By-client (renter) restriction rate. Unlike the single-key cohorts, an account rented
+  // by several clients counts under each of them, so we aggregate directly instead of via
+  // cohort(). Single-account clients with no restriction are folded into one tail row to
+  // keep the table focused on where the risk is.
+  type ClientAgg = { total: number; restricted: number; recovered: number; open: number };
+  const clientAgg = new Map<string, ClientAgg>();
+  for (const { a, f } of accounts) {
+    const seen = new Set<string>();
+    for (const label of clientsByAccountId[a.id] || []) {
+      const name = (label || "").trim();
+      if (!name || seen.has(name)) continue; // guard dup labels on one account
+      seen.add(name);
+      const row = clientAgg.get(name) || { total: 0, restricted: 0, recovered: 0, open: 0 };
+      row.total += 1;
+      if (f.everRestricted) row.restricted += 1;
+      if (f.recovered) row.recovered += 1;
+      if (f.open) row.open += 1;
+      clientAgg.set(name, row);
+    }
+  }
+  const clientRowsAll = Array.from(clientAgg.entries()).map(([bucket, r]) => ({ bucket, ...r }));
+  const tail = clientRowsAll.filter((r) => r.total === 1 && r.restricted === 0);
+  const kept = clientRowsAll.filter((r) => !(r.total === 1 && r.restricted === 0));
+  const toRow = (bucket: string, r: ClientAgg): CohortRow => ({
+    bucket,
+    total: r.total,
+    restricted: r.restricted,
+    restrictionRate: r.total ? r.restricted / r.total : 0,
+    recovered: r.recovered,
+    open: r.open,
+    recoveryRate: r.restricted ? r.recovered / r.restricted : null,
+  });
+  const client: CohortRow[] = kept
+    .map((r) => toRow(r.bucket, r))
+    .sort((x, y) => y.restricted - x.restricted || y.total - x.total);
+  if (tail.length) {
+    const agg = tail.reduce((s, r) => ({ total: s.total + r.total, restricted: 0, recovered: s.recovered + r.recovered, open: 0 }), { total: 0, restricted: 0, recovered: 0, open: 0 });
+    client.push(toRow(`${tail.length} single-account clients · no restrictions`, agg));
+  }
+
   // Email domain cohort — group tiny domains together to keep the table readable.
   const rawDomain = cohort(accounts, (a) => domainOf(a.loginEmail) || domainOf(a.workEmail));
   const bigDomains = new Set(rawDomain.filter((r) => r.total >= 3).map((r) => r.bucket));
@@ -454,6 +498,7 @@ export function computeRestrictionAnalytics(
       age: cohort(accounts, (a) => ageBucket(a.accountAgeMonths), AGE_ORDER),
       connections: cohort(accounts, (a) => connBucket(a.connectionCount), CONN_ORDER),
       emailDomain,
+      client,
     },
     timing,
     stageAtRestriction,

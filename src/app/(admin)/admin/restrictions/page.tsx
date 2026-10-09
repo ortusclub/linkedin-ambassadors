@@ -25,7 +25,7 @@ type Analytics = {
   };
   cohorts: {
     verified: CohortRow[]; lifecycle: CohortRow[]; proxy: CohortRow[]; proxyGeo: CohortRow[];
-    age: CohortRow[]; connections: CohortRow[]; emailDomain: CohortRow[];
+    age: CohortRow[]; connections: CohortRow[]; emailDomain: CohortRow[]; client: CohortRow[];
   };
   timing: CohortRow[];
   stageAtRestriction: StageEventRow[];
@@ -224,6 +224,7 @@ export default function RestrictionsPage() {
         <CohortTable title="By proxy geo" hint="Leading region token from the proxy location field." rows={data.cohorts.proxyGeo} />
         <CohortTable title="Account age" rows={data.cohorts.age} />
         <CohortTable title="Connection count" rows={data.cohorts.connections} />
+        <CohortTable title="By client (renter)" hint="Restriction rate of the accounts each renter holds; an account rented by several clients counts under each." rows={data.cohorts.client} denomLabel="rented" />
         <CohortTable title="Login email domain" hint="Domains with 3+ accounts; the rest grouped." rows={data.cohorts.emailDomain} />
         <CohortTable title="Restriction timing vs onboarding" hint="Among restricted accounts: when the first restriction hit relative to onboarding." rows={data.timing} denomLabel="restricted" />
       </div>
