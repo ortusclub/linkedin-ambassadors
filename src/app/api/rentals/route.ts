@@ -27,12 +27,16 @@ export async function GET() {
             hasSalesNav: true,
             gologinShareLink: true,
             restrictedAt: true,
+            restrictionLog: true,
             twoFactorResetNeeded: true,
           },
         },
       },
       orderBy: { createdAt: "desc" },
     });
+
+    // Show a "recovered" note on the dashboard only while it's still fresh, then let it fade.
+    const RECOVERY_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
     // Tiered credential access: a renter flagged with credentialAccess also gets the login
     // password (and a live 2FA code via /api/rentals/[id]/signin-code) for every account they
@@ -46,13 +50,23 @@ export async function GET() {
     // cancelled rental still in the list.
     const current = new Set(["active", "pending_access", "payment_failed"]);
     const shaped = rentals.map((r) => {
-      const { loginEmail, accountPassword, accountAgeMonths, hasSalesNav, ...account } = r.linkedinAccount;
+      const { loginEmail, accountPassword, accountAgeMonths, hasSalesNav, restrictionLog, ...account } = r.linkedinAccount;
       const ready = canShowRentalShareLink(r);
       const showCreds = credAccess && current.has(r.status);
       // What the renter actually pays: their locked rate, else the account's current tier price.
       const price = Number(
         r.lockedPrice ?? monthlyRentalPrice({ connectionCount: account.connectionCount, accountAgeMonths, hasSalesNav, linkedinVerified: account.linkedinVerified })
       );
+      // Recently recovered from a restriction (and not restricted now): surface a short note
+      // that explains the credited (pushed-out) renewal date. Fades after RECOVERY_WINDOW_MS.
+      let recovery: { at: string; creditedDays: number } | null = null;
+      if (!account.restrictedAt && Array.isArray(restrictionLog)) {
+        const log = restrictionLog as Array<{ at?: string; event?: string; creditedDays?: number }>;
+        const rec = [...log].reverse().find((e) => e?.event === "recovered" && e?.at);
+        if (rec?.at && Date.now() - new Date(rec.at).getTime() <= RECOVERY_WINDOW_MS) {
+          recovery = { at: rec.at, creditedDays: typeof rec.creditedDays === "number" ? rec.creditedDays : 0 };
+        }
+      }
       return {
         ...r,
         gologinShareIds: undefined,
@@ -60,6 +74,7 @@ export async function GET() {
         gologinShareLinkUrl: ready ? r.gologinShareLinkUrl : null,
         credentialAccess: showCreds,
         price,
+        recovery,
         linkedinAccount: {
           ...account,
           gologinShareLink: ready ? account.gologinShareLink : null,
