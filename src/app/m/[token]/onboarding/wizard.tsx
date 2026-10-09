@@ -794,9 +794,35 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
 
           {step === 5 && session && (handedOff ? <>
             <div className={styles.success}>✓</div>
-            <h1 className={styles.heroTitle}>Handed off to the team</h1>
-            <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved with the sign-in details. We&apos;ll set up the protected browser and sign in — we wait about 24 hours before the final sign-in (it lowers the chance of an ID check). The setup fee follows <strong>{checkWindow(session.accountFreshness)}</strong> after we sign in and the account passes our checks (QC), and your commission at the same time. Nothing more to do here.</p>
-            {!selfMode && <a className={styles.secondary} href={demo ? demoHome : `/m/${token}/onboarding`}>Onboard another account owner</a>}
+            <h1 className={styles.heroTitle}>Handed off — you&apos;re done</h1>
+            <p className={styles.lead} data-tour="done-phone">{session.name}&apos;s account is saved. Nothing more to do here.</p>
+            {(() => {
+              const sdot = (state: "done" | "active" | "locked") => <span style={{ width: 20, height: 20, flex: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", font: "700 11px 'Space Grotesk', system-ui, sans-serif", ...(state === "done" ? { background: "#16a34a", color: "#fff" } : state === "active" ? { background: "#fff", color: "#16a34a", boxShadow: "inset 0 0 0 2px #16a34a" } : { background: "#c5cbd3", color: "#fff" }) }}>{state === "done" ? "✓" : ""}</span>;
+              const sline = (done: boolean) => <span style={{ flex: 1, width: 2, background: done ? "#16a34a" : "#e3e6ea", margin: "3px 0" }} />;
+              const scolL = { display: "flex", flexDirection: "column", alignItems: "center", alignSelf: "stretch" } as const;
+              const stitle = { font: "700 14px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220" } as const;
+              const smeta = { font: "600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#5b6779" } as const;
+              const sbody = { font: "500 12.5px/1.4 'Plus Jakarta Sans', system-ui, sans-serif", color: "#5b6779", marginTop: 2 } as const;
+              const row = (state: "done" | "active" | "locked", title: string, meta: string, body: React.ReactNode, last = false) => <div style={{ display: "flex", gap: 11 }}>
+                <div style={scolL}>{sdot(state)}{!last && sline(state === "done")}</div>
+                <div style={{ flex: 1, minWidth: 0, padding: last ? "1px 0 0" : "1px 0 14px", opacity: state === "locked" ? .62 : 1 }}>
+                  <div><span style={stitle}>{title}</span>{meta && <span style={smeta}> · {meta}</span>}</div>
+                  <div style={sbody}>{body}</div>
+                </div>
+              </div>;
+              return <div style={{ margin: "8px 0 2px" }}>
+                <div className={styles.stepLabel} style={{ marginBottom: 12 }}>What happens next</div>
+                {row("done", "Account saved", "just now", "We set up the protected browser today.")}
+                {row("active", "We sign in", "in about 24 hours", "The short wait lowers the chance of an ID check.")}
+                {row("locked", "We check the account", checkWindow(session.accountFreshness), "We make sure it’s ready before payout.")}
+                {row("locked", selfMode ? "You get paid" : "Everyone gets paid", "", selfMode ? <>Your {moneyText(session.setupAmount)} setup payment goes out once it clears, and you’ll get a receipt.</> : <>The owner’s {moneyText(session.setupAmount)} setup fee and your commission go out the same day. You’ll both get a receipt.</>, true)}
+              </div>;
+            })()}
+            <div className={styles.note} style={{ display: "flex", gap: 8 }}><span style={{ color: "#16a34a", fontWeight: 700 }}>✓</span><span><strong>No need to check in.</strong> We’ll message you if we need anything. Check the status anytime in your portal{selfMode ? "" : " under Onboardings"}.</span></div>
+            {!selfMode ? <>
+              <a className={styles.primary} href={demo ? demoHome : `/m/${token}/onboarding`}>Onboard another account owner</a>
+              <a className={styles.secondary} href={demo ? demoHome : `/m/${token}`} style={{ marginTop: 9 }}>Check status in Onboardings →</a>
+            </> : <Link className={styles.primary} href={demo ? demoHome : "/dashboard"}>Go to my dashboard →</Link>}
           </> : browserMode === "" ? <>
             {setupOptions()}
           </> : browserMode === "phone" ? <>
