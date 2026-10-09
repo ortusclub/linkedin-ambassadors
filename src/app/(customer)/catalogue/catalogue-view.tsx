@@ -316,6 +316,12 @@ export function CatalogueView({ isArmy }: { isArmy: boolean }) {
               This is only a selection of our roster — we have plenty of other accounts. Get in touch and we&apos;ll send you the full list to choose from, matched to your industry, region and connection size.
             </p>
             <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 10, background: ACCENT, color: "#fff", fontSize: 14.5, fontWeight: 600, textDecoration: "none" }}>Get in touch with one of our agents →</a>
+            <form onSubmit={handleFullKey} style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 18, paddingTop: 16, borderTop: "1px solid #EEF1F5" }}>
+              <span style={{ fontSize: 13, color: "#8A93A2" }}>Already have a password from us?</span>
+              <input type="password" value={fullKeyInput} onChange={(e) => setFullKeyInput(e.target.value)} placeholder="Full roster password" autoComplete="off" style={{ border: "1px solid " + (fullKeyError ? "#B23150" : "#E0E3E9"), borderRadius: 8, padding: "8px 12px", font: `500 13px ${INT}`, width: 190 }} />
+              <button type="submit" style={{ border: "1px solid #0B1220", background: "#0B1220", color: "#fff", borderRadius: 8, padding: "8px 14px", font: `600 13px ${INT}`, cursor: "pointer" }}>Show full roster</button>
+              {fullKeyError && <span style={{ fontSize: 12.5, color: "#B23150", width: "100%" }}>That password didn&apos;t work.</span>}
+            </form>
           </div>
         </div>
       )}
