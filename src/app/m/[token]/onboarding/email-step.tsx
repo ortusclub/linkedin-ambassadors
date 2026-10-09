@@ -68,10 +68,10 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
 
   // Vertical-stepper primitives (match the 2FA step's look).
   const started = setup.forwardingActive; // step 1 complete: inbox verified + forwarding live + LV address provisioned
-  const dot = (label: string, state: "done" | "active" | "locked") => <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", background: state === "done" ? "#16a34a" : state === "active" ? "#0b1220" : "#c5cbd3", color: "#fff", font: "700 12.5px var(--font-sans), system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>{label}</span>;
+  const dot = (label: string, state: "done" | "active" | "locked") => <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", background: state === "done" ? "#16a34a" : state === "active" ? "#0b1220" : "#c5cbd3", color: "#fff", font: "700 12.5px 'Space Grotesk', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>{label}</span>;
   const line = () => <span style={{ flex: 1, width: 2, background: "#e3e6ea", margin: "4px 0" }} />;
-  const txt = { font: "600 14.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#0b1220" } as const;
-  const sub = { font: "500 12.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#5b6779" } as const;
+  const txt = { font: "600 14.5px/1.45 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220" } as const;
+  const sub = { font: "500 12.5px/1.45 'Plus Jakarta Sans', system-ui, sans-serif", color: "#5b6779" } as const;
   const colL = { display: "flex", flexDirection: "column", alignItems: "center" } as const;
 
   return <>
@@ -98,7 +98,7 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
               <button className={styles.primary} disabled={busy} onClick={() => void restart()}>Start this email step again →</button>
             </> : <>
               <form onSubmit={e => { e.preventDefault(); void submit({ action: "start", destination, consent }); }} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {(!previouslyVerified || editingInbox) && <input type="email" required maxLength={254} value={destination} onChange={e => { setDestination(e.target.value); setCode(""); }} placeholder="name@gmail.com" style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid #d9dde3", borderRadius: 12, padding: 13, font: "600 15px var(--font-sans), system-ui, sans-serif", color: "#0b1220", outline: "none", background: "#fff" }} />}
+                {(!previouslyVerified || editingInbox) && <input type="email" required maxLength={254} value={destination} onChange={e => { setDestination(e.target.value); setCode(""); }} placeholder="name@gmail.com" style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid #d9dde3", borderRadius: 12, padding: 13, font: "600 15px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220", outline: "none", background: "#fff" }} />}
                 {previouslyVerified && !editingInbox && <div className={styles.note} style={{ margin: 0 }}>We’ll use <strong>{destination}</strong> — already verified. <button type="button" className={styles.linkBtn} disabled={busy} onClick={() => setEditingInbox(true)}>Change email</button></div>}
                 <label className={styles.check} style={{ margin: 0 }}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>{selfMode ? "I agree" : "The owner agrees"} to add a LinkedVelocity primary email and have LinkedIn’s messages forwarded here for one hour.</span></label>
                 <button className={styles.primary} disabled={busy || !consent}>{previouslyVerified ? "Continue with this email →" : setup.verificationCodePending ? "Send another six-digit code" : "Send six-digit code →"}</button>
@@ -117,10 +117,10 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8, padding: "2px 0 18px", opacity: started ? 1 : .55 }}>
             <div style={txt}>In LinkedIn, add our email</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8f9fb", border: "1px solid #eceef2", borderRadius: 10, padding: "10px 12px" }}>
-              <span style={{ flex: 1, minWidth: 0, font: "600 13.5px var(--font-sans), system-ui, sans-serif", color: "#0b1220", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{setup.address || "…"}</span>
-              <button type="button" disabled={!setup.address} onClick={copyAddress} style={{ flex: "none", border: "none", background: "#e5e7eb", borderRadius: 8, padding: "6px 10px", font: "700 12px var(--font-sans), system-ui, sans-serif", color: "#0b1220", cursor: "pointer", whiteSpace: "nowrap" }}>{copied ? "✓ Copied" : "Copy"}</button>
+              <span style={{ flex: 1, minWidth: 0, font: "600 13.5px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{setup.address || "…"}</span>
+              <button type="button" disabled={!setup.address} onClick={copyAddress} style={{ flex: "none", border: "none", background: "#e5e7eb", borderRadius: 8, padding: "6px 10px", font: "700 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220", cursor: "pointer", whiteSpace: "nowrap" }}>{copied ? "✓ Copied" : "Copy"}</button>
             </div>
-            <div style={{ font: "500 12px var(--font-sans), system-ui, sans-serif", color: "#8a93a3" }}>Settings → Sign in &amp; security → Email addresses → Add email</div>
+            <div style={{ font: "500 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#8a93a3" }}>Settings → Sign in &amp; security → Email addresses → Add email</div>
             {!selfMode && <button type="button" className={styles.linkBtn} style={{ alignSelf: "flex-start" }} disabled={busy} onClick={copySteps}>{copiedSteps ? "Steps copied ✓" : "Copy full steps to send the owner"}</button>}
           </div>
         </div>
@@ -133,8 +133,8 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
             <div style={sub}>Open it <strong style={{ color: "#0b1220" }}>on the device where {selfMode ? "you’re" : "the owner is"} logged into LinkedIn</strong>.</div>
             {setup.confirmUrl ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <a href={setup.confirmUrl} target="_blank" rel="noopener noreferrer" style={{ borderRadius: 10, padding: 10, font: "700 13px var(--font-sans), system-ui, sans-serif", color: "#fff", background: "#16a34a", cursor: "pointer", textAlign: "center", textDecoration: "none", whiteSpace: "nowrap" }}>Open link ↗</a>
-                <button type="button" onClick={copyConfirm} style={{ border: "1px solid #dde1e8", borderRadius: 10, padding: 10, font: "700 13px var(--font-sans), system-ui, sans-serif", color: "#0b1220", background: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}>{confirmCopied ? "✓ Copied" : (selfMode ? "Copy link" : "Copy for owner")}</button>
+                <a href={setup.confirmUrl} target="_blank" rel="noopener noreferrer" style={{ borderRadius: 10, padding: 10, font: "700 13px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#fff", background: "#16a34a", cursor: "pointer", textAlign: "center", textDecoration: "none", whiteSpace: "nowrap" }}>Open link ↗</a>
+                <button type="button" onClick={copyConfirm} style={{ border: "1px solid #dde1e8", borderRadius: 10, padding: 10, font: "700 13px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220", background: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}>{confirmCopied ? "✓ Copied" : (selfMode ? "Copy link" : "Copy for owner")}</button>
               </div>
             ) : (
               <>
@@ -144,18 +144,18 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
             )}
             <label className={styles.check} style={{ margin: "2px 0 0" }}><input type="checkbox" checked={linkConfirmed} onChange={e => setLinkConfirmed(e.target.checked)} /><span>It now shows as <strong>verified</strong> on LinkedIn.</span></label>
             <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => setShowCode(v => !v)} style={{ border: "none", background: "none", padding: 0, font: "600 12px var(--font-sans), system-ui, sans-serif", color: "#15803d", cursor: "pointer" }}>{showCode ? "Hide code" : "LinkedIn asking for a code instead?"}</button>
-              <button type="button" onClick={() => void restart()} disabled={busy} style={{ border: "none", background: "none", padding: 0, font: "600 12px var(--font-sans), system-ui, sans-serif", color: "#8a93a3", cursor: "pointer", textDecoration: "underline" }}>Use a different email</button>
+              <button type="button" onClick={() => setShowCode(v => !v)} style={{ border: "none", background: "none", padding: 0, font: "600 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#15803d", cursor: "pointer" }}>{showCode ? "Hide code" : "LinkedIn asking for a code instead?"}</button>
+              <button type="button" onClick={() => void restart()} disabled={busy} style={{ border: "none", background: "none", padding: 0, font: "600 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#8a93a3", cursor: "pointer", textDecoration: "underline" }}>Use a different email</button>
             </div>
             {showCode && <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
               {setup.latestCode ? <>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ font: "700 22px var(--font-sans), system-ui, sans-serif", letterSpacing: ".14em", color: "#0b1220" }}>{setup.latestCode}</span>
-                  <button type="button" onClick={() => { if (setup.latestCode) { navigator.clipboard?.writeText(setup.latestCode); setCopiedCode(true); setTimeout(() => setCopiedCode(false), 1400); } }} style={{ border: "none", background: "#dcfce7", borderRadius: 8, padding: "5px 10px", font: "700 12px var(--font-sans), system-ui, sans-serif", color: "#166534", cursor: "pointer", whiteSpace: "nowrap" }}>{copiedCode ? "✓ Copied" : "Copy"}</button>
-                  <button type="button" onClick={() => void refresh()} disabled={busy} style={{ marginLeft: "auto", border: "none", background: "none", padding: 0, font: "700 12px var(--font-sans), system-ui, sans-serif", color: "#15803d", cursor: "pointer" }}>↻ Refresh</button>
+                  <span style={{ font: "700 22px 'Space Grotesk', system-ui, sans-serif", letterSpacing: ".14em", color: "#0b1220" }}>{setup.latestCode}</span>
+                  <button type="button" onClick={() => { if (setup.latestCode) { navigator.clipboard?.writeText(setup.latestCode); setCopiedCode(true); setTimeout(() => setCopiedCode(false), 1400); } }} style={{ border: "none", background: "#dcfce7", borderRadius: 8, padding: "5px 10px", font: "700 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#166534", cursor: "pointer", whiteSpace: "nowrap" }}>{copiedCode ? "✓ Copied" : "Copy"}</button>
+                  <button type="button" onClick={() => void refresh()} disabled={busy} style={{ marginLeft: "auto", border: "none", background: "none", padding: 0, font: "700 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#15803d", cursor: "pointer" }}>↻ Refresh</button>
                 </div>
-                <div style={{ font: "500 11.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#166534" }}>Latest code LinkedIn sent to our email. Expired? Tap resend on LinkedIn, then Refresh.</div>
-              </> : <div style={{ font: "500 12px var(--font-sans), system-ui, sans-serif", color: "#166534", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}><span>No code yet — tap resend on LinkedIn.</span><button type="button" onClick={() => void refresh()} disabled={busy} style={{ flex: "none", border: "none", background: "none", padding: 0, font: "700 12px var(--font-sans), system-ui, sans-serif", color: "#15803d", cursor: "pointer" }}>↻ Refresh</button></div>}
+                <div style={{ font: "500 11.5px/1.45 'Plus Jakarta Sans', system-ui, sans-serif", color: "#166534" }}>Latest code LinkedIn sent to our email. Expired? Tap resend on LinkedIn, then Refresh.</div>
+              </> : <div style={{ font: "500 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#166534", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}><span>No code yet — tap resend on LinkedIn.</span><button type="button" onClick={() => void refresh()} disabled={busy} style={{ flex: "none", border: "none", background: "none", padding: 0, font: "700 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#15803d", cursor: "pointer" }}>↻ Refresh</button></div>}
             </div>}
           </div>
         </div>
@@ -165,10 +165,10 @@ ${selfMode ? "7. Return to this wizard, open LinkedIn’s verification link on y
           <div style={colL}>{dot("4", linkConfirmed ? "active" : "locked")}</div>
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6, padding: "2px 0 0", opacity: linkConfirmed ? 1 : .55 }}>
             <div style={txt}>Make our email <strong>primary</strong></div>
-            <div style={sub}>Back in LinkedIn’s Email addresses, tap <span style={{ display: "inline-block", font: "700 12px var(--font-sans), system-ui, sans-serif", color: "#3b4556", background: "#eef0f4", borderRadius: 999, padding: "1px 9px" }}>Make primary</span> next to our email.</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "9px 11px", font: "500 12.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#9a3412" }}><b style={{ flex: "none" }}>!</b><span><b>Added isn’t enough</b> — if it’s not primary, we can’t sign in.</span></div>
+            <div style={sub}>Back in LinkedIn’s Email addresses, tap <span style={{ display: "inline-block", font: "700 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#3b4556", background: "#eef0f4", borderRadius: 999, padding: "1px 9px" }}>Make primary</span> next to our email.</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "9px 11px", font: "500 12.5px/1.45 'Plus Jakarta Sans', system-ui, sans-serif", color: "#9a3412" }}><b style={{ flex: "none" }}>!</b><span><b>Added isn’t enough</b> — if it’s not primary, we can’t sign in.</span></div>
             <label className={styles.check} style={{ margin: "2px 0 0" }}><input type="checkbox" checked={primary} onChange={e => setPrimary(e.target.checked)} /><span>It shows as <strong>primary</strong> on LinkedIn, and {selfMode ? "I agree" : "the owner agrees"}.</span></label>
-            <a href="https://linkedvelocity.com/account-guide-v2" target="_blank" rel="noreferrer" style={{ font: "600 12px var(--font-sans), system-ui, sans-serif", color: "#15803d", textDecoration: "none" }}>See it with screenshots ↗</a>
+            <a href="https://linkedvelocity.com/account-guide-v2" target="_blank" rel="noreferrer" style={{ font: "600 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#15803d", textDecoration: "none" }}>See it with screenshots ↗</a>
           </div>
         </div>
       </div>
