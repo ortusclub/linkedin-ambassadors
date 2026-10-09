@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { monthlyRentalPrice } from "@/lib/account-pricing";
 import { maskPublicAccount } from "@/lib/mask";
 import { canReplaceNow, replacementUnlockAt } from "@/lib/replacement";
+import { activeShadowAccountIds } from "@/lib/shadow-rental";
 
 // Accounts a renter may swap a RESTRICTED rental to: genuinely-available inventory priced at
 // the same tier or lower than the restricted one (they keep their original locked price, so
@@ -17,10 +18,11 @@ export async function GET(
     const { id } = await params;
 
     const rental = await prisma.rental.findFirst({
-      where: { id, userId: user.id, isShadow: false },
+      where: { id, userId: user.id },
       select: {
         id: true,
         status: true,
+        isShadow: true,
         linkedinAccount: {
           select: {
             id: true, restrictedAt: true,
@@ -44,11 +46,16 @@ export async function GET(
 
     const oldPrice = monthlyRentalPrice(acct);
 
+    // For a shadow renter, drop accounts another shadow renter already holds (one shadow
+    // holder per account), mirroring the checkout guard.
+    const excludeIds = [acct.id];
+    if (rental.isShadow) excludeIds.push(...(await activeShadowAccountIds()));
+
     // Genuinely-rentable inventory only (mirror the catalogue's "available" branch), minus
-    // the restricted account itself.
+    // the restricted account itself (and shadow-held ones for a shadow renter).
     const candidates = await prisma.linkedInAccount.findMany({
       where: {
-        id: { not: acct.id },
+        id: { notIn: excludeIds },
         status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false,
         inventoryPool: { notIn: ["ortus", "apex"] },
       },
