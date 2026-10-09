@@ -481,11 +481,11 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
         <span style={{ width: 20, height: 20, flex: "none", borderRadius: "50%", border: `2px solid ${on ? "#16a34a" : "#c5cbd3"}`, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2 }}><span style={{ width: 10, height: 10, borderRadius: "50%", background: on ? "#16a34a" : "transparent" }} /></span>
         <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ font: "800 16px var(--font-sans), system-ui, sans-serif", color: "#0b1220" }}>{title}</span>
-            <span style={{ font: "700 14px var(--font-sans), system-ui, sans-serif", color: "#15803d", whiteSpace: "nowrap" }}>{price}</span>
+            <span style={{ font: "800 16px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220" }}>{title}</span>
+            <span style={{ font: "700 14px 'Space Grotesk', system-ui, sans-serif", color: "#15803d", whiteSpace: "nowrap" }}>{price}</span>
           </span>
-          <span style={{ font: "500 13.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#5b6779" }}>{body}</span>
-          <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{tags.map(([label, bg, fg]) => <span key={label} style={{ font: "700 11px var(--font-sans), system-ui, sans-serif", padding: "3px 8px", borderRadius: 999, background: bg, color: fg }}>{label}</span>)}</span>
+          <span style={{ font: "500 13.5px/1.45 'Plus Jakarta Sans', system-ui, sans-serif", color: "#5b6779" }}>{body}</span>
+          <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{tags.map(([label, bg, fg]) => <span key={label} style={{ font: "700 11px 'Plus Jakarta Sans', system-ui, sans-serif", padding: "3px 8px", borderRadius: 999, background: bg, color: fg }}>{label}</span>)}</span>
         </span>
       </button>;
     };
@@ -501,11 +501,11 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
                 <button type="button" onClick={() => setSetupPick("team")} style={{ textAlign: "left", cursor: "pointer", background: setupPick === "team" ? "#fff" : "transparent", border: `1.5px ${setupPick === "team" ? "solid" : "dashed"} ${setupPick === "team" ? "#5b6779" : "#d5d9e0"}`, borderRadius: 14, padding: "13px 16px", display: "flex", gap: 12, alignItems: "center", width: "100%", boxSizing: "border-box", font: "inherit" }}>
                   <span style={{ width: 18, height: 18, flex: "none", borderRadius: "50%", border: `2px solid ${setupPick === "team" ? "#5b6779" : "#c5cbd3"}`, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: setupPick === "team" ? "#5b6779" : "transparent" }} /></span>
                   <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><span style={{ font: "700 14px var(--font-sans), system-ui, sans-serif", color: "#3b4556" }}>Leave it to our team</span><span style={{ font: "700 13px var(--font-sans), system-ui, sans-serif", color: "#5b6779", whiteSpace: "nowrap" }}>{refBase}</span></span>
-                    <span style={{ font: "500 12.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#8a93a3" }}>Can take days to reach the owner, and is less likely to finish. Paid only if it completes.</span>
+                    <span style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><span style={{ font: "700 14px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#3b4556" }}>Leave it to our team</span><span style={{ font: "700 13px 'Space Grotesk', system-ui, sans-serif", color: "#5b6779", whiteSpace: "nowrap" }}>{refBase}</span></span>
+                    <span style={{ font: "500 12.5px/1.45 'Plus Jakarta Sans', system-ui, sans-serif", color: "#8a93a3" }}>Can take days to reach the owner, and is less likely to finish. Paid only if it completes.</span>
                   </span>
                 </button>
-                <a href="https://calendly.com/linkedvelocity-info/30min" onClick={e => { e.preventDefault(); if (busy) return; void run(async () => { if (!session.meetingRequested) { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); } window.location.assign("https://calendly.com/linkedvelocity-info/30min"); }); }} style={{ font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none", paddingLeft: 4, color: "#15803d" }}>Book a time with the owner instead →</a>
+                <a href="https://calendly.com/linkedvelocity-info/30min" onClick={e => { e.preventDefault(); if (busy) return; void run(async () => { if (!session.meetingRequested) { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); } window.location.assign("https://calendly.com/linkedvelocity-info/30min"); }); }} style={{ font: "700 13px 'Plus Jakarta Sans', system-ui, sans-serif", textDecoration: "none", paddingLeft: 4, color: "#15803d" }}>Book a time with the owner instead →</a>
               </>}
             </div>}
             <button type="button" className={styles.primary} style={{ marginTop: 18, ...(setupPick === "team" ? { background: "#3b4556" } : {}) }} disabled={busy || !setupPick} onClick={() => { if (setupPick === "pc") selectSetupMethod("pc"); else if (setupPick === "phone") selectSetupMethod("phone"); else if (setupPick === "team") void run(async () => { const result = await request("PATCH", { id: session.id, action: "meeting" }); setSession(result.session); }); }}>{!setupPick ? "Choose an option" : setupPick === "team" ? "Hand over to our team →" : "Continue →"}</button>
@@ -526,7 +526,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
 
   return <main className={styles.page}>
     <div className={styles.shell}>
-      {demo && <div style={{ background: "#fde68a", color: "#78350f", font: "700 13px var(--font-sans), system-ui, sans-serif", textAlign: "center", padding: "8px 16px", letterSpacing: ".02em" }}>👁️ DEMO PREVIEW — every field is pre-filled and nothing is saved. No account, proxy or email is created.</div>}
+      {demo && <div style={{ background: "#fde68a", color: "#78350f", font: "700 13px 'Plus Jakarta Sans', system-ui, sans-serif", textAlign: "center", padding: "8px 16px", letterSpacing: ".02em" }}>👁️ DEMO PREVIEW — every field is pre-filled and nothing is saved. No account, proxy or email is created.</div>}
       <header className={styles.header}>
         <div className={styles.headerRow}>
           {canGoBack ? <button type="button" className={styles.headerBack} disabled={busy} onClick={goBack}>← Back</button>
@@ -746,9 +746,9 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
             </div>
             {(() => {
               const captured = looksLikeTotpKey(twoFactorKey) || (!!session.twoFactorSaved && !twoFactorKey.trim());
-              const dot = (label: string | number, done = false) => <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", background: done ? "#16a34a" : "#0b1220", color: "#fff", font: "700 12.5px var(--font-sans), system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>{label}</span>;
+              const dot = (label: string | number, done = false) => <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", background: done ? "#16a34a" : "#0b1220", color: "#fff", font: "700 12.5px 'Space Grotesk', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>{label}</span>;
               const line = () => <span style={{ flex: 1, width: 2, background: "#e3e6ea", margin: "4px 0" }} />;
-              const txt = { font: "600 14.5px/1.45 var(--font-sans), system-ui, sans-serif", color: "#0b1220" } as const;
+              const txt = { font: "600 14.5px/1.45 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220" } as const;
               const colL = { display: "flex", flexDirection: "column", alignItems: "center" } as const;
               return <div style={{ display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", gap: 12 }}>
@@ -765,15 +765,15 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
                     <div style={txt}>Copy the long key under the QR code</div>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <div style={{ border: "1px solid #e3e6ea", borderRadius: 10, overflow: "hidden", background: "#fff" }}><img src="/onboarding/2fa-key-sample.png" alt="Where the key appears in LinkedIn, with the copy icon" style={{ width: "100%", display: "block" }} /></div>
-                    <div style={{ font: "500 12px var(--font-sans), system-ui, sans-serif", color: "#8a93a3" }}>Tap the copy icon. Can&apos;t see it? Tap &ldquo;Can&apos;t scan the QR code?&rdquo;</div>
+                    <div style={{ font: "500 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#8a93a3" }}>Tap the copy icon. Can&apos;t see it? Tap &ldquo;Can&apos;t scan the QR code?&rdquo;</div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 12 }} data-tour="twofa-key">
                   <div style={colL}>{dot(captured ? "✓" : 4, captured)}{line()}</div>
                   <div style={{ flex: 1, minWidth: 0, padding: "2px 0 18px", display: "flex", flexDirection: "column", gap: 8 }}>
                     <div style={txt}>Paste it here</div>
-                    <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. K7QX M2VD 4HJN P3WL…" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${captured ? "#86efac" : "#d9dde3"}`, borderRadius: 12, padding: 13, font: "600 15px var(--font-sans), system-ui, sans-serif", letterSpacing: ".04em", color: "#0b1220", outline: "none", background: "#fff" }} />
-                    {captured && <div style={{ font: "600 12.5px var(--font-sans), system-ui, sans-serif", color: "#15803d" }}>✓ Key saved</div>}
+                    <input type="text" autoComplete="off" maxLength={128} value={twoFactorKey} onChange={(e) => setTwoFactorKey(e.target.value.toUpperCase())} onBlur={() => void saveTwoFactor()} placeholder="e.g. K7QX M2VD 4HJN P3WL…" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${captured ? "#86efac" : "#d9dde3"}`, borderRadius: 12, padding: 13, font: "600 15px 'Space Grotesk', system-ui, sans-serif", letterSpacing: ".04em", color: "#0b1220", outline: "none", background: "#fff" }} />
+                    {captured && <div style={{ font: "600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#15803d" }}>✓ Key saved</div>}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 12 }} data-tour="twofa-code">
@@ -785,7 +785,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
                 </div>
               </div>;
             })()}
-            <a href={`https://linkedvelocity.com/guide/two-step-verification?for=${selfMode ? "owner" : "referrer"}`} target="_blank" rel="noreferrer" style={{ display: "inline-block", margin: "14px 0 0", color: "#15803d", font: "700 13px var(--font-sans), system-ui, sans-serif", textDecoration: "none" }}>Full guide with screenshots ↗</a>
+            <a href={`https://linkedvelocity.com/guide/two-step-verification?for=${selfMode ? "owner" : "referrer"}`} target="_blank" rel="noreferrer" style={{ display: "inline-block", margin: "14px 0 0", color: "#15803d", font: "700 13px 'Plus Jakarta Sans', system-ui, sans-serif", textDecoration: "none" }}>Full guide with screenshots ↗</a>
             <div className={styles.actions}>
               <button type="button" className={styles.secondary} onClick={goBack}>Back</button>
               <button type="button" className={styles.primary} disabled={busy || (!looksLikeTotpKey(twoFactorKey) && !(session.twoFactorSaved && !twoFactorKey.trim()))} onClick={() => run(async () => { if (twoFactorKey.trim()) { await request("PATCH", { id: session.id, action: "twofactor", twoFactorKey: twoFactorKey.trim() }); setSession({ ...session, twoFactorSaved: true }); } setStep(session.emailSetup && !session.emailSetup.primaryConfirmed ? 4 : 5); })}>{session.emailSetup && !session.emailSetup.primaryConfirmed ? "Continue to secure email →" : selfMode && session.diyTier === "partial" ? "Continue to team handoff →" : "Continue to sign-in →"}</button>
