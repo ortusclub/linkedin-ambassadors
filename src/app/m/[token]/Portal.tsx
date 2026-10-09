@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
-import { balancePair, balanceText, configuredOffer, offerPair, offerRange } from "@/lib/display-currency";
+import { balancePair, configuredText, configuredOffer, offerPair, offerRange } from "@/lib/display-currency";
 import { CURRENCY_CONFIG } from "@/lib/referral-currency";
 
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
@@ -298,7 +298,7 @@ export default function Portal({ token }: { token: string }) {
   const actualCurrency = config.currency === "USD" ? "USD" : "PHP";
   const money = (n: number) => balancePair(n, actualCurrency, preference.currency);
   const offerMoney = (n: number) => configuredOffer(n, actualCurrency, preference.currency);
-  const moneyText = (text: string) => balanceText(text, preference.currency);
+  const moneyText = (text: string) => configuredText(text, preference.currency);
   const setupOffer = configuredOffer(CURRENCY_CONFIG[actualCurrency].setupAmount, actualCurrency, preference.currency);
   const monthlyOffer = configuredOffer(CURRENCY_CONFIG[actualCurrency].monthlyAmount, actualCurrency, preference.currency);
   const firstName = me.name.split(" ")[0];

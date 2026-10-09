@@ -16,6 +16,12 @@ export function balancePair(amount: number, actual: Currency, preferred: Currenc
 export function balanceText(text: string, preferred: Currency) {
   return text.replace(/([₱$])([\d,]+(?:\.\d+)?)/g, (_all, symbol, amount) => balancePair(Number(amount.replaceAll(",", "")), symbol === "$" ? "USD" : "PHP", preferred));
 }
+// Like balanceText, but each amount goes through the agreed programme anchors
+// (₱1,000↔$16, ₱500↔$8, and the tier steps) instead of the live exchange rate, so
+// published prices read as fixed pairs. Non-anchor sums fall back to the estimate.
+export function configuredText(text: string, preferred: Currency) {
+  return text.replace(/([₱$])([\d,]+(?:\.\d+)?)/g, (_all, symbol, amount) => configuredOffer(Number(amount.replaceAll(",", "")), symbol === "$" ? "USD" : "PHP", preferred));
+}
 export function configuredOffer(amount: number, actual: Currency, preferred: Currency) {
   const source = CURRENCY_CONFIG[actual], other = CURRENCY_CONFIG[actual === "USD" ? "PHP" : "USD"];
   const pairs = [[source.referralTiers.referral, other.referralTiers.referral], [source.referralTiers.phone.base, other.referralTiers.phone.base], [source.referralTiers.phone.verified, other.referralTiers.phone.verified], [source.referralTiers.computer.base, other.referralTiers.computer.base], [source.setupAmount, other.setupAmount], [source.monthlyAmount, other.monthlyAmount]];
