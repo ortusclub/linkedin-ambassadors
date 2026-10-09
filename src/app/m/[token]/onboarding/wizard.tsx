@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { OnboardingPrice } from "@/components/onboarding-price";
 import { CurrencySelector, useDisplayCurrency } from "@/components/display-currency";
-import { balanceText, configuredOffer, offerRange } from "@/lib/display-currency";
+import { configuredText, configuredOffer, offerRange } from "@/lib/display-currency";
 import { type CurrencyConfig, currencyConfig } from "@/lib/referral-currency";
 import styles from "./wizard.module.css";
 import { countries, countryCode } from "@/lib/countries";
@@ -434,7 +434,7 @@ export default function SelfServiceWizard({ token, endpoint: endpointProp, selfM
   const fmtMoney = (n: number) => cfg ? configuredOffer(n, cfg.currency, preference.currency) : "";
   const setupOffer = cfg ? fmtMoney(cfg.setupAmount) : "";
   const monthlyOffer = cfg ? fmtMoney(cfg.monthlyAmount) : "";
-  const moneyText = (text: string) => balanceText(text, preference.currency);
+  const moneyText = (text: string) => configuredText(text, preference.currency);
   const refBase = cfg ? fmtMoney(cfg.referralTiers.referral) : "";
   const refMax = cfg ? fmtMoney(cfg.referralTiers.computer.verified) : "";
   const phoneRange = offerRange(10, 13, 600, 800, preference.currency);
