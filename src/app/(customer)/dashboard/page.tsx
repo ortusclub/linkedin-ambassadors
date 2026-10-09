@@ -47,7 +47,7 @@ function LinkedInChip({ url, onClick }: { url?: string | null; onClick?: (e: Rea
   if (!url) return null;
   return (
     <a href={url} target="_blank" rel="noreferrer" title="View LinkedIn profile" onClick={onClick}
-      style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 7px", borderRadius: 7, background: "#e8f0fe", color: "#0a66c2", font: "800 11.5px/1.2 inherit", textDecoration: "none" }}>
+      style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 7px", borderRadius: 7, background: "#e8f0fe", color: "#0a66c2", fontWeight: 800, fontSize: 11.5, lineHeight: 1.2, textDecoration: "none" }}>
       in <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}><path d="M2.5 7.5L7.5 2.5M3.5 2.5h4v4" /></svg>
     </a>
   );
@@ -212,7 +212,7 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
     ? (picked.monthlyPrice < oldPrice ? `New rate $${picked.monthlyPrice}/mo from your next billing (was $${oldPrice}).` : `Same rate, $${oldPrice}/mo.`)
     : "Pick an account to continue.";
   const chip = (k: "all" | "same" | "lower", label: string) => (
-    <button onClick={() => setFilt(k)} style={{ borderRadius: 999, padding: "5px 12px", font: "700 12px inherit", cursor: "pointer", border: `1px solid ${filt === k ? V.text : "#d5dbe5"}`, background: filt === k ? V.text : "#fff", color: filt === k ? "#fff" : V.text }}>{label}</button>
+    <button onClick={() => setFilt(k)} style={{ borderRadius: 999, padding: "5px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer", border: `1px solid ${filt === k ? V.text : "#d5dbe5"}`, background: filt === k ? V.text : "#fff", color: filt === k ? "#fff" : V.text }}>{label}</button>
   );
 
   return (
@@ -220,35 +220,35 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
       <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, maxHeight: "calc(100vh - 40px)", background: "#fff", borderRadius: 18, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px rgba(11,18,32,.25)" }}>
         <div style={{ padding: "20px 22px 14px", display: "flex", flexDirection: "column", gap: 6, borderBottom: `1px solid ${V.line}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ font: "800 19px inherit" }}>Replace {rental.linkedinAccount.linkedinName}</span>
-            <button onClick={onClose} style={{ marginLeft: "auto", border: "none", background: "none", font: "500 22px inherit", color: V.faint, cursor: "pointer", lineHeight: 1 }}>×</button>
+            <span style={{ fontWeight: 800, fontSize: 19 }}>Replace {rental.linkedinAccount.linkedinName}</span>
+            <button onClick={onClose} style={{ marginLeft: "auto", border: "none", background: "none", fontWeight: 500, fontSize: 22, color: V.faint, cursor: "pointer", lineHeight: 1 }}>×</button>
           </div>
-          <span style={{ font: "500 13px/1.5 inherit", color: V.muted }}>Pick any account at ${oldPrice ?? "—"}/mo or lower. Your billing date stays the same and you keep the downtime credit.</span>
+          <span style={{ fontWeight: 500, fontSize: 13, lineHeight: 1.5, color: V.muted }}>Pick any account at ${oldPrice ?? "—"}/mo or lower. Your billing date stays the same and you keep the downtime credit.</span>
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>{chip("all", "All")}{chip("same", "Same price")}{chip("lower", "Lower price")}</div>
         </div>
 
         <div style={{ overflow: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
           {loading ? (
-            <p style={{ padding: "32px 0", textAlign: "center", font: "500 13px inherit", color: V.muted }}>Loading available accounts…</p>
+            <p style={{ padding: "32px 0", textAlign: "center", fontWeight: 500, fontSize: 13, color: V.muted }}>Loading available accounts…</p>
           ) : error && options.length === 0 ? (
-            <p style={{ padding: "32px 0", textAlign: "center", font: "500 13px inherit", color: "#b91c1c" }}>{error}</p>
+            <p style={{ padding: "32px 0", textAlign: "center", fontWeight: 500, fontSize: 13, color: "#b91c1c" }}>{error}</p>
           ) : shown.length === 0 ? (
-            <p style={{ padding: "32px 0", textAlign: "center", font: "500 13px inherit", color: V.muted }}>{options.length === 0 ? "No equivalent accounts are available right now. Please check back soon or contact our team." : "No accounts match this filter."}</p>
+            <p style={{ padding: "32px 0", textAlign: "center", fontWeight: 500, fontSize: 13, color: V.muted }}>{options.length === 0 ? "No equivalent accounts are available right now. Please check back soon or contact our team." : "No accounts match this filter."}</p>
           ) : shown.map((o) => {
             const on = selected === o.id;
             return (
               <div key={o.id} onClick={() => setSelected(o.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", borderRadius: 12, cursor: "pointer", border: `1.5px solid ${on ? V.blue : V.border}`, background: on ? "#f5f8ff" : "#fff" }}>
-                <div style={{ flex: "none", width: 38, height: 38, borderRadius: "50%", background: "#e8eefc", color: V.blue, display: "grid", placeItems: "center", font: "700 13px inherit", overflow: "hidden" }}>
+                <div style={{ flex: "none", width: 38, height: 38, borderRadius: "50%", background: "#e8eefc", color: V.blue, display: "grid", placeItems: "center", fontWeight: 700, fontSize: 13, overflow: "hidden" }}>
                   {o.profilePhotoUrl ? <img src={o.profilePhotoUrl} alt={o.linkedinName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initialsOf(o.linkedinName)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                    <span style={{ font: "700 14px inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.linkedinName}</span>
+                    <span style={{ fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.linkedinName}</span>
                     {o.linkedinVerified && <VerifiedBadge />}
                   </div>
-                  <div style={{ font: "500 12px inherit", color: V.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[o.linkedinHeadline, `${o.connectionCount.toLocaleString()} connections`, o.location].filter(Boolean).join(" · ")}</div>
+                  <div style={{ fontWeight: 500, fontSize: 12, color: V.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[o.linkedinHeadline, `${o.connectionCount.toLocaleString()} connections`, o.location].filter(Boolean).join(" · ")}</div>
                 </div>
-                <span style={{ flex: "none", font: "700 13px inherit" }}>${o.monthlyPrice}<span style={{ fontWeight: 500, color: V.faint }}>/mo</span></span>
+                <span style={{ flex: "none", fontWeight: 700, fontSize: 13 }}>${o.monthlyPrice}<span style={{ fontWeight: 500, color: V.faint }}>/mo</span></span>
                 <span style={{ flex: "none", width: 18, height: 18, borderRadius: "50%", border: `2px solid ${on ? V.blue : "#c3c9d3"}`, display: "grid", placeItems: "center" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: on ? V.blue : "transparent" }} /></span>
               </div>
             );
@@ -256,9 +256,9 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
         </div>
 
         <div style={{ padding: "14px 22px", borderTop: `1px solid ${V.line}`, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ flex: "1 1 200px", font: "500 12.5px/1.45 inherit", color: error && options.length > 0 ? "#b91c1c" : V.muted }}>{error && options.length > 0 ? error : summary}</span>
-          <button onClick={onClose} style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 9, padding: "9px 14px", font: "600 13px inherit", cursor: "pointer" }}>Cancel</button>
-          <button onClick={confirm} disabled={!picked || submitting} style={{ border: "none", background: picked && !submitting ? V.blue : "#a9c0f7", color: "#fff", borderRadius: 9, padding: "9px 16px", font: "700 13px inherit", cursor: picked ? "pointer" : "default" }}>{submitting ? "Switching…" : "Confirm replacement"}</button>
+          <span style={{ flex: "1 1 200px", fontWeight: 500, fontSize: 12.5, lineHeight: 1.45, color: error && options.length > 0 ? "#b91c1c" : V.muted }}>{error && options.length > 0 ? error : summary}</span>
+          <button onClick={onClose} style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 9, padding: "9px 14px", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+          <button onClick={confirm} disabled={!picked || submitting} style={{ border: "none", background: picked && !submitting ? V.blue : "#a9c0f7", color: "#fff", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: 13, cursor: picked ? "pointer" : "default" }}>{submitting ? "Switching…" : "Confirm replacement"}</button>
         </div>
       </div>
     </div>
@@ -742,20 +742,20 @@ function DashboardContent() {
           <CardContent className="px-5 py-4">
             <div style={{ display: "flex", alignItems: "center", gap: "14px 28px", flexWrap: "wrap" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ font: "600 12px inherit", color: V.faint }}>Balance</span>
-                <span style={{ font: "800 26px inherit", letterSpacing: "-.02em", color: V.text }}>${parseFloat(usdcBalance).toFixed(2)}</span>
+                <span style={{ fontWeight: 600, fontSize: 12, color: V.faint }}>Balance</span>
+                <span style={{ fontWeight: 800, fontSize: 26, letterSpacing: "-.02em", color: V.text }}>${parseFloat(usdcBalance).toFixed(2)}</span>
               </div>
               {downtimeCreditDays > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 24, borderLeft: `1px solid ${V.line}` }}>
-                  <span style={{ font: "600 12px inherit", color: V.faint }}>Downtime credit <span style={{ color: "#aab2c0" }}>· added to your rental</span></span>
-                  <span style={{ font: "700 16px inherit", color: V.green }}>+{downtimeCreditDays} {downtimeCreditDays === 1 ? "day" : "days"}</span>
+                  <span style={{ fontWeight: 600, fontSize: 12, color: V.faint }}>Downtime credit <span style={{ color: "#aab2c0" }}>· added to your rental</span></span>
+                  <span style={{ fontWeight: 700, fontSize: 16, color: V.green }}>+{downtimeCreditDays} {downtimeCreditDays === 1 ? "day" : "days"}</span>
                 </div>
               )}
               {cardOnFile && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 24, borderLeft: `1px solid ${V.line}` }}>
-                  <span style={{ font: "600 12px inherit", color: V.faint }}>Card on file <span style={{ color: "#aab2c0" }}>· covers renewal shortfalls</span></span>
-                  <span style={{ font: "600 14px inherit", color: V.text }}>{cardOnFile.brand ? `${cardOnFile.brand} ` : ""}•••• {cardOnFile.last4}
-                    <button onClick={removeCard} style={{ border: "none", background: "none", font: "600 12.5px inherit", color: "#b91c1c", cursor: "pointer", marginLeft: 8 }}>Remove</button>
+                  <span style={{ fontWeight: 600, fontSize: 12, color: V.faint }}>Card on file <span style={{ color: "#aab2c0" }}>· covers renewal shortfalls</span></span>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: V.text }}>{cardOnFile.brand ? `${cardOnFile.brand} ` : ""}•••• {cardOnFile.last4}
+                    <button onClick={removeCard} style={{ border: "none", background: "none", fontWeight: 600, fontSize: 12.5, color: "#b91c1c", cursor: "pointer", marginLeft: 8 }}>Remove</button>
                   </span>
                 </div>
               )}
@@ -770,13 +770,13 @@ function DashboardContent() {
                       }).catch(() => {});
                     }
                   }}
-                  style={{ border: "none", background: V.green, color: "#fff", borderRadius: 9, padding: "9px 16px", font: "700 13.5px inherit", cursor: "pointer" }}
+                  style={{ border: "none", background: V.green, color: "#fff", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
                 >
                   + Deposit
                 </button>
                 <button
                   onClick={() => { setShowWithdraw(!showWithdraw); setShowTopUp(false); }}
-                  style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 9, padding: "9px 14px", font: "600 13.5px inherit", cursor: "pointer" }}
+                  style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 9, padding: "9px 14px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}
                 >
                   Withdraw
                 </button>
@@ -1083,20 +1083,20 @@ function DashboardContent() {
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
           <div style={{ width: 6, alignSelf: "stretch", minHeight: 40, borderRadius: 4, background: "linear-gradient(to bottom, #0A66C2, #004182)", flex: "none" }} />
           <div style={{ minWidth: 0 }}>
-            <h2 style={{ margin: 0, font: "800 20px inherit", letterSpacing: "-.01em", color: "#004182", lineHeight: 1.2 }}>Accounts I&apos;m Renting <span style={{ font: "600 13px inherit", color: V.faint }}>· {currentRentals.length} {currentRentals.length === 1 ? "account" : "accounts"}</span></h2>
-            <p style={{ margin: "3px 0 0", font: "500 13px inherit", color: V.muted }}>Accounts you&apos;re renting from other members · open them in GoLogin. <Link href="/account-guide-v2" style={{ color: V.blue, fontWeight: 600, textDecoration: "none" }}>Account guide →</Link></p>
+            <h2 style={{ margin: 0, fontWeight: 800, fontSize: 20, letterSpacing: "-.01em", color: "#004182", lineHeight: 1.2 }}>Accounts I&apos;m Renting <span style={{ fontWeight: 600, fontSize: 13, color: V.faint }}>· {currentRentals.length} {currentRentals.length === 1 ? "account" : "accounts"}</span></h2>
+            <p style={{ margin: "3px 0 0", fontWeight: 500, fontSize: 13, color: V.muted }}>Accounts you&apos;re renting from other members · open them in GoLogin. <Link href="/account-guide-v2" style={{ color: V.blue, fontWeight: 600, textDecoration: "none" }}>Account guide →</Link></p>
           </div>
         </div>
 
         {restrictedCount > 0 && (
-          <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "11px 14px", background: V.warnBg, border: `1px solid ${V.warnBorder}`, borderRadius: 11, font: "500 13px/1.5 inherit", color: "#7c2d12", marginBottom: 12 }}>
-            <span style={{ flex: "none", width: 18, height: 18, borderRadius: "50%", background: V.orange, color: "#fff", display: "grid", placeItems: "center", font: "800 11px inherit", marginTop: 1 }}>!</span>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "11px 14px", background: V.warnBg, border: `1px solid ${V.warnBorder}`, borderRadius: 11, fontWeight: 500, fontSize: 13, lineHeight: 1.5, color: "#7c2d12", marginBottom: 12 }}>
+            <span style={{ flex: "none", width: 18, height: 18, borderRadius: "50%", background: V.orange, color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 11, marginTop: 1 }}>!</span>
             <span><b>{restrictedCount === 1 ? "1 account is restricted." : `${restrictedCount} accounts are restricted.`}</b> Billing is paused and you get those days added back to your rental while we try to recover it (up to 2 days). If we can&apos;t, replace it with any account at the same price or lower.</span>
           </div>
         )}
 
         {currentRentals.length === 0 ? (
-          <div style={{ background: "#fff", border: "1px dashed #d5dbe5", borderRadius: 14, padding: 22, textAlign: "center", font: "500 13.5px inherit", color: V.muted }}>
+          <div style={{ background: "#fff", border: "1px dashed #d5dbe5", borderRadius: 14, padding: 22, textAlign: "center", fontWeight: 500, fontSize: 13.5, color: V.muted }}>
             You&apos;re not renting any accounts yet. <Link href="/catalogue" style={{ color: V.blue, fontWeight: 600 }}>Browse accounts to rent →</Link>
           </div>
         ) : (
@@ -1135,35 +1135,35 @@ function DashboardContent() {
                     <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1.2fr) 140px 250px", alignItems: "center", gap: "12px 20px", padding: "14px 18px" }}>
                       {/* profile */}
                       <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ flex: "none", width: 40, height: 40, borderRadius: "50%", background: "#e8eefc", color: V.blue, display: "grid", placeItems: "center", font: "700 14px inherit", overflow: "hidden" }}>
+                        <div style={{ flex: "none", width: 40, height: 40, borderRadius: "50%", background: "#e8eefc", color: V.blue, display: "grid", placeItems: "center", fontWeight: 700, fontSize: 14, overflow: "hidden" }}>
                           {acct.profilePhotoUrl ? <img src={acct.profilePhotoUrl} alt={acct.linkedinName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initialsOf(acct.linkedinName)}
                         </div>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-                            <span style={{ font: "700 14.5px inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{acct.linkedinName}</span>
+                            <span style={{ fontWeight: 700, fontSize: 14.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{acct.linkedinName}</span>
                             <LinkedInChip url={acct.linkedinUrl} />
                             {acct.linkedinVerified && <VerifiedBadge />}
                           </div>
-                          <div style={{ font: "500 12.5px inherit", color: V.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[acct.linkedinHeadline, rental.price != null ? `$${rental.price}/mo` : null].filter(Boolean).join(" · ")}</div>
-                          <div style={{ font: "500 11.5px inherit", color: V.faint, whiteSpace: "nowrap" }}>Renting since {formatDate(rental.startDate)} · {humanDuration(rental.startDate)}</div>
+                          <div style={{ fontWeight: 500, fontSize: 12.5, color: V.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[acct.linkedinHeadline, rental.price != null ? `$${rental.price}/mo` : null].filter(Boolean).join(" · ")}</div>
+                          <div style={{ fontWeight: 500, fontSize: 11.5, color: V.faint, whiteSpace: "nowrap" }}>Renting since {formatDate(rental.startDate)} · {humanDuration(rental.startDate)}</div>
                         </div>
                       </div>
                       {/* status */}
                       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, font: "700 13px inherit", color: sc }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: 13, color: sc }}>
                           <span style={{ width: 7, height: 7, borderRadius: "50%", background: sc }} />{sl}
                         </div>
-                        <span style={{ font: "500 12px inherit", color: V.faint }}>{ss}</span>
+                        <span style={{ fontWeight: 500, fontSize: 12, color: V.faint }}>{ss}</span>
                         {R && !eligible && (
                           <div style={{ height: 4, maxWidth: 170, borderRadius: 4, background: "#fde3cc", overflow: "hidden" }}><div style={{ height: "100%", width: `${progress}%`, background: V.orange }} /></div>
                         )}
                       </div>
                       {/* billing */}
                       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                        <span style={{ font: "500 12px inherit", color: V.faint }}>{billL}</span>
-                        <span style={{ font: "700 13.5px inherit" }}>{billV}</span>
+                        <span style={{ fontWeight: 500, fontSize: 12, color: V.faint }}>{billL}</span>
+                        <span style={{ fontWeight: 700, fontSize: 13.5 }}>{billV}</span>
                         {!R && !prep && rental.status === "active" && (
-                          <button onClick={() => toggleAutoRenew(rental)} title="Turn auto-renew on or off" style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 999, padding: "3px 10px 3px 4px", font: "700 11.5px inherit", cursor: "pointer", background: rental.autoRenew ? "#e7f7ee" : "#f1f3f6", color: rental.autoRenew ? "#0f7a3d" : V.muted }}>
+                          <button onClick={() => toggleAutoRenew(rental)} title="Turn auto-renew on or off" style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 999, padding: "3px 10px 3px 4px", fontWeight: 700, fontSize: 11.5, cursor: "pointer", background: rental.autoRenew ? "#e7f7ee" : "#f1f3f6", color: rental.autoRenew ? "#0f7a3d" : V.muted }}>
                             <span style={{ width: 22, height: 14, borderRadius: 999, background: rental.autoRenew ? V.green : "#c3c9d3", position: "relative", display: "block" }}><span style={{ position: "absolute", top: 2, left: rental.autoRenew ? 10 : 2, width: 10, height: 10, borderRadius: "50%", background: "#fff" }} /></span>
                             {rental.autoRenew ? "Auto-renew on" : "Auto-renew off"}
                           </button>
@@ -1173,19 +1173,19 @@ function DashboardContent() {
                       <div style={{ minWidth: 0, display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
                         {R ? (
                           eligible ? (
-                            <button onClick={() => setReplacingRental(rental)} style={{ border: "none", background: V.orange, color: "#fff", borderRadius: 8, padding: "8px 14px", font: "700 12.5px inherit", cursor: "pointer", whiteSpace: "nowrap" }}>Replace account</button>
+                            <button onClick={() => setReplacingRental(rental)} style={{ border: "none", background: V.orange, color: "#fff", borderRadius: 8, padding: "8px 14px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>Replace account</button>
                           ) : (
-                            <span title="You can replace it if we haven't recovered it by then" style={{ border: "1px dashed #f5c39b", color: "#9a3412", borderRadius: 8, padding: "7px 12px", font: "600 12.5px inherit", whiteSpace: "nowrap" }}>Replace option in {remH}h</span>
+                            <span title="You can replace it if we haven't recovered it by then" style={{ border: "1px dashed #f5c39b", color: "#9a3412", borderRadius: 8, padding: "7px 12px", fontWeight: 600, fontSize: 12.5, whiteSpace: "nowrap" }}>Replace option in {remH}h</span>
                           )
                         ) : prep ? (
-                          <span style={{ font: "600 12.5px inherit", color: V.faint, padding: "8px 0" }}>Access link after handover</span>
+                          <span style={{ fontWeight: 600, fontSize: 12.5, color: V.faint, padding: "8px 0" }}>Access link after handover</span>
                         ) : ready ? (
                           <>
-                            <button onClick={() => setOpenLinkId((p) => (p === rental.id ? null : rental.id))} style={{ border: "none", background: V.blue, color: "#fff", borderRadius: 8, padding: "8px 13px", font: "700 12.5px inherit", cursor: "pointer", whiteSpace: "nowrap" }}>{linkOpen ? "Hide link" : "Open in GoLogin"}</button>
-                            {canSeeCreds && <button onClick={() => setOpenCredsId((p) => (p === rental.id ? null : rental.id))} style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, borderRadius: 8, padding: "7px 12px", font: "700 12.5px inherit", cursor: "pointer", whiteSpace: "nowrap" }}>{credsOpen ? "Hide sign-in" : "Sign-in details"}</button>}
+                            <button onClick={() => setOpenLinkId((p) => (p === rental.id ? null : rental.id))} style={{ border: "none", background: V.blue, color: "#fff", borderRadius: 8, padding: "8px 13px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{linkOpen ? "Hide link" : "Open in GoLogin"}</button>
+                            {canSeeCreds && <button onClick={() => setOpenCredsId((p) => (p === rental.id ? null : rental.id))} style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{credsOpen ? "Hide sign-in" : "Sign-in details"}</button>}
                           </>
                         ) : (
-                          <span style={{ font: "600 12.5px inherit", color: V.faint, padding: "8px 0" }}>Share link not available yet</span>
+                          <span style={{ fontWeight: 600, fontSize: 12.5, color: V.faint, padding: "8px 0" }}>Share link not available yet</span>
                         )}
                       </div>
                     </div>
@@ -1193,9 +1193,9 @@ function DashboardContent() {
                     {linkOpen && shareUrl && (
                       <div style={{ margin: "0 18px 16px", padding: 14, background: "#f5f8ff", border: "1px solid #dfe7fb", borderRadius: 12, display: "flex", flexDirection: "column", gap: 12 }}>
                         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                          <span className={mono.className} style={{ flex: "1 1 280px", minWidth: 0, background: "#fff", border: "1px solid #d5dbe5", borderRadius: 8, padding: "8px 10px", font: "500 12.5px inherit", color: V.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shareUrl}</span>
-                          <button onClick={() => { try { navigator.clipboard?.writeText(shareUrl); setLinkCopied(rental.id); setTimeout(() => setLinkCopied(null), 1500); } catch {} }} style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 8, padding: "7px 12px", font: "600 12.5px inherit", cursor: "pointer" }}>{linkCopied === rental.id ? "Copied" : "Copy"}</button>
-                          <a href={shareUrl} target="_blank" rel="noreferrer" style={{ background: V.blue, color: "#fff", borderRadius: 8, padding: "8px 13px", font: "700 12.5px inherit", textDecoration: "none" }}>Open link ↗</a>
+                          <span className={mono.className} style={{ flex: "1 1 280px", minWidth: 0, background: "#fff", border: "1px solid #d5dbe5", borderRadius: 8, padding: "8px 10px", fontWeight: 500, fontSize: 12.5, color: V.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shareUrl}</span>
+                          <button onClick={() => { try { navigator.clipboard?.writeText(shareUrl); setLinkCopied(rental.id); setTimeout(() => setLinkCopied(null), 1500); } catch {} }} style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 8, padding: "7px 12px", fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>{linkCopied === rental.id ? "Copied" : "Copy"}</button>
+                          <a href={shareUrl} target="_blank" rel="noreferrer" style={{ background: V.blue, color: "#fff", borderRadius: 8, padding: "8px 13px", fontWeight: 700, fontSize: 12.5, textDecoration: "none" }}>Open link ↗</a>
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10 }}>
                           {[
@@ -1203,8 +1203,8 @@ function DashboardContent() {
                             "Refresh GoLogin: Cmd + R on Mac, Ctrl + R on Windows",
                             "Find it under “Shared with me”. It can take a minute or two.",
                           ].map((step, si) => (
-                            <div key={si} style={{ display: "flex", gap: 8, font: "500 12.5px/1.45 inherit", color: "#3b4657" }}>
-                              <span style={{ flex: "none", width: 20, height: 20, borderRadius: "50%", background: V.blue, color: "#fff", display: "grid", placeItems: "center", font: "700 11px inherit" }}>{si + 1}</span>
+                            <div key={si} style={{ display: "flex", gap: 8, fontWeight: 500, fontSize: 12.5, lineHeight: 1.45, color: "#3b4657" }}>
+                              <span style={{ flex: "none", width: 20, height: 20, borderRadius: "50%", background: V.blue, color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 11 }}>{si + 1}</span>
                               <span>{step}</span>
                             </div>
                           ))}
@@ -1230,8 +1230,8 @@ function DashboardContent() {
         <section className="mb-12 order-5">
           <details className="group">
             <summary className="mb-4 flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 focus-visible:outline-2 focus-visible:outline-blue-500 [&::-webkit-details-marker]:hidden">
-              <h2 style={{ margin: 0, font: "800 17px inherit", color: V.text }}>Past rentals <span style={{ font: "600 13px inherit", color: V.faint, marginLeft: 6 }}>({pastRentals.length})</span></h2>
-              <span style={{ font: "700 13px inherit", color: V.blue }}><span className="group-open:hidden">Show history</span><span className="hidden group-open:inline">Hide history</span><span aria-hidden="true" className="transition-transform group-open:rotate-180" style={{ marginLeft: 4, display: "inline-block" }}>⌄</span></span>
+              <h2 style={{ margin: 0, fontWeight: 800, fontSize: 17, color: V.text }}>Past rentals <span style={{ fontWeight: 600, fontSize: 13, color: V.faint, marginLeft: 6 }}>({pastRentals.length})</span></h2>
+              <span style={{ fontWeight: 700, fontSize: 13, color: V.blue }}><span className="group-open:hidden">Show history</span><span className="hidden group-open:inline">Hide history</span><span aria-hidden="true" className="transition-transform group-open:rotate-180" style={{ marginLeft: 4, display: "inline-block" }}>⌄</span></span>
             </summary>
             <div style={{ background: "#fff", border: `1px solid ${V.border}`, borderRadius: 14, overflowX: "auto" }}>
               <div style={{ minWidth: 820 }}>
@@ -1248,25 +1248,25 @@ function DashboardContent() {
                   return (
                     <div key={rental.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1.2fr) 160px 150px", gap: "12px 20px", alignItems: "center", padding: "12px 18px", borderTop: i === 0 ? "none" : `1px solid ${V.line}` }}>
                       <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ flex: "none", width: 36, height: 36, borderRadius: "50%", background: "#f1f3f6", color: V.muted, display: "grid", placeItems: "center", font: "700 13px inherit" }}>{initialsOf(acct.linkedinName)}</div>
+                        <div style={{ flex: "none", width: 36, height: 36, borderRadius: "50%", background: "#f1f3f6", color: V.muted, display: "grid", placeItems: "center", fontWeight: 700, fontSize: 13 }}>{initialsOf(acct.linkedinName)}</div>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-                            <span style={{ font: "700 14px inherit", color: V.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{acct.linkedinName}</span>
+                            <span style={{ fontWeight: 700, fontSize: 14, color: V.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{acct.linkedinName}</span>
                             <LinkedInChip url={acct.linkedinUrl} />
                           </div>
-                          {rental.price != null && <div style={{ font: "500 12px inherit", color: V.muted }}>${rental.price}/mo</div>}
+                          {rental.price != null && <div style={{ fontWeight: 500, fontSize: 12, color: V.muted }}>${rental.price}/mo</div>}
                         </div>
                       </div>
                       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-                        <span style={{ alignSelf: "flex-start", borderRadius: 999, padding: "2px 9px", font: "700 11.5px inherit", background: stBg, color: stFg }}>{st}</span>
-                        <span style={{ font: "500 12px inherit", color: V.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{why}</span>
+                        <span style={{ alignSelf: "flex-start", borderRadius: 999, padding: "2px 9px", fontWeight: 700, fontSize: 11.5, background: stBg, color: stFg }}>{st}</span>
+                        <span style={{ fontWeight: 500, fontSize: 12, color: V.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{why}</span>
                       </div>
                       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-                        <span style={{ font: "600 13px inherit", color: V.text }}>{range}</span>
-                        <span style={{ font: "500 12px inherit", color: V.faint }}>{len}</span>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: V.text }}>{range}</span>
+                        <span style={{ fontWeight: 500, fontSize: 12, color: V.faint }}>{len}</span>
                       </div>
                       <div style={{ minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
-                        <Link href="/catalogue" style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, borderRadius: 8, padding: "7px 12px", font: "700 12.5px inherit", textDecoration: "none", whiteSpace: "nowrap" }}>Rent again</Link>
+                        <Link href="/catalogue" style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 12.5, textDecoration: "none", whiteSpace: "nowrap" }}>Rent again</Link>
                       </div>
                     </div>
                   );
