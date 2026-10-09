@@ -14,24 +14,51 @@ export default function PhoneHandoff({ busy, error, submit, selfMode = false, de
 }) {
   const [password, setPassword] = useState(demo ? "LinkedVel2026!" : "");
   const [agree, setAgree] = useState(demo);
-  const ready = password.trim().length >= 6 && agree;
+  const [showPw, setShowPw] = useState(false);
+  const pwSet = password.trim().length >= 6;
+  const ready = pwSet && agree;
+
+  const dot = (label: string, state: "done" | "active" | "locked") => <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", background: state === "done" ? "#16a34a" : state === "active" ? "#0b1220" : "#c5cbd3", color: "#fff", font: "700 12.5px 'Space Grotesk', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>{label}</span>;
+  const line = () => <span style={{ flex: 1, width: 2, background: "#e3e6ea", margin: "4px 0" }} />;
+  const colL = { display: "flex", flexDirection: "column", alignItems: "center" } as const;
+  const txt = { font: "600 14.5px/1.45 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220" } as const;
+  const sub = { font: "500 12.5px/1.45 'Plus Jakarta Sans', system-ui, sans-serif", color: "#5b6779" } as const;
+  const chip = (label: string, kind: "done" | "todo") => <span style={{ font: "700 11px 'Plus Jakarta Sans', system-ui, sans-serif", padding: "4px 9px", borderRadius: 999, background: kind === "done" ? "#dcfce7" : "#fef3c7", color: kind === "done" ? "#15803d" : "#b45309" }}>{label}</span>;
+
   return <>
-    <h2>Hand off to the LinkedVelocity team</h2>
-    <p>No computer needed. Set a temporary password and we&apos;ll do the protected-browser sign-in for you, then run the checks and arrange payment.</p>
+    <div className={styles.stepLabel}>Hand off</div>
+    <h2>Hand off to our team</h2>
+    <p>No computer needed. We do the sign-in, the checks and the payment.</p>
     {error && <div className={styles.error} role="alert">{error}</div>}
 
-    <div className={styles.note}>{selfMode ? "Do this in your LinkedIn account. You have already added the managed email; now provide a temporary password so the team can complete setup." : "Do this with the owner, on their phone. Their LinkedIn email is already set to ours, so we just need to be able to log in."}</div>
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "2px 0 6px" }}>
+      {chip("✓ Email is ours", "done")}
+      {chip("✓ 2FA set", "done")}
+      {pwSet ? chip("✓ Password set", "done") : chip("Password needed", "todo")}
+    </div>
 
-    <label className={styles.field}>{selfMode ? "Set a temporary LinkedIn password" : "A temporary password the owner sets"}
-      <input type="text" autoComplete="off" required minLength={6} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} placeholder="e.g. LinkedVel2026!" />
-    </label>
-    <p className={styles.hint}>{selfMode ? "Change your LinkedIn password to this in the app" : "Have the owner change their LinkedIn password to this in the app"} (Settings → Sign in &amp; security → Change password). You can reset it after setup.</p>
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", gap: 12 }}>
+        <div style={colL}>{dot(pwSet ? "✓" : "1", pwSet ? "done" : "active")}{line()}</div>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8, padding: "2px 0 18px" }}>
+          <div style={txt}>{selfMode ? "Set a temporary password" : "Owner sets a temporary password"}</div>
+          <div style={sub}>{selfMode ? "On your phone" : "On their phone"}: <strong style={{ color: "#0b1220" }}>Settings → Sign in &amp; security → Change password</strong>. {selfMode ? "You" : "They"} can change it back after setup.</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid #d9dde3", borderRadius: 12, padding: "0 6px 0 13px", background: "#fff" }}>
+            <input type={showPw ? "text" : "password"} autoComplete="off" required minLength={6} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} placeholder="e.g. LinkedVel2026!" style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", font: "600 15px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#0b1220", padding: "13px 0" }} />
+            <button type="button" onClick={() => setShowPw(v => !v)} style={{ flex: "none", border: "none", background: "none", font: "700 12px 'Plus Jakarta Sans', system-ui, sans-serif", color: "#15803d", cursor: "pointer", padding: "6px 8px" }}>{showPw ? "Hide" : "Show"}</button>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 12 }}>
+        <div style={colL}>{dot("2", pwSet ? "active" : "locked")}</div>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8, padding: "2px 0 0", opacity: pwSet ? 1 : .55 }}>
+          <div style={txt}>Get the owner&apos;s OK</div>
+          <label className={styles.check} style={{ margin: 0 }}><input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} /><span>{selfMode ? "I agree to share this so LinkedVelocity can sign in. I keep full access and can reset it anytime." : "The owner agrees to share this so we can sign in. They keep full access and can reset it anytime."}</span></label>
+        </div>
+      </div>
+    </div>
 
-    <div className={styles.note}>Two-step verification is set up — we&apos;ll use the code from the previous step when we sign in.</div>
-
-    <label className={styles.check}><input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} /><span>{selfMode ? "I agree to share these details with LinkedVelocity to complete my setup. I keep control and can reset my password." : "The owner agrees to share these so LinkedVelocity can sign in and run the account, and understands they keep full access and can reset the password anytime."}</span></label>
-
-    <button className={styles.primary} disabled={busy || !ready} onClick={() => void submit(password.trim())}>{busy ? "Handing off…" : "Hand off to the team →"}</button>
-    <p className={styles.hint}>We&apos;ll set up the protected browser and sign in within 24 hours, complete the checks, and release payment. Never share these with anyone but LinkedVelocity.</p>
+    <button className={styles.primary} style={{ marginTop: 18 }} disabled={busy || !ready} onClick={() => void submit(password.trim())}>{busy ? "Handing off…" : "Hand off to the team →"}</button>
+    <p className={styles.hint} style={{ textAlign: "center" }}>We&apos;ll sign in within 24 hours. Only ever share this with LinkedVelocity.</p>
   </>;
 }
