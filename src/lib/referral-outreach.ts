@@ -25,6 +25,7 @@ export type OutreachRow = {
   isSignup: boolean;  // true = link is the signup CTA (no referrer record yet)
   contacted: boolean; // we've already emailed them for this campaign
   signedUpAt: string | null; // when they signed up / applied (ISO)
+  signedUpAfterEmailAt: string | null; // set when they signed up AFTER we emailed them (ISO) — a conversion
   suppressed: boolean;       // on the do-not-contact list
   suppressReason: string | null;
 };
