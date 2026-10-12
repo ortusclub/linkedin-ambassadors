@@ -576,6 +576,11 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
             </div>
           }>
             <div><div style={{ ...labelCss, marginBottom: 6 }}>Status</div><RestrictionControl r={r} onAccount={acctSave} onApp={(patch) => patchApp(r.id, patch)} onDeleteEvent={(at) => { if (r.accountId) deleteRestrictionEvent(r.accountId, at); }} /></div>
+            {r.accountId && (
+              <div><div style={{ ...labelCss, marginBottom: 6 }}>Warm-up</div>
+                <button onClick={(e) => { e.stopPropagation(); acctSave({ warmupStartedAt: r.warmupStartedAt ? null : new Date().toISOString() }, true); }} disabled={busy} title="Toggle whether this account is actively being warmed up (Ortus app)" style={{ font: `600 11.5px ${F_SANS}`, padding: "5px 11px", borderRadius: 999, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap", border: "1px solid", borderColor: r.warmupStartedAt ? "transparent" : "var(--input-border,#dcdce0)", background: r.warmupStartedAt ? "var(--warn-badge-bg,#fef3c7)" : "transparent", color: r.warmupStartedAt ? "var(--warn-badge-text,#b7791f)" : "var(--muted,#647189)" }}>{r.warmupStartedAt ? `🔥 Warming up · ${ageDays(r.warmupStartedAt)}d` : "Not warming up"}</button>
+              </div>
+            )}
             {r.accountId ? (<>
               {r.twoFactor && <TotpCode key={r.twoFactor} secretKey={r.twoFactor} />}
               {needsGologin(r) && !r.hasGologin && <div style={{ font: `600 11px ${F_SANS}`, color: "var(--warn-badge-text,#b7791f)" }}>⚠ No GoLogin — this account cannot be run</div>}
