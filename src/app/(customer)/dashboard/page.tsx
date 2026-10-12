@@ -67,6 +67,7 @@ function VerifiedBadge() {
 function RentalCredentials({ rental }: { rental: Rental }) {
   const acct = rental.linkedinAccount;
   const [showPass, setShowPass] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [codeExp, setCodeExp] = useState<number | null>(null);
@@ -156,6 +157,17 @@ function RentalCredentials({ rental }: { rental: Rental }) {
           </div>
         </div>
       </div>
+      {/* 2FA secret key (TOTP seed) — for HeyReach / authenticator apps that answer 2-step themselves */}
+      {acct.twoFactorSecret && (
+        <div className="mt-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">2FA secret key <span className="font-normal normal-case text-gray-400">· for HeyReach / authenticator apps</span></p>
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 break-all font-mono text-[13px] text-gray-900">{showSecret ? acct.twoFactorSecret : "••••••••••••••••••••••••••••••••"}</span>
+            <button onClick={() => setShowSecret((v) => !v)} className="shrink-0 rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-white hover:text-blue-700 cursor-pointer">{showSecret ? "Hide" : "Show"}</button>
+            <CopyBtn val={acct.twoFactorSecret} id="secret" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -377,6 +389,7 @@ interface Rental {
     linkedinUrl: string | null;
     accountEmail: string | null;
     accountPassword?: string | null;
+    twoFactorSecret?: string | null;
     profilePhotoUrl: string | null;
     connectionCount: number;
     linkedinVerified?: boolean;
