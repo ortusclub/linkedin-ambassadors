@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
       ? "How It Works — Hiring a LinkedIn Operator"
       : "How It Works — Renting & Sharing LinkedIn Accounts",
     description: isArmy
-      ? "Step-by-step guide to how LinkedArmy works. Hire a verified LinkedIn Operator in minutes with GoLogin browser access, or become an operator and earn."
+      ? "Step-by-step guide to how LinkedArmy works. Hire a verified LinkedIn Operator in minutes to run outreach from an established, credible profile, or become an operator and earn."
       : "Step-by-step guide to how LinkedVelocity works. Rent a verified, pre-warmed LinkedIn account in minutes with GoLogin browser access, or earn $10-500/month sharing an account you no longer use.",
     alternates: { canonical: "/how-it-works" },
     openGraph: {
@@ -42,8 +42,8 @@ const STEPS_BY_BRAND = {
     { n: "2", tag: "Select", title: "Select your operator(s)", body: "Tick one or more operators and proceed to checkout. Hire a single operator, or hire several across a multi-operator campaign in one flow." },
     { n: "3", tag: "Top up", title: "Top up your balance", body: "Add funds to your wallet — pay by card via Stripe, or deposit USDC on Base from any wallet. Your balance updates within seconds." },
     { n: "4", tag: "Confirm", title: "Pay and confirm", body: "Engagements are monthly and paid from your balance, renewing automatically. Cancel anytime from your dashboard — no penalty." },
-    { n: "5", tag: "Connect", title: "Open your operator in GoLogin", body: "Each operator's profile is shared straight to your own GoLogin account — its own isolated profile with a dedicated proxy. No password to manage." },
-    { n: "6", tag: "Launch", title: "Run your campaigns", body: "Open the operator's profile as a real Chrome session. Install Dripify, Expandi, Linked Helper, or any extension, and run connection, intro, and open-profile campaigns." },
+    { n: "5", tag: "Connect", title: "Get connected", body: "Your operator's profile is set up in a secure, isolated environment with a dedicated IP, ready for you in minutes. Nothing to configure." },
+    { n: "6", tag: "Launch", title: "Go live", body: "Launch your outreach from an established, credible profile and start landing connection requests, intros, and open-profile messages that a brand-new account never could." },
   ],
 } as const;
 
@@ -65,7 +65,7 @@ export default async function HowItWorksPage() {
         <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
           <div style={{ fontSize: 13, color: "#7FA0C4", marginBottom: 22 }}>Home · How It Works</div>
           <h1 style={{ font: `800 clamp(34px,5.6vw,56px) ${POP}`, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 auto 22px", color: "#fff", maxWidth: 760 }}>{isArmy ? "Hire a LinkedIn Operator in minutes — no warm-up, no setup wizard" : "Rent a LinkedIn account in minutes — no warm-up, no setup wizard"}</h1>
-          <p style={{ fontSize: 19, lineHeight: 1.6, color: "#AFC4DB", margin: "0 auto", maxWidth: 600 }}>{isArmy ? "Every operator comes with its own GoLogin secure browser profile and dedicated proxy. No password to manage, no verification step — pick an operator and you're in." : "Every rented account comes with its own GoLogin anti-detect browser profile and dedicated proxy. No password to manage, no verification step — click an account and you're in."}</p>
+          <p style={{ fontSize: 19, lineHeight: 1.6, color: "#AFC4DB", margin: "0 auto", maxWidth: 600 }}>{isArmy ? "Every operator comes with a secure, dedicated environment ready to go. No setup wizard, no verification step, pick an operator and you're live." : "Every rented account comes with its own GoLogin anti-detect browser profile and dedicated proxy. No password to manage, no verification step — click an account and you're in."}</p>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "center", marginTop: 34 }}>
             <Link href="/catalogue" style={{ background: "#fff", color: "#0B1220", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>{isArmy ? "Browse Operators →" : "Browse Available Accounts →"}</Link>
             <Link href="/faqs" style={{ background: "rgba(255,255,255,0.08)", color: "#EAF0FA", border: "1px solid rgba(255,255,255,0.18)", fontSize: 15, fontWeight: 600, padding: "14px 24px", borderRadius: 12, textDecoration: "none" }}>FAQs</Link>
@@ -113,8 +113,8 @@ export default async function HowItWorksPage() {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></svg>
             </span>
             <div>
-              <div style={{ font: `600 17px ${POP}`, color: "#0B1220", marginBottom: 6 }}>Why GoLogin matters</div>
-              <p style={{ fontSize: 15, lineHeight: 1.7, color: "#37424F", margin: 0 }}>{isArmy ? <>Each operator works in an isolated browser profile with its own dedicated IP, so every session stays consistent and secure. And in the rare case an operator is ever restricted, we <strong>pause your billing for it and move you to a replacement</strong> so your campaigns keep running.</> : <>Each rented account runs in an isolated browser fingerprint with its own dedicated IP. To LinkedIn, the session looks like the original account holder logging in from their usual location — one consistent user. And in the rare case an account is ever restricted, we <strong>pause your billing for it and move you to a replacement</strong> so your campaigns keep running.</>}</p>
+              <div style={{ font: `600 17px ${POP}`, color: "#0B1220", marginBottom: 6 }}>{isArmy ? "Why it stays secure" : "Why GoLogin matters"}</div>
+              <p style={{ fontSize: 15, lineHeight: 1.7, color: "#37424F", margin: 0 }}>{isArmy ? <>Each operator works in a secure, isolated environment with its own dedicated IP, so every session stays consistent and the profile stays protected. And in the rare case an operator is ever restricted, we <strong>pause your billing for it and move you to a replacement</strong> so your campaigns keep running.</> : <>Each rented account runs in an isolated browser fingerprint with its own dedicated IP. To LinkedIn, the session looks like the original account holder logging in from their usual location — one consistent user. And in the rare case an account is ever restricted, we <strong>pause your billing for it and move you to a replacement</strong> so your campaigns keep running.</>}</p>
             </div>
           </div>
         </div>
