@@ -476,6 +476,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
   for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) meetings.set(entry.bookingKey, entry);
 
   const applicantFields: FieldSpec[] = [
+    { k: "fullName", label: "Full name", value: r.fullName, placeholder: "display name", hint: "how they show in the pipeline & owner lists — shorten long ones here", onSave: (v) => { const name = String(v ?? "").trim(); if (!name) return; if (r.accountOnly) { if (r.accountId) patchAccount(r.id, r.accountId, { linkedinName: name }, true); } else patchApp(r.id, { fullName: name }, true); } },
     { k: "linkedinUrl", label: "LinkedIn URL", value: r.linkedinUrl, kind: "link", placeholder: "linkedin.com/in/…", onSave: (v) => patchApp(r.id, { linkedinUrl: v }) },
     { k: "linkedinEmail", label: "Applied with (LinkedIn email)", value: r.linkedinEmail, placeholder: "same as owner", onSave: (v) => patchApp(r.id, { linkedinEmail: v }) },
     { k: "contactNumber", label: "Contact number / handle", value: r.contactNumber, placeholder: "phone / handle", onSave: (v) => patchApp(r.id, { contactNumber: v }) },
