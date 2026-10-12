@@ -65,7 +65,7 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
           <div className="ey">verified linkedin operators</div>
           <h1 style={{ fontSize: "clamp(52px,10vw,150px)", fontWeight: 900 }}>skip the warm-up.<br />hire an operator.</h1>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,320px),1fr))", gap: 28, alignItems: "end" }}>
-            <p style={{ margin: 0, fontSize: "clamp(17px,1.5vw,21px)", lineHeight: 1.5, fontWeight: 600, maxWidth: 560 }}>Hire verified LinkedIn operators with established networks and a mature online presence to run campaigns for you and hit pipeline targets in weeks, not quarters. You run the outreach from a profile that already has the reach and the trust.</p>
+            <p style={{ margin: 0, fontSize: "clamp(17px,1.5vw,21px)", lineHeight: 1.5, fontWeight: 600, maxWidth: 560 }}>Hire verified LinkedIn operators with established networks and a mature online presence to run outreach for you and hit pipeline targets in weeks, not quarters. Their reach and credibility do the work a brand-new account cannot.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 420 }}>
               <Link href="/catalogue" className="btn" style={{ fontSize: 16 }}><span>browse operators</span><span>→</span></Link>
               <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--mono)" }}>from $45/mo · month to month · cancel anytime</span>
@@ -74,7 +74,7 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
         </header>
 
         <div className="wrap" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", borderTop: "2px solid var(--ink)", background: "var(--paper)", padding: 0 }}>
-          {[["real", "profiles, real people"], ["0", "warm-up needed"], ["GoLogin", "-secured"], ["m2m", "cancel anytime"]].map(([n, l]) => (
+          {[["real", "profiles, real people"], ["0", "warm-up needed"], ["fully", "managed & secured"], ["m2m", "cancel anytime"]].map(([n, l]) => (
             <div key={l} style={{ padding: "14px clamp(16px,2vw,26px)", borderRight: "2px solid var(--ink)", fontSize: 13, fontWeight: 700 }}><strong style={{ fontFamily: "var(--disp)", fontSize: 20 }}>{n}</strong>{l.startsWith("-") ? l : " " + l}</div>
           ))}
         </div>
@@ -103,10 +103,10 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
       <section id="how" style={{ borderBottom: "2px solid var(--ink)" }}>
         <div className="wrap" style={{ paddingTop: "clamp(44px,6vw,76px)", paddingBottom: 28, display: "flex", flexWrap: "wrap", alignItems: "end", gap: 24, justifyContent: "space-between" }}>
           <h2 style={{ fontSize: "clamp(38px,5.5vw,76px)", fontWeight: 800 }}>how it works</h2>
-          <span style={{ fontSize: 15, fontWeight: 700, fontFamily: "var(--mono)" }}>browse → hire → launch · access in minutes</span>
+          <span style={{ fontSize: 15, fontWeight: 700, fontFamily: "var(--mono)" }}>browse → hire → launch · live in minutes</span>
         </div>
         <div className="cells c3">
-          {[["01", "browse", "Filter operators by industry, location, connections and Sales Navigator. Every one is a real, established, verified profile."], ["02", "hire", "Hire one or several, flat monthly fee each. No contracts, no setup fee. Scale up or down anytime."], ["03", "launch", "Open the operator's profile in a secure GoLogin browser and run your outreach tool. Multiply your reach, not your risk."]].map(([n, t, d], i) => (
+          {[["01", "browse", "Filter operators by industry, location, connections and Sales Navigator. Every one is a real, established, verified profile."], ["02", "hire", "Hire one or several, flat monthly fee each. No contracts, no setup fee. Scale up or down anytime."], ["03", "launch", "Go live from an established, secured profile and start landing with reach and trust from day one. Multiply your results, not your risk."]].map(([n, t, d], i) => (
             <div key={n} className="cell" style={i === 2 ? { borderRight: "none" } : undefined}>
               <span style={{ display: "inline-block", background: "var(--teal)", color: "var(--paper)", fontFamily: "var(--mono)", fontSize: 13, fontWeight: 700, padding: "4px 8px" }}>{n}</span>
               <h3 style={{ fontSize: 30, fontWeight: 800, margin: "14px 0 10px" }}>{t}</h3>
@@ -152,7 +152,7 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
         <div className="wrap" style={{ paddingTop: "clamp(44px,6vw,76px)", paddingBottom: 28, display: "flex", flexDirection: "column", gap: 12 }}>
           <div className="ey" style={{ color: "var(--accent-700)" }}>pricing</div>
           <h2 style={{ fontSize: "clamp(38px,5.5vw,76px)", fontWeight: 800 }}>priced by the profile.</h2>
-          <p style={{ margin: 0, fontSize: 16, color: "var(--n800)", maxWidth: 560 }}>Every operator is priced on its own merits: connections, account age, Sales Navigator and verification. You see the exact monthly price before you hire.</p>
+          <p style={{ margin: 0, fontSize: 16, color: "var(--n800)", maxWidth: 560 }}>Every operator is priced on its own merits: connections, profile maturity, Sales Navigator and verification. You see the exact monthly price before you hire.</p>
         </div>
         <div className="cells c3" style={{ borderTop: "2px solid var(--ink)" }}>
           {[
@@ -176,8 +176,8 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
         <div style={{ borderTop: "2px solid var(--ink)" }}>
           {[
             ["whose profiles are these?", "Real professionals who opted in. Every operator is a consenting, verified person with an established network."],
-            ["is it safe for the profile?", "Each operator works from a secure GoLogin environment with its own proxy and fingerprint, inside safe sending limits, so sessions stay consistent and secure."],
-            ["how fast do i get access?", "Usually within minutes of hiring, once the quick one-time browser setup is done."],
+            ["is it safe for the profile?", "Each operator works from a secure, dedicated environment inside safe sending limits, so activity stays consistent and the profile stays protected."],
+            ["how soon can i start?", "Usually within minutes of hiring, once a quick one-time setup is done."],
             ["can i cancel?", "Yes. Flat monthly fee per operator, month to month, cancel anytime from your dashboard."],
           ].map(([q, a]) => (
             <div key={q} style={{ padding: "20px 0", borderBottom: "1px solid var(--divider)" }}>
