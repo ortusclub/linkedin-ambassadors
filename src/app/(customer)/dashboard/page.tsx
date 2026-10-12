@@ -602,6 +602,24 @@ function DashboardContent() {
   const rentalRank = (r: Rental) => (r.linkedinAccount.restrictedAt ? 0 : isRentalBeingPrepared(r) ? 2 : 1);
   const sortedRentals = [...currentRentals].sort((a, b) => rentalRank(a) - rentalRank(b));
   const restrictedCount = currentRentals.filter((r) => !!r.linkedinAccount.restrictedAt).length;
+  // Payment problems float to the very top so the renter can fix billing before anything renews.
+  const paymentIssueRentals = currentRentals.filter((r) => r.status === "payment_failed");
+  const paymentIssueTotal = paymentIssueRentals.reduce((t, r) => t + (r.price || 0), 0);
+  // Earliest renewal date among the failing rentals — the deadline to fix things.
+  const paymentIssueDueDate = paymentIssueRentals
+    .map((r) => r.currentPeriodEnd)
+    .filter((d): d is string => !!d)
+    .sort((a, b) => a.localeCompare(b))[0];
+  const openWalletToFix = () => {
+    setShowTopUp(true);
+    setShowWithdraw(false);
+    if (!depositAddress) {
+      fetch("/api/wallet/deposit-address").then((r) => r.json()).then((data) => {
+        if (data.address) setDepositAddress(data.address);
+      }).catch(() => {});
+    }
+    if (typeof document !== "undefined") document.getElementById("wallet")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   // Downtime credit accrued so far across restricted accounts (added to the rental on recovery).
   const downtimeCreditDays = currentRentals.reduce((t, r) => (r.linkedinAccount.restrictedAt ? t + Math.max(0, Math.round((nowTick - new Date(r.linkedinAccount.restrictedAt).getTime()) / 864e5)) : t), 0);
   // Past rentals incl. "replaced" (the old side of a swap); newest first.
@@ -689,6 +707,28 @@ function DashboardContent() {
 
       {/* ===== Adaptive content reordered via flex order: renter actions + lists on top; ambassador guide pushed to the bottom (Sam) ===== */}
       <div className="flex flex-col">
+
+      {/* Payment issue — pinned above everything so it's the first thing a renter fixes */}
+      {showRenterSide && paymentIssueRentals.length > 0 && (
+        <div style={{ order: -1, display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap", padding: "14px 16px", background: "#fdecec", border: "1px solid #f3c2c2", borderRadius: 14, marginBottom: 20 }}>
+          <span style={{ flex: "none", width: 22, height: 22, borderRadius: "50%", background: "#dc2626", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 13, marginTop: 1 }}>!</span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ margin: 0, fontWeight: 800, fontSize: 15, letterSpacing: "-.01em", color: "#991b1b" }}>
+              Payment issue on {paymentIssueRentals.length === 1 ? "1 account" : `${paymentIssueRentals.length} accounts`}
+            </p>
+            <p style={{ margin: "3px 0 0", fontWeight: 500, fontSize: 13, lineHeight: 1.5, color: "#7f1d1d" }}>
+              {paymentIssueRentals.length === 1 ? "This rental couldn't renew." : "These rentals couldn't renew."} Add funds{paymentIssueTotal > 0 ? ` (about $${paymentIssueTotal}/mo needed)` : ""} or save a card{paymentIssueDueDate ? ` before ${formatDate(paymentIssueDueDate)}` : ""}, or they&apos;ll be returned to LinkedVelocity.
+            </p>
+          </div>
+          <button
+            onClick={openWalletToFix}
+            style={{ flex: "none", border: "none", background: "#dc2626", color: "#fff", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", alignSelf: "center" }}
+          >
+            Fix payment
+          </button>
+        </div>
+      )}
+
       {/* Ambassador getting-started — how the programme works */}
       {isAmbassador && (
         <div className="order-6 mb-8 overflow-hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/80 via-white to-white p-6">
