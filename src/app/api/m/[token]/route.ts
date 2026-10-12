@@ -104,9 +104,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const money = (n: number) => `${cfg.symbol}${n.toLocaleString("en-US")}`;
   const t = cfg.referralTiers;
   const range = (lo: number, hi: number) => `${money(lo)}–${money(hi)}`;
-  const signups = apps
+  const mappedSignups = apps
     .filter((a) => (a.referredBy || "").trim() === me.slug)
-    .slice(0, 25)
     .map((a) => {
       const isDiy = a.referralSource === "self-service";
       const method = a.onboardingMethod; // "computer" | "phone" | null
@@ -206,6 +205,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       const codeSessionId = a.selfServiceOnboarding?.id && !onboarded && !paid && state !== "confirmed" ? a.selfServiceOnboarding.id : null;
       return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, deletable, resumeSessionId, codeSessionId };
     });
+
+  // Action-needed signups (restricted / resume / onboard / clear) come first, so an urgent
+  // one is never pushed off the end of a long list; newest-first within each group (the sort
+  // is stable). Previously the list was capped at the 25 most recent by date, which hid later
+  // signups entirely — a restricted jemjem-16 account sitting at #35 of 48 never reached the
+  // portal, so the referrer couldn't see it needed clearing.
+  const signupRank = (s: { kind: string; restricted: boolean; action: string | null }) => (s.kind === "blocked" || s.restricted ? 0 : s.action ? 1 : 2);
+  const signups = [...mappedSignups].sort((a, b) => signupRank(a) - signupRank(b)).slice(0, 150);
 
   return NextResponse.json({
     me: {
