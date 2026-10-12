@@ -12,12 +12,16 @@ const CLIENT_ALIASES: Record<string, string> = {
   "info@apexstrategy.io": "Apex",
 };
 const CLIENT_EXCLUDE = new Set(["samuel.adcock@gmail.com", "sdnuqwdfnuwq@ortus.solutions"]); // Sam Adcock (internal, incl. dup)
+// Capitalise the first letter of each word, leaving the rest untouched so existing caps
+// (e.g. "Nicolas Fetchin") survive and only lowercased names like "manikaran" get fixed.
+const titleCase = (s: string): string => s.replace(/(^|\s)(\p{L})/gu, (_, sp, ch) => sp + ch.toUpperCase());
 function clientLabel(fullName?: string | null, email?: string | null): string | null {
   const mail = (email || "").toLowerCase().trim();
-  if (mail.endsWith("@telegram.local")) return null; // off-platform Telegram renters
+  if (mail.endsWith("@telegram.local") || mail.endsWith("@whatsapp.local")) return null; // off-platform handle renters
   if (CLIENT_EXCLUDE.has(mail)) return null;
   if (CLIENT_ALIASES[mail]) return CLIENT_ALIASES[mail];
-  return (fullName || email || "").trim() || null;
+  const raw = (fullName || email || "").trim();
+  return raw ? titleCase(raw) : null;
 }
 
 // Admin: restriction / recovery analytics for /admin/restrictions. Reads the append-only
