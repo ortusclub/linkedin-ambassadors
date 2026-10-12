@@ -15,6 +15,7 @@ type CohortRow = {
   recoveryRate: number | null;
 };
 type StageEventRow = { stage: string; events: number; share: number; recovered: number; open: number; recoveryRate: number | null };
+type OpenRestrictionRow = { account: string; url: string | null; since: string | null; days: number | null; verified: boolean; status: string; stage: string; clients: string[]; note?: string };
 type FeedItem = { at: string; event: "restricted" | "recovered"; account: string; note?: string; creditedDays?: number };
 type Analytics = {
   generatedAt: string;
@@ -29,6 +30,7 @@ type Analytics = {
   };
   timing: CohortRow[];
   stageAtRestriction: StageEventRow[];
+  openRestrictions: OpenRestrictionRow[];
   feed: FeedItem[];
 };
 
@@ -163,6 +165,67 @@ function StageEventTable({ rows }: { rows: StageEventRow[] }) {
   );
 }
 
+// Live roster of currently-restricted accounts, longest-down first. The days-down chip
+// warms from amber to red as downtime grows, so the stalest recoveries jump out.
+function OpenRestrictionsTable({ rows }: { rows: OpenRestrictionRow[] }) {
+  const daysTone = (d: number | null): { bg: string; fg: string } => {
+    if (d == null) return { bg: "var(--track)", fg: "var(--muted)" };
+    if (d >= 30) return { bg: "var(--danger-chip-bg, rgba(220,38,38,0.14))", fg: "var(--danger)" };
+    if (d >= 14) return { bg: "var(--warn-badge-bg)", fg: "var(--warn-badge-text)" };
+    return { bg: "var(--track)", fg: "var(--text)" };
+  };
+  return (
+    <Card style={{ padding: "16px 18px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
+        <h3 style={{ font: `700 14px ${F_GRO}`, color: "var(--text)", margin: 0 }}>Currently restricted — {rows.length}</h3>
+      </div>
+      <p style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted)", margin: "0 0 10px" }}>
+        Every account open-restricted right now, longest-down first. Days count from when the restriction was logged (or the restricted-at flag for older ones).
+      </p>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", font: `500 12.5px ${F_SANS}` }}>
+          <thead>
+            <tr style={{ color: "var(--muted)", textAlign: "left", font: `600 11px ${F_SANS}` }}>
+              <th style={{ padding: "6px 8px 6px 0", fontWeight: 600 }}>Account</th>
+              <th style={{ padding: "6px 8px", textAlign: "right" }}>Days down</th>
+              <th style={{ padding: "6px 8px" }}>Since</th>
+              <th style={{ padding: "6px 8px" }}>Stage when hit</th>
+              <th style={{ padding: "6px 0 6px 8px" }}>Renter</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr><td colSpan={5} style={{ padding: "12px 0", color: "var(--muted)" }}>Nothing currently restricted.</td></tr>
+            )}
+            {rows.map((r, i) => {
+              const tone = daysTone(r.days);
+              return (
+                <tr key={`${r.account}-${i}`} style={{ borderTop: "1px solid var(--divider)" }}>
+                  <td style={{ padding: "9px 8px 9px 0", color: "var(--text)", fontWeight: 600 }}>
+                    {r.url ? (
+                      <a href={r.url} target="_blank" rel="noreferrer" style={{ color: "var(--text)", textDecoration: "none" }}>{r.account}</a>
+                    ) : r.account}
+                    {r.verified && <span title="Verified" style={{ marginLeft: 6, font: `600 10px ${F_SANS}`, color: "var(--green)" }}>✓</span>}
+                    {r.note && <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>{r.note}</div>}
+                  </td>
+                  <td style={{ padding: "9px 8px", textAlign: "right", whiteSpace: "nowrap" }}>
+                    <span style={{ font: `700 12px ${F_GRO}`, padding: "3px 9px", borderRadius: 999, background: tone.bg, color: tone.fg }}>
+                      {r.days == null ? "—" : `${r.days}d`}
+                    </span>
+                  </td>
+                  <td style={{ padding: "9px 8px", color: "var(--muted)", whiteSpace: "nowrap" }}>{r.since ? fmtDate(r.since) : "—"}</td>
+                  <td style={{ padding: "9px 8px", color: "var(--text)" }}>{r.stage}</td>
+                  <td style={{ padding: "9px 0 9px 8px", color: r.clients.length ? "var(--text)" : "var(--muted)" }}>{r.clients.length ? r.clients.join(", ") : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
 export default function RestrictionsPage() {
   const [data, setData] = useState<Analytics | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -214,6 +277,9 @@ export default function RestrictionsPage() {
       <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted)", background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 10, padding: "9px 13px" }}>
         Rates are exact from when event logging started. A restrict→recover that happened before then (flag already cleared, no log entry) isn&apos;t counted, so older history is undercounted. Every restriction/recovery from the pipeline or inventory now writes to the shared log.
       </div>
+
+      {/* Currently-restricted roster */}
+      <OpenRestrictionsTable rows={data.openRestrictions} />
 
       {/* Cohort grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))", gap: 14, alignItems: "start" }}>

@@ -72,6 +72,19 @@ export type FeedItem = {
   creditedDays?: number;
 };
 
+// One currently-restricted account: the live roster of who's down and for how long.
+export type OpenRestrictionRow = {
+  account: string;
+  url: string | null;
+  since: string | null; // ISO date the current restriction opened
+  days: number | null; // days restricted so far
+  verified: boolean;
+  status: string;
+  stage: string; // stage the account was in WHEN this restriction hit (historical)
+  clients: string[]; // renters currently holding the account
+  note?: string; // note on the opening restricted event
+};
+
 export type RestrictionAnalytics = {
   generatedAt: string;
   totals: {
@@ -99,6 +112,7 @@ export type RestrictionAnalytics = {
   };
   timing: CohortRow[]; // restriction timing relative to onboarding (denominator = ever-restricted)
   stageAtRestriction: StageEventRow[]; // HISTORICAL: which stage each restriction happened at
+  openRestrictions: OpenRestrictionRow[]; // currently-restricted roster, longest-down first
   feed: FeedItem[];
 };
 
@@ -127,6 +141,8 @@ type AcctFacts = {
   firstRestrictedAt: Date | null;
   completedDowntimeDays: number[]; // one per restrict→recover pair
   openDays: number | null; // downtime of the current open restriction
+  openSince: Date | null; // when the current open restriction started
+  openNote?: string; // note on the opening restricted event
 };
 
 function acctFacts(a: AnalyticsAccount, now: number): AcctFacts {
@@ -137,14 +153,16 @@ function acctFacts(a: AnalyticsAccount, now: number): AcctFacts {
   // Pair restricted→recovered in order to measure downtime of completed cycles.
   const completed: number[] = [];
   let openSince: Date | null = null;
+  let openNote: string | undefined;
   for (const e of events) {
     const d = toDate(e.at);
     if (!d) continue;
     if (e.event === "restricted") {
-      if (!openSince) openSince = d;
+      if (!openSince) { openSince = d; openNote = e.note; }
     } else if (e.event === "recovered" && openSince) {
       completed.push(Math.max(0, d.getTime() - openSince.getTime()) / DAY);
       openSince = null;
+      openNote = undefined;
     }
   }
 
@@ -154,10 +172,10 @@ function acctFacts(a: AnalyticsAccount, now: number): AcctFacts {
   const firstRestrictedAt = restrictEvents[0] ? toDate(restrictEvents[0].at) : toDate(a.restrictedAt);
 
   let openDays: number | null = null;
-  if (openNow) {
-    const since = openSince || toDate(a.restrictedAt);
-    if (since) openDays = Math.max(0, now - since.getTime()) / DAY;
-  }
+  // The open restriction's start: the unmatched "restricted" event if the log has one,
+  // else the restrictedAt flag (older restrictions that predate event logging).
+  const openSinceDate = openNow ? openSince || toDate(a.restrictedAt) : null;
+  if (openSinceDate) openDays = Math.max(0, now - openSinceDate.getTime()) / DAY;
 
   const restrictCount = Math.max(restrictEvents.length, openNow ? 1 : 0);
 
@@ -169,6 +187,8 @@ function acctFacts(a: AnalyticsAccount, now: number): AcctFacts {
     firstRestrictedAt,
     completedDowntimeDays: completed,
     openDays,
+    openSince: openSinceDate,
+    openNote: openNow ? openNote : undefined,
   };
 }
 
@@ -418,6 +438,35 @@ export function computeRestrictionAnalytics(
     })
     .filter((r) => r.events > 0);
 
+  // Live roster of currently-restricted accounts — who's down and for how long. Each gets
+  // the stage it was in WHEN the restriction hit (same historical attribution as above),
+  // sorted longest-down first so the most urgent recoveries surface at the top.
+  const openRestrictions: OpenRestrictionRow[] = accounts
+    .filter(({ f }) => f.open)
+    .map(({ a, f }) => {
+      const app = appFor(a);
+      const m: Milestones = {
+        l2: ms(app?.emailPrimaryAt),
+        l3: ms(app?.onboardedAt),
+        l4: ms(app?.verifiedAt),
+        l5: ms(app?.paidAt),
+        rented: ms(rentalStartById[a.id]),
+      };
+      const stage = f.openSince ? stageAt(f.openSince.getTime(), m) : "Undatable";
+      return {
+        account: a.linkedinName,
+        url: a.linkedinUrl,
+        since: f.openSince ? f.openSince.toISOString() : null,
+        days: f.openDays != null ? Math.round(f.openDays) : null,
+        verified: a.linkedinVerified,
+        status: a.status,
+        stage,
+        clients: clientsByAccountId[a.id] || [],
+        ...(f.openNote ? { note: f.openNote } : {}),
+      };
+    })
+    .sort((x, y) => (y.days ?? -1) - (x.days ?? -1) || x.account.localeCompare(y.account));
+
   // By-client (renter) restriction rate. Unlike the single-key cohorts, an account rented
   // by several clients counts under each of them, so we aggregate directly instead of via
   // cohort(). Single-account clients with no restriction are folded into one tail row to
@@ -502,6 +551,7 @@ export function computeRestrictionAnalytics(
     },
     timing,
     stageAtRestriction,
+    openRestrictions,
     feed: feed.slice(0, 60),
   };
 }
