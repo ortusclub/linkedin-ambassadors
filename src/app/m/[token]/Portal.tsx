@@ -8,7 +8,7 @@ import { CURRENCY_CONFIG } from "@/lib/referral-currency";
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 type FixIssue = "application_incomplete" | "email_added" | "email_primary" | "twofa" | "password";
-interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; pay: { text: string; sub?: string } | null; deletable: boolean; resumeSessionId: string | null; codeSessionId: string | null; }
+interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; pay: { text: string; sub?: string } | null; journey: { label: string; date: string | null; state: "done" | "now" | "todo" }[] | null; deletable: boolean; resumeSessionId: string | null; codeSessionId: string | null; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -597,6 +597,18 @@ export default function Portal({ token }: { token: string }) {
                   </div>
                   <div style={{ font: `600 12.5px ${JAK}`, color: fg }}>{s.line}</div>
                   <div style={{ font: `500 12px/1.45 ${JAK}`, color: C.slate, marginTop: 3 }}>{s.sub}</div>
+                  {s.journey && s.journey.length > 0 && (
+                    <div style={{ marginTop: 9, display: "flex", flexDirection: "column", gap: 5 }}>
+                      {s.journey.map((j, k) => (
+                        <div key={k} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <span style={{ width: 15, height: 15, flex: "none", borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", font: `700 9px ${JAK}`, background: j.state === "done" ? C.softGreen : j.state === "now" ? "#eef4ff" : C.line2, color: j.state === "done" ? C.greenDk : j.state === "now" ? "#2563eb" : C.muted }}>{j.state === "done" ? "✓" : j.state === "now" ? "•" : ""}</span>
+                          <span style={{ font: `600 11.5px ${JAK}`, color: j.state === "todo" ? C.muted : C.ink }}>{j.label}</span>
+                          {j.date ? <span style={{ marginLeft: "auto", font: `500 11px ${JAK}`, color: C.muted }}>{fmtDate(j.date)}</span>
+                            : j.state === "now" ? <span style={{ marginLeft: "auto", font: `500 11px ${JAK}`, color: "#2563eb" }}>in progress</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {s.pay && (
                     <div style={{ marginTop: 9, padding: "8px 10px", background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 9 }}>
                       <div style={{ font: `700 11.5px ${JAK}`, color: C.blueInk }}>📅 {s.pay.text}</div>
