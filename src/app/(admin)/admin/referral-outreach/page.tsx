@@ -12,6 +12,8 @@ type Preview = { row: OutreachRow; subject: string; text: string } | null;
 export default function ReferralOutreachPage() {
   const [rows, setRows] = useState<OutreachRow[] | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [convertedCount, setConvertedCount] = useState(0);
+  const [convOnly, setConvOnly] = useState(false);
   const [error, setError] = useState("");
   const [seg, setSeg] = useState<OutreachSegment | "all">("all");
   const [sent, setSent] = useState<Set<string>>(new Set());
@@ -24,11 +26,11 @@ export default function ReferralOutreachPage() {
   useEffect(() => {
     fetch("/api/admin/referral-outreach", { cache: "no-store" })
       .then(r => r.ok ? r.json() : Promise.reject(new Error("Failed to load")))
-      .then(d => { setRows(d.rows); setCounts(d.counts || {}); })
+      .then(d => { setRows(d.rows); setCounts(d.counts || {}); setConvertedCount(d.convertedCount || 0); })
       .catch(e => setError(e.message));
   }, []);
 
-  const visible = useMemo(() => (rows || []).filter(r => seg === "all" || r.segment === seg), [rows, seg]);
+  const visible = useMemo(() => (rows || []).filter(r => (seg === "all" || r.segment === seg) && (!convOnly || r.signedUpAfterEmailAt)), [rows, seg, convOnly]);
 
   const btn: React.CSSProperties = { border: "1px solid var(--line,#d6e4fb)", borderRadius: 8, padding: "6px 11px", background: "var(--card,#fff)", color: "var(--link,#0a66c2)", cursor: "pointer", font: `600 12px ${F}` };
 
@@ -125,6 +127,11 @@ export default function ReferralOutreachPage() {
             {s === "all" ? "All" : SEGMENT_LABEL[s]} <span style={{ opacity: .7 }}>({n})</span>
           </button>;
         })}
+        {convertedCount > 0 && (
+          <button onClick={() => setConvOnly(v => !v)} title="People who signed up after we emailed them" style={{ ...btn, marginLeft: 4, background: convOnly ? "#188038" : "#e6f4ea", color: convOnly ? "#fff" : "#188038", borderColor: convOnly ? "#188038" : "#bfe3cb" }}>
+            🎉 Signed up after email <span style={{ opacity: .85 }}>({convertedCount})</span>
+          </button>
+        )}
       </div>
 
       {rows && (() => {
@@ -146,7 +153,7 @@ export default function ReferralOutreachPage() {
           const done = row.contacted || sent.has(row.id);
           return <div key={`${row.kind}-${row.id}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", border: "1px solid var(--card-border,#e7ebf0)", borderRadius: 10, padding: "10px 13px", background: "var(--card,#fff)" }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{row.name || "—"} {done && <span style={{ font: `700 10px ${F}`, color: "#188038", background: "#e6f4ea", padding: "2px 7px", borderRadius: 999, marginLeft: 6 }}>✓ emailed</span>}</div>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{row.name || "—"} {done && <span style={{ font: `700 10px ${F}`, color: "#188038", background: "#e6f4ea", padding: "2px 7px", borderRadius: 999, marginLeft: 6 }}>✓ emailed</span>}{row.signedUpAfterEmailAt && <span title={`Signed up ${fmtDate(row.signedUpAfterEmailAt)}, after we emailed them`} style={{ font: `700 10px ${F}`, color: "#fff", background: "#188038", padding: "2px 7px", borderRadius: 999, marginLeft: 6 }}>🎉 signed up after email</span>}</div>
               <div style={{ fontSize: 11.5, color: "var(--muted,#8a97ad)", marginTop: 2 }}>
                 <span style={{ color: SEG_COLOR[row.segment], fontWeight: 700 }}>{SEGMENT_LABEL[row.segment]}</span>
                 {" · "}{row.email || "no email"}
