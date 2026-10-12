@@ -208,6 +208,7 @@ model LinkedInAccount {
   linkedinAccountHealth String?       @default("unchecked") @map("linkedin_account_health")
   healthCheckedAt       DateTime?     @map("health_checked_at")
   restrictedAt          DateTime?     @map("restricted_at")  // admin-set: account restricted by LinkedIn, recovering
+  warmupStartedAt       DateTime?     @map("warmup_started_at") // set while the account is being warmed up (Ortus app); null = not warming. Orthogonal to status.
   // admin-set (from the Replacements workqueue): LinkedIn restriction is permanent — the
   // account can't be recovered. Renters see "Permanently restricted" and can only replace it.
   permanentlyRestricted Boolean       @default(false) @map("permanently_restricted")

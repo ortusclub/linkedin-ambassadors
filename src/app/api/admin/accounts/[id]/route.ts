@@ -41,6 +41,10 @@ const updateSchema = z.object({
   // string to mark it, or null to clear. Held accounts are excluded from the
   // owner's setup/monthly payouts on the Account Owners view.
   restrictedAt: z.string().nullable().optional(),
+  // Warming-up flag: pass an ISO string to mark the account as currently warming up (Ortus
+  // app), or null to clear. Orthogonal to status — an account can warm up while onboarding,
+  // unavailable, or even rented.
+  warmupStartedAt: z.string().nullable().optional(),
   // Admin payout hold (account inaccessible / paused — not a LinkedIn restriction). Pass a
   // reason string to hold the owner's payout, or null to release it.
   payoutHoldReason: z.string().nullable().optional(),
@@ -197,6 +201,11 @@ export async function PATCH(
       } else {
         (data as Record<string, unknown>).restrictedAt = data.restrictedAt ? new Date(data.restrictedAt) : null;
       }
+    }
+
+    // Warming-up flag: ISO string → Date, null to clear.
+    if (data.warmupStartedAt !== undefined) {
+      (data as Record<string, unknown>).warmupStartedAt = data.warmupStartedAt ? new Date(data.warmupStartedAt) : null;
     }
 
     // Re-host any newly-set external profile photo (e.g. a licdn URL) onto Blob

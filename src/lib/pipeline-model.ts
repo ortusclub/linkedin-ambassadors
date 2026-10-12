@@ -98,6 +98,7 @@ export interface Row {
   proxyPassword: string | null;
   proxyLocation: string | null;
   accountRestrictedAt: string | null;
+  warmupStartedAt: string | null;
   accountRestrictionLog: { at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }[] | null;
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
