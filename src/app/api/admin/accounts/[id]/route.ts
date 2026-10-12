@@ -10,6 +10,7 @@ import * as gologin from "@/services/gologin";
 import { restrictionUpdate } from "@/lib/restriction";
 import { notifyBillingPaused } from "@/lib/billing-pause-notify";
 import { setupPaidDate } from "@/lib/payment-schedule";
+import { logWarmupActivity } from "@/lib/warmup-activity";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -98,7 +99,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const { id } = await params;
     const body = await req.json();
     const data = updateSchema.parse(body);
@@ -203,9 +204,17 @@ export async function PATCH(
       }
     }
 
-    // Warming-up flag: ISO string → Date, null to clear.
+    // Warming-up flag: ISO string → Date, null to clear. A real transition (start / stop /
+    // re-warm) is logged to the owner's Activity feed below so it's auditable with a date.
+    let warmupChange: string | null = null;
     if (data.warmupStartedAt !== undefined) {
-      (data as Record<string, unknown>).warmupStartedAt = data.warmupStartedAt ? new Date(data.warmupStartedAt) : null;
+      const next = data.warmupStartedAt ? new Date(data.warmupStartedAt) : null;
+      const cur = await prisma.linkedInAccount.findUnique({ where: { id }, select: { warmupStartedAt: true } });
+      const prev = cur?.warmupStartedAt ?? null;
+      if (next && !prev) warmupChange = `🔥 Marked warming up (Ortus app) · since ${next.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+      else if (!next && prev) warmupChange = `⏹️ Warm-up stopped (was running since ${prev.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })})`;
+      else if (next && prev && next.getTime() !== prev.getTime()) warmupChange = `🔥 Warm-up start date set to ${next.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+      (data as Record<string, unknown>).warmupStartedAt = next;
     }
 
     // Re-host any newly-set external profile photo (e.g. a licdn URL) onto Blob
@@ -227,6 +236,11 @@ export async function PATCH(
       where: { id },
       data,
     });
+
+    // Log a warm-up start/stop/re-warm to the owner's Activity feed (best-effort).
+    if (warmupChange) {
+      try { await logWarmupActivity(id, account.linkedinUrl, account.notes, warmupChange, admin.fullName || admin.email); } catch (e) { console.error("warmup activity log failed", e); }
+    }
 
     // Newly restricted via this edit: tell any real renter(s) their billing is paused.
     if (newlyRestricted && account.restrictedAt) {
