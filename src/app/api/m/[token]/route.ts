@@ -196,6 +196,29 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       } else {
         pay = { text: "Setup fee about a week after sign-in", sub: "the exact date is set once they're signed in" };
       }
+      // A short dated journey so the referrer can see WHY a signup has been with us a while —
+      // e.g. it onboarded fast but the 1-week hold runs from QC (verifiedAt), not signup, so a
+      // card can read "2 weeks" with a real reason. Past milestones only (the pay box owns the
+      // expected/next date). Only for the "with us, nothing to do" stages; action/restricted
+      // cards carry their own UI.
+      type JourneyStep = { label: string; date: string | null; state: "done" | "now" | "todo" };
+      let journey: JourneyStep[] | null = null;
+      if (!accountRestricted) {
+        const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
+        const qcAt = iso(a.verifiedAt);
+        if (paid || onboarded) {
+          journey = [
+            { label: "Signed in", date: iso(a.onboardedAt), state: "done" },
+            { label: qcAt ? "Passed our checks (QC)" : "Passing our checks (QC)", date: qcAt, state: qcAt ? "done" : "now" },
+            ...(paid ? [{ label: "Setup fee paid", date: iso(a.paidAt), state: "done" as const }] : []),
+          ];
+        } else if (state === "handed_off") {
+          journey = [
+            { label: "Handed to our team", date: null, state: "done" },
+            { label: "We sign in & check it", date: null, state: "now" },
+          ];
+        }
+      }
       // The onboarding session to resume (the portal's "Resume onboarding" link targets it so
       // the wizard reopens where they left off instead of at the details form).
       const resumeSessionId = action === "resume" ? a.selfServiceOnboarding?.id ?? null : null;
@@ -203,7 +226,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       // without walking the wizard. Codes flow only while forwarding is live — from reserve
       // through hand-off — and stop once the session is confirmed or the account onboarded/paid.
       const codeSessionId = a.selfServiceOnboarding?.id && !onboarded && !paid && state !== "confirmed" ? a.selfServiceOnboarding.id : null;
-      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, deletable, resumeSessionId, codeSessionId };
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, journey, deletable, resumeSessionId, codeSessionId };
     });
 
   // Show EVERY signup the referrer owns — no cap. Any cap (the old one was the 25 most recent
