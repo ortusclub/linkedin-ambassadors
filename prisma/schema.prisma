@@ -208,6 +208,9 @@ model LinkedInAccount {
   linkedinAccountHealth String?       @default("unchecked") @map("linkedin_account_health")
   healthCheckedAt       DateTime?     @map("health_checked_at")
   restrictedAt          DateTime?     @map("restricted_at")  // admin-set: account restricted by LinkedIn, recovering
+  // admin-set (from the Replacements workqueue): LinkedIn restriction is permanent — the
+  // account can't be recovered. Renters see "Permanently restricted" and can only replace it.
+  permanentlyRestricted Boolean       @default(false) @map("permanently_restricted")
   // admin-set payout hold: account is inaccessible / paused (NOT a LinkedIn restriction).
   // While set, the owner's monthly payout is held — out of the "due" chase on Payouts II —
   // until cleared. Reason is free text (e.g. "Inaccessible — can't log in").

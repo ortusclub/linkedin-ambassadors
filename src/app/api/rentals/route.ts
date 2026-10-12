@@ -27,6 +27,7 @@ export async function GET() {
             hasSalesNav: true,
             gologinShareLink: true,
             restrictedAt: true,
+            permanentlyRestricted: true,
             restrictionLog: true,
             twoFactorResetNeeded: true,
           },

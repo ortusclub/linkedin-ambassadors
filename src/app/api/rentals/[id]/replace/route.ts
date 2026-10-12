@@ -25,7 +25,7 @@ export async function POST(
 
     const old = await prisma.rental.findFirst({
       where: { id, userId: user.id },
-      include: { linkedinAccount: { select: { id: true, linkedinName: true, restrictedAt: true, connectionCount: true, accountAgeMonths: true, hasSalesNav: true, linkedinVerified: true } } },
+      include: { linkedinAccount: { select: { id: true, linkedinName: true, restrictedAt: true, permanentlyRestricted: true, connectionCount: true, accountAgeMonths: true, hasSalesNav: true, linkedinVerified: true } } },
     });
     if (!old) return NextResponse.json({ error: "Rental not found" }, { status: 404 });
     if (!["active", "pending_access", "payment_failed"].includes(old.status)) {
@@ -35,7 +35,8 @@ export async function POST(
     if (!oldAcct.restrictedAt) {
       return NextResponse.json({ error: "This account isn't restricted, so it can't be replaced." }, { status: 400 });
     }
-    if (!canReplaceNow(oldAcct.restrictedAt)) {
+    // Permanently-restricted accounts skip the recovery hold (there's nothing to wait for).
+    if (!oldAcct.permanentlyRestricted && !canReplaceNow(oldAcct.restrictedAt)) {
       return NextResponse.json({ error: "We're still trying to recover this account. Replacement unlocks after the recovery window." }, { status: 409 });
     }
 
@@ -102,10 +103,15 @@ export async function POST(
         await tx.rental.update({ where: { id: old.id }, data: { status: "replaced", waitingForRecovery: false, waitChosenAt: null, notes: old.notes ? `${old.notes} · Replaced by ${picked.linkedinName}` : `Replaced by ${picked.linkedinName}` } });
 
         if (!old.isShadow) {
-          // Real rental: new account leaves the catalogue; the old restricted account is freed
-          // back to inventory but stays gated by restrictedAt (admin recovers it) + 2FA reset.
+          // Real rental: new account leaves the catalogue.
           await tx.linkedInAccount.update({ where: { id: picked.id }, data: { status: "rented" } });
-          await tx.linkedInAccount.update({ where: { id: oldAcct.id }, data: { status: "available", twoFactorResetNeeded: true } });
+          if (oldAcct.permanentlyRestricted) {
+            // Permanently gone: retire it — it never comes back to inventory.
+            await tx.linkedInAccount.update({ where: { id: oldAcct.id }, data: { status: "removed", removedAt: new Date() } });
+          } else {
+            // Otherwise free it back but keep it gated by restrictedAt (admin recovers it) + 2FA reset.
+            await tx.linkedInAccount.update({ where: { id: oldAcct.id }, data: { status: "available", twoFactorResetNeeded: true } });
+          }
         }
         // Shadow rental: leave both accounts' status untouched (shadow never owns the account).
 

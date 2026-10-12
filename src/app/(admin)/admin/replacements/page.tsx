@@ -19,7 +19,7 @@ function LiBadge({ url }: { url: string | null }) {
   );
 }
 
-type Status = "recovering" | "failed" | "waiting" | "handover" | "origBack" | "recovered" | "done" | "relisted" | "retired";
+type Status = "recovering" | "failed" | "permanent" | "waiting" | "handover" | "origBack" | "recovered" | "done" | "relisted" | "retired";
 
 interface Case {
   id: string;
@@ -40,6 +40,7 @@ interface Case {
 const SMETA: Record<Status, { label: string; bg: string; fg: string }> = {
   recovering: { label: "Recovering", bg: "#fff1e6", fg: "#c2410c" },
   failed: { label: "Couldn't recover", bg: "#fdecec", fg: "#b91c1c" },
+  permanent: { label: "Permanently restricted", bg: "#fdecec", fg: "#b91c1c" },
   waiting: { label: "Renter waiting", bg: "#fff7ed", fg: "#9a3412" },
   handover: { label: "Hand over", bg: "#e8f0fe", fg: "#0A66C2" },
   origBack: { label: "Original back", bg: "#fef3c7", fg: "#b45309" },
@@ -106,6 +107,7 @@ export default function AdminReplacementsPage() {
     switch (c.status) {
       case "recovering": return `Replace unlocks in ${Math.max(0, 48 - (c.hoursRestricted || 0))}h · billing paused`;
       case "failed": return `Renter can replace now · ${Math.round((c.hoursRestricted || 0) / 24)} days paused`;
+      case "permanent": return "Can't recover · renter must replace";
       case "waiting": return "Chose to wait · billing paused";
       case "handover": return `Picked ${fmt(c.swappedAt)} · share GoLogin access`;
       case "origBack": return `${c.original?.name || "The original"} came back after the swap`;
@@ -124,7 +126,14 @@ export default function AdminReplacementsPage() {
       <button disabled={busy === c.id} onClick={() => act(c.id, `/api/admin/accounts/${c.restrictedAccountId}/restricted`, { restricted: false }, `${c.original?.name || "Account"} recovered`)}
         style={{ ...base, ...(primary ? { border: "none", background: "#12a150", color: "#fff" } : { border: "1px solid var(--btn-secondary-border, #d5dbe5)", background: "var(--btn-secondary-bg, #fff)", color: "var(--btn-secondary-fg, #0b1220)" }) }}>Mark recovered</button>
     );
-    if (c.status === "recovering" || c.status === "failed") return mark(false);
+    if (c.status === "recovering" || c.status === "failed") return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+        {mark(false)}
+        <button disabled={busy === c.id} onClick={() => act(c.id, "/api/admin/replacements", { action: "permanent", accountId: c.restrictedAccountId }, `${c.original?.name || "Account"} marked permanently restricted`)}
+          style={{ border: "none", background: "none", fontWeight: 600, fontSize: 11.5, fontFamily: F_SANS, color: "#b91c1c", cursor: "pointer", padding: 0, opacity: busy === c.id ? 0.6 : 1 }}>Can&apos;t recover</button>
+      </div>
+    );
+    if (c.status === "permanent") return <span style={{ fontWeight: 600, fontSize: 12.5, fontFamily: F_SANS, color: "#8a93a3" }}>Renter to replace</span>;
     if (c.status === "waiting") return mark(true);
     if (c.status === "handover") return (
       <button disabled={busy === c.id} onClick={() => act(c.id, "/api/admin/replacements", { action: "grant", rentalId: c.newRentalId }, "Access shared · renter emailed")}

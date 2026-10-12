@@ -16,7 +16,7 @@ const RECOVERED_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 // Which workqueue tab a status belongs to.
 const TAB: Record<string, "needs" | "progress" | "closed"> = {
   waiting: "needs", handover: "needs", origBack: "needs",
-  recovering: "progress", failed: "progress",
+  recovering: "progress", failed: "progress", permanent: "progress",
   recovered: "closed", done: "closed", relisted: "closed", retired: "closed",
 };
 
@@ -37,7 +37,7 @@ export async function GET() {
   try {
     await requireAdmin();
 
-    const acctSelect = { id: true, linkedinName: true, linkedinUrl: true, restrictedAt: true, twoFactorResetNeeded: true, restrictionLog: true, connectionCount: true, accountAgeMonths: true, hasSalesNav: true, linkedinVerified: true } as const;
+    const acctSelect = { id: true, linkedinName: true, linkedinUrl: true, restrictedAt: true, permanentlyRestricted: true, twoFactorResetNeeded: true, restrictionLog: true, connectionCount: true, accountAgeMonths: true, hasSalesNav: true, linkedinVerified: true } as const;
     const userSelect = { id: true, fullName: true, email: true, isShadowRenter: true } as const;
     const internalOf = (u: { email: string; isShadowRenter: boolean }, isShadow: boolean) => isShadow || u.isShadowRenter || isShadowRenterEmail(u.email);
     const renterOf = (u: { fullName: string; email: string }, internal: boolean) => ({ name: u.fullName || u.email, email: u.email, internal });
@@ -53,7 +53,7 @@ export async function GET() {
     for (const r of open) {
       const a = r.linkedinAccount;
       const hrs = a.restrictedAt ? (Date.now() - new Date(a.restrictedAt).getTime()) / 3600000 : 0;
-      const status = r.waitingForRecovery ? "waiting" : hrs >= REPLACEMENT_HOLD_MS / 3600000 ? "failed" : "recovering";
+      const status = a.permanentlyRestricted ? "permanent" : r.waitingForRecovery ? "waiting" : hrs >= REPLACEMENT_HOLD_MS / 3600000 ? "failed" : "recovering";
       const internal = internalOf(r.user, r.isShadow);
       cases.push({
         id: `open-${r.id}`, status, tab: TAB[status],
@@ -142,6 +142,14 @@ export async function POST(req: Request) {
     if (action === "relist") {
       if (!accountId) return NextResponse.json({ error: "Missing accountId" }, { status: 400 });
       await prisma.linkedInAccount.update({ where: { id: accountId }, data: { twoFactorResetNeeded: false, status: "available", listed: true } });
+      return NextResponse.json({ ok: true });
+    }
+    if (action === "permanent") {
+      // Mark a restriction permanent: the renter can now replace right away (no recovery hold),
+      // and any "I'll wait" choice on this account is cleared.
+      if (!accountId) return NextResponse.json({ error: "Missing accountId" }, { status: 400 });
+      await prisma.linkedInAccount.update({ where: { id: accountId }, data: { permanentlyRestricted: true } });
+      await prisma.rental.updateMany({ where: { linkedinAccountId: accountId, waitingForRecovery: true }, data: { waitingForRecovery: false, waitChosenAt: null } });
       return NextResponse.json({ ok: true });
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
