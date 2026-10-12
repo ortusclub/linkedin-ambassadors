@@ -97,7 +97,7 @@ async function getArmyRoster(): Promise<ArmyRosterCard[]> {
     const { availableIds, rentedIds } = await publicInventorySlice();
     const rows = await prisma.linkedInAccount.findMany({
       where: { id: { in: [...availableIds, ...rentedIds] } },
-      select: { id: true, linkedinName: true, linkedinHeadline: true, connectionCount: true, industry: true, location: true, hasSalesNav: true, linkedinVerified: true },
+      select: { id: true, linkedinName: true, linkedinHeadline: true, connectionCount: true, industry: true, location: true, hasSalesNav: true, linkedinVerified: true, profilePhotoUrl: true },
       orderBy: { connectionCount: "desc" },
       take: 8,
     });
@@ -110,6 +110,7 @@ async function getArmyRoster(): Promise<ArmyRosterCard[]> {
       location: a.location,
       hasSalesNav: a.hasSalesNav,
       verified: a.linkedinVerified,
+      photo: a.profilePhotoUrl,
     }));
   } catch {
     return [];

@@ -14,6 +14,7 @@ export type ArmyRosterCard = {
   location: string | null;
   hasSalesNav: boolean;
   verified: boolean;
+  photo: string | null;
 };
 
 const fmtConns = (c: number) =>
@@ -128,7 +129,14 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
           <div className="wrap" style={{ paddingBottom: "clamp(44px,6vw,76px)", display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,220px),1fr))", gap: 0, borderTop: "2px solid var(--teal)" }}>
             {roster.map((p) => (
               <div key={p.id} style={{ borderRight: "2px solid var(--teal)", borderBottom: "2px solid var(--teal)" }}>
-                <div style={{ aspectRatio: "4/5", background: "repeating-linear-gradient(45deg,#164851 0 8px,#123b43 8px 16px)", display: "flex", padding: 10, fontFamily: "var(--mono)", fontSize: 11, color: "#9cc3c7" }}>operator{p.industry ? " · " + p.industry.toLowerCase() : ""}</div>
+                <div style={{ position: "relative", aspectRatio: "4/5", background: "repeating-linear-gradient(45deg,#164851 0 8px,#123b43 8px 16px)", overflow: "hidden" }}>
+                  {p.photo && (
+                    // Real masked profile photo (self-hosted, same source as the catalogue avatars).
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.photo} alt="" loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "grayscale(0.4) contrast(1.02)" }} />
+                  )}
+                  <span style={{ position: "absolute", left: 10, bottom: 10, background: "rgba(7,42,50,0.82)", color: "#9cc3c7", fontFamily: "var(--mono)", fontSize: 11, padding: "3px 7px" }}>operator{p.industry ? " · " + p.industry.toLowerCase() : ""}</span>
+                </div>
                 <div style={{ padding: "12px 16px 16px" }}>
                   <div style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: 17, textTransform: "lowercase" }}><span style={{ display: "inline-block", width: 8, height: 8, background: "var(--coral)", marginRight: 7 }} />{p.name.toLowerCase()}</div>
                   <div style={{ fontSize: 13, color: "#9cc3c7", marginTop: 3 }}>{fmtConns(p.connections)} connections{p.hasSalesNav ? " · SalesNav" : p.verified ? " · verified" : ""}</div>
