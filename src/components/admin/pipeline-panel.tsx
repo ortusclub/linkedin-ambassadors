@@ -37,6 +37,7 @@ type Handlers = {
   provisionGologin: (r: Row) => void;
   createAccount: (r: Row) => void;
   verifySignin: (r: Row, action: "confirm" | "retry" | "takeover") => void;
+  transferToLv: (r: Row) => void;
   deleteGologin: (r: Row) => void;
   emailIssue: (r: Row, issue: string) => void;
   logTouch: (id: string, ch: string, text: string, by: string) => Promise<void>;
@@ -464,7 +465,7 @@ export function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
 // card grid. Applicant / Sign-in & credentials / Payout cards have a per-card read↔edit
 // toggle; Payments is a compact summary that links out to the Payouts page. Same wiring.
 export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
-  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, createAccount, verifySignin, deleteGologin, logTouch, onDeleteApp } = h;
+  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, createAccount, verifySignin, transferToLv, deleteGologin, logTouch, onDeleteApp } = h;
   const [editSec, setEditSec] = useState<string | null>(null);
   const live = isLive(r);
   const onboarded = r.status === "onboarded";
@@ -607,6 +608,9 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
                 void workflow(r.id, { setOnboardingFix: remaining.length ? { ...r.onboardingFix, issues: remaining } : null });
               }}>{r.onboardingFix?.state === "referrer_done" ? "Reported fixed" : "Open"}: {({ application_incomplete: "Application not complete", email_added: "Email not added", email_primary: "Email not primary", twofa: "2FA", password: "Password" })[issue]} · Mark resolved</button>)}
             </div>}
+            {r.referredBy && r.referralSource === "self-service" && r.onboardingMethod !== "team_meeting" && !onboarded && (
+              <button style={btnSec} disabled={busy} title="The referrer stops here and LV finishes the onboarding; their commission reverts to the base referral tier (not the DIY tier)." onClick={() => transferToLv(r)}>🔄 Transfer onboarding to LV (fee → base tier)</button>
+            )}
             {r.referredBy && <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>View referrer →</a>}
             {r.asReferrer && <div style={{ marginTop: 8, font: `600 11.5px ${F_SANS}`, color: "var(--muted,#647189)" }}>Also a referrer · <a href={`/admin/referrals?ref=${encodeURIComponent(r.asReferrer.slug)}`} style={{ color: "var(--link,#0a66c2)", textDecoration: "none" }}>{r.asReferrer.slug} →</a><span title="Contact and payout details are shared with this referrer record"> · linked payout</span></div>}
           </PanelCard>

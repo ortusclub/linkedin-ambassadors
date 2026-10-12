@@ -186,6 +186,16 @@ export default function PipelineNewPage() {
       await load();
     } finally { setBusy(null); }
   };
+  const transferToLv = async (r: Row) => {
+    if (!confirm(`Transfer ${formatName(r.fullName) || "this"} onboarding to LV?\n\nThe referrer stops here and LV finishes the onboarding. Their commission reverts to the base referral tier (e.g. ₱500), not the DIY tier.`)) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch("/api/admin/onboarding/transfer-to-lv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) alert(typeof d.error === "string" ? d.error : `Could not transfer (${res.status}).`);
+      await load();
+    } finally { setBusy(null); }
+  };
   const deleteGologin = async (r: Row) => {
     if (!r.accountId) return;
     if (!confirm(`Delete the GoLogin profile for ${r.accountName || r.fullName || "this account"}?\n\nThis removes the browser profile, clears the share link, and unassigns the proxy.`)) return;
@@ -250,7 +260,7 @@ export default function PipelineNewPage() {
   };
   const claim = (r: Row) => { if (me) assignMany([r.id], me); };
 
-  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, createAccount, verifySignin, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
+  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, createAccount, verifySignin, transferToLv, deleteGologin, emailIssue, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
 
   // Distinct handlers present (for chips + bulk menu).
   const handlerNames = useMemo(() => {
