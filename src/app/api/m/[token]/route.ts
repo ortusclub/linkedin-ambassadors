@@ -104,9 +104,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const money = (n: number) => `${cfg.symbol}${n.toLocaleString("en-US")}`;
   const t = cfg.referralTiers;
   const range = (lo: number, hi: number) => `${money(lo)}–${money(hi)}`;
-  const signups = apps
+  const mappedSignups = apps
     .filter((a) => (a.referredBy || "").trim() === me.slug)
-    .slice(0, 25)
     .map((a) => {
       const isDiy = a.referralSource === "self-service";
       const method = a.onboardingMethod; // "computer" | "phone" | null
@@ -206,6 +205,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       const codeSessionId = a.selfServiceOnboarding?.id && !onboarded && !paid && state !== "confirmed" ? a.selfServiceOnboarding.id : null;
       return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, deletable, resumeSessionId, codeSessionId };
     });
+
+  // Show EVERY signup the referrer owns — no cap. Any cap (the old one was the 25 most recent
+  // by date) can hide a later signup that the pipeline still flags, which is exactly the
+  // portal↔pipeline discrepancy we're fixing (jemjem-16 had a restricted account at #35 of 48).
+  // Action-needed ones (restricted / resume / onboard / clear) are ordered first via a stable
+  // sort so nothing urgent is buried; newest-first within each group.
+  const signupRank = (s: { kind: string; restricted: boolean; action: string | null }) => (s.kind === "blocked" || s.restricted ? 0 : s.action ? 1 : 2);
+  const signups = [...mappedSignups].sort((a, b) => signupRank(a) - signupRank(b));
 
   return NextResponse.json({
     me: {
