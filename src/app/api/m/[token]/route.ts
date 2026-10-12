@@ -206,13 +206,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, deletable, resumeSessionId, codeSessionId };
     });
 
-  // Action-needed signups (restricted / resume / onboard / clear) come first, so an urgent
-  // one is never pushed off the end of a long list; newest-first within each group (the sort
-  // is stable). Previously the list was capped at the 25 most recent by date, which hid later
-  // signups entirely — a restricted jemjem-16 account sitting at #35 of 48 never reached the
-  // portal, so the referrer couldn't see it needed clearing.
+  // Show EVERY signup the referrer owns — no cap. Any cap (the old one was the 25 most recent
+  // by date) can hide a later signup that the pipeline still flags, which is exactly the
+  // portal↔pipeline discrepancy we're fixing (jemjem-16 had a restricted account at #35 of 48).
+  // Action-needed ones (restricted / resume / onboard / clear) are ordered first via a stable
+  // sort so nothing urgent is buried; newest-first within each group.
   const signupRank = (s: { kind: string; restricted: boolean; action: string | null }) => (s.kind === "blocked" || s.restricted ? 0 : s.action ? 1 : 2);
-  const signups = [...mappedSignups].sort((a, b) => signupRank(a) - signupRank(b)).slice(0, 150);
+  const signups = [...mappedSignups].sort((a, b) => signupRank(a) - signupRank(b));
 
   return NextResponse.json({
     me: {
