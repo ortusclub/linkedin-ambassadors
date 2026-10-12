@@ -3,6 +3,23 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { computeRestrictionAnalytics } from "@/lib/restriction-analytics";
 
+// Canonical renter display names for the by-client restriction breakdown, keyed by the
+// renter's email (stable across duplicate user rows). Returns null for renters to leave out
+// of the breakdown entirely — internal test accounts and off-platform Telegram handles.
+const CLIENT_ALIASES: Record<string, string> = {
+  "lydia@profilepartner.net": "ProfilePartner",
+  "info@ortus.solutions": "Ortus",
+  "info@apexstrategy.io": "Apex",
+};
+const CLIENT_EXCLUDE = new Set(["samuel.adcock@gmail.com", "sdnuqwdfnuwq@ortus.solutions"]); // Sam Adcock (internal, incl. dup)
+function clientLabel(fullName?: string | null, email?: string | null): string | null {
+  const mail = (email || "").toLowerCase().trim();
+  if (mail.endsWith("@telegram.local")) return null; // off-platform Telegram renters
+  if (CLIENT_EXCLUDE.has(mail)) return null;
+  if (CLIENT_ALIASES[mail]) return CLIENT_ALIASES[mail];
+  return (fullName || email || "").trim() || null;
+}
+
 // Admin: restriction / recovery analytics for /admin/restrictions. Reads the append-only
 // restrictionLog on each account (plus onboarding dates from applications) and returns the
 // cohort breakdowns. Removed accounts are excluded from every denominator.
@@ -36,7 +53,7 @@ export async function GET() {
     for (const r of rentals) {
       const acctId = r.linkedinAccountId;
       if (r.startDate && (!rentalStartById[acctId] || r.startDate < rentalStartById[acctId])) rentalStartById[acctId] = r.startDate;
-      const label = (r.user?.fullName || r.user?.email || "").trim();
+      const label = clientLabel(r.user?.fullName, r.user?.email);
       if (label) {
         const list = clientsByAccountId[acctId] || (clientsByAccountId[acctId] = []);
         if (!list.includes(label)) list.push(label);
