@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { publicInventorySlice } from "@/lib/public-inventory";
+import { publicInventorySlice, hasFullListAccess, PUBLIC_AVAILABLE_WHERE } from "@/lib/public-inventory";
 import { requireAuth } from "@/lib/auth";
 import { monthlyRentalPrice } from "@/lib/account-pricing";
 import { maskPublicAccount } from "@/lib/mask";
@@ -55,14 +55,15 @@ export async function GET(
 
     // Genuinely-rentable inventory only (mirror the catalogue's "available" branch), minus
     // the restricted account itself (and shadow-held ones for a shadow renter).
-    // Signed-in renters are capped like everyone else: replacement candidates come from the
-    // public slice only (see lib/public-inventory), never the whole roster.
+    // Like the catalogue, replacement candidates are capped to the public slice (see
+    // lib/public-inventory) — unless the renter supplies the full-roster password
+    // (?key=<FULL_LIST_PASSWORD>), which lifts the cap to the whole roster.
+    const fullList = hasFullListAccess(new URL(req.url).searchParams.get("key"));
     const { availableIds } = await publicInventorySlice();
     const candidates = await prisma.linkedInAccount.findMany({
       where: {
-        id: { in: availableIds.filter((id) => !excludeIds.includes(id)) },
-        status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false,
-        inventoryPool: { notIn: ["ortus", "apex"] },
+        ...PUBLIC_AVAILABLE_WHERE,
+        id: fullList ? { notIn: excludeIds } : { in: availableIds.filter((id) => !excludeIds.includes(id)) },
       },
       select: {
         id: true, linkedinName: true, linkedinHeadline: true, linkedinUrl: true,
@@ -78,7 +79,7 @@ export async function GET(
       .filter((a) => a.monthlyPrice <= oldPrice)
       .map((a) => maskPublicAccount(a));
 
-    return NextResponse.json({ oldPrice, options });
+    return NextResponse.json({ oldPrice, options, fullList });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

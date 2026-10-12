@@ -173,6 +173,9 @@ interface ReplacementOption {
   monthlyPrice: number;
 }
 
+// Shared with the catalogue: unlocking the full roster there carries over to the picker here.
+const FULL_KEY_STORAGE = "lv_full_roster_key";
+
 // Picker modal for swapping a restricted rental to an equivalent available account (v2).
 function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; onClose: () => void; onReplaced: () => void }) {
   const [options, setOptions] = useState<ReplacementOption[]>([]);
@@ -182,16 +185,57 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
   const [selected, setSelected] = useState<string | null>(null);
   const [filt, setFilt] = useState<"all" | "same" | "lower">("all");
   const [submitting, setSubmitting] = useState(false);
+  // Full-roster gate (mirrors the catalogue): without the password the picker only offers
+  // the public slice; the password lifts it to the whole roster. Reload via reloadTick.
+  const [fullList, setFullList] = useState(false);
+  const [keyInput, setKeyInput] = useState("");
+  const [keyErr, setKeyErr] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
+  const readKey = () => {
+    if (typeof window === "undefined") return null;
+    const fromUrl = new URLSearchParams(window.location.search).get("key");
+    if (fromUrl) { try { sessionStorage.setItem(FULL_KEY_STORAGE, fromUrl); } catch { /* ignore */ } return fromUrl; }
+    try { return sessionStorage.getItem(FULL_KEY_STORAGE); } catch { return null; }
+  };
 
   useEffect(() => {
     let stop = false;
-    fetch(`/api/rentals/${rental.id}/replacement-options`)
+    setLoading(true);
+    const key = readKey();
+    fetch(`/api/rentals/${rental.id}/replacement-options${key ? `?key=${encodeURIComponent(key)}` : ""}`)
       .then(async (r) => ({ ok: r.ok, data: await r.json() }))
-      .then(({ ok, data }) => { if (stop) return; if (!ok) setError(data.error || "Couldn't load options."); else { setOptions(data.options || []); setOldPrice(typeof data.oldPrice === "number" ? data.oldPrice : null); } })
+      .then(({ ok, data }) => {
+        if (stop) return;
+        if (!ok) { setError(data.error || "Couldn't load options."); return; }
+        setError(null);
+        setOptions(data.options || []);
+        setOldPrice(typeof data.oldPrice === "number" ? data.oldPrice : null);
+        setFullList(!!data.fullList);
+        // A supplied key that didn't unlock the roster is wrong — flag it and forget it.
+        if (key && !data.fullList) { setKeyErr(true); try { sessionStorage.removeItem(FULL_KEY_STORAGE); } catch { /* ignore */ } }
+      })
       .catch(() => { if (!stop) setError("Couldn't load options."); })
       .finally(() => { if (!stop) setLoading(false); });
     return () => { stop = true; };
-  }, [rental.id]);
+  }, [rental.id, reloadTick]);
+
+  const submitKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    const k = keyInput.trim();
+    if (!k) return;
+    setKeyErr(false);
+    try { sessionStorage.setItem(FULL_KEY_STORAGE, k); } catch { /* ignore */ }
+    setKeyInput("");
+    setReloadTick((t) => t + 1);
+  };
+  const lockFull = () => {
+    try { sessionStorage.removeItem(FULL_KEY_STORAGE); } catch { /* ignore */ }
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("key")) {
+      const u = new URL(window.location.href); u.searchParams.delete("key"); window.history.replaceState(null, "", u.toString());
+    }
+    setFullList(false);
+    setReloadTick((t) => t + 1);
+  };
 
   const confirm = async () => {
     if (!selected) return;
@@ -238,6 +282,20 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
             )}
           </span>
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>{chip("all", "All")}{chip("same", "Same price")}{chip("lower", "Lower price")}</div>
+          {/* Full-roster gate — same password mechanism as the catalogue. */}
+          {fullList ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, background: "#FFF7E6", border: "1px solid #F3D9A4", borderRadius: 9, padding: "7px 11px" }}>
+              <span style={{ fontWeight: 600, fontSize: 12, color: "#7A4B00" }}>Full roster unlocked — every available account, not just the standard selection.</span>
+              <button onClick={lockFull} style={{ marginLeft: "auto", flex: "none", border: "1px solid #7A4B00", background: "transparent", color: "#7A4B00", borderRadius: 7, padding: "4px 9px", fontWeight: 600, fontSize: 11.5, cursor: "pointer" }}>Back to selection</button>
+            </div>
+          ) : (
+            <form onSubmit={submitKey} style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginTop: 8 }}>
+              <span style={{ fontSize: 12, color: V.faint }}>Have a full-roster password?</span>
+              <input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="Password" autoComplete="off" style={{ border: `1px solid ${keyErr ? "#b91c1c" : "#d5dbe5"}`, borderRadius: 7, padding: "5px 9px", fontSize: 12.5, width: 150 }} />
+              <button type="submit" style={{ flex: "none", border: `1px solid ${V.text}`, background: V.text, color: "#fff", borderRadius: 7, padding: "5px 11px", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>Show full roster</button>
+              {keyErr && <span style={{ fontSize: 11.5, color: "#b91c1c", width: "100%" }}>That password didn&apos;t work.</span>}
+            </form>
+          )}
         </div>
 
         <div style={{ overflow: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
