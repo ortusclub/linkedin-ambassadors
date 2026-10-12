@@ -22,12 +22,18 @@ export const hasFullListAccess = (key: string | null | undefined) => {
 
 // Public rentable "available" definition — mirrors the admin canonicalStatus: must be
 // listed, not restricted, and not awaiting a 2FA reset. Segregated pools never show.
+// [SHOWCASE] dummy accounts are NEVER rentable/available — they exist only as catalogue
+// teasers (shown as "Rented" social proof via a separate query). Excluding them here means
+// a showcase can't be checked out or offered as a replacement even if someone mistakenly
+// flips its status to "available". Null-safe: a null `notes` is treated as non-showcase,
+// matching the app-level isDummy convention ((notes||"").includes("[SHOWCASE]")).
 export const PUBLIC_AVAILABLE_WHERE: Prisma.LinkedInAccountWhereInput = {
   inventoryPool: { notIn: ["ortus", "apex"] },
   status: "available",
   listed: true,
   restrictedAt: null,
   twoFactorResetNeeded: false,
+  OR: [{ notes: null }, { notes: { not: { contains: "[SHOWCASE]" } } }],
 };
 
 export type PublicSlice = { availableIds: string[]; rentedIds: string[]; shadowIds: Set<string> };

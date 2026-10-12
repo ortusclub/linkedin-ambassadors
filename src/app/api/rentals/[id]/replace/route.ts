@@ -6,6 +6,7 @@ import { stripe } from "@/lib/stripe";
 import { monthlyRentalPrice } from "@/lib/account-pricing";
 import { canReplaceNow } from "@/lib/replacement";
 import { grantRentalAccess, revokeRentalAccess } from "@/lib/rental-access";
+import { PUBLIC_AVAILABLE_WHERE } from "@/lib/public-inventory";
 
 // Self-serve replacement: swap a RESTRICTED rental for an equivalent available account.
 // Ends the old rental (status "replaced"), starts a new one that carries the old locked price,
@@ -53,9 +54,10 @@ export async function POST(
       newRentalId = await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${newAccountId}))`;
 
-        // Re-validate the chosen account is still genuinely available, same tier or lower.
+        // Re-validate the chosen account is still genuinely available (shared definition:
+        // excludes restricted / 2FA-reset / segregated-pool / [SHOWCASE]), same tier or lower.
         const picked = await tx.linkedInAccount.findFirst({
-          where: { id: newAccountId, status: "available", listed: true, restrictedAt: null, twoFactorResetNeeded: false, inventoryPool: { notIn: ["ortus", "apex"] } },
+          where: { ...PUBLIC_AVAILABLE_WHERE, id: newAccountId },
           select: { id: true, linkedinName: true, connectionCount: true, accountAgeMonths: true, hasSalesNav: true, linkedinVerified: true },
         });
         if (!picked) throw new Error("UNAVAILABLE");

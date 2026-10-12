@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { requireAuth } from "@/lib/auth";
 import { baseUrlFromRequest, brandFromRequest } from "@/lib/brand";
+import { PUBLIC_AVAILABLE_WHERE } from "@/lib/public-inventory";
 
 export async function POST(req: Request) {
   try {
@@ -28,9 +29,10 @@ export async function POST(req: Request) {
     }
 
     const accounts = await prisma.linkedInAccount.findMany({
-      // A restricted (recovering) or 2FA-reset-needed account keeps status "available"
-      // but must not be rentable — exclude it so checkout can't grab one.
-      where: { id: { in: accountIds }, status: "available", listed: true, inventoryPool: { notIn: ["ortus", "apex"] }, restrictedAt: null, twoFactorResetNeeded: false },
+      // Shared "genuinely rentable" definition: excludes restricted / 2FA-reset accounts
+      // (which keep status "available" but must not be rentable), segregated pools, and
+      // [SHOWCASE] teasers — so checkout can't grab any of them.
+      where: { ...PUBLIC_AVAILABLE_WHERE, id: { in: accountIds } },
     });
 
     if (accounts.length === 0) {

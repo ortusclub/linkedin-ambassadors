@@ -8,6 +8,7 @@ import { grantRentalAccess } from "@/lib/rental-access";
 import { SALES_NAV_MONTHLY } from "@/lib/utils";
 import { SHADOW_MONTHLY_PRICE, yieldShadowRentals, isShadowRenterEmail, shadowRateFor } from "@/lib/shadow-rental";
 import { lookupDiscount, discountedPrice, consumeDiscount, type AppliedDiscount } from "@/lib/discounts";
+import { PUBLIC_AVAILABLE_WHERE } from "@/lib/public-inventory";
 
 export async function POST(req: Request) {
   try {
@@ -30,9 +31,9 @@ export async function POST(req: Request) {
     const isShadow = user.isShadowRenter === true || isShadowRenterEmail(user.email);
 
     let accounts = await prisma.linkedInAccount.findMany({
-      // A restricted (recovering) or 2FA-reset-needed account keeps status "available"
-      // but must not be rentable (real OR shadow buy) — exclude it here too.
-      where: { id: { in: accountIds }, status: "available", listed: true, inventoryPool: { notIn: ["ortus", "apex"] }, restrictedAt: null, twoFactorResetNeeded: false },
+      // Shared "genuinely rentable" definition (real OR shadow buy): excludes restricted /
+      // 2FA-reset accounts, segregated pools, and [SHOWCASE] teasers.
+      where: { ...PUBLIC_AVAILABLE_WHERE, id: { in: accountIds } },
     });
 
     // Each account can be shadow-bought by only ONE shadow renter at a time — drop any
