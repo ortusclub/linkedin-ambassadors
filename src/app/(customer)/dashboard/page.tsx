@@ -208,8 +208,15 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
 
   const shown = options.filter((o) => filt === "all" ? true : filt === "same" ? (oldPrice != null && o.monthlyPrice === oldPrice) : (oldPrice != null && o.monthlyPrice < oldPrice));
   const picked = options.find((o) => o.id === selected);
-  const summary = picked && oldPrice != null
-    ? (picked.monthlyPrice < oldPrice ? `New rate $${picked.monthlyPrice}/mo from your next billing (was $${oldPrice}).` : `Same rate, $${oldPrice}/mo.`)
+  // The renter's actual (locked) rate — often discounted below the standard tier price. They
+  // never pay more than this, so the rate they'd pay on any pick is min(locked rate, its tier).
+  const lockedRate = typeof rental.price === "number" ? rental.price : oldPrice;
+  const effOf = (tier: number) => (lockedRate != null ? Math.min(lockedRate, tier) : tier);
+  const isDiscounted = lockedRate != null && oldPrice != null && lockedRate < oldPrice;
+  const summary = picked
+    ? (isDiscounted
+        ? `You keep your discounted rate: $${effOf(picked.monthlyPrice)}/mo (standard $${picked.monthlyPrice}). Billing date unchanged.`
+        : (oldPrice != null && picked.monthlyPrice < oldPrice ? `New rate $${picked.monthlyPrice}/mo from your next billing (was $${oldPrice}).` : `Same rate, $${oldPrice}/mo.`))
     : "Pick an account to continue.";
   const chip = (k: "all" | "same" | "lower", label: string) => (
     <button onClick={() => setFilt(k)} style={{ borderRadius: 999, padding: "5px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer", border: `1px solid ${filt === k ? V.text : "#d5dbe5"}`, background: filt === k ? V.text : "#fff", color: filt === k ? "#fff" : V.text }}>{label}</button>
@@ -223,7 +230,13 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
             <span style={{ fontWeight: 800, fontSize: 19 }}>Replace {rental.linkedinAccount.linkedinName}</span>
             <button onClick={onClose} style={{ marginLeft: "auto", border: "none", background: "none", fontWeight: 500, fontSize: 22, color: V.faint, cursor: "pointer", lineHeight: 1 }}>×</button>
           </div>
-          <span style={{ fontWeight: 500, fontSize: 13, lineHeight: 1.5, color: V.muted }}>Pick any account at ${oldPrice ?? "—"}/mo or lower. Your billing date stays the same and you keep the downtime credit.</span>
+          <span style={{ fontWeight: 500, fontSize: 13, lineHeight: 1.5, color: V.muted }}>
+            {isDiscounted ? (
+              <>You&apos;re on a discounted rate of <b style={{ color: V.green }}>${lockedRate}/mo</b> <span style={{ textDecoration: "line-through", color: V.faint }}>${oldPrice}</span>. Pick any account at the same tier or lower — you&apos;ll keep paying ${lockedRate}/mo. Your billing date stays the same and you keep the downtime credit.</>
+            ) : (
+              <>Pick any account at ${oldPrice ?? "—"}/mo or lower. Your billing date stays the same and you keep the downtime credit.</>
+            )}
+          </span>
           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>{chip("all", "All")}{chip("same", "Same price")}{chip("lower", "Lower price")}</div>
         </div>
 
@@ -248,7 +261,18 @@ function ReplacementPicker({ rental, onClose, onReplaced }: { rental: Rental; on
                   </div>
                   <div style={{ fontWeight: 500, fontSize: 12, color: V.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[o.linkedinHeadline, `${o.connectionCount.toLocaleString()} connections`, o.location].filter(Boolean).join(" · ")}</div>
                 </div>
-                <span style={{ flex: "none", fontWeight: 700, fontSize: 13 }}>${o.monthlyPrice}<span style={{ fontWeight: 500, color: V.faint }}>/mo</span></span>
+                {(() => {
+                  const eff = effOf(o.monthlyPrice);
+                  const disc = lockedRate != null && eff < o.monthlyPrice;
+                  return disc ? (
+                    <span style={{ flex: "none", display: "flex", alignItems: "baseline", gap: 5 }}>
+                      <span style={{ textDecoration: "line-through", textDecorationColor: "#c3c9d3", fontWeight: 500, fontSize: 12.5, color: V.faint }}>${o.monthlyPrice}</span>
+                      <span style={{ fontWeight: 800, fontSize: 13.5, color: V.green }}>${eff}<span style={{ fontWeight: 500, color: V.faint }}>/mo</span></span>
+                    </span>
+                  ) : (
+                    <span style={{ flex: "none", fontWeight: 700, fontSize: 13 }}>${o.monthlyPrice}<span style={{ fontWeight: 500, color: V.faint }}>/mo</span></span>
+                  );
+                })()}
                 <span style={{ flex: "none", width: 18, height: 18, borderRadius: "50%", border: `2px solid ${on ? V.blue : "#c3c9d3"}`, display: "grid", placeItems: "center" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: on ? V.blue : "transparent" }} /></span>
               </div>
             );
