@@ -20,6 +20,7 @@ export async function GET() {
             linkedinUrl: true,
             loginEmail: true,
             accountPassword: true,
+            twoFactor: true,
             profilePhotoUrl: true,
             connectionCount: true,
             linkedinVerified: true,
@@ -51,9 +52,14 @@ export async function GET() {
     // cancelled rental still in the list.
     const current = new Set(["active", "pending_access", "payment_failed"]);
     const shaped = rentals.map((r) => {
-      const { loginEmail, accountPassword, accountAgeMonths, hasSalesNav, restrictionLog, ...account } = r.linkedinAccount;
+      const { loginEmail, accountPassword, twoFactor, accountAgeMonths, hasSalesNav, restrictionLog, ...account } = r.linkedinAccount;
       const ready = canShowRentalShareLink(r);
       const showCreds = credAccess && current.has(r.status);
+      // The 2FA secret key (TOTP seed) — e.g. to paste into HeyReach so it can answer LinkedIn's
+      // 2-step checks itself. Only exposed to credential-access renters, and only if it's a
+      // usable base32 seed (same validity check as the live-code route).
+      const seed = (decryptSecret(twoFactor) || "").replace(/\s/g, "");
+      const twoFactorSecret = showCreds && /^[A-Z2-7]{16,}={0,6}$/i.test(seed) ? seed : undefined;
       // What the renter actually pays: their locked rate, else the account's current tier price.
       const price = Number(
         r.lockedPrice ?? monthlyRentalPrice({ connectionCount: account.connectionCount, accountAgeMonths, hasSalesNav, linkedinVerified: account.linkedinVerified })
@@ -81,6 +87,7 @@ export async function GET() {
           gologinShareLink: ready ? account.gologinShareLink : null,
           accountEmail: loginEmail,
           accountPassword: showCreds ? decryptSecret(accountPassword) : undefined,
+          twoFactorSecret,
         },
       };
     });
