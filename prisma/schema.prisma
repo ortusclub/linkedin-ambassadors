@@ -199,6 +199,7 @@ model LinkedInAccount {
   ambassadorPayment     Decimal       @default(0) @map("ambassador_payment") @db.Decimal(10, 2)
   accountAgeMonths      Int?          @map("account_age_months")
   linkedinJoinedAt      DateTime?     @map("linkedin_joined_at") // "Joined LinkedIn" month from About this member — recorded at Level-4 build for the record
+  connectionHistory     Json?         @map("connection_history") // append-only [{ at: ISO, count: number, note?: "rented"|"returned" }] — connection growth over time
   hasSalesNav           Boolean       @default(false) @map("has_sales_nav")
   listed                Boolean       @default(true)
   // Inventory partition. "main" = normal rentable catalogue. "ortus" = brought in by an
