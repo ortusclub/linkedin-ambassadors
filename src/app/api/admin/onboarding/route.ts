@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { decryptSecret } from "@/lib/crypto-creds";
 import { forwardingActive } from "@/lib/onboarding-email-policy";
+import type { ProfileBuild } from "@/lib/profile-generator";
 
 // Onboarding pipeline — every ambassador application, bucketed by how far along it
 // is. The one non-obvious rule: an application only counts as ONBOARDED once the
@@ -38,7 +39,7 @@ export async function GET() {
         personalEmail: true, workEmail: true, accountPassword: true, twoFactor: true,
         gologinProfileId: true, gologinShareLink: true, monthlyPrice: true,
         ambassadorPayment: true, connectionCount: true, status: true,
-        restrictedAt: true, warmupStartedAt: true, restrictionLog: true, notes: true, linkedinVerified: true, linkedinAccountHealth: true, healthCheckedAt: true,
+        restrictedAt: true, warmupStartedAt: true, profileBuild: true, restrictionLog: true, notes: true, linkedinVerified: true, linkedinAccountHealth: true, healthCheckedAt: true,
         proxyHost: true, proxyPort: true, proxyUsername: true,
         proxyPassword: true, proxyLocation: true, provisionStatus: true, createdAt: true,
         poc: true,
@@ -239,6 +240,7 @@ export async function GET() {
         proxyLocation: acct?.proxyLocation || null,
         accountRestrictedAt: acct?.restrictedAt || null,
         warmupStartedAt: acct?.warmupStartedAt ? new Date(acct.warmupStartedAt).toISOString() : null,
+        profileBuild: (acct?.profileBuild as ProfileBuild | null) || null,
         accountRestrictionLog: acct?.restrictionLog || null,
         linkedinAccountHealth: acct?.linkedinAccountHealth || null,
         healthCheckedAt: acct?.healthCheckedAt ? acct.healthCheckedAt.toISOString() : null,
@@ -300,6 +302,7 @@ export async function GET() {
         proxyLocation: a.proxyLocation || null,
         accountRestrictedAt: a.restrictedAt,
         warmupStartedAt: a.warmupStartedAt ? new Date(a.warmupStartedAt).toISOString() : null,
+        profileBuild: (a.profileBuild as ProfileBuild | null) || null,
         accountRestrictionLog: a.restrictionLog || null,
         linkedinAccountHealth: a.linkedinAccountHealth || null,
         healthCheckedAt: a.healthCheckedAt ? a.healthCheckedAt.toISOString() : null,
