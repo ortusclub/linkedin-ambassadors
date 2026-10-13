@@ -1,0 +1,154 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
+
+// Inventory v2 read endpoint. Returns the SAME per-account shape as
+// /api/admin/accounts (so the v2 page has every field the live inventory has),
+// PLUS two derived metrics the v2 mock needs:
+//   - earnedTotal  : all-time gross collected for the account (off-platform crypto
+//                    payments + on-platform rental_payment transactions, minus refunds).
+//   - utilisation  : lifetime rented share = rented-days / days-since-we-got-it (0..1).
+// It is intentionally separate from the live inventory route: the live page stays
+// fast and untouched while v2 iterates. Consolidate when v2 is promoted.
+
+const DAY = 86400000;
+
+export async function GET(_req: NextRequest) {
+  try {
+    await requireAdmin();
+
+    const accounts = await prisma.linkedInAccount.findMany({
+      where: {
+        status: { in: ["under_review", "available", "rented", "trial", "maintenance", "under_construction", "construction_immature", "unavailable", "retired"] },
+      },
+      include: {
+        rentals: {
+          where: { status: { in: ["active", "payment_failed"] }, isShadow: false },
+          include: { user: { select: { id: true, fullName: true, email: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+        cryptoPayments: { select: { amount: true, paidAt: true }, orderBy: { paidAt: "desc" }, take: 100 },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const ids = accounts.map((a) => a.id);
+
+    // ── Earned: off-platform (crypto) ──
+    const cryptoSums = ids.length
+      ? await prisma.cryptoPayment.groupBy({ by: ["linkedinAccountId"], where: { linkedinAccountId: { in: ids } }, _sum: { amount: true } })
+      : [];
+    const cryptoByAccount = new Map(cryptoSums.map((r) => [r.linkedinAccountId, Number(r._sum.amount ?? 0)]));
+
+    // ── Earned: on-platform (rental_payment − refund), attributed via rental → account ──
+    const txns = ids.length
+      ? await prisma.transaction.findMany({
+          where: { rentalId: { not: null }, type: { in: ["rental_payment", "refund"] }, rental: { linkedinAccountId: { in: ids } } },
+          select: { amount: true, type: true, rental: { select: { linkedinAccountId: true } } },
+        })
+      : [];
+    const txnByAccount = new Map<string, number>();
+    for (const t of txns) {
+      const acc = t.rental?.linkedinAccountId;
+      if (!acc) continue;
+      const signed = (t.type === "refund" ? -1 : 1) * Number(t.amount ?? 0);
+      txnByAccount.set(acc, (txnByAccount.get(acc) ?? 0) + signed);
+    }
+
+    // ── Utilisation: sum of rental spans / days owned ──
+    const allRentals = ids.length
+      ? await prisma.rental.findMany({
+          where: { linkedinAccountId: { in: ids }, isShadow: false },
+          select: { linkedinAccountId: true, startDate: true, currentPeriodEnd: true },
+        })
+      : [];
+    const rentedMsByAccount = new Map<string, number>();
+    const now = Date.now();
+    for (const r of allRentals) {
+      const start = r.startDate ? new Date(r.startDate).getTime() : now;
+      const end = Math.min(r.currentPeriodEnd ? new Date(r.currentPeriodEnd).getTime() : now, now);
+      const span = Math.max(0, end - start);
+      rentedMsByAccount.set(r.linkedinAccountId, (rentedMsByAccount.get(r.linkedinAccountId) ?? 0) + span);
+    }
+
+    // ── Owner resolution (mirrors /api/admin/accounts so v2 has the same fields) ──
+    const ownerEmails = accounts
+      .map((a) => (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, ""))
+      .filter(Boolean) as string[];
+    const ownerUsers = ownerEmails.length ? await prisma.user.findMany({ where: { email: { in: ownerEmails } }, select: { email: true, fullName: true } }) : [];
+    const ownerMap = new Map(ownerUsers.map((u) => [u.email, u.fullName]));
+    const ownerApps = ownerEmails.length
+      ? await prisma.ambassadorApplication.findMany({
+          where: { email: { in: ownerEmails } },
+          select: {
+            id: true, email: true, linkedinUrl: true, fullName: true, contactNumber: true, contactChannel: true,
+            referredBy: true, referralSource: true, poc: true, ownerStatus: true, payoutCurrency: true, status: true,
+            paymentMethod: true, paymentDetails: true, payoutName: true, paypalEmail: true, wiseEmail: true,
+            onboardedAt: true, paidAt: true, outreachLog: true, nextFollowUp: true, updatedAt: true,
+          },
+        })
+      : [];
+    const normUrl = (u?: string | null) => (u || "").toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("?")[0].replace(/\/+$/, "");
+    const appMap = new Map(ownerApps.map((x) => [x.email.toLowerCase(), x]));
+    const appByUrl = new Map(ownerApps.filter((x) => x.linkedinUrl).map((x) => [normUrl(x.linkedinUrl), x]));
+
+    const referrers = await prisma.referrer.findMany({ select: { slug: true, name: true, email: true, contacts: true, contactMethod: true, contactHandle: true } });
+    const refBySlug = new Map(referrers.map((r) => [r.slug.toLowerCase(), r]));
+    const issueContactFor = (slug?: string | null) => {
+      const r = refBySlug.get((slug || "").trim().toLowerCase());
+      if (!r) return null;
+      const contacts = (Array.isArray(r.contacts) ? r.contacts : []) as Array<{ method?: string; handle?: string; preferred?: boolean }>;
+      const byMethod = (method: string) => contacts.find((c) => c.preferred && c.method?.toLowerCase() === method)?.handle || contacts.find((c) => c.method?.toLowerCase() === method)?.handle || (r.contactMethod?.toLowerCase() === method ? r.contactHandle : null);
+      return { email: r.email || byMethod("email"), whatsapp: byMethod("whatsapp"), telegram: byMethod("telegram"), viber: byMethod("viber") };
+    };
+
+    // Shadow renters (account stays "Available" but someone is quietly on it).
+    const shadowRentals = ids.length
+      ? await prisma.rental.findMany({ where: { isShadow: true, status: { in: ["active", "pending_access", "payment_failed"] }, linkedinAccountId: { in: ids } }, select: { linkedinAccountId: true, user: { select: { email: true } } } })
+      : [];
+    const shadowByAccount = new Map(shadowRentals.map((r) => [r.linkedinAccountId, r.user.email]));
+
+    const out = accounts.map((a) => {
+      const ownerEmail = (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || "";
+      const app = (a.linkedinUrl ? appByUrl.get(normUrl(a.linkedinUrl)) : undefined) || (ownerEmail ? appMap.get(ownerEmail.toLowerCase()) : undefined);
+      const ownedMs = Math.max(DAY, now - new Date(a.createdAt).getTime());
+      const rentedMs = rentedMsByAccount.get(a.id) ?? 0;
+      const earnedTotal = Math.round(((cryptoByAccount.get(a.id) ?? 0) + (txnByAccount.get(a.id) ?? 0)) * 100) / 100;
+      return {
+        ...a,
+        earnedTotal,
+        utilisation: Math.min(1, Math.max(0, rentedMs / ownedMs)),
+        ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
+        ownerEmail: ownerEmail || null,
+        ownerApplicationId: app?.id || null,
+        issueReferrerName: refBySlug.get((app?.referredBy || "").trim().toLowerCase())?.name || null,
+        issueEmailFrom: process.env.RESEND_FROM_EMAIL || "LinkedVelocity <info@linkedvelocity.com>",
+        issueAmbassadorEmail: app?.email || ownerEmail || null,
+        issueReferrerContact: issueContactFor(app?.referredBy),
+        ownerUpdatedAt: app?.updatedAt ?? null,
+        ownerOutreachLog: app?.outreachLog ?? null,
+        ownerNextFollowUp: app?.nextFollowUp ?? null,
+        ownerPhone: app?.contactNumber || null,
+        contactChannel: app?.contactChannel || null,
+        ownerReferredBy: app?.referredBy || null,
+        ownerPayoutCurrency: app?.payoutCurrency || null,
+        ownerReferralSource: app?.referralSource || null,
+        ownerPoc: app?.poc || a.poc || null,
+        ownerStatus: app?.ownerStatus || null,
+        ownerPaymentMethod: app?.paymentMethod || (app?.paypalEmail ? `PayPal: ${app.paypalEmail}` : app?.wiseEmail ? `Wise: ${app.wiseEmail}` : null),
+        ownerPaymentDetails: app?.paymentDetails || null,
+        ownerPayoutName: app?.payoutName || null,
+        ownerOnboardedAt: app?.onboardedAt || null,
+        ownerSetupPaidAt: app?.paidAt || null,
+        ownerOnboarded: app?.status === "onboarded",
+        shadowRenter: shadowByAccount.get(a.id) || null,
+      };
+    });
+
+    return NextResponse.json({ accounts: out });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Forbidden") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (error instanceof Error && error.message === "Unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
