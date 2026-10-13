@@ -6,6 +6,7 @@ import type { CSSProperties } from "react";
 import { currencyConfigFor } from "@/lib/referral-currency";
 import { isApplicationReceived } from "@/lib/pipeline-received";
 import { ONBOARDING_ISSUES } from "@/lib/onboarding-issue-message";
+import type { ProfileBuild } from "@/lib/profile-generator";
 
 export const APPLICATION_TYPES = [
   { key: "standard", label: "Form" },
@@ -99,6 +100,7 @@ export interface Row {
   proxyLocation: string | null;
   accountRestrictedAt: string | null;
   warmupStartedAt: string | null;
+  profileBuild: ProfileBuild | null;
   accountRestrictionLog: { at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }[] | null;
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;

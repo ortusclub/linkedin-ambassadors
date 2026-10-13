@@ -38,6 +38,7 @@ type Handlers = {
   createAccount: (r: Row) => void;
   verifySignin: (r: Row, action: "confirm" | "retry" | "takeover") => void;
   transferToLv: (r: Row) => void;
+  generateProfile: (r: Row, lane: string) => void;
   deleteGologin: (r: Row) => void;
   emailIssue: (r: Row, issue: string) => void;
   logTouch: (id: string, ch: string, text: string, by: string) => Promise<void>;
@@ -398,6 +399,56 @@ export function RestrictionControl({ r, onAccount, onApp, onDeleteEvent }: { r: 
   );
 }
 
+function ProfileBuildCard({ r, busy, onGenerate }: { r: Row; busy: boolean; onGenerate: (r: Row, lane: string) => void }) {
+  const [lane, setLane] = useState("auto");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const p = r.profileBuild;
+  const copy = (key: string, text: string) => { navigator.clipboard?.writeText(text); setCopiedKey(key); setTimeout(() => setCopiedKey(null), 1200); };
+  const LANE_OPTS: [string, string][] = [["auto", "Auto (random lane)"], ["Business Development", "Business Development"], ["Sales", "Sales"], ["Marketing", "Marketing"], ["GTM", "GTM"]];
+  const field = (key: string, label: string, value: string, multiline = false) => (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <span style={{ font: `700 10px ${F_SANS}`, letterSpacing: 0.3, textTransform: "uppercase", color: "var(--muted2,#9aa0a6)" }}>{label}</span>
+        <button onClick={() => copy(key, value)} style={{ font: `600 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, border: "1px solid var(--input-border,#dcdce0)", background: "transparent", color: "var(--muted,#647189)", cursor: "pointer", flex: "none" }}>{copiedKey === key ? "✓ Copied" : "Copy"}</button>
+      </div>
+      <div style={{ font: `500 12.5px ${F_SANS}`, color: "var(--text2,#333)", lineHeight: 1.4, whiteSpace: multiline ? "pre-wrap" : "normal", marginTop: 2, wordBreak: "break-word" }}>{value}</div>
+    </div>
+  );
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: p ? 12 : 0 }}>
+        <select value={lane} onChange={(e) => setLane(e.target.value)} style={{ ...inputCss, width: "auto", padding: "5px 8px", cursor: "pointer" }}>
+          {LANE_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        <button style={btnSec} disabled={busy} onClick={() => onGenerate(r, lane)}>{p ? "↻ Regenerate" : "Generate profile"}</button>
+        {p && <span style={{ font: `500 10.5px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>Generated {fmtDate(p.generatedAt)}</span>}
+      </div>
+      {!p && <p style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#777)", margin: "8px 0 0", lineHeight: 1.4 }}>Generates a copy-paste profile: US location, PH work history (2 past roles) + PH school, BD/Sales/Marketing/GTM capped at manager.</p>}
+      {p && <>
+        {field("headline", "Headline", p.headline)}
+        {field("location", "Location", p.location)}
+        {field("zip", "ZIP code", p.zip)}
+        {field("industry", "Industry", p.industry)}
+        {field("about", "About", p.about, true)}
+        {p.experiences.map((x, i) => (
+          <div key={i} style={{ borderTop: "1px solid var(--divider,#eee)", paddingTop: 8, marginTop: 8 }}>
+            {field(`e${i}t`, `Experience ${i + 1} · Title`, x.title)}
+            {field(`e${i}c`, "Company", x.company)}
+            <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#647189)", marginBottom: 6 }}>{x.start} – {x.end} · {x.duration} · past role</div>
+            {field(`e${i}b`, "Description", x.blurb, true)}
+          </div>
+        ))}
+        <div style={{ borderTop: "1px solid var(--divider,#eee)", paddingTop: 8, marginTop: 8 }}>
+          {field("school", "Education · School", p.education.school)}
+          {field("degree", "Degree", p.education.degree)}
+          <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#647189)" }}>{p.education.start} – {p.education.end}</div>
+        </div>
+        <button onClick={() => copy("all", [`HEADLINE\n${p.headline}`, `LOCATION\n${p.location} (ZIP ${p.zip})`, `INDUSTRY\n${p.industry}`, `ABOUT\n${p.about}`, `EXPERIENCE 1\n${p.experiences[0].title} · ${p.experiences[0].company}\n${p.experiences[0].start} – ${p.experiences[0].end} (${p.experiences[0].duration})\n${p.experiences[0].blurb}`, `EXPERIENCE 2\n${p.experiences[1].title} · ${p.experiences[1].company}\n${p.experiences[1].start} – ${p.experiences[1].end} (${p.experiences[1].duration})\n${p.experiences[1].blurb}`, `EDUCATION\n${p.education.school}\n${p.education.degree} · ${p.education.start} – ${p.education.end}`].join("\n\n"))} style={{ ...btnSec, marginTop: 12 }}>{copiedKey === "all" ? "✓ Copied all" : "Copy all"}</button>
+      </>}
+    </div>
+  );
+}
+
 function OutreachLog({ r, busy, onLog, onSetFollowUp, onDelete }: { r: Row; busy: boolean; onLog: (id: string, ch: string, text: string, by: string) => Promise<void>; onSetFollowUp: (iso: string | null) => void; onDelete: (at: string) => void }) {
   const [draft, setDraft] = useState("");
   const [by, setBy] = useState("");
@@ -465,7 +516,7 @@ export function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
 // card grid. Applicant / Sign-in & credentials / Payout cards have a per-card read↔edit
 // toggle; Payments is a compact summary that links out to the Payouts page. Same wiring.
 export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
-  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, createAccount, verifySignin, transferToLv, deleteGologin, logTouch, onDeleteApp } = h;
+  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, createAccount, verifySignin, transferToLv, generateProfile, deleteGologin, logTouch, onDeleteApp } = h;
   const [editSec, setEditSec] = useState<string | null>(null);
   const live = isLive(r);
   const onboarded = r.status === "onboarded";
@@ -614,6 +665,12 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
             {r.referredBy && <a href={`/admin/referrals?ref=${encodeURIComponent(r.referredBy)}`} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>View referrer →</a>}
             {r.asReferrer && <div style={{ marginTop: 8, font: `600 11.5px ${F_SANS}`, color: "var(--muted,#647189)" }}>Also a referrer · <a href={`/admin/referrals?ref=${encodeURIComponent(r.asReferrer.slug)}`} style={{ color: "var(--link,#0a66c2)", textDecoration: "none" }}>{r.asReferrer.slug} →</a><span title="Contact and payout details are shared with this referrer record"> · linked payout</span></div>}
           </PanelCard>
+
+          {r.accountId && (
+            <PanelCard title="Profile build (Level 4)">
+              <ProfileBuildCard r={r} busy={busy} onGenerate={generateProfile} />
+            </PanelCard>
+          )}
 
           {onboarded && paid && (
             <PanelCard title="Referral program">
