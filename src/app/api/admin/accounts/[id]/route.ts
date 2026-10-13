@@ -229,6 +229,25 @@ export async function PATCH(
       }
     }
 
+    // Connection-history trail: append a dated point whenever the connection count changes,
+    // and a "rented"/"returned" marker when the account flips in/out of rented — so we can
+    // see the maturing/growth rate over time and in rental context.
+    if (data.connectionCount !== undefined || data.status !== undefined) {
+      const cur = await prisma.linkedInAccount.findUnique({ where: { id }, select: { connectionCount: true, connectionHistory: true, status: true } });
+      if (cur) {
+        const history = Array.isArray(cur.connectionHistory) ? (cur.connectionHistory as { at: string; count: number; note?: string }[]) : [];
+        const additions: { at: string; count: number; note?: string }[] = [];
+        const at = new Date().toISOString();
+        const effectiveCount = data.connectionCount ?? cur.connectionCount;
+        if (data.connectionCount !== undefined && data.connectionCount !== cur.connectionCount) additions.push({ at, count: data.connectionCount });
+        if (data.status !== undefined && data.status !== cur.status) {
+          if (data.status === "rented") additions.push({ at, count: effectiveCount, note: "rented" });
+          else if (cur.status === "rented") additions.push({ at, count: effectiveCount, note: "returned" });
+        }
+        if (additions.length) (data as Record<string, unknown>).connectionHistory = [...history, ...additions].slice(-300);
+      }
+    }
+
     // Re-host any newly-set external profile photo (e.g. a licdn URL) onto Blob
     // so it doesn't expire. Leaves null (photo cleared) and unchanged URLs alone.
     if (data.profilePhotoUrl) {

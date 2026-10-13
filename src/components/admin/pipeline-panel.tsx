@@ -430,6 +430,36 @@ function AccountHistoryCard({ r, busy, onSave }: { r: Row; busy: boolean; onSave
         </label>
         <button style={btnSec} disabled={busy || !dirty} onClick={save}>{dirty ? "Save to inventory" : "✓ Saved"}</button>
       </div>
+      {(() => {
+        const hist = r.connectionHistory || [];
+        const counts = hist.filter((e) => typeof e.count === "number" && !e.note);
+        const first = counts[0], last = counts[counts.length - 1];
+        const days = first && last ? Math.max(1, Math.round((new Date(last.at).getTime() - new Date(first.at).getTime()) / 86400000)) : 0;
+        const growth = first && last && last !== first ? last.count - first.count : null;
+        if (!hist.length) return null;
+        return (
+          <div style={{ borderTop: "1px solid var(--divider,#eee)", marginTop: 12, paddingTop: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <span style={labelCss}>Connection history</span>
+              {growth != null && <span style={{ font: `600 11px ${F_SANS}`, color: growth >= 0 ? "var(--st-active-fg,#15803d)" : "var(--st-restrict-fg,#b91c1c)" }}>{growth >= 0 ? "+" : ""}{growth} in {days}d</span>}
+            </div>
+            <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
+              {hist.map((e, i) => {
+                const prev = i > 0 ? hist[i - 1] : null;
+                const delta = prev && !e.note ? e.count - prev.count : null;
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, font: `500 11.5px ${F_SANS}`, color: "var(--text2,#444)" }}>
+                    <span style={{ color: "var(--muted2,#9aa0a6)", flex: "none", width: 92 }}>{fmtDate(e.at)}</span>
+                    {e.note
+                      ? <span style={{ font: `700 10px ${F_SANS}`, padding: "1px 7px", borderRadius: 999, background: e.note === "rented" ? "var(--link-bg,#eaf1ff)" : "var(--neutral-bg,#eef1f5)", color: e.note === "rented" ? "var(--link,#0a66c2)" : "var(--muted,#647189)" }}>{e.note === "rented" ? "🔑 Rented" : "↩ Returned"} · {e.count}</span>
+                      : <><b style={{ color: "var(--fg,#111)" }}>{e.count}</b> connections {delta != null && delta !== 0 && <span style={{ color: delta > 0 ? "var(--st-active-fg,#15803d)" : "var(--st-restrict-fg,#b91c1c)" }}>({delta > 0 ? "+" : ""}{delta})</span>}</>}
+                  </div>
+                );
+              }).reverse()}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

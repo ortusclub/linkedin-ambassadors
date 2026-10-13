@@ -103,6 +103,7 @@ export interface Row {
   profileBuild: ProfileBuild | null;
   profilePhotoUrl: string | null;
   linkedinJoinedAt: string | null;
+  connectionHistory: { at: string; count: number; note?: string }[] | null;
   accountRestrictionLog: { at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }[] | null;
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;
