@@ -400,6 +400,40 @@ export function RestrictionControl({ r, onAccount, onApp, onDeleteEvent }: { r: 
   );
 }
 
+function AccountHistoryCard({ r, busy, onSave }: { r: Row; busy: boolean; onSave: (patch: Record<string, unknown>, reload?: boolean) => void }) {
+  const savedJoined = r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : ""; // YYYY-MM
+  const savedConns = r.connectionCount != null ? String(r.connectionCount) : "";
+  const [joined, setJoined] = useState(savedJoined);
+  const [conns, setConns] = useState(savedConns);
+  const dirty = joined !== savedJoined || conns !== savedConns;
+  const ageMonths = joined ? Math.max(0, (new Date().getFullYear() - Number(joined.slice(0, 4))) * 12 + (new Date().getMonth() - (Number(joined.slice(5, 7)) - 1))) : null;
+  const save = () => {
+    const patch: Record<string, unknown> = { linkedinJoinedAt: joined ? new Date(joined + "-01T00:00:00Z").toISOString() : null };
+    const n = parseInt(conns, 10);
+    if (conns === "" || !Number.isNaN(n)) patch.connectionCount = conns === "" ? 0 : n;
+    onSave(patch, true);
+  };
+  return (
+    <div>
+      <p style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#8a93a3)", margin: "0 0 10px", lineHeight: 1.45 }}>
+        From the LinkedIn profile: open <b>⋯ (More)</b> → <b>About this member</b> → <b>Account history</b> for the “Joined LinkedIn” month, and read the current connection count off the profile. Recorded for our catalogue.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={labelCss}>Joined LinkedIn (month)</span>
+          <input type="month" value={joined} onChange={(e) => setJoined(e.target.value)} style={{ ...inputCss, width: "auto" }} />
+          {ageMonths != null && <span style={{ font: `500 11px ${F_SANS}`, color: "var(--muted2,#9aa0a6)" }}>≈ {ageMonths} month{ageMonths === 1 ? "" : "s"} old</span>}
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={labelCss}>Connections (current)</span>
+          <input type="number" min="0" value={conns} onChange={(e) => setConns(e.target.value)} placeholder="e.g. 500" style={{ ...inputCss, width: "auto" }} />
+        </label>
+        <button style={btnSec} disabled={busy || !dirty} onClick={save}>{dirty ? "Save to inventory" : "✓ Saved"}</button>
+      </div>
+    </div>
+  );
+}
+
 function ProfileBuildCard({ r, busy, onGenerate, onApply }: { r: Row; busy: boolean; onGenerate: (r: Row, lane: string) => void; onApply: (r: Row) => void }) {
   const [lane, setLane] = useState("auto");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -709,6 +743,12 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
           {r.accountId && (
             <PanelCard title="Profile build (Level 4)">
               <ProfileBuildCard r={r} busy={busy} onGenerate={generateProfile} onApply={applyProfile} />
+            </PanelCard>
+          )}
+
+          {r.accountId && (
+            <PanelCard title="Account history (Level 4)">
+              <AccountHistoryCard r={r} busy={busy} onSave={acctSave} />
             </PanelCard>
           )}
 

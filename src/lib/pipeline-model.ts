@@ -102,6 +102,7 @@ export interface Row {
   warmupStartedAt: string | null;
   profileBuild: ProfileBuild | null;
   profilePhotoUrl: string | null;
+  linkedinJoinedAt: string | null;
   accountRestrictionLog: { at: string; event: "restricted" | "recovered"; note?: string; creditedDays?: number }[] | null;
   linkedinAccountHealth: string | null;
   healthCheckedAt: string | null;

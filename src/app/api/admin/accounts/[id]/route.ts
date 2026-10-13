@@ -46,6 +46,7 @@ const updateSchema = z.object({
   // app), or null to clear. Orthogonal to status — an account can warm up while onboarding,
   // unavailable, or even rented.
   warmupStartedAt: z.string().nullable().optional(),
+  linkedinJoinedAt: z.string().nullable().optional(),
   // Admin payout hold (account inaccessible / paused — not a LinkedIn restriction). Pass a
   // reason string to hold the owner's payout, or null to release it.
   payoutHoldReason: z.string().nullable().optional(),
@@ -215,6 +216,17 @@ export async function PATCH(
       else if (!next && prev) warmupChange = `⏹️ Warm-up stopped (was running since ${prev.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })})`;
       else if (next && prev && next.getTime() !== prev.getTime()) warmupChange = `🔥 Warm-up start date set to ${next.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
       (data as Record<string, unknown>).warmupStartedAt = next;
+    }
+
+    // "Joined LinkedIn" month (from About this member): ISO string → Date, null to clear.
+    // Also derive accountAgeMonths from it unless the same request sets age explicitly.
+    if (data.linkedinJoinedAt !== undefined) {
+      const joined = data.linkedinJoinedAt ? new Date(data.linkedinJoinedAt) : null;
+      (data as Record<string, unknown>).linkedinJoinedAt = joined;
+      if (joined && data.accountAgeMonths === undefined) {
+        const months = (new Date().getFullYear() - joined.getFullYear()) * 12 + (new Date().getMonth() - joined.getMonth());
+        (data as Record<string, unknown>).accountAgeMonths = Math.max(0, months);
+      }
     }
 
     // Re-host any newly-set external profile photo (e.g. a licdn URL) onto Blob
