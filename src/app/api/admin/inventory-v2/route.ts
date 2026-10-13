@@ -47,11 +47,17 @@ export async function GET(_req: NextRequest) {
           select: { amount: true, type: true, rental: { select: { linkedinAccountId: true } } },
         })
       : [];
+    // Ledger sign quirk: wallet-funded rentals store rental_payment NEGATIVE (a wallet
+    // debit — the real cash-in was the wallet deposit, which has no rentalId so we can't
+    // attribute it to an account). TRON/direct rentals store it POSITIVE (money received).
+    // So only count POSITIVE rental_payment as collected, and subtract refunds. (Clamped
+    // to >= 0 below.) Approximate by design: wallet-only rentals under-count here.
     const txnByAccount = new Map<string, number>();
     for (const t of txns) {
       const acc = t.rental?.linkedinAccountId;
       if (!acc) continue;
-      const signed = (t.type === "refund" ? -1 : 1) * Number(t.amount ?? 0);
+      const amt = Number(t.amount ?? 0);
+      const signed = t.type === "refund" ? -Math.abs(amt) : Math.max(0, amt);
       txnByAccount.set(acc, (txnByAccount.get(acc) ?? 0) + signed);
     }
 
@@ -113,7 +119,7 @@ export async function GET(_req: NextRequest) {
       const app = (a.linkedinUrl ? appByUrl.get(normUrl(a.linkedinUrl)) : undefined) || (ownerEmail ? appMap.get(ownerEmail.toLowerCase()) : undefined);
       const ownedMs = Math.max(DAY, now - new Date(a.createdAt).getTime());
       const rentedMs = rentedMsByAccount.get(a.id) ?? 0;
-      const earnedTotal = Math.round(((cryptoByAccount.get(a.id) ?? 0) + (txnByAccount.get(a.id) ?? 0)) * 100) / 100;
+      const earnedTotal = Math.max(0, Math.round(((cryptoByAccount.get(a.id) ?? 0) + (txnByAccount.get(a.id) ?? 0)) * 100) / 100);
       return {
         ...a,
         earnedTotal,

@@ -17,7 +17,7 @@ import { tierPricing } from "@/lib/account-pricing";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
-import { sortAccountsByLastUpdated, accountLastUpdatedAt } from "@/lib/account-notes";
+import { sortAccountsByLastUpdated } from "@/lib/account-notes";
 import { IssueActions } from "@/components/admin/issue-actions";
 import { ambassadorIssueContact } from "@/lib/issue-contacts";
 
@@ -346,7 +346,7 @@ export default function InventoryV2Page() {
             const active = groupFilter === t.key;
             const clickable = !t.key.startsWith("__");
             return (
-              <button key={t.key} onClick={() => clickable && setGroupFilter(active ? "all" : t.key)} style={{ textAlign: "left", cursor: clickable ? "pointer" : "default", background: active ? "#fff" : "#ffffffcc", border: `1.5px solid ${active ? INK : "#e3e6ec"}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 3 }}>
+              <button key={t.key} onClick={() => clickable && setGroupFilter(active ? "all" : t.key)} style={{ textAlign: "left", cursor: clickable ? "pointer" : "default", background: "#fff", border: `1.5px solid ${active ? INK : "#e9ecf1"}`, borderRadius: 14, padding: "13px 15px", display: "flex", flexDirection: "column", gap: 3, boxShadow: active ? "0 4px 14px rgba(16,24,40,.10)" : "0 1px 2px rgba(16,24,40,.04), 0 6px 14px rgba(16,24,40,.035)" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 7, font: `700 11px ${F}`, letterSpacing: ".06em", textTransform: "uppercase", color: SUB, whiteSpace: "nowrap" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: t.dot }} />{t.label}</span>
                 <span style={{ font: `700 26px ${G}`, color: INK }}>{t.money ? money(t.n) : t.pct ? `${t.n}%` : t.n}</span>
                 <span style={{ font: `600 12px ${F}`, color: t.subFg, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.sub}</span>
@@ -356,7 +356,7 @@ export default function InventoryV2Page() {
         </div>
 
         {/* PoC pills + filter bar */}
-        <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 1px 2px rgba(16,24,40,.04)" }}>
           {pocCounts.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ font: `700 11px ${F}`, letterSpacing: ".07em", textTransform: "uppercase", color: MUT, marginRight: 4 }}>LV PoC</span>
@@ -403,10 +403,10 @@ export default function InventoryV2Page() {
         </div>
 
         {/* table */}
-        <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, overflow: "auto" }}>
+        <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, overflow: "auto", boxShadow: "0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.04)" }}>
           <div style={{ minWidth: 1360 }}>
             <div style={{ display: "grid", gridTemplateColumns: headCols, gap: 12, alignItems: "center", padding: "10px 16px", borderBottom: `1px solid ${LINE2}`, background: "#fafbfc", font: `700 10.5px ${F}`, letterSpacing: ".07em", textTransform: "uppercase", color: MUT }}>
-              <span>Account</span><span>Conn.</span><span>Age</span><span>Flags</span><span>Price</span><span>Renter</span><span>LV PoC</span><span>{checkMode ? "Health" : "Updated"}</span><span>Rent</span><span></span><span></span>
+              <span>Account</span><span>Conn.</span><span>Age</span><span>Flags</span><span>Price</span><span>Renter</span><span>LV PoC</span><span>Health</span><span>Rent</span><span></span><span></span>
             </div>
             {grouped.length === 0 && <div style={{ padding: 40, textAlign: "center", font: `500 13.5px ${F}`, color: MUT }}>No accounts match.</div>}
             {grouped.map((g) => {
@@ -453,22 +453,16 @@ export default function InventoryV2Page() {
                             </div>
                             <div style={{ font: `500 12px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.linkedinHeadline || r.loginEmail || r.industry || "—"}</div>
                           </div>
-                          {/* conn */}
-                          {checkMode ? (
-                            <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                              <input defaultValue={r.connectionCount} onChange={(e) => setConnDraft((d) => ({ ...d, [r.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} onBlur={() => connDraft[r.id] != null && saveConn(r, connDraft[r.id])} inputMode="numeric" style={{ width: 72, border: `1.5px solid #cfd6e0`, borderRadius: 8, padding: "5px 7px", font: `700 13.5px ${G}`, color: INK, outline: "none" }} />
-                            </div>
-                          ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                              <span style={{ font: `700 15px ${G}`, color: INK }}>{r.connectionCount}</span>
-                              <span style={{ height: 3, width: 56, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: BLUE }} /></span>
-                            </div>
-                          )}
+                          {/* conn — always editable, boxed (saves on blur / Enter) */}
+                          <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <input defaultValue={r.connectionCount} key={`c-${r.id}-${r.connectionCount}`} onChange={(e) => setConnDraft((d) => ({ ...d, [r.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} onBlur={() => connDraft[r.id] != null && saveConn(r, connDraft[r.id])} inputMode="numeric" title="Connection count — saves on blur / Enter" style={{ width: 72, border: `1.5px solid ${connDraft[r.id] != null && connDraft[r.id] !== String(r.connectionCount) ? BLUE : "#dde1e8"}`, background: "#fff", borderRadius: 8, padding: "5px 8px", font: `700 13.5px ${G}`, color: INK, outline: "none" }} />
+                            <span style={{ height: 3, width: 64, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: BLUE }} /></span>
+                          </div>
                           {/* age */}
                           <span style={{ font: `700 15px ${G}`, color: INK, whiteSpace: "nowrap" }}>{ageStr(r)}</span>
                           {/* flags */}
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, minWidth: 0 }}>
-                            {flags.length === 0 ? <span style={{ font: `600 11.5px ${F}`, color: GREEND }}>✓ ok</span> : flags.map((f, i) => <span key={i} title={f.tip} style={{ font: `700 11px ${F}`, padding: "2px 8px", borderRadius: 999, background: f.bg, color: f.fg, whiteSpace: "nowrap", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>{f.l}</span>)}
+                            {flags.length === 0 ? <span style={{ font: `700 11px ${F}`, padding: "2px 8px", borderRadius: 999, background: "#ecfdf3", color: GREEND }}>✓ ok</span> : flags.map((f, i) => <span key={i} title={f.tip} style={{ font: `700 11px ${F}`, padding: "2px 8px", borderRadius: 999, background: f.bg, color: f.fg, whiteSpace: "nowrap", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>{f.l}</span>)}
                           </div>
                           {/* price */}
                           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -484,18 +478,14 @@ export default function InventoryV2Page() {
                           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                             {r.ownerPoc ? <><span style={{ flex: "none", width: 22, height: 22, borderRadius: "50%", background: colorOf(r.ownerPoc), color: "#fff", font: `700 10px ${F}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{iniOf(r.ownerPoc)}</span><span style={{ font: `600 12.5px ${F}`, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.ownerPoc}</span></> : <span style={{ font: `600 12.5px ${F}`, color: MUT }}>—</span>}
                           </div>
-                          {/* updated / health quick */}
-                          {checkMode ? (
-                            <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 4 }}>
-                              <button onClick={() => markActive(r)} disabled={busy === r.id} title="Healthy — mark active" style={{ width: 34, height: 30, borderRadius: 8, border: `1.5px solid ${GREEN}`, background: done && r.linkedinAccountHealth === "active" ? "#dcfce7" : "#fff", color: GREEND, font: `800 14px ${F}`, cursor: "pointer" }}>✓</button>
-                              <button onClick={() => setRestricted(r, true)} disabled={busy === r.id} title="Restricted" style={{ width: 34, height: 30, borderRadius: 8, border: `1.5px solid ${RED}`, background: "#fff", color: REDD, font: `800 13px ${F}`, cursor: "pointer" }}>✕</button>
+                          {/* health — always-on quick actions */}
+                          <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-start" }}>
+                            <div style={{ display: "flex", gap: 4 }}>
+                              <button onClick={() => markActive(r)} disabled={busy === r.id} title="Healthy — mark active" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${GREEN}`, background: !r.restrictedAt && r.linkedinAccountHealth === "active" ? "#dcfce7" : "#fff", color: GREEND, font: `800 13px ${F}`, cursor: "pointer" }}>✓</button>
+                              <button onClick={() => setRestricted(r, true)} disabled={busy === r.id} title="Restricted" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${RED}`, background: r.restrictedAt ? "#fee2e2" : "#fff", color: REDD, font: `800 12px ${F}`, cursor: "pointer" }}>✕</button>
                             </div>
-                          ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                              <span style={{ font: `700 12.5px ${G}`, color: INK }}>{fmtD(new Date(accountLastUpdatedAt(r)).toISOString())}</span>
-                              <span style={{ font: `600 10.5px ${F}`, color: r.restrictedAt ? REDD : SUB, whiteSpace: "nowrap" }}>{r.restrictedAt ? "restricted" : r.linkedinAccountHealth === "active" ? "healthy" : (r.linkedinAccountHealth || "unchecked")}</span>
-                            </div>
-                          )}
+                            <span style={{ font: `600 10px ${F}`, color: r.restrictedAt ? REDD : r.linkedinAccountHealth === "active" ? GREEND : SUB, whiteSpace: "nowrap" }}>{r.restrictedAt ? "restricted" : done ? "checked today" : r.linkedinAccountHealth === "active" ? "healthy" : (r.linkedinAccountHealth || "unchecked")}</span>
+                          </div>
                           {/* rent toggle */}
                           <div onClick={(e) => e.stopPropagation()}>
                             <button onClick={() => toggleRent(r)} disabled={r.status === "rented" || r.status === "trial"} title={rentOn ? "Listed for rent" : "Not listed"} style={{ position: "relative", width: 36, height: 20, borderRadius: 999, border: "none", cursor: r.status === "rented" || r.status === "trial" ? "not-allowed" : "pointer", padding: 0, background: rentOn ? GREEN : "#cbd2dc", opacity: r.status === "rented" || r.status === "trial" ? 0.5 : 1 }}><span style={{ position: "absolute", top: 2, left: rentOn ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left .15s" }} /></button>
