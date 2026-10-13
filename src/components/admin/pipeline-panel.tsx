@@ -534,9 +534,8 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
   const onboarded = r.status === "onboarded";
   const paid = setupPaid(r);
   const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
-  const onboardingPhoto = (r.adminNotes || "").match(/Owner photo:\s*(https?:\/\/\S+)/)?.[1] || null;
-  const photoUrl = r.profilePhotoUrl || onboardingPhoto; // inventory photo wins; falls back to the onboarding one
-  const photoIsInventory = !!r.profilePhotoUrl;
+  const onboardingPhoto = (r.adminNotes || "").match(/Owner photo:\s*(https?:\/\/\S+)/)?.[1] || null; // original from signup — reference, never overwritten
+  const editedPhoto = r.profilePhotoUrl; // the edited/clear version we upload → this is what inventory shows
   const [photoUploading, setPhotoUploading] = useState(false);
   const uploadPhoto = async (file: File) => {
     if (!r.accountId) { alert("No account linked yet — create the account first."); return; }
@@ -620,20 +619,29 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
         {/* ── Left column: Applicant · Sign-in & credentials ── */}
         <div style={col}>
           <PanelCard title="Applicant" right={<div style={{ display: "flex", alignItems: "center", gap: 10 }}>{r.linkedinUrl && <a href={liHref(r.linkedinUrl)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>View profile ↗</a>}{editToggle("applicant", appEditing)}</div>}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 10, background: "var(--inset,#f8f9fb)", borderRadius: 12 }}>
-              {photoUrl
-                ? <a href={photoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ flex: "none" }}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={photoUrl} alt="Owner photo" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 12, border: "1px solid var(--line,#e6e8ec)", display: "block" }} /></a>
-                : <div style={{ flex: "none", width: 64, height: 64, borderRadius: 12, border: "1.5px dashed var(--input-border,#c5cbd3)", background: "var(--card,#fff)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 18px ${F_GRO}`, color: "var(--muted2,#b0b7c3)" }}>{initialsOf(r.fullName)}</div>}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ ...labelCss, marginBottom: 3 }}>Profile photo{photoUrl ? (photoIsInventory ? " · on inventory" : " · from onboarding") : ""}</div>
-                <div style={{ font: `600 12.5px ${F_SANS}`, color: photoUrl ? "var(--fg,#111)" : "var(--muted,#8a93a3)" }}>{photoUrl ? (photoIsInventory ? "Updated photo — live on inventory" : "From the owner at signup") : "No photo yet"}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
-                  {photoUrl && <a href={photoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>Open full size ↗</a>}
-                  {r.accountId && <label onClick={(e) => e.stopPropagation()} title="Upload an updated/edited photo — it's saved to the account and shows on inventory automatically." style={{ font: `700 12px ${F_SANS}`, color: photoUploading ? "var(--muted,#8a93a3)" : "var(--link,#0a66c2)", cursor: photoUploading ? "wait" : "pointer" }}>
-                    {photoUploading ? "Uploading…" : photoUrl ? "Replace photo ↑" : "Upload photo ↑"}
-                    <input type="file" accept="image/png,image/jpeg,image/webp" disabled={photoUploading} style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void uploadPhoto(f); }} />
-                  </label>}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: 10, background: "var(--inset,#f8f9fb)", borderRadius: 12, flexWrap: "wrap" }}>
+              {/* Original (from onboarding) — kept for reference, never overwritten */}
+              {onboardingPhoto && (
+                <div style={{ flex: "none", textAlign: "center" }}>
+                  <a href={onboardingPhoto} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={onboardingPhoto} alt="Original photo" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 12, border: "1px solid var(--line,#e6e8ec)", display: "block", opacity: 0.85 }} /></a>
+                  <div style={{ ...labelCss, marginTop: 4 }}>Original · onboarding</div>
                 </div>
+              )}
+              {/* Edited (on inventory) — what we upload; falls back to initials placeholder */}
+              <div style={{ flex: "none", textAlign: "center" }}>
+                {editedPhoto
+                  ? <a href={editedPhoto} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={editedPhoto} alt="Edited photo" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 12, border: "2px solid var(--st-active-fg,#16a34a)", display: "block" }} /></a>
+                  : <div style={{ width: 64, height: 64, borderRadius: 12, border: "1.5px dashed var(--input-border,#c5cbd3)", background: "var(--card,#fff)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 18px ${F_GRO}`, color: "var(--muted2,#b0b7c3)" }}>{initialsOf(r.fullName)}</div>}
+                <div style={{ ...labelCss, marginTop: 4, color: editedPhoto ? "var(--st-active-fg,#15803d)" : "var(--muted2,#9aa0a6)" }}>{editedPhoto ? "Edited · on inventory" : "No edited photo"}</div>
+              </div>
+              {/* Upload control + note */}
+              <div style={{ minWidth: 120, flex: 1 }}>
+                <div style={{ ...labelCss, marginBottom: 3 }}>Profile photo</div>
+                <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#8a93a3)", lineHeight: 1.4 }}>Upload an edited/clearer version — it goes to inventory. The original from onboarding stays here for reference.</div>
+                {r.accountId && <label onClick={(e) => e.stopPropagation()} title="Upload an edited/clearer photo. Saved to the account and shown on inventory. The original onboarding photo is kept as reference." style={{ display: "inline-block", marginTop: 6, font: `700 12px ${F_SANS}`, color: photoUploading ? "var(--muted,#8a93a3)" : "var(--link,#0a66c2)", cursor: photoUploading ? "wait" : "pointer" }}>
+                  {photoUploading ? "Uploading…" : editedPhoto ? "Replace edited photo ↑" : "Upload edited photo ↑"}
+                  <input type="file" accept="image/png,image/jpeg,image/webp" disabled={photoUploading} style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void uploadPhoto(f); }} />
+                </label>}
               </div>
             </div>
             <ToggleFields fields={applicantFields} editing={appEditing} onEdit={() => setEditSec("applicant")} />
