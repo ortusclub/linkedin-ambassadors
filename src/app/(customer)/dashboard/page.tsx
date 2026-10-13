@@ -725,6 +725,16 @@ function DashboardContent() {
   const rById = new Map(rentals.map((r) => [r.id, r]));
   // For a new (replacement) rental -> the account it replaced.
   const replacedAccountName = (r: Rental) => (r.replacesRentalId ? rById.get(r.replacesRentalId)?.linkedinAccount.linkedinName : undefined);
+  // Downtime credit carried into a replacement: the new rental's billing date is pushed out past
+  // the old rental's by exactly the restricted-account downtime (see replace route). Recover the
+  // credited days from the gap so the swap row can show it.
+  const replacementCreditDays = (r: Rental) => {
+    if (!r.replacesRentalId || !r.currentPeriodEnd) return 0;
+    const old = rById.get(r.replacesRentalId);
+    if (!old?.currentPeriodEnd) return 0;
+    const ms = new Date(r.currentPeriodEnd).getTime() - new Date(old.currentPeriodEnd).getTime();
+    return ms > 0 ? Math.round(ms / 864e5) : 0;
+  };
   // For an old (replaced) rental -> the account that replaced it.
   const swappedForName = new Map<string, string>();
   for (const r of rentals) if (r.replacesRentalId) swappedForName.set(r.replacesRentalId, r.linkedinAccount.linkedinName);
@@ -1286,7 +1296,7 @@ function DashboardContent() {
                           <div style={{ fontWeight: 500, fontSize: 12.5, color: V.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[acct.linkedinHeadline, rental.price != null ? `$${rental.price}/mo` : null].filter(Boolean).join(" · ")}</div>
                           <div style={{ fontWeight: 500, fontSize: 11.5, color: V.faint, whiteSpace: "nowrap" }}>Renting since {formatDate(rental.startDate)} · {humanDuration(rental.startDate)}</div>
                           {replacedAccountName(rental) && (
-                            <div style={{ fontWeight: 600, fontSize: 11, color: V.orangeDeep, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>↔ Replaced {replacedAccountName(rental)}</div>
+                            <div style={{ fontWeight: 600, fontSize: 11, color: V.orangeDeep, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>↔ Replaced {replacedAccountName(rental)}{replacementCreditDays(rental) > 0 && <span style={{ color: V.green }}> · {replacementCreditDays(rental)} {replacementCreditDays(rental) === 1 ? "day" : "days"} credited</span>}</div>
                           )}
                         </div>
                       </div>
