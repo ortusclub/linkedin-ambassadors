@@ -106,7 +106,7 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
           <span style={{ fontSize: 15, fontWeight: 700, fontFamily: "var(--mono)" }}>browse → hire → launch · live in minutes</span>
         </div>
         <div className="cells c3">
-          {[["01", "browse", "Filter operators by industry, location, connections and Sales Navigator. Every one is a real, established, verified profile."], ["02", "hire", "Hire one or several, flat monthly fee each. No contracts, no setup fee. Scale up or down anytime."], ["03", "launch", "Go live from an established, secured profile and start landing with reach and trust from day one. Multiply your results, not your risk."]].map(([n, t, d], i) => (
+          {[["01", "browse", "Filter operators by industry, location, connections and account age. Every one is a real, established, verified profile."], ["02", "hire", "Hire one or several, flat monthly fee each. No contracts, no setup fee. Scale up or down anytime."], ["03", "launch", "Go live from an established, secured profile and start landing with reach and trust from day one. Multiply your results, not your risk."]].map(([n, t, d], i) => (
             <div key={n} className="cell" style={i === 2 ? { borderRight: "none" } : undefined}>
               <span style={{ display: "inline-block", background: "var(--teal)", color: "var(--paper)", fontFamily: "var(--mono)", fontSize: 13, fontWeight: 700, padding: "4px 8px" }}>{n}</span>
               <h3 style={{ fontSize: 30, fontWeight: 800, margin: "14px 0 10px" }}>{t}</h3>
@@ -139,7 +139,7 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
                 </div>
                 <div style={{ padding: "12px 16px 16px" }}>
                   <div style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: 17, textTransform: "lowercase" }}><span style={{ display: "inline-block", width: 8, height: 8, background: "var(--coral)", marginRight: 7 }} />{p.name.toLowerCase()}</div>
-                  <div style={{ fontSize: 13, color: "#9cc3c7", marginTop: 3 }}>{fmtConns(p.connections)} connections{p.hasSalesNav ? " · SalesNav" : p.verified ? " · verified" : ""}</div>
+                  <div style={{ fontSize: 13, color: "#9cc3c7", marginTop: 3 }}>{fmtConns(p.connections)} connections{p.verified ? " · verified" : ""}</div>
                 </div>
               </div>
             ))}
@@ -151,14 +151,31 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
       <section id="pricing" style={{ borderBottom: "2px solid var(--ink)" }}>
         <div className="wrap" style={{ paddingTop: "clamp(44px,6vw,76px)", paddingBottom: 28, display: "flex", flexDirection: "column", gap: 12 }}>
           <div className="ey" style={{ color: "var(--accent-700)" }}>pricing</div>
-          <h2 style={{ fontSize: "clamp(38px,5.5vw,76px)", fontWeight: 800 }}>priced by the profile.</h2>
-          <p style={{ margin: 0, fontSize: 16, color: "var(--n800)", maxWidth: 560 }}>Every operator is priced on its own merits: connections, profile maturity, Sales Navigator and verification. You see the exact monthly price before you hire.</p>
+          <h2 style={{ fontSize: "clamp(38px,5.5vw,76px)", fontWeight: 800 }}>two ways to work.</h2>
+          <p style={{ margin: 0, fontSize: 16, color: "var(--n800)", maxWidth: 580 }}>Run the outreach yourself from an established profile, or have our team run it for you and book the calls. Same operators, your choice of hands-on or hands-off.</p>
+        </div>
+        <div className="cells" style={{ borderTop: "2px solid var(--ink)", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,320px),1fr))" }}>
+          <div className="cell" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}><span style={{ fontFamily: "var(--disp)", fontSize: 34, fontWeight: 800, textTransform: "lowercase" }}>self-serve</span><span className="ey" style={{ color: "var(--n700)" }}>you run it</span></div>
+            <p style={{ margin: 0, fontSize: 15, color: "var(--n800)", lineHeight: 1.55 }}>Hire the operator and run your own campaigns. Go live in a secure environment in minutes, use your own targeting and tools.</p>
+            <div style={{ fontFamily: "var(--disp)", fontSize: 42, fontWeight: 900 }}>from $45<span style={{ fontSize: 14, fontWeight: 700, display: "block" }}>per operator / month</span></div>
+            <Link href="/catalogue" className="btn" style={{ marginTop: "auto" }}><span>browse operators</span><span>→</span></Link>
+          </div>
+          <div className="cell" style={{ display: "flex", flexDirection: "column", gap: 16, background: "var(--hl)", boxShadow: "inset 0 6px 0 var(--lime)", borderRight: "none" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}><span style={{ fontFamily: "var(--disp)", fontSize: 34, fontWeight: 800, textTransform: "lowercase" }}>managed</span><span className="ey">we run it</span></div>
+            <p style={{ margin: 0, fontSize: 15, color: "var(--n800)", lineHeight: 1.55 }}>We build the list, write the sequences, run several operators, and book qualified calls into your calendar. You approve the plan, we fill the pipeline.</p>
+            <div style={{ fontFamily: "var(--disp)", fontSize: 42, fontWeight: 900 }}>per campaign<span style={{ fontSize: 14, fontWeight: 700, display: "block" }}>scoped on a call, no setup fee</span></div>
+            <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="btn" style={{ marginTop: "auto" }}><span>book a call</span><span>→</span></a>
+          </div>
+        </div>
+        <div className="wrap" style={{ paddingTop: 34, paddingBottom: 12 }}>
+          <div className="ey" style={{ color: "var(--accent-700)" }}>self-serve · priced by the profile</div>
         </div>
         <div className="cells c3" style={{ borderTop: "2px solid var(--ink)" }}>
           {[
-            { name: "entry", badge: "<500 conns", price: "$45", items: ["Newer profiles, no Sales Nav", "Great for volume testing"], featured: false, cta: "browse entry" },
-            { name: "established", badge: "most picked", price: "$75", items: ["Verified, 500+ connections", "Sales Nav +$70/mo"], featured: true, cta: "browse established" },
-            { name: "premium", badge: "1k+ conns", price: "$110+", items: ["Senior, large networks", "Sales Nav available"], featured: false, cta: "browse premium" },
+            { name: "entry", badge: "<500 conns", price: "$45", items: ["Newer profiles, lower connections", "Great for volume testing"], featured: false, cta: "browse entry" },
+            { name: "established", badge: "most picked", price: "$75", items: ["Verified, 500+ connections", "Aged and outreach-ready"], featured: true, cta: "browse established" },
+            { name: "premium", badge: "1k+ conns", price: "$110+", items: ["Senior titles, deep reach", "Our most credible profiles"], featured: false, cta: "browse premium" },
           ].map((t, i) => (
             <div key={t.name} className="cell" style={{ display: "flex", flexDirection: "column", gap: 18, ...(t.featured ? { background: "var(--hl)", boxShadow: "inset 0 6px 0 var(--lime)" } : {}), ...(i === 2 ? { borderRight: "none" } : {}) }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}><span style={{ fontFamily: "var(--disp)", fontSize: 34, fontWeight: 800, textTransform: "lowercase" }}>{t.name}</span><span className="ey" style={t.featured ? undefined : { color: "var(--n700)" }}>{t.badge}</span></div>
