@@ -51,16 +51,19 @@ export async function pickAvailableProxy(opts: {
   type: string; // "residential" | "datacenter"
   country?: string | null; // the account's free-text location
   claimed?: Set<string>; // host:port already assigned earlier in this same run
+  exclude?: Set<string>; // host:port to skip entirely (e.g. the dead proxy we're swapping off)
 }): Promise<PickedProxy | null> {
   const rows = await getProxies();
   const cap = CAP[opts.type.toLowerCase()] ?? 4;
   const wantCountry = canonCountry(opts.country);
   const claimed = opts.claimed ?? new Set<string>();
+  const exclude = opts.exclude ?? new Set<string>();
 
   const candidates = rows.filter((r) => {
     if (r.proxyString.split(":").length < 4) return false;
     if (r.status && ["retired", "error"].includes(r.status.toLowerCase())) return false;
     const key = `${r.host}:${r.port}`;
+    if (exclude.has(key)) return false;
     const used = r.accountCount + (claimed.has(key) ? 1 : 0);
     return used < cap;
   });

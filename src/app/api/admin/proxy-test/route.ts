@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
-import { execCommand } from "@/lib/spawn-browser";
+import { testProxy } from "@/lib/proxy-verify";
 
 const proxySchema = z.object({
   host: z.string().min(1),
@@ -16,33 +16,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = proxySchema.parse(body);
 
-    const port = typeof data.port === "string" ? parseInt(data.port) : data.port;
-    const auth = data.username && data.password ? `${data.username}:${data.password}@` : "";
-    const proxyUrl = `http://${auth}${data.host}:${port}`;
-
-    const methods = [
-      { name: "HTTP", cmd: `curl -s --max-time 8 --proxy "${proxyUrl}" "https://api.ipify.org?format=json"` },
-      { name: "SOCKS5", cmd: `curl -s --max-time 8 --proxy "socks5://${auth}${data.host}:${port}" "https://api.ipify.org?format=json"` },
-      { name: "HTTP (plain)", cmd: `curl -s --max-time 8 --proxy "${proxyUrl}" "http://ip-api.com/json"` },
-    ];
-
-    for (const method of methods) {
-      try {
-        const result = execCommand(method.cmd);
-        const trimmed = result.trim();
-        if (trimmed.startsWith("{")) {
-          const ipData = JSON.parse(trimmed);
-          const ip = ipData.ip || ipData.query || "unknown";
-          return NextResponse.json({ success: true, ip, method: method.name, message: `Proxy working (${method.name}). External IP: ${ip}` });
-        }
-      } catch { /* try next */ }
+    const probe = testProxy(data);
+    if (probe.ok && probe.ip) {
+      return NextResponse.json({ success: true, ip: probe.ip, method: probe.method, message: `Proxy working (${probe.method}). External IP: ${probe.ip}` });
     }
-
-    try {
-      execCommand(`nc -z -w 5 ${data.host} ${port}`);
-      return NextResponse.json({ success: true, message: `Port ${port} is open on ${data.host}. Proxy is reachable but may only work within GoLogin browser profiles.` });
-    } catch { /* port not reachable */ }
-
+    if (probe.ok) {
+      return NextResponse.json({ success: true, message: `Port is open on ${data.host}. Proxy is reachable but may only work within GoLogin browser profiles.` });
+    }
     return NextResponse.json({ success: false, message: "Could not connect through proxy. Check host, port, and credentials." });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {

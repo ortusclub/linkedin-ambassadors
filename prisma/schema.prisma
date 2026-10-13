@@ -825,6 +825,31 @@ model ProxyPurchaseAttempt {
   @@map("proxy_purchase_attempts")
 }
 
+// Renter self-serve "fix my proxy": one row per report. The renter taps "Proxy not
+// working?" → we swap the proxy on their live GoLogin profile, verify it, and ask them to
+// confirm. If no spare proxy is free, the new one fails its check, or the renter says it's
+// still broken, the row flips to "escalated" and the team is emailed. Audit trail only —
+// proxy creds here are for our records and are NEVER sent to the renter.
+// Standalone scalar FKs (no relations) so adding it touches no other model.
+model ProxySwap {
+  id                String    @id @default(uuid()) @db.Uuid
+  rentalId          String    @map("rental_id") @db.Uuid
+  linkedinAccountId String    @map("linkedin_account_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  ticketRef         String    @unique @map("ticket_ref")
+  status            String    @default("fixing") // fixing | swapped | confirmed | escalated | resolved
+  oldProxyHost      String?   @map("old_proxy_host")
+  oldProxyPort      Int?      @map("old_proxy_port")
+  newProxyHost      String?   @map("new_proxy_host")
+  newProxyPort      Int?      @map("new_proxy_port")
+  escalationReason  String?   @map("escalation_reason") // no_proxy_available | verify_failed | renter_still_broken | error
+  createdAt         DateTime  @default(now()) @map("created_at")
+  resolvedAt        DateTime? @map("resolved_at")
+  @@index([userId, status])
+  @@index([rentalId, createdAt])
+  @@map("proxy_swaps")
+}
+
 // Short-lived owner-verified recovery for an existing assigned LV email.
 model PrimaryEmailRecovery {
   id String @id
