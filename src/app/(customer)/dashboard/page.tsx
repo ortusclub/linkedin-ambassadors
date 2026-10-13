@@ -716,7 +716,9 @@ function DashboardContent() {
     if (typeof document !== "undefined") document.getElementById("wallet")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   // Downtime credit accrued so far across restricted accounts (added to the rental on recovery).
-  const downtimeCreditDays = currentRentals.reduce((t, r) => (r.linkedinAccount.restrictedAt ? t + Math.max(0, Math.round((nowTick - new Date(r.linkedinAccount.restrictedAt).getTime()) / 864e5)) : t), 0);
+  // Uses the same per-account expression as the row-level "X days credited" (max(1, ceil)) so the
+  // banner total always equals the sum of the per-account figures shown below.
+  const downtimeCreditDays = currentRentals.reduce((t, r) => (r.linkedinAccount.restrictedAt ? t + Math.max(1, Math.ceil((nowTick - new Date(r.linkedinAccount.restrictedAt).getTime()) / 864e5)) : t), 0);
   // Past rentals incl. "replaced" (the old side of a swap); newest first.
   const pastRentals = rentals
     .filter((r) => ["expired", "cancelled", "replaced"].includes(r.status))
