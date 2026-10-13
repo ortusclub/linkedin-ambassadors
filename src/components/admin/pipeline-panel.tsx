@@ -39,6 +39,7 @@ type Handlers = {
   verifySignin: (r: Row, action: "confirm" | "retry" | "takeover") => void;
   transferToLv: (r: Row) => void;
   generateProfile: (r: Row, lane: string) => void;
+  applyProfile: (r: Row) => void;
   deleteGologin: (r: Row) => void;
   emailIssue: (r: Row, issue: string) => void;
   logTouch: (id: string, ch: string, text: string, by: string) => Promise<void>;
@@ -399,10 +400,11 @@ export function RestrictionControl({ r, onAccount, onApp, onDeleteEvent }: { r: 
   );
 }
 
-function ProfileBuildCard({ r, busy, onGenerate }: { r: Row; busy: boolean; onGenerate: (r: Row, lane: string) => void }) {
+function ProfileBuildCard({ r, busy, onGenerate, onApply }: { r: Row; busy: boolean; onGenerate: (r: Row, lane: string) => void; onApply: (r: Row) => void }) {
   const [lane, setLane] = useState("auto");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const p = r.profileBuild;
+  const applied = !!p?.appliedAt;
   const copy = (key: string, text: string) => { navigator.clipboard?.writeText(text); setCopiedKey(key); setTimeout(() => setCopiedKey(null), 1200); };
   const LANE_OPTS: [string, string][] = [["auto", "Auto (random lane)"], ["Business Development", "Business Development"], ["Sales", "Sales"], ["Marketing", "Marketing"], ["GTM", "GTM"]];
   const field = (key: string, label: string, value: string, multiline = false) => (
@@ -444,6 +446,16 @@ function ProfileBuildCard({ r, busy, onGenerate }: { r: Row; busy: boolean; onGe
           <div style={{ font: `500 11.5px ${F_SANS}`, color: "var(--muted,#647189)" }}>{p.education.start} – {p.education.end}</div>
         </div>
         <button onClick={() => copy("all", [`HEADLINE\n${p.headline}`, `LOCATION\n${p.location} (ZIP ${p.zip})`, `INDUSTRY\n${p.industry}`, `ABOUT\n${p.about}`, `EXPERIENCE 1\n${p.experiences[0].title} · ${p.experiences[0].company}\n${p.experiences[0].start} – ${p.experiences[0].end} (${p.experiences[0].duration})\n${p.experiences[0].blurb}`, `EXPERIENCE 2\n${p.experiences[1].title} · ${p.experiences[1].company}\n${p.experiences[1].start} – ${p.experiences[1].end} (${p.experiences[1].duration})\n${p.experiences[1].blurb}`, `EDUCATION\n${p.education.school}\n${p.education.degree} · ${p.education.start} – ${p.education.end}`].join("\n\n"))} style={{ ...btnSec, marginTop: 12 }}>{copiedKey === "all" ? "✓ Copied all" : "Copy all"}</button>
+        <div style={{ borderTop: "1px solid var(--divider,#eee)", marginTop: 12, paddingTop: 10 }}>
+          {applied ? (
+            <div style={{ font: `600 11.5px ${F_SANS}`, color: "var(--st-active-fg,#15803d)", lineHeight: 1.5 }}>
+              ✓ Saved to inventory · {fmtDate(p.appliedAt!)}
+              <div style={{ font: `500 11px ${F_SANS}`, color: "var(--muted,#647189)", marginTop: 2 }}>Inventory headline: “{p.headline.split("|")[0].trim()}” · {p.location}</div>
+            </div>
+          ) : (
+            <button style={{ ...btnSec, borderColor: "var(--st-active-fg,#15803d)", color: "var(--st-active-fg,#15803d)" }} disabled={busy} title="Once you've pasted this into LinkedIn, save it to inventory: writes the location and the SHORT headline (before the first | ) to the account." onClick={() => onApply(r)}>✅ Mark saved (apply to inventory)</button>
+          )}
+        </div>
       </>}
     </div>
   );
@@ -516,7 +528,7 @@ export function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
 // card grid. Applicant / Sign-in & credentials / Payout cards have a per-card read↔edit
 // toggle; Payments is a compact summary that links out to the Payouts page. Same wiring.
 export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
-  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, createAccount, verifySignin, transferToLv, generateProfile, deleteGologin, logTouch, onDeleteApp } = h;
+  const { busy, patchApp, patchAccount, deleteRestrictionEvent, workflow, setStage, provisionGologin, createAccount, verifySignin, transferToLv, generateProfile, applyProfile, deleteGologin, logTouch, onDeleteApp } = h;
   const [editSec, setEditSec] = useState<string | null>(null);
   const live = isLive(r);
   const onboarded = r.status === "onboarded";
@@ -668,7 +680,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
 
           {r.accountId && (
             <PanelCard title="Profile build (Level 4)">
-              <ProfileBuildCard r={r} busy={busy} onGenerate={generateProfile} />
+              <ProfileBuildCard r={r} busy={busy} onGenerate={generateProfile} onApply={applyProfile} />
             </PanelCard>
           )}
 

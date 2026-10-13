@@ -210,9 +210,19 @@ export default function PipelineNewPage() {
     if (!r.accountId) return;
     setBusy(r.id);
     try {
-      const res = await fetch(`/api/admin/accounts/${r.accountId}/generate-profile`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lane }) });
+      const res = await fetch(`/api/admin/accounts/${r.accountId}/generate-profile`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "generate", lane }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { alert(typeof d.error === "string" ? d.error : `Could not generate (${res.status}).`); return; }
+      setRows((prev) => (prev ? prev.map((x) => (x.id === r.id ? { ...x, profileBuild: d.profileBuild } : x)) : prev));
+    } finally { setBusy(null); }
+  };
+  const applyProfile = async (r: Row) => {
+    if (!r.accountId) return;
+    setBusy(r.id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${r.accountId}/generate-profile`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "apply" }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(typeof d.error === "string" ? d.error : `Could not save (${res.status}).`); return; }
       setRows((prev) => (prev ? prev.map((x) => (x.id === r.id ? { ...x, profileBuild: d.profileBuild } : x)) : prev));
     } finally { setBusy(null); }
   };
@@ -270,7 +280,7 @@ export default function PipelineNewPage() {
   };
   const claim = (r: Row) => { if (me) assignMany([r.id], me); };
 
-  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, createAccount, verifySignin, transferToLv, deleteGologin, emailIssue, generateProfile, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
+  const handlers = { busy: busy !== null, patchApp, patchAccount, deleteRestrictionEvent, setStage, workflow, provisionGologin, createAccount, verifySignin, transferToLv, deleteGologin, emailIssue, generateProfile, applyProfile, logTouch, logPayment, updatePayout, onDeleteApp: deleteApp };
 
   // Distinct handlers present (for chips + bulk menu).
   const handlerNames = useMemo(() => {
