@@ -259,7 +259,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   // portal↔pipeline discrepancy we're fixing (jemjem-16 had a restricted account at #35 of 48).
   // Action-needed ones (restricted / resume / onboard / clear) are ordered first via a stable
   // sort so nothing urgent is buried; newest-first within each group.
-  const signupRank = (s: { kind: string; restricted: boolean; action: string | null }) => (s.kind === "blocked" || s.restricted ? 0 : s.action ? 1 : 2);
+  // A flagged post-sign-in fix (2FA/email/password) is the referrer's to-do too, so it ranks
+  // with the action cards even though the lifecycle pill still reads "Verifying".
+  const signupRank = (s: { kind: string; restricted: boolean; action: string | null; fix: unknown }) => (s.kind === "blocked" || s.restricted ? 0 : s.action || (s.kind === "waiting" && s.fix) ? 1 : 2);
   const signups = [...mappedSignups].sort((a, b) => signupRank(a) - signupRank(b));
 
   return NextResponse.json({
