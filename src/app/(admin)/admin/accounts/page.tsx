@@ -181,6 +181,36 @@ const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmt = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`; };
 const fmtS = (d: string | null) => { if (!d) return ""; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
+
+// ── Expanded-card look, borrowed from the Pipeline v2 panel ──
+// A grouped white rounded section ("PanelCard") with an uppercase grey label, and a
+// read value that copies on click. The inventory row & chips keep their own style; only
+// the expanded detail adopts this grouping so it reads like the pipeline card.
+const LBL: React.CSSProperties = { font: `600 10px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--label)" };
+function PanelCard({ title, children, full }: { title: string; children: React.ReactNode; full?: boolean }) {
+  return (
+    <div style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 14, padding: "14px 16px" }}>
+      <div style={{ ...LBL, marginBottom: 12 }}>{title}</div>
+      <div style={{ display: full ? "flex" : "grid", flexDirection: full ? "column" : undefined, gap: full ? 12 : "14px 20px", gridTemplateColumns: full ? undefined : "repeat(auto-fit, minmax(190px, 1fr))" }}>{children}</div>
+    </div>
+  );
+}
+// Read-only value that copies to the clipboard on click (for emails, proxies, handles, IDs).
+function CopyField({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const empty = value == null || value === "";
+  const copy = () => { if (empty) return; navigator.clipboard?.writeText(String(value)); setCopied(true); setTimeout(() => setCopied(false), 1200); };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+      <span style={LBL}>{label}</span>
+      {empty ? <span style={{ font: `500 13px ${F_SANS}`, color: "var(--muted2)" }}>—</span>
+        : <span onClick={copy} title="Click to copy" style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", minWidth: 0 }}>
+            <span style={{ font: mono ? `600 12.5px ui-monospace, SFMono-Regular, Menlo, monospace` : `500 13px ${F_SANS}`, color: "var(--text2)", wordBreak: "break-word", overflow: "hidden", textOverflow: "ellipsis" }}>{String(value)}</span>
+            <span style={{ font: `600 10.5px ${F_SANS}`, color: copied ? "var(--st-active-fg)" : "var(--muted2)", flex: "none" }}>{copied ? "✓" : "⧉"}</span>
+          </span>}
+    </div>
+  );
+}
 // Tiered rental pricing by connections + age (matches the public catalogue).
 // Highest qualifying tier wins; the last is the floor. Returns weekly/monthly/daily.
 
@@ -1115,55 +1145,67 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                       {/* detail */}
                       {open && (
                         <div style={{ padding: "4px 18px 18px 42px", borderTop: "1px solid var(--divider)" }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 1fr", gap: "16px 22px", paddingTop: 16 }}>
-                            <DField label="Login email">{a.loginEmail || "—"}</DField>
-                            <DField label="Contact email">{a.ownerEmail ? <a href={`mailto:${a.ownerEmail}`} style={{ color: "var(--link)" }}>{a.ownerEmail}</a> : <span style={{ color: "var(--muted2)" }}>—</span>}</DField>
-                            <DField label="Contact number">{a.ownerPhone ? `${a.ownerPhone}${a.contactChannel ? ` · ${a.contactChannel}` : ""}` : <span style={{ color: "var(--muted2)" }}>—</span>}</DField>
-                            <DField label="LinkedIn profile">{a.linkedinUrl ? <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open profile</a> : "—"}</DField>
-                            <DField label="GoLogin share">
-                              {a.gologinShareLink ? <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open link</a> : <span style={{ color: "var(--muted2)" }}>—</span>}
-                              {a.gologinProfileId && <span style={{ display: "block", font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis" }}>ID {a.gologinProfileId}</span>}
-                            </DField>
-                            <DField label="Proxy">{a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}${a.proxyLocation ? ` · ${a.proxyLocation}` : ""}` : "None"}</DField>
-                            {/* Everything the Onboarding page shows about the person behind
-                                the account, so you don't have to switch pages to see it. */}
-                            <DField label="Owner (ambassador)">{a.ownerName || "—"}</DField>
-                            <DField label="Personal email (on account)">{a.personalEmail || "—"}</DField>
-                            <DField label="Work / recovery email">{a.workEmail || "—"}</DField>
-                            <DField label="Referred by">{a.ownerReferredBy || a.ownerReferralSource || "—"}</DField>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                              <span style={labelCss}>Point of contact</span>
-                              {a.ownerApplicationId
-                                ? <input type="text" defaultValue={a.ownerPoc || ""} key={`poc-${a.id}-${a.ownerPoc || ""}`} placeholder="—" onBlur={(e) => savePoc(a, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} title="Point of contact — saves on blur / Enter, no need to open Edit" style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
-                                : <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted2)" }}>{a.ownerPoc || "—"}</span>}
-                            </div>
-                            <DField label="Owner status">{a.ownerStatus || "—"}</DField>
-                            <DField label="Industry">{a.industry || "—"}</DField>
-                            <DField label="Location">{a.location || "—"}</DField>
-                            <DField label="Ambassador payout">{Number(a.ambassadorPayment) > 0 ? `${formatMoney(Number(a.ambassadorPayment), currencyConfigFor(a.ownerPayoutCurrency, a.ownerReferredBy).currency)}/mo` : "—"}</DField>
-                            <DField label="Payment method">{a.ownerPaymentMethod || "—"}</DField>
-                            <DField label="Payout handle">{a.ownerPaymentDetails || "—"}</DField>
-                            <DField label="Payout name">{a.ownerPayoutName || "—"}</DField>
-                            <DField label="Logged in">{a.ownerOnboardedAt ? fmt(a.ownerOnboardedAt) : "—"}</DField>
-                            <DField label="Setup fee paid">{a.ownerSetupPaidAt ? fmt(a.ownerSetupPaidAt) : "—"}</DField>
-                            <DField label="Password"><PasswordField password={a.accountPassword} /></DField>
-                            <DField label="2FA (key + code)"><TwoFactorCode accountId={a.id} /></DField>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                              <span style={labelCss}>Connections</span>
-                              <input type="number" min={0} step={1} defaultValue={a.connectionCount} key={`conn-${a.id}-${a.connectionCount}`} onBlur={(e) => saveConn(a, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} title="Update the connection count — saves on blur / Enter, no need to open Edit" style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
-                              <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)" }}>drives the size bucket & price · saves on blur</span>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                              <span style={labelCss}>Account opened (sets age)</span>
-                              <input type="month" defaultValue={a.accountAgeMonths != null ? (() => { const d = new Date(); d.setMonth(d.getMonth() - a.accountAgeMonths); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })() : ""} onBlur={(e) => saveAge(a, e.target.value)} style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
-                              <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)" }}>{a.accountAgeMonths ? `Age ${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "Age not set"} · SN {a.hasSalesNav ? "Yes" : "No"} · Listed {a.listed ? "Yes" : "No"}</span>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "span 2", minWidth: 0 }}>
-                              <span style={labelCss}>Notes (private){savingProof === a.id ? " · saving…" : ""}</span>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 16 }}>
+                            {/* Access & credentials */}
+                            <PanelCard title="Access & credentials">
+                              <CopyField label="Login email" value={a.loginEmail} />
+                              <DField label="Password"><PasswordField password={a.accountPassword} /></DField>
+                              <DField label="2FA (key + code)"><TwoFactorCode accountId={a.id} /></DField>
+                              <DField label="LinkedIn profile">{a.linkedinUrl ? <a href={a.linkedinUrl.startsWith("http") ? a.linkedinUrl : `https://${a.linkedinUrl}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open profile</a> : "—"}</DField>
+                              <DField label="GoLogin share">
+                                {a.gologinShareLink ? <a href={a.gologinShareLink} target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>↗ Open link</a> : <span style={{ color: "var(--muted2)" }}>—</span>}
+                                {a.gologinProfileId && <span style={{ display: "block", font: `500 11px ${F_GRO}`, color: "var(--muted2)", overflow: "hidden", textOverflow: "ellipsis" }}>ID {a.gologinProfileId}</span>}
+                              </DField>
+                              <CopyField label="Proxy" value={a.proxyHost ? `${a.proxyHost}:${a.proxyPort || ""}${a.proxyLocation ? ` · ${a.proxyLocation}` : ""}` : null} mono />
+                            </PanelCard>
+
+                            {/* Owner / ambassador — everything the Onboarding page shows about the
+                                person behind the account, so you don't have to switch pages. */}
+                            <PanelCard title="Owner / ambassador">
+                              <DField label="Owner (ambassador)">{a.ownerName || "—"}</DField>
+                              <DField label="Contact email">{a.ownerEmail ? <a href={`mailto:${a.ownerEmail}`} style={{ color: "var(--link)" }}>{a.ownerEmail}</a> : <span style={{ color: "var(--muted2)" }}>—</span>}</DField>
+                              <DField label="Contact number">{a.ownerPhone ? `${a.ownerPhone}${a.contactChannel ? ` · ${a.contactChannel}` : ""}` : <span style={{ color: "var(--muted2)" }}>—</span>}</DField>
+                              <CopyField label="Personal email (on account)" value={a.personalEmail} />
+                              <CopyField label="Work / recovery email" value={a.workEmail} />
+                              <DField label="Referred by">{a.ownerReferredBy || a.ownerReferralSource || "—"}</DField>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                                <span style={labelCss}>Point of contact</span>
+                                {a.ownerApplicationId
+                                  ? <input type="text" defaultValue={a.ownerPoc || ""} key={`poc-${a.id}-${a.ownerPoc || ""}`} placeholder="—" onBlur={(e) => savePoc(a, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} title="Point of contact — saves on blur / Enter, no need to open Edit" style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
+                                  : <span style={{ font: `500 12.5px ${F_SANS}`, color: "var(--muted2)" }}>{a.ownerPoc || "—"}</span>}
+                              </div>
+                              <DField label="Owner status">{a.ownerStatus || "—"}</DField>
+                              <DField label="Ambassador payout">{Number(a.ambassadorPayment) > 0 ? `${formatMoney(Number(a.ambassadorPayment), currencyConfigFor(a.ownerPayoutCurrency, a.ownerReferredBy).currency)}/mo` : "—"}</DField>
+                              <DField label="Payment method">{a.ownerPaymentMethod || "—"}</DField>
+                              <CopyField label="Payout handle" value={a.ownerPaymentDetails} />
+                              <DField label="Payout name">{a.ownerPayoutName || "—"}</DField>
+                              <DField label="Logged in">{a.ownerOnboardedAt ? fmt(a.ownerOnboardedAt) : "—"}</DField>
+                              <DField label="Setup fee paid">{a.ownerSetupPaidAt ? fmt(a.ownerSetupPaidAt) : "—"}</DField>
+                            </PanelCard>
+
+                            {/* Account profile */}
+                            <PanelCard title="Account profile">
+                              <DField label="Industry">{a.industry || "—"}</DField>
+                              <DField label="Location">{a.location || "—"}</DField>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                                <span style={labelCss}>Connections</span>
+                                <input type="number" min={0} step={1} defaultValue={a.connectionCount} key={`conn-${a.id}-${a.connectionCount}`} onBlur={(e) => saveConn(a, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} title="Update the connection count — saves on blur / Enter, no need to open Edit" style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
+                                <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)" }}>drives the size bucket & price · saves on blur</span>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                                <span style={labelCss}>Account opened (sets age)</span>
+                                <input type="month" defaultValue={a.accountAgeMonths != null ? (() => { const d = new Date(); d.setMonth(d.getMonth() - a.accountAgeMonths); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })() : ""} onBlur={(e) => saveAge(a, e.target.value)} style={{ ...modalInput, font: `500 12.5px ${F_SANS}` }} />
+                                <span style={{ font: `500 11px ${F_GRO}`, color: "var(--muted2)" }}>{a.accountAgeMonths ? `Age ${Math.floor(a.accountAgeMonths / 12)}y ${a.accountAgeMonths % 12}m` : "Age not set"} · SN {a.hasSalesNav ? "Yes" : "No"} · Listed {a.listed ? "Yes" : "No"}</span>
+                              </div>
+                            </PanelCard>
+
+                            {/* Notes */}
+                            <PanelCard title={`Notes (private)${savingProof === a.id ? " · saving…" : ""}`} full>
                               <AccountNotes sharedLog={a.ownerOutreachLog} accountId={a.id} notes={a.notes} proof={a.verificationProof} onNotesSaved={() => { void load(); }} onProofSaved={(value) => saveProof(a, value)} />
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8, gridColumn: "span 2" }}>
-                              <span style={labelCss}>Health actions</span>
+                            </PanelCard>
+
+                            {/* Health & restriction history */}
+                            <PanelCard title="Health actions" full>
                               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 {a.restrictedAt ? (
                                   <button onClick={() => setRestricted(a, false)} disabled={busy === a.id} style={outBtn("var(--st-active-fg)")}>Mark recovered</button>
@@ -1198,7 +1240,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
                                   </div>
                                 );
                               })()}
-                            </div>
+                            </PanelCard>
                           </div>
 
                         </div>
