@@ -37,6 +37,19 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    // Open proxy-fix cases (renter self-serve): surface the latest unresolved swap per rental
+    // so the dashboard can show the confirm step (status "swapped") or the escalation card
+    // (status "escalated"). Resolved/confirmed cases aren't surfaced. Proxy creds never leave here.
+    const openSwaps = await prisma.proxySwap.findMany({
+      where: { userId: user.id, status: { in: ["swapped", "escalated"] } },
+      orderBy: { createdAt: "desc" },
+      select: { rentalId: true, status: true, ticketRef: true, createdAt: true },
+    });
+    const swapByRental = new Map<string, { status: string; ticketRef: string; openedAt: string }>();
+    for (const s of openSwaps) {
+      if (!swapByRental.has(s.rentalId)) swapByRental.set(s.rentalId, { status: s.status, ticketRef: s.ticketRef, openedAt: s.createdAt.toISOString() });
+    }
+
     // Show a "recovered" note on the dashboard only while it's still fresh, then let it fade.
     const RECOVERY_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -82,6 +95,7 @@ export async function GET() {
         credentialAccess: showCreds,
         price,
         recovery,
+        proxyFix: swapByRental.get(r.id) ?? null,
         linkedinAccount: {
           ...account,
           gologinShareLink: ready ? account.gologinShareLink : null,

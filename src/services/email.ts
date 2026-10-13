@@ -195,6 +195,35 @@ export async function sendReferrerSignupNotification(name: string, email: string
   });
 }
 
+// Pings the team when a renter's self-serve proxy fix couldn't be completed automatically
+// (no spare proxy, the new one failed its check, or the renter said it's still broken). The
+// renter sees a tracked ticket; this is the team's cue to fix it by hand. Mirrors
+// sendReferrerSignupNotification: internal recipient via TEAM_NOTIFY_EMAIL.
+export async function sendProxyEscalation(opts: {
+  ticketRef: string;
+  accountName: string;
+  renterEmail: string;
+  reason: string;
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  const to = process.env.TEAM_NOTIFY_EMAIL || "info@linkedvelocity.com";
+  const reasonText: Record<string, string> = {
+    no_proxy_available: "No spare proxy was free to swap to (buy or free one up).",
+    verify_failed: "The new proxy failed its connection check and we rolled back to the old one.",
+    renter_still_broken: "The renter says it's still broken after an automatic swap.",
+    error: "The automatic swap errored out.",
+  };
+  return sendEmail({
+    to,
+    subject: `Proxy escalation ${opts.ticketRef} — ${opts.accountName}`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;margin:0 0 10px;">A renter reported a proxy problem we couldn't fix automatically.</p>
+      <p style="font-size:14px;color:#536471;line-height:1.7;margin:0 0 16px;">Account: <strong>${opts.accountName}</strong><br>Renter: ${opts.renterEmail}<br>Ticket: <strong>${opts.ticketRef}</strong><br>Reason: ${reasonText[opts.reason] || opts.reason}</p>
+      <a href="${appUrl}/admin/proxies" style="display:inline-block;background:#0A66C2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:10px;">Open proxies admin →</a>
+    `),
+  });
+}
+
 // Sent immediately after payment (card or USDC). Access is granted by our team
 // after vetting + freeing the account internally — so this email is about what to
 // do NOW (set up GoLogin) and what to expect, not "you're live yet".

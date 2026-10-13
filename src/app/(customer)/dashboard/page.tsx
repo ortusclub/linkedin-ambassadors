@@ -384,6 +384,8 @@ interface Rental {
   waitingForRecovery?: boolean;
   // Banked downtime-credit days already added to this rental's renewal date (any cause).
   downtimeCreditDays?: number;
+  // Open self-serve proxy-fix case: "swapped" (awaiting the renter's confirm) or "escalated".
+  proxyFix?: { status: string; ticketRef: string; openedAt?: string } | null;
   linkedinAccount: {
     id: string;
     linkedinName: string;
@@ -470,6 +472,23 @@ function DashboardContent() {
       .then((d) => { if (Array.isArray(d.rentals)) setRentals(d.rentals); })
       .catch(() => {});
   };
+  // Self-serve "fix my proxy": transient UI override while the renter reports/confirms. The
+  // persisted truth is rental.proxyFix (swapped/escalated); this takes precedence mid-flow.
+  const [proxyFix, setProxyFix] = useState<Record<string, { status: string; ticketRef?: string }>>({});
+  const reportProxy = (rental: Rental) => {
+    setProxyFix((p) => ({ ...p, [rental.id]: { status: "fixing" } }));
+    fetch(`/api/rentals/${rental.id}/proxy-fix`, { method: "POST" })
+      .then((r) => r.json())
+      .then((d) => { setProxyFix((p) => ({ ...p, [rental.id]: { status: d.status, ticketRef: d.ticketRef } })); refreshRentals(); })
+      .catch(() => setProxyFix((p) => ({ ...p, [rental.id]: { status: "escalated" } })));
+  };
+  const confirmProxy = (rental: Rental, working: boolean) => {
+    fetch(`/api/rentals/${rental.id}/proxy-fix/confirm`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ working }) })
+      .then((r) => r.json())
+      .then((d) => { setProxyFix((p) => ({ ...p, [rental.id]: working ? { status: "done" } : { status: "escalated", ticketRef: d.ticketRef } })); refreshRentals(); })
+      .catch(() => {});
+  };
+  const dismissProxyFix = (rentalId: string) => setProxyFix((p) => { const n = { ...p }; delete n[rentalId]; return n; });
   const [ambassadorAccounts, setAmbassadorAccounts] = useState<AmbassadorAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [usdcBalance, setUsdcBalance] = useState<string>("0");
@@ -1274,6 +1293,10 @@ function DashboardContent() {
                 const canSeeCreds = !!rental.credentialAccess;
                 const credsOpen = openCredsId === rental.id;
                 const linkOpen = openLinkId === rental.id;
+                // Self-serve proxy fix: local override (mid-flow) wins over the persisted case.
+                const pf = proxyFix[rental.id] ?? (rental.proxyFix ? { status: rental.proxyFix.status, ticketRef: rental.proxyFix.ticketRef } : undefined);
+                const pfStatus = pf?.status; // fixing | swapped | done | escalated
+                const canReportProxy = !R && !prep && !rental.paused && rental.status === "active" && ready && !pfStatus;
 
                 const cDays = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
                 let sc = V.green, sl = "Active", ss = "Ready in GoLogin";
@@ -1323,6 +1346,9 @@ function DashboardContent() {
                         <span style={{ fontWeight: 500, fontSize: 12, color: V.faint }}>{ss}</span>
                         {R && !eligible && !isWaiting && (
                           <div style={{ height: 4, maxWidth: 170, borderRadius: 4, background: "#fde3cc", overflow: "hidden" }}><div style={{ height: "100%", width: `${progress}%`, background: V.orange }} /></div>
+                        )}
+                        {canReportProxy && (
+                          <button onClick={() => reportProxy(rental)} title="LinkedIn not loading or acting up in GoLogin? Report the proxy and we'll switch this account to a fresh one." style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "0 0 0 2px", color: V.faint, fontWeight: 600, fontSize: 12, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#c3c9d3", textUnderlineOffset: 3 }}>Proxy not working? Report it</button>
                         )}
                       </div>
                       {/* billing */}
@@ -1390,6 +1416,47 @@ function DashboardContent() {
                     {canSeeCreds && credsOpen && (
                       <div style={{ padding: "0 18px 16px" }}>
                         <RentalCredentials rental={rental} />
+                      </div>
+                    )}
+
+                    {pfStatus === "fixing" && (
+                      <div style={{ margin: "0 18px 16px", padding: "13px 14px", background: "#f5f8ff", border: "1px solid #dfe7fb", borderRadius: 12, display: "flex", alignItems: "center", gap: 12 }}>
+                        <span className="animate-spin" style={{ flex: "none", width: 20, height: 20, borderRadius: "50%", border: "2.5px solid #c9d6f5", borderTopColor: V.blue, display: "block" }} />
+                        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ fontWeight: 700, fontSize: 13.5 }}>Finding you a working proxy…</span>
+                          <span style={{ fontWeight: 500, fontSize: 12.5, color: "#5b6779" }}>Usually a few seconds. You can stay on this page.</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {pfStatus === "swapped" && (
+                      <div style={{ margin: "0 18px 16px", padding: "13px 14px", background: "#f4fbf7", border: "1px solid #cdebd9", borderRadius: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ fontWeight: 700, fontSize: 13.5, color: "#0b3d22" }}>You&apos;re on a new proxy. Is everything working?</span>
+                          <span style={{ fontWeight: 500, fontSize: 12.5, lineHeight: 1.45, color: "#3b4657" }}>Close and reopen the profile in GoLogin, then load LinkedIn.</span>
+                        </div>
+                        <div style={{ flex: "none", display: "flex", gap: 8 }}>
+                          <button onClick={() => confirmProxy(rental, false)} style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 8, padding: "8px 13px", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>No, still broken</button>
+                          <button onClick={() => confirmProxy(rental, true)} style={{ border: "none", background: V.green, color: "#fff", borderRadius: 8, padding: "9px 15px", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>Yes, working</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {pfStatus === "done" && (
+                      <div style={{ margin: "0 18px 16px", padding: "10px 14px", background: "#f4fbf7", border: "1px solid #cdebd9", borderRadius: 12, display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: "#0b3d22" }}>Fixed. Your new proxy is confirmed — thanks for checking.</span>
+                        <button onClick={() => dismissProxyFix(rental.id)} title="Dismiss" style={{ border: "none", background: "none", color: "#5b6779", fontWeight: 500, fontSize: 18, lineHeight: 1, cursor: "pointer", padding: "0 2px" }}>×</button>
+                      </div>
+                    )}
+
+                    {pfStatus === "escalated" && (
+                      <div style={{ margin: "0 18px 16px", padding: 14, background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: "#7c2d12" }}>We&apos;ve got it from here</span>
+                        <span style={{ fontWeight: 500, fontSize: 13, lineHeight: 1.5, color: "#7c2d12" }}>We&apos;ve opened a ticket for this account&apos;s proxy and notified the team — we&apos;ll get this sorted and email you when it&apos;s fixed. No need to chase us.</span>
+                        <div style={{ display: "flex", gap: "6px 18px", flexWrap: "wrap", fontWeight: 500, fontSize: 12, color: "#9a3412" }}>
+                          {(pf?.ticketRef || rental.proxyFix?.ticketRef) && <span>Ticket <b>{pf?.ticketRef || rental.proxyFix?.ticketRef}</b></span>}
+                          <span>Opened {rental.proxyFix?.openedAt ? formatDate(rental.proxyFix.openedAt) : "just now"}</span>
+                        </div>
                       </div>
                     )}
                   </div>
