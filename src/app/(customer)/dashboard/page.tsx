@@ -382,6 +382,8 @@ interface Rental {
   recovery?: { at: string; creditedDays: number } | null;
   // Renter chose to keep waiting for recovery instead of replacing (persisted).
   waitingForRecovery?: boolean;
+  // Banked downtime-credit days already added to this rental's renewal date (any cause).
+  downtimeCreditDays?: number;
   linkedinAccount: {
     id: string;
     linkedinName: string;
@@ -719,6 +721,10 @@ function DashboardContent() {
   // Uses the same per-account expression as the row-level "X days credited" (max(1, ceil)) so the
   // banner total always equals the sum of the per-account figures shown below.
   const downtimeCreditDays = currentRentals.reduce((t, r) => (r.linkedinAccount.restrictedAt ? t + Math.max(1, Math.ceil((nowTick - new Date(r.linkedinAccount.restrictedAt).getTime()) / 864e5)) : t), 0);
+  // Banked/applied downtime credit: days already pushed onto renewal dates (any cause — a
+  // restriction recovery, a swap, or our own proxy/infra outage). Persisted per rental, so this
+  // is the settled figure, distinct from the live "accruing" estimate above.
+  const bankedCreditDays = currentRentals.reduce((t, r) => t + (r.downtimeCreditDays || 0), 0);
   // Past rentals incl. "replaced" (the old side of a swap); newest first.
   const pastRentals = rentals
     .filter((r) => ["expired", "cancelled", "replaced"].includes(r.status))
@@ -912,6 +918,12 @@ function DashboardContent() {
                   <span style={{ fontWeight: 600, fontSize: 12, color: V.faint }}>Downtime credit <span style={{ color: "#aab2c0" }}>· accruing on {restrictedCount} restricted {restrictedCount === 1 ? "account" : "accounts"}</span></span>
                   <span style={{ fontWeight: 700, fontSize: 16, color: V.green }}>+{downtimeCreditDays} {downtimeCreditDays === 1 ? "day" : "days"}</span>
                   <span style={{ fontWeight: 500, fontSize: 10.5, color: "#aab2c0", lineHeight: 1.35 }}>Added to each when it&apos;s recovered or replaced. Accounts already credited aren&apos;t counted here.</span>
+                </div>
+              )}
+              {bankedCreditDays > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 24, borderLeft: `1px solid ${V.line}` }}>
+                  <span style={{ fontWeight: 600, fontSize: 12, color: V.faint }}>Downtime credit applied <span style={{ color: "#aab2c0" }}>· added to your renewal date</span></span>
+                  <span style={{ fontWeight: 700, fontSize: 16, color: V.green }}>+{bankedCreditDays} {bankedCreditDays === 1 ? "day" : "days"}</span>
                 </div>
               )}
               {cardOnFile && (

@@ -51,8 +51,13 @@ export async function restrictionUpdate(
   });
   if (active?.currentPeriodEnd && downtimeMs > 0) {
     const extended = new Date(new Date(active.currentPeriodEnd).getTime() + downtimeMs);
-    await prisma.rental.update({ where: { id: active.id }, data: { currentPeriodEnd: extended } });
     creditedDays = Math.round(downtimeMs / 86400000);
+    // Also bank the credited days on the rental so the dashboard can show the applied figure
+    // (cause-agnostic running total), not just the live "accruing" estimate.
+    await prisma.rental.update({
+      where: { id: active.id },
+      data: { currentPeriodEnd: extended, downtimeCreditDays: { increment: creditedDays } },
+    });
   }
   return {
     restrictedAt: null,

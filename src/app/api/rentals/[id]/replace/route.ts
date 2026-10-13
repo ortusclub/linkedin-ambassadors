@@ -48,6 +48,10 @@ export async function POST(
     const downtimeMs = Math.max(0, Date.now() - new Date(oldAcct.restrictedAt).getTime());
     const base = old.currentPeriodEnd ? new Date(old.currentPeriodEnd).getTime() : Date.now();
     const carriedPeriodEnd = new Date(base + downtimeMs);
+    // Bank the carried downtime on the new rental so the dashboard shows the applied figure.
+    // Carry forward any credit the old rental already banked (e.g. an earlier recovery) since
+    // carriedPeriodEnd inherits the old renewal date that those days were already added to.
+    const carriedCreditDays = (old.downtimeCreditDays ?? 0) + Math.round(downtimeMs / 86400000);
 
     let newRentalId: string;
     try {
@@ -97,6 +101,7 @@ export async function POST(
             // continuation, not a brand-new rental.
             startDate: old.startDate,
             currentPeriodEnd: carriedPeriodEnd,
+            downtimeCreditDays: carriedCreditDays,
             notes: `Replacement for ${oldAcct.linkedinName} (restricted ${new Date(oldAcct.restrictedAt!).toISOString().slice(0, 10)})`,
           },
           select: { id: true },
