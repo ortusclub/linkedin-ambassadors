@@ -909,8 +909,9 @@ function DashboardContent() {
               </div>
               {downtimeCreditDays > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 24, borderLeft: `1px solid ${V.line}` }}>
-                  <span style={{ fontWeight: 600, fontSize: 12, color: V.faint }}>Downtime credit <span style={{ color: "#aab2c0" }}>· added to your rental</span></span>
+                  <span style={{ fontWeight: 600, fontSize: 12, color: V.faint }}>Downtime credit <span style={{ color: "#aab2c0" }}>· accruing on {restrictedCount} restricted {restrictedCount === 1 ? "account" : "accounts"}</span></span>
                   <span style={{ fontWeight: 700, fontSize: 16, color: V.green }}>+{downtimeCreditDays} {downtimeCreditDays === 1 ? "day" : "days"}</span>
+                  <span style={{ fontWeight: 500, fontSize: 10.5, color: "#aab2c0", lineHeight: 1.35 }}>Added to each when it&apos;s recovered or replaced. Accounts already credited aren&apos;t counted here.</span>
                 </div>
               )}
               {cardOnFile && (
