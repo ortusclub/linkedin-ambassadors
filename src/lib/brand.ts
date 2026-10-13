@@ -125,7 +125,7 @@ const linkedarmy: Brand = {
   adminEmail: "info@linkedarmy.com",
   supportTelegram: "@linkedarmy_support_bot",
   logo: "/linkedarmy-mark.png",
-  favicon: "/favicon.svg", // reuse the generic mark until a LinkedArmy favicon asset exists
+  favicon: "/favicon-linkedarmy.svg", // chevron-rank mark
   ogImage: "/brand-og", // generated OG image (src/app/brand-og) — no static asset needed
   palette: { primary: "#0A66C2", ink: "#1D1B16" },
   meta: {
