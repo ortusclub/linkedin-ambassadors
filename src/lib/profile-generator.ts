@@ -10,6 +10,7 @@ export interface ProfileExperience {
 }
 export interface ProfileBuild {
   generatedAt: string;
+  appliedAt?: string | null; // set when "Mark saved" writes the short headline + location to inventory
   lane: ProfileLane;
   headline: string;
   location: string; // "City, State, United States"
@@ -128,6 +129,7 @@ export function generateProfile(name: string, laneChoice?: ProfileLane | "auto")
   const [city, state, zip] = pick(US_LOCATIONS);
   return {
     generatedAt: new Date().toISOString(),
+    appliedAt: null,
     lane,
     headline: pick(HEADLINES[lane]),
     location: `${city}, ${state}, United States`,
@@ -140,6 +142,13 @@ export function generateProfile(name: string, laneChoice?: ProfileLane | "auto")
     ],
     education: { school: pick(PH_SCHOOLS), degree: `${deg} in ${field}`, start: String(eduEnd - 4), end: String(eduEnd) },
   };
+}
+
+// The short headline for our inventory catalogue = the lead segment before the first "|"
+// (e.g. "Business Development & Partnerships"), not the full pipe-delimited tagline. The
+// full headline is what gets pasted onto LinkedIn; inventory just shows the role.
+export function shortHeadline(full: string): string {
+  return (full || "").split("|")[0].trim();
 }
 
 // One plain-text block for "copy all".
