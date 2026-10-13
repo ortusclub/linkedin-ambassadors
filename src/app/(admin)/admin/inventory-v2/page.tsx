@@ -79,6 +79,10 @@ interface Account {
   ownerOnboardedAt: string | null;
   ownerSetupPaidAt: string | null;
   ownerOutreachLog: Touch[] | null;
+  ownerNextFollowUp: string | null;
+  ownerReferralSource: string | null;
+  profilePhotoUrl: string | null;
+  profileScreenshotUrl: string | null;
   issueReferrerName: string | null;
   issueEmailFrom: string;
   issueAmbassadorEmail: string | null;
@@ -208,14 +212,20 @@ export default function InventoryV2Page() {
   const [poc, setPoc] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
   const [open, setOpen] = useState<Set<string>>(new Set());
-  const [tab, setTab] = useState<Record<string, "overview" | "signin">>({});
+  const [tab, setTab] = useState<Record<string, "overview" | "signin" | "owner">>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [checkMode, setCheckMode] = useState(false);
   const [hideDone, setHideDone] = useState(false);
   const [connDraft, setConnDraft] = useState<Record<string, string>>({});
+  const [bannerOpen, setBannerOpen] = useState(true);
+  const [sheetFormula, setSheetFormula] = useState<string | null>(null);
+  const [copiedFormula, setCopiedFormula] = useState(false);
 
   const load = () => fetch("/api/admin/inventory-v2").then((r) => r.json()).then((d) => setAccounts(d.accounts || [])).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
+  useEffect(() => { fetch("/api/admin/accounts/export-url").then((r) => r.json()).then((d) => { if (d.url) setSheetFormula(`=IMPORTDATA("${d.url}")`); }).catch(() => {}); }, []);
+  const copyFormula = () => { if (!sheetFormula) return; navigator.clipboard?.writeText(sheetFormula); setCopiedFormula(true); setTimeout(() => setCopiedFormula(false), 1400); };
+  const patchApp = async (appId: string, body: Record<string, unknown>) => { const res = await fetch(`/api/admin/ambassadors/${appId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (res.ok) await load(); return res; };
 
   const patch = async (id: string, body: Record<string, unknown>, reload = true) => {
     setBusy(id);
@@ -334,11 +344,25 @@ export default function InventoryV2Page() {
             <h1 style={{ font: `700 30px ${G}`, color: INK, margin: "0 0 4px", letterSpacing: "-.01em" }}>Inventory <span style={{ font: `700 12px ${F}`, color: "#fff", background: BLUE, borderRadius: 999, padding: "3px 9px", verticalAlign: "middle" }}>v2 preview</span></h1>
             <p style={{ font: `500 14px ${F}`, color: SUB, margin: 0 }}>Every account we own, what state it&apos;s in, and who&apos;s on it.</p>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <Link href="/admin/accounts" style={{ border: `1px solid #dde1e8`, background: "#fff", color: INK, borderRadius: 10, padding: "8px 12px", font: `600 12.5px ${F}`, textDecoration: "none" }}>← Live inventory</Link>
+            {sheetFormula && <button onClick={copyFormula} title="Copy the IMPORTDATA formula for the live Google Sheet" style={{ border: "1px solid #cdebd9", background: "#f4fbf7", color: GREEND, borderRadius: 10, padding: "8px 12px", font: `700 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>{copiedFormula ? "Copied ✓" : "Sheets formula"}</button>}
+            <Link href="/admin/accounts" title="CSV import lives on the live Inventory tab" style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 10, padding: "8px 12px", font: `600 12.5px ${F}`, textDecoration: "none" }}>Import CSV</Link>
+            <label style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 10, padding: "8px 12px", font: `600 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>Catalogue ↗<span style={{ font: `600 10px ${F}`, color: MUT }}>▾</span>
+              <select defaultValue="" onChange={(e) => { if (e.target.value === "with") window.open("/catalogue", "_blank"); else if (e.target.value === "without") window.open("/catalogue?pricing=off", "_blank"); e.target.value = ""; }} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}><option value="">Open catalogue…</option><option value="with">With pricing</option><option value="without">Without pricing</option></select>
+            </label>
             <Link href="/admin/accounts/new" style={{ border: "none", background: INK, color: "#fff", borderRadius: 10, padding: "9px 14px", font: `700 12.5px ${F}`, textDecoration: "none" }}>+ Add account</Link>
           </div>
         </div>
+
+        {/* rotate reminder banner */}
+        {bannerOpen && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "9px 14px", font: `500 13px/1.45 ${F}`, color: "#7f1d1d" }}>
+            <span style={{ flex: "none", width: 20, height: 20, borderRadius: "50%", background: RED, color: "#fff", display: "grid", placeItems: "center", font: `800 11px ${F}` }}>!</span>
+            <span style={{ flex: 1 }}>When a rental or trial ends, rotate <b>both</b> the 2FA key and the GoLogin share link before re-renting. Accounts that still need it are flagged <b>🔑 Rotate</b>.</span>
+            <button onClick={() => setBannerOpen(false)} style={{ flex: "none", border: "none", background: "none", color: REDD, font: `700 12px ${F}`, cursor: "pointer" }}>Hide</button>
+          </div>
+        )}
 
         {/* KPI tiles */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
@@ -421,8 +445,35 @@ export default function InventoryV2Page() {
                     <span style={{ font: `700 11.5px ${G}`, color: SUB, background: "#e9ecf1", borderRadius: 999, padding: "1px 8px" }}>{g.rows.length}</span>
                     <span style={{ font: `500 12px ${F}`, color: MUT }}>{g.note}</span>
                   </button>
-                  {gOpen && rows.map((r) => {
-                    const st = canonicalStatus(r);
+                  {gOpen && (() => {
+                    type Item = { client: { name: string; count: number; mrr: number; next: string | null } } | { row: Account };
+                    const items: Item[] = [];
+                    if (g.key === "Rented") {
+                      const byClient = new Map<string, Account[]>();
+                      for (const rr of rows) { const id = rr.rentals[0]?.user?.id || "__none"; const arr = byClient.get(id) || []; arr.push(rr); byClient.set(id, arr); }
+                      for (const rs of byClient.values()) {
+                        const u = rs[0].rentals[0]?.user;
+                        items.push({ client: { name: u ? (u.fullName || u.email) : "Shadow / no renter", count: rs.length, mrr: rs.reduce((s, x) => s + priceOf(x), 0), next: rs.map((x) => x.rentals[0]?.currentPeriodEnd).filter(Boolean).sort()[0] || null } });
+                        for (const rr of rs) items.push({ row: rr });
+                      }
+                    } else {
+                      for (const rr of rows) items.push({ row: rr });
+                    }
+                    return items.map((it) => {
+                      if ("client" in it) {
+                        const c = it.client;
+                        return (
+                          <div key={`c-${g.key}-${c.name}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px 7px 28px", background: "#f5f8ff", borderBottom: "1px solid #e6edfb" }}>
+                            <span style={{ flex: "none", width: 22, height: 22, borderRadius: "50%", background: colorOf(c.name), color: "#fff", font: `700 10px ${F}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{iniOf(c.name)}</span>
+                            <span style={{ font: `700 13px ${F}`, color: INK }}>{c.name}</span>
+                            <span style={{ font: `700 11px ${G}`, color: BLUE, background: "#e3ebfd", borderRadius: 999, padding: "1px 8px" }}>{c.count}</span>
+                            <span style={{ font: `600 12px ${F}`, color: SUB }}>${c.mrr}/mo</span>
+                            {c.next && <span style={{ font: `600 12px ${F}`, color: MUT }}>next {fmtD(c.next)}</span>}
+                          </div>
+                        );
+                      }
+                      const r = it.row;
+                      const st = canonicalStatus(r);
                     const edge = st === "Available" ? GREEN : st === "Rented" ? BLUE : st === "Maintenance" ? RED : st === "Construction" ? "#b45309" : "transparent";
                     const rentOn = r.listed && r.status === "available";
                     const price = priceOf(r);
@@ -497,10 +548,10 @@ export default function InventoryV2Page() {
                           <span style={{ font: `700 14px ${F}`, color: MUT, display: "inline-block", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
                         </div>
 
-                        {isOpen && <ExpandedDetail r={r} tab={curTab} setTab={(t) => setTab((m) => ({ ...m, [r.id]: t }))} busy={busy === r.id} price={price} markActive={() => markActive(r)} setRestricted={(v) => setRestricted(r, v)} recheck={() => recheck(r)} patch={patch} reload={load} />}
+                        {isOpen && <ExpandedDetail r={r} tab={curTab} setTab={(t) => setTab((m) => ({ ...m, [r.id]: t }))} busy={busy === r.id} price={price} markActive={() => markActive(r)} setRestricted={(v) => setRestricted(r, v)} recheck={() => recheck(r)} patch={patch} patchApp={patchApp} reload={load} />}
                       </div>
                     );
-                  })}
+                  }); })()}
                 </div>
               );
             })}
@@ -512,11 +563,16 @@ export default function InventoryV2Page() {
 }
 
 // ── Expanded detail: Overview / Sign-in tabs ──
-function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted, recheck, patch, reload }: {
-  r: Account; tab: "overview" | "signin"; setTab: (t: "overview" | "signin") => void; busy: boolean; price: number;
+function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted, recheck, patch, patchApp, reload }: {
+  r: Account; tab: "overview" | "signin" | "owner"; setTab: (t: "overview" | "signin" | "owner") => void; busy: boolean; price: number;
   markActive: () => void; setRestricted: (v: boolean) => void; recheck: () => void;
-  patch: (id: string, body: Record<string, unknown>, reload?: boolean) => Promise<Response | undefined>; reload: () => void;
+  patch: (id: string, body: Record<string, unknown>, reload?: boolean) => Promise<Response | undefined>;
+  patchApp: (appId: string, body: Record<string, unknown>) => Promise<Response | undefined>; reload: () => void;
 }) {
+  const [note, setNote] = useState("");
+  const [who, setWho] = useState("");
+  const [joined, setJoined] = useState(r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : "");
+  const [connVal, setConnVal] = useState(String(r.connectionCount));
   const hist = Array.isArray(r.connectionHistory) ? r.connectionHistory.filter((p) => typeof p.count === "number" && !p.note) : [];
   const restr = Array.isArray(r.restrictionLog) ? r.restrictionLog : [];
   const rCnt = restr.filter((e) => e.event === "restricted").length;
@@ -544,13 +600,13 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
     return ev.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
   }, [r, restr]);
 
-  const Tab = ({ k, l }: { k: "overview" | "signin"; l: string }) => <button onClick={() => setTab(k)} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 12px", whiteSpace: "nowrap", font: `700 12px ${F}`, background: tab === k ? "#fff" : "transparent", color: tab === k ? INK : SUB, boxShadow: tab === k ? "0 1px 3px rgba(0,0,0,.1)" : "none" }}>{l}</button>;
+  const Tab = ({ k, l }: { k: "overview" | "signin" | "owner"; l: string }) => <button onClick={() => setTab(k)} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 12px", whiteSpace: "nowrap", font: `700 12px ${F}`, background: tab === k ? "#fff" : "transparent", color: tab === k ? INK : SUB, boxShadow: tab === k ? "0 1px 3px rgba(0,0,0,.1)" : "none" }}>{l}</button>;
   const rn = r.rentals[0]?.user;
 
   return (
     <div onClick={(e) => e.stopPropagation()} style={{ position: "sticky", left: 0, width: "calc(100vw - 96px)", maxWidth: 1328, padding: "4px 16px 14px", background: "#fafbfc", cursor: "default" }}>
       <div style={{ display: "flex", gap: 3, background: BG, borderRadius: 10, padding: 3, margin: "4px 0 12px", width: "max-content" }}>
-        <Tab k="overview" l="Overview" /><Tab k="signin" l="Sign-in & credentials" />
+        <Tab k="overview" l="Overview" /><Tab k="signin" l="Sign-in & credentials" /><Tab k="owner" l="Owner & activity" />
       </div>
 
       {tab === "overview" && (
@@ -641,6 +697,96 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
           </Card>
         </div>
       )}
+
+      {tab === "owner" && (() => {
+        const connLog = hist.map((p, i) => ({ at: p.at, count: p.count, delta: i > 0 ? p.count - hist[i - 1].count : null })).reverse().slice(0, 8);
+        const rh = restr.slice().reverse().slice(0, 10);
+        const touches = (r.ownerOutreachLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 10);
+        const appId = r.ownerApplicationId;
+        const saveOwnerConn = () => { const body: Record<string, unknown> = { linkedinJoinedAt: joined ? new Date(joined + "-01T00:00:00Z").toISOString() : null }; const n = parseInt(connVal.replace(/[^0-9]/g, ""), 10); if (!Number.isNaN(n)) body.connectionCount = n; patch(r.id, body); };
+        const logTouch = (ch: string) => { if (!appId) return; patchApp(appId, { addTouch: { ch, text: note.trim() || undefined, by: who.trim() || undefined } }).then(() => setNote("")); };
+        const connDirty = joined !== (r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : "") || connVal !== String(r.connectionCount);
+        const d30 = (() => { const cutoff = Date.now() - 30 * 86400000; const old = [...hist].reverse().find((p) => new Date(p.at).getTime() <= cutoff); return old ? r.connectionCount - old.count : null; })();
+        const field = (label: string, value: string | null, copyable?: boolean) => (
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>{label}</Lbl>{copyable ? <Copyable value={value} /> : <span style={{ font: `600 13.5px/1.45 ${F}`, color: value ? INK : MUT, overflowWrap: "anywhere" }}>{value || "—"}</span>}</div>
+        );
+        const CHIP: Record<string, string> = { whatsapp: "WhatsApp", viber: "Viber", telegram: "Telegram", email: "Email", text: "Text", note: "Note" };
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 10, alignItems: "start" }}>
+            {/* account owner */}
+            <Card pad="14px">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Account owner</Lbl>{r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", font: `700 12.5px ${F}`, color: BLUE, textDecoration: "none" }}>View profile ↗</a>}</div>
+              <div style={{ background: "#f6f7f9", borderRadius: 12, padding: 12, display: "flex", gap: 14, alignItems: "center" }}>
+                {r.profilePhotoUrl || r.profileScreenshotUrl
+                  ? <img src={(r.profilePhotoUrl || r.profileScreenshotUrl)!} alt="" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover", flex: "none" }} />
+                  : <div style={{ width: 64, height: 64, borderRadius: 12, background: "#dfe5ee", color: SUB, display: "grid", placeItems: "center", font: `700 18px ${F}`, flex: "none" }}>{iniOf(r.linkedinName)}</div>}
+                <span style={{ font: `500 12.5px/1.45 ${F}`, color: SUB }}>Profile photo{r.profilePhotoUrl ? " · edited saved" : r.profileScreenshotUrl ? " · onboarding original" : " not set"}. Upload/edit it on the live Inventory tab.</span>
+              </div>
+              {field("Full name", formatName(r.linkedinName), true)}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 12 }}>
+                {field("Applied with (email)", r.ownerEmail || r.issueAmbassadorEmail, true)}
+                {field("Contact number / handle", r.ownerPhone ? `${r.ownerPhone}${r.contactChannel ? ` · ${r.contactChannel}` : ""}` : null, true)}
+                {field("Location", r.location)}
+                {field("Connections", String(r.connectionCount))}
+                {field("Found us via", r.ownerReferralSource)}
+                {field("Referred by", r.ownerReferredBy)}
+                {field("LV handler (PoC)", r.ownerPoc)}
+                {field("Owner status", r.ownerStatus)}
+              </div>
+            </Card>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+              {/* connections editor + log */}
+              <Card pad="14px">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Connections</Lbl>{d30 != null && <span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: d30 >= 0 ? GREEND : REDD }}>{d30 >= 0 ? "+" : ""}{d30} / 30d</span>}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Joined LinkedIn</Lbl><input type="month" value={joined} onChange={(e) => setJoined(e.target.value)} style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", minWidth: 0 }} /></label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Connections now</Lbl><input value={connVal} onChange={(e) => setConnVal(e.target.value)} inputMode="numeric" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", minWidth: 0 }} /></label>
+                </div>
+                <button onClick={saveOwnerConn} disabled={busy || !connDirty} style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 9, padding: 8, font: `700 12.5px ${F}`, cursor: connDirty ? "pointer" : "default", opacity: connDirty ? 1 : 0.5 }}>{connDirty ? "Save to inventory" : "✓ Saved"}</button>
+                {connLog.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: `1px solid ${LINE2}`, paddingTop: 10 }}>{connLog.map((c, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "96px 56px minmax(0,1fr)", gap: 8, font: `500 12.5px ${F}`, color: SUB }}><span style={{ color: MUT }}>{fmtDY(c.at)}</span><b style={{ color: INK, fontFamily: G }}>{c.count}</b>{c.delta != null && c.delta !== 0 && <span style={{ color: c.delta > 0 ? GREEND : REDD, fontWeight: 600 }}>{c.delta > 0 ? "+" : ""}{c.delta}</span>}</div>
+                ))}</div>}
+              </Card>
+
+              {/* restriction history */}
+              <Card pad="14px">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Restriction history</Lbl><span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: rCnt ? REDD : GREEND }}>{rCnt ? `${rCnt} restriction${rCnt === 1 ? "" : "s"}` : "clean"}</span></div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={markActive} disabled={busy} style={{ flex: 1, border: "1px solid #bfe6cf", background: "#fff", color: GREEND, borderRadius: 9, padding: 8, font: `700 12.5px ${F}`, cursor: "pointer" }}>✓ Log active</button>
+                  <button onClick={() => setRestricted(true)} disabled={busy} style={{ flex: 1, border: "1px solid #fecaca", background: "#fff", color: REDD, borderRadius: 9, padding: 8, font: `700 12.5px ${F}`, cursor: "pointer" }}>Log restricted</button>
+                </div>
+                {rh.length > 0 ? <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: `1px solid ${LINE2}`, paddingTop: 10 }}>{rh.map((h, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "96px 86px minmax(0,1fr)", gap: 8, font: `500 12.5px ${F}`, color: SUB }}><span style={{ color: MUT }}>{fmtDY(h.at)}</span><b style={{ color: h.event === "recovered" ? GREEND : REDD }}>{h.event === "recovered" ? "Recovered" : "Restricted"}</b><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={h.note || ""}>{h.note || (h.creditedDays ? `+${h.creditedDays}d credit` : "—")}</span></div>
+                ))}</div> : <span style={{ font: `500 12.5px ${F}`, color: MUT }}>Never restricted.</span>}
+              </Card>
+
+              {/* activity / notes */}
+              <Card pad="14px">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><Lbl>Activity</Lbl><span style={{ font: `500 12.5px ${F}`, color: SUB }}>{touches.length} {touches.length === 1 ? "touch" : "touches"}</span>
+                  <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, font: `600 12px ${F}`, color: SUB }}>Follow up<input type="date" value={r.ownerNextFollowUp ? new Date(r.ownerNextFollowUp).toISOString().slice(0, 10) : ""} onChange={(e) => appId && patchApp(appId, { nextFollowUp: e.target.value ? new Date(e.target.value).toISOString() : null })} disabled={!appId} style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "6px 8px", font: `500 13px ${F}`, color: INK, outline: "none" }} /></label>
+                </div>
+                {appId ? <>
+                  <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What happened? Logged with the date and your name" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none" }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <input value={who} onChange={(e) => setWho(e.target.value)} placeholder="Who sent it?" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: 150 }} />
+                    <Lbl>Log</Lbl>
+                    {["whatsapp", "email", "text", "note"].map((ch) => <button key={ch} onClick={() => logTouch(ch)} disabled={busy} style={{ border: "1px solid #dde1e8", background: "#fff", color: "#3b4657", borderRadius: 9, padding: "7px 12px", font: `600 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>+ {CHIP[ch]}</button>)}
+                  </div>
+                </> : <span style={{ font: `500 12px ${F}`, color: MUT }}>No ambassador application linked — activity log is for owner-linked accounts.</span>}
+                {touches.length > 0 && <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${LINE2}` }}>{touches.map((t, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "84px minmax(0,1fr) auto 16px", gap: 12, alignItems: "start", padding: "10px 0", borderBottom: `1px solid #f6f7f9` }}>
+                    <span style={{ justifySelf: "start", font: `700 10.5px ${F}`, letterSpacing: ".06em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 7, background: BG, color: SUB }}>{CHIP[t.ch] || t.ch}</span>
+                    <span style={{ font: `500 13px/1.45 ${F}`, color: INK }}>{t.text}</span>
+                    <span style={{ font: `500 11.5px ${F}`, color: MUT, whiteSpace: "nowrap" }}>{t.by || "—"} · {fmtD(t.at)}</span>
+                    <button onClick={() => appId && patchApp(appId, { removeTouch: t.at })} title="Delete" style={{ border: "none", background: "none", color: MUT, font: `700 13px ${F}`, cursor: "pointer", padding: 0, lineHeight: 1 }}>×</button>
+                  </div>
+                ))}</div>}
+              </Card>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
