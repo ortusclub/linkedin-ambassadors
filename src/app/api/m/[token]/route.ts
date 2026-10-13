@@ -219,7 +219,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
             else if (ev.event === "recovered") push("Restriction cleared", iso(ev.at), "done");
           }
           push(qcAt ? "Passed our checks (QC)" : "Passing our checks (QC)", qcAt, qcAt ? "done" : "now");
-          if (paid) push("Setup fee paid", iso(a.paidAt), "done");
+          if (paid) {
+            push("Setup fee paid", iso(a.paidAt), "done");
+            // The account's recurring monthly payout — the referrer is the contact, so they can
+            // see when the owner is next due (and relay it).
+            const paidCount = Array.isArray(a.monthlyPayouts) ? (a.monthlyPayouts as { kind?: string }[]).filter((p) => p?.kind !== "setup").length : 0;
+            const nm = monthlyDueDate(setupPaidDate(a.paidAt, a.monthlyPayouts), paidCount);
+            if (nm) push("Next monthly payout", nm.toISOString(), "todo");
+          }
           steps.sort((x, y) => x.t - y.t);
           journey = steps.map(({ t: _t, ...s }) => s);
         } else if (state === "handed_off") {
@@ -236,7 +243,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       // without walking the wizard. Codes flow only while forwarding is live — from reserve
       // through hand-off — and stop once the session is confirmed or the account onboarded/paid.
       const codeSessionId = a.selfServiceOnboarding?.id && !onboarded && !paid && state !== "confirmed" ? a.selfServiceOnboarding.id : null;
-      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, journey, deletable, resumeSessionId, codeSessionId };
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, journey, onboarded, deletable, resumeSessionId, codeSessionId };
     });
 
   // Show EVERY signup the referrer owns — no cap. Any cap (the old one was the 25 most recent

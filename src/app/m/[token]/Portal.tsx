@@ -8,7 +8,7 @@ import { CURRENCY_CONFIG } from "@/lib/referral-currency";
 interface BoardRow { name: string; signups: number; converted: number; lifetimeEarnings: string; isMe: boolean; }
 interface Activity { kind: string; name: string; referrer: string | null; mine: boolean; date: string; }
 type FixIssue = "application_incomplete" | "email_added" | "email_primary" | "twofa" | "password";
-interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; pay: { text: string; sub?: string } | null; journey: { label: string; date: string | null; state: "done" | "now" | "todo" | "warn" }[] | null; deletable: boolean; resumeSessionId: string | null; codeSessionId: string | null; }
+interface Signup { id: string; name: string; date: string; whoLabel: string; pill: { text: string; tone: "green" | "blue" | "amber" | "red" }; line: string; sub: string; path: string; fee: string; progress: number; action: "resume" | "onboard" | "clear" | null; kind: "action" | "blocked" | "waiting" | "paid"; fix: { issues: FixIssue[]; state: "open" | "referrer_done" } | null; restricted: boolean; restrictionReport: { type: "qr_done" | "recovered"; at: string } | null; liUrl: string | null; pay: { text: string; sub?: string } | null; journey: { label: string; date: string | null; state: "done" | "now" | "todo" | "warn" }[] | null; onboarded: boolean; deletable: boolean; resumeSessionId: string | null; codeSessionId: string | null; }
 interface Payout { id: string; type: string; description: string | null; amount: number; method: string | null; reference: string | null; paidAt: string | null; confirmedAt: string | null; }
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
@@ -112,9 +112,10 @@ const C = {
 type Tab = "home" | "jobs" | "money" | "guide" | "you";
 
 // Filter chips on the "Your onboardings" tab, by signup kind.
-type JobFilter = "all" | "action" | "blocked" | "waiting" | "paid";
+type JobFilter = "all" | "action" | "onboarded" | "blocked" | "waiting" | "paid";
 const JOB_FILTERS: { id: JobFilter; label: string; empty: string; test: (s: Signup) => boolean }[] = [
   { id: "all", label: "Everyone", empty: "here", test: () => true },
+  { id: "onboarded", label: "Onboarded", empty: "onboarded yet", test: (s) => s.onboarded },
   { id: "action", label: "Needs you", empty: "needs you right now", test: (s) => s.kind === "action" },
   { id: "blocked", label: "Restricted", empty: "restricted", test: (s) => s.kind === "blocked" },
   { id: "waiting", label: "With us", empty: "waiting on us", test: (s) => s.kind === "waiting" },
