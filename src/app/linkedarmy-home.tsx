@@ -53,7 +53,14 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
       {/* ===== TOP LIME BLOCK: nav + hero + strip ===== */}
       <div style={{ background: "var(--lime)", borderBottom: "2px solid var(--ink)" }}>
         <nav className="wrap" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 22, paddingTop: 16, paddingBottom: 16, borderBottom: "2px solid var(--ink)", fontWeight: 700, fontSize: 14 }}>
-          <a href="#top" style={{ fontFamily: "var(--disp)", fontWeight: 900, fontSize: 24, letterSpacing: "-0.05em", marginRight: "auto", textTransform: "lowercase" }}>linkedarmy<span className="mk" /></a>
+          <a href="#top" style={{ fontFamily: "var(--disp)", fontWeight: 900, fontSize: 24, letterSpacing: "-0.05em", marginRight: "auto", textTransform: "lowercase", display: "flex", alignItems: "center", gap: 10 }}>
+            <svg width={30} height={30} viewBox="0 0 400 400" aria-hidden="true" style={{ display: "block", flexShrink: 0 }}>
+              <rect width="400" height="400" fill="#0e404b" />
+              <path d="M96 214 L200 128 L304 214" fill="none" stroke="#e4fb25" strokeWidth={40} strokeLinecap="square" />
+              <path d="M96 282 L200 196 L304 282" fill="none" stroke="#ff7a59" strokeWidth={40} strokeLinecap="square" />
+            </svg>
+            <span>linkedarmy<span className="mk" /></span>
+          </a>
           <a href="#how" className="lnk">how it works</a>
           <a href="#operators" className="lnk">operators</a>
           <a href="#pricing" className="lnk">pricing</a>
@@ -231,7 +238,13 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
       {/* ===== FOOTER ===== */}
       <footer style={{ background: "var(--footer)", color: "var(--paper)" }}>
         <div className="wrap" style={{ paddingTop: 28, paddingBottom: 28, display: "flex", flexWrap: "wrap", gap: 22, alignItems: "baseline", fontSize: 13 }}>
-          <span style={{ fontFamily: "var(--disp)", fontWeight: 900, fontSize: 20, letterSpacing: "-0.05em", marginRight: "auto", textTransform: "lowercase" }}>linkedarmy<span style={{ display: "inline-block", width: 6, height: 6, background: "var(--coral)", marginLeft: 2 }} /></span>
+          <span style={{ fontFamily: "var(--disp)", fontWeight: 900, fontSize: 20, letterSpacing: "-0.05em", marginRight: "auto", textTransform: "lowercase", display: "inline-flex", alignItems: "center", gap: 9 }}>
+            <svg width={26} height={26} viewBox="40 108 320 220" aria-hidden="true" style={{ display: "block", flexShrink: 0 }}>
+              <path d="M96 214 L200 128 L304 214" fill="none" stroke="#e4fb25" strokeWidth={40} strokeLinecap="square" />
+              <path d="M96 282 L200 196 L304 282" fill="none" stroke="#ff7a59" strokeWidth={40} strokeLinecap="square" />
+            </svg>
+            <span>linkedarmy<span style={{ display: "inline-block", width: 6, height: 6, background: "var(--coral)", marginLeft: 2 }} /></span>
+          </span>
           <a href="#how" style={{ color: "var(--paper)" }}>how it works</a>
           <a href="#operators" style={{ color: "var(--paper)" }}>operators</a>
           <a href="#pricing" style={{ color: "var(--paper)" }}>pricing</a>
