@@ -111,7 +111,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       const method = a.onboardingMethod; // "computer" | "phone" | null
       const state = a.selfServiceOnboarding?.state || null;
       const paid = !!a.paidAt;
+      // Lifecycle flag used for card rendering/journey: true once the account is at least
+      // LOGGED IN (pipeline "Mark logged in" sets onboardedAt, status still "approved") —
+      // from here on there's nothing for the referrer to do but wait while we verify.
       const onboarded = a.status === "onboarded" || !!a.onboardedAt;
+      // Genuinely ONBOARDED (live on inventory): the pipeline's "Mark onboarded (live)" flips
+      // status→onboarded (needs a GoLogin profile + security check), or it's already paid. A
+      // merely-logged-in account is NOT this. Drives the portal's "Onboarded" filter chip so it
+      // doesn't count accounts still being verified (which live under "With us").
+      const reachedOnboarded = paid || a.status === "onboarded";
       // The referrer may delete their OWN signup only while it's still in their hands —
       // before onboarding finishes (onboarded, or handed off to us) and before any payment.
       // Server DELETE re-checks the same rule; this flag just drives the UI affordance.
@@ -243,7 +251,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       // without walking the wizard. Codes flow only while forwarding is live — from reserve
       // through hand-off — and stop once the session is confirmed or the account onboarded/paid.
       const codeSessionId = a.selfServiceOnboarding?.id && !onboarded && !paid && state !== "confirmed" ? a.selfServiceOnboarding.id : null;
-      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, journey, onboarded, deletable, resumeSessionId, codeSessionId };
+      return { id: a.id, name: a.fullName, date: a.createdAt, whoLabel, pill, line, sub, path, fee, progress, action, kind, fix, restricted: accountRestricted, restrictionReport, liUrl, pay, journey, onboarded: reachedOnboarded, deletable, resumeSessionId, codeSessionId };
     });
 
   // Show EVERY signup the referrer owns — no cap. Any cap (the old one was the 25 most recent
