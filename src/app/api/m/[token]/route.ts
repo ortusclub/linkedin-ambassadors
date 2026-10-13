@@ -33,7 +33,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     }),
     // For surfacing an active LinkedIn restriction to the referrer we need the linked
     // account's live restriction flag. Match the same way the admin does (below).
-    prisma.linkedInAccount.findMany({ select: { id: true, linkedinUrl: true, notes: true, restrictedAt: true, status: true } }),
+    prisma.linkedInAccount.findMany({ select: { id: true, linkedinUrl: true, notes: true, restrictedAt: true, status: true, restrictionLog: true } }),
     prisma.payout.findMany({ where: { referrerId: me.id }, orderBy: { createdAt: "desc" } }),
   ]);
 
@@ -201,17 +201,27 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       // card can read "2 weeks" with a real reason. Past milestones only (the pay box owns the
       // expected/next date). Only for the "with us, nothing to do" stages; action/restricted
       // cards carry their own UI.
-      type JourneyStep = { label: string; date: string | null; state: "done" | "now" | "todo" };
+      type JourneyStep = { label: string; date: string | null; state: "done" | "now" | "todo" | "warn" };
       let journey: JourneyStep[] | null = null;
       if (!accountRestricted) {
         const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
         const qcAt = iso(a.verifiedAt);
         if (paid || onboarded) {
-          journey = [
-            { label: "Signed in", date: iso(a.onboardedAt), state: "done" },
-            { label: qcAt ? "Passed our checks (QC)" : "Passing our checks (QC)", date: qcAt, state: qcAt ? "done" : "now" },
-            ...(paid ? [{ label: "Setup fee paid", date: iso(a.paidAt), state: "done" as const }] : []),
-          ];
+          // Restriction history from the linked account's log — shown even after recovery, so the
+          // referrer sees that a past restriction is why the hold ran long (restricted days get
+          // credited onto the maturation clock, pushing the payout date out).
+          const rlog = Array.isArray(acct?.restrictionLog) ? (acct!.restrictionLog as { at?: string; event?: string }[]) : [];
+          const steps: (JourneyStep & { t: number })[] = [];
+          const push = (label: string, dateIso: string | null, stepState: JourneyStep["state"]) => steps.push({ label, date: dateIso, state: stepState, t: dateIso ? new Date(dateIso).getTime() : Number.MAX_SAFE_INTEGER });
+          push("Signed in", iso(a.onboardedAt), "done");
+          for (const ev of rlog) {
+            if (ev.event === "restricted") push("Hit a LinkedIn restriction", iso(ev.at), "warn");
+            else if (ev.event === "recovered") push("Restriction cleared", iso(ev.at), "done");
+          }
+          push(qcAt ? "Passed our checks (QC)" : "Passing our checks (QC)", qcAt, qcAt ? "done" : "now");
+          if (paid) push("Setup fee paid", iso(a.paidAt), "done");
+          steps.sort((x, y) => x.t - y.t);
+          journey = steps.map(({ t: _t, ...s }) => s);
         } else if (state === "handed_off") {
           journey = [
             { label: "Handed to our team", date: null, state: "done" },
