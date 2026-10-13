@@ -153,7 +153,7 @@ export default async function PricingPage() {
             <div style={{ maxWidth: 580, minWidth: 260 }}>
               <span style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase", color: "#9DC2F0" }}>Option 2 · we run it</span>
               <h2 style={{ fontFamily: POP, fontWeight: 700, fontSize: "clamp(24px,3vw,32px)", letterSpacing: "-0.02em", margin: "10px 0 10px" }}>Prefer we run the outreach?</h2>
-              <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#C8D6EA", margin: 0 }}>The tiers above are for running it yourself. With managed outreach our team builds the list, writes the sequences, runs several operators, and books qualified calls into your calendar. From $897/month for roughly 10 qualified calls, no setup fee, exact scope set on a quick call.</p>
+              <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#C8D6EA", margin: 0 }}>The tiers above are for running it yourself. With managed outreach our team builds the list, writes the sequences, runs several operators, and books qualified calls into your calendar. From $900/month for roughly 10 qualified calls, no setup fee, exact scope set on a quick call.</p>
             </div>
             <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 9, background: "#fff", color: "#0B1220", fontSize: 16, fontWeight: 600, padding: "15px 26px", borderRadius: 12, textDecoration: "none" }}>Book a call →</a>
           </div>
