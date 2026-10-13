@@ -1,7 +1,7 @@
 import type { Brand } from "@/lib/brand";
 
 // Structured data, resolved per brand. LinkedVelocity keeps its rental wording; LinkedArmy
-// gets the "hire a operator" framing. Both read name/url/logo/support from the brand config.
+// gets the "hire an operator" framing. Both read name/url/logo/support from the brand config.
 export function JsonLd({ brand }: { brand: Brand }) {
   const telegramUrl = `https://t.me/${brand.supportTelegram.replace(/^@/, "")}`;
   const isArmy = brand.id === "linkedarmy";
@@ -93,7 +93,7 @@ export function JsonLd({ brand }: { brand: Brand }) {
   };
 
   // LinkedVelocity keeps its exact original FAQ set (unchanged rich snippets);
-  // LinkedArmy gets a operator-worded set.
+  // LinkedArmy gets an operator-worded set.
   const lvFaq = [
     { q: "How does LinkedIn account rental work?", a: "Browse our catalogue of pre-warmed LinkedIn accounts, select one that fits your needs, and get instant access via GoLogin browser. Each account is verified, aged, and ready for outreach campaigns." },
     { q: "Is it safe to rent a LinkedIn account?", a: "Yes. We use GoLogin anti-detect browser technology which creates unique browser fingerprints for each session. This prevents LinkedIn from detecting account sharing, with a 0% restriction rate." },
@@ -106,8 +106,8 @@ export function JsonLd({ brand }: { brand: Brand }) {
   ];
   const armyFaq = [
     { q: "How does hiring a LinkedIn operator work?", a: "Browse our roster of vetted professionals with established LinkedIn networks, choose the operator that fits your market, and run outreach through their established, credible profile from day one." },
-    { q: "Is it safe to hire a operator for outreach?", a: "Every session runs through a dedicated, isolated browser environment with its own IP and fingerprint, so LinkedIn sees one consistent user. Activity stays within safe limits to protect the account." },
-    { q: "How much does it cost to hire a operator?", a: "Pricing runs from $45/month for newer profiles up to $110+/month for senior operators with large networks and Sales Navigator. You see the exact monthly price before you commit." },
+    { q: "Is it safe to hire an operator for outreach?", a: "Every operator works from a secure, dedicated environment, and activity stays within safe sending limits to protect the profile. Operators are actively monitored, and if one is ever restricted we move you to a replacement." },
+    { q: "How much does it cost to hire an operator?", a: "Self-serve runs from $45/month for newer profiles up to $110+/month for senior operators with large networks, and you see the exact monthly price before you commit. Prefer we run the outreach for you? Managed campaigns are scoped on a quick call." },
     { q: "Can I earn as a LinkedIn operator?", a: "Yes. If you have an established LinkedIn account you're not actively using, you can join the network and earn a monthly retainer depending on your account's connections, age, and features." },
   ];
   const faqSchema = {
