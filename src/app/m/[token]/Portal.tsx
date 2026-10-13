@@ -112,17 +112,19 @@ const C = {
 type Tab = "home" | "jobs" | "money" | "guide" | "you";
 
 // Filter chips on the "Your onboardings" tab, by signup kind.
-type JobFilter = "all" | "action" | "onboarded" | "blocked" | "waiting" | "paid";
+type JobFilter = "all" | "action" | "onboarded" | "blocked" | "waiting";
 const JOB_FILTERS: { id: JobFilter; label: string; empty: string; test: (s: Signup) => boolean }[] = [
   { id: "all", label: "Everyone", empty: "here", test: () => true },
-  { id: "onboarded", label: "Onboarded", empty: "onboarded yet", test: (s) => s.onboarded },
+  // An onboarding only "counts" as onboarded once the setup fee is paid (and the referrer is
+  // paid) — before that it's still with us. So "Onboarded" = the paid ones; there's no separate
+  // "Paid" chip. Onboarded-but-not-yet-paid accounts sit under "With us" (payout pending).
+  { id: "onboarded", label: "Onboarded", empty: "onboarded yet", test: (s) => s.kind === "paid" },
   // A flagged fix (2FA/email/password not set) is the referrer's to-do before they get paid, so
   // it belongs in "Needs you" even while the account's lifecycle pill reads "Verifying" — and it
   // drops out of "With us" so the two buckets don't both claim it.
   { id: "action", label: "Needs you", empty: "needs you right now", test: (s) => s.kind === "action" || (s.kind === "waiting" && !!s.fix) },
   { id: "blocked", label: "Restricted", empty: "restricted", test: (s) => s.kind === "blocked" },
   { id: "waiting", label: "With us", empty: "waiting on us", test: (s) => s.kind === "waiting" && !s.fix },
-  { id: "paid", label: "Paid", empty: "paid yet", test: (s) => s.kind === "paid" },
 ];
 
 // Post-sign-in fixes the team can raise on a signup — what the referrer needs to sort out.
