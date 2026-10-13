@@ -153,6 +153,7 @@ export default function Portal({ token }: { token: string }) {
   const [qrOpen, setQrOpen] = useState(false);
   const [readyOpen, setReadyOpen] = useState(false);
   const [jobFilter, setJobFilter] = useState<JobFilter>("all");
+  const [jobQuery, setJobQuery] = useState("");
   const [lockName, setLockName] = useState<string | null>(null);
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [reportingId, setReportingId] = useState<string | null>(null);
@@ -561,6 +562,11 @@ export default function Portal({ token }: { token: string }) {
                 <button onClick={() => setReadyOpen(true)} style={{ font: `700 13.5px ${JAK}`, color: "#fff", background: C.green, border: "none", padding: "13px 18px", borderRadius: 11, cursor: "pointer" }}>Start your first onboarding</button>
               </div>
             ) : (<>
+              <div style={{ position: "relative", marginBottom: 11 }}>
+                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", font: `400 13px ${JAK}`, color: C.muted2, pointerEvents: "none" }}>⌕</span>
+                <input value={jobQuery} onChange={(e) => setJobQuery(e.target.value)} placeholder="Search by name" aria-label="Search your onboardings by name" style={{ width: "100%", boxSizing: "border-box", font: `500 13px ${JAK}`, color: C.ink, padding: "11px 32px 11px 30px", borderRadius: 11, border: `1px solid ${C.inputBorder}`, background: "#fff", outline: "none" }} />
+                {jobQuery && <button onClick={() => setJobQuery("")} aria-label="Clear search" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", font: `600 13px ${JAK}`, color: C.muted2, background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 1 }}>✕</button>}
+              </div>
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 16 }}>
                 {JOB_FILTERS.map((f) => {
                   const on = jobFilter === f.id;
@@ -571,8 +577,16 @@ export default function Portal({ token }: { token: string }) {
                 })}
               </div>
               {(() => {
-              const shown = signups.filter((JOB_FILTERS.find((f) => f.id === jobFilter) || JOB_FILTERS[0]).test);
-              if (shown.length === 0) return (
+              const q = jobQuery.trim().toLowerCase();
+              const shown = signups
+                .filter((JOB_FILTERS.find((f) => f.id === jobFilter) || JOB_FILTERS[0]).test)
+                .filter((s) => !q || (s.name || "").toLowerCase().includes(q));
+              if (shown.length === 0) return q ? (
+                <div style={{ ...card, textAlign: "center", padding: "22px 18px" }}>
+                  <div style={{ font: `700 14px ${JAK}`, color: C.ink, marginBottom: 4 }}>No match for &ldquo;{jobQuery.trim()}&rdquo;</div>
+                  <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.muted, margin: 0 }}>{jobFilter === "all" ? "Check the spelling, or they may not be in your list yet." : "Try “Everyone”, or check the spelling."}</p>
+                </div>
+              ) : (
                 <div style={{ ...card, textAlign: "center", padding: "22px 18px" }}>
                   <div style={{ font: `700 14px ${JAK}`, color: C.ink, marginBottom: 4 }}>Nothing {(JOB_FILTERS.find((f) => f.id === jobFilter) || {}).empty}</div>
                   <p style={{ font: `500 12.5px/1.55 ${JAK}`, color: C.muted, margin: 0 }}>Tap &ldquo;Everyone&rdquo; to see the rest.</p>
