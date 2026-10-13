@@ -534,7 +534,21 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
   const onboarded = r.status === "onboarded";
   const paid = setupPaid(r);
   const acctSave = (patch: Record<string, unknown>, reload = false) => { if (r.accountId) patchAccount(r.id, r.accountId, patch, reload); };
-  const photoUrl = (r.adminNotes || "").match(/Owner photo:\s*(https?:\/\/\S+)/)?.[1] || null;
+  const onboardingPhoto = (r.adminNotes || "").match(/Owner photo:\s*(https?:\/\/\S+)/)?.[1] || null;
+  const photoUrl = r.profilePhotoUrl || onboardingPhoto; // inventory photo wins; falls back to the onboarding one
+  const photoIsInventory = !!r.profilePhotoUrl;
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const uploadPhoto = async (file: File) => {
+    if (!r.accountId) { alert("No account linked yet — create the account first."); return; }
+    setPhotoUploading(true);
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.url) { alert(typeof d.error === "string" ? d.error : `Upload failed (${res.status}).`); return; }
+      acctSave({ profilePhotoUrl: d.url }, true); // same field inventory reads → shows there automatically
+    } finally { setPhotoUploading(false); }
+  };
   const col: CSSProperties = { flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column", gap: 14 };
   const meetings = new Map<string, Touch>();
   for (const entry of r.outreachLog || []) if (entry.bookingKey && entry.scheduledAt) meetings.set(entry.bookingKey, entry);
@@ -611,9 +625,15 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
                 ? <a href={photoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ flex: "none" }}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={photoUrl} alt="Owner photo" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 12, border: "1px solid var(--line,#e6e8ec)", display: "block" }} /></a>
                 : <div style={{ flex: "none", width: 64, height: 64, borderRadius: 12, border: "1.5px dashed var(--input-border,#c5cbd3)", background: "var(--card,#fff)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 18px ${F_GRO}`, color: "var(--muted2,#b0b7c3)" }}>{initialsOf(r.fullName)}</div>}
               <div style={{ minWidth: 0 }}>
-                <div style={{ ...labelCss, marginBottom: 3 }}>Owner photo · from onboarding</div>
-                <div style={{ font: `600 12.5px ${F_SANS}`, color: photoUrl ? "var(--fg,#111)" : "var(--muted,#8a93a3)" }}>{photoUrl ? "Uploaded by the owner" : "No photo added — optional at signup"}</div>
-                {photoUrl && <a href={photoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>Open full size ↗</a>}
+                <div style={{ ...labelCss, marginBottom: 3 }}>Profile photo{photoUrl ? (photoIsInventory ? " · on inventory" : " · from onboarding") : ""}</div>
+                <div style={{ font: `600 12.5px ${F_SANS}`, color: photoUrl ? "var(--fg,#111)" : "var(--muted,#8a93a3)" }}>{photoUrl ? (photoIsInventory ? "Updated photo — live on inventory" : "From the owner at signup") : "No photo yet"}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+                  {photoUrl && <a href={photoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ font: `700 12px ${F_SANS}`, color: "var(--link,#0a66c2)", textDecoration: "none" }}>Open full size ↗</a>}
+                  {r.accountId && <label onClick={(e) => e.stopPropagation()} title="Upload an updated/edited photo — it's saved to the account and shows on inventory automatically." style={{ font: `700 12px ${F_SANS}`, color: photoUploading ? "var(--muted,#8a93a3)" : "var(--link,#0a66c2)", cursor: photoUploading ? "wait" : "pointer" }}>
+                    {photoUploading ? "Uploading…" : photoUrl ? "Replace photo ↑" : "Upload photo ↑"}
+                    <input type="file" accept="image/png,image/jpeg,image/webp" disabled={photoUploading} style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void uploadPhoto(f); }} />
+                  </label>}
+                </div>
               </div>
             </div>
             <ToggleFields fields={applicantFields} editing={appEditing} onEdit={() => setEditSec("applicant")} />
