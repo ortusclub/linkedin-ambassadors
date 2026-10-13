@@ -163,8 +163,8 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
           </div>
           <div className="cell" style={{ display: "flex", flexDirection: "column", gap: 16, background: "var(--hl)", boxShadow: "inset 0 6px 0 var(--lime)", borderRight: "none" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}><span style={{ fontFamily: "var(--disp)", fontSize: 34, fontWeight: 800, textTransform: "lowercase" }}>managed</span><span className="ey">we run it</span></div>
-            <p style={{ margin: 0, fontSize: 15, color: "var(--n800)", lineHeight: 1.55 }}>We build the list, write the sequences, run several operators, and book qualified calls into your calendar. You approve the plan, we fill the pipeline.</p>
-            <div style={{ fontFamily: "var(--disp)", fontSize: 42, fontWeight: 900 }}>per campaign<span style={{ fontSize: 14, fontWeight: 700, display: "block" }}>scoped on a call, no setup fee</span></div>
+            <p style={{ margin: 0, fontSize: 15, color: "var(--n800)", lineHeight: 1.55 }}>We build the list, write the sequences, run several operators, and book qualified calls into your calendar. You approve the plan, we fill the pipeline. No setup fee.</p>
+            <div style={{ fontFamily: "var(--disp)", fontSize: 42, fontWeight: 900 }}>from $897<span style={{ fontSize: 14, fontWeight: 700, display: "block" }}>per month · ~10 qualified calls, scoped on a call</span></div>
             <a href={CALENDAR_URL} target="_blank" rel="noopener noreferrer" className="btn" style={{ marginTop: "auto" }}><span>book a call</span><span>→</span></a>
           </div>
         </div>
