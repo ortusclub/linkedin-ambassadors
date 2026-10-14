@@ -1,0 +1,256 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+
+// Client-side password gate + earmark experience for the Agent360 unlisted inventory.
+// The slug already gates the URL; the password is a light extra barrier Eyal asked for
+// (it lives in the bundle, so it deters casual access rather than being true auth).
+export type A360Row = {
+  id: string;
+  name: string;
+  url: string;
+  cc: number;
+  v: boolean;
+  status: string; // "available" | "under_construction" | "construction_immature"
+  shadow: boolean; // held by a shadow renter (Apex/Ortus), frees up within ~1 week
+  industry: string | null;
+  headline: string | null;
+};
+
+const priceOf = (v: boolean) => (v ? 60 : 45);
+const sortVC = (a: A360Row, b: A360Row) => Number(b.v) - Number(a.v) || b.cc - a.cc;
+
+const CSS = `
+.a3{--ink:#101828;--muted:#5a6475;--faint:#98a1b0;--line:#e2e7ee;--line2:#d3dae3;--card:#fff;--surface:#eef1f6;--bg:#f6f7f9;--accent:#0a66c2;--accent-ink:#084e96;--accent-soft:#e8f1fb;--verified:#067a45;--verified-soft:#e3f3ea;--warm:#9a5b12;min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--font-inter),system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+.a3 *{box-sizing:border-box}
+.a3 h1,.a3 h2,.a3 h3,.a3 .brand b,.a3 .price,.a3 .gate-card b{font-family:var(--font-poppins),var(--font-inter),sans-serif}
+.a3-gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
+.gate-card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px rgba(16,24,40,.06);padding:30px 28px;max-width:380px;width:100%;text-align:center}
+.gate-card .mk{width:44px;height:44px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin:0 auto 16px}
+.gate-card b{font-size:18px;color:var(--accent);display:block;margin-bottom:2px}
+.gate-card .sub{color:var(--muted);font-size:13.5px;margin-bottom:20px}
+.gate-card input{width:100%;padding:12px 14px;border:1px solid var(--line2);border-radius:10px;background:var(--bg);color:var(--ink);font-size:15px;font-family:inherit}
+.gate-card input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.gate-card button{width:100%;margin-top:12px;padding:12px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+.gate-card button:hover{background:var(--accent-ink)}
+.gate-err{color:#c0392b;font-size:13px;margin-top:10px;min-height:18px}
+.a3-top{position:sticky;top:0;z-index:5;background:rgba(246,247,249,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.a3-top-in,.a3-main{max-width:1080px;margin:0 auto;padding-left:20px;padding-right:20px}
+.a3-top-in{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-top:13px;padding-bottom:13px}
+.brand{display:flex;flex-direction:column;gap:1px}
+.brand b{font-weight:700;font-size:17px;letter-spacing:-.01em;color:var(--accent)}
+.brand span{font-size:12px;color:var(--muted)}
+.legend{display:flex;gap:8px;flex-wrap:wrap}
+.lg{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card)}
+.lg i{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums}
+.lg.v{color:var(--verified)}.lg.u{color:var(--muted)}
+.a3-main{padding-top:32px;padding-bottom:120px}
+.hero{margin-bottom:12px}
+.for{display:block;margin:0 0 10px;color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.hero h1{font-weight:700;font-size:clamp(27px,5vw,38px);letter-spacing:-.02em;margin:0 0 8px;text-wrap:balance}
+.hero p{margin:0;color:var(--muted);max-width:66ch;font-size:15px}
+.howto{display:flex;gap:11px;align-items:flex-start;background:var(--accent-soft);border:1px solid rgba(10,102,194,.22);border-radius:12px;padding:13px 15px;margin:22px 0 34px;font-size:13.5px}
+.howto svg{flex:none;color:var(--accent);margin-top:1px}
+.howto b{color:var(--ink)}
+.group{margin-bottom:38px}
+.ghead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:3px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.eyebrow.now{color:var(--verified)}.eyebrow.soon{color:var(--accent)}.eyebrow.warm{color:var(--warm)}
+.gtitle{font-weight:600;font-size:21px;letter-spacing:-.01em;margin:0}
+.count{font-size:12.5px;font-weight:700;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:2px 10px;border-radius:999px;font-variant-numeric:tabular-nums}
+.ghint{margin:0 0 16px;color:var(--muted);font-size:13.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:13px}
+.card{position:relative;display:flex;flex-direction:column;gap:9px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 16px 14px;box-shadow:0 1px 2px rgba(16,24,40,.05);transition:border-color .15s,box-shadow .15s}
+.card.picked{border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,102,194,.3)}
+.card-top{display:flex;gap:11px;align-items:flex-start}
+.pick{flex:none;width:22px;height:22px;margin:1px 0 0;cursor:pointer;accent-color:var(--accent)}
+.card-id{min-width:0;flex:1}
+.name{font-size:15.5px;font-weight:600;margin:0;letter-spacing:-.01em;line-height:1.25;word-break:break-word}
+.headline{font-size:12.5px;color:var(--muted);margin:3px 0 0;line-height:1.35}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.chip.conn{background:var(--surface);color:var(--muted);font-variant-numeric:tabular-nums}
+.chip.verified{background:var(--verified-soft);color:var(--verified)}
+.chip.unverified{background:var(--surface);color:var(--faint)}
+.chip.ind{background:var(--accent-soft);color:var(--accent-ink)}
+.foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;padding-top:9px;border-top:1px solid var(--line)}
+.price{font-weight:700;font-size:18px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.price .per{font-size:12px;font-weight:600;color:var(--muted)}
+.view{font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;white-space:nowrap}
+.view:hover{text-decoration:underline}
+.view:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 20px}
+.bar-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.bar-count{font-size:14px;font-weight:600}
+.bar-count b{color:var(--accent);font-variant-numeric:tabular-nums}
+.bar-actions{display:flex;gap:10px;align-items:center}
+.btn{font-size:13.5px;font-weight:600;font-family:inherit;border-radius:10px;padding:10px 15px;cursor:pointer;border:1px solid var(--line2);background:var(--card);color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-ink)}
+.btn.primary:disabled{opacity:.5;cursor:default}
+.btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+.note{color:var(--muted);font-size:12.5px;line-height:1.6;margin-top:6px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:9;background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:9px 16px;border-radius:999px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.hid{position:absolute;left:-9999px;top:0}
+@media (max-width:440px){.grid{grid-template-columns:1fr}}
+`;
+
+function Card({ a, picked, onToggle }: { a: A360Row; picked: boolean; onToggle: (id: string) => void }) {
+  return (
+    <article className={`card${picked ? " picked" : ""}`}>
+      <div className="card-top">
+        <input className="pick" type="checkbox" aria-label={`Earmark ${a.name}`} checked={picked} onChange={() => onToggle(a.id)} />
+        <div className="card-id">
+          <h3 className="name">{a.name}</h3>
+          {a.headline ? <p className="headline">{a.headline}</p> : null}
+        </div>
+      </div>
+      <div className="chips">
+        <span className="chip conn">{a.cc} connections</span>
+        {a.v ? <span className="chip verified">✓ Verified</span> : <span className="chip unverified">Unverified</span>}
+        {a.industry ? <span className="chip ind">{a.industry}</span> : null}
+      </div>
+      <div className="foot">
+        <span className="price">${priceOf(a.v)}<span className="per">/mo</span></span>
+        <a className="view" href={a.url} target="_blank" rel="noopener noreferrer">View profile →</a>
+      </div>
+    </article>
+  );
+}
+
+function Group({ eyebrow, cls, title, hint, items, picks, onToggle }: { eyebrow: string; cls: string; title: string; hint: string; items: A360Row[]; picks: Set<string>; onToggle: (id: string) => void }) {
+  if (!items.length) return null;
+  return (
+    <section className="group">
+      <div className="ghead">
+        <span className={`eyebrow ${cls}`}>{eyebrow}</span>
+        <h2 className="gtitle">{title}</h2>
+        <span className="count">{items.length}</span>
+      </div>
+      <p className="ghint">{hint}</p>
+      <div className="grid">
+        {items.map((a) => <Card key={a.id} a={a} picked={picks.has(a.id)} onToggle={onToggle} />)}
+      </div>
+    </section>
+  );
+}
+
+export default function Agent360Catalogue({ rows, password }: { rows: A360Row[]; password: string }) {
+  const [unlocked, setUnlocked] = useState(false);
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
+  const [picks, setPicks] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState("");
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    try { if (sessionStorage.getItem("a360_unlocked") === "1") setUnlocked(true); } catch {}
+    try { const saved = JSON.parse(localStorage.getItem("a360_picks") || "[]"); if (Array.isArray(saved)) setPicks(new Set(saved)); } catch {}
+  }, []);
+
+  const savePicks = (next: Set<string>) => { try { localStorage.setItem("a360_picks", JSON.stringify([...next])); } catch {} };
+
+  const buckets = useMemo(() => ({
+    now: rows.filter((r) => r.status === "available" && !r.shadow).sort(sortVC),
+    soon: rows.filter((r) => r.status === "available" && r.shadow).sort(sortVC),
+    warm: rows.filter((r) => r.status !== "available").sort(sortVC),
+  }), [rows]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pw.trim() === password) { setUnlocked(true); try { sessionStorage.setItem("a360_unlocked", "1"); } catch {} }
+    else setErr("Incorrect password. Please try again.");
+  };
+
+  const toggle = (id: string) => {
+    setPicks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      savePicks(next);
+      return next;
+    });
+  };
+
+  const clearPicks = () => { setPicks(new Set()); savePicks(new Set()); };
+
+  const flash = (m: string) => { setToast(m); setTimeout(() => setToast(""), 1800); };
+
+  const copyPicks = () => {
+    if (!picks.size) return;
+    const map = new Map(rows.map((r) => [r.id, r]));
+    const lines = [`Agent360 earmarked accounts (${picks.size}):`, ""];
+    [...picks].map((id) => map.get(id)).filter((d): d is A360Row => !!d).sort(sortVC).forEach((d) => {
+      lines.push(`- ${d.name} (${d.cc} conns, ${d.v ? "verified" : "unverified"}${d.industry ? ", " + d.industry : ""}) $${priceOf(d.v)}/mo - ${d.url}`);
+    });
+    const text = lines.join("\n");
+    if (taRef.current) taRef.current.value = text;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => flash("Picks copied — paste them into your reply")).catch(() => {
+        taRef.current?.select(); try { document.execCommand("copy"); flash("Picks copied"); } catch { flash("Press Ctrl/Cmd+C to copy"); }
+      });
+    } else { taRef.current?.select(); try { document.execCommand("copy"); flash("Picks copied"); } catch { flash("Press Ctrl/Cmd+C to copy"); } }
+  };
+
+  return (
+    <div className="a3">
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      {!unlocked && (
+        <div className="a3-gate">
+          <form className="gate-card" onSubmit={submit}>
+            <div className="mk"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div>
+            <b>LinkedVelocity</b>
+            <div className="sub">Private inventory for Agent360. Enter the password to view.</div>
+            <input type="password" placeholder="Password" autoComplete="off" aria-label="Password" value={pw} onChange={(e) => { setPw(e.target.value); setErr(""); }} />
+            <button type="submit">View inventory</button>
+            <div className="gate-err">{err}</div>
+          </form>
+        </div>
+      )}
+
+      {unlocked && (
+        <>
+          <div className="a3-top">
+            <div className="a3-top-in">
+              <div className="brand"><b>LinkedVelocity</b><span>Account inventory</span></div>
+              <div className="legend">
+                <span className="lg u">Unverified <i>$45/mo</i></span>
+                <span className="lg v">✓ Verified <i>$60/mo</i></span>
+                <span className="lg u">At 10 accounts <i>$50 each</i></span>
+              </div>
+            </div>
+          </div>
+          <main className="a3-main">
+            <div className="hero">
+              <span className="for">Prepared for Agent360</span>
+              <h1>Account inventory</h1>
+              <p>Aged, warmed LinkedIn profiles, plus everything currently in warm-up. Pricing is per account, per month: unverified $45, verified $60. Once you reach 10 accounts the rate is $50 each. Open any profile to review it.</p>
+            </div>
+            <div className="howto">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+              <div><b>Earmark the ones you want.</b> Tick any accounts you&apos;d like us to hold for you, then hit &quot;Copy my picks&quot; at the bottom and paste them into your reply. We&apos;ll reserve them so no one else rents them.</div>
+            </div>
+            <Group eyebrow="Ready today" cls="now" title="Available now" hint="Live and rentable right now. We can release these the moment you order." items={buckets.now} picks={picks} onToggle={toggle} />
+            <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} />
+            <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} />
+            <p className="note">
+              {rows.length} accounts total · {buckets.now.length} available now, {buckets.soon.length} within a week, {buckets.warm.length} in warm-up.<br />
+              Prices per account / month. Earmark what you&apos;d like and we&apos;ll reserve them.
+            </p>
+          </main>
+          <div className="bar">
+            <div className="bar-in">
+              <div className="bar-count"><b>{picks.size}</b> account{picks.size === 1 ? "" : "s"} earmarked</div>
+              <div className="bar-actions">
+                <button className="btn ghost" type="button" onClick={clearPicks}>Clear</button>
+                <button className="btn primary" type="button" onClick={copyPicks} disabled={picks.size === 0}>Copy my picks</button>
+              </div>
+            </div>
+          </div>
+          <textarea ref={taRef} className="hid" readOnly />
+          <div className={`toast${toast ? " show" : ""}`}>{toast}</div>
+        </>
+      )}
+    </div>
+  );
+}
