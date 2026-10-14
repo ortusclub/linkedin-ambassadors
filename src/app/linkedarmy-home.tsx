@@ -15,6 +15,7 @@ export type ArmyRosterCard = {
   hasSalesNav: boolean;
   verified: boolean;
   photo: string | null;
+  rented?: boolean; // currently rented / showcase — shown as labelled social proof, not hireable
 };
 
 const fmtConns = (c: number) =>
@@ -140,7 +141,12 @@ export function LinkedArmyHome({ roster }: { roster: ArmyRosterCard[] }) {
                   {p.photo && (
                     // Real masked profile photo (self-hosted, same source as the catalogue avatars).
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.photo} alt="" loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "grayscale(0.4) contrast(1.02)" }} />
+                    <img src={p.photo} alt="" loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: p.rented ? "grayscale(0.85) contrast(0.98) brightness(0.82)" : "grayscale(0.4) contrast(1.02)" }} />
+                  )}
+                  {p.rented && (
+                    // Honest social proof: rented/showcase profiles are clearly marked, never
+                    // presented as hireable alongside the available operators above them.
+                    <span style={{ position: "absolute", right: 10, top: 10, background: "var(--coral)", color: "var(--ink)", fontFamily: "var(--mono)", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", padding: "3px 8px" }}>rented</span>
                   )}
                   <span style={{ position: "absolute", left: 10, bottom: 10, background: "rgba(7,42,50,0.82)", color: "#9cc3c7", fontFamily: "var(--mono)", fontSize: 11, padding: "3px 7px" }}>operator{p.industry ? " · " + p.industry.toLowerCase() : ""}</span>
                 </div>
