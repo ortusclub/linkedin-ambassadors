@@ -108,20 +108,33 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
   // Agent360: full pipeline (available + shadow-held + all warm-up), password-gated, earmarkable.
   if (key === A360_SLUG) {
     const a360Select = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true, industry: true, linkedinHeadline: true } as const;
-    const [shadowRentals, availableA, warmA] = await Promise.all([
+    const normUrl = (u: string | null) => (u || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("?")[0].replace(/\/+$/, "");
+    const [shadowRentals, availableA, warmRaw, maturingApps] = await Promise.all([
       prisma.rental.findMany({ where: { user: { email: { in: SHADOW_RENTER_EMAILS } } }, select: { linkedinAccountId: true } }),
       prisma.linkedInAccount.findMany({
         where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
         select: a360Select,
       }),
       prisma.linkedInAccount.findMany({
-        // connectionCount > 0 drops accounts still in set-up (freshly created, no warm-up
-        // started); only show ones actively warming / maturing.
-        where: { status: { in: ["under_construction", "construction_immature"] }, restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null }, connectionCount: { gt: 0 } },
-        select: a360Select,
+        where: { status: { in: ["under_construction", "construction_immature"] }, restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
+        select: { ...a360Select, personalEmail: true },
+      }),
+      // "Maturing" = the account's application has passed QC (verifiedAt) and is accepted
+      // (status approved) — pipeline Level 4. This is what separates warming/maturing accounts
+      // from ones still in set-up (not verified / still onboarding); no account-level field
+      // captures it. Matched to accounts the way the pipeline does (self-service id, else URL,
+      // else personal email).
+      prisma.ambassadorApplication.findMany({
+        where: { verifiedAt: { not: null }, status: "approved" },
+        select: { linkedinUrl: true, email: true, selfServiceOnboarding: { select: { accountId: true } } },
       }),
     ]);
     const shadowSet = new Set(shadowRentals.map((r) => r.linkedinAccountId));
+    const matureUrls = new Set(maturingApps.map((a) => normUrl(a.linkedinUrl)).filter(Boolean));
+    const matureEmails = new Set(maturingApps.map((a) => a.email.toLowerCase()).filter(Boolean));
+    const matureAccountIds = new Set(maturingApps.map((a) => a.selfServiceOnboarding?.accountId).filter((x): x is string => !!x));
+    const isMaturing = (a: { id: string; linkedinUrl: string | null; personalEmail: string | null }) =>
+      matureAccountIds.has(a.id) || matureUrls.has(normUrl(a.linkedinUrl)) || (!!a.personalEmail && matureEmails.has(a.personalEmail.toLowerCase()));
     const mk = (a: typeof availableA[number], status: string): A360Row => ({
       id: a.id,
       name: (a.linkedinName || "").trim(),
@@ -135,7 +148,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
     });
     const rows: A360Row[] = [
       ...availableA.map((a) => mk(a, "available")),
-      ...warmA.filter((a) => a.linkedinUrl && !a.linkedinUrl.includes("charlotte-bax")).map((a) => mk(a, "under_construction")),
+      ...warmRaw.filter((a) => isMaturing(a) && a.linkedinUrl && !a.linkedinUrl.includes("charlotte-bax")).map((a) => mk(a, "under_construction")),
     ];
     return <Agent360Catalogue rows={rows} password={A360_PASSWORD} />;
   }
