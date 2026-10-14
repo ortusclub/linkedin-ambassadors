@@ -17,14 +17,15 @@ import {
 } from "@/lib/pipeline-model";
 
 // Tile / turn-chip vocabulary.
-const TURN_META: Record<Turn, { tile: string; chip: string; bg: string; fg: string; dot: string; sub: string }> = {
+const TURN_META: Record<Turn | "all", { tile: string; chip: string; bg: string; fg: string; dot: string; sub: string }> = {
+  all:   { tile: "All", chip: "ALL", bg: "var(--blue-chip-bg,#e8f0fe)", fg: "var(--blue-chip-text,#1a56db)", dot: "var(--blue-chip-text,#1a56db)", sub: "every pipeline stage" },
   us:    { tile: "To action",       chip: "ACTION",    bg: "var(--warn-badge-bg,#fef3e2)", fg: "var(--warn-badge-text,#b7791f)", dot: "var(--warn-badge-text,#b7791f)", sub: "needs us now" },
   them:  { tile: "Waiting on them", chip: "WAITING",   bg: "var(--blue-chip-bg,#e8f0fe)",  fg: "var(--blue-chip-text,#1a56db)",  dot: "var(--blue-chip-text,#1a56db)",  sub: "applicant or referrer" },
   timer: { tile: "Maturing",        chip: "TIMER",     bg: "var(--st-conv-bg,#efe8fd)",    fg: "var(--st-conv-fg,#6d28d9)",      dot: "var(--st-conv-fg,#6d28d9)",      sub: "1-week hold" },
   live:  { tile: "Onboarded",       chip: "ONBOARDED", bg: "var(--st-active-bg,#e6f4ea)",  fg: "var(--st-active-fg,#188038)",    dot: "var(--st-active-fg,#188038)",    sub: "live & earning" },
   dead:  { tile: "Stopped",         chip: "STOPPED",   bg: "var(--st-cancel-bg,#fdecea)",  fg: "var(--st-cancel-fg,#c0392b)",    dot: "var(--st-cancel-fg,#c0392b)",    sub: "not progressing" },
 };
-const TURN_ORDER: Turn[] = ["us", "them", "timer", "live", "dead"];
+const TURN_ORDER: (Turn | "all")[] = ["all", "us", "them", "timer", "live", "dead"];
 const GROUP_OPTS: { key: string; label: string }[] = [
   { key: "level", label: "Level" }, { key: "handler", label: "Handler" }, { key: "referrer", label: "Referrer" }, { key: "none", label: "None" },
 ];
@@ -53,7 +54,7 @@ export default function PipelineNewPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
   const [me, setMe] = useState<string>("");
-  const [turnF, setTurnF] = useState<Turn | "all">("us");
+  const [turnF, setTurnF] = useState<Turn | "all">("all");
   const [whoF, setWhoF] = useState<string>("all"); // "all" | "__me" | "__unassigned" | <poc>
   const [levelF, setLevelF] = useState<number | "all">("all");
   const [healthF, setHealthF] = useState<string>("all");
@@ -370,9 +371,9 @@ export default function PipelineNewPage() {
         {TURN_ORDER.map((k) => {
           const m = TURN_META[k]; const active = turnF === k;
           return (
-            <button key={k} onClick={() => { setTurnF(active ? "all" : k); setOpen(new Set()); }} style={{ textAlign: "left", cursor: "pointer", background: active ? "var(--card,#fff)" : "var(--band,#f6f7f9)", border: `1.5px solid ${active ? m.dot : "var(--card-border,#e3e3e6)"}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 3 }}>
+            <button key={k} aria-pressed={active} onClick={() => { setTurnF(active ? "all" : k); setOpen(new Set()); }} style={{ textAlign: "left", cursor: "pointer", background: active ? "var(--card,#fff)" : "var(--band,#f6f7f9)", border: `1.5px solid ${active ? m.dot : "var(--card-border,#e3e3e6)"}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 3 }}>
               <span style={{ display: "flex", alignItems: "center", gap: 7, font: `700 11px ${F_SANS}`, letterSpacing: ".06em", textTransform: "uppercase", color: m.fg }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: m.dot }} />{m.tile}</span>
-              <span style={{ font: `800 24px ${F_GRO}`, color: "var(--fg,#111)" }}>{tileCounts[k]}</span>
+              <span style={{ font: `800 24px ${F_GRO}`, color: "var(--fg,#111)" }}>{k === "all" ? withTurn.length : tileCounts[k]}</span>
               <span style={{ font: `600 11.5px ${F_SANS}`, color: "var(--muted,#8a9099)" }}>{k === "us" ? `${handlerLoad.unclaimed} unclaimed` : m.sub}</span>
             </button>
           );
