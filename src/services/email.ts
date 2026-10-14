@@ -600,6 +600,46 @@ export async function sendRenewalCronAlert(stuck: number, activeAutoRenew: numbe
   });
 }
 
+// Daily Stripe -> ledger reconciliation summary. Only sent when there is a gap: a
+// charge Stripe collected that our ledger doesn't account for.
+export async function sendReconciliationSummary(
+  to: string,
+  data: {
+    windowDays: number;
+    gapTotal: number;
+    gaps: { date: string; amount: number; customerEmail: string; descriptor: string; attributedTo?: string; reason: string }[];
+  }
+) {
+  const rows = data.gaps
+    .map(
+      (c) => `<tr>
+        <td style="padding:7px 10px;border-bottom:1px solid #EEF0F3;font-size:13px;color:#374151;">${c.date}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #EEF0F3;font-size:13px;color:#0B1220;font-weight:600;">$${c.amount.toFixed(2)}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #EEF0F3;font-size:13px;color:#536471;">${c.attributedTo || c.customerEmail}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #EEF0F3;font-size:12.5px;color:#536471;">${c.reason}${c.descriptor ? ` · ${c.descriptor}` : ""}</td>
+      </tr>`
+    )
+    .join("");
+  const one = data.gaps.length === 1;
+  return sendEmail({
+    to,
+    subject: `[Reconcile] ${data.gaps.length} Stripe charge${one ? "" : "s"} ($${data.gapTotal.toFixed(2)}) not in the ledger`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 14px;">The daily Stripe reconciliation found <strong>${data.gaps.length}</strong> charge${one ? "" : "s"} (<strong>$${data.gapTotal.toFixed(2)}</strong>) that Stripe collected in the last ${data.windowDays} days but our transactions ledger doesn't appear to account for. Please check and enter ${one ? "it" : "them"} if missing.</p>
+      <table style="border-collapse:collapse;width:100%;margin:0 0 16px;">
+        <thead><tr>
+          <th style="padding:7px 10px;border-bottom:2px solid #E6E8EC;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8A93A2;text-align:left;">Date</th>
+          <th style="padding:7px 10px;border-bottom:2px solid #E6E8EC;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8A93A2;text-align:left;">Amount</th>
+          <th style="padding:7px 10px;border-bottom:2px solid #E6E8EC;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8A93A2;text-align:left;">Who</th>
+          <th style="padding:7px 10px;border-bottom:2px solid #E6E8EC;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8A93A2;text-align:left;">Note</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="font-size:14px;color:#536471;line-height:1.6;margin:0;">Open <a href="https://linkedvelocity.com/admin/transactions" style="color:#0A66C2;">Admin → Transactions</a> and use “Check Stripe” for the full picture. This is usually a legacy Payment-Link sub billed to an email with no linked account — enter the payment by hand, or migrate that renter to the website so it is captured automatically.</p>
+    `),
+  });
+}
+
 // Payment hiccup on an auto-renewing rental — access stays ON, we keep retrying.
 export async function sendPaymentFailedEmail(email: string, firstName: string, payUrl: string) {
   const hi = firstName ? `Hi ${firstName},` : "Hi there,";

@@ -49,6 +49,7 @@ export default function AdminTransactionsPage() {
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [sheetConfigured, setSheetConfigured] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -59,6 +60,34 @@ export default function AdminTransactionsPage() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [includeTest]);
+
+  // Check Stripe against the ledger: lists any charge Stripe collected in the last 60
+  // days that our transactions don't appear to account for. Report-only — it writes
+  // nothing; flagged charges are entered by hand (usually a legacy Payment-Link sub).
+  const syncFromStripe = async () => {
+    setSyncing(true);
+    try {
+      const r = await fetch("/api/admin/transactions/sync", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}),
+      }).then((res) => (res.ok ? res.json() : Promise.reject(new Error("check failed"))));
+      if (r.gapCount === 0) {
+        alert(`All ${r.chargeCount} Stripe charges in the last ${r.windowDays} days are accounted for in the ledger. Nothing missing. ✓`);
+        return;
+      }
+      const lines = (r.gaps || [])
+        .map((c: { date: string; amount: number; customerEmail: string; attributedTo?: string; reason: string }) =>
+          `• ${c.date}  $${c.amount.toFixed(2)}  ${c.attributedTo || c.customerEmail}  — ${c.reason}`)
+        .join("\n");
+      alert(
+        `${r.gapCount} Stripe charge(s) totalling $${r.gapTotal.toFixed(2)} are NOT in the ledger (of ${r.chargeCount} in the last ${r.windowDays} days):\n\n${lines}\n\n` +
+        `Enter these by hand (Transactions are added via the DB / existing admin flow). This is usually a legacy Payment-Link sub — migrating that renter to the website captures it automatically going forward.`
+      );
+    } catch (e) {
+      alert(`Check failed: ${e instanceof Error ? e.message : "unknown error"}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
   useEffect(() => {
     fetch("/api/admin/transactions/export-url").then((r) => r.json()).then((d) => { setSheetConfigured(!!d.configured); setSheetUrl(d.url || null); }).catch(() => setSheetConfigured(false));
   }, []);
@@ -131,6 +160,14 @@ export default function AdminTransactionsPage() {
           <p style={{ font: `500 13.5px/1.5 ${F_SANS}`, color: "var(--muted)", margin: 0 }}>Money coming in from renters — deposits and rental payments. Ambassador payouts live under Ambassadors → Payouts.</p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12, flex: "none" }}>
+          <button
+            onClick={syncFromStripe}
+            disabled={syncing}
+            title="Check Stripe for any charges collected that aren't in the ledger"
+            style={{ font: `600 13px ${F_SANS}`, color: "#fff", background: "#635BFF", border: "none", padding: "9px 16px", borderRadius: 9, cursor: syncing ? "default" : "pointer", opacity: syncing ? 0.6 : 1, whiteSpace: "nowrap" }}
+          >
+            {syncing ? "Checking Stripe…" : "Check Stripe"}
+          </button>
           <div style={{ display: "flex", background: "var(--seg-bg)", border: "1px solid var(--seg-border)", borderRadius: 10, padding: 3 }}>
             <button onClick={() => setIncludeTest(false)} style={seg(!includeTest)}>Live</button>
             <button onClick={() => setIncludeTest(true)} style={seg(includeTest)}>All (incl. test)</button>

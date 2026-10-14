@@ -380,6 +380,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 }
 
+// Record a paid invoice whose subscription isn't attached to any rental, by mapping
+// the Stripe customer to a user. Keeps legacy Payment-Link subs out of the manual-entry
+// gap. Idempotent on the invoice id (same sentinel the attached path uses).
+async function recordUnattachedInvoice(invoice: Stripe.Invoice) {
+  const amountPaid = (invoice.amount_paid ?? 0) / 100;
+  if (amountPaid <= 0) return;
+  const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+  if (!customerId) return;
+  const user = await prisma.user.findUnique({ where: { stripeCustomerId: customerId } });
+  if (!user) return; // unattributable — the daily stripe-recon cron flags it for a human
+  const already = await prisma.transaction.findFirst({ where: { description: `stripe_sub_payment:${invoice.id}` } });
+  if (already) return;
+  await prisma.transaction.create({
+    data: {
+      userId: user.id,
+      type: "rental_payment",
+      amount: amountPaid, // positive = external card-rail revenue
+      description: `stripe_sub_payment:${invoice.id}`,
+    },
+  });
+}
+
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   const subscriptionId = getSubscriptionIdFromInvoice(invoice);
   if (!subscriptionId) return;
@@ -388,7 +410,16 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     where: { stripeSubscriptionId: subscriptionId },
     include: { user: true, linkedinAccount: true },
   });
-  if (!rental) return;
+  if (!rental) {
+    // No rental is attached to this subscription — e.g. a legacy multi-account
+    // Payment-Link sub (rentals.stripeSubscriptionId is @unique, so one sub can't
+    // attach to several rental rows). Previously we returned here and the charge
+    // fell through to manual entry. Instead, still record the revenue if we can map
+    // the Stripe customer to a user; the period bump is skipped (no rental to extend).
+    // Anything still unattributable is surfaced by the daily stripe-recon cron.
+    await recordUnattachedInvoice(invoice);
+    return;
+  }
 
   // Record the collected payment on /admin/transactions. Stripe fires this event for EVERY
   // subscription charge — the first invoice AND every monthly renewal — so subscription
