@@ -137,6 +137,9 @@ function countryOf(loc: string | null): string {
   return CC[last] || CC[loc.trim().toLowerCase()] || last.slice(0, 2).toUpperCase();
 }
 
+const SHADOW_NAMES: Record<string, string> = { "info@ortus.solutions": "Ortus", "info@apexstrategy.io": "Apex" };
+const shadowName = (email: string | null): string => (email ? (SHADOW_NAMES[email.trim().toLowerCase()] || email.split("@")[0]) : "");
+
 const priceOf = (a: Account): number => {
   const locked = a.rentals[0]?.lockedPrice;
   if (locked != null && Number(locked) > 0) return Number(locked);
@@ -232,8 +235,18 @@ export default function InventoryV2Page() {
     try { const res = await fetch(`/api/admin/accounts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (res.ok && reload) await load(); return res; }
     finally { setBusy(null); }
   };
-  const setRestricted = async (a: Account, restricted: boolean) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted }) }); await load(); } finally { setBusy(null); } };
-  const markActive = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ linkedinAccountHealth: "active", healthCheckedAt: new Date().toISOString() }) }); await load(); } finally { setBusy(null); } };
+  // Optimistic: update the row instantly and fire the write in the background, so the
+  // ✓/✕ buttons respond on the first click instead of waiting on a full refetch.
+  const setRestricted = (a: Account, restricted: boolean) => {
+    const now = new Date().toISOString();
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, restrictedAt: restricted ? now : null, healthCheckedAt: now, linkedinAccountHealth: restricted ? x.linkedinAccountHealth : "active" } : x)));
+    fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted }) }).catch(() => load());
+  };
+  const markActive = (a: Account) => {
+    const now = new Date().toISOString();
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, linkedinAccountHealth: "active", healthCheckedAt: now } : x)));
+    fetch(`/api/admin/accounts/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ linkedinAccountHealth: "active", healthCheckedAt: now }) }).catch(() => load());
+  };
   const recheck = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST" }); await load(); } finally { setBusy(null); } };
   const trial = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/trial`, { method: "POST" }); await load(); } finally { setBusy(null); } };
   const toggleRent = async (a: Account) => {
@@ -484,7 +497,7 @@ export default function InventoryV2Page() {
                     const flags: { l: string; bg: string; fg: string; tip?: string }[] = [];
                     if (r.restrictedAt) flags.push({ l: "⚠ Restricted", bg: "#fee2e2", fg: REDD });
                     if (r.twoFactorResetNeeded) flags.push({ l: "🔑 Rotate", bg: "#fee2e2", fg: REDD, tip: "2FA was exposed to the last renter — rotate before re-renting" });
-                    if (r.shadowRenter) flags.push({ l: "◑ Shadow", bg: "#e8f0fe", fg: BLUE });
+                    if (r.shadowRenter) flags.push({ l: `◑ Shadow · ${shadowName(r.shadowRenter)}`, bg: "#e8f0fe", fg: BLUE, tip: `Shadow-held by ${shadowName(r.shadowRenter)} — still available to rent` });
                     if (r.inventoryPool === "ortus") flags.push({ l: "◆ Ortus", bg: "#ede9fe", fg: "#6d28d9" });
                     if (r.inventoryPool === "apex") flags.push({ l: "◆ Apex", bg: "#e0f2fe", fg: "#0369a1" });
                     if (r.warmupStartedAt) flags.push({ l: "🔥 Warming", bg: "#fef3c7", fg: AMBER });
@@ -522,8 +535,8 @@ export default function InventoryV2Page() {
                           </div>
                           {/* renter */}
                           <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-                            <span style={{ font: `600 13px ${F}`, color: rn ? INK : MUT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{rn ? (rn.fullName || rn.email) : r.shadowRenter ? "Shadow" : "—"}</span>
-                            {rn && <span style={{ font: `600 11px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>next {fmtD(r.rentals[0]?.currentPeriodEnd || null)}</span>}
+                            <span style={{ font: `600 13px ${F}`, color: rn ? INK : r.shadowRenter ? BLUE : MUT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{rn ? (rn.fullName || rn.email) : r.shadowRenter ? shadowName(r.shadowRenter) : "—"}</span>
+                            {rn ? <span style={{ font: `600 11px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>next {fmtD(r.rentals[0]?.currentPeriodEnd || null)}</span> : r.shadowRenter ? <span style={{ font: `600 11px ${F}`, color: MUT, whiteSpace: "nowrap" }}>shadow · yields on rent</span> : null}
                           </div>
                           {/* poc */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
@@ -535,7 +548,7 @@ export default function InventoryV2Page() {
                               <button onClick={() => markActive(r)} disabled={busy === r.id} title="Healthy — mark active" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${GREEN}`, background: !r.restrictedAt && r.linkedinAccountHealth === "active" ? "#dcfce7" : "#fff", color: GREEND, font: `800 13px ${F}`, cursor: "pointer" }}>✓</button>
                               <button onClick={() => setRestricted(r, true)} disabled={busy === r.id} title="Restricted" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${RED}`, background: r.restrictedAt ? "#fee2e2" : "#fff", color: REDD, font: `800 12px ${F}`, cursor: "pointer" }}>✕</button>
                             </div>
-                            <span style={{ font: `600 10px ${F}`, color: r.restrictedAt ? REDD : r.linkedinAccountHealth === "active" ? GREEND : SUB, whiteSpace: "nowrap" }}>{r.restrictedAt ? "restricted" : done ? "checked today" : r.linkedinAccountHealth === "active" ? "healthy" : (r.linkedinAccountHealth || "unchecked")}</span>
+                            <span title={r.healthCheckedAt ? `Last checked ${fmtDY(r.healthCheckedAt)}` : "Never health-checked"} style={{ font: `600 10px ${F}`, color: r.restrictedAt ? REDD : done ? GREEND : (!r.healthCheckedAt || Date.now() - new Date(r.healthCheckedAt).getTime() > 2 * 86400000) ? AMBER : SUB, whiteSpace: "nowrap" }}>{r.restrictedAt ? "restricted" : r.healthCheckedAt ? (done ? "✓ today" : relDays(r.healthCheckedAt)) : "never checked"}</span>
                           </div>
                           {/* rent toggle */}
                           <div onClick={(e) => e.stopPropagation()}>
