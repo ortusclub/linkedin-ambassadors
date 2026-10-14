@@ -332,7 +332,13 @@ export default function PipelineNewPage() {
       return refs.map((rf) => ({ key: "r" + rf, title: rf, dot: "var(--blue-chip-text,#1a56db)", note: "", items: sorted.filter(({ r }) => (r.referredBy || "—") === rf) })).filter((g) => g.items.length);
     }
     // level
-    return LEVEL_GROUPS.map((d) => ({ key: "l" + d.key, title: d.label, dot: d.dot, note: d.note, items: sorted.filter(({ r }) => levelKey(r) === d.key) })).filter((g) => g.items.length);
+    return LEVEL_GROUPS.map((d) => {
+      let items = sorted.filter(({ r }) => levelKey(r) === d.key);
+      // Onboarded (L5): order by when they were onboarded (newest first), not by application date,
+      // so someone you just onboarded floats to the top instead of being buried by old apply dates.
+      if (d.key === 5) items = [...items].sort((a, b) => +new Date(b.r.onboardedAt || b.r.createdAt) - +new Date(a.r.onboardedAt || a.r.createdAt));
+      return { key: "l" + d.key, title: d.label, dot: d.dot, note: d.key === 5 ? "newest onboarded first" : d.note, items };
+    }).filter((g) => g.items.length);
   }, [filtered, groupBy, handlerNames]);
 
   const selArr = [...sel];
