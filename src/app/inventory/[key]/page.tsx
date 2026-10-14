@@ -115,7 +115,9 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
         select: a360Select,
       }),
       prisma.linkedInAccount.findMany({
-        where: { status: { in: ["under_construction", "construction_immature"] }, restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
+        // connectionCount > 0 drops accounts still in set-up (freshly created, no warm-up
+        // started); only show ones actively warming / maturing.
+        where: { status: { in: ["under_construction", "construction_immature"] }, restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null }, connectionCount: { gt: 0 } },
         select: a360Select,
       }),
     ]);
