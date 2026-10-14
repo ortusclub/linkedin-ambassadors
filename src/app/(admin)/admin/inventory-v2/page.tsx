@@ -130,6 +130,10 @@ const fmtDY = (d: string | null) => { if (!d) return "—"; const x = new Date(d
 // Short "updated" recency: hours within the day, days beyond. Fed by updatedAt.
 const agoShort = (d: string | null) => { if (!d) return "—"; const h = (Date.now() - new Date(d).getTime()) / 3600000; return h < 1 ? "just now" : h < 24 ? `${Math.round(h)}h ago` : `${Math.round(h / 24)}d ago`; };
 const ageStr = (a: Account) => { const m = a.accountAgeMonths; if (m == null) return "—"; const y = Math.floor(m / 12), mm = m % 12; return y ? `${y}y${mm ? ` ${mm}m` : ""}` : `${mm}m`; };
+// Approximate "Joined LinkedIn" month (YYYY-MM) from the stored age-in-months, for accounts
+// that never had the exact About-this-member date recorded. Used only to PREFILL the editable
+// input as a suggestion — nothing is written until the admin hits Save.
+const estMonthFromAge = (months: number | null): string => { if (months == null) return ""; const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - months); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
 const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 
 const CC: Record<string, string> = { philippines: "PH", "united states": "US", usa: "US", us: "US", india: "IN", "united kingdom": "UK", uk: "UK", canada: "CA", australia: "AU", singapore: "SG", nigeria: "NG", germany: "DE" };
@@ -611,7 +615,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
 }) {
   const [note, setNote] = useState("");
   const [who, setWho] = useState("");
-  const [joined, setJoined] = useState(r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : "");
+  const [joined, setJoined] = useState(r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : estMonthFromAge(r.accountAgeMonths));
   const [connVal, setConnVal] = useState(String(r.connectionCount));
   const hist = Array.isArray(r.connectionHistory) ? r.connectionHistory.filter((p) => typeof p.count === "number" && !p.note) : [];
   const restr = Array.isArray(r.restrictionLog) ? r.restrictionLog : [];
@@ -746,6 +750,9 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
         const saveOwnerConn = () => { const body: Record<string, unknown> = { linkedinJoinedAt: joined ? new Date(joined + "-01T00:00:00Z").toISOString() : null }; const n = parseInt(connVal.replace(/[^0-9]/g, ""), 10); if (!Number.isNaN(n)) body.connectionCount = n; patch(r.id, body); };
         const logTouch = (ch: string) => { if (!appId) return; patchApp(appId, { addTouch: { ch, text: note.trim() || undefined, by: who.trim() || undefined } }).then(() => setNote("")); };
         const connDirty = joined !== (r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : "") || connVal !== String(r.connectionCount);
+        // Prefilled-from-age suggestion still showing (never recorded, unsaved): flag it so the
+        // admin knows it's an estimate, not a real recorded date, until they Save.
+        const joinIsEstimate = !r.linkedinJoinedAt && !!joined && joined === estMonthFromAge(r.accountAgeMonths);
         const d30 = (() => { const cutoff = Date.now() - 30 * 86400000; const old = [...hist].reverse().find((p) => new Date(p.at).getTime() <= cutoff); return old ? r.connectionCount - old.count : null; })();
         const field = (label: string, value: string | null, copyable?: boolean) => (
           <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>{label}</Lbl>{copyable ? <Copyable value={value} /> : <span style={{ font: `600 13.5px/1.45 ${F}`, color: value ? INK : MUT, overflowWrap: "anywhere" }}>{value || "—"}</span>}</div>
@@ -780,7 +787,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
               <Card pad="14px">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Connections</Lbl>{d30 != null && <span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: d30 >= 0 ? GREEND : REDD }}>{d30 >= 0 ? "+" : ""}{d30} / 30d</span>}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Joined LinkedIn</Lbl><input type="month" value={joined} onChange={(e) => setJoined(e.target.value)} style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", minWidth: 0 }} /></label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Joined LinkedIn</Lbl><input type="month" value={joined} onChange={(e) => setJoined(e.target.value)} style={{ border: `1px solid ${joinIsEstimate ? "#f1d9a6" : "#dde1e8"}`, background: joinIsEstimate ? "#fffbf2" : "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", minWidth: 0 }} />{joinIsEstimate && <span style={{ font: `600 10px ${F}`, color: AMBER }}>≈ estimated from {ageStr(r)} age · Save to confirm</span>}</label>
                   <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Connections now</Lbl><input value={connVal} onChange={(e) => setConnVal(e.target.value)} inputMode="numeric" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", minWidth: 0 }} /></label>
                 </div>
                 <button onClick={saveOwnerConn} disabled={busy || !connDirty} style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 9, padding: 8, font: `700 12.5px ${F}`, cursor: connDirty ? "pointer" : "default", opacity: connDirty ? 1 : 0.5 }}>{connDirty ? "Save to inventory" : "✓ Saved"}</button>
