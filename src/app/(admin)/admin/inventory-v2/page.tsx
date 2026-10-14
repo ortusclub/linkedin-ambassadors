@@ -268,7 +268,11 @@ export default function InventoryV2Page() {
   const saveConn = async (a: Account, raw: string) => {
     const n = parseInt((raw || "").replace(/[^0-9]/g, ""), 10);
     if (Number.isNaN(n) || n === a.connectionCount) return;
-    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, connectionCount: n } : x)));
+    // Mirror the server's connection-history append locally (same {at,count}, cap 300) so the
+    // Owner & activity log/sparkline shows the new point immediately — this save skips the full
+    // reload, so without this the count looks overwritten with no logged entry.
+    const at = new Date().toISOString();
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, connectionCount: n, connectionHistory: [...(Array.isArray(x.connectionHistory) ? x.connectionHistory : []), { at, count: n }].slice(-300) } : x)));
     await patch(a.id, { connectionCount: n }, false);
   };
 
