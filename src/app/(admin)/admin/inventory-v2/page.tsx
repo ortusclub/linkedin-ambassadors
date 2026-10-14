@@ -564,7 +564,7 @@ export default function InventoryV2Page() {
                     // Open access issues: no stored per-account access-issue list yet (IssueActions only emails) — inert for now.
                     if (needs2fa) flags.push({ l: "2FA reset needed", ...RP, tip: "No 2FA is set on this account — configure/reset it" });
                     if (r.restrictedAt && !retired) flags.push({ l: `Restricted ${fmtD(r.restrictedAt)}`, bg: "#fff7ed", fg: "#c2410c", tip: "Currently restricted by LinkedIn" });
-                    if (missingCat.length) flags.push({ l: "Incomplete", bg: "#fffbeb", fg: "#92400e", tip: `Missing for catalogue: ${missingCat.join(", ")}` });
+                    if (missingCat.length) flags.push({ l: `Incomplete: ${missingCat.join(", ")}`, bg: "#fffbeb", fg: "#92400e", tip: `Missing for catalogue: ${missingCat.join(", ")}` });
                     if (proxyDown) flags.push({ l: "Proxy down", ...RP, tip: "GoLogin proxy check failed" });
                     if (proxyExpiring) flags.push({ l: "Proxy expiring", bg: "#fffbeb", fg: "#92400e", tip: "Proxy plan expires within 7 days" });
                     if (linkedArmy) flags.push({ l: "⚑ LinkedArmy", bg: "#ecfeff", fg: "#0e7490", tip: "Running LinkedArmy campaigns" });
