@@ -107,7 +107,7 @@ function Card({ a, picked, onToggle }: { a: A360Row; picked: boolean; onToggle: 
         </div>
       </div>
       <div className="chips">
-        <span className="chip conn">{a.cc} connections</span>
+        {a.cc > 0 ? <span className="chip conn">{a.cc} connections</span> : null}
         {a.v ? <span className="chip verified">✓ Verified</span> : <span className="chip unverified">Unverified</span>}
         {a.industry ? <span className="chip ind">{a.industry}</span> : null}
       </div>
