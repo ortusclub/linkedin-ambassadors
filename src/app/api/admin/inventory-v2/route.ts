@@ -83,17 +83,16 @@ export async function GET(_req: NextRequest) {
       .filter(Boolean) as string[];
     const ownerUsers = ownerEmails.length ? await prisma.user.findMany({ where: { email: { in: ownerEmails } }, select: { email: true, fullName: true } }) : [];
     const ownerMap = new Map(ownerUsers.map((u) => [u.email, u.fullName]));
-    const ownerApps = ownerEmails.length
-      ? await prisma.ambassadorApplication.findMany({
-          where: { email: { in: ownerEmails } },
-          select: {
-            id: true, email: true, linkedinUrl: true, fullName: true, contactNumber: true, contactChannel: true,
-            referredBy: true, referralSource: true, poc: true, ownerStatus: true, payoutCurrency: true, status: true,
-            paymentMethod: true, paymentDetails: true, payoutName: true, paypalEmail: true, wiseEmail: true,
-            onboardedAt: true, paidAt: true, outreachLog: true, nextFollowUp: true, updatedAt: true,
-          },
-        })
-      : [];
+    // Load ALL applications (not just those named in an Owner note) so an account can match its
+    // pipeline row by linkedinUrl OR owner email — and carry that row's profile data into inventory.
+    const ownerApps = await prisma.ambassadorApplication.findMany({
+      select: {
+        id: true, email: true, linkedinUrl: true, fullName: true, location: true, industry: true, connectionCount: true, contactNumber: true, contactChannel: true,
+        referredBy: true, referralSource: true, poc: true, ownerStatus: true, payoutCurrency: true, status: true,
+        paymentMethod: true, paymentDetails: true, payoutName: true, paypalEmail: true, wiseEmail: true,
+        onboardedAt: true, paidAt: true, outreachLog: true, nextFollowUp: true, updatedAt: true,
+      },
+    });
     const normUrl = (u?: string | null) => (u || "").toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("?")[0].replace(/\/+$/, "");
     const appMap = new Map(ownerApps.map((x) => [x.email.toLowerCase(), x]));
     const appByUrl = new Map(ownerApps.filter((x) => x.linkedinUrl).map((x) => [normUrl(x.linkedinUrl), x]));
@@ -122,6 +121,11 @@ export async function GET(_req: NextRequest) {
       const earnedTotal = Math.max(0, Math.round(((cryptoByAccount.get(a.id) ?? 0) + (txnByAccount.get(a.id) ?? 0)) * 100) / 100);
       return {
         ...a,
+        // Carry pipeline (application) profile data into inventory when the account's own is blank.
+        linkedinUrl: a.linkedinUrl || app?.linkedinUrl || null,
+        location: a.location || app?.location || null,
+        industry: a.industry || app?.industry || null,
+        linkedinName: a.linkedinName || app?.fullName || null,
         earnedTotal,
         utilisation: Math.min(1, Math.max(0, rentedMs / ownedMs)),
         ownerName: ownerMap.get(ownerEmail) || app?.fullName || ownerEmail || null,
