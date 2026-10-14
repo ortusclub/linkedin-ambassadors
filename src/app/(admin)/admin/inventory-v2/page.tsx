@@ -58,6 +58,7 @@ interface Account {
   twoFactorResetNeeded: boolean;
   twoFactorReceivedAt: string | null;
   trialEndsAt: string | null;
+  manualPaidUntil: string | null;
   inventoryPool?: string | null;
   shadowRenter: string | null;
   connectionHistory: ConnPoint[] | null;
@@ -487,8 +488,15 @@ export default function InventoryV2Page() {
                         );
                       }
                       const r = it.row;
-                      const st = canonicalStatus(r);
-                    const edge = st === "Available" ? GREEN : st === "Rented" ? BLUE : st === "Maintenance" ? RED : st === "Construction" ? "#b45309" : "transparent";
+                    // Left edge flags ACTION NEEDED only — never repeats the status colour
+                    // (that lives on the group-header dot). Red iff the row needs a human.
+                    const rt0 = r.rentals[0];
+                    const overdue = rt0?.status === "payment_failed"
+                      || (rt0?.status === "active" && !!rt0.currentPeriodEnd && new Date(rt0.currentPeriodEnd).getTime() < Date.now())
+                      || (r.status === "rented" && !!r.manualPaidUntil && new Date(r.manualPaidUntil).getTime() < Date.now());
+                    const needsRotate = r.twoFactorResetNeeded;   // 2FA key / GoLogin link rotation + 2FA-reset-needed share one stored flag
+                    const proxyDown = false;                      // TODO: no stored proxy/GoLogin-check-failed flag yet (Phase 2, like the GoLogin-rotate flag)
+                    const edge = (overdue || needsRotate || proxyDown) ? RED : "transparent";
                     const rentOn = r.listed && r.status === "available";
                     const price = priceOf(r);
                     const rn = r.rentals[0]?.user;
