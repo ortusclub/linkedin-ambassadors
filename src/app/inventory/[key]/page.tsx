@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SHADOW_RENTER_EMAILS } from "@/lib/shadow-rental";
+import Agent360Catalogue, { type A360Row } from "./Agent360Catalogue";
 
 // Unlisted partner inventory catalogue. Not linked anywhere and gated behind an
 // unguessable slug, so the link can be shared with a renter (e.g. Profile Partner)
@@ -10,6 +11,11 @@ export const dynamic = "force-dynamic";
 
 // The unlisted key. Change this to rotate the link.
 const SLUG = "iv-7h2k9x3mqp";
+
+// Agent360 gets its own slug + password gate + the full pipeline (available, shadow-held
+// and everything in warm-up) so they can earmark future accounts, not just available ones.
+const A360_SLUG = "iv-a360-9mq2k7xz4p";
+const A360_PASSWORD = "Agent360-LV2026";
 
 // Partner wholesale pricing, floor held at $40: verified $50; unverified $45 at
 // 200+ connections, else $40.
@@ -98,6 +104,40 @@ function Group({ eyebrow, title, hint, items }: { eyebrow: string; title: string
 
 export default async function PartnerInventoryPage({ params }: { params: Promise<{ key: string }> }) {
   const { key } = await params;
+
+  // Agent360: full pipeline (available + shadow-held + all warm-up), password-gated, earmarkable.
+  if (key === A360_SLUG) {
+    const a360Select = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true, industry: true, linkedinHeadline: true } as const;
+    const [shadowRentals, availableA, warmA] = await Promise.all([
+      prisma.rental.findMany({ where: { user: { email: { in: SHADOW_RENTER_EMAILS } } }, select: { linkedinAccountId: true } }),
+      prisma.linkedInAccount.findMany({
+        where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
+        select: a360Select,
+      }),
+      prisma.linkedInAccount.findMany({
+        where: { status: { in: ["under_construction", "construction_immature"] }, restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
+        select: a360Select,
+      }),
+    ]);
+    const shadowSet = new Set(shadowRentals.map((r) => r.linkedinAccountId));
+    const mk = (a: typeof availableA[number], status: string): A360Row => ({
+      id: a.id,
+      name: (a.linkedinName || "").trim(),
+      url: cleanUrl(a.linkedinUrl),
+      cc: a.connectionCount || 0,
+      v: a.linkedinVerified,
+      status,
+      shadow: shadowSet.has(a.id),
+      industry: a.industry || null,
+      headline: (a.linkedinHeadline || "").trim() || null,
+    });
+    const rows: A360Row[] = [
+      ...availableA.map((a) => mk(a, "available")),
+      ...warmA.filter((a) => a.linkedinUrl && !a.linkedinUrl.includes("charlotte-bax")).map((a) => mk(a, "under_construction")),
+    ];
+    return <Agent360Catalogue rows={rows} password={A360_PASSWORD} />;
+  }
+
   if (key !== SLUG) notFound();
 
   const select = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true } as const;
