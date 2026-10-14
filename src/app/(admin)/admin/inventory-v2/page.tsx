@@ -126,7 +126,10 @@ const GROUPS: { key: string; title: string; note: string; dot: string }[] = [
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmtD = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
 const fmtDY = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`; };
-const relDays = (d: string | null) => { if (!d) return "—"; const n = Math.floor((Date.now() - new Date(d).getTime()) / 86400000); return n <= 0 ? "today" : n === 1 ? "1d ago" : `${n}d ago`; };
+// Calendar-day difference (not a rolling 24h window): a check from last night reads
+// "yesterday", not "today". Keeps the recency label in step with the daily-check reset.
+const calDaysAgo = (iso: string) => { const x = new Date(iso); const a = new Date(x.getFullYear(), x.getMonth(), x.getDate()); const t = new Date(); const b = new Date(t.getFullYear(), t.getMonth(), t.getDate()); return Math.round((b.getTime() - a.getTime()) / 86400000); };
+const relDays = (d: string | null) => { if (!d) return "—"; const n = calDaysAgo(d); return n <= 0 ? "today" : n === 1 ? "yesterday" : `${n}d ago`; };
 const ageStr = (a: Account) => { const m = a.accountAgeMonths; if (m == null) return "—"; const y = Math.floor(m / 12), mm = m % 12; return y ? `${y}y${mm ? ` ${mm}m` : ""}` : `${mm}m`; };
 const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 
@@ -551,7 +554,7 @@ export default function InventoryV2Page() {
                           </div>
                           {/* health — ✓/✕ only during the daily check; read-only recency otherwise */}
                           {(() => {
-                            const recency = <span title={r.healthCheckedAt ? `Last checked ${fmtDY(r.healthCheckedAt)}` : "Never health-checked"} style={{ font: `600 11px ${F}`, color: r.restrictedAt ? REDD : done ? GREEND : (!r.healthCheckedAt || Date.now() - new Date(r.healthCheckedAt).getTime() > 2 * 86400000) ? AMBER : SUB, whiteSpace: "nowrap" }}>{r.restrictedAt ? "restricted" : r.healthCheckedAt ? (done ? "✓ today" : relDays(r.healthCheckedAt)) : "never checked"}</span>;
+                            const recency = <span title={r.healthCheckedAt ? `Last checked ${fmtDY(r.healthCheckedAt)}` : "Never health-checked"} style={{ font: `600 11px ${F}`, color: r.restrictedAt ? REDD : done ? GREEND : AMBER, whiteSpace: "nowrap" }}>{r.restrictedAt ? "restricted" : done ? "✓ today" : r.healthCheckedAt ? relDays(r.healthCheckedAt) : "never checked"}</span>;
                             return checkMode ? (
                               <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-start" }}>
                                 <div style={{ display: "flex", gap: 4 }}>
