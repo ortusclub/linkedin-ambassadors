@@ -98,6 +98,9 @@ const BLUE = "#2563eb", GREEN = "#12a150", GREEND = "#0f7a3d", RED = "#dc2626", 
 const F = "'Plus Jakarta Sans',system-ui,sans-serif", G = "'Space Grotesk',system-ui,sans-serif";
 
 const isDummy = (a: Account) => (a.notes || "").includes("[SHOWCASE]");
+// Daily-check eligibility: every account we still operate — all live, incl. restricted (you check
+// whether they recovered). Only retired accounts and showcase/dummy rows are out of scope.
+const checkable = (a: Account) => a.status !== "retired" && !isDummy(a);
 
 function canonicalStatus(a: Account): string {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
@@ -324,8 +327,10 @@ export default function InventoryV2Page() {
     return GROUPS.map((g) => ({ ...g, rows: m.get(g.key) || [] })).filter((g) => g.rows.length);
   }, [sorted]);
 
-  // Daily check: in-scope = rented, not dummy, not restricted. "done" = health checked today.
-  const checkScope = useMemo(() => accounts.filter((a) => a.status === "rented" && !isDummy(a) && !a.restrictedAt), [accounts]);
+  // Daily check: in-scope = every live account except retired + showcase/dummy (matches the
+  // design's `checkable`). "done" = health checked today. Health buttons show only for in-scope
+  // rows, so the progress counter and what you can tick always line up.
+  const checkScope = useMemo(() => accounts.filter(checkable), [accounts]);
   const isDoneToday = (a: Account) => !!a.healthCheckedAt && new Date(a.healthCheckedAt).toDateString() === new Date().toDateString();
   const dcDone = checkScope.filter(isDoneToday).length, dcTotal = checkScope.length;
 
@@ -336,13 +341,13 @@ export default function InventoryV2Page() {
     const avgUtil = accounts.length ? Math.round((accounts.reduce((s, a) => s + (a.utilisation || 0), 0) / accounts.length) * 100) : 0;
     return [
       { key: "Available", label: "Available", n: avail, sub: "ready to offer", dot: GREEN, subFg: GREEND },
-      { key: "Rented", label: "Rented", n: rented, sub: `${checkScope.length} to check`, dot: BLUE, subFg: SUB },
+      { key: "Rented", label: "Rented", n: rented, sub: "with a customer", dot: BLUE, subFg: SUB },
       { key: "Construction", label: "Construction", n: count("Construction"), sub: "warming up", dot: "#b45309", subFg: SUB },
       { key: "Maintenance", label: "Restricted / Maint.", n: count("Maintenance"), sub: "needs attention", dot: "#64748b", subFg: REDD },
       { key: "__earn", label: "Earned, all-time", n: Math.round(totalEarn), sub: "gross collected", dot: "#7c3aed", subFg: SUB, money: true },
       { key: "__util", label: "Avg utilisation", n: avgUtil, sub: "rented share, lifetime", dot: GREEN, subFg: SUB, pct: true },
     ];
-  }, [withGroup, accounts, checkScope.length]);
+  }, [withGroup, accounts]);
 
   const totalShown = sorted.length;
   const hasFilters = q || cty !== "all" || renter !== "all" || ver !== "all" || conn !== "all" || supply !== "all" || poc !== "all" || groupFilter !== "all";
@@ -533,7 +538,10 @@ export default function InventoryV2Page() {
                     if (r.shadowRenter) flags.push({ l: `◐ Shadow · ${shadowName(r.shadowRenter)}`, bg: "#eff4ff", fg: "#2563eb", tip: `Shadow supply (${shadowName(r.shadowRenter)}) — still available to rent` });
                     if (r.hasSalesNav) flags.push({ l: "+SN", bg: "#eff4ff", fg: "#2563eb", tip: "Has Sales Navigator" });
                     if (isConstruction && warmDays == null && !flags.length) flags.push({ l: "Warm-up", bg: "#f1f3f6", fg: "#5b6779", tip: "Account in build / warm-up" });
-                    const cW = Math.min(100, Math.round((r.connectionCount / 1000) * 100));
+                    // Conn. column (match design): log-scale bar + bucketed colour (10≈33%, 100≈66%, 1000+=100%).
+                    const cCount = r.connectionCount;
+                    const cW = Math.min(100, (Math.log10(Math.max(1, cCount)) / 3) * 100);
+                    const cBar = cCount < 50 ? "#c3c9d3" : cCount < 100 ? "#94a3b8" : cCount < 500 ? "#2563eb" : cCount < 1000 ? "#1d4ed8" : "#12a150";
                     return (
                       <div key={r.id} style={{ borderBottom: `1px solid ${LINE2}` }}>
                         <div onClick={() => setOpen((o) => { const n = new Set(o); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; })} style={{ display: "grid", gridTemplateColumns: headCols, gap: 12, alignItems: "center", padding: "10px 16px", cursor: "pointer", boxShadow: `inset 3px 0 0 ${edge}` }}>
@@ -548,16 +556,16 @@ export default function InventoryV2Page() {
                             </div>
                             <div style={{ font: `500 12px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.linkedinHeadline || r.loginEmail || r.industry || "—"}</div>
                           </div>
-                          {/* conn — editable only during the daily check; read-only otherwise */}
-                          {checkMode ? (
+                          {/* conn — editable only during the daily check (for in-scope rows); read-only otherwise */}
+                          {checkMode && checkable(r) ? (
                             <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                               <input defaultValue={r.connectionCount} key={`c-${r.id}-${r.connectionCount}`} onChange={(e) => setConnDraft((d) => ({ ...d, [r.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} onBlur={() => connDraft[r.id] != null && saveConn(r, connDraft[r.id])} inputMode="numeric" title="Connection count — saves on blur / Enter" style={{ width: 72, border: `1.5px solid ${connDraft[r.id] != null && connDraft[r.id] !== String(r.connectionCount) ? BLUE : "#dde1e8"}`, background: "#fff", borderRadius: 8, padding: "5px 8px", font: `700 13.5px ${G}`, color: INK, outline: "none" }} />
-                              <span style={{ height: 3, width: 64, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: BLUE }} /></span>
+                              <span style={{ height: 3, width: 64, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: cBar }} /></span>
                             </div>
                           ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                              <span style={{ font: `700 15px ${G}`, color: INK }}>{r.connectionCount}</span>
-                              <span style={{ height: 3, width: 56, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: BLUE }} /></span>
+                              <span style={{ font: `700 15px ${G}`, color: cCount === 0 ? "#c3c9d3" : INK }}>{cCount.toLocaleString()}</span>
+                              <span style={{ height: 3, width: 56, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: cBar }} /></span>
                             </div>
                           )}
                           {/* age */}
@@ -587,7 +595,7 @@ export default function InventoryV2Page() {
                             const retired = canonicalStatus(r) === "Permanently restricted/Inaccessible";
                             const hcText = r.restrictedAt ? `restricted ${fmtD(r.restrictedAt)}` : retired ? "permanently restricted" : r.healthCheckedAt ? `✓ checked ${fmtD(r.healthCheckedAt)}` : "not yet checked";
                             const hcFg = r.restrictedAt || retired ? REDD : r.healthCheckedAt ? GREEND : MUT;
-                            return checkMode ? (
+                            return checkMode && checkable(r) ? (
                               <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 4 }}>
                                 <button onClick={() => markActive(r)} title="Healthy — mark active" style={{ width: 34, height: 30, borderRadius: 8, border: `1.5px solid ${GREEN}`, background: !r.restrictedAt && done ? GREEN : "#fff", color: !r.restrictedAt && done ? "#fff" : GREEND, font: `800 14px ${F}`, cursor: "pointer" }}>✓</button>
                                 <button onClick={() => setRestricted(r, true)} title="Restricted" style={{ width: 34, height: 30, borderRadius: 8, border: `1.5px solid ${RED}`, background: r.restrictedAt ? RED : "#fff", color: r.restrictedAt ? "#fff" : REDD, font: `800 13px ${F}`, cursor: "pointer" }}>✕</button>
