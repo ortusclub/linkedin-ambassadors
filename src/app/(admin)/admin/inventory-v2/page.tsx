@@ -315,14 +315,25 @@ export default function InventoryV2Page() {
     }).map((x) => x.a);
   }, [withGroup, groupFilter, poc, cty, renter, ver, conn, supply, q]);
 
+  // Stable row order: the live sort (esp. "Last updated") is re-derived only when the sort or the
+  // SET of visible accounts changes — not when an existing row's sort field changes. So editing a
+  // row (connections, health, …) no longer bumps it to the top of its group mid-work ("goes up").
+  // A fresh order is picked up on reload or when you change the sort / filters.
+  const orderRef = useRef<{ key: string; ids: string[] }>({ key: "", ids: [] });
   const sorted = useMemo(() => {
     const arr = [...filtered];
-    if (sort === "upd") return sortAccountsByLastUpdated(arr, "newest");
-    if (sort === "price") arr.sort((x, y) => priceOf(y) - priceOf(x));
-    else if (sort === "conn") arr.sort((x, y) => y.connectionCount - x.connectionCount);
-    else if (sort === "age") arr.sort((x, y) => (y.accountAgeMonths || 0) - (x.accountAgeMonths || 0));
-    else if (sort === "name") arr.sort((x, y) => (x.linkedinName || "").localeCompare(y.linkedinName || ""));
-    return arr;
+    const fresh = (() => {
+      if (sort === "upd") return sortAccountsByLastUpdated(arr, "newest");
+      if (sort === "price") return arr.sort((x, y) => priceOf(y) - priceOf(x));
+      if (sort === "conn") return arr.sort((x, y) => y.connectionCount - x.connectionCount);
+      if (sort === "age") return arr.sort((x, y) => (y.accountAgeMonths || 0) - (x.accountAgeMonths || 0));
+      if (sort === "name") return arr.sort((x, y) => (x.linkedinName || "").localeCompare(y.linkedinName || ""));
+      return arr;
+    })();
+    const key = sort + "|" + arr.map((a) => a.id).sort().join(",");
+    if (orderRef.current.key !== key) orderRef.current = { key, ids: fresh.map((a) => a.id) };
+    const pos = new Map(orderRef.current.ids.map((id, i) => [id, i]));
+    return [...arr].sort((x, y) => (pos.get(x.id) ?? Number.MAX_SAFE_INTEGER) - (pos.get(y.id) ?? Number.MAX_SAFE_INTEGER));
   }, [filtered, sort]);
 
   const grouped = useMemo(() => {
