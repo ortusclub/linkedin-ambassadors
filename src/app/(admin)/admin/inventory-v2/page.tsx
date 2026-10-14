@@ -443,7 +443,7 @@ export default function InventoryV2Page() {
         <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, overflow: "auto", boxShadow: "0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.04)" }}>
           <div style={{ minWidth: 1360 }}>
             <div style={{ display: "grid", gridTemplateColumns: headCols, gap: 12, alignItems: "center", padding: "10px 16px", borderBottom: `1px solid ${LINE2}`, background: "#fafbfc", font: `700 10.5px ${F}`, letterSpacing: ".07em", textTransform: "uppercase", color: MUT }}>
-              <span>Account</span><span>Conn.</span><span>Age</span><span>Flags</span><span>Price</span><span>Renter</span><span>LV PoC</span><span>Health</span><span>Rent</span><span></span><span></span>
+              <span>Account</span><span>Conn.</span><span>Age</span><span>Flags</span><span>Price</span><span>Renter</span><span>LV PoC</span><span>{checkMode ? "Health" : "Checked"}</span><span>Rent</span><span></span><span></span>
             </div>
             {grouped.length === 0 && <div style={{ padding: 40, textAlign: "center", font: `500 13.5px ${F}`, color: MUT }}>No accounts match.</div>}
             {grouped.map((g) => {
@@ -517,11 +517,18 @@ export default function InventoryV2Page() {
                             </div>
                             <div style={{ font: `500 12px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.linkedinHeadline || r.loginEmail || r.industry || "—"}</div>
                           </div>
-                          {/* conn — always editable, boxed (saves on blur / Enter) */}
-                          <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                            <input defaultValue={r.connectionCount} key={`c-${r.id}-${r.connectionCount}`} onChange={(e) => setConnDraft((d) => ({ ...d, [r.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} onBlur={() => connDraft[r.id] != null && saveConn(r, connDraft[r.id])} inputMode="numeric" title="Connection count — saves on blur / Enter" style={{ width: 72, border: `1.5px solid ${connDraft[r.id] != null && connDraft[r.id] !== String(r.connectionCount) ? BLUE : "#dde1e8"}`, background: "#fff", borderRadius: 8, padding: "5px 8px", font: `700 13.5px ${G}`, color: INK, outline: "none" }} />
-                            <span style={{ height: 3, width: 64, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: BLUE }} /></span>
-                          </div>
+                          {/* conn — editable only during the daily check; read-only otherwise */}
+                          {checkMode ? (
+                            <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                              <input defaultValue={r.connectionCount} key={`c-${r.id}-${r.connectionCount}`} onChange={(e) => setConnDraft((d) => ({ ...d, [r.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} onBlur={() => connDraft[r.id] != null && saveConn(r, connDraft[r.id])} inputMode="numeric" title="Connection count — saves on blur / Enter" style={{ width: 72, border: `1.5px solid ${connDraft[r.id] != null && connDraft[r.id] !== String(r.connectionCount) ? BLUE : "#dde1e8"}`, background: "#fff", borderRadius: 8, padding: "5px 8px", font: `700 13.5px ${G}`, color: INK, outline: "none" }} />
+                              <span style={{ height: 3, width: 64, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: BLUE }} /></span>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                              <span style={{ font: `700 15px ${G}`, color: INK }}>{r.connectionCount}</span>
+                              <span style={{ height: 3, width: 56, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: BLUE }} /></span>
+                            </div>
+                          )}
                           {/* age */}
                           <span style={{ font: `700 15px ${G}`, color: INK, whiteSpace: "nowrap" }}>{ageStr(r)}</span>
                           {/* flags */}
@@ -542,14 +549,19 @@ export default function InventoryV2Page() {
                           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                             {r.ownerPoc ? <><span style={{ flex: "none", width: 22, height: 22, borderRadius: "50%", background: colorOf(r.ownerPoc), color: "#fff", font: `700 10px ${F}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{iniOf(r.ownerPoc)}</span><span style={{ font: `600 12.5px ${F}`, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.ownerPoc}</span></> : <span style={{ font: `600 12.5px ${F}`, color: MUT }}>—</span>}
                           </div>
-                          {/* health — always-on quick actions */}
-                          <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-start" }}>
-                            <div style={{ display: "flex", gap: 4 }}>
-                              <button onClick={() => markActive(r)} disabled={busy === r.id} title="Healthy — mark active" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${GREEN}`, background: !r.restrictedAt && r.linkedinAccountHealth === "active" ? "#dcfce7" : "#fff", color: GREEND, font: `800 13px ${F}`, cursor: "pointer" }}>✓</button>
-                              <button onClick={() => setRestricted(r, true)} disabled={busy === r.id} title="Restricted" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${RED}`, background: r.restrictedAt ? "#fee2e2" : "#fff", color: REDD, font: `800 12px ${F}`, cursor: "pointer" }}>✕</button>
-                            </div>
-                            <span title={r.healthCheckedAt ? `Last checked ${fmtDY(r.healthCheckedAt)}` : "Never health-checked"} style={{ font: `600 10px ${F}`, color: r.restrictedAt ? REDD : done ? GREEND : (!r.healthCheckedAt || Date.now() - new Date(r.healthCheckedAt).getTime() > 2 * 86400000) ? AMBER : SUB, whiteSpace: "nowrap" }}>{r.restrictedAt ? "restricted" : r.healthCheckedAt ? (done ? "✓ today" : relDays(r.healthCheckedAt)) : "never checked"}</span>
-                          </div>
+                          {/* health — ✓/✕ only during the daily check; read-only recency otherwise */}
+                          {(() => {
+                            const recency = <span title={r.healthCheckedAt ? `Last checked ${fmtDY(r.healthCheckedAt)}` : "Never health-checked"} style={{ font: `600 11px ${F}`, color: r.restrictedAt ? REDD : done ? GREEND : (!r.healthCheckedAt || Date.now() - new Date(r.healthCheckedAt).getTime() > 2 * 86400000) ? AMBER : SUB, whiteSpace: "nowrap" }}>{r.restrictedAt ? "restricted" : r.healthCheckedAt ? (done ? "✓ today" : relDays(r.healthCheckedAt)) : "never checked"}</span>;
+                            return checkMode ? (
+                              <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-start" }}>
+                                <div style={{ display: "flex", gap: 4 }}>
+                                  <button onClick={() => markActive(r)} title="Healthy — mark active" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${GREEN}`, background: !r.restrictedAt && done ? "#dcfce7" : "#fff", color: GREEND, font: `800 13px ${F}`, cursor: "pointer" }}>✓</button>
+                                  <button onClick={() => setRestricted(r, true)} title="Restricted" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${RED}`, background: r.restrictedAt ? "#fee2e2" : "#fff", color: REDD, font: `800 12px ${F}`, cursor: "pointer" }}>✕</button>
+                                </div>
+                                {recency}
+                              </div>
+                            ) : recency;
+                          })()}
                           {/* rent toggle */}
                           <div onClick={(e) => e.stopPropagation()}>
                             <button onClick={() => toggleRent(r)} disabled={r.status === "rented" || r.status === "trial"} title={rentOn ? "Listed for rent" : "Not listed"} style={{ position: "relative", width: 36, height: 20, borderRadius: 999, border: "none", cursor: r.status === "rented" || r.status === "trial" ? "not-allowed" : "pointer", padding: 0, background: rentOn ? GREEN : "#cbd2dc", opacity: r.status === "rented" || r.status === "trial" ? 0.5 : 1 }}><span style={{ position: "absolute", top: 2, left: rentOn ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left .15s" }} /></button>
