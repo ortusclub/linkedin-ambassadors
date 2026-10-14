@@ -101,6 +101,8 @@ const isDummy = (a: Account) => (a.notes || "").includes("[SHOWCASE]");
 // Daily-check eligibility: every account we still operate — all live, incl. restricted (you check
 // whether they recovered). Only retired accounts and showcase/dummy rows are out of scope.
 const checkable = (a: Account) => a.status !== "retired" && !isDummy(a);
+// Settable statuses for the inline row quick-edit (rented/trial are driven by rentals, not set here).
+const STATUS_OPTS: [string, string][] = [["available", "Available"], ["unavailable", "Unavailable"], ["maintenance", "Maintenance"], ["under_construction", "Construction"], ["construction_immature", "Construction (immature)"], ["under_review", "Under review"], ["retired", "Retired"]];
 
 function canonicalStatus(a: Account): string {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
@@ -229,6 +231,7 @@ export default function InventoryV2Page() {
   const [checkMode, setCheckMode] = useState(false);
   const [hideDone, setHideDone] = useState(false);
   const [connDraft, setConnDraft] = useState<Record<string, string>>({});
+  const [editConn, setEditConn] = useState<string | null>(null); // row whose connections are being quick-edited (outside daily-check)
   const [bannerOpen, setBannerOpen] = useState(true);
   const [sheetFormula, setSheetFormula] = useState<string | null>(null);
   const [copiedFormula, setCopiedFormula] = useState(false);
@@ -255,6 +258,15 @@ export default function InventoryV2Page() {
     const now = new Date().toISOString();
     setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, linkedinAccountHealth: "active", healthCheckedAt: now } : x)));
     fetch(`/api/admin/accounts/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ linkedinAccountHealth: "active", healthCheckedAt: now }) }).catch(() => load());
+  };
+  // Inline quick-edits from the collapsed row (optimistic, no full reload so the row doesn't jump).
+  const setVerified = (a: Account, v: boolean) => {
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, linkedinVerified: v } : x)));
+    patch(a.id, { linkedinVerified: v }, false);
+  };
+  const setStatus = (a: Account, status: string) => {
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, status, listed: status === "available" ? x.listed : false } : x)));
+    patch(a.id, { status }, false);
   };
   const recheck = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST" }); await load(); } finally { setBusy(null); } };
   const trial = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/trial`, { method: "POST" }); await load(); } finally { setBusy(null); } };
@@ -458,7 +470,7 @@ export default function InventoryV2Page() {
         <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, overflow: "auto", boxShadow: "0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.04)" }}>
           <div style={{ minWidth: 1360 }}>
             <div style={{ display: "grid", gridTemplateColumns: headCols, gap: 12, alignItems: "center", padding: "10px 16px", borderBottom: `1px solid ${LINE2}`, background: "#fafbfc", font: `700 10.5px ${F}`, letterSpacing: ".07em", textTransform: "uppercase", color: MUT }}>
-              <span>Account</span><span>Conn.</span><span>Age</span><span>Flags</span><span>Price</span><span>Renter</span><span>LV PoC</span><span>{checkMode ? "Health" : "Updated"}</span><span>Rent</span><span></span><span></span>
+              <span>Account</span><span>Conn.</span><span>Age</span><span>Flags</span><span>Price</span><span>Renter / status</span><span>LV PoC</span><span>{checkMode ? "Health" : "Updated"}</span><span>Rent</span><span></span><span></span>
             </div>
             {grouped.length === 0 && <div style={{ padding: 40, textAlign: "center", font: `500 13.5px ${F}`, color: MUT }}>No accounts match.</div>}
             {grouped.map((g) => {
@@ -554,20 +566,20 @@ export default function InventoryV2Page() {
                             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                               <span style={{ font: `700 14px/1.3 ${F}`, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatName(r.linkedinName)}</span>
                               {r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="LinkedIn" style={{ flex: "none", padding: "2px 7px", borderRadius: 7, background: "#e8f0fe", color: "#0a66c2", font: `800 11.5px ${F}`, textDecoration: "none" }}>in ↗</a>}
-                              {r.linkedinVerified && <span title="Verified" style={{ flex: "none", font: `800 10px ${F}`, color: BLUE, background: "#e8f0fe", borderRadius: 6, padding: "2px 5px" }}>✓</span>}
+                              <button onClick={(e) => { e.stopPropagation(); setVerified(r, !r.linkedinVerified); }} title={r.linkedinVerified ? "Verified — click to mark unverified" : "Not verified — click to mark verified"} style={{ flex: "none", border: "none", cursor: "pointer", font: `800 10px ${F}`, color: r.linkedinVerified ? BLUE : "#aab2bf", background: r.linkedinVerified ? "#e8f0fe" : "#f1f3f6", borderRadius: 6, padding: "2px 5px" }}>{r.linkedinVerified ? "✓" : "○"}</button>
                               <span title={r.location || ""} style={{ flex: "none", font: `700 10.5px ${F}`, padding: "2px 6px", borderRadius: 6, background: "#f1f3f6", color: SUB }}>{countryOf(r.location)}</span>
                               {isDummy(r) && <span style={{ flex: "none", font: `800 9.5px ${F}`, padding: "2px 6px", borderRadius: 5, background: "#fef3c7", color: AMBER }}>DUMMY</span>}
                             </div>
                             <div style={{ font: `500 12px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.linkedinHeadline || r.loginEmail || r.industry || "—"}</div>
                           </div>
-                          {/* conn — editable only during the daily check (for in-scope rows); read-only otherwise */}
-                          {checkMode && checkable(r) ? (
+                          {/* conn — inline input during the daily check or when quick-editing; click the number to edit otherwise */}
+                          {(checkMode && checkable(r)) || editConn === r.id ? (
                             <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                              <input defaultValue={r.connectionCount} key={`c-${r.id}-${r.connectionCount}`} onChange={(e) => setConnDraft((d) => ({ ...d, [r.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} onBlur={() => connDraft[r.id] != null && saveConn(r, connDraft[r.id])} inputMode="numeric" title="Connection count — saves on blur / Enter" style={{ width: 72, border: `1.5px solid ${connDraft[r.id] != null && connDraft[r.id] !== String(r.connectionCount) ? BLUE : "#dde1e8"}`, background: "#fff", borderRadius: 8, padding: "5px 8px", font: `700 13.5px ${G}`, color: INK, outline: "none" }} />
+                              <input autoFocus={editConn === r.id} defaultValue={r.connectionCount} key={`c-${r.id}-${r.connectionCount}`} onChange={(e) => setConnDraft((d) => ({ ...d, [r.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} onBlur={() => { if (connDraft[r.id] != null) saveConn(r, connDraft[r.id]); setEditConn((c) => (c === r.id ? null : c)); }} inputMode="numeric" title="Connection count — saves on blur / Enter" style={{ width: 72, border: `1.5px solid ${connDraft[r.id] != null && connDraft[r.id] !== String(r.connectionCount) ? BLUE : "#dde1e8"}`, background: "#fff", borderRadius: 8, padding: "5px 8px", font: `700 13.5px ${G}`, color: INK, outline: "none" }} />
                               <span style={{ height: 3, width: 64, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: cBar }} /></span>
                             </div>
                           ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <div onClick={(e) => { e.stopPropagation(); setEditConn(r.id); }} title="Click to edit connections" style={{ display: "flex", flexDirection: "column", gap: 3, cursor: "pointer" }}>
                               <span style={{ font: `700 15px ${G}`, color: cCount === 0 ? "#c3c9d3" : INK }}>{cCount.toLocaleString()}</span>
                               <span style={{ height: 3, width: 56, borderRadius: 3, background: LINE2, overflow: "hidden", display: "block" }}><span style={{ display: "block", height: "100%", width: `${cW}%`, background: cBar }} /></span>
                             </div>
@@ -583,10 +595,20 @@ export default function InventoryV2Page() {
                             <span style={{ font: `700 14px ${G}`, color: INK }}>${price}<span style={{ font: `500 11px ${F}`, color: MUT }}>/mo</span></span>
                             <span style={{ font: `600 10.5px ${F}`, color: MUT, whiteSpace: "nowrap" }}>{r.hasSalesNav ? "SalesNav" : r.linkedinVerified ? "verified" : "standard"}</span>
                           </div>
-                          {/* renter */}
+                          {/* renter — or, for non-rented rows, an inline status quick-edit */}
                           <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-                            <span style={{ font: `600 13px ${F}`, color: rn ? INK : r.shadowRenter ? BLUE : MUT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{rn ? (rn.fullName || rn.email) : r.shadowRenter ? shadowName(r.shadowRenter) : "—"}</span>
-                            {rn ? <span style={{ font: `600 11px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>next {fmtD(r.rentals[0]?.currentPeriodEnd || null)}</span> : r.shadowRenter ? <span style={{ font: `600 11px ${F}`, color: MUT, whiteSpace: "nowrap" }}>shadow · yields on rent</span> : null}
+                            {rn ? (<>
+                              <span style={{ font: `600 13px ${F}`, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{rn.fullName || rn.email}</span>
+                              <span style={{ font: `600 11px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>next {fmtD(r.rentals[0]?.currentPeriodEnd || null)}</span>
+                            </>) : r.shadowRenter ? (<>
+                              <span style={{ font: `600 13px ${F}`, color: BLUE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shadowName(r.shadowRenter)}</span>
+                              <span style={{ font: `600 11px ${F}`, color: MUT, whiteSpace: "nowrap" }}>shadow · yields on rent</span>
+                            </>) : (
+                              <select value={r.status} onClick={(e) => e.stopPropagation()} onChange={(e) => setStatus(r, e.target.value)} title="Account status — change to move it between groups" style={{ maxWidth: "100%", border: "1px solid #dde1e8", background: "#fff", borderRadius: 8, padding: "4px 6px", font: `600 12px ${F}`, color: INK, outline: "none", cursor: "pointer" }}>
+                                {!STATUS_OPTS.some(([v]) => v === r.status) && <option value={r.status}>{r.status}</option>}
+                                {STATUS_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                              </select>
+                            )}
                           </div>
                           {/* poc */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
