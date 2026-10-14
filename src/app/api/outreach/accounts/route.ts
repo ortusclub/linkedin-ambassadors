@@ -35,6 +35,11 @@ export async function GET(req: NextRequest) {
       status: true,
       restrictedAt: true,
       notes: true,
+      rentals: {
+        where: { status: { in: ["active", "pending_access", "payment_failed"] }, isShadow: false },
+        select: { id: true },
+        take: 1,
+      },
     },
   });
 
@@ -49,6 +54,8 @@ export async function GET(req: NextRequest) {
       linkedinUrl: a.linkedinUrl,
       // Restricted profiles can still be named, but are no use as invite targets.
       restricted: a.status === "retired" || !!a.restrictedAt,
+      // Eligibility only: do not expose renters or rental details to Outreach.
+      rented: a.status === "rented" || a.rentals.length > 0,
     }));
 
   return NextResponse.json({ accounts });
