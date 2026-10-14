@@ -55,6 +55,7 @@ interface Account {
   warmupStartedAt: string | null;
   healthCheckedAt: string | null;
   linkedinAccountHealth: string | null;
+  twoFactor: string | null;
   twoFactorResetNeeded: boolean;
   twoFactorReceivedAt: string | null;
   trialEndsAt: string | null;
@@ -97,7 +98,6 @@ const BLUE = "#2563eb", GREEN = "#12a150", GREEND = "#0f7a3d", RED = "#dc2626", 
 const F = "'Plus Jakarta Sans',system-ui,sans-serif", G = "'Space Grotesk',system-ui,sans-serif";
 
 const isDummy = (a: Account) => (a.notes || "").includes("[SHOWCASE]");
-const checkDue = (a: Account) => !isDummy(a) && a.status === "rented" && !a.restrictedAt && (!a.healthCheckedAt || Date.now() - new Date(a.healthCheckedAt).getTime() > 7 * 86400000);
 
 function canonicalStatus(a: Account): string {
   if (a.status === "retired") return "Permanently restricted/Inaccessible";
@@ -492,29 +492,47 @@ export default function InventoryV2Page() {
                         );
                       }
                       const r = it.row;
-                    // Left edge flags ACTION NEEDED only — never repeats the status colour
-                    // (that lives on the group-header dot). Red iff the row needs a human.
+                    // ── Flag conditions (match the Inventory v2 design) ──
+                    const nowMs = Date.now();
                     const rt0 = r.rentals[0];
                     const overdue = rt0?.status === "payment_failed"
-                      || (rt0?.status === "active" && !!rt0.currentPeriodEnd && new Date(rt0.currentPeriodEnd).getTime() < Date.now())
-                      || (r.status === "rented" && !!r.manualPaidUntil && new Date(r.manualPaidUntil).getTime() < Date.now());
-                    const needsRotate = r.twoFactorResetNeeded;   // 2FA key / GoLogin link rotation + 2FA-reset-needed share one stored flag
-                    const proxyDown = false;                      // TODO: no stored proxy/GoLogin-check-failed flag yet (Phase 2, like the GoLogin-rotate flag)
-                    const edge = (overdue || needsRotate || proxyDown) ? RED : "transparent";
+                      || (rt0?.status === "active" && !!rt0.currentPeriodEnd && new Date(rt0.currentPeriodEnd).getTime() < nowMs)
+                      || (r.status === "rented" && !!r.manualPaidUntil && new Date(r.manualPaidUntil).getTime() < nowMs);
+                    const needsRotate = r.twoFactorResetNeeded;   // 2FA key + GoLogin link rotation after a rental ends
+                    // "2FA reset needed": a rentable account with no 2FA secret stored (the ~9 flagged in the audit).
+                    const needs2fa = !r.twoFactor && (r.status === "rented" || r.status === "available" || r.status === "trial");
+                    const proxyDown = false;      // no stored proxy/GoLogin-check-failed flag yet (Phase 2)
+                    const proxyExpiring = false;  // no stored proxy-expiry field on the account yet (Phase 2)
+                    const linkedArmy = false;     // no per-account LinkedArmy marker yet (inventoryPool is all "main")
+                    const retired = canonicalStatus(r) === "Permanently restricted/Inaccessible";
+                    const warmDays = r.warmupStartedAt ? Math.max(0, Math.floor((nowMs - new Date(r.warmupStartedAt).getTime()) / 86400000)) : null;
+                    // Recently recovered: not currently restricted, last restriction-log event was a recovery <=30d ago.
+                    const recovered = !r.restrictedAt && (() => { const log = Array.isArray(r.restrictionLog) ? r.restrictionLog : []; const last = log[log.length - 1]; return !!last && last.event === "recovered" && (nowMs - new Date(last.at).getTime()) <= 30 * 86400000; })();
+                    const isConstruction = r.status === "under_construction" || r.status === "construction_immature";
+                    // Left edge is red ONLY for action-needed signals (never repeats status, which lives on the group dot).
+                    const edge = (overdue || needsRotate || needs2fa || proxyDown) ? RED : "transparent";
                     const rentOn = r.listed && r.status === "available";
                     const price = priceOf(r);
                     const rn = r.rentals[0]?.user;
                     const isOpen = open.has(r.id);
                     const curTab = tab[r.id] || "overview";
                     const done = isDoneToday(r);
+                    // Pills in the design's fixed order; wrap left-to-right. Red pill = #fef2f2/#b91c1c.
+                    const RP = { bg: "#fef2f2", fg: "#b91c1c" };
                     const flags: { l: string; bg: string; fg: string; tip?: string }[] = [];
-                    if (r.restrictedAt) flags.push({ l: "⚠ Restricted", bg: "#fee2e2", fg: REDD });
-                    if (r.twoFactorResetNeeded) flags.push({ l: "🔑 Rotate", bg: "#fee2e2", fg: REDD, tip: "2FA was exposed to the last renter — rotate before re-renting" });
-                    if (r.shadowRenter) flags.push({ l: `◑ Shadow · ${shadowName(r.shadowRenter)}`, bg: "#e8f0fe", fg: BLUE, tip: `Shadow-held by ${shadowName(r.shadowRenter)} — still available to rent` });
-                    if (r.inventoryPool === "ortus") flags.push({ l: "◆ Ortus", bg: "#ede9fe", fg: "#6d28d9" });
-                    if (r.inventoryPool === "apex") flags.push({ l: "◆ Apex", bg: "#e0f2fe", fg: "#0369a1" });
-                    if (r.warmupStartedAt) flags.push({ l: "🔥 Warming", bg: "#fef3c7", fg: AMBER });
-                    if (checkDue(r)) flags.push({ l: "⏱ Check due", bg: "#fef3c7", fg: AMBER });
+                    if (overdue) flags.push({ l: `Overdue ${money(price)}`, ...RP, tip: "Renewal payment failed — chase the renter" });
+                    if (needsRotate) flags.push({ l: "Rotate", ...RP, tip: "Rotate 2FA key + GoLogin link before re-renting" });
+                    // Open access issues: no stored per-account access-issue list yet (IssueActions only emails) — inert for now.
+                    if (needs2fa) flags.push({ l: "2FA reset needed", ...RP, tip: "No 2FA is set on this account — configure/reset it" });
+                    if (r.restrictedAt && !retired) flags.push({ l: `Restricted ${fmtD(r.restrictedAt)}`, bg: "#fff7ed", fg: "#c2410c", tip: "Currently restricted by LinkedIn" });
+                    if (proxyDown) flags.push({ l: "Proxy down", ...RP, tip: "GoLogin proxy check failed" });
+                    if (proxyExpiring) flags.push({ l: "Proxy expiring", bg: "#fffbeb", fg: "#92400e", tip: "Proxy plan expires within 7 days" });
+                    if (linkedArmy) flags.push({ l: "⚑ LinkedArmy", bg: "#ecfeff", fg: "#0e7490", tip: "Running LinkedArmy campaigns" });
+                    if (warmDays != null) flags.push({ l: `🔥 ${warmDays}d`, bg: "#fff7ed", fg: "#c2410c", tip: "Days in warm-up" });
+                    if (recovered) flags.push({ l: "Recovered", bg: "#fffbeb", fg: "#92400e", tip: "Recently restricted, now recovered" });
+                    if (r.shadowRenter) flags.push({ l: `◐ Shadow · ${shadowName(r.shadowRenter)}`, bg: "#eff4ff", fg: "#2563eb", tip: `Shadow supply (${shadowName(r.shadowRenter)}) — still available to rent` });
+                    if (r.hasSalesNav) flags.push({ l: "+SN", bg: "#eff4ff", fg: "#2563eb", tip: "Has Sales Navigator" });
+                    if (isConstruction && warmDays == null && !flags.length) flags.push({ l: "Warm-up", bg: "#f1f3f6", fg: "#5b6779", tip: "Account in build / warm-up" });
                     const cW = Math.min(100, Math.round((r.connectionCount / 1000) * 100));
                     return (
                       <div key={r.id} style={{ borderBottom: `1px solid ${LINE2}` }}>
@@ -546,7 +564,7 @@ export default function InventoryV2Page() {
                           <span style={{ font: `700 15px ${G}`, color: INK, whiteSpace: "nowrap" }}>{ageStr(r)}</span>
                           {/* flags */}
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, minWidth: 0 }}>
-                            {flags.length === 0 ? <span style={{ font: `700 11px ${F}`, padding: "2px 8px", borderRadius: 999, background: "#ecfdf3", color: GREEND }}>✓ ok</span> : flags.map((f, i) => <span key={i} title={f.tip} style={{ font: `700 11px ${F}`, padding: "2px 8px", borderRadius: 999, background: f.bg, color: f.fg, whiteSpace: "nowrap", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>{f.l}</span>)}
+                            {flags.map((f, i) => <span key={i} title={f.tip} style={{ font: `700 11.5px ${F}`, padding: "3px 8px", borderRadius: 999, background: f.bg, color: f.fg, whiteSpace: "nowrap", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>{f.l}</span>)}
                           </div>
                           {/* price */}
                           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
