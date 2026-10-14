@@ -541,6 +541,13 @@ export default function InventoryV2Page() {
                     // Recently recovered: not currently restricted, last restriction-log event was a recovery <=30d ago.
                     const recovered = !r.restrictedAt && (() => { const log = Array.isArray(r.restrictionLog) ? r.restrictionLog : []; const last = log[log.length - 1]; return !!last && last.event === "recovered" && (nowMs - new Date(last.at).getTime()) <= 30 * 86400000; })();
                     const isConstruction = r.status === "under_construction" || r.status === "construction_immature";
+                    // Catalogue-readiness: fields needed to list an account (edit them in the expanded detail). Skip retired/dummy.
+                    const missingCat = (!retired && !isDummy(r)) ? ([
+                      (!r.profilePhotoUrl && !r.profileScreenshotUrl) ? "photo" : null,
+                      !r.location ? "location" : null,
+                      !r.linkedinHeadline ? "headline" : null,
+                      !r.industry ? "industry" : null,
+                    ].filter(Boolean) as string[]) : [];
                     // Left edge is red ONLY for action-needed signals (never repeats status, which lives on the group dot).
                     const edge = (overdue || needsRotate || needs2fa || proxyDown) ? RED : "transparent";
                     const rentOn = r.listed && r.status === "available";
@@ -557,6 +564,7 @@ export default function InventoryV2Page() {
                     // Open access issues: no stored per-account access-issue list yet (IssueActions only emails) — inert for now.
                     if (needs2fa) flags.push({ l: "2FA reset needed", ...RP, tip: "No 2FA is set on this account — configure/reset it" });
                     if (r.restrictedAt && !retired) flags.push({ l: `Restricted ${fmtD(r.restrictedAt)}`, bg: "#fff7ed", fg: "#c2410c", tip: "Currently restricted by LinkedIn" });
+                    if (missingCat.length) flags.push({ l: "Incomplete", bg: "#fffbeb", fg: "#92400e", tip: `Missing for catalogue: ${missingCat.join(", ")}` });
                     if (proxyDown) flags.push({ l: "Proxy down", ...RP, tip: "GoLogin proxy check failed" });
                     if (proxyExpiring) flags.push({ l: "Proxy expiring", bg: "#fffbeb", fg: "#92400e", tip: "Proxy plan expires within 7 days" });
                     if (linkedArmy) flags.push({ l: "⚑ LinkedArmy", bg: "#ecfeff", fg: "#0e7490", tip: "Running LinkedArmy campaigns" });
@@ -680,6 +688,30 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
   const [who, setWho] = useState("");
   const [joined, setJoined] = useState(r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : estMonthFromAge(r.accountAgeMonths));
   const [connVal, setConnVal] = useState(String(r.connectionCount));
+  // Catalogue fields (photo + headline/location/industry) — the data needed to list an account.
+  const [headlineV, setHeadlineV] = useState(r.linkedinHeadline || "");
+  const [locationV, setLocationV] = useState(r.location || "");
+  const [industryV, setIndustryV] = useState(r.industry || "");
+  const [uploading, setUploading] = useState(false);
+  const uploadPhoto = async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({} as { url?: string; error?: string }));
+      if (res.ok && data.url) await patch(r.id, { profilePhotoUrl: data.url });
+      else alert(`Upload failed: ${data.error || res.status}`);
+    } finally { setUploading(false); }
+  };
+  const catDirty = headlineV !== (r.linkedinHeadline || "") || locationV !== (r.location || "") || industryV !== (r.industry || "");
+  const saveCatalogue = () => {
+    const body: Record<string, unknown> = {};
+    if (headlineV !== (r.linkedinHeadline || "")) body.linkedinHeadline = headlineV.trim() || null;
+    if (locationV !== (r.location || "")) body.location = locationV.trim() || null;
+    if (industryV !== (r.industry || "")) body.industry = industryV.trim() || null;
+    if (Object.keys(body).length) patch(r.id, body);
+  };
   const hist = Array.isArray(r.connectionHistory) ? r.connectionHistory.filter((p) => typeof p.count === "number" && !p.note) : [];
   const restr = Array.isArray(r.restrictionLog) ? r.restrictionLog : [];
   const rCnt = restr.filter((e) => e.event === "restricted").length;
@@ -830,7 +862,13 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
                 {r.profilePhotoUrl || r.profileScreenshotUrl
                   ? <img src={(r.profilePhotoUrl || r.profileScreenshotUrl)!} alt="" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover", flex: "none" }} />
                   : <div style={{ width: 64, height: 64, borderRadius: 12, background: "#dfe5ee", color: SUB, display: "grid", placeItems: "center", font: `700 18px ${F}`, flex: "none" }}>{iniOf(r.linkedinName)}</div>}
-                <span style={{ font: `500 12.5px/1.45 ${F}`, color: SUB }}>Profile photo{r.profilePhotoUrl ? " · edited saved" : r.profileScreenshotUrl ? " · onboarding original" : " not set"}. Upload/edit it on the live Inventory tab.</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                  <span style={{ font: `500 12.5px/1.4 ${F}`, color: SUB }}>Profile photo{r.profilePhotoUrl ? " · uploaded" : r.profileScreenshotUrl ? " · onboarding original" : " not set"}.</span>
+                  <label style={{ font: `700 12px ${F}`, color: BLUE, cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.5 : 1 }}>
+                    {uploading ? "Uploading…" : r.profilePhotoUrl || r.profileScreenshotUrl ? "Replace photo" : "Upload photo"}
+                    <input type="file" accept="image/*" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} style={{ display: "none" }} />
+                  </label>
+                </div>
               </div>
               {field("Full name", formatName(r.linkedinName), true)}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 12 }}>
@@ -843,6 +881,26 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
                 {field("LV handler (PoC)", r.ownerPoc)}
                 {field("Owner status", r.ownerStatus)}
               </div>
+            </Card>
+
+            {/* catalogue details — the fields needed to list an account */}
+            <Card pad="14px">
+              {(() => {
+                const complete = !!(r.linkedinHeadline && r.location && r.industry && (r.profilePhotoUrl || r.profileScreenshotUrl));
+                const fieldStyle = { border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: "100%" } as const;
+                return (<>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Catalogue details</Lbl><span style={{ marginLeft: "auto", font: `700 11px ${F}`, color: complete ? GREEND : "#b45309" }}>{complete ? "✓ complete" : "incomplete"}</span></div>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Headline</Lbl><textarea value={headlineV} onChange={(e) => setHeadlineV(e.target.value)} rows={2} placeholder="e.g. B2B Business Development | SaaS | Pipeline & revenue growth" style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.4 }} /></label>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Location</Lbl><input value={locationV} onChange={(e) => setLocationV(e.target.value)} placeholder="e.g. New York, NY, USA" style={fieldStyle} /></label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Industry</Lbl><input value={industryV} onChange={(e) => setIndustryV(e.target.value)} list="inv2-industries" placeholder="e.g. Computer Software" style={fieldStyle} /></label>
+                  </div>
+                  <datalist id="inv2-industries">
+                    <option value="Information Technology & Services" /><option value="Computer Software" /><option value="Marketing & Advertising" /><option value="Business Consulting & Services" /><option value="Financial Services" /><option value="Staffing & Recruiting" />
+                  </datalist>
+                  <button onClick={saveCatalogue} disabled={busy || !catDirty} style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 9, padding: 9, font: `700 12.5px ${F}`, cursor: catDirty ? "pointer" : "default", opacity: catDirty ? 1 : 0.5 }}>{catDirty ? "Save catalogue details" : "✓ Saved"}</button>
+                </>);
+              })()}
             </Card>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
