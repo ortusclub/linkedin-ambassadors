@@ -58,6 +58,7 @@ interface Account {
   twoFactorResetNeeded: boolean;
   twoFactorReceivedAt: string | null;
   trialEndsAt: string | null;
+  manualPaidUntil: string | null;
   inventoryPool?: string | null;
   shadowRenter: string | null;
   connectionHistory: ConnPoint[] | null;
@@ -126,10 +127,8 @@ const GROUPS: { key: string; title: string; note: string; dot: string }[] = [
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmtD = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
 const fmtDY = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`; };
-// Calendar-day difference (not a rolling 24h window): a check from last night reads
-// "yesterday", not "today". Keeps the recency label in step with the daily-check reset.
-const calDaysAgo = (iso: string) => { const x = new Date(iso); const a = new Date(x.getFullYear(), x.getMonth(), x.getDate()); const t = new Date(); const b = new Date(t.getFullYear(), t.getMonth(), t.getDate()); return Math.round((b.getTime() - a.getTime()) / 86400000); };
-const relDays = (d: string | null) => { if (!d) return "—"; const n = calDaysAgo(d); return n <= 0 ? "today" : n === 1 ? "yesterday" : `${n}d ago`; };
+// Short "updated" recency: hours within the day, days beyond. Fed by updatedAt.
+const agoShort = (d: string | null) => { if (!d) return "—"; const h = (Date.now() - new Date(d).getTime()) / 3600000; return h < 1 ? "just now" : h < 24 ? `${Math.round(h)}h ago` : `${Math.round(h / 24)}d ago`; };
 const ageStr = (a: Account) => { const m = a.accountAgeMonths; if (m == null) return "—"; const y = Math.floor(m / 12), mm = m % 12; return y ? `${y}y${mm ? ` ${mm}m` : ""}` : `${mm}m`; };
 const money = (n: number) => (n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`);
 
@@ -446,7 +445,7 @@ export default function InventoryV2Page() {
         <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, overflow: "auto", boxShadow: "0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.04)" }}>
           <div style={{ minWidth: 1360 }}>
             <div style={{ display: "grid", gridTemplateColumns: headCols, gap: 12, alignItems: "center", padding: "10px 16px", borderBottom: `1px solid ${LINE2}`, background: "#fafbfc", font: `700 10.5px ${F}`, letterSpacing: ".07em", textTransform: "uppercase", color: MUT }}>
-              <span>Account</span><span>Conn.</span><span>Age</span><span>Flags</span><span>Price</span><span>Renter</span><span>LV PoC</span><span>{checkMode ? "Health" : "Checked"}</span><span>Rent</span><span></span><span></span>
+              <span>Account</span><span>Conn.</span><span>Age</span><span>Flags</span><span>Price</span><span>Renter</span><span>LV PoC</span><span>{checkMode ? "Health" : "Updated"}</span><span>Rent</span><span></span><span></span>
             </div>
             {grouped.length === 0 && <div style={{ padding: 40, textAlign: "center", font: `500 13.5px ${F}`, color: MUT }}>No accounts match.</div>}
             {grouped.map((g) => {
@@ -489,8 +488,15 @@ export default function InventoryV2Page() {
                         );
                       }
                       const r = it.row;
-                      const st = canonicalStatus(r);
-                    const edge = st === "Available" ? GREEN : st === "Rented" ? BLUE : st === "Maintenance" ? RED : st === "Construction" ? "#b45309" : "transparent";
+                    // Left edge flags ACTION NEEDED only — never repeats the status colour
+                    // (that lives on the group-header dot). Red iff the row needs a human.
+                    const rt0 = r.rentals[0];
+                    const overdue = rt0?.status === "payment_failed"
+                      || (rt0?.status === "active" && !!rt0.currentPeriodEnd && new Date(rt0.currentPeriodEnd).getTime() < Date.now())
+                      || (r.status === "rented" && !!r.manualPaidUntil && new Date(r.manualPaidUntil).getTime() < Date.now());
+                    const needsRotate = r.twoFactorResetNeeded;   // 2FA key / GoLogin link rotation + 2FA-reset-needed share one stored flag
+                    const proxyDown = false;                      // TODO: no stored proxy/GoLogin-check-failed flag yet (Phase 2, like the GoLogin-rotate flag)
+                    const edge = (overdue || needsRotate || proxyDown) ? RED : "transparent";
                     const rentOn = r.listed && r.status === "available";
                     const price = priceOf(r);
                     const rn = r.rentals[0]?.user;
@@ -552,18 +558,24 @@ export default function InventoryV2Page() {
                           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                             {r.ownerPoc ? <><span style={{ flex: "none", width: 22, height: 22, borderRadius: "50%", background: colorOf(r.ownerPoc), color: "#fff", font: `700 10px ${F}`, display: "flex", alignItems: "center", justifyContent: "center" }}>{iniOf(r.ownerPoc)}</span><span style={{ font: `600 12.5px ${F}`, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.ownerPoc}</span></> : <span style={{ font: `600 12.5px ${F}`, color: MUT }}>—</span>}
                           </div>
-                          {/* health — ✓/✕ only during the daily check; read-only recency otherwise */}
+                          {/* updated recency + last health-check date; ✓/✕ buttons only during the daily check */}
                           {(() => {
-                            const recency = <span title={r.healthCheckedAt ? `Last checked ${fmtDY(r.healthCheckedAt)}` : "Never health-checked"} style={{ font: `600 11px ${F}`, color: r.restrictedAt ? REDD : done ? GREEND : AMBER, whiteSpace: "nowrap" }}>{r.restrictedAt ? "restricted" : done ? "✓ today" : r.healthCheckedAt ? relDays(r.healthCheckedAt) : "never checked"}</span>;
+                            // Health sub-line: absolute date ("✓ checked Oct 13"), never a rolling "today".
+                            // Permanently-restricted/retired rows show their restriction, not a check date.
+                            const retired = canonicalStatus(r) === "Permanently restricted/Inaccessible";
+                            const hcText = r.restrictedAt ? `restricted ${fmtD(r.restrictedAt)}` : retired ? "permanently restricted" : r.healthCheckedAt ? `✓ checked ${fmtD(r.healthCheckedAt)}` : "not yet checked";
+                            const hcFg = r.restrictedAt || retired ? REDD : r.healthCheckedAt ? GREEND : MUT;
                             return checkMode ? (
-                              <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-start" }}>
-                                <div style={{ display: "flex", gap: 4 }}>
-                                  <button onClick={() => markActive(r)} title="Healthy — mark active" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${GREEN}`, background: !r.restrictedAt && done ? "#dcfce7" : "#fff", color: GREEND, font: `800 13px ${F}`, cursor: "pointer" }}>✓</button>
-                                  <button onClick={() => setRestricted(r, true)} title="Restricted" style={{ width: 32, height: 28, borderRadius: 8, border: `1.5px solid ${RED}`, background: r.restrictedAt ? "#fee2e2" : "#fff", color: REDD, font: `800 12px ${F}`, cursor: "pointer" }}>✕</button>
-                                </div>
-                                {recency}
+                              <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 4 }}>
+                                <button onClick={() => markActive(r)} title="Healthy — mark active" style={{ width: 34, height: 30, borderRadius: 8, border: `1.5px solid ${GREEN}`, background: !r.restrictedAt && done ? GREEN : "#fff", color: !r.restrictedAt && done ? "#fff" : GREEND, font: `800 14px ${F}`, cursor: "pointer" }}>✓</button>
+                                <button onClick={() => setRestricted(r, true)} title="Restricted" style={{ width: 34, height: 30, borderRadius: 8, border: `1.5px solid ${RED}`, background: r.restrictedAt ? RED : "#fff", color: r.restrictedAt ? "#fff" : REDD, font: `800 13px ${F}`, cursor: "pointer" }}>✕</button>
                               </div>
-                            ) : recency;
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                                <span title={r.updatedAt ? `Last updated ${fmtDY(r.updatedAt)}` : ""} style={{ font: `700 13px ${G}`, color: INK, whiteSpace: "nowrap" }}>{agoShort(r.updatedAt || r.createdAt)}</span>
+                                <span title={r.healthCheckedAt ? `Health checked ${fmtDY(r.healthCheckedAt)}` : "Never health-checked"} style={{ font: `600 10.5px ${F}`, color: hcFg, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{hcText}</span>
+                              </div>
+                            );
                           })()}
                           {/* rent toggle */}
                           <div onClick={(e) => e.stopPropagation()}>
