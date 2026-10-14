@@ -109,6 +109,13 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
   if (key === A360_SLUG) {
     const a360Select = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true, industry: true, linkedinHeadline: true } as const;
     const normUrl = (u: string | null) => (u || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("?")[0].replace(/\/+$/, "");
+    // Some names are stored ALL CAPS or all lowercase; title-case only those words, leaving
+    // genuinely mixed-case names (e.g. "MagbooRoldan", "McLeod") untouched.
+    const titleCaseName = (n: string) => n.split(/\s+/).map((w) => {
+      const upper = w === w.toUpperCase() && w !== w.toLowerCase();
+      const lower = w === w.toLowerCase() && w !== w.toUpperCase();
+      return (upper || lower) ? w.toLowerCase().replace(/(^|[-'’.])(\p{L})/gu, (_, s, c) => s + c.toUpperCase()) : w;
+    }).join(" ");
     const [shadowRentals, availableA, warmRaw, unavailRaw, verifiedApps] = await Promise.all([
       prisma.rental.findMany({ where: { user: { email: { in: SHADOW_RENTER_EMAILS } } }, select: { linkedinAccountId: true } }),
       prisma.linkedInAccount.findMany({
@@ -148,7 +155,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
     const hasUrl = (a: { linkedinUrl: string | null }) => !!a.linkedinUrl && !a.linkedinUrl.includes("charlotte-bax");
     const mk = (a: typeof availableA[number], status: string): A360Row => ({
       id: a.id,
-      name: (a.linkedinName || "").trim(),
+      name: titleCaseName((a.linkedinName || "").trim()),
       url: cleanUrl(a.linkedinUrl),
       cc: a.connectionCount || 0,
       v: a.linkedinVerified,
