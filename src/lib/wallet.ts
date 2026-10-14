@@ -20,6 +20,15 @@ export function getUsdcContract(signerOrProvider?: ethers.Signer | ethers.Provid
   return new ethers.Contract(address, USDC_ABI, signerOrProvider || getBaseProvider());
 }
 
+// Bridged USDT on Base, with 6 decimals. Sweeping does not credit app balances.
+export function getUsdtContract(signerOrProvider?: ethers.Signer | ethers.Provider): ethers.Contract {
+  return new ethers.Contract(
+    "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+    USDC_ABI,
+    signerOrProvider || getBaseProvider(),
+  );
+}
+
 export function getDepositAddress(derivationIndex: number): { address: string; privateKey: string } {
   const mnemonic = process.env.HD_WALLET_SEED_PHRASE;
   if (!mnemonic) throw new Error("HD_WALLET_SEED_PHRASE not configured");

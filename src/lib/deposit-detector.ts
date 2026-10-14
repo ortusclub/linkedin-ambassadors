@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ethers } from "ethers";
-import { getBaseProvider, getUsdcContract, getChildWallet, getTreasuryAddress, getTreasuryWallet, formatUsdc, parseUsdc } from "@/lib/wallet";
+import { getBaseProvider, getUsdcContract, getUsdtContract, getChildWallet, getTreasuryAddress, getTreasuryWallet, formatUsdc, parseUsdc } from "@/lib/wallet";
 import { sendTopUpNotification, sendTopUpConfirmation } from "@/services/email";
 
 export async function detectDeposits() {
@@ -76,64 +76,85 @@ export async function detectDeposits() {
   return results;
 }
 
-// Minimum ETH needed in a child address to execute a USDC transfer
+// Minimum ETH needed in a child address to execute a token transfer
 const SWEEP_GAS_AMOUNT = ethers.parseEther("0.0005");
 
 export async function sweepDeposits() {
   const deposits = await prisma.depositAddress.findMany();
   const provider = getBaseProvider();
-  const usdc = getUsdcContract(provider);
   const treasury = getTreasuryAddress();
   const treasuryWallet = getTreasuryWallet();
-  const results: { address: string; amount: string; txHash: string }[] = [];
+  const tokens = [
+    { symbol: "USDC", contract: getUsdcContract, resetsLastSeen: true },
+    { symbol: "USDT", contract: getUsdtContract, resetsLastSeen: false },
+  ] as const;
+  const results: { address: string; amount: string; txHash: string; token: string }[] = [];
+
+  if ((await provider.getNetwork()).chainId !== BigInt(8453)) {
+    throw new Error("Deposit sweeps require Base mainnet");
+  }
 
   for (const deposit of deposits) {
-    try {
-      const balance: bigint = await usdc.balanceOf(deposit.address);
+    for (const token of tokens) {
+      try {
+        const balance: bigint = await token.contract(provider).balanceOf(deposit.address);
 
-      if (balance > BigInt(0)) {
-        // Send gas ETH from treasury to child address if needed
-        const childEthBalance = await provider.getBalance(deposit.address);
-        if (childEthBalance < SWEEP_GAS_AMOUNT) {
-          const gasTx = await treasuryWallet.sendTransaction({
-            to: deposit.address,
-            value: SWEEP_GAS_AMOUNT - childEthBalance,
+        if (balance > BigInt(0)) {
+          const childWallet = getChildWallet(deposit.derivationIndex);
+          if (childWallet.address.toLowerCase() !== deposit.address.toLowerCase()) {
+            throw new Error("Derived wallet does not match deposit address");
+          }
+          if (treasury.toLowerCase() === deposit.address.toLowerCase()) {
+            throw new Error("Cannot sweep a deposit to itself");
+          }
+
+          // Send gas ETH from treasury to child address if needed
+          const childEthBalance = await provider.getBalance(deposit.address);
+          if (childEthBalance < SWEEP_GAS_AMOUNT) {
+            const gasTx = await treasuryWallet.sendTransaction({
+              to: deposit.address,
+              value: SWEEP_GAS_AMOUNT - childEthBalance,
+            });
+            const gasReceipt = await gasTx.wait();
+            if (!gasReceipt || gasReceipt.status !== 1) throw new Error("Gas funding failed");
+          }
+
+          const tokenWithSigner = token.contract(childWallet);
+
+          const tx = await tokenWithSigner.transfer(treasury, balance);
+          const receipt = await tx.wait();
+          if (!receipt || receipt.status !== 1) throw new Error("Token sweep failed");
+
+          await prisma.$transaction(async (tx) => {
+            await tx.transaction.create({
+              data: {
+                userId: deposit.userId,
+                type: "sweep",
+                amount: formatUsdc(balance),
+                txHash: receipt.hash,
+                description: `Swept ${formatUsdc(balance)} ${token.symbol} to treasury`,
+              },
+            });
+
+            // This tracker belongs exclusively to the USDC deposit detector.
+            if (token.resetsLastSeen) {
+              await tx.depositAddress.update({
+                where: { id: deposit.id },
+                data: { lastSeenBalance: 0 },
+              });
+            }
           });
-          await gasTx.wait();
+
+          results.push({
+            address: deposit.address,
+            amount: formatUsdc(balance),
+            txHash: receipt.hash,
+            token: token.symbol,
+          });
         }
-
-        const childWallet = getChildWallet(deposit.derivationIndex);
-        const usdcWithSigner = getUsdcContract(childWallet);
-
-        const tx = await usdcWithSigner.transfer(treasury, balance);
-        const receipt = await tx.wait();
-
-        await prisma.$transaction(async (tx) => {
-          await tx.transaction.create({
-            data: {
-              userId: deposit.userId,
-              type: "sweep",
-              amount: formatUsdc(balance),
-              txHash: receipt.hash,
-              description: `Swept ${formatUsdc(balance)} USDC to treasury`,
-            },
-          });
-
-          // Reset last seen balance since funds have been swept
-          await tx.depositAddress.update({
-            where: { id: deposit.id },
-            data: { lastSeenBalance: 0 },
-          });
-        });
-
-        results.push({
-          address: deposit.address,
-          amount: formatUsdc(balance),
-          txHash: receipt.hash,
-        });
+      } catch (error) {
+        console.error(`Error sweeping ${token.symbol} at ${deposit.address}:`, error);
       }
-    } catch (error) {
-      console.error(`Error sweeping ${deposit.address}:`, error);
     }
   }
 

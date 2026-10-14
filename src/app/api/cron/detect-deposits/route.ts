@@ -2,13 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { detectDeposits, sweepDeposits } from "@/lib/deposit-detector";
 
 function isAuthorized(req: NextRequest): boolean {
-  // Vercel cron sends this header automatically
-  const vercelCron = req.headers.get("x-vercel-cron");
-  if (vercelCron) return true;
-
-  // Manual trigger with CRON_SECRET
+  // Vercel cron and manual triggers must supply the configured secret.
   const authHeader = req.headers.get("authorization");
-  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
+  if (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
 
   return false;
 }
