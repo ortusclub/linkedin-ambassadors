@@ -49,9 +49,18 @@ const CSS = `
 .for{display:block;margin:0 0 10px;color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 .hero h1{font-weight:700;font-size:clamp(27px,5vw,38px);letter-spacing:-.02em;margin:0 0 8px;text-wrap:balance}
 .hero p{margin:0;color:var(--muted);max-width:66ch;font-size:15px}
-.howto{display:flex;gap:11px;align-items:flex-start;background:var(--accent-soft);border:1px solid rgba(10,102,194,.22);border-radius:12px;padding:13px 15px;margin:22px 0 34px;font-size:13.5px}
+.howto{display:flex;gap:11px;align-items:flex-start;background:var(--accent-soft);border:1px solid rgba(10,102,194,.22);border-radius:12px;padding:13px 15px;margin:22px 0 20px;font-size:13.5px}
 .howto svg{flex:none;color:var(--accent);margin-top:1px}
 .howto b{color:var(--ink)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 30px}
+.filters .fsearch{flex:1 1 220px;min-width:0}
+.filters input,.filters select{font-family:inherit;font-size:13.5px;color:var(--ink);background:var(--card);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;height:40px}
+.filters input:focus,.filters select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.filters select{cursor:pointer;background-image:none}
+.filters .fcount{font-size:12.5px;color:var(--muted);font-weight:600;margin-left:auto;white-space:nowrap}
+.filters .fclear{border:1px solid var(--line2);background:var(--card);color:var(--muted);border-radius:10px;height:40px;padding:0 13px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+.filters .fclear:hover{border-color:var(--accent);color:var(--accent)}
+.noresults{text-align:center;color:var(--muted);font-size:14px;padding:40px 10px;border:1px dashed var(--line2);border-radius:12px}
 .group{margin-bottom:38px}
 .ghead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:3px}
 .eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
@@ -142,6 +151,9 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
   const [err, setErr] = useState("");
   const [picks, setPicks] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState("");
+  const [search, setSearch] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [vFilter, setVFilter] = useState<"all" | "verified" | "unverified">("all");
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -151,11 +163,29 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
 
   const savePicks = (next: Set<string>) => { try { localStorage.setItem("a360_picks", JSON.stringify([...next])); } catch {} };
 
-  const buckets = useMemo(() => ({
-    now: rows.filter((r) => r.status === "available" && !r.shadow).sort(sortVC),
-    soon: rows.filter((r) => r.status === "available" && r.shadow).sort(sortVC),
-    warm: rows.filter((r) => r.status !== "available").sort(sortVC),
-  }), [rows]);
+  const industryOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.industry).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b)),
+    [rows]
+  );
+  const filtersActive = !!search.trim() || !!industry || vFilter !== "all";
+  const matches = (r: A360Row) => {
+    if (vFilter === "verified" && !r.v) return false;
+    if (vFilter === "unverified" && r.v) return false;
+    if (industry && r.industry !== industry) return false;
+    const q = search.trim().toLowerCase();
+    if (q && !`${r.name} ${r.headline || ""} ${r.industry || ""}`.toLowerCase().includes(q)) return false;
+    return true;
+  };
+  const buckets = useMemo(() => {
+    const ok = (r: A360Row) => matches(r);
+    return {
+      now: rows.filter((r) => r.status === "available" && !r.shadow && ok(r)).sort(sortVC),
+      soon: rows.filter((r) => r.status === "available" && r.shadow && ok(r)).sort(sortVC),
+      warm: rows.filter((r) => r.status !== "available" && ok(r)).sort(sortVC),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, search, industry, vFilter]);
+  const shownCount = buckets.now.length + buckets.soon.length + buckets.warm.length;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,7 +246,7 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
               <div className="legend">
                 <span className="lg u">Unverified <i>$45/mo</i></span>
                 <span className="lg v">✓ Verified <i>$60/mo</i></span>
-                <span className="lg u">At 10 accounts <i>$50 each</i></span>
+                <span className="lg u">At 10 accounts <i>$40 / $50</i></span>
               </div>
             </div>
           </div>
@@ -224,17 +254,34 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
             <div className="hero">
               <span className="for">Prepared for Agent360</span>
               <h1>Account inventory</h1>
-              <p>Aged, warmed LinkedIn profiles, plus everything currently in warm-up. Pricing is per account, per month: unverified $45, verified $60. Once you reach 10 accounts the rate is $50 each. Open any profile to review it.</p>
+              <p>Aged, warmed LinkedIn profiles, plus everything currently in warm-up. Pricing is per account, per month: unverified $45, verified $60. Once you reach 10 accounts the rate drops to $40 unverified / $50 verified. Open any profile to review it.</p>
             </div>
             <div className="howto">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
               <div><b>Earmark the ones you want.</b> Tick any accounts you&apos;d like us to hold for you, then hit &quot;Copy my picks&quot; at the bottom and paste them into your reply. We&apos;ll reserve them so no one else rents them.</div>
             </div>
+            <div className="filters">
+              <input className="fsearch" type="search" placeholder="Search name, role, or industry…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search accounts" />
+              <select value={industry} onChange={(e) => setIndustry(e.target.value)} aria-label="Filter by industry">
+                <option value="">All industries</option>
+                {industryOptions.map((i) => <option key={i} value={i}>{i}</option>)}
+              </select>
+              <select value={vFilter} onChange={(e) => setVFilter(e.target.value as "all" | "verified" | "unverified")} aria-label="Filter by verification">
+                <option value="all">Verified + unverified</option>
+                <option value="verified">Verified only</option>
+                <option value="unverified">Unverified only</option>
+              </select>
+              {filtersActive && <button className="fclear" type="button" onClick={() => { setSearch(""); setIndustry(""); setVFilter("all"); }}>Clear</button>}
+              <span className="fcount">{shownCount} shown</span>
+            </div>
             <Group eyebrow="Ready today" cls="now" title="Available now" hint="Live and rentable right now. We can release these the moment you order." items={buckets.now} picks={picks} onToggle={toggle} />
             <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} />
             <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} />
+            {shownCount === 0 && <div className="noresults">No accounts match those filters. Try clearing them.</div>}
             <p className="note">
-              {rows.length} accounts total · {buckets.now.length} available now, {buckets.soon.length} within a week, {buckets.warm.length} in warm-up.<br />
+              {filtersActive
+                ? <>{shownCount} of {rows.length} accounts match &middot; {buckets.now.length} available now, {buckets.soon.length} within a week, {buckets.warm.length} in warm-up.</>
+                : <>{rows.length} accounts total &middot; {buckets.now.length} available now, {buckets.soon.length} within a week, {buckets.warm.length} in warm-up.</>}<br />
               Prices per account / month. Earmark what you&apos;d like and we&apos;ll reserve them.
             </p>
           </main>
