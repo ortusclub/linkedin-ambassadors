@@ -5,7 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { sendSetupFeePaidEmail, sendMonthlyPayoutEmail } from "@/services/email";
 import { currencyConfigFor } from "@/lib/referral-currency";
-import { carryAppRestrictionToAccount } from "@/lib/restriction";
+import { carryAppRestrictionToAccount, appIssueIsRestricted } from "@/lib/restriction";
 import { deleteApplicationCascade } from "@/lib/application-delete";
 
 const updateSchema = z.object({
@@ -282,6 +282,23 @@ export async function PATCH(
         // Carry a pre-account pipeline restriction flag onto the freshly-created account.
         await carryAppRestrictionToAccount(created.id, application);
       }
+    }
+
+    // Forward sync: carry a pipeline restriction flag onto the linked account whenever it's set
+    // — not only at onboarding-link time. So if a lead is flagged restricted AFTER their account
+    // is already live, inventory reflects it too. No-ops if the account is already restricted.
+    if (appIssueIsRestricted(application.accountIssue)) {
+      const linked = await prisma.linkedInAccount.findFirst({
+        where: {
+          status: { notIn: ["removed", "retired"] },
+          OR: [
+            { notes: { contains: `Owner: ${application.email}` } },
+            ...(application.linkedinUrl ? [{ linkedinUrl: application.linkedinUrl }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+      if (linked) await carryAppRestrictionToAccount(linked.id, application);
     }
 
     return NextResponse.json({ application });
