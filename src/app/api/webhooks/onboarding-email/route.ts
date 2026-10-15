@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyInbound } from "@/services/onboarding-mail";
 import { forwardOnboardingEmail } from "@/lib/onboarding-email";
+import { captureAccountMail } from "@/lib/account-mail";
 import { emailSetupConfig } from "@/lib/onboarding-email-policy";
 
 export const runtime = "nodejs";
@@ -15,6 +16,9 @@ export async function POST(req: Request) {
   try { event = verifyInbound(payload, req.headers); }
   catch { return NextResponse.json({ error: "Invalid signature" }, { status: 401 }); }
   if (event.type !== "email.received") return NextResponse.json({ received: true });
+  // Account-mail capture: store + classify LinkedIn security emails per account. Strictly
+  // additive — its own try/catch so it can never block or alter the onboarding forwarding below.
+  try { await captureAccountMail(event.data.email_id); } catch (e) { console.error("account-mail capture failed", e instanceof Error ? e.message : e); }
   try {
     await forwardOnboardingEmail(event.data.email_id);
     return NextResponse.json({ received: true });
