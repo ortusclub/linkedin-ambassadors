@@ -453,6 +453,7 @@ function AccountHistoryCard({ r, busy, onSave }: { r: Row; busy: boolean; onSave
                     {e.note
                       ? <span style={{ font: `700 10px ${F_SANS}`, padding: "1px 7px", borderRadius: 999, background: e.note === "rented" ? "var(--link-bg,#eaf1ff)" : "var(--neutral-bg,#eef1f5)", color: e.note === "rented" ? "var(--link,#0a66c2)" : "var(--muted,#647189)" }}>{e.note === "rented" ? "🔑 Rented" : "↩ Returned"} · {e.count}</span>
                       : <><b style={{ color: "var(--fg,#111)" }}>{e.count}</b> connections {delta != null && delta !== 0 && <span style={{ color: delta > 0 ? "var(--st-active-fg,#15803d)" : "var(--st-restrict-fg,#b91c1c)" }}>({delta > 0 ? "+" : ""}{delta})</span>}</>}
+                    <button type="button" title="Delete this entry" disabled={busy} onClick={() => onSave({ deleteConnectionHistoryIndex: i }, true)} style={{ marginLeft: "auto", flex: "none", border: "none", background: "none", cursor: "pointer", color: "var(--muted2,#9aa0a6)", font: `700 13px ${F_SANS}`, lineHeight: 1, padding: "0 2px" }}>×</button>
                   </div>
                 );
               }).reverse()}
