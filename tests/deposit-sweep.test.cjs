@@ -60,7 +60,7 @@ function fixture(options = {}) {
   }) };
 }
 
-test('USDT-only sweep funds gas, records token and preserves USDC tracker', async () => {
+test('USDT-only sweep funds gas, records token and resets only the USDT tracker', async () => {
   const f = fixture({ USDT: 50_000_000n, eth: 0n });
   const result = await f.sweepDeposits();
   assert.deepEqual(result, [{ address: '0xabc', amount: '50.0', txHash: 'hash-USDT', token: 'USDT' }]);
@@ -68,13 +68,18 @@ test('USDT-only sweep funds gas, records token and preserves USDC tracker', asyn
   assert.equal(f.calls.funding[0].value, ethers.parseEther('0.0005'));
   assert.equal(f.calls.ledger[0].description, 'Swept 50.0 USDT to treasury');
   assert.equal(f.calls.ledger[0].type, 'sweep');
-  assert.equal(f.calls.resets.length, 0);
+  // The USDT tracker is reset to 0; the USDC tracker is left untouched.
+  assert.equal(f.calls.resets.length, 1);
+  assert.deepEqual(f.calls.resets[0].data, { lastSeenUsdtBalance: 0 });
 });
 
-test('both tokens sweep and only USDC resets its tracker', async () => {
+test('both tokens sweep and each resets its own tracker', async () => {
   const f = fixture({ USDC: 2_000_000n, USDT: 50_000_000n });
   assert.equal((await f.sweepDeposits()).length, 2);
-  assert.equal(f.calls.resets.length, 1);
+  assert.equal(f.calls.resets.length, 2);
+  const resetFields = f.calls.resets.map(r => r.data);
+  assert.ok(resetFields.some(d => 'lastSeenBalance' in d && d.lastSeenBalance === 0));
+  assert.ok(resetFields.some(d => 'lastSeenUsdtBalance' in d && d.lastSeenUsdtBalance === 0));
   assert.equal(f.calls.funding.length, 0);
 });
 
@@ -111,6 +116,84 @@ test('failed receipt does not record a successful sweep or reset tracker', async
 test('a failed USDC check does not prevent USDT sweeping', async () => {
   const f = fixture({ failRead: 'USDC', USDT: 50_000_000n });
   assert.equal((await f.sweepDeposits())[0].token, 'USDT');
+});
+
+// ── detectDeposits (crediting side) ──────────────────────────────────────────
+function detectFixture(options = {}) {
+  const calls = { credits: [], ledger: [], trackers: [], confirmations: [], notifications: [] };
+  const contract = symbol => () => ({
+    balanceOf: async () => {
+      if (options.failRead === symbol) throw new Error('RPC failure');
+      return options[symbol] ?? 0n;
+    },
+  });
+  const deposit = {
+    id: 'deposit', address: '0xabc', userId: 'customer', derivationIndex: 7,
+    lastSeenBalance: options.lastSeenUsdc ?? '0',
+    lastSeenUsdtBalance: options.lastSeenUsdt ?? '0',
+    user: { email: 'renter@example.com', fullName: 'Renter' },
+  };
+  const prisma = {
+    depositAddress: { findMany: async () => [deposit] },
+    $transaction: async fn => fn({
+      user: { update: async entry => calls.credits.push(entry.data.usdcBalance) },
+      transaction: { create: async entry => calls.ledger.push(entry.data) },
+      depositAddress: { update: async entry => calls.trackers.push(entry.data) },
+    }),
+  };
+  const wallet = {
+    getBaseProvider: () => ({}),
+    getUsdcContract: contract('USDC'),
+    getUsdtContract: contract('USDT'),
+    formatUsdc: value => ethers.formatUnits(value, 6),
+    parseUsdc: value => ethers.parseUnits(String(value), 6),
+  };
+  const email = {
+    sendTopUpConfirmation: async entry => calls.confirmations.push(entry),
+    sendTopUpNotification: async entry => calls.notifications.push(entry),
+  };
+  return { calls, ...load('src/lib/deposit-detector.ts', {
+    '@/lib/prisma': { prisma }, ethers: { ethers }, '@/lib/wallet': wallet, '@/services/email': email,
+  }) };
+}
+
+test('credits a new USDC deposit and advances the USDC tracker', async () => {
+  const f = detectFixture({ USDC: 25_000_000n });
+  assert.deepEqual(await f.detectDeposits(), [{ userId: 'customer', amount: '25.0', address: '0xabc', token: 'USDC' }]);
+  assert.deepEqual(f.calls.credits, [{ increment: '25.0' }]);
+  assert.equal(f.calls.ledger[0].description, 'USDC deposit detected at 0xabc');
+  assert.equal(f.calls.ledger[0].type, 'deposit');
+  assert.deepEqual(f.calls.trackers, [{ lastSeenBalance: '25.0' }]);
+  assert.equal(f.calls.confirmations.length, 1);
+  assert.equal(f.calls.notifications.length, 1);
+});
+
+test('credits a USDT deposit and advances the USDT tracker', async () => {
+  const f = detectFixture({ USDT: 50_000_000n });
+  assert.deepEqual(await f.detectDeposits(), [{ userId: 'customer', amount: '50.0', address: '0xabc', token: 'USDT' }]);
+  assert.deepEqual(f.calls.credits, [{ increment: '50.0' }]);
+  assert.equal(f.calls.ledger[0].description, 'USDT deposit detected at 0xabc');
+  assert.deepEqual(f.calls.trackers, [{ lastSeenUsdtBalance: '50.0' }]);
+});
+
+test('only credits the USDT increase above the baseline', async () => {
+  const f = detectFixture({ USDT: 70_000_000n, lastSeenUsdt: '50' });
+  assert.deepEqual(await f.detectDeposits(), [{ userId: 'customer', amount: '20.0', address: '0xabc', token: 'USDT' }]);
+  assert.deepEqual(f.calls.trackers, [{ lastSeenUsdtBalance: '70.0' }]);
+});
+
+test('does not re-credit USDT already accounted for in the baseline', async () => {
+  // Alan's reconciliation: 50 USDT credited manually, baseline seeded to 50 by migration.
+  const f = detectFixture({ USDT: 50_000_000n, lastSeenUsdt: '50' });
+  assert.deepEqual(await f.detectDeposits(), []);
+  assert.equal(f.calls.credits.length + f.calls.ledger.length + f.calls.trackers.length, 0);
+});
+
+test('a USDT RPC failure does not block USDC crediting', async () => {
+  const f = detectFixture({ USDC: 10_000_000n, failRead: 'USDT' });
+  const result = await f.detectDeposits();
+  assert.equal(result.length, 1);
+  assert.equal(result[0].token, 'USDC');
 });
 
 test('sweep endpoint rejects forged cron headers and missing secret', async () => {

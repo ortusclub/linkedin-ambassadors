@@ -573,7 +573,11 @@ model DepositAddress {
   userId           String   @unique @map("user_id") @db.Uuid
   address          String   @unique
   derivationIndex  Int      @unique @map("derivation_index")
-  lastSeenBalance  Decimal  @default(0) @map("last_seen_balance") @db.Decimal(18, 6)
+  // Per-token "last credited" trackers. The detector credits only the increase in
+  // on-chain balance since it last looked, so each supported token needs its own
+  // running baseline (USDC and USDT are independent balances at the same address).
+  lastSeenBalance     Decimal  @default(0) @map("last_seen_balance") @db.Decimal(18, 6)
+  lastSeenUsdtBalance Decimal  @default(0) @map("last_seen_usdt_balance") @db.Decimal(18, 6)
   createdAt        DateTime @default(now()) @map("created_at")
 
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
