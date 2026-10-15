@@ -809,7 +809,8 @@ export default function AdminReferralsPage() {
                     <div style={{ flex: 1 }} />
                     <div style={{ textAlign: "right" }}>
                       <div style={label}>Payout to</div>
-                      <div style={{ font: `600 13px ${F_SANS}`, color: ref?.paymentDetails ? "var(--text)" : "var(--warn-num)" }}>{ref?.paymentDetails ? `${ref.paymentMethod || "—"} · ${ref.paymentDetails}` : "No payout details set"}</div>
+                      <div style={{ font: `600 13px ${F_SANS}`, color: "var(--text)" }}>{r.name}</div>
+                      <div style={{ font: `500 12px ${F_SANS}`, color: ref?.paymentDetails ? "var(--text2)" : "var(--warn-num)", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>{ref?.paymentDetails ? `${ref.paymentMethod || "—"} · ${ref.paymentDetails}` : "No payout details set"}</div>
                     </div>
                     {ref && outstanding > 0 && (
                       <button type="button" onClick={() => logCommission(ref.id, outstanding, readyNames.length ? readyNames.join(", ") : "Signup commission")} disabled={busy} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 15px", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap", opacity: busy ? 0.6 : 1 }}>+ Log {money(outstanding)} paid</button>
