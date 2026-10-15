@@ -59,6 +59,9 @@ interface Account {
   twoFactorResetNeeded: boolean;
   twoFactorReceivedAt: string | null;
   trialEndsAt: string | null;
+  heldUntil: string | null;
+  heldFor: string | null;
+  heldBy: string | null;
   manualPaidUntil: string | null;
   inventoryPool?: string | null;
   shadowRenter: string | null;
@@ -272,6 +275,22 @@ export default function InventoryV2Page() {
     const now = new Date().toISOString();
     setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, status, updatedAt: now, listed: status === "available" ? x.listed : false } : x)));
     patch(a.id, { status }, false);
+  };
+  // Reserve/hold an account (1 or 2 days) so it drops out of every catalogue while held.
+  const hold = async (a: Account, days: number, heldFor: string) => {
+    setBusy(a.id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${a.id}/hold`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days, heldFor }) });
+      const d = await res.json().catch(() => ({} as { heldUntil?: string }));
+      if (res.ok) setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, heldUntil: d.heldUntil ?? x.heldUntil, heldFor: heldFor || null, heldBy: "you" } : x)));
+    } finally { setBusy(null); }
+  };
+  const release = async (a: Account) => {
+    setBusy(a.id);
+    try {
+      const res = await fetch(`/api/admin/accounts/${a.id}/hold`, { method: "DELETE" });
+      if (res.ok) setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, heldUntil: null, heldFor: null, heldBy: null } : x)));
+    } finally { setBusy(null); }
   };
   const recheck = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST" }); await load(); } finally { setBusy(null); } };
   const trial = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/trial`, { method: "POST" }); await load(); } finally { setBusy(null); } };
@@ -567,6 +586,8 @@ export default function InventoryV2Page() {
                     // Pills in the design's fixed order; wrap left-to-right. Red pill = #fef2f2/#b91c1c.
                     const RP = { bg: "#fef2f2", fg: "#b91c1c" };
                     const flags: { l: string; bg: string; fg: string; tip?: string }[] = [];
+                    const heldActive = !!r.heldUntil && new Date(r.heldUntil) > new Date();
+                    if (heldActive) flags.push({ l: `⏸ Held${r.heldFor ? ` · ${r.heldFor}` : ""}`, bg: "#f1f5f9", fg: "#334155", tip: `Reserved${r.heldFor ? ` for ${r.heldFor}` : ""}${r.heldBy ? ` by ${r.heldBy}` : ""} until ${fmtDYT(r.heldUntil)} — hidden from all catalogues` });
                     if (overdue) flags.push({ l: `Overdue ${money(price)}`, ...RP, tip: "Renewal payment failed — chase the renter" });
                     if (needsRotate) flags.push({ l: "Rotate", ...RP, tip: "Rotate 2FA key + GoLogin link before re-renting" });
                     // Open access issues: no stored per-account access-issue list yet (IssueActions only emails) — inert for now.
@@ -673,7 +694,7 @@ export default function InventoryV2Page() {
                           <span style={{ font: `700 14px ${F}`, color: MUT, display: "inline-block", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
                         </div>
 
-                        {isOpen && <ExpandedDetail r={r} tab={curTab} setTab={(t) => setTab((m) => ({ ...m, [r.id]: t }))} busy={busy === r.id} price={price} markActive={() => markActive(r)} setRestricted={(v) => setRestricted(r, v)} recheck={() => recheck(r)} patch={patch} patchApp={patchApp} reload={load} />}
+                        {isOpen && <ExpandedDetail r={r} tab={curTab} setTab={(t) => setTab((m) => ({ ...m, [r.id]: t }))} busy={busy === r.id} price={price} markActive={() => markActive(r)} setRestricted={(v) => setRestricted(r, v)} recheck={() => recheck(r)} hold={(days, heldFor) => hold(r, days, heldFor)} release={() => release(r)} patch={patch} patchApp={patchApp} reload={load} />}
                       </div>
                     );
                   }); })()}
@@ -815,14 +836,16 @@ function MailBtn({ onClick, busy, bg, fg, children }: { onClick: () => void; bus
   return <button onClick={onClick} disabled={busy} style={{ border: "none", cursor: busy ? "default" : "pointer", opacity: busy ? 0.5 : 1, borderRadius: 7, padding: "6px 12px", font: `700 12px ${F}`, background: bg, color: fg, whiteSpace: "nowrap" }}>{children}</button>;
 }
 
-function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted, recheck, patch, patchApp, reload }: {
+function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted, recheck, hold, release, patch, patchApp, reload }: {
   r: Account; tab: "overview" | "signin" | "mail" | "owner"; setTab: (t: "overview" | "signin" | "mail" | "owner") => void; busy: boolean; price: number;
   markActive: () => void; setRestricted: (v: boolean) => void; recheck: () => void;
+  hold: (days: number, heldFor: string) => void; release: () => void;
   patch: (id: string, body: Record<string, unknown>, reload?: boolean) => Promise<Response | undefined>;
   patchApp: (appId: string, body: Record<string, unknown>) => Promise<Response | undefined>; reload: () => void;
 }) {
   const [note, setNote] = useState("");
   const [who, setWho] = useState("");
+  const [holdFor, setHoldFor] = useState("");
   const [joined, setJoined] = useState(r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : estMonthFromAge(r.accountAgeMonths));
   const [connVal, setConnVal] = useState(String(r.connectionCount));
   // Catalogue fields (photo + headline/location/industry) — the data needed to list an account.
@@ -960,6 +983,31 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
                   <button onClick={recheck} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#3b4657", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>↻ Re-check</button>
                 </div>
               </div>
+              {(() => {
+                const heldActive = !!r.heldUntil && new Date(r.heldUntil) > new Date();
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, borderTop: `1px solid ${LINE2}`, paddingTop: 12 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><Lbl>Reserve / hold</Lbl>{heldActive && <span style={{ marginLeft: "auto", font: `600 11.5px ${F}`, color: "#334155" }}>⏸ held until {fmtDYT(r.heldUntil)}</span>}</div>
+                    {heldActive ? (
+                      <>
+                        <span style={{ font: `500 12px/1.5 ${F}`, color: SUB }}>Reserved{r.heldFor ? ` for ${r.heldFor}` : ""}{r.heldBy ? ` · by ${r.heldBy}` : ""}. Hidden from every catalogue and the normal checkout until then (or until you release it). Auto-releases when it lapses.</span>
+                        <div><button onClick={release} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#3b4657", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Release now</button></div>
+                      </>
+                    ) : r.status === "available" ? (
+                      <>
+                        <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Hold this account for someone for a day or two so it can&apos;t get snagged. It disappears from all catalogues while held.</span>
+                        <input value={holdFor} onChange={(e) => setHoldFor(e.target.value)} placeholder="Held for (name / who it's for)" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: "100%" }} />
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => hold(1, holdFor)} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#334155", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Hold 1 day</button>
+                          <button onClick={() => hold(2, holdFor)} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#334155", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Hold 2 days</button>
+                        </div>
+                      </>
+                    ) : (
+                      <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Only available accounts can be reserved.</span>
+                    )}
+                  </div>
+                );
+              })()}
             </Card>
             <Card pad="14px">
               <Lbl>Chase an issue</Lbl>

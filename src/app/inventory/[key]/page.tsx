@@ -119,7 +119,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
     const [shadowRentals, availableA, warmRaw, unavailRaw, verifiedApps] = await Promise.all([
       prisma.rental.findMany({ where: { user: { email: { in: SHADOW_RENTER_EMAILS } } }, select: { linkedinAccountId: true } }),
       prisma.linkedInAccount.findMany({
-        where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
+        where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, heldUntil: null, linkedinUrl: { not: null } },
         select: a360Select,
       }),
       // Still warming (under_construction) — kept to the ones whose application has passed QC.
@@ -179,7 +179,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
   const [shadowRentals, available, maturing] = await Promise.all([
     prisma.rental.findMany({ where: { user: { email: { in: SHADOW_RENTER_EMAILS } } }, select: { linkedinAccountId: true } }),
     prisma.linkedInAccount.findMany({
-      where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
+      where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, heldUntil: null, linkedinUrl: { not: null } },
       select,
     }),
     prisma.linkedInAccount.findMany({

@@ -27,13 +27,24 @@ export const hasFullListAccess = (key: string | null | undefined) => {
 // a showcase can't be checked out or offered as a replacement even if someone mistakenly
 // flips its status to "available". Null-safe: a null `notes` is treated as non-showcase,
 // matching the app-level isDummy convention ((notes||"").includes("[SHOWCASE]")).
-export const PUBLIC_AVAILABLE_WHERE: Prisma.LinkedInAccountWhereInput = {
+// Genuinely rentable, IGNORING any short-term hold. Used by the direct per-account rent link so
+// an account reserved/held for someone can still be rented by them (the link is the credential).
+export const RENTABLE_WHERE: Prisma.LinkedInAccountWhereInput = {
   inventoryPool: { notIn: ["ortus", "apex"] },
   status: "available",
   listed: true,
   restrictedAt: null,
   twoFactorResetNeeded: false,
   OR: [{ notes: null }, { notes: { not: { contains: "[SHOWCASE]" } } }],
+};
+
+// Public/catalogue "available" = rentable AND not currently held. A hold (heldUntil in the future)
+// hides the account from the public catalogue, the unlisted catalogues and the normal checkout, so
+// it can't be snagged while reserved. Expired holds are cleared back to null by the release-holds
+// cron, so `heldUntil: null` is the correct "not held" test.
+export const PUBLIC_AVAILABLE_WHERE: Prisma.LinkedInAccountWhereInput = {
+  ...RENTABLE_WHERE,
+  heldUntil: null,
 };
 
 export type PublicSlice = { availableIds: string[]; rentedIds: string[]; shadowIds: Set<string> };
