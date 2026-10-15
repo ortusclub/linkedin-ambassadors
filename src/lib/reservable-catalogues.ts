@@ -4,6 +4,7 @@
 // (same Agent360 pattern) and it inherits Reserve automatically.
 export const RESERVABLE_CATALOGUES: Record<string, { label: string; tag: string }> = {
   "iv-a360-9mq2k7xz4p": { label: "Agent360", tag: "agent360" },
+  "iv-will-cura-6k2p9mx4qz": { label: "Will Cura · Covent", tag: "will-cura" },
 };
 
 export const reservableCatalogue = (slug: string) => RESERVABLE_CATALOGUES[slug] ?? null;
