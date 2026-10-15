@@ -224,6 +224,36 @@ export async function sendProxyEscalation(opts: {
   });
 }
 
+// Fired when an admin marks an account-security email "Wasn't us" — an incident is open and the
+// account may be compromised. Internal only (TEAM_NOTIFY_EMAIL), mirrors sendProxyEscalation. The
+// recommended-response steps shown in the email match the in-app checklist by email type.
+export async function sendAccountMailAlert(opts: {
+  accountName: string;
+  accountId: string;
+  type: string;
+  typeLabel: string;
+  subject: string;
+  receivedAt: Date;
+  openedBy: string;
+  steps: string[];
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linkedvelocity.com";
+  const to = process.env.TEAM_NOTIFY_EMAIL || "info@linkedvelocity.com";
+  const when = opts.receivedAt.toLocaleString("en-GB", { timeZone: "Asia/Manila", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  const stepsHtml = opts.steps.map((s) => `<li style="margin:0 0 6px;">${s}</li>`).join("");
+  return sendEmail({
+    to,
+    subject: `⚠ Account-mail incident — ${opts.accountName} (${opts.typeLabel})`,
+    html: brandWrap(`
+      <p style="font-size:15px;color:#b91c1c;font-weight:700;margin:0 0 10px;">An account-security email was flagged "Wasn't us" — treat this account as possibly compromised.</p>
+      <p style="font-size:14px;color:#536471;line-height:1.7;margin:0 0 16px;">Account: <strong>${opts.accountName}</strong><br>Event: <strong>${opts.typeLabel}</strong> — ${opts.subject}<br>Received: ${when} (PHT)<br>Opened by: ${opts.openedBy}</p>
+      <p style="font-size:14px;color:#111827;font-weight:600;margin:0 0 6px;">Recommended response</p>
+      <ol style="font-size:14px;color:#536471;line-height:1.6;margin:0 0 16px;padding-left:20px;">${stepsHtml}</ol>
+      <a href="${appUrl}/admin/inventory-v2" style="display:inline-block;background:#b91c1c;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:10px;">Open inventory →</a>
+    `),
+  });
+}
+
 // Sent immediately after payment (card or USDC). Access is granted by our team
 // after vetting + freeing the account internally — so this email is about what to
 // do NOW (set up GoLogin) and what to expect, not "you're live yet".

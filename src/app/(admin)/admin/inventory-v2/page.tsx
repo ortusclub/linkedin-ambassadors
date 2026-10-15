@@ -67,6 +67,7 @@ interface Account {
   // derived by /api/admin/inventory-v2
   earnedTotal: number;
   mailNeedsReview: number;
+  mailIncidentOpen: number;
   utilisation: number;
   // owner-resolved
   ownerName: string | null;
@@ -569,6 +570,7 @@ export default function InventoryV2Page() {
                     if (needsRotate) flags.push({ l: "Rotate", ...RP, tip: "Rotate 2FA key + GoLogin link before re-renting" });
                     // Open access issues: no stored per-account access-issue list yet (IssueActions only emails) — inert for now.
                     if (needs2fa) flags.push({ l: "2FA reset needed", ...RP, tip: "No 2FA is set on this account — configure/reset it" });
+                    if (r.mailIncidentOpen > 0) flags.push({ l: `🔴 ${r.mailIncidentOpen} incident`, bg: "#fee2e2", fg: "#991b1b", tip: `${r.mailIncidentOpen} open account-mail incident${r.mailIncidentOpen === 1 ? "" : "s"} — open the Account mail tab` });
                     if (r.mailNeedsReview > 0) flags.push({ l: `⚠ ${r.mailNeedsReview} mail`, bg: "#fffbeb", fg: "#92400e", tip: `${r.mailNeedsReview} security email${r.mailNeedsReview === 1 ? "" : "s"} need review — open the Account mail tab` });
                     if (r.restrictedAt && !retired) flags.push({ l: `Restricted ${fmtD(r.restrictedAt)}`, bg: "#fff7ed", fg: "#c2410c", tip: "Currently restricted by LinkedIn" });
                     if (missingCat.length) flags.push({ l: `Incomplete: ${missingCat.join(", ")}`, bg: "#fffbeb", fg: "#92400e", tip: `Missing for catalogue: ${missingCat.join(", ")}` });
@@ -685,20 +687,43 @@ export default function InventoryV2Page() {
 }
 
 // ── Expanded detail: Overview / Sign-in tabs ──
-// ── Account mail: captured LinkedIn security-email timeline (read-only; actions land in a later phase) ──
-type MailEvent = { id: string; receivedAt: string; fromAddr: string; subject: string; bodyText: string; type: string; severity: "benign" | "review" | "danger"; status: string; locationLabel: string | null };
+// ── Account mail: captured LinkedIn security-email timeline + triage (it-was-us / we-know /
+// wasn't-us → incident). Pure UI copies of the server checklist/labels so this client file doesn't
+// import the server-only lib/account-mail module. ──
+type MailEvent = { id: string; receivedAt: string; fromAddr: string; subject: string; bodyText: string; type: string; severity: "benign" | "review" | "danger"; status: string; locationLabel: string | null; actionedBy: string | null; actionedAt: string | null; incidentOpenedAt: string | null; resolution: string | null };
+type MailSummary = { logged: number; needReview: number; acknowledged: number; incidents: number; resolved: number };
 const MAIL_LABEL: Record<string, string> = { new_login: "New login", location_change: "Location change", password_changed: "Password changed", email_changed: "Email changed", name_changed: "Name changed", photo_changed: "Photo changed", restriction: "Restriction", email_verify: "Email verify", other: "Security email" };
 const mailSev = (s: string) => (s === "danger" ? { bg: "#fee2e2", fg: "#991b1b", edge: RED } : s === "review" ? { bg: "#fef3c7", fg: "#854d0e", edge: "#d97706" } : { bg: "#dcfce7", fg: GREEND, edge: "#16a34a" });
+// Recommended-response checklist by email type — mirrors INCIDENT_STEPS in lib/account-mail.ts.
+const INCIDENT_STEPS: Record<string, string[]> = {
+  password_changed: ["Reset the password from our recovery email and set a fresh one.", "Sign out of all other sessions in LinkedIn settings.", "Re-check 2FA is ours and the recovery email is ours."],
+  email_changed: ["Remove the email address they added.", "Re-add our address as the primary email and confirm it.", "Reset the password and sign out of all other sessions."],
+  new_login: ["Sign out of all other sessions in LinkedIn settings.", "Change the password to a fresh one.", "Check whether this is a renter leak (shared GoLogin / wrong IP) before re-sharing."],
+  location_change: ["Sign out of all other sessions in LinkedIn settings.", "Change the password to a fresh one.", "Check the proxy/GoLogin for a geo mismatch or a renter leak."],
+  restriction: ["Open the restriction-appeal flow and submit identity-first (offer ID, never mention a VPN).", "Pause renter access until the appeal clears.", "Log the restriction on the account record."],
+};
+const INCIDENT_STEPS_DEFAULT = ["Change the password and sign out of all other sessions.", "Verify 2FA and the recovery email are both ours.", "Watch the account for further security emails."];
+const incidentSteps = (type: string) => INCIDENT_STEPS[type] ?? INCIDENT_STEPS_DEFAULT;
 
 function AccountMail({ accountId }: { accountId: string }) {
-  const [data, setData] = useState<{ events: MailEvent[]; summary: { logged: number; needReview: number; incidents: number } } | null>(null);
+  const [data, setData] = useState<{ events: MailEvent[]; summary: MailSummary } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState(false);
   useEffect(() => {
     let on = true;
     fetch(`/api/admin/accounts/${accountId}/mail`).then((r) => r.json()).then((d) => { if (on) setData(d); }).catch(() => { if (on) setErr(true); });
     return () => { on = false; };
   }, [accountId]);
+  const act = async (eventId: string, action: string) => {
+    setBusy(eventId);
+    try {
+      const res = await fetch(`/api/admin/accounts/${accountId}/mail`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, action }) });
+      if (!res.ok) return;
+      const d = await res.json() as { event: MailEvent; summary: MailSummary };
+      setData((prev) => prev ? { summary: d.summary, events: prev.events.map((e) => e.id === eventId ? d.event : e) } : prev);
+    } finally { setBusy(null); }
+  };
   if (err) return <Card pad="14px"><span style={{ font: `500 13px ${F}`, color: MUT }}>Couldn&apos;t load account mail.</span></Card>;
   if (!data) return <Card pad="14px"><span style={{ font: `500 13px ${F}`, color: MUT }}>Loading…</span></Card>;
   const { events, summary } = data;
@@ -706,29 +731,74 @@ function AccountMail({ accountId }: { accountId: string }) {
     <Card pad="14px">
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         <Lbl>Account mail</Lbl>
-        <span style={{ marginLeft: "auto", display: "flex", gap: 14, font: `700 12px ${F}` }}>
+        <span style={{ marginLeft: "auto", display: "flex", gap: 14, flexWrap: "wrap", font: `700 12px ${F}` }}>
           <span style={{ color: GREEND }}>🟢 {summary.logged} logged</span>
           <span style={{ color: AMBER }}>🟠 {summary.needReview} need review</span>
+          {summary.acknowledged > 0 && <span style={{ color: SUB }}>👁 {summary.acknowledged} known</span>}
           <span style={{ color: REDD }}>🔴 {summary.incidents} incidents</span>
+          {summary.resolved > 0 && <span style={{ color: GREEND }}>✓ {summary.resolved} resolved</span>}
         </span>
       </div>
       {events.length === 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 0" }}>
           <span style={{ font: `600 13px ${F}`, color: SUB }}>No account emails captured yet.</span>
-          <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Only accounts whose LinkedIn email is on our domains route here. Accounts still on the owner&apos;s own email show nothing — that&apos;s expected, not a bug.</span>
+          <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Only genuine LinkedIn security emails (sign-in, password, email, restriction, verify) to accounts whose login email is on our domains route here. Routine notifications and accounts on the owner&apos;s own email show nothing — that&apos;s expected, not a bug.</span>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {events.map((e) => {
-            const c = mailSev(e.severity); const isOpen = open === e.id;
+            const sev = mailSev(e.severity);
+            const incident = e.status === "incident";
+            const resolved = e.status === "resolved";
+            const acknowledged = e.status === "acknowledged";
+            const edge = incident ? RED : resolved ? "#16a34a" : sev.edge;
+            const isOpen = open === e.id;
+            const b = busy === e.id;
+            const when = e.actionedAt ? fmtDY(e.actionedAt) : "";
             return (
-              <div key={e.id} style={{ borderLeft: `3px solid ${c.edge}`, background: "#fafbfc", borderRadius: 8, overflow: "hidden" }}>
+              <div key={e.id} style={{ borderLeft: `3px solid ${edge}`, background: incident ? "#fffafa" : "#fafbfc", borderRadius: 8, overflow: "hidden" }}>
                 <button onClick={() => setOpen(isOpen ? null : e.id)} style={{ width: "100%", textAlign: "left", border: "none", background: "none", cursor: "pointer", padding: "8px 10px", display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <span style={{ flex: "none", font: `700 10.5px ${F}`, padding: "2px 7px", borderRadius: 999, background: c.bg, color: c.fg, whiteSpace: "nowrap" }}>{MAIL_LABEL[e.type] || "Security email"}</span>
-                  <span style={{ flex: 1, minWidth: 0, font: `600 12.5px ${F}`, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.subject}{e.locationLabel ? ` · ${e.locationLabel}` : ""}</span>
+                  <span style={{ flex: "none", font: `700 10.5px ${F}`, padding: "2px 7px", borderRadius: 999, background: sev.bg, color: sev.fg, whiteSpace: "nowrap" }}>{MAIL_LABEL[e.type] || "Security email"}</span>
+                  {incident && <span style={{ flex: "none", font: `800 10px ${F}`, padding: "2px 7px", borderRadius: 999, background: RED, color: "#fff", whiteSpace: "nowrap" }}>INCIDENT</span>}
+                  {acknowledged && <span style={{ flex: "none", font: `700 10px ${F}`, padding: "2px 7px", borderRadius: 999, background: "#e5e7eb", color: SUB, whiteSpace: "nowrap" }}>✓ known</span>}
+                  {resolved && <span style={{ flex: "none", font: `700 10px ${F}`, padding: "2px 7px", borderRadius: 999, background: "#dcfce7", color: GREEND, whiteSpace: "nowrap" }}>✓ resolved</span>}
+                  <span style={{ flex: 1, minWidth: 0, font: `600 12.5px ${F}`, color: resolved ? SUB : INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.subject}{e.locationLabel ? ` · ${e.locationLabel}` : ""}</span>
                   <span style={{ flex: "none", font: `500 11px ${F}`, color: MUT, whiteSpace: "nowrap" }}>{fmtDY(e.receivedAt)}</span>
                 </button>
-                {isOpen && <pre style={{ margin: 0, padding: "0 12px 12px", font: `500 12px/1.5 ${F}`, color: SUB, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{e.bodyText || "(no body)"}</pre>}
+                {isOpen && (
+                  <div style={{ padding: "0 12px 12px" }}>
+                    <pre style={{ margin: "0 0 10px", font: `500 12px/1.5 ${F}`, color: SUB, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{e.bodyText || "(no body)"}</pre>
+                    {incident && (
+                      <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 12px", margin: "0 0 10px" }}>
+                        <div style={{ font: `800 11.5px ${F}`, color: REDD, margin: "0 0 6px" }}>⚠ Incident open — treat this account as possibly compromised. Team notified by email.</div>
+                        <div style={{ font: `700 11px ${F}`, color: INK, margin: "0 0 4px" }}>Recommended response</div>
+                        <ol style={{ margin: 0, paddingLeft: 18, font: `500 12px/1.6 ${F}`, color: SUB }}>
+                          {incidentSteps(e.type).map((s, i) => <li key={i}>{s}</li>)}
+                        </ol>
+                        {e.type === "restriction" && <a href="/restriction-guide" target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 8, font: `700 12px ${F}`, color: BLUE, textDecoration: "none" }}>Open restriction-appeal guide →</a>}
+                      </div>
+                    )}
+                    {(e.actionedBy || resolved || acknowledged) && e.status !== "needs_review" && e.status !== "logged" && (
+                      <div style={{ font: `500 11px ${F}`, color: MUT, margin: "0 0 8px" }}>{resolved ? "Resolved" : incident ? "Opened" : "Marked known"}{e.actionedBy ? ` · ${e.actionedBy}` : ""}{when ? ` · ${when}` : ""}{e.resolution ? ` · ${e.resolution}` : ""}</div>
+                    )}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {incident ? (
+                        <>
+                          <MailBtn onClick={() => act(e.id, "resolve")} busy={b} bg="#16a34a" fg="#fff">Mark resolved</MailBtn>
+                          <MailBtn onClick={() => act(e.id, "undo")} busy={b} bg="#f3f4f6" fg={SUB}>Undo</MailBtn>
+                        </>
+                      ) : resolved || acknowledged ? (
+                        <MailBtn onClick={() => act(e.id, "undo")} busy={b} bg="#f3f4f6" fg={SUB}>Undo</MailBtn>
+                      ) : (
+                        <>
+                          <MailBtn onClick={() => act(e.id, "it_was_us")} busy={b} bg="#dcfce7" fg={GREEND}>It was us</MailBtn>
+                          <MailBtn onClick={() => act(e.id, "we_know")} busy={b} bg="#fef3c7" fg="#854d0e">We know</MailBtn>
+                          <MailBtn onClick={() => act(e.id, "wasnt_us")} busy={b} bg="#fee2e2" fg="#991b1b">Wasn&apos;t us</MailBtn>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -736,6 +806,10 @@ function AccountMail({ accountId }: { accountId: string }) {
       )}
     </Card>
   );
+}
+
+function MailBtn({ onClick, busy, bg, fg, children }: { onClick: () => void; busy: boolean; bg: string; fg: string; children: ReactNode }) {
+  return <button onClick={onClick} disabled={busy} style={{ border: "none", cursor: busy ? "default" : "pointer", opacity: busy ? 0.5 : 1, borderRadius: 7, padding: "6px 12px", font: `700 12px ${F}`, background: bg, color: fg, whiteSpace: "nowrap" }}>{children}</button>;
 }
 
 function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted, recheck, patch, patchApp, reload }: {
@@ -805,7 +879,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
   return (
     <div onClick={(e) => e.stopPropagation()} style={{ position: "sticky", left: 0, width: "calc(100vw - 96px)", maxWidth: 1328, padding: "4px 16px 14px", background: "#fafbfc", cursor: "default" }}>
       <div style={{ display: "flex", gap: 3, background: BG, borderRadius: 10, padding: 3, margin: "4px 0 12px", width: "max-content" }}>
-        <Tab k="overview" l="Overview" /><Tab k="signin" l="Sign-in & credentials" /><Tab k="mail" l={<span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>Account mail{r.mailNeedsReview > 0 && <span style={{ font: `800 9.5px ${F}`, color: "#fff", background: RED, borderRadius: 999, padding: "1px 5px", lineHeight: 1.3 }}>{r.mailNeedsReview}</span>}</span>} /><Tab k="owner" l="Owner & activity" />
+        <Tab k="overview" l="Overview" /><Tab k="signin" l="Sign-in & credentials" /><Tab k="mail" l={<span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>Account mail{r.mailNeedsReview + r.mailIncidentOpen > 0 && <span style={{ font: `800 9.5px ${F}`, color: "#fff", background: RED, borderRadius: 999, padding: "1px 5px", lineHeight: 1.3 }}>{r.mailNeedsReview + r.mailIncidentOpen}</span>}</span>} /><Tab k="owner" l="Owner & activity" />
       </div>
 
       {tab === "overview" && (

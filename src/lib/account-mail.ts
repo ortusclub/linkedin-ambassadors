@@ -19,6 +19,51 @@ export type MailType =
   | "name_changed" | "photo_changed" | "restriction" | "email_verify" | "other";
 export type MailSeverity = "benign" | "review" | "danger";
 
+// Recommended-response checklist shown when an email is flagged "Wasn't us" (incident). Keyed by
+// email type; the API emails these same steps to the team, the UI renders them inline. The
+// restriction case points at our appeal flow.
+export const RESTRICTION_GUIDE_PATH = "/restriction-guide";
+export const INCIDENT_STEPS: Record<string, string[]> = {
+  password_changed: [
+    "Reset the password from our recovery email and set a fresh one.",
+    "Sign out of all other sessions in LinkedIn settings.",
+    "Re-check 2FA is ours and the recovery email is ours.",
+  ],
+  email_changed: [
+    "Remove the email address they added.",
+    "Re-add our address as the primary email and confirm it.",
+    "Reset the password and sign out of all other sessions.",
+  ],
+  new_login: [
+    "Sign out of all other sessions in LinkedIn settings.",
+    "Change the password to a fresh one.",
+    "Check whether this is a renter leak (shared GoLogin / wrong IP) before re-sharing.",
+  ],
+  location_change: [
+    "Sign out of all other sessions in LinkedIn settings.",
+    "Change the password to a fresh one.",
+    "Check the proxy/GoLogin for a geo mismatch or a renter leak.",
+  ],
+  restriction: [
+    "Open the restriction-appeal flow and submit identity-first (offer ID, never mention a VPN).",
+    "Pause renter access until the appeal clears.",
+    "Log the restriction on the account record.",
+  ],
+};
+export const INCIDENT_STEPS_DEFAULT = [
+  "Change the password and sign out of all other sessions.",
+  "Verify 2FA and the recovery email are both ours.",
+  "Watch the account for further security emails.",
+];
+export const incidentSteps = (type: string): string[] => INCIDENT_STEPS[type] ?? INCIDENT_STEPS_DEFAULT;
+
+export const MAIL_TYPE_LABEL: Record<string, string> = {
+  new_login: "New login", location_change: "Location change", password_changed: "Password changed",
+  email_changed: "Email changed", name_changed: "Name changed", photo_changed: "Photo changed",
+  restriction: "Restriction", email_verify: "Email verify", other: "Security email",
+};
+export const mailTypeLabel = (type: string): string => MAIL_TYPE_LABEL[type] ?? "Security email";
+
 const has = (s: string, re: RegExp) => re.test(s);
 
 // Classify a captured LinkedIn security email by subject (+ body as a tiebreaker). No "our
