@@ -846,6 +846,13 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
   const [note, setNote] = useState("");
   const [who, setWho] = useState("");
   const [holdFor, setHoldFor] = useState("");
+  const [copied, setCopied] = useState(false);
+  const copyRentLink = () => {
+    const link = `${typeof window !== "undefined" ? window.location.origin : ""}/checkout?accounts=${r.id}&direct=1`;
+    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1800); };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(link).then(done).catch(done); else done();
+  };
+  const CopyRentBtn = () => <button onClick={copyRentLink} style={{ border: `1.5px solid ${BLUE}`, background: "#fff", color: BLUE, borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>{copied ? "✓ Link copied" : "Copy rent link"}</button>;
   const [joined, setJoined] = useState(r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : estMonthFromAge(r.accountAgeMonths));
   const [connVal, setConnVal] = useState(String(r.connectionCount));
   // Catalogue fields (photo + headline/location/industry) — the data needed to list an account.
@@ -990,16 +997,17 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
                     <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><Lbl>Reserve / hold</Lbl>{heldActive && <span style={{ marginLeft: "auto", font: `600 11.5px ${F}`, color: "#334155" }}>⏸ held until {fmtDYT(r.heldUntil)}</span>}</div>
                     {heldActive ? (
                       <>
-                        <span style={{ font: `500 12px/1.5 ${F}`, color: SUB }}>Reserved{r.heldFor ? ` for ${r.heldFor}` : ""}{r.heldBy ? ` · by ${r.heldBy}` : ""}. Hidden from every catalogue and the normal checkout until then (or until you release it). Auto-releases when it lapses.</span>
-                        <div><button onClick={release} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#3b4657", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Release now</button></div>
+                        <span style={{ font: `500 12px/1.5 ${F}`, color: SUB }}>Reserved{r.heldFor ? ` for ${r.heldFor}` : ""}{r.heldBy ? ` · by ${r.heldBy}` : ""}. Hidden from every catalogue and the normal checkout until then (or until you release it). Auto-releases when it lapses. Send them the rent link below so they can rent it while it&apos;s held.</span>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><CopyRentBtn /><button onClick={release} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#3b4657", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Release now</button></div>
                       </>
                     ) : r.status === "available" ? (
                       <>
                         <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Hold this account for someone for a day or two so it can&apos;t get snagged. It disappears from all catalogues while held.</span>
                         <input value={holdFor} onChange={(e) => setHoldFor(e.target.value)} placeholder="Held for (name / who it's for)" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: "100%" }} />
-                        <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           <button onClick={() => hold(1, holdFor)} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#334155", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Hold 1 day</button>
                           <button onClick={() => hold(2, holdFor)} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#334155", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Hold 2 days</button>
+                          <CopyRentBtn />
                         </div>
                       </>
                     ) : (

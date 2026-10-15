@@ -60,6 +60,8 @@ function CheckoutContent() {
   const [vetError, setVetError] = useState("");
 
   const accountIds = searchParams.get("accounts")?.split(",").filter(Boolean) || [];
+  // Direct rent link (/checkout?accounts=<id>&direct=1): rent an account even if it's on hold.
+  const isDirect = searchParams.get("direct") === "1" && accountIds.length === 1;
   const [salesNavIds, setSalesNavIds] = useState<Set<string>>(
     () => new Set(searchParams.get("salesNav")?.split(",").filter(Boolean) || [])
   );
@@ -112,7 +114,7 @@ function CheckoutContent() {
     setCheckingOut(true);
     setCheckoutError("");
     try {
-      const res = await fetch("/api/rentals/checkout-usdc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew, discountCode: discount?.code }) });
+      const res = await fetch("/api/rentals/checkout-usdc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew, discountCode: discount?.code, direct: isDirect }) });
       const data = await res.json();
       if (res.status === 401) { router.push("/login?message=You must sign in or sign up before you can rent accounts."); return; }
       if (!res.ok) { setCheckoutError(data.error || "Payment failed"); return; }
@@ -133,6 +135,7 @@ function CheckoutContent() {
       const params = new URLSearchParams();
       params.set("accounts", accounts.map((a) => a.id).join(","));
       params.set("funded", "1");
+      if (isDirect) params.set("direct", "1");
       if (discount) params.set("voucher", discount.code);
       params.set("ar", autoRenew ? "1" : "0");
       if (autoRechargeOptIn) params.set("arch", "1");
@@ -222,7 +225,7 @@ function CheckoutContent() {
       }
       setCheckingOut(true);
       try {
-        const res = await fetch("/api/rentals/checkout-usdc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew: ar, discountCode: applied?.code }) });
+        const res = await fetch("/api/rentals/checkout-usdc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountIds: accounts.map((a) => a.id), autoRenew: ar, discountCode: applied?.code, direct: isDirect }) });
         const data = await res.json();
         if (!res.ok) { setCheckoutError(data.error || "Could not finish renting."); setFinishing(false); setCheckingOut(false); return; }
         setCheckoutSuccess(true);
