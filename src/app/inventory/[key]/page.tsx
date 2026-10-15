@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SHADOW_RENTER_EMAILS } from "@/lib/shadow-rental";
+import { tierPricing } from "@/lib/account-pricing";
 import Agent360Catalogue, { type A360Row, type CatalogueConfig } from "./Agent360Catalogue";
+
+// Fields each catalogue's price function reads off an account row.
+type PriceInput = { connectionCount: number; accountAgeMonths: number | null; linkedinVerified: boolean };
 
 // Unlisted partner inventory catalogue. Not linked anywhere and gated behind an
 // unguessable slug, so the link can be shared with a renter (e.g. Profile Partner)
@@ -17,31 +21,35 @@ const SLUG = "iv-7h2k9x3mqp";
 const A360_SLUG = "iv-a360-9mq2k7xz4p";
 const A360_PASSWORD = "Agent360-LV2026";
 // Agent360 pricing: unverified $45, verified $60 (volume rate handled in copy, not per-card).
-const a360Price = (v: boolean) => (v ? 60 : 45);
+const a360Price = (a: PriceInput) => (a.linkedinVerified ? 60 : 45);
 
-// Will Cura (Covent) — same full-pipeline catalogue on the Agent360 pattern, but BROWSE-ONLY (no
-// Rent link): his direct checkout would price off the account tier (SN withdrawn → undercharged,
-// no SN), so he replies with picks and we provision manually with lockedPrice + SN. Flat rate.
+// Will Cura — same full-pipeline catalogue on the Agent360 pattern, but BROWSE-ONLY (no Rent link):
+// his direct checkout would price off the account tier (SN withdrawn → undercharged, no SN), so he
+// replies with picks and we provision manually with lockedPrice + SN. Price shown = the SAME
+// per-account public/website tier price (by connections + age, +$10 verified), with Sales Navigator
+// presented as a separate +$70/account add-on we set up. No flat rate.
 const WILL_SLUG = "iv-will-cura-6k2p9mx4qz";
 const WILL_PASSWORD = "CuraLV2026";
-const willPrice = (v: boolean) => (v ? 120 : 115);
+const willPrice = (a: PriceInput) => tierPricing(a.connectionCount, a.accountAgeMonths, false, a.linkedinVerified).monthly;
 const WILL_CFG: CatalogueConfig = {
-  forLabel: "Covent",
+  forLabel: "Cura",
   storageKey: "willcura",
-  heroBlurb: "Aged, warmed LinkedIn profiles, plus everything currently in warm-up. Pricing is per account, per month: $115, or $120 verified, Sales Navigator included. We re-geo and set each profile up to match your brand. Open any profile to review it.",
+  heroBlurb: "Aged, warmed LinkedIn profiles, plus everything currently in warm-up. Each account is priced by tier (connections and age), starting at $45/mo, with +$10 if verified. Sales Navigator is an optional +$70 per account, which we set up for you. Open any profile to review it.",
   legend: [
-    { cls: "u", label: "Per account", value: "$115/mo" },
-    { cls: "v", label: "✓ Verified", value: "$120/mo" },
-    { cls: "v", label: "Sales Navigator", value: "included" },
+    { cls: "u", label: "By tier", value: "from $45/mo" },
+    { cls: "v", label: "✓ Verified", value: "+$10/mo" },
+    { cls: "v", label: "Sales Navigator", value: "+$70/mo" },
   ],
   showRent: false,
+  showAge: true,
+  snAddon: 70,
 };
 
 // Build the full-pipeline rows (available now + shadow-held "soon" + built/maturing "coming soon")
 // for a password-gated catalogue (Agent360, Will Cura). `priceFn` sets the per-card price (pricing
 // differs per catalogue). Admin-held accounts (heldUntil set) are excluded from "available now".
-async function pipelineRows(priceFn: (v: boolean) => number): Promise<A360Row[]> {
-  const sel = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true, industry: true, linkedinHeadline: true } as const;
+async function pipelineRows(priceFn: (a: PriceInput) => number): Promise<A360Row[]> {
+  const sel = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true, accountAgeMonths: true, industry: true, linkedinHeadline: true } as const;
   const normUrl = (u: string | null) => (u || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("?")[0].replace(/\/+$/, "");
   // Some names are stored ALL CAPS or all lowercase; title-case only those words, leaving
   // genuinely mixed-case names (e.g. "MagbooRoldan", "McLeod") untouched.
@@ -87,7 +95,8 @@ async function pipelineRows(priceFn: (v: boolean) => number): Promise<A360Row[]>
     url: cleanUrl(a.linkedinUrl),
     cc: a.connectionCount || 0,
     v: a.linkedinVerified,
-    price: priceFn(a.linkedinVerified),
+    price: priceFn({ connectionCount: a.connectionCount || 0, accountAgeMonths: a.accountAgeMonths ?? null, linkedinVerified: a.linkedinVerified }),
+    ageMonths: a.accountAgeMonths ?? null,
     status,
     shadow: shadowSet.has(a.id),
     industry: a.industry || null,
@@ -194,7 +203,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
     return <Agent360Catalogue rows={rows} password={A360_PASSWORD} />;
   }
 
-  // Will Cura (Covent): same full-pipeline catalogue, browse-only (no Rent), his flat SN pricing.
+  // Will Cura: same full-pipeline catalogue, browse-only (no Rent), real per-account tier price + SN add-on.
   if (key === WILL_SLUG) {
     const rows = await pipelineRows(willPrice);
     return <Agent360Catalogue rows={rows} password={WILL_PASSWORD} cfg={WILL_CFG} />;
