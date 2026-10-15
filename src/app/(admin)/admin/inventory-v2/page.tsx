@@ -688,7 +688,7 @@ export default function InventoryV2Page() {
 // ── Account mail: captured LinkedIn security-email timeline (read-only; actions land in a later phase) ──
 type MailEvent = { id: string; receivedAt: string; fromAddr: string; subject: string; bodyText: string; type: string; severity: "benign" | "review" | "danger"; status: string; locationLabel: string | null };
 const MAIL_LABEL: Record<string, string> = { new_login: "New login", location_change: "Location change", password_changed: "Password changed", email_changed: "Email changed", name_changed: "Name changed", photo_changed: "Photo changed", restriction: "Restriction", email_verify: "Email verify", other: "Security email" };
-const mailSev = (s: string) => (s === "danger" ? { bg: "#fef2f2", fg: "#b91c1c", edge: RED } : s === "review" ? { bg: "#fffbeb", fg: "#92400e", edge: "#f59e0b" } : { bg: "#ecfdf3", fg: GREEND, edge: "transparent" });
+const mailSev = (s: string) => (s === "danger" ? { bg: "#fee2e2", fg: "#991b1b", edge: RED } : s === "review" ? { bg: "#fef3c7", fg: "#854d0e", edge: "#d97706" } : { bg: "#dcfce7", fg: GREEND, edge: "#16a34a" });
 
 function AccountMail({ accountId }: { accountId: string }) {
   const [data, setData] = useState<{ events: MailEvent[]; summary: { logged: number; needReview: number; incidents: number } } | null>(null);
