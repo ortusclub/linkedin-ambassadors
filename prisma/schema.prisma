@@ -508,6 +508,7 @@ model Referrer {
   email            String?
   paymentMethod    String?  @map("payment_method")
   paymentDetails   String?  @map("payment_details")
+  paymentName      String?  @map("payment_name") // account-holder / registered name on the payout account (may differ from `name`)
   assignedDay      String?  @map("assigned_day")
   assignedLocation String?  @map("assigned_location")
   active           Boolean  @default(true)

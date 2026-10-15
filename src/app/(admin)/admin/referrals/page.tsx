@@ -28,7 +28,7 @@ interface App {
 }
 
 interface RefContact { method: string; handle: string; preferred?: boolean }
-interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; contacts: RefContact[] | null; email: string | null; paymentMethod: string | null; paymentDetails: string | null; }
+interface Referrer { id: string; slug: string; token: string; name: string; type: string; channel: string | null; assignedDay: string | null; assignedLocation: string | null; contactMethod: string | null; contactHandle: string | null; contacts: RefContact[] | null; email: string | null; paymentMethod: string | null; paymentDetails: string | null; paymentName: string | null; }
 
 const F_SANS = "var(--font-sans),system-ui,sans-serif";
 const F_GRO = "var(--font-grotesk),system-ui,sans-serif";
@@ -168,7 +168,7 @@ export default function AdminReferralsPage() {
   const [creating, setCreating] = useState(false);
   const [copiedKey, setCopiedKey] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [dForm, setDForm] = useState<{ email: string; contacts: RefContact[]; preferred: number; paymentMethod: string; paymentDetails: string }>({ email: "", contacts: [{ method: "WhatsApp", handle: "" }], preferred: 0, paymentMethod: "GCash", paymentDetails: "" });
+  const [dForm, setDForm] = useState<{ email: string; contacts: RefContact[]; preferred: number; paymentMethod: string; paymentDetails: string; paymentName: string }>({ email: "", contacts: [{ method: "WhatsApp", handle: "" }], preferred: 0, paymentMethod: "GCash", paymentDetails: "", paymentName: "" });
   const [dSaving, setDSaving] = useState(false);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [payOpen, setPayOpen] = useState(false);
@@ -464,7 +464,7 @@ export default function AdminReferralsPage() {
     // Default the payout method to the referrer's currency default (Wise for USD, GCash for PH)
     // rather than always GCash, so an overseas referrer isn't seeded a PH-only method.
     const defaultMethod = CURRENCY_CONFIG[referralCurrency(r.slug)].defaultPayoutMethod;
-    setDForm({ email: r.email || "", contacts, preferred, paymentMethod: r.paymentMethod || defaultMethod, paymentDetails: r.paymentDetails || "" });
+    setDForm({ email: r.email || "", contacts, preferred, paymentMethod: r.paymentMethod || defaultMethod, paymentDetails: r.paymentDetails || "", paymentName: r.paymentName || "" });
     setDetailId(r.id);
   };
   const saveDetails = async (r: Referrer) => {
@@ -483,9 +483,10 @@ export default function AdminReferralsPage() {
         contactHandle: pref?.handle ?? null,
         paymentMethod: dForm.paymentMethod,
         paymentDetails: dForm.paymentDetails,
+        paymentName: dForm.paymentName.trim(),
       };
       const res = await fetch(`/api/admin/referrers/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (res.ok) { setReferrers((prev) => prev.map((x) => (x.id === r.id ? { ...x, email: payload.email, contacts, contactMethod: payload.contactMethod, contactHandle: payload.contactHandle, paymentMethod: dForm.paymentMethod, paymentDetails: dForm.paymentDetails } : x))); setDetailId(null); }
+      if (res.ok) { setReferrers((prev) => prev.map((x) => (x.id === r.id ? { ...x, email: payload.email, contacts, contactMethod: payload.contactMethod, contactHandle: payload.contactHandle, paymentMethod: dForm.paymentMethod, paymentDetails: dForm.paymentDetails, paymentName: payload.paymentName } : x))); setDetailId(null); }
     } finally { setDSaving(false); }
   };
   const deleteReferrer = async (r: Referrer) => {
@@ -809,7 +810,7 @@ export default function AdminReferralsPage() {
                     <div style={{ flex: 1 }} />
                     <div style={{ textAlign: "right" }}>
                       <div style={label}>Payout to</div>
-                      <div style={{ font: `600 13px ${F_SANS}`, color: "var(--text)" }}>{r.name}</div>
+                      <div style={{ font: `600 13px ${F_SANS}`, color: "var(--text)" }}>{ref?.paymentName || r.name}</div>
                       <div style={{ font: `500 12px ${F_SANS}`, color: ref?.paymentDetails ? "var(--text2)" : "var(--warn-num)", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>{ref?.paymentDetails ? `${ref.paymentMethod || "—"} · ${ref.paymentDetails}` : "No payout details set"}</div>
                     </div>
                     {ref && outstanding > 0 && (
@@ -858,6 +859,7 @@ export default function AdminReferralsPage() {
                               <select value={dForm.paymentMethod} onChange={(e) => setDForm({ ...dForm, paymentMethod: e.target.value })} style={{ ...inpStyle, width: 108, flex: "none" }}>{[...new Set([...CURRENCY_CONFIG.PHP.payoutMethods, ...CURRENCY_CONFIG.USD.payoutMethods])].map((m) => <option key={m}>{m}</option>)}</select>
                               <input value={dForm.paymentDetails} onChange={(e) => setDForm({ ...dForm, paymentDetails: e.target.value })} placeholder="account number / details" style={inpStyle} />
                             </div>
+                            <input value={dForm.paymentName} onChange={(e) => setDForm({ ...dForm, paymentName: e.target.value })} placeholder="account name (registered name)" style={{ ...inpStyle, marginTop: 8 }} />
                             <button onClick={() => saveDetails(ref)} disabled={dSaving} style={{ font: `600 12.5px ${F_SANS}`, color: "#fff", background: "var(--sheets-btn-bg)", border: "none", padding: "9px 16px", borderRadius: 9, cursor: "pointer", opacity: dSaving ? 0.6 : 1, marginTop: 10 }}>{dSaving ? "Saving…" : "Save"}</button>
                           </div>
                         </div>

@@ -13,7 +13,7 @@ interface Payout { id: string; type: string; description: string | null; amount:
 interface Tier { base: number; verified: number; }
 interface Config { currency: string; symbol: string; offer: { setup: string; monthly: string }; referralTiers: { referral: number; phone: Tier; computer: Tier }; payoutMethods: string[]; defaultPayoutMethod: string; }
 interface Data {
-  me: { displayCurrency: string; name: string; slug: string; type: string; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; assignedDay: string | null; assignedLocation: string | null; };
+  me: { displayCurrency: string; name: string; slug: string; type: string; contactMethod: string | null; contactHandle: string | null; paymentMethod: string | null; paymentDetails: string | null; paymentName: string | null; assignedDay: string | null; assignedLocation: string | null; };
   stats: { signups: number; converted: number; commission: number; rate: number; };
   config: Config;
   board: BoardRow[];
@@ -149,7 +149,7 @@ export default function Portal({ token }: { token: string }) {
   const preference = useDisplayCurrency(token, data?.me.displayCurrency, token);
   const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
   const [tab, setTab] = useState<Tab>("home");
-  const [form, setForm] = useState({ contactMethod: "WhatsApp", contactHandle: "", paymentMethod: "GCash", paymentDetails: "" });
+  const [form, setForm] = useState({ contactMethod: "WhatsApp", contactHandle: "", paymentMethod: "GCash", paymentDetails: "", paymentName: "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
@@ -189,6 +189,7 @@ export default function Portal({ token }: { token: string }) {
             ? d.me.paymentMethod
             : d.config.defaultPayoutMethod,
           paymentDetails: d.me.paymentDetails || "",
+          paymentName: d.me.paymentName || d.me.name || "",
         });
         setState("ok");
       })
@@ -861,13 +862,15 @@ export default function Portal({ token }: { token: string }) {
               <div style={cardTitle}>Where we send your money</div>
               <p style={{ font: `500 12px ${JAK}`, color: C.muted, margin: "0 0 13px" }}>Keep this right or your payout bounces.</p>
               <div style={{ font: `600 11px ${JAK}`, color: C.slate, marginBottom: 6 }}>Pay me via</div>
-              <div style={{ display: "flex", gap: 9, marginBottom: 13 }}>
+              <div style={{ display: "flex", gap: 9, marginBottom: 9 }}>
                 <div style={selWrap}>
                   <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} style={sel}>{config.payoutMethods.map((m) => <option key={m}>{m}</option>)}</select>
                   <span style={chev}>▾</span>
                 </div>
                 <input value={form.paymentDetails} onChange={(e) => setForm({ ...form, paymentDetails: e.target.value })} placeholder="account number / details" style={inp} />
               </div>
+              <div style={{ font: `600 11px ${JAK}`, color: C.slate, marginBottom: 6 }}>Account name</div>
+              <input value={form.paymentName} onChange={(e) => setForm({ ...form, paymentName: e.target.value })} placeholder="name your account is registered under" style={{ ...inp, width: "100%", boxSizing: "border-box", marginBottom: 13 }} />
               <div style={{ font: `600 11px ${JAK}`, color: C.slate, marginBottom: 6 }}>Where we message you</div>
               <div style={{ display: "flex", gap: 9, marginBottom: 15 }}>
                 <div style={selWrap}>
