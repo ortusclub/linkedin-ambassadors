@@ -50,6 +50,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         contactHandle: contacts !== undefined ? (mirror.handle ?? null) : str(body.contactHandle),
         paymentMethod: str(body.paymentMethod),
         paymentDetails: str(body.paymentDetails),
+        paymentName: str(body.paymentName),
       },
     });
     return NextResponse.json({ referrer });

@@ -274,6 +274,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       contactHandle: me.contactHandle,
       paymentMethod: me.paymentMethod,
       paymentDetails: me.paymentDetails,
+      paymentName: me.paymentName,
       assignedDay: me.assignedDay,
       assignedLocation: me.assignedLocation,
     },
@@ -349,6 +350,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
       contactHandle: typeof body.contactHandle === "string" ? body.contactHandle : me.contactHandle,
       paymentMethod: typeof body.paymentMethod === "string" ? body.paymentMethod : me.paymentMethod,
       paymentDetails: typeof body.paymentDetails === "string" ? body.paymentDetails : me.paymentDetails,
+      paymentName: typeof body.paymentName === "string" ? body.paymentName.trim() : me.paymentName,
     },
   });
   return NextResponse.json({
@@ -358,6 +360,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
       contactHandle: updated.contactHandle,
       paymentMethod: updated.paymentMethod,
       paymentDetails: updated.paymentDetails,
+      paymentName: updated.paymentName,
     },
   });
 }
