@@ -40,6 +40,12 @@ export async function GET(_req: NextRequest) {
       : [];
     const cryptoByAccount = new Map(cryptoSums.map((r) => [r.linkedinAccountId, Number(r._sum.amount ?? 0)]));
 
+    // Unreviewed account-mail (security emails needing a look) per account → row flag.
+    const mailCounts = ids.length
+      ? await prisma.accountMailEvent.groupBy({ by: ["linkedinAccountId"], where: { linkedinAccountId: { in: ids }, status: "needs_review" }, _count: { _all: true } })
+      : [];
+    const mailNeedsReviewByAccount = new Map(mailCounts.map((r) => [r.linkedinAccountId, r._count._all]));
+
     // ── Earned: on-platform (rental_payment − refund), attributed via rental → account ──
     const txns = ids.length
       ? await prisma.transaction.findMany({
@@ -121,6 +127,7 @@ export async function GET(_req: NextRequest) {
       const earnedTotal = Math.max(0, Math.round(((cryptoByAccount.get(a.id) ?? 0) + (txnByAccount.get(a.id) ?? 0)) * 100) / 100);
       return {
         ...a,
+        mailNeedsReview: mailNeedsReviewByAccount.get(a.id) ?? 0,
         // Carry pipeline (application) profile data into inventory when the account's own is blank.
         linkedinUrl: a.linkedinUrl || app?.linkedinUrl || null,
         location: a.location || app?.location || null,

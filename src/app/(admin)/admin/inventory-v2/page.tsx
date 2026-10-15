@@ -11,7 +11,7 @@
 // Colours are the mock's literal light palette (not the CSS-var theme) so it looks
 // exactly like the approved design when shown to Sam. Theming is a promotion-time task.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { tierPricing } from "@/lib/account-pricing";
 import { formatName } from "@/lib/utils";
@@ -66,6 +66,7 @@ interface Account {
   restrictionLog: RestrictEvent[] | null;
   // derived by /api/admin/inventory-v2
   earnedTotal: number;
+  mailNeedsReview: number;
   utilisation: number;
   // owner-resolved
   ownerName: string | null;
@@ -226,7 +227,7 @@ export default function InventoryV2Page() {
   const [poc, setPoc] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
   const [open, setOpen] = useState<Set<string>>(new Set());
-  const [tab, setTab] = useState<Record<string, "overview" | "signin" | "owner">>({});
+  const [tab, setTab] = useState<Record<string, "overview" | "signin" | "mail" | "owner">>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [checkMode, setCheckMode] = useState(false);
   const [hideDone, setHideDone] = useState(false);
@@ -568,6 +569,7 @@ export default function InventoryV2Page() {
                     if (needsRotate) flags.push({ l: "Rotate", ...RP, tip: "Rotate 2FA key + GoLogin link before re-renting" });
                     // Open access issues: no stored per-account access-issue list yet (IssueActions only emails) — inert for now.
                     if (needs2fa) flags.push({ l: "2FA reset needed", ...RP, tip: "No 2FA is set on this account — configure/reset it" });
+                    if (r.mailNeedsReview > 0) flags.push({ l: `⚠ ${r.mailNeedsReview} mail`, bg: "#fffbeb", fg: "#92400e", tip: `${r.mailNeedsReview} security email${r.mailNeedsReview === 1 ? "" : "s"} need review — open the Account mail tab` });
                     if (r.restrictedAt && !retired) flags.push({ l: `Restricted ${fmtD(r.restrictedAt)}`, bg: "#fff7ed", fg: "#c2410c", tip: "Currently restricted by LinkedIn" });
                     if (missingCat.length) flags.push({ l: `Incomplete: ${missingCat.join(", ")}`, bg: "#fffbeb", fg: "#92400e", tip: `Missing for catalogue: ${missingCat.join(", ")}` });
                     if (proxyDown) flags.push({ l: "Proxy down", ...RP, tip: "GoLogin proxy check failed" });
@@ -683,8 +685,61 @@ export default function InventoryV2Page() {
 }
 
 // ── Expanded detail: Overview / Sign-in tabs ──
+// ── Account mail: captured LinkedIn security-email timeline (read-only; actions land in a later phase) ──
+type MailEvent = { id: string; receivedAt: string; fromAddr: string; subject: string; bodyText: string; type: string; severity: "benign" | "review" | "danger"; status: string; locationLabel: string | null };
+const MAIL_LABEL: Record<string, string> = { new_login: "New login", location_change: "Location change", password_changed: "Password changed", email_changed: "Email changed", name_changed: "Name changed", photo_changed: "Photo changed", restriction: "Restriction", email_verify: "Email verify", other: "Security email" };
+const mailSev = (s: string) => (s === "danger" ? { bg: "#fef2f2", fg: "#b91c1c", edge: RED } : s === "review" ? { bg: "#fffbeb", fg: "#92400e", edge: "#f59e0b" } : { bg: "#ecfdf3", fg: GREEND, edge: "transparent" });
+
+function AccountMail({ accountId }: { accountId: string }) {
+  const [data, setData] = useState<{ events: MailEvent[]; summary: { logged: number; needReview: number; incidents: number } } | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    let on = true;
+    fetch(`/api/admin/accounts/${accountId}/mail`).then((r) => r.json()).then((d) => { if (on) setData(d); }).catch(() => { if (on) setErr(true); });
+    return () => { on = false; };
+  }, [accountId]);
+  if (err) return <Card pad="14px"><span style={{ font: `500 13px ${F}`, color: MUT }}>Couldn&apos;t load account mail.</span></Card>;
+  if (!data) return <Card pad="14px"><span style={{ font: `500 13px ${F}`, color: MUT }}>Loading…</span></Card>;
+  const { events, summary } = data;
+  return (
+    <Card pad="14px">
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        <Lbl>Account mail</Lbl>
+        <span style={{ marginLeft: "auto", display: "flex", gap: 14, font: `700 12px ${F}` }}>
+          <span style={{ color: GREEND }}>🟢 {summary.logged} logged</span>
+          <span style={{ color: AMBER }}>🟠 {summary.needReview} need review</span>
+          <span style={{ color: REDD }}>🔴 {summary.incidents} incidents</span>
+        </span>
+      </div>
+      {events.length === 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 0" }}>
+          <span style={{ font: `600 13px ${F}`, color: SUB }}>No account emails captured yet.</span>
+          <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Only accounts whose LinkedIn email is on our domains route here. Accounts still on the owner&apos;s own email show nothing — that&apos;s expected, not a bug.</span>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {events.map((e) => {
+            const c = mailSev(e.severity); const isOpen = open === e.id;
+            return (
+              <div key={e.id} style={{ borderLeft: `3px solid ${c.edge}`, background: "#fafbfc", borderRadius: 8, overflow: "hidden" }}>
+                <button onClick={() => setOpen(isOpen ? null : e.id)} style={{ width: "100%", textAlign: "left", border: "none", background: "none", cursor: "pointer", padding: "8px 10px", display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <span style={{ flex: "none", font: `700 10.5px ${F}`, padding: "2px 7px", borderRadius: 999, background: c.bg, color: c.fg, whiteSpace: "nowrap" }}>{MAIL_LABEL[e.type] || "Security email"}</span>
+                  <span style={{ flex: 1, minWidth: 0, font: `600 12.5px ${F}`, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.subject}{e.locationLabel ? ` · ${e.locationLabel}` : ""}</span>
+                  <span style={{ flex: "none", font: `500 11px ${F}`, color: MUT, whiteSpace: "nowrap" }}>{fmtDY(e.receivedAt)}</span>
+                </button>
+                {isOpen && <pre style={{ margin: 0, padding: "0 12px 12px", font: `500 12px/1.5 ${F}`, color: SUB, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{e.bodyText || "(no body)"}</pre>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted, recheck, patch, patchApp, reload }: {
-  r: Account; tab: "overview" | "signin" | "owner"; setTab: (t: "overview" | "signin" | "owner") => void; busy: boolean; price: number;
+  r: Account; tab: "overview" | "signin" | "mail" | "owner"; setTab: (t: "overview" | "signin" | "mail" | "owner") => void; busy: boolean; price: number;
   markActive: () => void; setRestricted: (v: boolean) => void; recheck: () => void;
   patch: (id: string, body: Record<string, unknown>, reload?: boolean) => Promise<Response | undefined>;
   patchApp: (appId: string, body: Record<string, unknown>) => Promise<Response | undefined>; reload: () => void;
@@ -744,13 +799,13 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
     return ev.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
   }, [r, restr]);
 
-  const Tab = ({ k, l }: { k: "overview" | "signin" | "owner"; l: string }) => <button onClick={() => setTab(k)} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 12px", whiteSpace: "nowrap", font: `700 12px ${F}`, background: tab === k ? "#fff" : "transparent", color: tab === k ? INK : SUB, boxShadow: tab === k ? "0 1px 3px rgba(0,0,0,.1)" : "none" }}>{l}</button>;
+  const Tab = ({ k, l }: { k: "overview" | "signin" | "mail" | "owner"; l: ReactNode }) => <button onClick={() => setTab(k)} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 12px", whiteSpace: "nowrap", font: `700 12px ${F}`, background: tab === k ? "#fff" : "transparent", color: tab === k ? INK : SUB, boxShadow: tab === k ? "0 1px 3px rgba(0,0,0,.1)" : "none" }}>{l}</button>;
   const rn = r.rentals[0]?.user;
 
   return (
     <div onClick={(e) => e.stopPropagation()} style={{ position: "sticky", left: 0, width: "calc(100vw - 96px)", maxWidth: 1328, padding: "4px 16px 14px", background: "#fafbfc", cursor: "default" }}>
       <div style={{ display: "flex", gap: 3, background: BG, borderRadius: 10, padding: 3, margin: "4px 0 12px", width: "max-content" }}>
-        <Tab k="overview" l="Overview" /><Tab k="signin" l="Sign-in & credentials" /><Tab k="owner" l="Owner & activity" />
+        <Tab k="overview" l="Overview" /><Tab k="signin" l="Sign-in & credentials" /><Tab k="mail" l={<span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>Account mail{r.mailNeedsReview > 0 && <span style={{ font: `800 9.5px ${F}`, color: "#fff", background: RED, borderRadius: 999, padding: "1px 5px", lineHeight: 1.3 }}>{r.mailNeedsReview}</span>}</span>} /><Tab k="owner" l="Owner & activity" />
       </div>
 
       {tab === "overview" && (
@@ -841,6 +896,8 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
           </Card>
         </div>
       )}
+
+      {tab === "mail" && <AccountMail accountId={r.id} />}
 
       {tab === "owner" && (() => {
         const connLog = hist.map((p, i) => ({ at: p.at, count: p.count, delta: i > 0 ? p.count - hist[i - 1].count : null })).reverse().slice(0, 8);
