@@ -979,3 +979,21 @@ model ScheduledMeeting {
   @@unique([host, startsAt])
   @@map("scheduled_meetings")
 }
+
+// Every LinkedIn email we receive at one of our onboarding domains — captured regardless of
+// whether the address went through the self-service wizard, so the team can read the confirm
+// link / verification code for a manually-added email too. See /admin/onboarding-codes.
+model CapturedVerification {
+  id String @id @default(uuid()) @db.Uuid
+  emailId String @unique @map("email_id") // Resend receiving id — idempotency key
+  address String // recipient on our domain, lowercased
+  fromAddr String @map("from_addr")
+  subject String?
+  confirmUrl String? @map("confirm_url")
+  code String?
+  receivedAt DateTime @map("received_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([address])
+  @@index([receivedAt])
+  @@map("captured_verifications")
+}

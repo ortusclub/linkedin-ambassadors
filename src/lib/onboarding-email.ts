@@ -155,6 +155,23 @@ export async function forwardOnboardingEmail(emailId: string) {
   if (msg.to.length !== 1) return;
   const address = msg.to[0].trim().toLowerCase();
   if (!config.domains.includes(address.split("@")[1])) return;
+  // Capture the confirm link / 6-digit code for ANY LinkedIn email to our domains — even an
+  // address added to LinkedIn manually that never went through the wizard — so the team can
+  // read it in /admin/onboarding-codes. Independent of (and before) the wizard-forward path.
+  try {
+    const cap = forwardedText(msg.text, msg.html);
+    const capConfirm = cap.match(/https:\/\/[a-z0-9.-]*linkedin\.com\/comm\/psettings\/email\/confirm[^\s)]*/i)?.[0] || null;
+    const capLabeled = cap.match(/(?:code|pin|verification|security)[^0-9]{0,24}(\d{6})\b/i)?.[1];
+    const capAll = cap.match(/\b\d{6}\b/g);
+    const capCode = capLabeled || (capAll && new Set(capAll).size === 1 ? capAll[0] : null);
+    if (capConfirm || capCode) {
+      await prisma.capturedVerification.upsert({
+        where: { emailId },
+        create: { emailId, address, fromAddr: msg.from.slice(0, 254), subject: (msg.subject || "").slice(0, 300) || null, confirmUrl: capConfirm, code: capCode, receivedAt: new Date(msg.created_at) },
+        update: {},
+      });
+    }
+  } catch { console.error("verification capture failed"); }
   const e = await prisma.onboardingEmailSetup.findUnique({ where: { address }, include: { session: { select: { state: true, referrer: { select: { active: true } } } } } });
   const now = new Date();
   if (!e || !e.session.referrer.active || !forwardingActive(e, e.session.state, now)) return;
