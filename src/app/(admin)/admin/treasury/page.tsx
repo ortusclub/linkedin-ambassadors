@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ethers, type Eip1193Provider } from "ethers";
 import { ArrowUpRight, Building2, CheckCircle2, ExternalLink, RefreshCw, Wallet } from "lucide-react";
+import TreasuryDeposits from "@/components/admin/TreasuryDeposits";
 import { ETH_RESERVE, type TreasurySnapshot, type TransferToken } from "@/lib/treasury";
 import { prepareTreasuryTransfer, requestTreasuryTransfer, transferError, type TransferReview } from "@/lib/treasury-transfer";
 
@@ -155,6 +156,7 @@ export default function TreasuryPage() {
       </section>
       <p className="text-xs" style={{ color: "var(--muted)" }}>Checked {new Date(data.checkedAt).toLocaleString()}. USD estimates use Coinbase exchange rates and are not executable quotes. These balances are held funds, not profit.</p>
     </>}
+    <TreasuryDeposits onSwept={refresh} />
     {pending && <section role="status" className="rounded-2xl p-5" style={card}>
       <h2 className="flex items-center gap-2 font-semibold">{receiptState === "confirmed" && <CheckCircle2 size={18} style={{ color: "var(--green)" }} />}{receiptState === "confirmed" ? "Transfer confirmed on Base" : receiptState === "failed" ? "Transfer reverted" : "Transfer submitted · awaiting confirmation"}</h2>
       <p className="mt-2 text-sm">{pending.amount} {pending.token} → <span className="break-all font-mono text-xs">{pending.destination}</span></p>

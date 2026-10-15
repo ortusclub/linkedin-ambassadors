@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const ts = require('typescript');
 const { ethers } = require('ethers');
+process.env.TREASURY_WALLET_ADDRESS = '0x1111111111111111111111111111111111111111';
 
 function load(file, dependencies) {
   const exports = {};
@@ -17,9 +18,11 @@ function load(file, dependencies) {
 }
 
 function fixture(options = {}) {
-  const calls = { sends: [], funding: [], ledger: [], resets: [], errors: [] };
+  const calls = { sends: [], funding: [], ledger: [], journals: [], resets: [], errors: [] };
   const provider = {
+    getTransactionReceipt: async () => options.receipt ?? null,
     getNetwork: async () => ({ chainId: options.chainId ?? 8453n }),
+    getTransactionCount: async (_address, tag) => tag === 'pending' && options.pending ? 1 : 0,
     getBalance: async () => options.eth ?? ethers.parseEther('0.001'),
   };
   const contract = symbol => () => ({
@@ -29,21 +32,22 @@ function fixture(options = {}) {
     },
     transfer: async (to, amount) => {
       calls.sends.push({ symbol, to, amount });
-      return { wait: async () => ({ status: options.status ?? 1, hash: `hash-${symbol}` }) };
+      return { hash: `hash-${symbol}`, wait: async () => ({ status: options.status ?? 1, hash: `hash-${symbol}` }) };
     },
   });
   const prisma = {
-    depositAddress: { findMany: async () => [{ id: 'deposit', address: '0xabc', userId: 'customer', derivationIndex: 7 }] },
+    transaction: { findMany: async () => options.journals ?? [], create: async entry => { calls.journals.push(entry.data); return { id: "journal" }; } },
+    depositAddress: { findMany: async () => [{ id: 'deposit', address: '0xabc', userId: 'customer', derivationIndex: 7, lastSeenBalance: options.lastSeen ?? '100' }] },
     $transaction: async fn => fn({
-      transaction: { create: async entry => calls.ledger.push(entry.data) },
+      transaction: { update: async entry => calls.ledger.push(entry.data) },
       depositAddress: { update: async entry => calls.resets.push(entry) },
       user: { update: async () => { throw new Error('Sweeps must not credit customers'); } },
     }),
   };
   const wallet = {
     getBaseProvider: () => provider,
-    getTreasuryAddress: () => '0xtreasury',
-    getTreasuryWallet: () => ({ sendTransaction: async tx => {
+    getTreasuryAddress: () => process.env.TREASURY_WALLET_ADDRESS,
+    getTreasuryWallet: () => ({ address: process.env.TREASURY_WALLET_ADDRESS, sendTransaction: async tx => {
       calls.funding.push(tx);
       return { wait: async () => ({ status: options.gasStatus ?? 1 }) };
     } }),
@@ -53,6 +57,7 @@ function fixture(options = {}) {
     },
     getUsdcContract: contract('USDC'),
     getUsdtContract: contract('USDT'),
+    parseUsdc: value => ethers.parseUnits(String(value), 6),
     formatUsdc: value => ethers.formatUnits(value, 6),
   };
   return { calls, ...load('src/lib/deposit-detector.ts', {
@@ -64,10 +69,9 @@ test('USDT-only sweep funds gas, records token and preserves USDC tracker', asyn
   const f = fixture({ USDT: 50_000_000n, eth: 0n });
   const result = await f.sweepDeposits();
   assert.deepEqual(result, [{ address: '0xabc', amount: '50.0', txHash: 'hash-USDT', token: 'USDT' }]);
-  assert.deepEqual(f.calls.sends, [{ symbol: 'USDT', to: '0xtreasury', amount: 50_000_000n }]);
+  assert.deepEqual(f.calls.sends, [{ symbol: 'USDT', to: process.env.TREASURY_WALLET_ADDRESS, amount: 50_000_000n }]);
   assert.equal(f.calls.funding[0].value, ethers.parseEther('0.0005'));
   assert.equal(f.calls.ledger[0].description, 'Swept 50.0 USDT to treasury');
-  assert.equal(f.calls.ledger[0].type, 'sweep');
   assert.equal(f.calls.resets.length, 0);
 });
 
@@ -118,6 +122,7 @@ test('sweep endpoint rejects forged cron headers and missing secret', async () =
   let runs = 0;
   const route = load('src/app/api/cron/detect-deposits/route.ts', {
     'next/server': { NextResponse: { json: (data, init) => ({ data, status: init?.status ?? 200 }) } },
+    '@/lib/deposit-job': { withDepositJob: fn => fn(async () => {}), DepositJobBusy: class extends Error {} },
     '@/lib/deposit-detector': {
       detectDeposits: async () => { runs++; return []; }, sweepDeposits: async () => [],
     },
@@ -134,4 +139,41 @@ test('sweep endpoint rejects forged cron headers and missing secret', async () =
     if (previous === undefined) delete process.env.CRON_SECRET;
     else process.env.CRON_SECRET = previous;
   }
+});
+
+ test('uncredited USDC is not moved and reports a failed token', async () => {
+ const f = fixture({ USDC: 20_000_000n, lastSeen: '0' });
+ const failures = [];
+ await f.sweepDeposits('deposit', token => failures.push(token));
+ assert.deepEqual(failures, ['USDC']);
+ assert.equal(f.calls.sends.length, 0);
+ });
+ test('pending transactions prevent duplicate sends', async () => {
+ const f = fixture({ USDT: 20_000_000n, pending: true });
+ await f.sweepDeposits();
+ assert.equal(f.calls.sends.length, 0);
+ });
+ test('lost job lock prevents signing', async () => {
+ const f = fixture({ USDT: 20_000_000n });
+ await f.sweepDeposits('deposit', undefined, async () => { throw new Error('Lock lost'); });
+ assert.equal(f.calls.sends.length, 0);
+ });
+
+test('unconfirmed journal prevents repeat sweeping even if RPC nonce looks clear', async () => {
+ const f = fixture({ USDT: 50_000_000n, journals: [{ id: 'j', txHash: 'hash', description: 'Pending treasury sweep:USDT:deposit' }] });
+ await f.sweepDeposits();
+ assert.equal(f.calls.sends.length, 0);
+});
+test('confirmed USDC journal repairs tracker before the next sweep', async () => {
+ const f = fixture({ receipt: { status: 1 }, journals: [{ id: 'j', txHash: 'hash', amount: '50', description: 'Pending treasury sweep:USDC:deposit' }] });
+ await f.sweepDeposits();
+ assert.equal(f.calls.resets.length, 1);
+ assert.equal(f.calls.ledger[0].description, 'Swept 50 USDC to treasury');
+});
+test('broadcast hash is journaled before waiting for confirmation', async () => {
+ const f = fixture({ USDT: 50_000_000n, status: 0 });
+ await f.sweepDeposits();
+ assert.equal(f.calls.journals[0].txHash, 'hash-USDT');
+ assert.equal(f.calls.journals[0].description, 'Pending treasury sweep:USDT:deposit');
+ assert.equal(f.calls.ledger.length, 0);
 });

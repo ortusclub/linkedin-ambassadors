@@ -22,11 +22,24 @@ test('Treasury balances and wallet review work on desktop and mobile without sig
         { token: 'USDT', amount: '50.0', usdValue: 50, error: null },
       ], error: null },
     };
+    let sweepRequests = 0;
+    const deposits = { rows: [{ id: '11111111-1111-4111-8111-111111111111', customer: 'customer@example.com', address: '0x3333333333333333333333333333333333333333', usdc: '0.0', usdt: '50.0', eth: '0.0', awaitingCredit: false, error: null }], treasury: snapshot.crypto.address, signingConfigured: true, page: 0, hasMore: false, checkedAt: new Date().toISOString() };
     await page.setRequestInterception(true);
     page.on('request', request => {
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/me') return request.respond({ contentType: 'application/json', body: JSON.stringify({ user: { role: 'admin', fullName: 'Test admin' } }) });
       if (url.pathname === '/api/admin/treasury') return request.respond({ contentType: 'application/json', body: JSON.stringify(snapshot) });
+      if (url.pathname === '/api/admin/treasury/deposits') {
+        if (request.method() === 'POST') {
+          sweepRequests++;
+          const body = JSON.parse(request.postData());
+          assert.equal(body.treasury, snapshot.crypto.address);
+          assert.equal(body.confirmed, true);
+          assert.equal(body.depositId, deposits.rows[0].id);
+          return request.respond({ contentType: 'application/json', body: JSON.stringify({ message: 'Sweep confirmed on Base.', sweeps: [{ token: 'USDT', amount: '50', txHash: '0x' + 'a'.repeat(64) }], failures: [] }) });
+        }
+        return request.respond({ contentType: 'application/json', body: JSON.stringify(deposits) });
+      }
       if (url.pathname.startsWith('/api/')) return request.respond({ contentType: 'application/json', body: '{}' });
       if (url.hostname !== origin.hostname) return request.abort();
       return request.continue();
@@ -53,22 +66,31 @@ test('Treasury balances and wallet review work on desktop and mobile without sig
     };
     await screenshot('desktop');
     const clickText = text => page.evaluate(label => {
-      const button = [...document.querySelectorAll('button')].find(element => element.textContent.includes(label));
+      const button = [...document.querySelectorAll('button')].find(element => element.offsetParent !== null && element.textContent.includes(label));
       if (!button) throw Error('Missing button ' + label);
       button.click();
     }, text);
     await clickText('Move crypto to SwissBorg');
     await page.waitForSelector('dialog[open]');
-    const fields = await page.$$('dialog input');
+    const fields = await page.$$('dialog[open] input');
     await fields[0].type('50');
     await fields[1].type('0x2222222222222222222222222222222222222222');
     await clickText('Connect wallet & review');
-    await page.waitForFunction(() => document.querySelector('dialog')?.innerText.includes('From treasury'), { timeout: 10000 });
+    await page.waitForFunction(() => document.querySelector('dialog[open]')?.innerText.includes('From treasury'), { timeout: 10000 });
     assert.equal(await page.evaluate(() => window.__walletSends), 0);
-    assert.equal(await page.evaluate(() => [...document.querySelectorAll('dialog button')].find(button => button.textContent === 'Confirm in wallet').disabled), true);
+    assert.equal(await page.evaluate(() => [...document.querySelectorAll('dialog[open] button')].find(button => button.textContent === 'Confirm in wallet').disabled), true);
     await screenshot('review');
     await clickText('Back');
     await clickText('Cancel');
+    await clickText('Sweep to main wallet');
+    await page.waitForSelector('dialog[open]');
+    assert.equal(sweepRequests, 0);
+    assert.match(await page.$eval('dialog[open]', e => e.innerText), /50.0 USDT/);
+    await screenshot('sweep-review');
+    await clickText('Confirm sweep');
+    await page.waitForFunction(() => document.body.innerText.includes('Sweep confirmed on Base.'));
+    assert.equal(sweepRequests, 1);
+    assert.equal(await page.evaluate(() => window.__walletSends), 0);
     await page.setViewport({ width: 390, height: 844 });
     await screenshot('mobile');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
