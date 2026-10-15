@@ -49,6 +49,7 @@ interface Row {
   reason: string;
   holdReason: string | null;
   awaitingReceipt: boolean;
+  maturing: boolean;
   overdue: boolean;
   daysLate: number;
   ownerName: string | null;
@@ -227,10 +228,11 @@ function AccountRow({ r, onMarkPaid, onUpdatePayout, onHold }: { r: Row; onMarkP
   const dueLabel = r.overdue && r.nextDueISO ? `${fmtDate(r.nextDueISO)} · ${r.daysLate}d late` : fmtDate(r.nextDueISO);
   // A payout already logged this cycle but awaiting its receipt shouldn't offer "Mark paid"
   // again (that would double-log) — the next step is attaching the receipt in the record below.
-  const canMark = (r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due") && !r.awaitingReceipt;
+  const canMark = (r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due") && !r.awaitingReceipt && !r.maturing;
   // Something's wrong: a payment is being asked for on an account we can't log
-  // into (no credentials) or can't run (no GoLogin profile/share).
-  const payable = r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due";
+  // into (no credentials) or can't run (no GoLogin profile/share). A still-maturing
+  // setup isn't payable yet, so don't flag it for missing creds/GoLogin.
+  const payable = (r.bucket === "setup" || r.bucket === "overdue" || r.bucket === "due") && !r.maturing;
   const missingCreds = payable && (!r.loginEmail || !r.accountPassword);
   const missingGologin = payable && !r.gologinProfileId && !r.gologinShareLink;
   const flagColor = missingCreds ? "var(--st-cancel-fg,#c0392b)" : missingGologin ? "var(--warn-badge-text,#b7791f)" : null;
@@ -536,9 +538,13 @@ export default function PayoutsIIPage() {
   const hasCreds = (r: Row) => !!r.loginEmail && !!r.accountPassword;
   const hasGologin = (r: Row) => !!r.gologinProfileId || !!r.gologinShareLink;
   const setupAll = useMemo(() => filtered.filter((r) => r.bucket === "setup"), [filtered]);
-  const setupNoCreds = useMemo(() => setupAll.filter((r) => !hasCreds(r)), [setupAll]);
-  const setupNoGologin = useMemo(() => setupAll.filter((r) => hasCreds(r) && !hasGologin(r)), [setupAll]);
-  const setup = useMemo(() => setupAll.filter((r) => hasCreds(r) && hasGologin(r)), [setupAll]);
+  // Still inside the 1-week maturation hold — passed QC but not payable yet. Kept out of the
+  // pay-now groups and shown on its own, matching the pipeline's Level 4 "maturing" state.
+  const setupMaturing = useMemo(() => setupAll.filter((r) => r.maturing), [setupAll]);
+  const setupReady = useMemo(() => setupAll.filter((r) => !r.maturing), [setupAll]);
+  const setupNoCreds = useMemo(() => setupReady.filter((r) => !hasCreds(r)), [setupReady]);
+  const setupNoGologin = useMemo(() => setupReady.filter((r) => hasCreds(r) && !hasGologin(r)), [setupReady]);
+  const setup = useMemo(() => setupReady.filter((r) => hasCreds(r) && hasGologin(r)), [setupReady]);
   const overdue = useMemo(() => filtered.filter((r) => r.bucket === "overdue"), [filtered]);
   const due = useMemo(() => filtered.filter((r) => r.bucket === "due"), [filtered]);
   const paid = useMemo(() => filtered.filter((r) => r.bucket === "paid"), [filtered]);
@@ -653,6 +659,9 @@ export default function PayoutsIIPage() {
             <Section title="⚠ Initial payment due — NO GOLOGIN (check)" tone="var(--warn-badge-text,#b7791f)" note="has login but no GoLogin profile/share — account can't be run, verify before paying" rows={setupNoGologin} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           )}
           <Section title="Initial payment due" tone="var(--blue-chip-text,#2b5fd0)" note="signup bonus based on referral source and onboarding option · soonest due first" rows={setup} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          {setupMaturing.length > 0 && (
+            <Section title="Maturing — not payable yet" tone="var(--warn-badge-text,#b7791f)" note="passed QC, still in the 1-week hold (Level 4 → 5) · becomes due on the date shown" rows={setupMaturing} byDue setup onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
+          )}
           <Section title="Payment overdue" tone="var(--st-cancel-fg,#c0392b)" note="monthly due / on hold · most overdue first" rows={overdue} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           <Section title="Payment due" tone="var(--warn-badge-text,#b7791f)" note="monthly coming up · soonest due first" rows={due} byDue onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />
           <Section title="Paid this cycle" tone="var(--st-active-fg,#1a8a4a)" note="already settled this month" rows={paid} onMarkPaid={onMarkPaid} onUpdatePayout={updatePayout} onHold={setAccountHold} />

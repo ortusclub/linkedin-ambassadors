@@ -26,9 +26,12 @@ export async function GET() {
     await requireAdmin();
 
     const accounts = await prisma.linkedInAccount.findMany({
-      // Build/review states have no owner to pay yet and must not appear as payout rows —
-      // a stale under_construction duplicate otherwise surfaces as a bogus due amount.
-      where: { status: { notIn: ["removed", "under_construction", "construction_immature", "under_review"] } },
+      // Inventory status is NOT a payout gate (same principle as #449): the setup fee is paid
+      // BEFORE the account flips out of under_construction, so a matured owner sits on an
+      // under_construction account while unpaid. Only truly-gone accounts are excluded here;
+      // the per-row logic below drops restricted / still-onboarding / company rows, and the
+      // setup bucket splits matured (due) vs still-maturing (upcoming).
+      where: { status: { notIn: ["removed"] } },
       orderBy: { linkedinName: "asc" },
       select: {
         id: true, linkedinName: true, linkedinHeadline: true, linkedinUrl: true,
@@ -69,6 +72,11 @@ export async function GET() {
 
     const now = Date.now();
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    // Maturity is measured in Manila days — identical to the pipeline's matureDaysLeft — so
+    // the "Initial payment due" list and the pipeline's "Matured" set are exactly the same
+    // people (not off by the server's UTC day boundary).
+    const manilaDay = (ms: number) => Math.floor((ms + 8 * 3600000) / 86400000);
+    const todayManila = manilaDay(now);
     const cyStart = new Date(); cyStart.setDate(1); cyStart.setHours(0, 0, 0, 0);
     const CY = cyStart.getFullYear(), CM = cyStart.getMonth();
 
@@ -116,6 +124,9 @@ export async function GET() {
       // A payout logged this cycle but with no receipt yet — "paid" doesn't count until the
       // receipt is attached (that's also what emails the owner), so it stays out of "Paid".
       let awaitingReceipt = false;
+      // Passed QC but still inside the 1-week maturation hold → not payable yet, shown as
+      // upcoming (not in the pay-now "Initial payment due" list).
+      let maturing = false;
       let dueISO: string | null = nextDue ? new Date(nextDue).toISOString() : null;
 
       if (a.restrictedAt) { bucket = "na"; reason = "Restricted"; }
@@ -139,9 +150,14 @@ export async function GET() {
           // Marked paid but no receipt yet — keep it here as "attach receipt" instead of
           // silently leaving the section; attaching the receipt emails the owner and moves it on.
           reason = "Paid · attach receipt"; awaitingReceipt = true; dueISO = null; overdue = false;
+        } else if (setupDue && manilaDay(setupDue.getTime()) > todayManila) {
+          // Still inside the 1-week maturation hold (QC + 7d, measured in Manila days — same
+          // as the pipeline) — keep it visible as upcoming, out of the pay-now due list.
+          maturing = true; dueISO = setupDue.toISOString(); overdue = false;
+          reason = "Maturing";
         } else {
           dueISO = setupDue ? setupDue.toISOString() : null;
-          overdue = !!setupDue && setupDue.getTime() < startOfToday.getTime();
+          overdue = !!setupDue && manilaDay(setupDue.getTime()) < todayManila;
           reason = overdue ? "Initial payment overdue" : "Initial payment due";
         }
       }
@@ -185,6 +201,7 @@ export async function GET() {
         reason,
         holdReason: a.payoutHoldReason || null,
         awaitingReceipt,
+        maturing,
         overdue,
         daysLate,
         ownerName,
