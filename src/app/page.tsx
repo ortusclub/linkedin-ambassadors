@@ -90,18 +90,28 @@ const WHY_BY_BRAND = {
 
 // A few real, privacy-masked profiles for the LinkedArmy "meet the operators" teaser —
 // same shared catalogue backend as LinkedVelocity, same public filters.
+const ARMY_TEASER_SIZE = 8; // cards shown in the "meet the operators" teaser
+const ARMY_RENTED_KEEP = 2; // slots reserved for rented/showcase social-proof cards (labelled)
+
 async function getArmyRoster(): Promise<ArmyRosterCard[]> {
   try {
     // Drawn from the public slice only (see lib/public-inventory) so the homepage never
     // reveals accounts the catalogue itself keeps hidden.
+    //
+    // Composition: hireable ("available") operators lead the grid, then a couple of the
+    // rented/showcase accounts follow as clearly-LABELLED social proof. Without this the
+    // teaser sorted purely by connection count, so the highest-connection rented and
+    // [SHOWCASE] accounts always took the top cards and read as hireable — misrepresenting
+    // what a visitor can actually hire. rentedIds here can include [SHOWCASE] dummies by
+    // design (they exist only as "Rented" social proof); the badge keeps them honest.
     const { availableIds, rentedIds } = await publicInventorySlice();
     const rows = await prisma.linkedInAccount.findMany({
       where: { id: { in: [...availableIds, ...rentedIds] } },
       select: { id: true, linkedinName: true, linkedinHeadline: true, connectionCount: true, industry: true, location: true, hasSalesNav: true, linkedinVerified: true, profilePhotoUrl: true },
       orderBy: { connectionCount: "desc" },
-      take: 8,
     });
-    return rows.map((a) => ({
+    const availSet = new Set(availableIds);
+    const toCard = (a: (typeof rows)[number]): ArmyRosterCard => ({
       id: a.id,
       name: maskName(a.linkedinName),
       headline: a.linkedinHeadline,
@@ -111,7 +121,22 @@ async function getArmyRoster(): Promise<ArmyRosterCard[]> {
       hasSalesNav: a.hasSalesNav,
       verified: a.linkedinVerified,
       photo: a.profilePhotoUrl,
-    }));
+      rented: !availSet.has(a.id),
+    });
+    const available = rows.filter((a) => availSet.has(a.id)).map(toCard);
+    const rented = rows.filter((a) => !availSet.has(a.id)).map(toCard);
+    // Reserve up to ARMY_RENTED_KEEP slots for rented social proof, give the rest to
+    // hireable operators, then backfill from whichever side has more if one runs short.
+    const rentedKeep = rented.slice(0, Math.min(ARMY_RENTED_KEEP, rented.length));
+    const availKeep = available.slice(0, ARMY_TEASER_SIZE - rentedKeep.length);
+    const result = [...availKeep, ...rentedKeep];
+    if (result.length < ARMY_TEASER_SIZE) {
+      for (const c of rented.slice(rentedKeep.length)) {
+        if (result.length >= ARMY_TEASER_SIZE) break;
+        result.push(c);
+      }
+    }
+    return result;
   } catch {
     return [];
   }
