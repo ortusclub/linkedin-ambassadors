@@ -58,6 +58,7 @@ interface Row {
   contactChannel: string | null;
   paymentMethod: string | null;
   paymentDetail: string | null;
+  payoutName: string | null;
   monthlyAmount: number;
   lastPaidAt: string | null;
   lastPaidAmount: number | null;
@@ -253,7 +254,7 @@ function AccountRow({ r, onMarkPaid, onUpdatePayout, onHold }: { r: Row; onMarkP
             <span>Next: <b style={{ color: r.overdue ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#444)" }}>{r.nextDueISO ? fmtDate(r.nextDueISO) : "—"}{r.overdue && r.daysLate ? ` (${r.daysLate}d late)` : ""}</b></span>
             <span>Last: <b style={{ color: "var(--fg,#444)" }}>{r.lastPaidAt ? fmtDate(r.lastPaidAt) : "none"}</b></span>
             <span>Total: <b style={{ color: "var(--fg,#444)" }}>{ownerMoney(r.totalPaid, r.payoutCurrency)}</b></span>
-            <span>Method: <b style={{ color: r.paymentMethod ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{r.paymentMethod || "not set"}</b></span>
+            <span>Method: <b style={{ color: r.paymentMethod ? "var(--fg,#444)" : "var(--st-cancel-fg,#c0392b)" }}>{r.paymentMethod || "not set"}</b>{r.payoutName ? <> · <b style={{ color: "var(--fg,#444)" }}>{r.payoutName}</b></> : ""}</span>
           </div>
         </div>
         {r.bucket === "setup"
@@ -278,7 +279,7 @@ function AccountRow({ r, onMarkPaid, onUpdatePayout, onHold }: { r: Row; onMarkP
         <div style={{ borderTop: "1px solid var(--border,#eee)", padding: "16px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 16, background: "var(--panel,#fafafa)" }}>
           {/* Payout (money OUT to ambassador) */}
           <D label="Owner (ambassador)">{r.ownerName || "—"}</D>
-          <D label="Payment method">{r.paymentMethod || <span style={{ color: "var(--st-cancel-fg,#c0392b)" }}>not set</span>}{r.paymentDetail ? ` · ${r.paymentDetail}` : ""}</D>
+          <D label="Payment method">{r.paymentMethod || <span style={{ color: "var(--st-cancel-fg,#c0392b)" }}>not set</span>}{r.paymentDetail ? ` · ${r.paymentDetail}` : ""}{r.payoutName ? <> · <b style={{ color: "var(--fg,#111)" }}>{r.payoutName}</b></> : <span style={{ color: "var(--st-cancel-fg,#c0392b)" }}> · name not set</span>}</D>
           <D label="Monthly payout">{r.monthlyAmount > 0 ? ownerMoney(r.monthlyAmount, r.payoutCurrency) : "—"}</D>
           <D label="Last payment">{r.lastPaidAt ? `${r.lastPaidAmount != null ? ownerMoney(r.lastPaidAmount, r.payoutCurrency) + " · " : ""}${fmtDate(r.lastPaidAt)}` : "none yet"}</D>
           <D label="Next payment due">{r.nextDueISO ? <span style={{ color: r.overdue ? "var(--st-cancel-fg,#c0392b)" : "var(--fg,#111)" }}>{dueLabel}</span> : "—"}</D>

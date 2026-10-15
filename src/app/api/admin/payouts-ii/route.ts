@@ -49,7 +49,7 @@ export async function GET() {
         contactNumber: true, contactChannel: true, createdAt: true, diyTier: true, payoutCurrency: true, referredBy: true,
         accountFreshness: true, paidAt: true, verifiedAt: true,
         monthlyPayouts: true, paymentMethod: true, paypalEmail: true, wiseEmail: true,
-        paymentDetails: true, accountIssue: true, status: true,
+        paymentDetails: true, payoutName: true, accountIssue: true, status: true,
       },
     });
 
@@ -210,6 +210,7 @@ export async function GET() {
         contactChannel: app?.contactChannel || null,
         paymentMethod: method,
         paymentDetail: methodDetail,
+        payoutName: app?.payoutName || null,
         monthlyAmount,
         lastPaidAt: last?.paidAt || null,
         lastPaidAmount: last?.amount != null ? Number(last.amount) : null,
