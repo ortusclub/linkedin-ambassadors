@@ -107,7 +107,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
 
   // Agent360: full pipeline (available + shadow-held + all warm-up), password-gated, earmarkable.
   if (key === A360_SLUG) {
-    const a360Select = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true, industry: true, linkedinHeadline: true, heldUntil: true, heldBy: true } as const;
+    const a360Select = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true, industry: true, linkedinHeadline: true } as const;
     const normUrl = (u: string | null) => (u || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("?")[0].replace(/\/+$/, "");
     // Some names are stored ALL CAPS or all lowercase; title-case only those words, leaving
     // genuinely mixed-case names (e.g. "MagbooRoldan", "McLeod") untouched.
@@ -119,9 +119,7 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
     const [shadowRentals, availableA, warmRaw, unavailRaw, verifiedApps] = await Promise.all([
       prisma.rental.findMany({ where: { user: { email: { in: SHADOW_RENTER_EMAILS } } }, select: { linkedinAccountId: true } }),
       prisma.linkedInAccount.findMany({
-        // Not held, OR reserved by Agent360 itself — so a self-reserved account still shows here
-        // (marked Reserved) while being hidden from every other catalogue.
-        where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null }, OR: [{ heldUntil: null }, { heldBy: "reserve:agent360", heldUntil: { gt: new Date() } }] },
+        where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, heldUntil: null, linkedinUrl: { not: null } },
         select: a360Select,
       }),
       // Still warming (under_construction) — kept to the ones whose application has passed QC.
@@ -165,15 +163,13 @@ export default async function PartnerInventoryPage({ params }: { params: Promise
       shadow: shadowSet.has(a.id),
       industry: a.industry || null,
       headline: (a.linkedinHeadline || "").trim() || null,
-      reserved: a.heldBy === "reserve:agent360" && !!a.heldUntil && new Date(a.heldUntil) > new Date(),
-      heldUntil: a.heldUntil ? a.heldUntil.toISOString() : null,
     });
     const rows: A360Row[] = [
       ...availableA.map((a) => mk(a, "available")),
       ...unavailRaw.filter((a) => isBuilt(a) && hasUrl(a)).map((a) => mk(a, "soon")),
       ...warmRaw.filter((a) => isMaturing(a) && hasUrl(a)).map((a) => mk(a, "soon")),
     ];
-    return <Agent360Catalogue rows={rows} password={A360_PASSWORD} slug={A360_SLUG} />;
+    return <Agent360Catalogue rows={rows} password={A360_PASSWORD} />;
   }
 
   if (key !== SLUG) notFound();
