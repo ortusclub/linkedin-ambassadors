@@ -134,6 +134,7 @@ const GROUPS: { key: string; title: string; note: string; dot: string }[] = [
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmtD = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}`; };
 const fmtDY = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`; };
+const fmtDYT = (d: string | null) => { if (!d) return "—"; const x = new Date(d); return `${MON[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()} · ${x.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`; };
 // Short "updated" recency: hours within the day, days beyond. Fed by updatedAt.
 const agoShort = (d: string | null) => { if (!d) return "—"; const h = (Date.now() - new Date(d).getTime()) / 3600000; return h < 1 ? "just now" : h < 24 ? `${Math.round(h)}h ago` : `${Math.round(h / 24)}d ago`; };
 const ageStr = (a: Account) => { const m = a.accountAgeMonths; if (m == null) return "—"; const y = Math.floor(m / 12), mm = m % 12; return y ? `${y}y${mm ? ` ${mm}m` : ""}` : `${mm}m`; };
@@ -571,7 +572,7 @@ export default function InventoryV2Page() {
                     // Open access issues: no stored per-account access-issue list yet (IssueActions only emails) — inert for now.
                     if (needs2fa) flags.push({ l: "2FA reset needed", ...RP, tip: "No 2FA is set on this account — configure/reset it" });
                     if (r.mailIncidentOpen > 0) flags.push({ l: `🔴 ${r.mailIncidentOpen} incident`, bg: "#fee2e2", fg: "#991b1b", tip: `${r.mailIncidentOpen} open account-mail incident${r.mailIncidentOpen === 1 ? "" : "s"} — open the Account mail tab` });
-                    if (r.mailNeedsReview > 0) flags.push({ l: `⚠ ${r.mailNeedsReview} mail`, bg: "#fffbeb", fg: "#92400e", tip: `${r.mailNeedsReview} security email${r.mailNeedsReview === 1 ? "" : "s"} need review — open the Account mail tab` });
+                    if (r.mailNeedsReview > 0) flags.push({ l: `✉ ${r.mailNeedsReview} mail`, bg: "#eef2ff", fg: "#4338ca", tip: `${r.mailNeedsReview} security email${r.mailNeedsReview === 1 ? "" : "s"} need review — open the Account mail tab` });
                     if (r.restrictedAt && !retired) flags.push({ l: `Restricted ${fmtD(r.restrictedAt)}`, bg: "#fff7ed", fg: "#c2410c", tip: "Currently restricted by LinkedIn" });
                     if (missingCat.length) flags.push({ l: `Incomplete: ${missingCat.join(", ")}`, bg: "#fffbeb", fg: "#92400e", tip: `Missing for catalogue: ${missingCat.join(", ")}` });
                     if (proxyDown) flags.push({ l: "Proxy down", ...RP, tip: "GoLogin proxy check failed" });
@@ -754,22 +755,43 @@ function AccountMail({ accountId }: { accountId: string }) {
             const edge = incident ? RED : resolved ? "#16a34a" : sev.edge;
             const isOpen = open === e.id;
             const b = busy === e.id;
-            const when = e.actionedAt ? fmtDY(e.actionedAt) : "";
+            const when = e.actionedAt ? fmtDYT(e.actionedAt) : "";
             return (
               <div key={e.id} style={{ borderLeft: `3px solid ${edge}`, background: incident ? "#fffafa" : "#fafbfc", borderRadius: 8, overflow: "hidden" }}>
-                <button onClick={() => setOpen(isOpen ? null : e.id)} style={{ width: "100%", textAlign: "left", border: "none", background: "none", cursor: "pointer", padding: "8px 10px", display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <div style={{ padding: "8px 10px 2px", display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                   <span style={{ flex: "none", font: `700 10.5px ${F}`, padding: "2px 7px", borderRadius: 999, background: sev.bg, color: sev.fg, whiteSpace: "nowrap" }}>{MAIL_LABEL[e.type] || "Security email"}</span>
                   {incident && <span style={{ flex: "none", font: `800 10px ${F}`, padding: "2px 7px", borderRadius: 999, background: RED, color: "#fff", whiteSpace: "nowrap" }}>INCIDENT</span>}
                   {acknowledged && <span style={{ flex: "none", font: `700 10px ${F}`, padding: "2px 7px", borderRadius: 999, background: "#e5e7eb", color: SUB, whiteSpace: "nowrap" }}>✓ known</span>}
                   {resolved && <span style={{ flex: "none", font: `700 10px ${F}`, padding: "2px 7px", borderRadius: 999, background: "#dcfce7", color: GREEND, whiteSpace: "nowrap" }}>✓ resolved</span>}
-                  <span style={{ flex: 1, minWidth: 0, font: `600 12.5px ${F}`, color: resolved ? SUB : INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.subject}{e.locationLabel ? ` · ${e.locationLabel}` : ""}</span>
-                  <span style={{ flex: "none", font: `500 11px ${F}`, color: MUT, whiteSpace: "nowrap" }}>{fmtDY(e.receivedAt)}</span>
-                </button>
+                  <span style={{ flex: 1, minWidth: 0, font: `600 12.5px ${F}`, color: resolved ? SUB : INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={e.subject}>{e.subject}{e.locationLabel ? ` · ${e.locationLabel}` : ""}</span>
+                  <span style={{ flex: "none", font: `500 11px ${F}`, color: MUT, whiteSpace: "nowrap" }}>{fmtDYT(e.receivedAt)}</span>
+                </div>
+                {/* Always-visible actions + outcome line (no need to expand to triage). */}
+                <div style={{ padding: "2px 10px 8px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {incident ? (
+                    <>
+                      <MailBtn onClick={() => act(e.id, "resolve")} busy={b} bg="#16a34a" fg="#fff">Mark resolved</MailBtn>
+                      <MailBtn onClick={() => act(e.id, "undo")} busy={b} bg="#f3f4f6" fg={SUB}>Undo</MailBtn>
+                    </>
+                  ) : resolved || acknowledged ? (
+                    <MailBtn onClick={() => act(e.id, "undo")} busy={b} bg="#f3f4f6" fg={SUB}>Undo</MailBtn>
+                  ) : (
+                    <>
+                      <MailBtn onClick={() => act(e.id, "it_was_us")} busy={b} bg="#dcfce7" fg={GREEND}>It was us</MailBtn>
+                      <MailBtn onClick={() => act(e.id, "we_know")} busy={b} bg="#fef3c7" fg="#854d0e">We know</MailBtn>
+                      <MailBtn onClick={() => act(e.id, "wasnt_us")} busy={b} bg="#fee2e2" fg="#991b1b">Wasn&apos;t us</MailBtn>
+                    </>
+                  )}
+                  {(e.actionedBy || resolved || acknowledged || incident) && (
+                    <span style={{ font: `500 11px ${F}`, color: MUT }}>{resolved ? "Resolved" : incident ? "Opened" : "Marked known"}{e.actionedBy ? ` · ${e.actionedBy}` : ""}{when ? ` · ${when}` : ""}{e.resolution ? ` · ${e.resolution}` : ""}</span>
+                  )}
+                  <button onClick={() => setOpen(isOpen ? null : e.id)} style={{ marginLeft: "auto", border: "none", background: "none", cursor: "pointer", font: `700 11px ${F}`, color: BLUE, whiteSpace: "nowrap" }}>{isOpen ? "Hide email ▴" : "Read email ▾"}</button>
+                </div>
                 {isOpen && (
                   <div style={{ padding: "0 12px 12px" }}>
                     <pre style={{ margin: "0 0 10px", font: `500 12px/1.5 ${F}`, color: SUB, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{e.bodyText || "(no body)"}</pre>
                     {incident && (
-                      <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 12px", margin: "0 0 10px" }}>
+                      <div style={{ background: "#fef2f2", border: `1px solid #fecaca`, borderRadius: 8, padding: "10px 12px" }}>
                         <div style={{ font: `800 11.5px ${F}`, color: REDD, margin: "0 0 6px" }}>⚠ Incident open — treat this account as possibly compromised. Team notified by email.</div>
                         <div style={{ font: `700 11px ${F}`, color: INK, margin: "0 0 4px" }}>Recommended response</div>
                         <ol style={{ margin: 0, paddingLeft: 18, font: `500 12px/1.6 ${F}`, color: SUB }}>
@@ -778,25 +800,6 @@ function AccountMail({ accountId }: { accountId: string }) {
                         {e.type === "restriction" && <a href="/restriction-guide" target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 8, font: `700 12px ${F}`, color: BLUE, textDecoration: "none" }}>Open restriction-appeal guide →</a>}
                       </div>
                     )}
-                    {(e.actionedBy || resolved || acknowledged) && e.status !== "needs_review" && e.status !== "logged" && (
-                      <div style={{ font: `500 11px ${F}`, color: MUT, margin: "0 0 8px" }}>{resolved ? "Resolved" : incident ? "Opened" : "Marked known"}{e.actionedBy ? ` · ${e.actionedBy}` : ""}{when ? ` · ${when}` : ""}{e.resolution ? ` · ${e.resolution}` : ""}</div>
-                    )}
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {incident ? (
-                        <>
-                          <MailBtn onClick={() => act(e.id, "resolve")} busy={b} bg="#16a34a" fg="#fff">Mark resolved</MailBtn>
-                          <MailBtn onClick={() => act(e.id, "undo")} busy={b} bg="#f3f4f6" fg={SUB}>Undo</MailBtn>
-                        </>
-                      ) : resolved || acknowledged ? (
-                        <MailBtn onClick={() => act(e.id, "undo")} busy={b} bg="#f3f4f6" fg={SUB}>Undo</MailBtn>
-                      ) : (
-                        <>
-                          <MailBtn onClick={() => act(e.id, "it_was_us")} busy={b} bg="#dcfce7" fg={GREEND}>It was us</MailBtn>
-                          <MailBtn onClick={() => act(e.id, "we_know")} busy={b} bg="#fef3c7" fg="#854d0e">We know</MailBtn>
-                          <MailBtn onClick={() => act(e.id, "wasnt_us")} busy={b} bg="#fee2e2" fg="#991b1b">Wasn&apos;t us</MailBtn>
-                        </>
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
@@ -826,6 +829,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
   const [headlineV, setHeadlineV] = useState(r.linkedinHeadline || "");
   const [locationV, setLocationV] = useState(r.location || "");
   const [industryV, setIndustryV] = useState(r.industry || "");
+  const [urlV, setUrlV] = useState(r.linkedinUrl || "");
   const [uploading, setUploading] = useState(false);
   const uploadPhoto = async (file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -838,12 +842,13 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
       else alert(`Upload failed: ${data.error || res.status}`);
     } finally { setUploading(false); }
   };
-  const catDirty = headlineV !== (r.linkedinHeadline || "") || locationV !== (r.location || "") || industryV !== (r.industry || "");
+  const catDirty = headlineV !== (r.linkedinHeadline || "") || locationV !== (r.location || "") || industryV !== (r.industry || "") || urlV !== (r.linkedinUrl || "");
   const saveCatalogue = () => {
     const body: Record<string, unknown> = {};
     if (headlineV !== (r.linkedinHeadline || "")) body.linkedinHeadline = headlineV.trim() || null;
     if (locationV !== (r.location || "")) body.location = locationV.trim() || null;
     if (industryV !== (r.industry || "")) body.industry = industryV.trim() || null;
+    if (urlV !== (r.linkedinUrl || "")) body.linkedinUrl = urlV.trim() || null;
     if (Object.keys(body).length) patch(r.id, body);
   };
   const hist = Array.isArray(r.connectionHistory) ? r.connectionHistory.filter((p) => typeof p.count === "number" && !p.note) : [];
@@ -1026,6 +1031,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
                 const fieldStyle = { border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: "100%" } as const;
                 return (<>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Catalogue details</Lbl><span style={{ marginLeft: "auto", font: `700 11px ${F}`, color: complete ? GREEND : "#b45309" }}>{complete ? "✓ complete" : "incomplete"}</span></div>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>LinkedIn URL</Lbl><input value={urlV} onChange={(e) => setUrlV(e.target.value)} placeholder="https://www.linkedin.com/in/…" style={fieldStyle} /></label>
                   <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Headline</Lbl><textarea value={headlineV} onChange={(e) => setHeadlineV(e.target.value)} rows={2} placeholder="e.g. B2B Business Development | SaaS | Pipeline & revenue growth" style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.4 }} /></label>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
                     <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Location</Lbl><input value={locationV} onChange={(e) => setLocationV(e.target.value)} placeholder="e.g. New York, NY, USA" style={fieldStyle} /></label>
