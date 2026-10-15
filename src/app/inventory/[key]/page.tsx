@@ -34,6 +34,9 @@ const WILL_CFG: CatalogueConfig = {
     { cls: "v", label: "✓ Verified", value: "$120/mo" },
     { cls: "v", label: "Sales Navigator", value: "included" },
   ],
+  // Reserve-only: Will's direct checkout would price off the tier (no SN); he reserves, tops up, and
+  // we provision manually with lockedPrice + SN. Agent360 keeps Rent (default showRent true).
+  showRent: false,
 };
 
 // Build the full-pipeline rows (available + shadow-held "soon" + built/maturing "coming soon") for a

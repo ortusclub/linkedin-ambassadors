@@ -27,6 +27,10 @@ export type CatalogueConfig = {
   storageKey: string;   // sessionStorage/localStorage namespace, so catalogues don't collide
   heroBlurb: string;
   legend: { cls: string; label: string; value?: string }[];
+  // Whether to show the direct "Rent →" button. Off for Will Cura: his direct checkout would price
+  // off the account tier (SN withdrawn → undercharged, no SN), so his flow is Reserve → we provision
+  // manually with lockedPrice + SN. Default true keeps Agent360 unchanged.
+  showRent: boolean;
 };
 
 const DEFAULT_CFG: CatalogueConfig = {
@@ -38,6 +42,7 @@ const DEFAULT_CFG: CatalogueConfig = {
     { cls: "v", label: "✓ Verified", value: "$60/mo" },
     { cls: "u", label: "At 10 accounts", value: "$40 / $50" },
   ],
+  showRent: true,
 };
 
 const sortVC = (a: A360Row, b: A360Row) => Number(b.v) - Number(a.v) || b.cc - a.cc;
@@ -137,7 +142,7 @@ const CSS = `
 
 const fmtHold = (iso: string | null) => { if (!iso) return ""; const d = new Date(iso); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
 
-function Card({ a, picked, onToggle, onReserve, onRelease, busy }: { a: A360Row; picked: boolean; onToggle: (id: string) => void; onReserve: (id: string) => void; onRelease: (id: string) => void; busy: boolean }) {
+function Card({ a, picked, onToggle, onReserve, onRelease, busy, showRent }: { a: A360Row; picked: boolean; onToggle: (id: string) => void; onReserve: (id: string) => void; onRelease: (id: string) => void; busy: boolean; showRent: boolean }) {
   // Reserve/Rent only make sense for live accounts (the "available now" bucket).
   const rentable = a.status === "available" && !a.shadow;
   return (
@@ -162,13 +167,13 @@ function Card({ a, picked, onToggle, onReserve, onRelease, busy }: { a: A360Row;
         a.reserved ? (
           <div className="cacts">
             <span className="resv">⏸ Reserved{a.heldUntil ? ` · until ${fmtHold(a.heldUntil)}` : ""}</span>
-            <a className="rent" href={`/checkout?accounts=${a.id}&direct=1`}>Rent →</a>
+            {showRent && <a className="rent" href={`/checkout?accounts=${a.id}&direct=1`}>Rent →</a>}
             <button className="rel" type="button" onClick={() => onRelease(a.id)} disabled={busy}>Release</button>
           </div>
         ) : (
           <div className="cacts">
             <button className="rsv" type="button" onClick={() => onReserve(a.id)} disabled={busy}>Reserve 2 days</button>
-            <a className="rent" href={`/checkout?accounts=${a.id}&direct=1`}>Rent →</a>
+            {showRent && <a className="rent" href={`/checkout?accounts=${a.id}&direct=1`}>Rent →</a>}
           </div>
         )
       )}
@@ -176,7 +181,7 @@ function Card({ a, picked, onToggle, onReserve, onRelease, busy }: { a: A360Row;
   );
 }
 
-function Group({ eyebrow, cls, title, hint, items, picks, onToggle, onReserve, onRelease, busyId }: { eyebrow: string; cls: string; title: string; hint: string; items: A360Row[]; picks: Set<string>; onToggle: (id: string) => void; onReserve: (id: string) => void; onRelease: (id: string) => void; busyId: string | null }) {
+function Group({ eyebrow, cls, title, hint, items, picks, onToggle, onReserve, onRelease, busyId, showRent }: { eyebrow: string; cls: string; title: string; hint: string; items: A360Row[]; picks: Set<string>; onToggle: (id: string) => void; onReserve: (id: string) => void; onRelease: (id: string) => void; busyId: string | null; showRent: boolean }) {
   if (!items.length) return null;
   return (
     <section className="group">
@@ -187,7 +192,7 @@ function Group({ eyebrow, cls, title, hint, items, picks, onToggle, onReserve, o
       </div>
       <p className="ghint">{hint}</p>
       <div className="grid">
-        {items.map((a) => <Card key={a.id} a={a} picked={picks.has(a.id)} onToggle={onToggle} onReserve={onReserve} onRelease={onRelease} busy={busyId === a.id} />)}
+        {items.map((a) => <Card key={a.id} a={a} picked={picks.has(a.id)} onToggle={onToggle} onReserve={onReserve} onRelease={onRelease} busy={busyId === a.id} showRent={showRent} />)}
       </div>
     </section>
   );
@@ -333,7 +338,9 @@ export default function Agent360Catalogue({ rows, password, slug, cfg = DEFAULT_
             </div>
             <div className="howto">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-              <div><b>Reserve or rent in one click.</b> On any available account, hit <b>Reserve 2 days</b> to hold it so no one else can take it, or <b>Rent →</b> to rent it now. Prefer to send a list? Tick several and use &quot;Copy my picks&quot; at the bottom.</div>
+              {cfg.showRent
+                ? <div><b>Reserve or rent in one click.</b> On any available account, hit <b>Reserve 2 days</b> to hold it so no one else can take it, or <b>Rent →</b> to rent it now. Prefer to send a list? Tick several and use &quot;Copy my picks&quot; at the bottom.</div>
+                : <div><b>Reserve in one click.</b> On any available account, hit <b>Reserve 2 days</b> to hold it so no one else can take it, then top up and we&apos;ll connect you with Sales Navigator included. Prefer to send a list? Tick several and use &quot;Copy my picks&quot; at the bottom.</div>}
             </div>
             <div className="filters">
               <input className="fsearch" type="search" placeholder="Search name, role, or industry…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search accounts" />
@@ -349,9 +356,9 @@ export default function Agent360Catalogue({ rows, password, slug, cfg = DEFAULT_
               {filtersActive && <button className="fclear" type="button" onClick={() => { setSearch(""); setIndustry(""); setVFilter("all"); }}>Clear</button>}
               <span className="fcount">{shownCount} shown</span>
             </div>
-            <Group eyebrow="Ready today" cls="now" title="Available now" hint="Live and rentable right now. Reserve one to hold it for 2 days, or rent it straight away." items={buckets.now} picks={picks} onToggle={toggle} onReserve={reserve} onRelease={release} busyId={busyId} />
-            <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} onReserve={reserve} onRelease={release} busyId={busyId} />
-            <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} onReserve={reserve} onRelease={release} busyId={busyId} />
+            <Group eyebrow="Ready today" cls="now" title="Available now" hint="Live and rentable right now. Reserve one to hold it for 2 days, or rent it straight away." items={buckets.now} picks={picks} onToggle={toggle} onReserve={reserve} onRelease={release} busyId={busyId} showRent={cfg.showRent} />
+            <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} onReserve={reserve} onRelease={release} busyId={busyId} showRent={cfg.showRent} />
+            <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} onReserve={reserve} onRelease={release} busyId={busyId} showRent={cfg.showRent} />
             {shownCount === 0 && <div className="noresults">No accounts match those filters. Try clearing them.</div>}
             <p className="note">
               {filtersActive
