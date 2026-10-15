@@ -12,11 +12,15 @@ export type A360Row = {
   cc: number;
   v: boolean;
   price: number;           // per-month price, computed server-side (pricing varies per catalogue)
+  ageMonths: number | null; // account age in months, for the age chip (shown when cfg.showAge)
   status: string; // "available" | "under_construction" | "construction_immature"
   shadow: boolean; // held by a shadow renter (Apex/Ortus), frees up within ~1 week
   industry: string | null;
   headline: string | null;
 };
+
+// Account age in months -> compact label, e.g. 38 -> "3y 2m", 5 -> "5m". Matches the public catalogue.
+const ageLabel = (m: number | null | undefined) => { if (!m || m <= 0) return ""; const y = Math.floor(m / 12), mo = m % 12; return y > 0 ? `${y}y${mo ? ` ${mo}m` : ""}` : `${mo}m`; };
 
 // Per-catalogue display chrome. Defaults below reproduce the Agent360 catalogue exactly, so callers
 // that pass no cfg (the Agent360 branch) are unchanged; Will Cura passes its own (browse-only).
@@ -29,6 +33,10 @@ export type CatalogueConfig = {
   // false (Will Cura): browse-only — no Rent link; he replies with picks and we provision manually
   // (his direct checkout would price off the tier with SN withdrawn → undercharged, no SN).
   showRent: boolean;
+  // showAge: render an age chip per card (Will cares about aged accounts). Off for Agent360.
+  showAge: boolean;
+  // snAddon: if set, show a "+ $N/mo with Sales Navigator" subline under the price (Will = 70).
+  snAddon: number | null;
 };
 
 const DEFAULT_CFG: CatalogueConfig = {
@@ -41,6 +49,8 @@ const DEFAULT_CFG: CatalogueConfig = {
     { cls: "u", label: "At 10 accounts", value: "$40 / $50" },
   ],
   showRent: true,
+  showAge: false,
+  snAddon: null,
 };
 
 const sortVC = (a: A360Row, b: A360Row) => Number(b.v) - Number(a.v) || b.cc - a.cc;
@@ -107,9 +117,11 @@ const CSS = `
 .chip.verified{background:var(--verified-soft);color:var(--verified)}
 .chip.unverified{background:var(--surface);color:var(--faint)}
 .chip.ind{background:var(--accent-soft);color:var(--accent-ink)}
+.chip.age{background:#eef4ff;color:#2b5cb8}
 .foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;padding-top:9px;border-top:1px solid var(--line)}
 .price{font-weight:700;font-size:18px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .price .per{font-size:12px;font-weight:600;color:var(--muted)}
+.snline{font-size:11.5px;font-weight:600;color:var(--muted);margin:-3px 0 0}
 .view{font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;white-space:nowrap}
 .view:hover{text-decoration:underline}
 .view:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
@@ -138,10 +150,11 @@ const CSS = `
 @media (max-width:440px){.grid{grid-template-columns:1fr}}
 `;
 
-function Card({ a, picked, onToggle, showRent }: { a: A360Row; picked: boolean; onToggle: (id: string) => void; showRent: boolean }) {
+function Card({ a, picked, onToggle, showRent, showAge, snAddon }: { a: A360Row; picked: boolean; onToggle: (id: string) => void; showRent: boolean; showAge: boolean; snAddon: number | null }) {
   // Available now = first-come-first-serve: a straight Rent link, no reservation. Browse-only
   // catalogues (Will Cura) suppress the Rent link — they reply with picks and we provision.
   const rentable = a.status === "available" && !a.shadow;
+  const age = showAge ? ageLabel(a.ageMonths) : "";
   return (
     <article className={`card${picked ? " picked" : ""}`}>
       <div className="card-top">
@@ -153,6 +166,7 @@ function Card({ a, picked, onToggle, showRent }: { a: A360Row; picked: boolean; 
       </div>
       <div className="chips">
         {a.cc > 0 ? <span className="chip conn">{a.cc} connections</span> : null}
+        {age ? <span className="chip age">⏳ {age} old</span> : null}
         {a.v ? <span className="chip verified">✓ Verified</span> : <span className="chip unverified">Unverified</span>}
         {a.industry ? <span className="chip ind">{a.industry}</span> : null}
       </div>
@@ -160,6 +174,7 @@ function Card({ a, picked, onToggle, showRent }: { a: A360Row; picked: boolean; 
         <span className="price">${a.price}<span className="per">/mo</span></span>
         <a className="view" href={a.url} target="_blank" rel="noopener noreferrer">View profile →</a>
       </div>
+      {snAddon ? <p className="snline">+ ${snAddon}/mo with Sales Navigator</p> : null}
       {showRent && rentable && (
         <div className="cacts">
           <a className="rent" href={`/checkout?accounts=${a.id}&direct=1`}>Rent →</a>
@@ -169,7 +184,7 @@ function Card({ a, picked, onToggle, showRent }: { a: A360Row; picked: boolean; 
   );
 }
 
-function Group({ eyebrow, cls, title, hint, items, picks, onToggle, showRent }: { eyebrow: string; cls: string; title: string; hint: string; items: A360Row[]; picks: Set<string>; onToggle: (id: string) => void; showRent: boolean }) {
+function Group({ eyebrow, cls, title, hint, items, picks, onToggle, showRent, showAge, snAddon }: { eyebrow: string; cls: string; title: string; hint: string; items: A360Row[]; picks: Set<string>; onToggle: (id: string) => void; showRent: boolean; showAge: boolean; snAddon: number | null }) {
   if (!items.length) return null;
   return (
     <section className="group">
@@ -180,7 +195,7 @@ function Group({ eyebrow, cls, title, hint, items, picks, onToggle, showRent }: 
       </div>
       <p className="ghint">{hint}</p>
       <div className="grid">
-        {items.map((a) => <Card key={a.id} a={a} picked={picks.has(a.id)} onToggle={onToggle} showRent={showRent} />)}
+        {items.map((a) => <Card key={a.id} a={a} picked={picks.has(a.id)} onToggle={onToggle} showRent={showRent} showAge={showAge} snAddon={snAddon} />)}
       </div>
     </section>
   );
@@ -256,7 +271,9 @@ export default function Agent360Catalogue({ rows, password, cfg = DEFAULT_CFG }:
     const map = new Map(rows.map((r) => [r.id, r]));
     const lines = [`${cfg.forLabel} earmarked accounts (${picks.size}):`, ""];
     [...picks].map((id) => map.get(id)).filter((d): d is A360Row => !!d).sort(sortVC).forEach((d) => {
-      lines.push(`- ${d.name} (${d.cc} conns, ${d.v ? "verified" : "unverified"}${d.industry ? ", " + d.industry : ""}) $${d.price}/mo - ${d.url}`);
+      const ageBit = cfg.showAge && ageLabel(d.ageMonths) ? `, ${ageLabel(d.ageMonths)} old` : "";
+      const snBit = cfg.snAddon ? ` (+$${cfg.snAddon}/mo with Sales Navigator)` : "";
+      lines.push(`- ${d.name} (${d.cc} conns${ageBit}, ${d.v ? "verified" : "unverified"}${d.industry ? ", " + d.industry : ""}) $${d.price}/mo${snBit} - ${d.url}`);
     });
     const text = lines.join("\n");
     if (taRef.current) taRef.current.value = text;
@@ -321,9 +338,9 @@ export default function Agent360Catalogue({ rows, password, cfg = DEFAULT_CFG }:
               {filtersActive && <button className="fclear" type="button" onClick={() => { setSearch(""); setIndustry(""); setVFilter("all"); }}>Clear</button>}
               <span className="fcount">{shownCount} shown</span>
             </div>
-            <Group eyebrow="Ready today" cls="now" title="Available now" hint={cfg.showRent ? "Live and rentable right now — first come, first served. Hit Rent to take one." : "Live and available right now. Tick the ones you’d like and reply with your picks."} items={buckets.now} picks={picks} onToggle={toggle} showRent={cfg.showRent} />
-            <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} showRent={cfg.showRent} />
-            <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} showRent={cfg.showRent} />
+            <Group eyebrow="Ready today" cls="now" title="Available now" hint={cfg.showRent ? "Live and rentable right now — first come, first served. Hit Rent to take one." : "Live and available right now. Tick the ones you’d like and reply with your picks."} items={buckets.now} picks={picks} onToggle={toggle} showRent={cfg.showRent} showAge={cfg.showAge} snAddon={cfg.snAddon} />
+            <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} showRent={cfg.showRent} showAge={cfg.showAge} snAddon={cfg.snAddon} />
+            <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} showRent={cfg.showRent} showAge={cfg.showAge} snAddon={cfg.snAddon} />
             {shownCount === 0 && <div className="noresults">No accounts match those filters. Try clearing them.</div>}
             <p className="note">
               {filtersActive
