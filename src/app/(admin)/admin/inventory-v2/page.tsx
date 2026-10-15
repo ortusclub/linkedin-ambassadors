@@ -251,21 +251,23 @@ export default function InventoryV2Page() {
   // ✓/✕ buttons respond on the first click instead of waiting on a full refetch.
   const setRestricted = (a: Account, restricted: boolean) => {
     const now = new Date().toISOString();
-    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, restrictedAt: restricted ? now : null, healthCheckedAt: now, linkedinAccountHealth: restricted ? x.linkedinAccountHealth : "active" } : x)));
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, restrictedAt: restricted ? now : null, healthCheckedAt: now, updatedAt: now, linkedinAccountHealth: restricted ? x.linkedinAccountHealth : "active" } : x)));
     fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted }) }).catch(() => load());
   };
   const markActive = (a: Account) => {
     const now = new Date().toISOString();
-    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, linkedinAccountHealth: "active", healthCheckedAt: now } : x)));
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, linkedinAccountHealth: "active", healthCheckedAt: now, updatedAt: now } : x)));
     fetch(`/api/admin/accounts/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ linkedinAccountHealth: "active", healthCheckedAt: now }) }).catch(() => load());
   };
   // Inline quick-edits from the collapsed row (optimistic, no full reload so the row doesn't jump).
   const setVerified = (a: Account, v: boolean) => {
-    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, linkedinVerified: v } : x)));
+    const now = new Date().toISOString();
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, linkedinVerified: v, updatedAt: now } : x)));
     patch(a.id, { linkedinVerified: v }, false);
   };
   const setStatus = (a: Account, status: string) => {
-    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, status, listed: status === "available" ? x.listed : false } : x)));
+    const now = new Date().toISOString();
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, status, updatedAt: now, listed: status === "available" ? x.listed : false } : x)));
     patch(a.id, { status }, false);
   };
   const recheck = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST" }); await load(); } finally { setBusy(null); } };
@@ -284,7 +286,7 @@ export default function InventoryV2Page() {
     // Owner & activity log/sparkline shows the new point immediately — this save skips the full
     // reload, so without this the count looks overwritten with no logged entry.
     const at = new Date().toISOString();
-    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, connectionCount: n, connectionHistory: [...(Array.isArray(x.connectionHistory) ? x.connectionHistory : []), { at, count: n }].slice(-300) } : x)));
+    setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, connectionCount: n, updatedAt: at, connectionHistory: [...(Array.isArray(x.connectionHistory) ? x.connectionHistory : []), { at, count: n }].slice(-300) } : x)));
     await patch(a.id, { connectionCount: n }, false);
   };
 
