@@ -11,13 +11,38 @@ export type A360Row = {
   url: string;
   cc: number;
   v: boolean;
+  price: number;           // per-month price, computed server-side (pricing varies per catalogue)
   status: string; // "available" | "under_construction" | "construction_immature"
   shadow: boolean; // held by a shadow renter (Apex/Ortus), frees up within ~1 week
   industry: string | null;
   headline: string | null;
 };
 
-const priceOf = (v: boolean) => (v ? 60 : 45);
+// Per-catalogue display chrome. Defaults below reproduce the Agent360 catalogue exactly, so callers
+// that pass no cfg (the Agent360 branch) are unchanged; Will Cura passes its own (browse-only).
+export type CatalogueConfig = {
+  forLabel: string;     // who it's "Prepared for" / gate copy / copy-picks heading
+  storageKey: string;   // sessionStorage/localStorage namespace, so catalogues don't collide
+  heroBlurb: string;
+  legend: { cls: string; label: string; value?: string }[];
+  // showRent true (Agent360): first-come-first-serve direct "Rent →" link on available accounts.
+  // false (Will Cura): browse-only — no Rent link; he replies with picks and we provision manually
+  // (his direct checkout would price off the tier with SN withdrawn → undercharged, no SN).
+  showRent: boolean;
+};
+
+const DEFAULT_CFG: CatalogueConfig = {
+  forLabel: "Agent360",
+  storageKey: "a360",
+  heroBlurb: "Aged, warmed LinkedIn profiles, plus everything currently in warm-up. Pricing is per account, per month: unverified $45, verified $60. Once you reach 10 accounts the rate drops to $40 unverified / $50 verified. Open any profile to review it.",
+  legend: [
+    { cls: "u", label: "Unverified", value: "$45/mo" },
+    { cls: "v", label: "✓ Verified", value: "$60/mo" },
+    { cls: "u", label: "At 10 accounts", value: "$40 / $50" },
+  ],
+  showRent: true,
+};
+
 const sortVC = (a: A360Row, b: A360Row) => Number(b.v) - Number(a.v) || b.cc - a.cc;
 
 const CSS = `
@@ -113,8 +138,9 @@ const CSS = `
 @media (max-width:440px){.grid{grid-template-columns:1fr}}
 `;
 
-function Card({ a, picked, onToggle }: { a: A360Row; picked: boolean; onToggle: (id: string) => void }) {
-  // Available now = first-come-first-serve: a straight Rent link, no reservation.
+function Card({ a, picked, onToggle, showRent }: { a: A360Row; picked: boolean; onToggle: (id: string) => void; showRent: boolean }) {
+  // Available now = first-come-first-serve: a straight Rent link, no reservation. Browse-only
+  // catalogues (Will Cura) suppress the Rent link — they reply with picks and we provision.
   const rentable = a.status === "available" && !a.shadow;
   return (
     <article className={`card${picked ? " picked" : ""}`}>
@@ -131,10 +157,10 @@ function Card({ a, picked, onToggle }: { a: A360Row; picked: boolean; onToggle: 
         {a.industry ? <span className="chip ind">{a.industry}</span> : null}
       </div>
       <div className="foot">
-        <span className="price">${priceOf(a.v)}<span className="per">/mo</span></span>
+        <span className="price">${a.price}<span className="per">/mo</span></span>
         <a className="view" href={a.url} target="_blank" rel="noopener noreferrer">View profile →</a>
       </div>
-      {rentable && (
+      {showRent && rentable && (
         <div className="cacts">
           <a className="rent" href={`/checkout?accounts=${a.id}&direct=1`}>Rent →</a>
         </div>
@@ -143,7 +169,7 @@ function Card({ a, picked, onToggle }: { a: A360Row; picked: boolean; onToggle: 
   );
 }
 
-function Group({ eyebrow, cls, title, hint, items, picks, onToggle }: { eyebrow: string; cls: string; title: string; hint: string; items: A360Row[]; picks: Set<string>; onToggle: (id: string) => void }) {
+function Group({ eyebrow, cls, title, hint, items, picks, onToggle, showRent }: { eyebrow: string; cls: string; title: string; hint: string; items: A360Row[]; picks: Set<string>; onToggle: (id: string) => void; showRent: boolean }) {
   if (!items.length) return null;
   return (
     <section className="group">
@@ -154,13 +180,13 @@ function Group({ eyebrow, cls, title, hint, items, picks, onToggle }: { eyebrow:
       </div>
       <p className="ghint">{hint}</p>
       <div className="grid">
-        {items.map((a) => <Card key={a.id} a={a} picked={picks.has(a.id)} onToggle={onToggle} />)}
+        {items.map((a) => <Card key={a.id} a={a} picked={picks.has(a.id)} onToggle={onToggle} showRent={showRent} />)}
       </div>
     </section>
   );
 }
 
-export default function Agent360Catalogue({ rows, password }: { rows: A360Row[]; password: string }) {
+export default function Agent360Catalogue({ rows, password, cfg = DEFAULT_CFG }: { rows: A360Row[]; password: string; cfg?: CatalogueConfig }) {
   const [unlocked, setUnlocked] = useState(false);
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
@@ -171,12 +197,16 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
   const [vFilter, setVFilter] = useState<"all" | "verified" | "unverified">("all");
   const taRef = useRef<HTMLTextAreaElement>(null);
 
+  const unlockKey = `${cfg.storageKey}_unlocked`;
+  const picksKey = `${cfg.storageKey}_picks`;
+
   useEffect(() => {
-    try { if (sessionStorage.getItem("a360_unlocked") === "1") setUnlocked(true); } catch {}
-    try { const saved = JSON.parse(localStorage.getItem("a360_picks") || "[]"); if (Array.isArray(saved)) setPicks(new Set(saved)); } catch {}
+    try { if (sessionStorage.getItem(unlockKey) === "1") setUnlocked(true); } catch {}
+    try { const saved = JSON.parse(localStorage.getItem(picksKey) || "[]"); if (Array.isArray(saved)) setPicks(new Set(saved)); } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const savePicks = (next: Set<string>) => { try { localStorage.setItem("a360_picks", JSON.stringify([...next])); } catch {} };
+  const savePicks = (next: Set<string>) => { try { localStorage.setItem(picksKey, JSON.stringify([...next])); } catch {} };
 
   const industryOptions = useMemo(
     () => [...new Set(rows.map((r) => r.industry).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b)),
@@ -204,7 +234,7 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pw.trim() === password) { setUnlocked(true); try { sessionStorage.setItem("a360_unlocked", "1"); } catch {} }
+    if (pw.trim() === password) { setUnlocked(true); try { sessionStorage.setItem(unlockKey, "1"); } catch {} }
     else setErr("Incorrect password. Please try again.");
   };
 
@@ -224,9 +254,9 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
   const copyPicks = () => {
     if (!picks.size) return;
     const map = new Map(rows.map((r) => [r.id, r]));
-    const lines = [`Agent360 earmarked accounts (${picks.size}):`, ""];
+    const lines = [`${cfg.forLabel} earmarked accounts (${picks.size}):`, ""];
     [...picks].map((id) => map.get(id)).filter((d): d is A360Row => !!d).sort(sortVC).forEach((d) => {
-      lines.push(`- ${d.name} (${d.cc} conns, ${d.v ? "verified" : "unverified"}${d.industry ? ", " + d.industry : ""}) $${priceOf(d.v)}/mo - ${d.url}`);
+      lines.push(`- ${d.name} (${d.cc} conns, ${d.v ? "verified" : "unverified"}${d.industry ? ", " + d.industry : ""}) $${d.price}/mo - ${d.url}`);
     });
     const text = lines.join("\n");
     if (taRef.current) taRef.current.value = text;
@@ -245,7 +275,7 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
           <form className="gate-card" onSubmit={submit}>
             <div className="mk"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div>
             <b>LinkedVelocity</b>
-            <div className="sub">Private inventory for Agent360. Enter the password to view.</div>
+            <div className="sub">Private inventory for {cfg.forLabel}. Enter the password to view.</div>
             <input type="password" placeholder="Password" autoComplete="off" aria-label="Password" value={pw} onChange={(e) => { setPw(e.target.value); setErr(""); }} />
             <button type="submit">View inventory</button>
             <div className="gate-err">{err}</div>
@@ -259,21 +289,23 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
             <div className="a3-top-in">
               <div className="brand"><b>LinkedVelocity</b><span>Account inventory</span></div>
               <div className="legend">
-                <span className="lg u">Unverified <i>$45/mo</i></span>
-                <span className="lg v">✓ Verified <i>$60/mo</i></span>
-                <span className="lg u">At 10 accounts <i>$40 / $50</i></span>
+                {cfg.legend.map((l, i) => (
+                  <span key={i} className={`lg ${l.cls}`}>{l.label}{l.value ? <> <i>{l.value}</i></> : null}</span>
+                ))}
               </div>
             </div>
           </div>
           <main className="a3-main">
             <div className="hero">
-              <span className="for">Prepared for Agent360</span>
+              <span className="for">Prepared for {cfg.forLabel}</span>
               <h1>Account inventory</h1>
-              <p>Aged, warmed LinkedIn profiles, plus everything currently in warm-up. Pricing is per account, per month: unverified $45, verified $60. Once you reach 10 accounts the rate drops to $40 unverified / $50 verified. Open any profile to review it.</p>
+              <p>{cfg.heroBlurb}</p>
             </div>
             <div className="howto">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-              <div><b>See one you like?</b> Available accounts are first come, first served — hit <b>Rent →</b> to take one. Prefer to send a list? Tick several and use &quot;Copy my picks&quot; at the bottom.</div>
+              {cfg.showRent
+                ? <div><b>See one you like?</b> Available accounts are first come, first served — hit <b>Rent →</b> to take one. Prefer to send a list? Tick several and use &quot;Copy my picks&quot; at the bottom.</div>
+                : <div><b>Browse the inventory.</b> Look through what&apos;s available now and what&apos;s coming up, then tick the ones you&apos;d like, hit <b>Copy my picks</b> and reply to us — we&apos;ll set them up with Sales Navigator and connect you.</div>}
             </div>
             <div className="filters">
               <input className="fsearch" type="search" placeholder="Search name, role, or industry…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search accounts" />
@@ -289,15 +321,15 @@ export default function Agent360Catalogue({ rows, password }: { rows: A360Row[];
               {filtersActive && <button className="fclear" type="button" onClick={() => { setSearch(""); setIndustry(""); setVFilter("all"); }}>Clear</button>}
               <span className="fcount">{shownCount} shown</span>
             </div>
-            <Group eyebrow="Ready today" cls="now" title="Available now" hint="Live and rentable right now — first come, first served. Hit Rent to take one." items={buckets.now} picks={picks} onToggle={toggle} />
-            <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} />
-            <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} />
+            <Group eyebrow="Ready today" cls="now" title="Available now" hint={cfg.showRent ? "Live and rentable right now — first come, first served. Hit Rent to take one." : "Live and available right now. Tick the ones you’d like and reply with your picks."} items={buckets.now} picks={picks} onToggle={toggle} showRent={cfg.showRent} />
+            <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} showRent={cfg.showRent} />
+            <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} showRent={cfg.showRent} />
             {shownCount === 0 && <div className="noresults">No accounts match those filters. Try clearing them.</div>}
             <p className="note">
               {filtersActive
                 ? <>{shownCount} of {rows.length} accounts match &middot; {buckets.now.length} available now, {buckets.soon.length} within a week, {buckets.warm.length} in warm-up.</>
                 : <>{rows.length} accounts total &middot; {buckets.now.length} available now, {buckets.soon.length} within a week, {buckets.warm.length} in warm-up.</>}<br />
-              Prices per account / month. Earmark what you&apos;d like and we&apos;ll reserve them.
+              Prices per account / month. {cfg.showRent ? "Earmark what you’d like and we’ll reserve them." : "Tick the ones you’d like and we’ll set them up with Sales Navigator."}
             </p>
           </main>
           <div className="bar">

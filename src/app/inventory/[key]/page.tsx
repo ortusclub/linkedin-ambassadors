@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SHADOW_RENTER_EMAILS } from "@/lib/shadow-rental";
-import Agent360Catalogue, { type A360Row } from "./Agent360Catalogue";
+import Agent360Catalogue, { type A360Row, type CatalogueConfig } from "./Agent360Catalogue";
 
 // Unlisted partner inventory catalogue. Not linked anywhere and gated behind an
 // unguessable slug, so the link can be shared with a renter (e.g. Profile Partner)
@@ -16,6 +16,89 @@ const SLUG = "iv-7h2k9x3mqp";
 // and everything in warm-up) so they can earmark future accounts, not just available ones.
 const A360_SLUG = "iv-a360-9mq2k7xz4p";
 const A360_PASSWORD = "Agent360-LV2026";
+// Agent360 pricing: unverified $45, verified $60 (volume rate handled in copy, not per-card).
+const a360Price = (v: boolean) => (v ? 60 : 45);
+
+// Will Cura (Covent) — same full-pipeline catalogue on the Agent360 pattern, but BROWSE-ONLY (no
+// Rent link): his direct checkout would price off the account tier (SN withdrawn → undercharged,
+// no SN), so he replies with picks and we provision manually with lockedPrice + SN. Flat rate.
+const WILL_SLUG = "iv-will-cura-6k2p9mx4qz";
+const WILL_PASSWORD = "CuraLV2026";
+const willPrice = (v: boolean) => (v ? 120 : 115);
+const WILL_CFG: CatalogueConfig = {
+  forLabel: "Covent",
+  storageKey: "willcura",
+  heroBlurb: "Aged, warmed LinkedIn profiles, plus everything currently in warm-up. Pricing is per account, per month: $115, or $120 verified, Sales Navigator included. We re-geo and set each profile up to match your brand. Open any profile to review it.",
+  legend: [
+    { cls: "u", label: "Per account", value: "$115/mo" },
+    { cls: "v", label: "✓ Verified", value: "$120/mo" },
+    { cls: "v", label: "Sales Navigator", value: "included" },
+  ],
+  showRent: false,
+};
+
+// Build the full-pipeline rows (available now + shadow-held "soon" + built/maturing "coming soon")
+// for a password-gated catalogue (Agent360, Will Cura). `priceFn` sets the per-card price (pricing
+// differs per catalogue). Admin-held accounts (heldUntil set) are excluded from "available now".
+async function pipelineRows(priceFn: (v: boolean) => number): Promise<A360Row[]> {
+  const sel = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true, industry: true, linkedinHeadline: true } as const;
+  const normUrl = (u: string | null) => (u || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("?")[0].replace(/\/+$/, "");
+  // Some names are stored ALL CAPS or all lowercase; title-case only those words, leaving
+  // genuinely mixed-case names (e.g. "MagbooRoldan", "McLeod") untouched.
+  const titleCaseName = (n: string) => n.split(/\s+/).map((w) => {
+    const upper = w === w.toUpperCase() && w !== w.toLowerCase();
+    const lower = w === w.toLowerCase() && w !== w.toUpperCase();
+    return (upper || lower) ? w.toLowerCase().replace(/(^|[-'’.])(\p{L})/gu, (_, s, c) => s + c.toUpperCase()) : w;
+  }).join(" ");
+  const [shadowRentals, availableA, warmRaw, unavailRaw, verifiedApps] = await Promise.all([
+    prisma.rental.findMany({ where: { user: { email: { in: SHADOW_RENTER_EMAILS } } }, select: { linkedinAccountId: true } }),
+    prisma.linkedInAccount.findMany({
+      where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, heldUntil: null, linkedinUrl: { not: null } },
+      select: sel,
+    }),
+    prisma.linkedInAccount.findMany({
+      where: { status: { in: ["under_construction", "construction_immature"] }, restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
+      select: { ...sel, personalEmail: true },
+    }),
+    prisma.linkedInAccount.findMany({
+      where: { status: "unavailable", restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
+      select: { ...sel, personalEmail: true },
+    }),
+    prisma.ambassadorApplication.findMany({
+      where: { verifiedAt: { not: null }, status: { in: ["approved", "onboarded"] } },
+      select: { linkedinUrl: true, email: true, status: true, selfServiceOnboarding: { select: { accountId: true } } },
+    }),
+  ]);
+  const shadowSet = new Set(shadowRentals.map((r) => r.linkedinAccountId));
+  type App = typeof verifiedApps[number];
+  const matcherFor = (apps: App[]) => {
+    const urls = new Set(apps.map((a) => normUrl(a.linkedinUrl)).filter(Boolean));
+    const emails = new Set(apps.map((a) => a.email.toLowerCase()).filter(Boolean));
+    const ids = new Set(apps.map((a) => a.selfServiceOnboarding?.accountId).filter((x): x is string => !!x));
+    return (a: { id: string; linkedinUrl: string | null; personalEmail: string | null }) =>
+      ids.has(a.id) || urls.has(normUrl(a.linkedinUrl)) || (!!a.personalEmail && emails.has(a.personalEmail.toLowerCase()));
+  };
+  const isMaturing = matcherFor(verifiedApps.filter((a) => a.status === "approved")); // Level 4
+  const isBuilt = matcherFor(verifiedApps); // approved + onboarded
+  const hasUrl = (a: { linkedinUrl: string | null }) => !!a.linkedinUrl && !a.linkedinUrl.includes("charlotte-bax");
+  const mk = (a: typeof availableA[number], status: string): A360Row => ({
+    id: a.id,
+    name: titleCaseName((a.linkedinName || "").trim()),
+    url: cleanUrl(a.linkedinUrl),
+    cc: a.connectionCount || 0,
+    v: a.linkedinVerified,
+    price: priceFn(a.linkedinVerified),
+    status,
+    shadow: shadowSet.has(a.id),
+    industry: a.industry || null,
+    headline: (a.linkedinHeadline || "").trim() || null,
+  });
+  return [
+    ...availableA.map((a) => mk(a, "available")),
+    ...unavailRaw.filter((a) => isBuilt(a) && hasUrl(a)).map((a) => mk(a, "soon")),
+    ...warmRaw.filter((a) => isMaturing(a) && hasUrl(a)).map((a) => mk(a, "soon")),
+  ];
+}
 
 // Partner wholesale pricing, floor held at $40: verified $50; unverified $45 at
 // 200+ connections, else $40.
@@ -105,71 +188,16 @@ function Group({ eyebrow, title, hint, items }: { eyebrow: string; title: string
 export default async function PartnerInventoryPage({ params }: { params: Promise<{ key: string }> }) {
   const { key } = await params;
 
-  // Agent360: full pipeline (available + shadow-held + all warm-up), password-gated, earmarkable.
+  // Agent360: full pipeline (available + shadow-held + all warm-up), password-gated, first-come rent.
   if (key === A360_SLUG) {
-    const a360Select = { id: true, linkedinName: true, linkedinUrl: true, connectionCount: true, linkedinVerified: true, industry: true, linkedinHeadline: true } as const;
-    const normUrl = (u: string | null) => (u || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").split("?")[0].replace(/\/+$/, "");
-    // Some names are stored ALL CAPS or all lowercase; title-case only those words, leaving
-    // genuinely mixed-case names (e.g. "MagbooRoldan", "McLeod") untouched.
-    const titleCaseName = (n: string) => n.split(/\s+/).map((w) => {
-      const upper = w === w.toUpperCase() && w !== w.toLowerCase();
-      const lower = w === w.toLowerCase() && w !== w.toUpperCase();
-      return (upper || lower) ? w.toLowerCase().replace(/(^|[-'’.])(\p{L})/gu, (_, s, c) => s + c.toUpperCase()) : w;
-    }).join(" ");
-    const [shadowRentals, availableA, warmRaw, unavailRaw, verifiedApps] = await Promise.all([
-      prisma.rental.findMany({ where: { user: { email: { in: SHADOW_RENTER_EMAILS } } }, select: { linkedinAccountId: true } }),
-      prisma.linkedInAccount.findMany({
-        where: { status: "available", restrictedAt: null, twoFactorResetNeeded: false, heldUntil: null, linkedinUrl: { not: null } },
-        select: a360Select,
-      }),
-      // Still warming (under_construction) — kept to the ones whose application has passed QC.
-      prisma.linkedInAccount.findMany({
-        where: { status: { in: ["under_construction", "construction_immature"] }, restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
-        select: { ...a360Select, personalEmail: true },
-      }),
-      // Built-but-unlisted: matured accounts parked in "unavailable" (onboarded, not currently
-      // listed) — these carry real connection counts (e.g. Pamela Cabrera). Shown as coming soon.
-      prisma.linkedInAccount.findMany({
-        where: { status: "unavailable", restrictedAt: null, twoFactorResetNeeded: false, linkedinUrl: { not: null } },
-        select: { ...a360Select, personalEmail: true },
-      }),
-      // Applications that passed QC (verifiedAt). "approved" = pipeline Level 4 Maturing (for the
-      // construction bucket); "onboarded" accounts count as built for the unavailable bucket.
-      // Matched to accounts the pipeline way (self-service id, else URL, else personal email).
-      prisma.ambassadorApplication.findMany({
-        where: { verifiedAt: { not: null }, status: { in: ["approved", "onboarded"] } },
-        select: { linkedinUrl: true, email: true, status: true, selfServiceOnboarding: { select: { accountId: true } } },
-      }),
-    ]);
-    const shadowSet = new Set(shadowRentals.map((r) => r.linkedinAccountId));
-    type App = typeof verifiedApps[number];
-    const matcherFor = (apps: App[]) => {
-      const urls = new Set(apps.map((a) => normUrl(a.linkedinUrl)).filter(Boolean));
-      const emails = new Set(apps.map((a) => a.email.toLowerCase()).filter(Boolean));
-      const ids = new Set(apps.map((a) => a.selfServiceOnboarding?.accountId).filter((x): x is string => !!x));
-      return (a: { id: string; linkedinUrl: string | null; personalEmail: string | null }) =>
-        ids.has(a.id) || urls.has(normUrl(a.linkedinUrl)) || (!!a.personalEmail && emails.has(a.personalEmail.toLowerCase()));
-    };
-    const isMaturing = matcherFor(verifiedApps.filter((a) => a.status === "approved")); // Level 4
-    const isBuilt = matcherFor(verifiedApps); // approved + onboarded
-    const hasUrl = (a: { linkedinUrl: string | null }) => !!a.linkedinUrl && !a.linkedinUrl.includes("charlotte-bax");
-    const mk = (a: typeof availableA[number], status: string): A360Row => ({
-      id: a.id,
-      name: titleCaseName((a.linkedinName || "").trim()),
-      url: cleanUrl(a.linkedinUrl),
-      cc: a.connectionCount || 0,
-      v: a.linkedinVerified,
-      status,
-      shadow: shadowSet.has(a.id),
-      industry: a.industry || null,
-      headline: (a.linkedinHeadline || "").trim() || null,
-    });
-    const rows: A360Row[] = [
-      ...availableA.map((a) => mk(a, "available")),
-      ...unavailRaw.filter((a) => isBuilt(a) && hasUrl(a)).map((a) => mk(a, "soon")),
-      ...warmRaw.filter((a) => isMaturing(a) && hasUrl(a)).map((a) => mk(a, "soon")),
-    ];
+    const rows = await pipelineRows(a360Price);
     return <Agent360Catalogue rows={rows} password={A360_PASSWORD} />;
+  }
+
+  // Will Cura (Covent): same full-pipeline catalogue, browse-only (no Rent), his flat SN pricing.
+  if (key === WILL_SLUG) {
+    const rows = await pipelineRows(willPrice);
+    return <Agent360Catalogue rows={rows} password={WILL_PASSWORD} cfg={WILL_CFG} />;
   }
 
   if (key !== SLUG) notFound();
