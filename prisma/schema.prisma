@@ -287,8 +287,12 @@ model AccountMailEvent {
   bodyText          String          @map("body_text")
   type              String          // new_login | location_change | password_changed | email_changed | name_changed | photo_changed | restriction | email_verify | other
   severity          String          // benign | review | danger
-  status            String          @default("logged") // logged | needs_review  (phase 3: acknowledged | incident | resolved)
+  status            String          @default("logged") // logged | needs_review | acknowledged | incident | resolved
   locationLabel     String?         @map("location_label")
+  actionedBy        String?         @map("actioned_by")        // admin who triaged (it-was-us / we-know / wasn't-us / resolve)
+  actionedAt        DateTime?       @map("actioned_at")
+  incidentOpenedAt  DateTime?       @map("incident_opened_at") // set when "Wasn't us" opens an incident; kept for history after resolve
+  resolution        String?                                     // short outcome note on resolve/it-was-us
   createdAt         DateTime        @default(now()) @map("created_at")
 
   @@index([linkedinAccountId, receivedAt])

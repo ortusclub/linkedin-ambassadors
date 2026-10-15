@@ -40,11 +40,15 @@ export async function GET(_req: NextRequest) {
       : [];
     const cryptoByAccount = new Map(cryptoSums.map((r) => [r.linkedinAccountId, Number(r._sum.amount ?? 0)]));
 
-    // Unreviewed account-mail (security emails needing a look) per account → row flag.
-    const mailCounts = ids.length
-      ? await prisma.accountMailEvent.groupBy({ by: ["linkedinAccountId"], where: { linkedinAccountId: { in: ids }, status: "needs_review" }, _count: { _all: true } })
+    // Account-mail row flags: unreviewed security emails (amber) and open incidents (red).
+    const mailStatusCounts = ids.length
+      ? await prisma.accountMailEvent.groupBy({ by: ["linkedinAccountId", "status"], where: { linkedinAccountId: { in: ids }, status: { in: ["needs_review", "incident"] } }, _count: { _all: true } })
       : [];
-    const mailNeedsReviewByAccount = new Map(mailCounts.map((r) => [r.linkedinAccountId, r._count._all]));
+    const mailNeedsReviewByAccount = new Map<string, number>();
+    const mailIncidentByAccount = new Map<string, number>();
+    for (const r of mailStatusCounts) {
+      (r.status === "incident" ? mailIncidentByAccount : mailNeedsReviewByAccount).set(r.linkedinAccountId, r._count._all);
+    }
 
     // ── Earned: on-platform (rental_payment − refund), attributed via rental → account ──
     const txns = ids.length
@@ -128,6 +132,7 @@ export async function GET(_req: NextRequest) {
       return {
         ...a,
         mailNeedsReview: mailNeedsReviewByAccount.get(a.id) ?? 0,
+        mailIncidentOpen: mailIncidentByAccount.get(a.id) ?? 0,
         // Carry pipeline (application) profile data into inventory when the account's own is blank.
         linkedinUrl: a.linkedinUrl || app?.linkedinUrl || null,
         location: a.location || app?.location || null,
