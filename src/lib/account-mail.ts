@@ -25,21 +25,37 @@ const has = (s: string, re: RegExp) => re.test(s);
 // actions" log exists, so severity is a pure type heuristic: benign = log only, review = needs a
 // look, danger = restriction/takeover. "New sign-in" is benign UNLESS it signals a new
 // device/location, which bumps it to review.
-export function classifyAccountMail(subject: string, body: string): { type: MailType; severity: MailSeverity; location?: string } {
+//
+// Returns null when the subject isn't a recognised account-security event. LinkedIn sends a flood
+// of non-security mail from the same linkedin.com domain (invitations, messages, job alerts,
+// digests, "people you may know") — those must NOT be logged here. Capture only trusts this
+// classifier or a dedicated security sender (see isSecuritySender), never "from linkedin.com".
+export function classifyAccountMail(subject: string, body: string): { type: MailType; severity: MailSeverity; location?: string } | null {
   const s = (subject || "").toLowerCase();
   const b = (body || "").toLowerCase();
   const location = extractLocation(body);
   const newPlace = has(s, /new (device|location|place)/) || has(b, /new (device|location|place)|didn.?t recognize|don.?t recognize|was this you/);
 
-  if (has(s, /restrict|your account has been|we.?ve restricted|temporarily restricted|unusual activity on your account/)) return { type: "restriction", severity: "danger", location };
-  if (has(s, /password (was|has been)? ?(changed|reset|updated)|you changed your password/)) return { type: "password_changed", severity: "review", location };
+  if (has(s, /restrict|account (has been|was) (restricted|suspended)|we.?ve restricted|temporarily restricted|unusual activity on your account/)) return { type: "restriction", severity: "danger", location };
+  if (has(s, /password (was|has been)? ?(changed|reset|updated)|you changed your password|reset your password/)) return { type: "password_changed", severity: "review", location };
   if (has(s, /email address (was|has been)? ?(changed|added|updated)|you (added|changed) (a new )?email|primary email/)) return { type: "email_changed", severity: "review", location };
-  if (has(s, /confirm your email|verify your email|please confirm|email verification|confirm this email/)) return { type: "email_verify", severity: "benign", location };
-  if (has(s, /sign-?in|signed in|new login|logged in to your account/)) return { type: newPlace ? "location_change" : "new_login", severity: newPlace ? "review" : "benign", location };
-  if (has(s, /new (place|location)|signing in from|signed in from a new/)) return { type: "location_change", severity: "review", location };
-  if (has(s, /changed your name|name (was|has been) (changed|updated)/)) return { type: "name_changed", severity: "benign", location };
-  if (has(s, /profile photo|changed your photo|new profile picture/)) return { type: "photo_changed", severity: "benign", location };
-  return { type: "other", severity: "review", location };
+  if (has(s, /confirm your email|verify your email|email verification|confirm this email|please verify it.?s you|verification code|security code|one-?time (code|pin)/)) return { type: "email_verify", severity: "benign", location };
+  // Sign-in alerts: only the account-security phrasing, so notification mail ("…just signed in to
+  // post") can't trip it.
+  if (has(s, /new sign-?in|new sign in to|a new sign|signed in to your (linkedin )?account|we noticed a (new )?(login|sign-?in)|recent login to your account/)) return { type: newPlace ? "location_change" : "new_login", severity: newPlace ? "review" : "benign", location };
+  if (has(s, /signing in from a new|signed in from a new (device|location|place)/)) return { type: "location_change", severity: "review", location };
+  if (has(s, /you changed your name|your name (was|has been) (changed|updated)/)) return { type: "name_changed", severity: "benign", location };
+  if (has(s, /you changed your (profile )?photo|your profile photo (was|has been)|new profile picture/)) return { type: "photo_changed", severity: "benign", location };
+  return null;
+}
+
+// True when the sender is LinkedIn's dedicated account-security channel (security-noreply@ and the
+// like). Mail from here is always worth logging even if the subject doesn't match a known pattern.
+export function isSecuritySender(from: string): boolean {
+  const address = (from.match(/<([^<>]+)>\s*$/)?.[1] || from).trim().toLowerCase();
+  const [local, domain] = address.split("@");
+  if (!/^(?:[a-z0-9-]+\.)*linkedin\.com$/.test(domain || "")) return false;
+  return /(?:^|[.-])(account-)?security(-noreply)?$|^password-noreply$/.test(local || "");
 }
 
 // Best-effort location label from a LinkedIn sign-in email body (e.g. "Location: Lagos, NG").
@@ -85,7 +101,12 @@ export async function captureAccountMail(emailId: string): Promise<{ stored: boo
   if (!accountId) return { stored: false, reason: "no_account" };
 
   const bodyText = forwardedText(msg.text, msg.html);
-  const { type, severity, location } = classifyAccountMail(msg.subject, bodyText);
+  // Log only genuine account-security mail: a recognised security subject, or anything from the
+  // dedicated security sender. Everything else from linkedin.com (invitations, messages, job
+  // alerts, digests) is skipped so the log stays signal, not an inbox mirror.
+  const cls = classifyAccountMail(msg.subject, bodyText);
+  if (!cls && !isSecuritySender(msg.from)) return { stored: false, reason: "not_security" };
+  const { type, severity, location } = cls ?? { type: "other" as MailType, severity: "review" as MailSeverity, location: extractLocation(bodyText) };
   const status = severity === "benign" ? "logged" : "needs_review";
 
   await prisma.accountMailEvent.create({
