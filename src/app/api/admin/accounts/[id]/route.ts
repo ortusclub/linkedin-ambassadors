@@ -47,6 +47,9 @@ const updateSchema = z.object({
   // unavailable, or even rented.
   warmupStartedAt: z.string().nullable().optional(),
   linkedinJoinedAt: z.string().nullable().optional(),
+  // Remove a single connection-history entry (correcting a mistaken reading) by its index
+  // in the stored array. Not a model column — consumed below, then stripped before the update.
+  deleteConnectionHistoryIndex: z.number().int().optional(),
   // Admin payout hold (account inaccessible / paused — not a LinkedIn restriction). Pass a
   // reason string to hold the owner's payout, or null to release it.
   payoutHoldReason: z.string().nullable().optional(),
@@ -246,6 +249,15 @@ export async function PATCH(
         }
         if (additions.length) (data as Record<string, unknown>).connectionHistory = [...history, ...additions].slice(-300);
       }
+    }
+
+    // Delete one connection-history entry (e.g. a mis-typed reading) by its index.
+    if (data.deleteConnectionHistoryIndex !== undefined) {
+      const idx = data.deleteConnectionHistoryIndex;
+      const cur = await prisma.linkedInAccount.findUnique({ where: { id }, select: { connectionHistory: true } });
+      const history = Array.isArray(cur?.connectionHistory) ? (cur.connectionHistory as { at: string; count: number; note?: string }[]) : [];
+      (data as Record<string, unknown>).connectionHistory = history.filter((_, i) => i !== idx);
+      delete (data as Record<string, unknown>).deleteConnectionHistoryIndex;
     }
 
     // Re-host any newly-set external profile photo (e.g. a licdn URL) onto Blob
