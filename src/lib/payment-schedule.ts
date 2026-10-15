@@ -104,12 +104,17 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
   const horizonEnd = now + horizonDays * DAY;
 
   const apps = await prisma.ambassadorApplication.findMany({
-    // "Onboarded" means the setup fee is PAID (the canonical rule) — NOT the raw status enum.
-    // A referral/payout that has passed login + QC + setup payment must count even if the
-    // pipeline status was never flipped off "approved" (marking the setup fee paid doesn't
-    // touch application status). So include anyone whose setup fee is marked paid, not just
-    // status=onboarded. Milestone gates downstream (isReferralEarned, maturing) still apply.
-    where: { OR: [{ status: "onboarded" }, { paidAt: { not: null } }] },
+    // Payment comes BEFORE the "onboarded" flip — the team pays the owner first, then marks
+    // onboarded as the "paid" marker. So the schedule must surface a MATURED account (passed
+    // QC, 7-day hold elapsed) even while it is still status=approved and unpaid, or there is a
+    // catch-22: you can't see someone to pay them until you've already marked them paid.
+    // Include: already-onboarded, already-paid, OR anyone who has passed QC (verifiedAt) and
+    // isn't dead (rejected/unreachable). Restricted owners are dropped below; the inventory
+    // status (under_construction/available) is NOT a payout gate. The setup bucket's own date
+    // logic still splits matured (due now) vs still-maturing (upcoming), and the referral
+    // commission gates downstream (isReferralEarned/setupReceipted) stay strict, so broadening
+    // this query never credits a referrer before the setup fee is actually settled.
+    where: { OR: [{ status: "onboarded" }, { paidAt: { not: null } }, { status: { notIn: ["rejected", "unreachable"] }, verifiedAt: { not: null } }] },
     select: {
       id: true, fullName: true, email: true, linkedinUrl: true, onboardedAt: true,
       accountFreshness: true, paidAt: true, monthlyPayouts: true,
