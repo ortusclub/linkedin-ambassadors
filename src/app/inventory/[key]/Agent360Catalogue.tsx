@@ -15,8 +15,6 @@ export type A360Row = {
   shadow: boolean; // held by a shadow renter (Apex/Ortus), frees up within ~1 week
   industry: string | null;
   headline: string | null;
-  reserved: boolean;       // self-reserved by Agent360 (a short hold) — shown here, hidden elsewhere
-  heldUntil: string | null;
 };
 
 const priceOf = (v: boolean) => (v ? 60 : 45);
@@ -115,10 +113,8 @@ const CSS = `
 @media (max-width:440px){.grid{grid-template-columns:1fr}}
 `;
 
-const fmtHold = (iso: string | null) => { if (!iso) return ""; const d = new Date(iso); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
-
-function Card({ a, picked, onToggle, onReserve, onRelease, busy }: { a: A360Row; picked: boolean; onToggle: (id: string) => void; onReserve: (id: string) => void; onRelease: (id: string) => void; busy: boolean }) {
-  // Reserve/Rent only make sense for live accounts (the "available now" bucket).
+function Card({ a, picked, onToggle }: { a: A360Row; picked: boolean; onToggle: (id: string) => void }) {
+  // Available now = first-come-first-serve: a straight Rent link, no reservation.
   const rentable = a.status === "available" && !a.shadow;
   return (
     <article className={`card${picked ? " picked" : ""}`}>
@@ -139,24 +135,15 @@ function Card({ a, picked, onToggle, onReserve, onRelease, busy }: { a: A360Row;
         <a className="view" href={a.url} target="_blank" rel="noopener noreferrer">View profile →</a>
       </div>
       {rentable && (
-        a.reserved ? (
-          <div className="cacts">
-            <span className="resv">⏸ Reserved{a.heldUntil ? ` · until ${fmtHold(a.heldUntil)}` : ""}</span>
-            <a className="rent" href={`/checkout?accounts=${a.id}&direct=1`}>Rent →</a>
-            <button className="rel" type="button" onClick={() => onRelease(a.id)} disabled={busy}>Release</button>
-          </div>
-        ) : (
-          <div className="cacts">
-            <button className="rsv" type="button" onClick={() => onReserve(a.id)} disabled={busy}>Reserve 2 days</button>
-            <a className="rent" href={`/checkout?accounts=${a.id}&direct=1`}>Rent →</a>
-          </div>
-        )
+        <div className="cacts">
+          <a className="rent" href={`/checkout?accounts=${a.id}&direct=1`}>Rent →</a>
+        </div>
       )}
     </article>
   );
 }
 
-function Group({ eyebrow, cls, title, hint, items, picks, onToggle, onReserve, onRelease, busyId }: { eyebrow: string; cls: string; title: string; hint: string; items: A360Row[]; picks: Set<string>; onToggle: (id: string) => void; onReserve: (id: string) => void; onRelease: (id: string) => void; busyId: string | null }) {
+function Group({ eyebrow, cls, title, hint, items, picks, onToggle }: { eyebrow: string; cls: string; title: string; hint: string; items: A360Row[]; picks: Set<string>; onToggle: (id: string) => void }) {
   if (!items.length) return null;
   return (
     <section className="group">
@@ -167,21 +154,18 @@ function Group({ eyebrow, cls, title, hint, items, picks, onToggle, onReserve, o
       </div>
       <p className="ghint">{hint}</p>
       <div className="grid">
-        {items.map((a) => <Card key={a.id} a={a} picked={picks.has(a.id)} onToggle={onToggle} onReserve={onReserve} onRelease={onRelease} busy={busyId === a.id} />)}
+        {items.map((a) => <Card key={a.id} a={a} picked={picks.has(a.id)} onToggle={onToggle} />)}
       </div>
     </section>
   );
 }
 
-export default function Agent360Catalogue({ rows, password, slug }: { rows: A360Row[]; password: string; slug: string }) {
+export default function Agent360Catalogue({ rows, password }: { rows: A360Row[]; password: string }) {
   const [unlocked, setUnlocked] = useState(false);
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const [picks, setPicks] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState("");
-  const [busyId, setBusyId] = useState<string | null>(null);
-  // Local overlay so a reserve/release reflects instantly without a full reload.
-  const [ov, setOv] = useState<Record<string, { reserved: boolean; heldUntil: string | null }>>({});
   const [search, setSearch] = useState("");
   const [industry, setIndustry] = useState("");
   const [vFilter, setVFilter] = useState<"all" | "verified" | "unverified">("all");
@@ -194,7 +178,6 @@ export default function Agent360Catalogue({ rows, password, slug }: { rows: A360
 
   const savePicks = (next: Set<string>) => { try { localStorage.setItem("a360_picks", JSON.stringify([...next])); } catch {} };
 
-  const effRows = useMemo(() => rows.map((r) => (ov[r.id] ? { ...r, ...ov[r.id] } : r)), [rows, ov]);
   const industryOptions = useMemo(
     () => [...new Set(rows.map((r) => r.industry).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b)),
     [rows]
@@ -211,12 +194,12 @@ export default function Agent360Catalogue({ rows, password, slug }: { rows: A360
   const buckets = useMemo(() => {
     const ok = (r: A360Row) => matches(r);
     return {
-      now: effRows.filter((r) => r.status === "available" && !r.shadow && ok(r)).sort(sortVC),
-      soon: effRows.filter((r) => r.status === "available" && r.shadow && ok(r)).sort(sortVC),
-      warm: effRows.filter((r) => r.status !== "available" && ok(r)).sort(sortVC),
+      now: rows.filter((r) => r.status === "available" && !r.shadow && ok(r)).sort(sortVC),
+      soon: rows.filter((r) => r.status === "available" && r.shadow && ok(r)).sort(sortVC),
+      warm: rows.filter((r) => r.status !== "available" && ok(r)).sort(sortVC),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effRows, search, industry, vFilter]);
+  }, [rows, search, industry, vFilter]);
   const shownCount = buckets.now.length + buckets.soon.length + buckets.warm.length;
 
   const submit = (e: React.FormEvent) => {
@@ -237,25 +220,6 @@ export default function Agent360Catalogue({ rows, password, slug }: { rows: A360
   const clearPicks = () => { setPicks(new Set()); savePicks(new Set()); };
 
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2200); };
-
-  const reserve = async (id: string) => {
-    setBusyId(id);
-    try {
-      const res = await fetch(`/api/inventory/${slug}/reserve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: id, days: 2 }) });
-      const d = await res.json().catch(() => ({} as { heldUntil?: string }));
-      if (res.ok) { setOv((o) => ({ ...o, [id]: { reserved: true, heldUntil: d.heldUntil ?? null } })); flash("Reserved for 2 days — hit Rent when you're ready"); }
-      else flash(res.status === 409 ? "Sorry — that one was just taken" : "Couldn't reserve, please try again");
-    } catch { flash("Couldn't reserve, please try again"); }
-    finally { setBusyId(null); }
-  };
-  const release = async (id: string) => {
-    setBusyId(id);
-    try {
-      const res = await fetch(`/api/inventory/${slug}/reserve`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: id }) });
-      if (res.ok) { setOv((o) => ({ ...o, [id]: { reserved: false, heldUntil: null } })); flash("Released"); }
-    } catch { /* ignore */ }
-    finally { setBusyId(null); }
-  };
 
   const copyPicks = () => {
     if (!picks.size) return;
@@ -309,7 +273,7 @@ export default function Agent360Catalogue({ rows, password, slug }: { rows: A360
             </div>
             <div className="howto">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-              <div><b>Reserve or rent in one click.</b> On any available account, hit <b>Reserve 2 days</b> to hold it so no one else can take it, or <b>Rent →</b> to rent it now. Prefer to send a list? Tick several and use &quot;Copy my picks&quot; at the bottom.</div>
+              <div><b>See one you like?</b> Available accounts are first come, first served — hit <b>Rent →</b> to take one. Prefer to send a list? Tick several and use &quot;Copy my picks&quot; at the bottom.</div>
             </div>
             <div className="filters">
               <input className="fsearch" type="search" placeholder="Search name, role, or industry…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search accounts" />
@@ -325,9 +289,9 @@ export default function Agent360Catalogue({ rows, password, slug }: { rows: A360
               {filtersActive && <button className="fclear" type="button" onClick={() => { setSearch(""); setIndustry(""); setVFilter("all"); }}>Clear</button>}
               <span className="fcount">{shownCount} shown</span>
             </div>
-            <Group eyebrow="Ready today" cls="now" title="Available now" hint="Live and rentable right now. Reserve one to hold it for 2 days, or rent it straight away." items={buckets.now} picks={picks} onToggle={toggle} onReserve={reserve} onRelease={release} busyId={busyId} />
-            <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} onReserve={reserve} onRelease={release} busyId={busyId} />
-            <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} onReserve={reserve} onRelease={release} busyId={busyId} />
+            <Group eyebrow="Ready today" cls="now" title="Available now" hint="Live and rentable right now — first come, first served. Hit Rent to take one." items={buckets.now} picks={picks} onToggle={toggle} />
+            <Group eyebrow="Within ~1 week" cls="soon" title="Freeing up soon" hint="Currently finishing another engagement. These can be yours within about a week of ordering." items={buckets.soon} picks={picks} onToggle={toggle} />
+            <Group eyebrow="In warm-up" cls="warm" title="Coming soon" hint="Being aged and warmed now. Earmark any and we’ll prioritise them and hand them over once ready." items={buckets.warm} picks={picks} onToggle={toggle} />
             {shownCount === 0 && <div className="noresults">No accounts match those filters. Try clearing them.</div>}
             <p className="note">
               {filtersActive
