@@ -8,16 +8,20 @@ import { grantRentalAccess } from "@/lib/rental-access";
 import { SALES_NAV_MONTHLY } from "@/lib/utils";
 import { SHADOW_MONTHLY_PRICE, yieldShadowRentals, isShadowRenterEmail, shadowRateFor } from "@/lib/shadow-rental";
 import { lookupDiscount, discountedPrice, consumeDiscount, type AppliedDiscount } from "@/lib/discounts";
-import { PUBLIC_AVAILABLE_WHERE } from "@/lib/public-inventory";
+import { PUBLIC_AVAILABLE_WHERE, RENTABLE_WHERE } from "@/lib/public-inventory";
 
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    const { accountIds, autoRenew = true, discountCode: rawDiscountCode } = await req.json();
+    const { accountIds, autoRenew = true, discountCode: rawDiscountCode, direct } = await req.json();
 
     if (!accountIds || !Array.isArray(accountIds) || accountIds.length === 0) {
       return NextResponse.json({ error: "No accounts selected" }, { status: 400 });
     }
+
+    // Direct rent link (single account): the account may be on hold for this very person, so
+    // validate against RENTABLE_WHERE (ignores holds) instead of the catalogue filter.
+    const rentableWhere = direct === true && accountIds.length === 1 ? RENTABLE_WHERE : PUBLIC_AVAILABLE_WHERE;
 
     // Accounts the renter chose to add Sales Navigator to (+$70/mo each). Only
     // honoured for accounts that don't already include it.
@@ -33,7 +37,7 @@ export async function POST(req: Request) {
     let accounts = await prisma.linkedInAccount.findMany({
       // Shared "genuinely rentable" definition (real OR shadow buy): excludes restricted /
       // 2FA-reset accounts, segregated pools, and [SHOWCASE] teasers.
-      where: { ...PUBLIC_AVAILABLE_WHERE, id: { in: accountIds } },
+      where: { ...rentableWhere, id: { in: accountIds } },
     });
 
     // Each account can be shadow-bought by only ONE shadow renter at a time — drop any

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { requireAuth } from "@/lib/auth";
 import { baseUrlFromRequest, brandFromRequest } from "@/lib/brand";
-import { PUBLIC_AVAILABLE_WHERE } from "@/lib/public-inventory";
+import { PUBLIC_AVAILABLE_WHERE, RENTABLE_WHERE } from "@/lib/public-inventory";
 
 export async function POST(req: Request) {
   try {
@@ -28,11 +28,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No accounts selected" }, { status: 400 });
     }
 
+    // Direct rent link (single account): allow a held account to be rented via the link by
+    // validating against RENTABLE_WHERE (ignores holds) instead of the catalogue filter.
+    const rentableWhere = body.direct === true && accountIds.length === 1 ? RENTABLE_WHERE : PUBLIC_AVAILABLE_WHERE;
+
     const accounts = await prisma.linkedInAccount.findMany({
       // Shared "genuinely rentable" definition: excludes restricted / 2FA-reset accounts
       // (which keep status "available" but must not be rentable), segregated pools, and
       // [SHOWCASE] teasers — so checkout can't grab any of them.
-      where: { ...PUBLIC_AVAILABLE_WHERE, id: { in: accountIds } },
+      where: { ...rentableWhere, id: { in: accountIds } },
     });
 
     if (accounts.length === 0) {
