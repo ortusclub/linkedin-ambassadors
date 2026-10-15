@@ -162,7 +162,11 @@ export async function GET(_req: NextRequest) {
         ownerPayoutName: app?.payoutName || null,
         ownerOnboardedAt: app?.onboardedAt || null,
         ownerSetupPaidAt: app?.paidAt || null,
-        ownerOnboarded: app?.status === "onboarded",
+        // Onboarded if the app status says so OR onboardedAt is set — matches the pipeline's
+        // Level-5 definition (pipeline-model levelOf), which also treats an available+paid account
+        // as onboarded even while the app status still reads "approved". Keeps the two views in sync
+        // so a live account doesn't get stuck showing as "Construction" in inventory.
+        ownerOnboarded: app?.status === "onboarded" || !!app?.onboardedAt,
         shadowRenter: shadowByAccount.get(a.id) || null,
       };
     });
