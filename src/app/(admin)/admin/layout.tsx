@@ -26,6 +26,9 @@ const sections = [
     { href: "/admin/discounts", label: "Discounts" },
     { href: "/admin/emails", label: "Email log" },
   ] },
+  { name: "Treasury", items: [
+    { href: "/admin/treasury", label: "Treasury" },
+  ] },
   { name: "Ambassadors", items: [
     // Pipeline replaces the old Applications / Ambassadors(owners) / Onboarding tabs.
     { href: "/admin/pipeline", label: "Pipeline" },
