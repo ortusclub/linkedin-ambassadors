@@ -249,7 +249,6 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
     for (const a of sorted) {
       const amt = referralCommissionAmount(a, cfg.referralTiers);
       if (paidAppIds.has(a.id)) continue;                          // explicitly paid to this person
-      if (legacyRemaining >= amt - 0.001) { legacyRemaining -= amt; continue; } // covered by a legacy lump payout
       const matured = isMatured(a);
       const dueMs = referralMaturesAt(a)?.getTime() ?? Date.now(); // null → already matured/onboarded → due now
       const row: ReferralDue = {
@@ -258,8 +257,12 @@ export async function computePaymentsDue(horizonDays = 7): Promise<PaymentsDue> 
         amount: amt, currency: cfg.currency, dueDate: new Date(dueMs).toISOString(),
         status: matured ? "ready" : "upcoming", payVia,
       };
-      // Manually held (blocked) → out of "due now" and totals, into the Held list with its reason.
+      // Manually held (blocked) → out of "due now" and totals, into the Held list. This MUST be
+      // checked BEFORE the legacy-lump netting below: a held referral is not payable, so it must
+      // not consume a lump payment meant for someone else — otherwise an already-paid, unheld
+      // referral is left showing as due (hit: Aiza's held Larry Jaime ate Carl Estrada's paid ₱600).
       if (a.referralHoldReason) { referralsHeld.push({ ...row, holdReason: a.referralHoldReason }); continue; }
+      if (legacyRemaining >= amt - 0.001) { legacyRemaining -= amt; continue; } // covered by a legacy lump payout
       referralsDue.push(row);
     }
   }
