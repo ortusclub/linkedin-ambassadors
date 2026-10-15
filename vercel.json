@@ -8,6 +8,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/release-holds",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/process-renewals",
       "schedule": "0 9 * * *"
     },
