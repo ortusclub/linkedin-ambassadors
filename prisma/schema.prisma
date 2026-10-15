@@ -266,8 +266,34 @@ model LinkedInAccount {
   rentals               Rental[]
   waitlistEntries       Waitlist[]
   cryptoPayments        CryptoPayment[]
+  mailEvents            AccountMailEvent[]
 
   @@map("linkedin_accounts")
+}
+
+// Captured LinkedIn account-security emails (new logins, password/email/name/photo changes,
+// location changes, restrictions, email-verify) for accounts whose login email is on our
+// domains. One row per inbound email (deduped by emailId). Surfaced in the Inventory v2
+// "Account mail" tab. Body is sanitized (forwardedText) before storage.
+model AccountMailEvent {
+  id                String          @id @default(uuid()) @db.Uuid
+  emailId           String          @unique @map("email_id")
+  linkedinAccountId String          @map("linkedin_account_id") @db.Uuid
+  account           LinkedInAccount @relation(fields: [linkedinAccountId], references: [id], onDelete: Cascade)
+  receivedAt        DateTime        @map("received_at")
+  fromAddr          String          @map("from_addr")
+  toAddr            String          @map("to_addr")
+  subject           String
+  bodyText          String          @map("body_text")
+  type              String          // new_login | location_change | password_changed | email_changed | name_changed | photo_changed | restriction | email_verify | other
+  severity          String          // benign | review | danger
+  status            String          @default("logged") // logged | needs_review  (phase 3: acknowledged | incident | resolved)
+  locationLabel     String?         @map("location_label")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  @@index([linkedinAccountId, receivedAt])
+  @@index([linkedinAccountId, status])
+  @@map("account_mail_events")
 }
 
 // One on-chain payment received for an account's off-platform rental.
