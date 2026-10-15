@@ -221,7 +221,7 @@ export default function InventoryV2Page() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [q, setQ] = useState(""), [cty, setCty] = useState("all"), [renter, setRenter] = useState("all");
-  const [ver, setVer] = useState("all"), [conn, setConn] = useState("all"), [supply, setSupply] = useState("all");
+  const [ver, setVer] = useState("all"), [conn, setConn] = useState("all"), [supply, setSupply] = useState("all"), [age, setAge] = useState("all");
   const [sort, setSort] = useState("upd");
   const [poc, setPoc] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
@@ -311,6 +311,7 @@ export default function InventoryV2Page() {
   }, [withGroup]);
 
   const connBucket = (n: number) => (n < 50 ? "0" : n < 100 ? "1" : n < 500 ? "2" : n < 1000 ? "3" : "4");
+  const ageBucket = (m: number | null) => (m == null ? "x" : m < 12 ? "0" : m < 36 ? "1" : m < 60 ? "2" : m < 120 ? "3" : "4");
 
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase();
@@ -322,12 +323,13 @@ export default function InventoryV2Page() {
       if (ver === "v" && !a.linkedinVerified) return false;
       if (ver === "u" && a.linkedinVerified) return false;
       if (conn !== "all" && connBucket(a.connectionCount) !== conn) return false;
+      if (age !== "all" && ageBucket(a.accountAgeMonths) !== age) return false;
       if (supply === "offer" && !(canonicalStatus(a) === "Available" && !a.shadowRenter)) return false;
       if (supply === "shadow" && !a.shadowRenter) return false;
       if (ql) { const hay = [a.linkedinName, a.loginEmail, a.ownerName, a.rentals[0]?.user?.fullName, a.location, a.industry].join(" ").toLowerCase(); if (!hay.includes(ql)) return false; }
       return true;
     }).map((x) => x.a);
-  }, [withGroup, groupFilter, poc, cty, renter, ver, conn, supply, q]);
+  }, [withGroup, groupFilter, poc, cty, renter, ver, conn, supply, age, q]);
 
   // Stable row order: the live sort (esp. "Last updated") is re-derived only when the sort or the
   // SET of visible accounts changes — not when an existing row's sort field changes. So editing a
@@ -379,8 +381,8 @@ export default function InventoryV2Page() {
   }, [withGroup, accounts]);
 
   const totalShown = sorted.length;
-  const hasFilters = q || cty !== "all" || renter !== "all" || ver !== "all" || conn !== "all" || supply !== "all" || poc !== "all" || groupFilter !== "all";
-  const clearAll = () => { setQ(""); setCty("all"); setRenter("all"); setVer("all"); setConn("all"); setSupply("all"); setPoc("all"); setGroupFilter("all"); };
+  const hasFilters = q || cty !== "all" || renter !== "all" || ver !== "all" || conn !== "all" || age !== "all" || supply !== "all" || poc !== "all" || groupFilter !== "all";
+  const clearAll = () => { setQ(""); setCty("all"); setRenter("all"); setVer("all"); setConn("all"); setAge("all"); setSupply("all"); setPoc("all"); setGroupFilter("all"); };
 
   const inp: React.CSSProperties = { border: `1px solid #dde1e8`, background: "#fff", borderRadius: 10, padding: "9px 10px", font: `600 13px ${F}`, color: INK, outline: "none" };
   const headCols = "minmax(0,2.2fr) 78px 64px minmax(0,1.3fr) 104px minmax(0,1.2fr) 100px 92px 52px 56px 16px";
@@ -452,6 +454,7 @@ export default function InventoryV2Page() {
             <select value={renter} onChange={(e) => setRenter(e.target.value)} style={inp}><option value="all">Any renter</option>{renterOpts.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
             <select value={ver} onChange={(e) => setVer(e.target.value)} style={inp}><option value="all">Verified + unverified</option><option value="v">Verified only</option><option value="u">Unverified only</option></select>
             <select value={conn} onChange={(e) => setConn(e.target.value)} style={inp}><option value="all">Any connections</option><option value="0">&lt; 50</option><option value="1">50–100</option><option value="2">100–500</option><option value="3">500–999</option><option value="4">1k+</option></select>
+            <select value={age} onChange={(e) => setAge(e.target.value)} style={inp}><option value="all">Any age</option><option value="0">&lt; 1 year</option><option value="1">1–3 years</option><option value="2">3–5 years</option><option value="3">5–10 years</option><option value="4">10+ years</option></select>
             <select value={supply} onChange={(e) => setSupply(e.target.value)} style={inp}><option value="all">All supply</option><option value="offer">Available to offer</option><option value="shadow">Shadow</option></select>
             <select value={sort} onChange={(e) => setSort(e.target.value)} style={inp}><option value="upd">Last updated</option><option value="price">Price, high → low</option><option value="conn">Connections, most first</option><option value="age">Age, oldest first</option><option value="name">Name A–Z</option></select>
             {hasFilters && <button onClick={clearAll} style={{ border: "none", background: "none", color: BLUE, font: `700 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>Clear filters</button>}
