@@ -2,74 +2,94 @@ import { prisma } from "@/lib/prisma";
 import { ethers } from "ethers";
 import { getBaseProvider, getUsdcContract, getUsdtContract, getChildWallet, getTreasuryAddress, getTreasuryWallet, formatUsdc, parseUsdc } from "@/lib/wallet";
 import { sendTopUpNotification, sendTopUpConfirmation } from "@/services/email";
+import type { Prisma } from "@/generated/prisma/client";
+
+// Stablecoins we credit to a renter's wallet when deposited on Base. Both USDC and
+// USDT on Base have 6 decimals (so parseUsdc/formatUsdc work for either), and both are
+// treated as $1 = one wallet unit. Each has its OWN running baseline column because the
+// balances are independent at the same address — see `tracker`.
+const DEPOSIT_TOKENS = [
+  { symbol: "USDC", contract: getUsdcContract, tracker: "lastSeenBalance" },
+  { symbol: "USDT", contract: getUsdtContract, tracker: "lastSeenUsdtBalance" },
+] as const;
+
+type TrackerField = (typeof DEPOSIT_TOKENS)[number]["tracker"];
+
+// Typed update for whichever per-token baseline column this token uses.
+function trackerUpdate(tracker: TrackerField, value: string | number): Prisma.DepositAddressUpdateInput {
+  return tracker === "lastSeenBalance" ? { lastSeenBalance: value } : { lastSeenUsdtBalance: value };
+}
 
 export async function detectDeposits() {
   const deposits = await prisma.depositAddress.findMany({
     include: { user: true },
   });
 
-  const usdc = getUsdcContract(getBaseProvider());
-  const results: { userId: string; amount: string; address: string }[] = [];
+  const provider = getBaseProvider();
+  const results: { userId: string; amount: string; address: string; token: string }[] = [];
 
   for (const deposit of deposits) {
-    try {
-      const onChainBalance: bigint = await usdc.balanceOf(deposit.address);
-      const lastSeen = parseUsdc(String(deposit.lastSeenBalance));
+    for (const token of DEPOSIT_TOKENS) {
+      try {
+        const onChainBalance: bigint = await token.contract(provider).balanceOf(deposit.address);
+        const lastSeenRaw = token.tracker === "lastSeenBalance" ? deposit.lastSeenBalance : deposit.lastSeenUsdtBalance;
+        const lastSeen = parseUsdc(String(lastSeenRaw));
 
-      // Only credit the difference between current on-chain balance and what we last saw
-      if (onChainBalance > lastSeen) {
-        const newAmount = onChainBalance - lastSeen;
-        const amount = formatUsdc(newAmount);
+        // Only credit the difference between current on-chain balance and what we last saw
+        if (onChainBalance > lastSeen) {
+          const newAmount = onChainBalance - lastSeen;
+          const amount = formatUsdc(newAmount);
 
-        await prisma.$transaction(async (tx) => {
-          await tx.user.update({
-            where: { id: deposit.userId },
-            data: { usdcBalance: { increment: amount } },
+          await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+              where: { id: deposit.userId },
+              data: { usdcBalance: { increment: amount } },
+            });
+
+            await tx.transaction.create({
+              data: {
+                userId: deposit.userId,
+                type: "deposit",
+                amount: amount,
+                description: `${token.symbol} deposit detected at ${deposit.address}`,
+              },
+            });
+
+            // Advance this token's baseline to the current on-chain balance
+            await tx.depositAddress.update({
+              where: { id: deposit.id },
+              data: trackerUpdate(token.tracker, formatUsdc(onChainBalance)),
+            });
           });
 
-          await tx.transaction.create({
-            data: {
-              userId: deposit.userId,
-              type: "deposit",
-              amount: amount,
-              description: `USDC deposit detected at ${deposit.address}`,
-            },
-          });
+          results.push({ userId: deposit.userId, amount, address: deposit.address, token: token.symbol });
 
-          // Update last seen balance to current on-chain balance
-          await tx.depositAddress.update({
-            where: { id: deposit.id },
-            data: { lastSeenBalance: formatUsdc(onChainBalance) },
-          });
-        });
+          // Confirm to the customer (non-blocking)
+          try {
+            await sendTopUpConfirmation({
+              email: deposit.user.email,
+              amount,
+              method: "crypto",
+            });
+          } catch (e) {
+            console.error("Failed to send top-up confirmation:", e);
+          }
 
-        results.push({ userId: deposit.userId, amount, address: deposit.address });
-
-        // Confirm to the customer (non-blocking)
-        try {
-          await sendTopUpConfirmation({
-            email: deposit.user.email,
-            amount,
-            method: "crypto",
-          });
-        } catch (e) {
-          console.error("Failed to send top-up confirmation:", e);
+          // Notify admin of the new crypto top-up (non-blocking)
+          try {
+            await sendTopUpNotification({
+              customerEmail: deposit.user.email,
+              customerName: deposit.user.fullName,
+              amount,
+              method: "crypto",
+            });
+          } catch (e) {
+            console.error("Failed to send top-up notification:", e);
+          }
         }
-
-        // Notify admin of the new crypto top-up (non-blocking)
-        try {
-          await sendTopUpNotification({
-            customerEmail: deposit.user.email,
-            customerName: deposit.user.fullName,
-            amount,
-            method: "crypto",
-          });
-        } catch (e) {
-          console.error("Failed to send top-up notification:", e);
-        }
+      } catch (error) {
+        console.error(`Error checking ${token.symbol} deposit for ${deposit.address}:`, error);
       }
-    } catch (error) {
-      console.error(`Error checking deposit for ${deposit.address}:`, error);
     }
   }
 
@@ -85,8 +105,8 @@ export async function sweepDeposits() {
   const treasury = getTreasuryAddress();
   const treasuryWallet = getTreasuryWallet();
   const tokens = [
-    { symbol: "USDC", contract: getUsdcContract, resetsLastSeen: true },
-    { symbol: "USDT", contract: getUsdtContract, resetsLastSeen: false },
+    { symbol: "USDC", contract: getUsdcContract, tracker: "lastSeenBalance" },
+    { symbol: "USDT", contract: getUsdtContract, tracker: "lastSeenUsdtBalance" },
   ] as const;
   const results: { address: string; amount: string; txHash: string; token: string }[] = [];
 
@@ -136,13 +156,12 @@ export async function sweepDeposits() {
               },
             });
 
-            // This tracker belongs exclusively to the USDC deposit detector.
-            if (token.resetsLastSeen) {
-              await tx.depositAddress.update({
-                where: { id: deposit.id },
-                data: { lastSeenBalance: 0 },
-              });
-            }
+            // Reset this token's detector baseline to 0: the funds have left the address,
+            // so the next on-chain balance of this token is a brand-new deposit to credit.
+            await tx.depositAddress.update({
+              where: { id: deposit.id },
+              data: trackerUpdate(token.tracker, 0),
+            });
           });
 
           results.push({
