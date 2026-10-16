@@ -580,7 +580,7 @@ export function AccountOnlyCard({ r, patchAccount, deleteRestrictionEvent }: {
         <span style={{ font: `700 15px ${F_GRO}`, color: "var(--fg,#111)" }}>{r.fullName}</span>
         <span title="Inventory account with no ambassador application" style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--band,#f1f1f2)", color: "var(--muted,#647189)" }}>Inventory only · no application</span>
         {r.accountRestrictedAt && <span style={{ font: `700 10px ${F_SANS}`, padding: "2px 8px", borderRadius: 999, background: "var(--st-cancel-bg,#fdecea)", color: "var(--st-cancel-fg,#c0392b)" }}>⚠ Restricted {fmtDate(r.accountRestrictedAt)}</span>}
-        <a href="/admin/accounts" style={{ marginLeft: "auto", font: `600 11.5px ${F_SANS}`, color: "var(--link,#1a56db)", textDecoration: "none" }}>Open in Inventory →</a>
+        <a href="/admin/inventory-v2" style={{ marginLeft: "auto", font: `600 11.5px ${F_SANS}`, color: "var(--link,#1a56db)", textDecoration: "none" }}>Open in Inventory →</a>
       </div>
       {facts.length > 0 && <div style={{ font: `500 12px ${F_SANS}`, color: "var(--muted,#647189)", marginBottom: 10 }}>{facts.join("  ·  ")}</div>}
       <div style={{ ...labelCss, marginBottom: 6 }}>Restriction</div>

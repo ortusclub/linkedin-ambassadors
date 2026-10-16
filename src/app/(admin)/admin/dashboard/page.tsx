@@ -64,12 +64,12 @@ export default function AdminDashboardPage() {
 
   type Att = { label: string; tone: "warn" | "info" | "neutral"; action: string; href: string };
   const attention: Att[] = [];
-  if (stats.restrictedAccounts > 0) attention.push({ label: `${stats.restrictedAccounts} account${stats.restrictedAccounts > 1 ? "s" : ""} restricted — access & billing paused`, tone: "warn", action: "Resolve", href: "/admin/accounts" });
+  if (stats.restrictedAccounts > 0) attention.push({ label: `${stats.restrictedAccounts} account${stats.restrictedAccounts > 1 ? "s" : ""} restricted — access & billing paused`, tone: "warn", action: "Resolve", href: "/admin/inventory-v2" });
   if (stats.renewalsDue30d > 0) attention.push({ label: `${stats.renewalsDue30d} renewal${stats.renewalsDue30d > 1 ? "s" : ""} due in the next 30 days`, tone: "info", action: "View", href: "/admin/rentals" });
   if (stats.atRisk > 0) attention.push({ label: `${stats.atRisk} rental${stats.atRisk > 1 ? "s" : ""} at-risk — auto-renew off / payment failed`, tone: "warn", action: "View", href: "/admin/rentals" });
   if (stats.appsToReview > 0) attention.push({ label: `${stats.appsToReview} ambassador application${stats.appsToReview > 1 ? "s" : ""} to review`, tone: "info", action: "Review", href: "/admin/pipeline" });
-  if (stats.availableAccounts > 0) attention.push({ label: `${stats.availableAccounts} account${stats.availableAccounts > 1 ? "s" : ""} idle — available, not earning`, tone: "neutral", action: "Assign", href: "/admin/accounts" });
-  if (stats.offlineAccounts > 0) attention.push({ label: `${stats.offlineAccounts} account${stats.offlineAccounts > 1 ? "s" : ""} offline`, tone: "warn", action: "View", href: "/admin/accounts" });
+  if (stats.availableAccounts > 0) attention.push({ label: `${stats.availableAccounts} account${stats.availableAccounts > 1 ? "s" : ""} idle — available, not earning`, tone: "neutral", action: "Assign", href: "/admin/inventory-v2" });
+  if (stats.offlineAccounts > 0) attention.push({ label: `${stats.offlineAccounts} account${stats.offlineAccounts > 1 ? "s" : ""} offline`, tone: "warn", action: "View", href: "/admin/inventory-v2" });
 
   const dotColor = (tone: string) => tone === "warn" ? "var(--warn-dot)" : tone === "neutral" ? "var(--neutral-dot)" : "var(--accent)";
   const actDot = (t: Activity["type"]) => t === "restricted" ? "var(--warn-dot)" : t === "signup" ? "var(--green)" : "var(--accent)";
@@ -196,13 +196,13 @@ export default function AdminDashboardPage() {
           <div>
             <div style={sectionLabel}>Supply · accounts &amp; ambassadors</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 }}>
-              <StatCard label="Total accounts" value={stats.totalAccounts} sub="" href="/admin/accounts"
+              <StatCard label="Total accounts" value={stats.totalAccounts} sub="" href="/admin/inventory-v2"
                 extra={<>
                   <div style={{ display: "flex", height: 6, borderRadius: 999, overflow: "hidden", background: "var(--track)", marginTop: 2 }}><div style={{ width: `${rentedPct}%`, background: "var(--accent)" }} /><div style={{ width: `${availPct}%`, background: "var(--green)" }} /></div>
                   <div style={{ display: "flex", gap: 9, marginTop: "auto", font: `500 10.5px ${F_SANS}`, color: "var(--muted)" }}><span style={{ color: "var(--accent)" }}>● {stats.rentedAccounts} rented</span><span style={{ color: "var(--green)" }}>● {stats.availableAccounts} avail</span></div>
                 </>} />
-              <StatCard label="Restricted" value={stats.restrictedAccounts} sub="recovering · access & billing paused" warn href="/admin/accounts" valueColor={stats.restrictedAccounts > 0 ? "var(--warn-num)" : "var(--faint-num)"} />
-              <div onClick={() => router.push("/admin/accounts")} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 13, padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 112, boxShadow: "var(--card-shadow)", cursor: "pointer" }}>
+              <StatCard label="Restricted" value={stats.restrictedAccounts} sub="recovering · access & billing paused" warn href="/admin/inventory-v2" valueColor={stats.restrictedAccounts > 0 ? "var(--warn-num)" : "var(--faint-num)"} />
+              <div onClick={() => router.push("/admin/inventory-v2")} style={{ background: "var(--card)", border: "1px solid var(--card-border)", borderRadius: 13, padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 112, boxShadow: "var(--card-shadow)", cursor: "pointer" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span style={cardLabel}>Utilization</span>
                   <span style={{ ...cardSub, maxWidth: 78 }}>accounts earning</span>
@@ -213,7 +213,7 @@ export default function AdminDashboardPage() {
                   <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", font: `600 15px ${F_GRO}`, color: "var(--text)" }}>{stats.utilization}%</span>
                 </div>
               </div>
-              <StatCard label="Idle (available)" value={stats.availableAccounts} sub="not earning" href="/admin/accounts" valueColor={stats.availableAccounts > 0 ? "var(--warn-num)" : "var(--faint-num)"}
+              <StatCard label="Idle (available)" value={stats.availableAccounts} sub="not earning" href="/admin/inventory-v2" valueColor={stats.availableAccounts > 0 ? "var(--warn-num)" : "var(--faint-num)"}
                 extra={<span style={{ font: `600 10.5px ${F_SANS}`, color: "var(--link)", marginTop: "auto" }}>Assign renters →</span>} />
               <StatCard label="Apps to review" value={stats.appsToReview} sub="ambassador applications" href="/admin/pipeline" valueColor={stats.appsToReview > 0 ? "var(--text)" : "var(--faint-num)"} />
             </div>
