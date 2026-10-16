@@ -55,6 +55,7 @@ interface Account {
   restrictedAt: string | null;
   permanentlyRestricted: boolean;
   proxyHost: string | null;
+  proxyLocation: string | null;
   warmupStartedAt: string | null;
   healthCheckedAt: string | null;
   linkedinAccountHealth: string | null;
@@ -238,7 +239,7 @@ export default function InventoryV2Page() {
   const [poc, setPoc] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
   const [open, setOpen] = useState<Set<string>>(new Set());
-  const [tab, setTab] = useState<Record<string, "overview" | "signin" | "mail" | "owner">>({});
+  const [tab, setTab] = useState<Record<string, "account" | "mail" | "activity" | "overview">>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [checkMode, setCheckMode] = useState(false);
   const [hideDone, setHideDone] = useState(false);
@@ -624,7 +625,7 @@ export default function InventoryV2Page() {
                     const price = priceOf(r);
                     const rn = r.rentals[0]?.user;
                     const isOpen = open.has(r.id);
-                    const curTab = tab[r.id] || "overview";
+                    const curTab = tab[r.id] || "account";
                     const done = isDoneToday(r);
                     // Pills in the design's fixed order; wrap left-to-right. Red pill = #fef2f2/#b91c1c.
                     const RP = { bg: "#fef2f2", fg: "#b91c1c" };
@@ -986,7 +987,7 @@ function RentalHistory({ accountId }: { accountId: string }) {
 }
 
 function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, release, patch, patchApp, reload }: {
-  r: Account; tab: "overview" | "signin" | "mail" | "owner"; setTab: (t: "overview" | "signin" | "mail" | "owner") => void; busy: boolean; price: number;
+  r: Account; tab: "account" | "mail" | "activity" | "overview"; setTab: (t: "account" | "mail" | "activity" | "overview") => void; busy: boolean; price: number;
   setState: (pill: "active" | "restricted" | "perm" | "withdrawn") => void; recheck: () => void;
   hold: (days: number, heldFor: string) => void; release: () => void;
   patch: (id: string, body: Record<string, unknown>, reload?: boolean) => Promise<Response | undefined>;
@@ -1057,7 +1058,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, 
     return ev.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
   }, [r, restr]);
 
-  const Tab = ({ k, l }: { k: "overview" | "signin" | "mail" | "owner"; l: ReactNode }) => <button onClick={() => setTab(k)} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 12px", whiteSpace: "nowrap", font: `700 12px ${F}`, background: tab === k ? "#fff" : "transparent", color: tab === k ? INK : SUB, boxShadow: tab === k ? "0 1px 3px rgba(0,0,0,.1)" : "none" }}>{l}</button>;
+  const Tab = ({ k, l }: { k: "account" | "mail" | "activity" | "overview"; l: ReactNode }) => <button onClick={() => setTab(k)} style={{ border: "none", cursor: "pointer", borderRadius: 7, padding: "6px 12px", whiteSpace: "nowrap", font: `700 12px ${F}`, background: tab === k ? "#fff" : "transparent", color: tab === k ? INK : SUB, boxShadow: tab === k ? "0 1px 3px rgba(0,0,0,.1)" : "none" }}>{l}</button>;
   const rn = r.rentals[0]?.user;
 
   return (
@@ -1090,8 +1091,180 @@ function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, 
         );
       })()}
       <div style={{ display: "flex", gap: 3, background: BG, borderRadius: 10, padding: 3, margin: "4px 0 12px", width: "max-content" }}>
-        <Tab k="overview" l="Overview" /><Tab k="signin" l="Sign-in & credentials" /><Tab k="mail" l={<span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>Account mail{r.mailNeedsReview + r.mailIncidentOpen > 0 && <span style={{ font: `800 9.5px ${F}`, color: "#fff", background: RED, borderRadius: 999, padding: "1px 5px", lineHeight: 1.3 }}>{r.mailNeedsReview + r.mailIncidentOpen}</span>}</span>} /><Tab k="owner" l="Owner & activity" />
+        <Tab k="account" l="Account" /><Tab k="mail" l={<span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>Account mail{r.mailNeedsReview + r.mailIncidentOpen > 0 && <span style={{ font: `800 9.5px ${F}`, color: "#fff", background: RED, borderRadius: 999, padding: "1px 5px", lineHeight: 1.3 }}>{r.mailNeedsReview + r.mailIncidentOpen}</span>}</span>} /><Tab k="activity" l="Activity" /><Tab k="overview" l="Overview" />
       </div>
+
+      {tab === "account" && (() => {
+        const field = (label: string, value: string | null, copyable?: boolean) => (
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>{label}</Lbl>{copyable ? <Copyable value={value} /> : <span style={{ font: `600 13.5px/1.45 ${F}`, color: value ? INK : MUT, overflowWrap: "anywhere" }}>{value || "—"}</span>}</div>
+        );
+        const heldActive = !!r.heldUntil && new Date(r.heldUntil) > new Date();
+        const complete = !!(r.linkedinHeadline && r.location && r.industry && (r.profilePhotoUrl || r.profileScreenshotUrl));
+        const fieldStyle = { border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: "100%" } as const;
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 10, alignItems: "start" }}>
+            {/* Column 1 — Owner & rental */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+              <Card pad="14px">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Account owner</Lbl>{r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", font: `700 12.5px ${F}`, color: BLUE, textDecoration: "none" }}>View profile ↗</a>}</div>
+                <div style={{ background: "#f6f7f9", borderRadius: 12, padding: 12, display: "flex", gap: 14, alignItems: "center" }}>
+                  {r.profilePhotoUrl || r.profileScreenshotUrl
+                    ? <img src={(r.profilePhotoUrl || r.profileScreenshotUrl)!} alt="" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover", flex: "none" }} />
+                    : <div style={{ width: 64, height: 64, borderRadius: 12, background: "#dfe5ee", color: SUB, display: "grid", placeItems: "center", font: `700 18px ${F}`, flex: "none" }}>{iniOf(r.linkedinName)}</div>}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                    <span style={{ font: `500 12.5px/1.4 ${F}`, color: SUB }}>Profile photo{r.profilePhotoUrl ? " · uploaded" : r.profileScreenshotUrl ? " · onboarding original" : " not set"}.</span>
+                    <label style={{ font: `700 12px ${F}`, color: BLUE, cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.5 : 1 }}>
+                      {uploading ? "Uploading…" : r.profilePhotoUrl || r.profileScreenshotUrl ? "Replace photo" : "Upload photo"}
+                      <input type="file" accept="image/*" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} style={{ display: "none" }} />
+                    </label>
+                  </div>
+                </div>
+                {field("Full name", formatName(r.linkedinName), true)}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 12 }}>
+                  {field("Applied with (email)", r.ownerEmail || r.issueAmbassadorEmail, true)}
+                  {field("Contact number / handle", r.ownerPhone ? `${r.ownerPhone}${r.contactChannel ? ` · ${r.contactChannel}` : ""}` : null, true)}
+                  {field("Location", r.location)}
+                  {field("Connections", String(r.connectionCount))}
+                  {field("Found us via", r.ownerReferralSource)}
+                  {field("Referred by", r.ownerReferredBy)}
+                  {field("LV handler (PoC)", r.ownerPoc)}
+                  {field("Owner status", r.ownerStatus)}
+                </div>
+              </Card>
+              <Card>
+                <Lbl>Rental</Lbl>
+                <div style={{ display: "grid", gridTemplateColumns: "92px minmax(0,1fr)", gap: "5px 12px", font: `500 12.5px ${F}`, color: SUB }}>
+                  <span>Account age</span><b style={{ color: INK }}>{ageStr(r)}</b>
+                  <span>Supply</span><b style={{ color: INK }}>{canonicalStatus(r)}</b>
+                  <span>In inventory</span><b style={{ color: INK }}>{fmtDY(r.createdAt)}</b>
+                  <span>Renter</span><b style={{ color: INK }}>{rn ? (rn.fullName || rn.email) : "—"}</b>
+                  <span>Rate</span><b style={{ color: INK }}>${price}/mo</b>
+                  <span>Next billing</span><b style={{ color: INK }}>{fmtDY(r.rentals[0]?.currentPeriodEnd || null)}</b>
+                  <span>Health</span><b style={{ color: r.restrictedAt ? REDD : INK }}>{r.restrictedAt ? "restricted" : (r.linkedinAccountHealth || "unchecked")}</b>
+                </div>
+              </Card>
+              <RentalHistory accountId={r.id} />
+              <Card pad="14px">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Catalogue details</Lbl><span style={{ marginLeft: "auto", font: `700 11px ${F}`, color: complete ? GREEND : "#b45309" }}>{complete ? "✓ complete" : "incomplete"}</span></div>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>LinkedIn URL</Lbl><input value={urlV} onChange={(e) => setUrlV(e.target.value)} placeholder="https://www.linkedin.com/in/…" style={fieldStyle} /></label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Headline</Lbl><textarea value={headlineV} onChange={(e) => setHeadlineV(e.target.value)} rows={2} placeholder="e.g. B2B Business Development | SaaS | Pipeline & revenue growth" style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.4 }} /></label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Location</Lbl><input value={locationV} onChange={(e) => setLocationV(e.target.value)} placeholder="e.g. New York, NY, USA" style={fieldStyle} /></label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Industry</Lbl><input value={industryV} onChange={(e) => setIndustryV(e.target.value)} list="inv2-industries" placeholder="e.g. Computer Software" style={fieldStyle} /></label>
+                </div>
+                <datalist id="inv2-industries">
+                  <option value="Information Technology & Services" /><option value="Computer Software" /><option value="Marketing & Advertising" /><option value="Business Consulting & Services" /><option value="Financial Services" /><option value="Staffing & Recruiting" />
+                </datalist>
+                <button onClick={saveCatalogue} disabled={busy || !catDirty} style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 9, padding: 9, font: `700 12.5px ${F}`, cursor: catDirty ? "pointer" : "default", opacity: catDirty ? 1 : 0.5 }}>{catDirty ? "Save catalogue details" : "✓ Saved"}</button>
+              </Card>
+            </div>
+
+            {/* Column 2 — Log in */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+              <Card pad="14px">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Log in</Lbl>{r.gologinShareLink && <a href={r.gologinShareLink} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", font: `700 12.5px ${F}`, color: BLUE, textDecoration: "none" }}>↗ Open GoLogin</a>}</div>
+                <Totp accountId={r.id} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>Login email (work)</Lbl><Copyable value={r.loginEmail} /></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>Personal email</Lbl><Copyable value={r.personalEmail} /></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>Work / recovery email</Lbl><Copyable value={r.workEmail} /></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>Password</Lbl><Copyable value={r.accountPassword} /></div>
+                {r.gologinProfileId && <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>GoLogin profile ID</Lbl><Copyable value={r.gologinProfileId} /></div>}
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>Proxy location</Lbl><span style={{ font: `600 13.5px/1.45 ${F}`, color: r.proxyLocation ? INK : MUT }}>{r.proxyLocation || "—"}</span></div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Lbl>LinkedIn verified</Lbl><span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: r.linkedinVerified ? GREEND : MUT }}>{r.linkedinVerified ? "✓ verified" : "not verified"}</span></div>
+              </Card>
+            </div>
+
+            {/* Column 3 — Hold, readiness, chase */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+              <Card pad="14px">
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><Lbl>Reserve / hold</Lbl>{heldActive && <span style={{ marginLeft: "auto", font: `600 11.5px ${F}`, color: "#334155" }}>⏸ held until {fmtDYT(r.heldUntil)}</span>}</div>
+                {heldActive ? (
+                  <>
+                    <span style={{ font: `500 12px/1.5 ${F}`, color: SUB }}>Reserved{r.heldFor ? ` for ${r.heldFor}` : ""}{r.heldBy ? ` · by ${r.heldBy}` : ""}. Hidden from every catalogue and the normal checkout until then (or until you release it). Auto-releases when it lapses. Send them the rent link below so they can rent it while it&apos;s held.</span>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><CopyRentBtn /><button onClick={release} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#3b4657", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Release now</button></div>
+                  </>
+                ) : r.status === "available" ? (
+                  <>
+                    <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Hold this account for someone for a day or two so it can&apos;t get snagged. It disappears from all catalogues while held.</span>
+                    <input value={holdFor} onChange={(e) => setHoldFor(e.target.value)} placeholder="Held for (name / who it's for)" style={fieldStyle} />
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button onClick={() => hold(1, holdFor)} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#334155", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Hold 1 day</button>
+                      <button onClick={() => hold(2, holdFor)} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#334155", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Hold 2 days</button>
+                      <CopyRentBtn />
+                    </div>
+                  </>
+                ) : (
+                  <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Only available accounts can be reserved.</span>
+                )}
+                <RentalReady r={r} />
+              </Card>
+              <Card pad="14px">
+                <Lbl>Chase an issue</Lbl>
+                <IssueActions twoFactorReceivedAt={r.twoFactorReceivedAt} originalEmail={r.personalEmail} lvEmail={r.loginEmail} referralPartner={r.issueReferrerName} from={r.issueEmailFrom} accountId={r.id} profile={r.linkedinUrl} onSent={reload} name={formatName(r.linkedinName)} ambassador={ambassadorIssueContact(r.issueAmbassadorEmail, r.ownerPhone, r.contactChannel, r.location)} referrer={r.issueReferrerContact} />
+              </Card>
+            </div>
+          </div>
+        );
+      })()}
+
+      {tab === "mail" && <AccountMail accountId={r.id} />}
+
+      {tab === "activity" && (() => {
+        const connLog = hist.map((p, i) => ({ at: p.at, count: p.count, delta: i > 0 ? p.count - hist[i - 1].count : null })).reverse().slice(0, 8);
+        const rh = restr.slice().reverse().slice(0, 10);
+        const touches = (r.ownerOutreachLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 10);
+        const appId = r.ownerApplicationId;
+        const saveOwnerConn = () => { const body: Record<string, unknown> = { linkedinJoinedAt: joined ? new Date(joined + "-01T00:00:00Z").toISOString() : null }; const n = parseInt(connVal.replace(/[^0-9]/g, ""), 10); if (!Number.isNaN(n)) body.connectionCount = n; patch(r.id, body); };
+        const logTouch = (ch: string) => { if (!appId) return; patchApp(appId, { addTouch: { ch, text: note.trim() || undefined, by: who.trim() || undefined } }).then(() => setNote("")); };
+        const connDirty = joined !== (r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : "") || connVal !== String(r.connectionCount);
+        const joinIsEstimate = !r.linkedinJoinedAt && !!joined && joined === estMonthFromAge(r.accountAgeMonths);
+        const d30 = (() => { const cutoff = Date.now() - 30 * 86400000; const old = [...hist].reverse().find((p) => new Date(p.at).getTime() <= cutoff); return old ? r.connectionCount - old.count : null; })();
+        const CHIP: Record<string, string> = { whatsapp: "WhatsApp", viber: "Viber", telegram: "Telegram", email: "Email", text: "Text", note: "Note" };
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 10, alignItems: "start" }}>
+            <Card pad="14px">
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><Lbl>Activity</Lbl><span style={{ font: `500 12.5px ${F}`, color: SUB }}>{touches.length} {touches.length === 1 ? "touch" : "touches"}</span>
+                <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, font: `600 12px ${F}`, color: SUB }}>Follow up<input type="date" value={r.ownerNextFollowUp ? new Date(r.ownerNextFollowUp).toISOString().slice(0, 10) : ""} onChange={(e) => appId && patchApp(appId, { nextFollowUp: e.target.value ? new Date(e.target.value).toISOString() : null })} disabled={!appId} style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "6px 8px", font: `500 13px ${F}`, color: INK, outline: "none" }} /></label>
+              </div>
+              {appId ? <>
+                <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What happened? Logged with the date and your name" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <input value={who} onChange={(e) => setWho(e.target.value)} placeholder="Who sent it?" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: 150 }} />
+                  <Lbl>Log</Lbl>
+                  {["whatsapp", "email", "text", "note"].map((ch) => <button key={ch} onClick={() => logTouch(ch)} disabled={busy} style={{ border: "1px solid #dde1e8", background: "#fff", color: "#3b4657", borderRadius: 9, padding: "7px 12px", font: `600 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>+ {CHIP[ch]}</button>)}
+                </div>
+              </> : <span style={{ font: `500 12px ${F}`, color: MUT }}>No ambassador application linked — activity log is for owner-linked accounts.</span>}
+              {touches.length > 0 && <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${LINE2}` }}>{touches.map((t, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "84px minmax(0,1fr) auto 16px", gap: 12, alignItems: "start", padding: "10px 0", borderBottom: `1px solid #f6f7f9` }}>
+                  <span style={{ justifySelf: "start", font: `700 10.5px ${F}`, letterSpacing: ".06em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 7, background: BG, color: SUB }}>{CHIP[t.ch] || t.ch}</span>
+                  <span style={{ font: `500 13px/1.45 ${F}`, color: INK }}>{t.text}</span>
+                  <span style={{ font: `500 11.5px ${F}`, color: MUT, whiteSpace: "nowrap" }}>{t.by || "—"} · {fmtD(t.at)}</span>
+                  <button onClick={() => appId && patchApp(appId, { removeTouch: t.at })} title="Delete" style={{ border: "none", background: "none", color: MUT, font: `700 13px ${F}`, cursor: "pointer", padding: 0, lineHeight: 1 }}>×</button>
+                </div>
+              ))}</div>}
+            </Card>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+              <Card pad="14px">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Connections</Lbl>{d30 != null && <span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: d30 >= 0 ? GREEND : REDD }}>{d30 >= 0 ? "+" : ""}{d30} / 30d</span>}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Joined LinkedIn</Lbl><input type="month" value={joined} onChange={(e) => setJoined(e.target.value)} style={{ border: `1px solid ${joinIsEstimate ? "#f1d9a6" : "#dde1e8"}`, background: joinIsEstimate ? "#fffbf2" : "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", minWidth: 0 }} />{joinIsEstimate && <span style={{ font: `600 10px ${F}`, color: AMBER }}>≈ estimated from {ageStr(r)} age · Save to confirm</span>}</label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Connections now</Lbl><input value={connVal} onChange={(e) => setConnVal(e.target.value)} inputMode="numeric" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", minWidth: 0 }} /></label>
+                </div>
+                <button onClick={saveOwnerConn} disabled={busy || !connDirty} style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 9, padding: 8, font: `700 12.5px ${F}`, cursor: connDirty ? "pointer" : "default", opacity: connDirty ? 1 : 0.5 }}>{connDirty ? "Save to inventory" : "✓ Saved"}</button>
+                {connLog.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: `1px solid ${LINE2}`, paddingTop: 10 }}>{connLog.map((c, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "96px 56px minmax(0,1fr)", gap: 8, font: `500 12.5px ${F}`, color: SUB }}><span style={{ color: MUT }}>{fmtDY(c.at)}</span><b style={{ color: INK, fontFamily: G }}>{c.count}</b>{c.delta != null && c.delta !== 0 && <span style={{ color: c.delta > 0 ? GREEND : REDD, fontWeight: 600 }}>{c.delta > 0 ? "+" : ""}{c.delta}</span>}</div>
+                ))}</div>}
+              </Card>
+              <Card pad="14px">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Restriction history</Lbl><span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: rCnt ? REDD : GREEND }}>{rCnt ? `${rCnt} restriction${rCnt === 1 ? "" : "s"}` : "clean"}</span></div>
+                {rh.length > 0 ? <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: `1px solid ${LINE2}`, paddingTop: 10 }}>{rh.map((h, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "96px 86px minmax(0,1fr)", gap: 8, font: `500 12.5px ${F}`, color: SUB }}><span style={{ color: MUT }}>{fmtDY(h.at)}</span><b style={{ color: h.event === "recovered" ? GREEND : REDD }}>{h.event === "recovered" ? "Recovered" : "Restricted"}</b><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={h.note || ""}>{h.note || (h.creditedDays ? `+${h.creditedDays}d credit` : "—")}</span></div>
+                ))}</div> : <span style={{ font: `500 12.5px ${F}`, color: MUT }}>Never restricted.</span>}
+              </Card>
+            </div>
+          </div>
+        );
+      })()}
 
       {tab === "overview" && (
         <>
@@ -1112,212 +1285,20 @@ function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, 
             <Card><Lbl>Earned, all-time</Lbl><span style={{ font: `700 24px ${G}`, color: INK }}>{money(Math.round(r.earnedTotal || 0))}</span><span style={{ font: `600 12px ${F}`, color: SUB }}>gross collected</span></Card>
             <Card><Lbl>Utilisation</Lbl><span style={{ font: `700 24px ${G}`, color: INK }}>{Math.round((r.utilisation || 0) * 100)}%</span><span style={{ height: 4, borderRadius: 4, background: LINE2, overflow: "hidden", display: "block", margin: "2px 0" }}><span style={{ display: "block", height: "100%", width: `${Math.round((r.utilisation || 0) * 100)}%`, background: GREEN }} /></span><span style={{ font: `600 12px ${F}`, color: SUB }}>rented, lifetime</span></Card>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 10, marginTop: 10 }}>
-            <Card>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><Lbl>History</Lbl><span style={{ font: `600 11px ${F}`, color: MUT }}>newest first</span></div>
-              {events.length === 0 ? <span style={{ font: `500 12.5px ${F}`, color: MUT }}>No events recorded yet.</span> : <div style={{ display: "flex", flexDirection: "column" }}>{events.map((e, i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "62px 14px minmax(0,1fr)", gap: 10 }}>
-                  <span style={{ font: `600 11.5px/1.5 ${F}`, color: MUT, textAlign: "right", padding: "1px 0 12px" }}>{fmtD(e.at)}</span>
-                  <span style={{ position: "relative", display: "flex", justifyContent: "center" }}><span style={{ position: "absolute", top: 0, bottom: 0, width: 2, background: LINE2 }} /><span style={{ position: "relative", marginTop: 5, width: 10, height: 10, borderRadius: "50%", background: e.dot, boxShadow: "0 0 0 3px #fff" }} /></span>
-                  <div style={{ minWidth: 0, paddingBottom: 12 }}><div style={{ font: `700 13px/1.5 ${F}`, color: INK }}>{e.t}</div>{e.s && <div style={{ font: `500 12px/1.45 ${F}`, color: SUB }}>{e.s}</div>}</div>
-                </div>
-              ))}</div>}
-            </Card>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-              <Card>
-                <Lbl>Details</Lbl>
-                <div style={{ display: "grid", gridTemplateColumns: "92px minmax(0,1fr)", gap: "5px 12px", font: `500 12.5px ${F}`, color: SUB }}>
-                  <span>Location</span><b style={{ color: INK }}>{r.location || "—"}</b>
-                  <span>Account age</span><b style={{ color: INK }}>{ageStr(r)}</b>
-                  <span>In inventory</span><b style={{ color: INK }}>{fmtDY(r.createdAt)}</b>
-                  <span>Renter</span><b style={{ color: INK }}>{rn ? (rn.fullName || rn.email) : "—"}</b>
-                  <span>Rate</span><b style={{ color: INK }}>${price}/mo</b>
-                  <span>Next billing</span><b style={{ color: INK }}>{fmtDY(r.rentals[0]?.currentPeriodEnd || null)}</b>
-                  <span>Owner</span><b style={{ color: INK }}>{r.ownerName || "—"}</b>
-                  <span>Ambassador</span><b style={{ color: INK }}>{Number(r.ambassadorPayment) > 0 ? `${formatMoney(Number(r.ambassadorPayment), currencyConfigFor(r.ownerPayoutCurrency, r.ownerReferredBy).currency)}/mo` : "—"}</b>
-                </div>
-              </Card>
-              {r.twoFactorResetNeeded && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "11px 12px" }}>
-                  <span style={{ font: `700 12px ${F}`, color: REDD }}>Rotate before re-renting</span>
-                  <button onClick={() => patch(r.id, { twoFactorResetNeeded: false })} disabled={busy} style={{ display: "flex", alignItems: "flex-start", gap: 8, border: "none", background: "none", padding: 0, cursor: "pointer", textAlign: "left", font: `600 12.5px/1.35 ${F}`, color: INK }}>
-                    <span style={{ flex: "none", width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${RED}`, background: "#fff", marginTop: 1 }} /><span>Rotate the 2FA key, then clear this flag</span>
-                  </button>
-                </div>
-              )}
-            </div>
+          <div style={{ marginTop: 10 }}>
+          <Card>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><Lbl>History</Lbl><span style={{ font: `600 11px ${F}`, color: MUT }}>newest first</span></div>
+            {events.length === 0 ? <span style={{ font: `500 12.5px ${F}`, color: MUT }}>No events recorded yet.</span> : <div style={{ display: "flex", flexDirection: "column" }}>{events.map((e, i) => (
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "62px 14px minmax(0,1fr)", gap: 10 }}>
+                <span style={{ font: `600 11.5px/1.5 ${F}`, color: MUT, textAlign: "right", padding: "1px 0 12px" }}>{fmtD(e.at)}</span>
+                <span style={{ position: "relative", display: "flex", justifyContent: "center" }}><span style={{ position: "absolute", top: 0, bottom: 0, width: 2, background: LINE2 }} /><span style={{ position: "relative", marginTop: 5, width: 10, height: 10, borderRadius: "50%", background: e.dot, boxShadow: "0 0 0 3px #fff" }} /></span>
+                <div style={{ minWidth: 0, paddingBottom: 12 }}><div style={{ font: `700 13px/1.5 ${F}`, color: INK }}>{e.t}</div>{e.s && <div style={{ font: `500 12px/1.45 ${F}`, color: SUB }}>{e.s}</div>}</div>
+              </div>
+            ))}</div>}
+          </Card>
           </div>
         </>
       )}
-
-      {tab === "signin" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 10, alignItems: "start" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-            <Card pad="14px">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Sign-in &amp; credentials</Lbl>{r.gologinShareLink && <a href={r.gologinShareLink} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", font: `700 12.5px ${F}`, color: BLUE, textDecoration: "none" }}>↗ Open GoLogin</a>}</div>
-              <Totp accountId={r.id} />
-              {(() => {
-                const heldActive = !!r.heldUntil && new Date(r.heldUntil) > new Date();
-                return (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, borderTop: `1px solid ${LINE2}`, paddingTop: 12 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><Lbl>Reserve / hold</Lbl>{heldActive && <span style={{ marginLeft: "auto", font: `600 11.5px ${F}`, color: "#334155" }}>⏸ held until {fmtDYT(r.heldUntil)}</span>}</div>
-                    {heldActive ? (
-                      <>
-                        <span style={{ font: `500 12px/1.5 ${F}`, color: SUB }}>Reserved{r.heldFor ? ` for ${r.heldFor}` : ""}{r.heldBy ? ` · by ${r.heldBy}` : ""}. Hidden from every catalogue and the normal checkout until then (or until you release it). Auto-releases when it lapses. Send them the rent link below so they can rent it while it&apos;s held.</span>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><CopyRentBtn /><button onClick={release} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#3b4657", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Release now</button></div>
-                      </>
-                    ) : r.status === "available" ? (
-                      <>
-                        <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Hold this account for someone for a day or two so it can&apos;t get snagged. It disappears from all catalogues while held.</span>
-                        <input value={holdFor} onChange={(e) => setHoldFor(e.target.value)} placeholder="Held for (name / who it's for)" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: "100%" }} />
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button onClick={() => hold(1, holdFor)} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#334155", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Hold 1 day</button>
-                          <button onClick={() => hold(2, holdFor)} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#334155", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Hold 2 days</button>
-                          <CopyRentBtn />
-                        </div>
-                      </>
-                    ) : (
-                      <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Only available accounts can be reserved.</span>
-                    )}
-                  </div>
-                );
-              })()}
-              <RentalReady r={r} />
-            </Card>
-            <Card pad="14px">
-              <Lbl>Chase an issue</Lbl>
-              <IssueActions twoFactorReceivedAt={r.twoFactorReceivedAt} originalEmail={r.personalEmail} lvEmail={r.loginEmail} referralPartner={r.issueReferrerName} from={r.issueEmailFrom} accountId={r.id} profile={r.linkedinUrl} onSent={reload} name={formatName(r.linkedinName)} ambassador={ambassadorIssueContact(r.issueAmbassadorEmail, r.ownerPhone, r.contactChannel, r.location)} referrer={r.issueReferrerContact} />
-            </Card>
-          </div>
-          <Card pad="14px">
-            <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>Login email (work)</Lbl><Copyable value={r.loginEmail} /></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>Personal email</Lbl><Copyable value={r.personalEmail} /></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>Work / recovery email</Lbl><Copyable value={r.workEmail} /></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>Password</Lbl><Copyable value={r.accountPassword} /></div>
-            {r.gologinProfileId && <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>GoLogin profile ID</Lbl><Copyable value={r.gologinProfileId} /></div>}
-          </Card>
-        </div>
-      )}
-
-      {tab === "mail" && <AccountMail accountId={r.id} />}
-
-      {tab === "owner" && (() => {
-        const connLog = hist.map((p, i) => ({ at: p.at, count: p.count, delta: i > 0 ? p.count - hist[i - 1].count : null })).reverse().slice(0, 8);
-        const rh = restr.slice().reverse().slice(0, 10);
-        const touches = (r.ownerOutreachLog || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 10);
-        const appId = r.ownerApplicationId;
-        const saveOwnerConn = () => { const body: Record<string, unknown> = { linkedinJoinedAt: joined ? new Date(joined + "-01T00:00:00Z").toISOString() : null }; const n = parseInt(connVal.replace(/[^0-9]/g, ""), 10); if (!Number.isNaN(n)) body.connectionCount = n; patch(r.id, body); };
-        const logTouch = (ch: string) => { if (!appId) return; patchApp(appId, { addTouch: { ch, text: note.trim() || undefined, by: who.trim() || undefined } }).then(() => setNote("")); };
-        const connDirty = joined !== (r.linkedinJoinedAt ? r.linkedinJoinedAt.slice(0, 7) : "") || connVal !== String(r.connectionCount);
-        // Prefilled-from-age suggestion still showing (never recorded, unsaved): flag it so the
-        // admin knows it's an estimate, not a real recorded date, until they Save.
-        const joinIsEstimate = !r.linkedinJoinedAt && !!joined && joined === estMonthFromAge(r.accountAgeMonths);
-        const d30 = (() => { const cutoff = Date.now() - 30 * 86400000; const old = [...hist].reverse().find((p) => new Date(p.at).getTime() <= cutoff); return old ? r.connectionCount - old.count : null; })();
-        const field = (label: string, value: string | null, copyable?: boolean) => (
-          <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}><Lbl>{label}</Lbl>{copyable ? <Copyable value={value} /> : <span style={{ font: `600 13.5px/1.45 ${F}`, color: value ? INK : MUT, overflowWrap: "anywhere" }}>{value || "—"}</span>}</div>
-        );
-        const CHIP: Record<string, string> = { whatsapp: "WhatsApp", viber: "Viber", telegram: "Telegram", email: "Email", text: "Text", note: "Note" };
-        return (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 10, alignItems: "start" }}>
-            {/* rental history — every renter this account has had */}
-            <RentalHistory accountId={r.id} />
-            {/* account owner */}
-            <Card pad="14px">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Account owner</Lbl>{r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", font: `700 12.5px ${F}`, color: BLUE, textDecoration: "none" }}>View profile ↗</a>}</div>
-              <div style={{ background: "#f6f7f9", borderRadius: 12, padding: 12, display: "flex", gap: 14, alignItems: "center" }}>
-                {r.profilePhotoUrl || r.profileScreenshotUrl
-                  ? <img src={(r.profilePhotoUrl || r.profileScreenshotUrl)!} alt="" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover", flex: "none" }} />
-                  : <div style={{ width: 64, height: 64, borderRadius: 12, background: "#dfe5ee", color: SUB, display: "grid", placeItems: "center", font: `700 18px ${F}`, flex: "none" }}>{iniOf(r.linkedinName)}</div>}
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                  <span style={{ font: `500 12.5px/1.4 ${F}`, color: SUB }}>Profile photo{r.profilePhotoUrl ? " · uploaded" : r.profileScreenshotUrl ? " · onboarding original" : " not set"}.</span>
-                  <label style={{ font: `700 12px ${F}`, color: BLUE, cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.5 : 1 }}>
-                    {uploading ? "Uploading…" : r.profilePhotoUrl || r.profileScreenshotUrl ? "Replace photo" : "Upload photo"}
-                    <input type="file" accept="image/*" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} style={{ display: "none" }} />
-                  </label>
-                </div>
-              </div>
-              {field("Full name", formatName(r.linkedinName), true)}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 12 }}>
-                {field("Applied with (email)", r.ownerEmail || r.issueAmbassadorEmail, true)}
-                {field("Contact number / handle", r.ownerPhone ? `${r.ownerPhone}${r.contactChannel ? ` · ${r.contactChannel}` : ""}` : null, true)}
-                {field("Location", r.location)}
-                {field("Connections", String(r.connectionCount))}
-                {field("Found us via", r.ownerReferralSource)}
-                {field("Referred by", r.ownerReferredBy)}
-                {field("LV handler (PoC)", r.ownerPoc)}
-                {field("Owner status", r.ownerStatus)}
-              </div>
-            </Card>
-
-            {/* catalogue details — the fields needed to list an account */}
-            <Card pad="14px">
-              {(() => {
-                const complete = !!(r.linkedinHeadline && r.location && r.industry && (r.profilePhotoUrl || r.profileScreenshotUrl));
-                const fieldStyle = { border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: "100%" } as const;
-                return (<>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Catalogue details</Lbl><span style={{ marginLeft: "auto", font: `700 11px ${F}`, color: complete ? GREEND : "#b45309" }}>{complete ? "✓ complete" : "incomplete"}</span></div>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>LinkedIn URL</Lbl><input value={urlV} onChange={(e) => setUrlV(e.target.value)} placeholder="https://www.linkedin.com/in/…" style={fieldStyle} /></label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Headline</Lbl><textarea value={headlineV} onChange={(e) => setHeadlineV(e.target.value)} rows={2} placeholder="e.g. B2B Business Development | SaaS | Pipeline & revenue growth" style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.4 }} /></label>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Location</Lbl><input value={locationV} onChange={(e) => setLocationV(e.target.value)} placeholder="e.g. New York, NY, USA" style={fieldStyle} /></label>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Industry</Lbl><input value={industryV} onChange={(e) => setIndustryV(e.target.value)} list="inv2-industries" placeholder="e.g. Computer Software" style={fieldStyle} /></label>
-                  </div>
-                  <datalist id="inv2-industries">
-                    <option value="Information Technology & Services" /><option value="Computer Software" /><option value="Marketing & Advertising" /><option value="Business Consulting & Services" /><option value="Financial Services" /><option value="Staffing & Recruiting" />
-                  </datalist>
-                  <button onClick={saveCatalogue} disabled={busy || !catDirty} style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 9, padding: 9, font: `700 12.5px ${F}`, cursor: catDirty ? "pointer" : "default", opacity: catDirty ? 1 : 0.5 }}>{catDirty ? "Save catalogue details" : "✓ Saved"}</button>
-                </>);
-              })()}
-            </Card>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-              {/* connections editor + log */}
-              <Card pad="14px">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Connections</Lbl>{d30 != null && <span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: d30 >= 0 ? GREEND : REDD }}>{d30 >= 0 ? "+" : ""}{d30} / 30d</span>}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Joined LinkedIn</Lbl><input type="month" value={joined} onChange={(e) => setJoined(e.target.value)} style={{ border: `1px solid ${joinIsEstimate ? "#f1d9a6" : "#dde1e8"}`, background: joinIsEstimate ? "#fffbf2" : "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", minWidth: 0 }} />{joinIsEstimate && <span style={{ font: `600 10px ${F}`, color: AMBER }}>≈ estimated from {ageStr(r)} age · Save to confirm</span>}</label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>Connections now</Lbl><input value={connVal} onChange={(e) => setConnVal(e.target.value)} inputMode="numeric" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", minWidth: 0 }} /></label>
-                </div>
-                <button onClick={saveOwnerConn} disabled={busy || !connDirty} style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 9, padding: 8, font: `700 12.5px ${F}`, cursor: connDirty ? "pointer" : "default", opacity: connDirty ? 1 : 0.5 }}>{connDirty ? "Save to inventory" : "✓ Saved"}</button>
-                {connLog.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: `1px solid ${LINE2}`, paddingTop: 10 }}>{connLog.map((c, i) => (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "96px 56px minmax(0,1fr)", gap: 8, font: `500 12.5px ${F}`, color: SUB }}><span style={{ color: MUT }}>{fmtDY(c.at)}</span><b style={{ color: INK, fontFamily: G }}>{c.count}</b>{c.delta != null && c.delta !== 0 && <span style={{ color: c.delta > 0 ? GREEND : REDD, fontWeight: 600 }}>{c.delta > 0 ? "+" : ""}{c.delta}</span>}</div>
-                ))}</div>}
-              </Card>
-
-              {/* restriction history */}
-              <Card pad="14px">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Restriction history</Lbl><span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: rCnt ? REDD : GREEND }}>{rCnt ? `${rCnt} restriction${rCnt === 1 ? "" : "s"}` : "clean"}</span></div>
-                {rh.length > 0 ? <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: `1px solid ${LINE2}`, paddingTop: 10 }}>{rh.map((h, i) => (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "96px 86px minmax(0,1fr)", gap: 8, font: `500 12.5px ${F}`, color: SUB }}><span style={{ color: MUT }}>{fmtDY(h.at)}</span><b style={{ color: h.event === "recovered" ? GREEND : REDD }}>{h.event === "recovered" ? "Recovered" : "Restricted"}</b><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={h.note || ""}>{h.note || (h.creditedDays ? `+${h.creditedDays}d credit` : "—")}</span></div>
-                ))}</div> : <span style={{ font: `500 12.5px ${F}`, color: MUT }}>Never restricted.</span>}
-              </Card>
-
-              {/* activity / notes */}
-              <Card pad="14px">
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><Lbl>Activity</Lbl><span style={{ font: `500 12.5px ${F}`, color: SUB }}>{touches.length} {touches.length === 1 ? "touch" : "touches"}</span>
-                  <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, font: `600 12px ${F}`, color: SUB }}>Follow up<input type="date" value={r.ownerNextFollowUp ? new Date(r.ownerNextFollowUp).toISOString().slice(0, 10) : ""} onChange={(e) => appId && patchApp(appId, { nextFollowUp: e.target.value ? new Date(e.target.value).toISOString() : null })} disabled={!appId} style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "6px 8px", font: `500 13px ${F}`, color: INK, outline: "none" }} /></label>
-                </div>
-                {appId ? <>
-                  <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What happened? Logged with the date and your name" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none" }} />
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <input value={who} onChange={(e) => setWho(e.target.value)} placeholder="Who sent it?" style={{ border: "1px solid #dde1e8", background: "#fff", borderRadius: 9, padding: "8px 10px", font: `500 13px ${F}`, color: INK, outline: "none", width: 150 }} />
-                    <Lbl>Log</Lbl>
-                    {["whatsapp", "email", "text", "note"].map((ch) => <button key={ch} onClick={() => logTouch(ch)} disabled={busy} style={{ border: "1px solid #dde1e8", background: "#fff", color: "#3b4657", borderRadius: 9, padding: "7px 12px", font: `600 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>+ {CHIP[ch]}</button>)}
-                  </div>
-                </> : <span style={{ font: `500 12px ${F}`, color: MUT }}>No ambassador application linked — activity log is for owner-linked accounts.</span>}
-                {touches.length > 0 && <div style={{ display: "flex", flexDirection: "column", borderTop: `1px solid ${LINE2}` }}>{touches.map((t, i) => (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "84px minmax(0,1fr) auto 16px", gap: 12, alignItems: "start", padding: "10px 0", borderBottom: `1px solid #f6f7f9` }}>
-                    <span style={{ justifySelf: "start", font: `700 10.5px ${F}`, letterSpacing: ".06em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 7, background: BG, color: SUB }}>{CHIP[t.ch] || t.ch}</span>
-                    <span style={{ font: `500 13px/1.45 ${F}`, color: INK }}>{t.text}</span>
-                    <span style={{ font: `500 11.5px ${F}`, color: MUT, whiteSpace: "nowrap" }}>{t.by || "—"} · {fmtD(t.at)}</span>
-                    <button onClick={() => appId && patchApp(appId, { removeTouch: t.at })} title="Delete" style={{ border: "none", background: "none", color: MUT, font: `700 13px ${F}`, cursor: "pointer", padding: 0, lineHeight: 1 }}>×</button>
-                  </div>
-                ))}</div>}
-              </Card>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
