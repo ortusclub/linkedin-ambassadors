@@ -1201,7 +1201,7 @@ mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Te
 
                             {/* Notes */}
                             <PanelCard title={`Notes (private)${savingProof === a.id ? " · saving…" : ""}`} full>
-                              <AccountNotes sharedLog={a.ownerOutreachLog} accountId={a.id} notes={a.notes} proof={a.verificationProof} onNotesSaved={() => { void load(); }} onProofSaved={(value) => saveProof(a, value)} />
+                              <AccountNotes sharedLog={a.ownerOutreachLog} accountId={a.id} notes={a.notes} proof={a.verificationProof} live={{ has2fa: !!a.twoFactorReceivedAt, loginConfirmed: a.ownerOnboarded }} onNotesSaved={() => { void load(); }} onProofSaved={(value) => saveProof(a, value)} />
                             </PanelCard>
 
                             {/* Health & restriction history */}
