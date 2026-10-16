@@ -132,6 +132,43 @@ function canonicalStatus(a: Account): string {
   return a.ownerOnboarded ? "Construction" : "Initial";
 }
 
+// Which action-needed flags an account currently carries — the key set that drives the "Needs
+// attention" filter. KEEP IN SYNC with the row flag block in the render loop (search "Flag
+// conditions"): the same booleans, so filtering by a flag shows exactly the rows wearing that pill.
+// Only actionable flags live here (benign markers like +SN / shadow / warm-up are not filterable).
+type AttnKey = "unverified" | "mail" | "incident" | "overdue" | "rotate" | "2fa" | "restricted" | "incomplete" | "held";
+const ATTN_ACTIONABLE: AttnKey[] = ["incident", "overdue", "rotate", "2fa", "restricted", "unverified", "mail", "incomplete"];
+function attention(a: Account): Set<AttnKey> {
+  const f = new Set<AttnKey>();
+  const now = Date.now();
+  const retired = canonicalStatus(a) === "Permanently restricted/Inaccessible";
+  const rt0 = a.rentals?.[0];
+  if (!!a.heldUntil && new Date(a.heldUntil).getTime() > now) f.add("held");
+  if (canonicalStatus(a) === "Available" && !a.rentalReady) f.add("unverified");
+  if (rt0?.status === "payment_failed"
+    || (rt0?.status === "active" && !!rt0.currentPeriodEnd && new Date(rt0.currentPeriodEnd).getTime() < now)
+    || (a.status === "rented" && !!a.manualPaidUntil && new Date(a.manualPaidUntil).getTime() < now)) f.add("overdue");
+  if (a.twoFactorResetNeeded) f.add("rotate");
+  if (!a.twoFactor && (a.status === "rented" || a.status === "available" || a.status === "trial")) f.add("2fa");
+  if (a.mailIncidentOpen > 0) f.add("incident");
+  if (a.mailNeedsReview > 0) f.add("mail");
+  if (a.restrictedAt && !retired) f.add("restricted");
+  if (!retired && !isDummy(a) && (((!a.profilePhotoUrl && !a.profileScreenshotUrl)) || !a.location || !a.linkedinHeadline || !a.industry)) f.add("incomplete");
+  return f;
+}
+// Label + short tip per filter option; counts are appended live in the <select>.
+const ATTN_OPTS: { key: AttnKey | "attention"; label: string }[] = [
+  { key: "attention", label: "⚠ Needs attention" },
+  { key: "unverified", label: "⚠ Unverified (rental-ready)" },
+  { key: "mail", label: "✉ Mail to review" },
+  { key: "incident", label: "🔴 Open incident" },
+  { key: "overdue", label: "Overdue payment" },
+  { key: "rotate", label: "Rotate 2FA" },
+  { key: "2fa", label: "2FA reset needed" },
+  { key: "restricted", label: "Restricted" },
+  { key: "incomplete", label: "Incomplete catalogue" },
+];
+
 const GROUPS: { key: string; title: string; note: string; dot: string }[] = [
   { key: "Available", title: "Available", note: "live & rentable", dot: GREEN },
   { key: "Trial", title: "Trial", note: "3-day hold", dot: AMBER },
@@ -239,6 +276,7 @@ export default function InventoryV2Page() {
   const [ver, setVer] = useState("all"), [conn, setConn] = useState("all"), [supply, setSupply] = useState("all"), [age, setAge] = useState("all");
   const [sort, setSort] = useState("upd");
   const [poc, setPoc] = useState("all");
+  const [needs, setNeeds] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<Record<string, "account" | "mail" | "activity" | "overview">>({});
@@ -397,10 +435,23 @@ export default function InventoryV2Page() {
       if (supply === "offer" && !(canonicalStatus(a) === "Available" && !a.shadowRenter)) return false;
       if (supply === "unverified" && !(canonicalStatus(a) === "Available" && !a.rentalReady)) return false;
       if (supply === "shadow" && !a.shadowRenter) return false;
+      if (needs !== "all") { const fl = attention(a); if (needs === "attention" ? !ATTN_ACTIONABLE.some((k) => fl.has(k)) : !fl.has(needs as AttnKey)) return false; }
       if (ql) { const hay = [a.linkedinName, a.loginEmail, a.ownerName, a.rentals[0]?.user?.fullName, a.location, a.industry].join(" ").toLowerCase(); if (!hay.includes(ql)) return false; }
       return true;
     }).map((x) => x.a);
-  }, [withGroup, groupFilter, poc, cty, renter, ver, conn, supply, age, q]);
+  }, [withGroup, groupFilter, poc, cty, renter, ver, conn, supply, age, needs, q]);
+
+  // Live counts per attention flag (over the whole inventory) — shown in the filter so you can see
+  // how many unverified / mail / overdue there are before drilling in.
+  const attnCounts = useMemo(() => {
+    const c: Record<string, number> = { attention: 0 };
+    for (const a of accounts) {
+      const fl = attention(a);
+      for (const k of fl) c[k] = (c[k] || 0) + 1;
+      if (ATTN_ACTIONABLE.some((k) => fl.has(k))) c.attention++;
+    }
+    return c;
+  }, [accounts]);
 
   // Stable row order: the live sort (esp. "Last updated") is re-derived only when the sort or the
   // SET of visible accounts changes — not when an existing row's sort field changes. So editing a
@@ -452,8 +503,8 @@ export default function InventoryV2Page() {
   }, [withGroup, accounts]);
 
   const totalShown = sorted.length;
-  const hasFilters = q || cty !== "all" || renter !== "all" || ver !== "all" || conn !== "all" || age !== "all" || supply !== "all" || poc !== "all" || groupFilter !== "all";
-  const clearAll = () => { setQ(""); setCty("all"); setRenter("all"); setVer("all"); setConn("all"); setAge("all"); setSupply("all"); setPoc("all"); setGroupFilter("all"); };
+  const hasFilters = q || cty !== "all" || renter !== "all" || ver !== "all" || conn !== "all" || age !== "all" || supply !== "all" || needs !== "all" || poc !== "all" || groupFilter !== "all";
+  const clearAll = () => { setQ(""); setCty("all"); setRenter("all"); setVer("all"); setConn("all"); setAge("all"); setSupply("all"); setNeeds("all"); setPoc("all"); setGroupFilter("all"); };
 
   const inp: React.CSSProperties = { border: `1px solid #dde1e8`, background: "#fff", borderRadius: 10, padding: "9px 10px", font: `600 13px ${F}`, color: INK, outline: "none" };
   const headCols = "minmax(0,2.2fr) 78px 64px minmax(0,1.3fr) 104px minmax(0,1.2fr) 100px 92px 52px 56px 16px";
@@ -529,6 +580,10 @@ export default function InventoryV2Page() {
             <select value={conn} onChange={(e) => setConn(e.target.value)} style={inp}><option value="all">Any connections</option><option value="0">&lt; 50</option><option value="1">50–100</option><option value="2">100–500</option><option value="3">500–999</option><option value="4">1k+</option></select>
             <select value={age} onChange={(e) => setAge(e.target.value)} style={inp}><option value="all">Any age</option><option value="0">&lt; 1 year</option><option value="1">1–3 years</option><option value="2">3–5 years</option><option value="3">5–10 years</option><option value="4">10+ years</option></select>
             <select value={supply} onChange={(e) => setSupply(e.target.value)} style={inp}><option value="all">All supply</option><option value="offer">Available to offer</option><option value="unverified">Available · unverified</option><option value="shadow">Shadow</option></select>
+            <select value={needs} onChange={(e) => setNeeds(e.target.value)} title="Show only accounts carrying a flag that needs fixing" style={{ ...inp, ...(needs !== "all" ? { borderColor: "#f59e0b", background: "#fffbeb", color: "#92400e", fontWeight: 700 } : {}) }}>
+              <option value="all">Any flag</option>
+              {ATTN_OPTS.map((o) => { const n = attnCounts[o.key] || 0; return <option key={o.key} value={o.key} disabled={n === 0}>{o.label}{n ? ` (${n})` : ""}</option>; })}
+            </select>
             <select value={sort} onChange={(e) => setSort(e.target.value)} style={inp}><option value="upd">Last updated</option><option value="price">Price, high → low</option><option value="conn">Connections, most first</option><option value="age">Age, oldest first</option><option value="name">Name A–Z</option></select>
             {hasFilters && <button onClick={clearAll} style={{ border: "none", background: "none", color: BLUE, font: `700 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>Clear filters</button>}
           </div>
@@ -703,7 +758,7 @@ export default function InventoryV2Page() {
                           <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
                             {rn ? (<>
                               <span style={{ font: `600 13px ${F}`, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{rn.fullName || rn.email}</span>
-                              <span style={{ font: `600 11px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>next {fmtD(r.rentals[0]?.currentPeriodEnd || null)}</span>
+                              <span style={{ font: `600 11px ${F}`, color: rt0?.status === "pending_access" ? "#c2410c" : SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{rt0?.status === "pending_access" ? "awaiting access" : `next ${fmtD(r.rentals[0]?.currentPeriodEnd || null)}`}</span>
                             </>) : r.shadowRenter ? (<>
                               <span style={{ font: `600 13px ${F}`, color: BLUE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shadowName(r.shadowRenter)}</span>
                               <span style={{ font: `600 11px ${F}`, color: MUT, whiteSpace: "nowrap" }}>shadow · yields on rent</span>
