@@ -652,7 +652,7 @@ export default function InventoryV2Page() {
                     if (proxyDown) flags.push({ l: "Proxy down", ...RP, tip: "GoLogin proxy check failed" });
                     if (proxyExpiring) flags.push({ l: "Proxy expiring", bg: "#fffbeb", fg: "#92400e", tip: "Proxy plan expires within 7 days" });
                     if (linkedArmy) flags.push({ l: "⚑ LinkedArmy", bg: "#ecfeff", fg: "#0e7490", tip: "Running LinkedArmy campaigns" });
-                    if (warmDays != null) flags.push({ l: `🔥 ${warmDays}d`, bg: "#fff7ed", fg: "#c2410c", tip: "Days in warm-up" });
+                    if (warmDays != null && isConstruction) flags.push({ l: `🔥 ${warmDays}d`, bg: "#fff7ed", fg: "#c2410c", tip: "Days in warm-up" });
                     if (recovered) flags.push({ l: "Recovered", bg: "#fffbeb", fg: "#92400e", tip: "Recently restricted, now recovered" });
                     if (r.shadowRenter) flags.push({ l: `◐ Shadow · ${shadowName(r.shadowRenter)}`, bg: "#eff4ff", fg: "#2563eb", tip: `Shadow supply (${shadowName(r.shadowRenter)}) — still available to rent` });
                     if (r.hasSalesNav) flags.push({ l: "+SN", bg: "#eff4ff", fg: "#2563eb", tip: "Has Sales Navigator" });
@@ -1180,7 +1180,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, 
               <span style={{ font: `500 11.5px ${F}`, color: MUT }}>{r.healthCheckedAt ? `Last checked ${fmtDY(r.healthCheckedAt)}` : "Not yet checked"}</span>
               <button onClick={recheck} disabled={busy} style={{ border: `1px solid #dde1e8`, background: "#fff", color: SUB, borderRadius: 999, padding: "3px 10px", font: `700 11px ${F}`, cursor: "pointer" }}>↻ Re-check</button>
             </div>
-            {warmDays !== null && <span style={{ font: `700 11.5px ${F}`, color: "#c2410c", background: "#fff7ed", borderRadius: 999, padding: "3px 10px" }}>🔥 {warmDays}d</span>}
+            {warmDays !== null && (r.status === "under_construction" || r.status === "construction_immature") && <span style={{ font: `700 11.5px ${F}`, color: "#c2410c", background: "#fff7ed", borderRadius: 999, padding: "3px 10px" }}>🔥 {warmDays}d</span>}
           </div>
         );
       })()}
