@@ -9,7 +9,7 @@ export type ChecklistState = Record<string, { done?: boolean; by?: string | null
 // happen inside LinkedIn or in our heads. Proxy readiness and GoLogin-share-cleared are auto (below).
 export const RENTAL_READY_ITEMS: { key: string; label: string; hint: string }[] = [
   { key: "sessions_out", label: "No other signed-in devices", hint: "Signed out of all other sessions in LinkedIn settings." },
-  { key: "campaigns_off", label: "Campaigns / automation disconnected", hint: "No outreach tool is still connected or firing (the Eyal/Apex leak)." },
+  { key: "campaigns_off", label: "Campaigns / automation disconnected", hint: "No outreach tool is still connected or firing." },
   { key: "inbox_cleared", label: "Inbox cleared", hint: "No leftover messages from shadow or prior use." },
 ];
 
