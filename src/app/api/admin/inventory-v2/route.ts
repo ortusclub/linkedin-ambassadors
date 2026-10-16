@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { rentalReadyStatus, type ChecklistState } from "@/lib/rental-ready";
 
 // Inventory v2 read endpoint. Returns the SAME per-account shape as
 // /api/admin/accounts (so the v2 page has every field the live inventory has),
@@ -133,6 +134,8 @@ export async function GET(_req: NextRequest) {
         ...a,
         mailNeedsReview: mailNeedsReviewByAccount.get(a.id) ?? 0,
         mailIncidentOpen: mailIncidentByAccount.get(a.id) ?? 0,
+        // Whether the rental-ready housekeeping checklist passes (for the sweep flag on the row).
+        rentalReady: rentalReadyStatus(a, a.rentalReadyChecklist as ChecklistState).ready,
         // Carry pipeline (application) profile data into inventory when the account's own is blank.
         linkedinUrl: a.linkedinUrl || app?.linkedinUrl || null,
         location: a.location || app?.location || null,
