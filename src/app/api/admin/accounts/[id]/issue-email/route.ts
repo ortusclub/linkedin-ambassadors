@@ -4,12 +4,13 @@ import { decryptSecret } from "@/lib/crypto-creds";
 import { ISSUE_KEYS, ACCOUNT_ISSUES } from "@/lib/account-issue-message";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { onboardingMailRequest } from "@/services/onboarding-mail";
 
 const schema = z.object({ recipient: z.enum(["ambassador", "referrer"]), issue: z.enum(ISSUE_KEYS), details: z.string().trim().max(3000), subject: z.string().trim().min(1).max(200), text: z.string().trim().min(1).max(15000), requestId: z.string().uuid() }).refine(input => input.issue !== "other" || !!input.details.trim(), { message: "Explain the other issue" });
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const input = schema.parse(await req.json());
     const { id } = await params;
     const account = await prisma.linkedInAccount.findUnique({ where: { id }, select: { linkedinName: true, linkedinUrl: true, notes: true, selfServiceOnboarding: { select: { applicationId: true } } } });
@@ -32,6 +33,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await onboardingMailRequest("/emails", { from: process.env.RESEND_FROM_EMAIL || "LinkedVelocity <info@linkedvelocity.com>", reply_to: process.env.ADMIN_NOTIFICATION_EMAIL || "info@linkedvelocity.com", to: [to], ...message }, `account-issue-${id}-${input.requestId}`);
     const entry = `[${new Date().toISOString()}] Emailed ${input.recipient} (${to}): ${message.subject}. ${ACCOUNT_ISSUES[input.issue].label}. ${input.details}`;
     await prisma.$executeRaw`UPDATE linkedin_accounts SET notes = concat_ws(E'\n', nullif(notes, ''), ${entry}::text), updated_at = NOW() WHERE id = ${id}::uuid`;
+    // Also log a structured outreach touch on the linked application so the send shows in the
+    // Inventory Activity tab (and pipeline), not only in the freeform account notes. Best-effort:
+    // the email already went out, so never fail the request on a logging hiccup.
+    try {
+      const current = await prisma.ambassadorApplication.findUnique({ where: { id: app.id }, select: { outreachLog: true } });
+      const log = Array.isArray(current?.outreachLog) ? (current!.outreachLog as unknown[]) : [];
+      const touch = { ch: "email", text: `${ACCOUNT_ISSUES[input.issue].label} — issue email to ${input.recipient} (${to}): ${message.subject}`, by: admin.fullName || admin.email, at: new Date().toISOString() };
+      await prisma.ambassadorApplication.update({ where: { id: app.id }, data: { outreachLog: [...log, touch] as Prisma.InputJsonValue } });
+    } catch (e) { console.error("issue-email outreach touch", e); }
     return NextResponse.json({ ok: true, to });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: "Choose an issue and enter the required action." }, { status: 400 });
