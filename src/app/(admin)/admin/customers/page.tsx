@@ -221,6 +221,8 @@ export default function AdminCustomersPage() {
                   <span style={{ font: `500 10px ${F_SANS}`, color: "var(--label)" }}>/day</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <a href={`/dashboard?view_as=${c.id}`} target="_blank" rel="noopener noreferrer" title={`Open ${c.fullName}'s dashboard exactly as they see it (see-only — no actions)`}
+                    style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, textDecoration: "none", whiteSpace: "nowrap", background: "var(--subtab-active-bg)", color: "var(--subtab-active-fg)" }}>View as ↗</a>
                   <button onClick={() => toggleTest(c)} title="Toggle test flag — test customers are hidden from live dashboard numbers"
                     style={{ font: `600 11.5px ${F_SANS}`, padding: "4px 9px", borderRadius: 7, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: "var(--test-bg)", color: "var(--test-fg)" }}>{c.isTest ? "Unmark test" : "Mark test"}</button>
                   <button onClick={() => handleDelete(c)} disabled={deleting === c.id} title="Permanently delete this customer + all their data"

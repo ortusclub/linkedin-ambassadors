@@ -386,6 +386,9 @@ interface Rental {
   downtimeCreditDays?: number;
   // Open self-serve proxy-fix case: "swapped" (awaiting the renter's confirm) or "escalated".
   proxyFix?: { status: string; ticketRef: string; openedAt?: string } | null;
+  // The exact email this renter must set GoLogin up with — shown on the "finish setup" card
+  // while a rental is still pending access (that's the address we share the profile to).
+  gologinLoginEmail?: string | null;
   linkedinAccount: {
     id: string;
     linkedinName: string;
@@ -455,6 +458,13 @@ function DashboardContent() {
   const { timeZone: meetingTimeZone } = useMeetingTimeZone();
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Admin "view as client": when ?view_as=<userId> is present, the dashboard renders that
+  // renter's own data (the API honours it only for admins) and goes see-only — every
+  // mutating action is disabled, so an admin can look without any risk of acting as them.
+  const viewAsId = searchParams.get("view_as");
+  const viewAs = !!viewAsId;
+  const vqs = (u: string) => (viewAsId ? u + (u.includes("?") ? "&" : "?") + `view_as=${encodeURIComponent(viewAsId)}` : u);
+  const [viewAsInfo, setViewAsInfo] = useState<{ name: string; email: string } | null>(null);
   const [meetingSubmissionId, setMeetingSubmissionId] = useState<string | null>(null);
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [openCredsId, setOpenCredsId] = useState<string | null>(null);
@@ -463,11 +473,12 @@ function DashboardContent() {
   // replace nudge; resets on refresh — it's a soft dismiss, not a persisted decision).
   const [waitingIds, setWaitingIds] = useState<Set<string>>(new Set());
   const [linkCopied, setLinkCopied] = useState<string | null>(null);
+  const [setupEmailCopied, setSetupEmailCopied] = useState<string | null>(null);
   const [replacingRental, setReplacingRental] = useState<Rental | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 60000); return () => clearInterval(t); }, []);
   const refreshRentals = () => {
-    fetch("/api/rentals", { cache: "no-store" })
+    fetch(vqs("/api/rentals"), { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d.rentals)) setRentals(d.rentals); })
       .catch(() => {});
@@ -476,6 +487,7 @@ function DashboardContent() {
   // persisted truth is rental.proxyFix (swapped/escalated); this takes precedence mid-flow.
   const [proxyFix, setProxyFix] = useState<Record<string, { status: string; ticketRef?: string }>>({});
   const reportProxy = (rental: Rental) => {
+    if (viewAs) return;
     setProxyFix((p) => ({ ...p, [rental.id]: { status: "fixing" } }));
     fetch(`/api/rentals/${rental.id}/proxy-fix`, { method: "POST" })
       .then((r) => r.json())
@@ -483,6 +495,7 @@ function DashboardContent() {
       .catch(() => setProxyFix((p) => ({ ...p, [rental.id]: { status: "escalated" } })));
   };
   const confirmProxy = (rental: Rental, working: boolean) => {
+    if (viewAs) return;
     fetch(`/api/rentals/${rental.id}/proxy-fix/confirm`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ working }) })
       .then((r) => r.json())
       .then((d) => { setProxyFix((p) => ({ ...p, [rental.id]: working ? { status: "done" } : { status: "escalated", ticketRef: d.ticketRef } })); refreshRentals(); })
@@ -512,6 +525,7 @@ function DashboardContent() {
   const [cardOnFile, setCardOnFile] = useState<{ brand: string | null; last4: string } | null>(null);
 
   const removeCard = async () => {
+    if (viewAs) return;
     if (!confirm("Remove your saved card? Renewals won't be able to charge a shortfall not covered by your balance.")) return;
     const res = await fetch("/api/wallet/card", { method: "DELETE" });
     if (res.ok) setCardOnFile(null);
@@ -524,7 +538,7 @@ function DashboardContent() {
     const prevBalance = usdcBalance;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch("/api/wallet/balance");
+        const res = await fetch(vqs("/api/wallet/balance"));
         const data = await res.json();
         const newBalance = data.balance || "0";
         if (parseFloat(newBalance) > parseFloat(prevBalance)) {
@@ -539,17 +553,17 @@ function DashboardContent() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/rentals").then((r) => {
+      fetch(vqs("/api/rentals")).then((r) => {
         if (r.status === 401) { router.push("/login"); return null; }
         return r.json();
       }),
       fetch("/api/ambassador/my-accounts").then((r) => r.json()).catch(() => ({ accounts: [] })),
-      fetch("/api/wallet/balance").then((r) => r.json()).catch(() => ({ balance: "0" })),
-      fetch("/api/wallet/deposit-address").then((r) => r.json()).catch(() => ({ address: null })),
+      fetch(vqs("/api/wallet/balance")).then((r) => r.json()).catch(() => ({ balance: "0" })),
+      fetch(vqs("/api/wallet/deposit-address")).then((r) => r.json()).catch(() => ({ address: null })),
       fetch("/api/ambassador/my-submissions", { cache: "no-store" }).then((r) => r.json()).catch(() => ({ submissions: [] })),
-      fetch("/api/wallet/card").then((r) => r.json()).catch(() => ({ card: null })),
+      fetch(vqs("/api/wallet/card")).then((r) => r.json()).catch(() => ({ card: null })),
     ]).then(([rentalData, ambassadorData, balanceData, addressData, submissionsData, cardData]) => {
-      if (rentalData) setRentals(rentalData.rentals || []);
+      if (rentalData) { setRentals(rentalData.rentals || []); setViewAsInfo(rentalData.viewAs || null); }
       setAmbassadorAccounts(ambassadorData.accounts || []);
       setRemovedAccounts(ambassadorData.removedAccounts || []);
       setUsdcBalance(balanceData.balance || "0");
@@ -580,7 +594,7 @@ function DashboardContent() {
             if (!stopped && Array.isArray(data.accounts)) setAmbassadorAccounts(data.accounts);
             if (!stopped && Array.isArray(data.removedAccounts)) setRemovedAccounts(data.removedAccounts);
           }),
-          fetch("/api/rentals", { cache: "no-store" }).then(async response => {
+          fetch(vqs("/api/rentals"), { cache: "no-store" }).then(async response => {
             if (!response.ok) return;
             const data = await response.json();
             if (!stopped && Array.isArray(data.rentals)) setRentals(data.rentals);
@@ -611,6 +625,7 @@ function DashboardContent() {
   }, [loading]);
 
   const handleWithdraw = async () => {
+    if (viewAs) return;
     setWithdrawing(true);
     setWithdrawError("");
     setWithdrawSuccess(false);
@@ -639,6 +654,7 @@ function DashboardContent() {
   const [removeAccountId, setRemoveAccountId] = useState<string | null>(null);
 
   const handleRemoveAccount = async () => {
+    if (viewAs) return;
     if (!removeAccountId) return;
     const res = await fetch(`/api/ambassador/accounts/${removeAccountId}`, { method: "DELETE" });
     if (res.ok) {
@@ -706,6 +722,7 @@ function DashboardContent() {
   };
 
   const toggleAutoRenew = async (rental: Rental) => {
+    if (viewAs) return;
     const newVal = !rental.autoRenew;
     const res = await fetch(`/api/rentals/${rental.id}/auto-renew`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ autoRenew: newVal }),
@@ -730,7 +747,7 @@ function DashboardContent() {
     setShowTopUp(true);
     setShowWithdraw(false);
     if (!depositAddress) {
-      fetch("/api/wallet/deposit-address").then((r) => r.json()).then((data) => {
+      fetch(vqs("/api/wallet/deposit-address")).then((r) => r.json()).then((data) => {
         if (data.address) setDepositAddress(data.address);
       }).catch(() => {});
     }
@@ -804,6 +821,20 @@ function DashboardContent() {
 
   return (
     <div className={`mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 ${jakarta.className}`} style={{ color: V.text }}>
+      {viewAs && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 20, padding: "11px 16px", borderRadius: 12, background: "#1f2937", color: "#fff" }}>
+          <span aria-hidden style={{ fontSize: 16, lineHeight: 1 }}>👁</span>
+          <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontWeight: 700, fontSize: 13.5 }}>
+              Viewing {viewAsInfo?.name || "this renter"}&apos;s dashboard as a client
+            </span>
+            <span style={{ fontWeight: 500, fontSize: 12, color: "#c3cad6" }}>
+              {viewAsInfo?.email ? `${viewAsInfo.email} · ` : ""}See-only — actions are disabled here.
+            </span>
+          </div>
+          <a href="/admin/customers" style={{ marginLeft: "auto", flex: "none", textDecoration: "none", background: "#fff", color: "#1f2937", borderRadius: 8, padding: "7px 14px", fontWeight: 700, fontSize: 12.5 }}>Exit view</a>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
         <div className="flex items-center gap-2">
@@ -955,22 +986,24 @@ function DashboardContent() {
               )}
               <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                 <button
+                  disabled={viewAs}
                   onClick={() => {
                     setShowTopUp(!showTopUp);
                     setShowWithdraw(false);
                     if (!depositAddress) {
-                      fetch("/api/wallet/deposit-address").then(r => r.json()).then(data => {
+                      fetch(vqs("/api/wallet/deposit-address")).then(r => r.json()).then(data => {
                         if (data.address) setDepositAddress(data.address);
                       }).catch(() => {});
                     }
                   }}
-                  style={{ border: "none", background: V.green, color: "#fff", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
+                  style={{ border: "none", background: V.green, color: "#fff", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: 13.5, cursor: viewAs ? "not-allowed" : "pointer", opacity: viewAs ? 0.45 : 1 }}
                 >
                   + Deposit
                 </button>
                 <button
+                  disabled={viewAs}
                   onClick={() => { setShowWithdraw(!showWithdraw); setShowTopUp(false); }}
-                  style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 9, padding: "9px 14px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}
+                  style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 9, padding: "9px 14px", fontWeight: 600, fontSize: 13.5, cursor: viewAs ? "not-allowed" : "pointer", opacity: viewAs ? 0.45 : 1 }}
                 >
                   Withdraw
                 </button>
@@ -1297,6 +1330,12 @@ function DashboardContent() {
                 const pf = proxyFix[rental.id] ?? (rental.proxyFix ? { status: rental.proxyFix.status, ticketRef: rental.proxyFix.ticketRef } : undefined);
                 const pfStatus = pf?.status; // fixing | swapped | done | escalated
                 const canReportProxy = !R && !prep && !rental.paused && rental.status === "active" && ready && !pfStatus;
+                // Paid but not live yet: the renter still has to finish GoLogin setup on their
+                // end (install + sign in with the exact email we share to). We keep auto-granting
+                // every ~30 min, so this clears itself once they've signed in — but until then we
+                // show them exactly what to do instead of a dead "awaiting access" label.
+                const pendingSetup = !R && !prep && !rental.paused && rental.status === "pending_access" && !ready;
+                const setupEmail = rental.gologinLoginEmail || "";
 
                 const cDays = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
                 let sc = V.green, sl = "Active", ss = "Ready in GoLogin";
@@ -1310,6 +1349,7 @@ function DashboardContent() {
                 else if (rental.paused) { sc = V.faint; sl = "Paused"; ss = "Access paused"; }
                 else if (rental.status === "payment_failed") { sc = "#b91c1c"; sl = "Payment issue"; ss = "Update your balance or card"; }
                 else if (ready) { sc = V.green; sl = "Active"; ss = "Ready in GoLogin"; }
+                else if (pendingSetup) { sc = V.blue; sl = "Setting up access"; ss = "Finish GoLogin setup to go live"; }
                 else { sc = V.faint; sl = "Awaiting access"; ss = "Share link not available yet"; }
 
                 const billL = R ? "Billing" : prep ? "Billing" : rental.autoRenew ? "Renews" : "Ends";
@@ -1356,7 +1396,7 @@ function DashboardContent() {
                         <span style={{ fontWeight: 500, fontSize: 12, color: V.faint }}>{billL}</span>
                         <span style={{ fontWeight: 700, fontSize: 13.5 }}>{billV}{billNote && <span style={{ fontWeight: 700, fontSize: 11.5, color: V.green, marginLeft: 6 }}>{billNote}</span>}</span>
                         {!R && !prep && rental.status === "active" && (
-                          <button onClick={() => toggleAutoRenew(rental)} title="Turn auto-renew on or off" style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 999, padding: "3px 10px 3px 4px", fontWeight: 700, fontSize: 11.5, cursor: "pointer", background: rental.autoRenew ? "#e7f7ee" : "#f1f3f6", color: rental.autoRenew ? "#0f7a3d" : V.muted }}>
+                          <button onClick={() => toggleAutoRenew(rental)} disabled={viewAs} title="Turn auto-renew on or off" style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 999, padding: "3px 10px 3px 4px", fontWeight: 700, fontSize: 11.5, cursor: viewAs ? "not-allowed" : "pointer", opacity: viewAs ? 0.5 : 1, background: rental.autoRenew ? "#e7f7ee" : "#f1f3f6", color: rental.autoRenew ? "#0f7a3d" : V.muted }}>
                             <span style={{ width: 22, height: 14, borderRadius: 999, background: rental.autoRenew ? V.green : "#c3c9d3", position: "relative", display: "block" }}><span style={{ position: "absolute", top: 2, left: rental.autoRenew ? 10 : 2, width: 10, height: 10, borderRadius: "50%", background: "#fff" }} /></span>
                             {rental.autoRenew ? "Auto-renew on" : "Auto-renew off"}
                           </button>
@@ -1368,15 +1408,15 @@ function DashboardContent() {
                           {(!R && !prep && ready && canSeeCreds) ? (
                             <button onClick={() => setOpenCredsId((p) => (p === rental.id ? null : rental.id))} style={{ border: "1px solid #c9d6f5", background: "#fff", color: V.blue, width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{credsOpen ? "Hide sign-in" : "Sign-in"}</button>
                           ) : (R && eligible && !isWaiting && !perm) ? (
-                            <button onClick={() => { setWaitingIds((p) => new Set(p).add(rental.id)); fetch(`/api/rentals/${rental.id}/wait`, { method: "POST" }).then(() => refreshRentals()).catch(() => {}); }} title="Keep this account. We'll keep trying to recover it, and billing stays paused." style={{ border: "1px solid #f5c39b", background: "#fff", color: "#9a3412", width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>I&apos;ll wait</button>
+                            <button onClick={() => { if (viewAs) return; setWaitingIds((p) => new Set(p).add(rental.id)); fetch(`/api/rentals/${rental.id}/wait`, { method: "POST" }).then(() => refreshRentals()).catch(() => {}); }} title="Keep this account. We'll keep trying to recover it, and billing stays paused." style={{ border: "1px solid #f5c39b", background: "#fff", color: "#9a3412", width: 116, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>I&apos;ll wait</button>
                           ) : null}
                         </div>
                         <div style={{ display: "flex", justifyContent: "flex-end" }}>
                           {R ? (
                             isWaiting ? (
-                              <button onClick={() => setReplacingRental(rental)} style={{ border: "1px solid #f5c39b", background: "#fff", color: "#9a3412", width: 132, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>Replace instead</button>
+                              <button onClick={() => { if (viewAs) return; setReplacingRental(rental); }} style={{ border: "1px solid #f5c39b", background: "#fff", color: "#9a3412", width: 132, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 12.5, cursor: viewAs ? "not-allowed" : "pointer", opacity: viewAs ? 0.5 : 1, whiteSpace: "nowrap" }}>Replace instead</button>
                             ) : eligible ? (
-                              <button onClick={() => setReplacingRental(rental)} style={{ border: "none", background: V.orange, color: "#fff", width: 132, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>Replace account</button>
+                              <button onClick={() => { if (viewAs) return; setReplacingRental(rental); }} style={{ border: "none", background: V.orange, color: "#fff", width: 132, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12.5, cursor: viewAs ? "not-allowed" : "pointer", opacity: viewAs ? 0.5 : 1, whiteSpace: "nowrap" }}>Replace account</button>
                             ) : (
                               <span title="You can replace it if we haven't recovered it by then" style={{ width: 132, boxSizing: "border-box", textAlign: "center", border: "1px dashed #f5c39b", color: "#9a3412", borderRadius: 8, padding: "7px 0", fontWeight: 600, fontSize: 12.5, whiteSpace: "nowrap" }}>Replace in {remH}h</span>
                             )
@@ -1384,12 +1424,50 @@ function DashboardContent() {
                             <span style={{ width: 132, boxSizing: "border-box", textAlign: "center", border: "1px dashed #d5dbe5", color: V.faint, borderRadius: 8, padding: "7px 0", fontWeight: 600, fontSize: 12.5, whiteSpace: "nowrap" }}>After handover</span>
                           ) : ready ? (
                             <button onClick={() => setOpenLinkId((p) => (p === rental.id ? null : rental.id))} style={{ border: "none", background: V.blue, color: "#fff", width: 132, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" }}>{linkOpen ? "Hide link" : "Open in GoLogin"}</button>
+                          ) : pendingSetup ? (
+                            <a href="https://gologin.com/download" target="_blank" rel="noopener noreferrer" style={{ border: "none", background: V.blue, color: "#fff", width: 132, boxSizing: "border-box", textAlign: "center", borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12.5, textDecoration: "none", whiteSpace: "nowrap" }}>Get GoLogin ↗</a>
                           ) : (
                             <span style={{ width: 132, boxSizing: "border-box", textAlign: "center", fontWeight: 600, fontSize: 12, color: V.faint, whiteSpace: "nowrap" }}>Not ready yet</span>
                           )}
                         </div>
                       </div>
                     </div>
+
+                    {pendingSetup && (
+                      <div style={{ margin: "0 18px 16px", padding: 16, background: "#f5f8ff", border: "1px solid #dfe7fb", borderRadius: 12, display: "flex", flexDirection: "column", gap: 13 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: "#1f2b45" }}>Two quick steps to go live — then you&apos;re set</span>
+                          <span style={{ fontWeight: 500, fontSize: 12.5, lineHeight: 1.45, color: "#5b6779" }}>You run this profile inside GoLogin (free). Once you&apos;ve installed it and signed in with the email below, this account unlocks here <strong>automatically</strong> — usually within ~30 minutes. Nothing else to do.</span>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
+                          {/* Step 1 — install */}
+                          <div style={{ display: "flex", gap: 9 }}>
+                            <span style={{ flex: "none", width: 20, height: 20, borderRadius: "50%", background: V.blue, color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 11 }}>1</span>
+                            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                              <span style={{ fontWeight: 600, fontSize: 12.5, lineHeight: 1.4, color: "#3b4657" }}>Install GoLogin (free) and open it.</span>
+                              <a href="https://gologin.com/download" target="_blank" rel="noopener noreferrer" style={{ background: V.blue, color: "#fff", borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 12, textDecoration: "none" }}>Download GoLogin ↗</a>
+                            </div>
+                          </div>
+                          {/* Step 2 — sign in with the exact email */}
+                          <div style={{ display: "flex", gap: 9 }}>
+                            <span style={{ flex: "none", width: 20, height: 20, borderRadius: "50%", background: V.blue, color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 11 }}>2</span>
+                            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                              <span style={{ fontWeight: 600, fontSize: 12.5, lineHeight: 1.4, color: "#3b4657" }}>Sign in to GoLogin with <strong>this exact email</strong> — it&apos;s how we share your profile:</span>
+                              {setupEmail && (
+                                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", maxWidth: "100%" }}>
+                                  <span className={mono.className} style={{ background: "#fff", border: "1px solid #d5dbe5", borderRadius: 7, padding: "5px 9px", fontWeight: 600, fontSize: 12, color: V.text, wordBreak: "break-all" }}>{setupEmail}</span>
+                                  <button onClick={() => { try { navigator.clipboard?.writeText(setupEmail); setSetupEmailCopied(rental.id); setTimeout(() => setSetupEmailCopied(null), 1500); } catch {} }} style={{ border: "1px solid #d5dbe5", background: "#fff", color: V.text, borderRadius: 7, padding: "5px 10px", fontWeight: 600, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>{setupEmailCopied === rental.id ? "Copied" : "Copy"}</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "9px 11px", background: "#eef3ff", borderRadius: 9 }}>
+                          <span aria-hidden style={{ fontSize: 13, lineHeight: 1.3 }}>✓</span>
+                          <span style={{ fontWeight: 500, fontSize: 12, lineHeight: 1.45, color: "#3b4657" }}>That&apos;s it — the profile appears under &quot;Shared with me&quot; in GoLogin and this row flips to <strong>Active</strong> on its own. Prefer a different GoLogin email? Email <span style={{ fontWeight: 700 }}>info@linkedvelocity.com</span> and we&apos;ll point your access there.</span>
+                        </div>
+                      </div>
+                    )}
 
                     {linkOpen && shareUrl && (
                       <div style={{ margin: "0 18px 16px", padding: 14, background: "#f5f8ff", border: "1px solid #dfe7fb", borderRadius: 12, display: "flex", flexDirection: "column", gap: 12 }}>

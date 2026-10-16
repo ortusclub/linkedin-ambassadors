@@ -1,13 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canShowRentalShareLink } from "@/lib/rental-dashboard-access";
-import { requireAuth } from "@/lib/auth";
 import { decryptSecret } from "@/lib/crypto-creds";
 import { monthlyRentalPrice } from "@/lib/account-pricing";
+import { resolveViewUser } from "@/lib/view-as";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const user = await requireAuth();
+    // Normally the signed-in renter; an admin can pass ?view_as=<userId> to see a renter's
+    // own rentals exactly as they do (see-only — this never mutates anything).
+    const { user, viewAs } = await resolveViewUser(req);
 
     const rentals = await prisma.rental.findMany({
       where: { userId: user.id },
@@ -95,6 +97,10 @@ export async function GET() {
         credentialAccess: showCreds,
         price,
         recovery,
+        // The exact email this renter must use to set up GoLogin — the address we share the
+        // profile to (their account email, unless an override is on file). Shown on the
+        // "finish GoLogin setup" card while a rental is still pending access.
+        gologinLoginEmail: user.gologinShareEmail || user.email,
         proxyFix: swapByRental.get(r.id) ?? null,
         linkedinAccount: {
           ...account,
@@ -106,7 +112,10 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ rentals: shaped });
+    return NextResponse.json({
+      rentals: shaped,
+      viewAs: viewAs ? { name: user.fullName, email: user.email } : null,
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

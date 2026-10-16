@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
 import { getDepositAddress } from "@/lib/wallet";
+import { resolveViewUser } from "@/lib/view-as";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const user = await requireAuth();
+    const { user } = await resolveViewUser(req); // admin ?view_as=<id> sees the renter's deposit address (read-only)
 
     // Check if user already has a deposit address
     let deposit = await prisma.depositAddress.findUnique({

@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
 import { isShadowRenterEmail, shadowRateFor, activeShadowAccountIds } from "@/lib/shadow-rental";
+import { resolveViewUser } from "@/lib/view-as";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const user = await requireAuth();
+    const { user } = await resolveViewUser(req); // admin ?view_as=<id> sees the renter's wallet (read-only)
     const data = await prisma.user.findUnique({
       where: { id: user.id },
       select: { usdcBalance: true, isShadowRenter: true, email: true },
