@@ -66,6 +66,7 @@ interface Account {
   heldFor: string | null;
   heldBy: string | null;
   rentalReadyChecklist: Record<string, { done?: boolean; by?: string | null; at?: string | null }> | null;
+  rentalReady: boolean;
   manualPaidUntil: string | null;
   inventoryPool?: string | null;
   shadowRenter: string | null;
@@ -359,6 +360,7 @@ export default function InventoryV2Page() {
       if (conn !== "all" && connBucket(a.connectionCount) !== conn) return false;
       if (age !== "all" && ageBucket(a.accountAgeMonths) !== age) return false;
       if (supply === "offer" && !(canonicalStatus(a) === "Available" && !a.shadowRenter)) return false;
+      if (supply === "unverified" && !(canonicalStatus(a) === "Available" && !a.rentalReady)) return false;
       if (supply === "shadow" && !a.shadowRenter) return false;
       if (ql) { const hay = [a.linkedinName, a.loginEmail, a.ownerName, a.rentals[0]?.user?.fullName, a.location, a.industry].join(" ").toLowerCase(); if (!hay.includes(ql)) return false; }
       return true;
@@ -489,7 +491,7 @@ export default function InventoryV2Page() {
             <select value={ver} onChange={(e) => setVer(e.target.value)} style={inp}><option value="all">Verified + unverified</option><option value="v">Verified only</option><option value="u">Unverified only</option></select>
             <select value={conn} onChange={(e) => setConn(e.target.value)} style={inp}><option value="all">Any connections</option><option value="0">&lt; 50</option><option value="1">50–100</option><option value="2">100–500</option><option value="3">500–999</option><option value="4">1k+</option></select>
             <select value={age} onChange={(e) => setAge(e.target.value)} style={inp}><option value="all">Any age</option><option value="0">&lt; 1 year</option><option value="1">1–3 years</option><option value="2">3–5 years</option><option value="3">5–10 years</option><option value="4">10+ years</option></select>
-            <select value={supply} onChange={(e) => setSupply(e.target.value)} style={inp}><option value="all">All supply</option><option value="offer">Available to offer</option><option value="shadow">Shadow</option></select>
+            <select value={supply} onChange={(e) => setSupply(e.target.value)} style={inp}><option value="all">All supply</option><option value="offer">Available to offer</option><option value="unverified">Available · unverified</option><option value="shadow">Shadow</option></select>
             <select value={sort} onChange={(e) => setSort(e.target.value)} style={inp}><option value="upd">Last updated</option><option value="price">Price, high → low</option><option value="conn">Connections, most first</option><option value="age">Age, oldest first</option><option value="name">Name A–Z</option></select>
             {hasFilters && <button onClick={clearAll} style={{ border: "none", background: "none", color: BLUE, font: `700 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>Clear filters</button>}
           </div>
@@ -600,6 +602,8 @@ export default function InventoryV2Page() {
                     const flags: { l: string; bg: string; fg: string; tip?: string }[] = [];
                     const heldActive = !!r.heldUntil && new Date(r.heldUntil) > new Date();
                     if (heldActive) flags.push({ l: `⏸ Held${r.heldFor ? ` · ${r.heldFor}` : ""}`, bg: "#f1f5f9", fg: "#334155", tip: `Reserved${r.heldFor ? ` for ${r.heldFor}` : ""}${r.heldBy ? ` by ${r.heldBy}` : ""} until ${fmtDYT(r.heldUntil)} — hidden from all catalogues` });
+                    // Available but rental-ready checklist not complete → needs a housekeeping sweep.
+                    if (canonicalStatus(r) === "Available" && !r.rentalReady) flags.push({ l: "⚠ unverified", bg: "#fff7ed", fg: "#9a3412", tip: "Rental-ready checklist not complete — open Sign-in & credentials to sweep it" });
                     if (overdue) flags.push({ l: `Overdue ${money(price)}`, ...RP, tip: "Renewal payment failed — chase the renter" });
                     if (needsRotate) flags.push({ l: "Rotate", ...RP, tip: "Rotate 2FA key + GoLogin link before re-renting" });
                     // Open access issues: no stored per-account access-issue list yet (IssueActions only emails) — inert for now.
