@@ -307,6 +307,34 @@ export default function InventoryV2Page() {
     } finally { setBusy(null); }
   };
   const recheck = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/check-health`, { method: "POST" }); await load(); } finally { setBusy(null); } };
+  // Status-strip state machine. Active/Restricted go through /restricted (keeps downtime-credit +
+  // billing-paused logic in one place); Perm./Withdrawn through /state; and listing an unrented
+  // account Active runs the rental-ready gate (blocked → the server's reason is shown).
+  const setState = async (a: Account, pill: "active" | "restricted" | "perm" | "withdrawn") => {
+    const H = { "Content-Type": "application/json" };
+    setBusy(a.id);
+    try {
+      if (pill === "restricted") {
+        await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: H, body: JSON.stringify({ restricted: true }) });
+      } else if (pill === "perm" || pill === "withdrawn") {
+        await fetch(`/api/admin/accounts/${a.id}/state`, { method: "POST", headers: H, body: JSON.stringify({ state: pill }) });
+      } else {
+        // Active: clear whatever non-active state it's in, then (if unrented) list it through the gate.
+        if (a.restrictedAt) await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: H, body: JSON.stringify({ restricted: false }) });
+        if (a.permanentlyRestricted || a.status === "retired" || a.status === "unavailable" || a.status === "removed") {
+          await fetch(`/api/admin/accounts/${a.id}/state`, { method: "POST", headers: H, body: JSON.stringify({ state: "clear" }) });
+        } else {
+          await fetch(`/api/admin/accounts/${a.id}`, { method: "PATCH", headers: H, body: JSON.stringify({ linkedinAccountHealth: "active", healthCheckedAt: new Date().toISOString() }) });
+        }
+        const rented = a.status === "rented" || (a.rentals && a.rentals.length > 0);
+        if (!rented) {
+          const res = await fetch(`/api/admin/accounts/${a.id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "available" }) });
+          if (res && !res.ok) { const d = await res.json().catch(() => ({} as { error?: string })); alert(d.error || "Couldn't set Active."); }
+        }
+      }
+      await load();
+    } finally { setBusy(null); }
+  };
   const trial = async (a: Account) => { setBusy(a.id); try { await fetch(`/api/admin/accounts/${a.id}/trial`, { method: "POST" }); await load(); } finally { setBusy(null); } };
   const toggleRent = async (a: Account) => {
     if (a.status === "rented" || a.status === "trial") return;
@@ -711,7 +739,7 @@ export default function InventoryV2Page() {
                           <span style={{ font: `700 14px ${F}`, color: MUT, display: "inline-block", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
                         </div>
 
-                        {isOpen && <ExpandedDetail r={r} tab={curTab} setTab={(t) => setTab((m) => ({ ...m, [r.id]: t }))} busy={busy === r.id} price={price} markActive={() => markActive(r)} setRestricted={(v) => setRestricted(r, v)} recheck={() => recheck(r)} hold={(days, heldFor) => hold(r, days, heldFor)} release={() => release(r)} patch={patch} patchApp={patchApp} reload={load} />}
+                        {isOpen && <ExpandedDetail r={r} tab={curTab} setTab={(t) => setTab((m) => ({ ...m, [r.id]: t }))} busy={busy === r.id} price={price} setState={(pill) => setState(r, pill)} recheck={() => recheck(r)} hold={(days, heldFor) => hold(r, days, heldFor)} release={() => release(r)} patch={patch} patchApp={patchApp} reload={load} />}
                       </div>
                     );
                   }); })()}
@@ -957,9 +985,9 @@ function RentalHistory({ accountId }: { accountId: string }) {
   );
 }
 
-function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted, recheck, hold, release, patch, patchApp, reload }: {
+function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, release, patch, patchApp, reload }: {
   r: Account; tab: "overview" | "signin" | "mail" | "owner"; setTab: (t: "overview" | "signin" | "mail" | "owner") => void; busy: boolean; price: number;
-  markActive: () => void; setRestricted: (v: boolean) => void; recheck: () => void;
+  setState: (pill: "active" | "restricted" | "perm" | "withdrawn") => void; recheck: () => void;
   hold: (days: number, heldFor: string) => void; release: () => void;
   patch: (id: string, body: Record<string, unknown>, reload?: boolean) => Promise<Response | undefined>;
   patchApp: (appId: string, body: Record<string, unknown>) => Promise<Response | undefined>; reload: () => void;
@@ -1034,6 +1062,33 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
 
   return (
     <div onClick={(e) => e.stopPropagation()} style={{ position: "sticky", left: 0, width: "calc(100vw - 96px)", maxWidth: 1328, padding: "4px 16px 14px", background: "#fafbfc", cursor: "default" }}>
+      {/* Status strip — the one place to change account state (replaces Mark active / Mark restricted). */}
+      {(() => {
+        const sel = (r.permanentlyRestricted || r.status === "retired") ? "perm" : r.restrictedAt ? "restricted" : (r.status === "unavailable" || r.status === "removed") ? "withdrawn" : "active";
+        const PILLS: { k: "active" | "restricted" | "perm" | "withdrawn"; l: string; bg: string; fg: string }[] = [
+          { k: "active", l: "Active", bg: "#e7f7ee", fg: "#0f7a3d" },
+          { k: "restricted", l: "Restricted", bg: "#fff7ed", fg: "#c2410c" },
+          { k: "perm", l: "Perm. restricted", bg: "#fef2f2", fg: "#b91c1c" },
+          { k: "withdrawn", l: "Withdrawn", bg: "#f1f3f6", fg: "#5b6779" },
+        ];
+        const warmDays = r.warmupStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(r.warmupStartedAt).getTime()) / 86400000)) : null;
+        return (
+          <div style={{ background: "#fff", border: `1px solid #e6e9ee`, borderRadius: 12, padding: "11px 14px", margin: "4px 0 10px", display: "flex", alignItems: "center", gap: "12px 28px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <Lbl>Status</Lbl>
+              {PILLS.map((p) => {
+                const on = sel === p.k;
+                return <button key={p.k} onClick={() => { if (!on) setState(p.k); }} disabled={busy} style={{ border: on ? `1px solid ${p.bg}` : `1px solid #dde1e8`, background: on ? p.bg : "#fff", color: on ? p.fg : SUB, borderRadius: 999, padding: "5px 12px", font: `700 12px ${F}`, cursor: busy ? "default" : "pointer" }}>{on ? "● " : ""}{p.l}</button>;
+              })}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ font: `500 11.5px ${F}`, color: MUT }}>{r.healthCheckedAt ? `Last checked ${fmtDY(r.healthCheckedAt)}` : "Not yet checked"}</span>
+              <button onClick={recheck} disabled={busy} style={{ border: `1px solid #dde1e8`, background: "#fff", color: SUB, borderRadius: 999, padding: "3px 10px", font: `700 11px ${F}`, cursor: "pointer" }}>↻ Re-check</button>
+            </div>
+            {warmDays !== null && <span style={{ font: `700 11.5px ${F}`, color: "#c2410c", background: "#fff7ed", borderRadius: 999, padding: "3px 10px" }}>🔥 {warmDays}d</span>}
+          </div>
+        );
+      })()}
       <div style={{ display: "flex", gap: 3, background: BG, borderRadius: 10, padding: 3, margin: "4px 0 12px", width: "max-content" }}>
         <Tab k="overview" l="Overview" /><Tab k="signin" l="Sign-in & credentials" /><Tab k="mail" l={<span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>Account mail{r.mailNeedsReview + r.mailIncidentOpen > 0 && <span style={{ font: `800 9.5px ${F}`, color: "#fff", background: RED, borderRadius: 999, padding: "1px 5px", lineHeight: 1.3 }}>{r.mailNeedsReview + r.mailIncidentOpen}</span>}</span>} /><Tab k="owner" l="Owner & activity" />
       </div>
@@ -1101,16 +1156,6 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
             <Card pad="14px">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Sign-in &amp; credentials</Lbl>{r.gologinShareLink && <a href={r.gologinShareLink} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", font: `700 12.5px ${F}`, color: BLUE, textDecoration: "none" }}>↗ Open GoLogin</a>}</div>
               <Totp accountId={r.id} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, borderTop: `1px solid ${LINE2}`, paddingTop: 12 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}><Lbl>Health actions</Lbl><span style={{ marginLeft: "auto", font: `600 11.5px ${F}`, color: r.restrictedAt ? REDD : GREEND }}>{r.restrictedAt ? "restricted" : r.linkedinAccountHealth === "active" ? "healthy" : (r.linkedinAccountHealth || "unchecked")}</span></div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {r.restrictedAt
-                    ? <button onClick={() => setRestricted(false)} disabled={busy} style={{ border: `1.5px solid ${GREEN}`, background: "#f0fdf4", color: GREEND, borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>✓ Mark recovered</button>
-                    : <><button onClick={markActive} disabled={busy} style={{ border: `1.5px solid ${GREEN}`, background: "#fff", color: GREEND, borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>✓ Mark active</button>
-                       <button onClick={() => setRestricted(true)} disabled={busy} style={{ border: `1.5px solid ${RED}`, background: "#fff", color: REDD, borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Mark restricted</button></>}
-                  <button onClick={recheck} disabled={busy} style={{ border: `1.5px solid ${LINE}`, background: "#fff", color: "#3b4657", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>↻ Re-check</button>
-                </div>
-              </div>
               {(() => {
                 const heldActive = !!r.heldUntil && new Date(r.heldUntil) > new Date();
                 return (
@@ -1242,10 +1287,6 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
               {/* restriction history */}
               <Card pad="14px">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Restriction history</Lbl><span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: rCnt ? REDD : GREEND }}>{rCnt ? `${rCnt} restriction${rCnt === 1 ? "" : "s"}` : "clean"}</span></div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={markActive} disabled={busy} style={{ flex: 1, border: "1px solid #bfe6cf", background: "#fff", color: GREEND, borderRadius: 9, padding: 8, font: `700 12.5px ${F}`, cursor: "pointer" }}>✓ Log active</button>
-                  <button onClick={() => setRestricted(true)} disabled={busy} style={{ flex: 1, border: "1px solid #fecaca", background: "#fff", color: REDD, borderRadius: 9, padding: 8, font: `700 12.5px ${F}`, cursor: "pointer" }}>Log restricted</button>
-                </div>
                 {rh.length > 0 ? <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: `1px solid ${LINE2}`, paddingTop: 10 }}>{rh.map((h, i) => (
                   <div key={i} style={{ display: "grid", gridTemplateColumns: "96px 86px minmax(0,1fr)", gap: 8, font: `500 12.5px ${F}`, color: SUB }}><span style={{ color: MUT }}>{fmtDY(h.at)}</span><b style={{ color: h.event === "recovered" ? GREEND : REDD }}>{h.event === "recovered" ? "Recovered" : "Restricted"}</b><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={h.note || ""}>{h.note || (h.creditedDays ? `+${h.creditedDays}d credit` : "—")}</span></div>
                 ))}</div> : <span style={{ font: `500 12.5px ${F}`, color: MUT }}>Never restricted.</span>}
