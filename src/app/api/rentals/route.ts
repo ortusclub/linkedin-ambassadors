@@ -81,12 +81,16 @@ export async function GET(req: NextRequest) {
       );
       // Recently recovered from a restriction (and not restricted now): surface a short note
       // that explains the credited (pushed-out) renewal date. Fades after RECOVERY_WINDOW_MS.
+      // Only shown when days were actually credited — a restriction so brief it rounds to 0
+      // downtime never cost the renter anything and they likely never saw it flagged, so a
+      // "recovered · +0 days" note would just be confusing noise. Those read as plain Active.
       let recovery: { at: string; creditedDays: number } | null = null;
       if (!account.restrictedAt && Array.isArray(restrictionLog)) {
         const log = restrictionLog as Array<{ at?: string; event?: string; creditedDays?: number }>;
         const rec = [...log].reverse().find((e) => e?.event === "recovered" && e?.at);
-        if (rec?.at && Date.now() - new Date(rec.at).getTime() <= RECOVERY_WINDOW_MS) {
-          recovery = { at: rec.at, creditedDays: typeof rec.creditedDays === "number" ? rec.creditedDays : 0 };
+        const credited = typeof rec?.creditedDays === "number" ? rec.creditedDays : 0;
+        if (rec?.at && credited > 0 && Date.now() - new Date(rec.at).getTime() <= RECOVERY_WINDOW_MS) {
+          recovery = { at: rec.at, creditedDays: credited };
         }
       }
       return {

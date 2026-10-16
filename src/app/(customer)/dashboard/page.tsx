@@ -1320,7 +1320,10 @@ function DashboardContent() {
                 const creditDays = R ? Math.max(1, Math.ceil((nowTick - new Date(acct.restrictedAt!).getTime()) / 3600000 / 24)) : 0;
                 const progress = R ? Math.min(100, Math.max(0, (nowTick - new Date(acct.restrictedAt!).getTime()) / REPLACEMENT_HOLD_MS * 100)) : 0;
                 // Recently recovered (active, not restricted/prepping): show the green "recovered" treatment.
-                const rec = (!R && !prep && rental.recovery) ? rental.recovery : null;
+                // Only treat as "recovered" when days were actually credited — a sub-day
+                // restriction that rounded to 0 downtime never surfaced to the renter, so it
+                // reads as plain Active (the API already withholds these; this is defensive).
+                const rec = (!R && !prep && rental.recovery && rental.recovery.creditedDays > 0) ? rental.recovery : null;
                 const recDaysAgo = rec ? Math.floor((Date.now() - new Date(rec.at).getTime()) / 864e5) : 0;
                 const recWhen = recDaysAgo <= 0 ? "today" : `${recDaysAgo} ${recDaysAgo === 1 ? "day" : "days"} ago`;
                 const canSeeCreds = !!rental.credentialAccess;
