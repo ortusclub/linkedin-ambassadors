@@ -327,7 +327,7 @@ export default function EditAccountPage() {
                 try {
                   const res = await fetch(`/api/admin/accounts/${params.id}`, { method: "DELETE" });
                   if (res.ok) {
-                    router.push("/admin/accounts");
+                    router.push("/admin/inventory-v2");
                   } else {
                     const data = await res.json();
                     setError(data.error || "Failed to delete");

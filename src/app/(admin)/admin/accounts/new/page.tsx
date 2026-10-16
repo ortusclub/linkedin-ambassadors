@@ -111,7 +111,7 @@ export default function NewAccountPage() {
         return;
       }
 
-      router.push("/admin/accounts");
+      router.push("/admin/inventory-v2");
     } catch {
       setError("Failed to save account");
     } finally {

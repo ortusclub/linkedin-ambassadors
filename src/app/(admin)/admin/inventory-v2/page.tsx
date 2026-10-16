@@ -291,11 +291,60 @@ export default function InventoryV2Page() {
   const [bannerOpen, setBannerOpen] = useState(true);
   const [sheetFormula, setSheetFormula] = useState<string | null>(null);
   const [copiedFormula, setCopiedFormula] = useState(false);
+  // CSV bulk import (ported from the retired live-inventory page — same template + POST /api/admin/accounts).
+  const [showImport, setShowImport] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
 
   const load = () => fetch("/api/admin/inventory-v2").then((r) => r.json()).then((d) => setAccounts(d.accounts || [])).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
   useEffect(() => { fetch("/api/admin/accounts/export-url").then((r) => r.json()).then((d) => { if (d.url) setSheetFormula(`=IMPORTDATA("${d.url}")`); }).catch(() => {}); }, []);
   const copyFormula = () => { if (!sheetFormula) return; navigator.clipboard?.writeText(sheetFormula); setCopiedFormula(true); setTimeout(() => setCopiedFormula(false), 1400); };
+  const csvTemplate = `Account Email,LinkedIn Name,LinkedIn URL,Connections,Industry,Location,Sales Navigator,Account Opened,Rental Price,Ambassador Payment,Status,Profile Photo URL,GoLogin Share Link
+mikka@example.com,Mikka Aloria,https://www.linkedin.com/in/mikka-aloria/,5000,Technology,London,no,2020-01-15,50,25,available,https://example.com/photo.jpg,https://app.gologin.com/share/abc123`;
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => setCsvText((ev.target?.result as string) || ""); reader.readAsText(file); };
+  const parseCsvLine = (line: string): string[] => { const r: string[] = []; let cur = "", q = false; for (const ch of line) { if (ch === '"') q = !q; else if (ch === "," && !q) { r.push(cur.trim()); cur = ""; } else cur += ch; } r.push(cur.trim()); return r; };
+  const handleCsvImport = async () => {
+    if (!csvText.trim()) return;
+    setImporting(true); setImportResult(null);
+    const lines = csvText.trim().split("\n");
+    const firstLine = lines[0].toLowerCase().trim();
+    const isHeaderRow = firstLine.includes("account email") || firstLine.includes("linkedin name") || firstLine.includes("email");
+    const headerCols = isHeaderRow ? parseCsvLine(lines[0]).map((c) => c.trim().toLowerCase()) : [];
+    const dataLines = isHeaderRow ? lines.slice(1) : lines;
+    const colIndex = (name: string) => headerCols.findIndex((h) => h.includes(name));
+    const getCol = (cols: string[], name: string, fb: number) => { const idx = isHeaderRow ? colIndex(name) : fb; return idx >= 0 && idx < cols.length ? cols[idx]?.trim() : ""; };
+    let success = 0, failed = 0;
+    for (const line of dataLines) {
+      if (!line.trim()) continue;
+      const cols = parseCsvLine(line);
+      const accountEmail = getCol(cols, "account email", 0) || getCol(cols, "email", 0);
+      const accountOpened = getCol(cols, "account opened", 7) || getCol(cols, "opened", 7);
+      let ageM: number | undefined;
+      if (accountOpened) { const o = new Date(accountOpened); if (!isNaN(o.getTime())) { const n = new Date(); ageM = (n.getFullYear() - o.getFullYear()) * 12 + (n.getMonth() - o.getMonth()); } }
+      const status = getCol(cols, "status", 10);
+      try {
+        const res = await fetch("/api/admin/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          linkedinName: getCol(cols, "linkedin name", 1) || getCol(cols, "name", 1) || accountEmail?.split("@")[0] || "Unknown",
+          linkedinUrl: getCol(cols, "linkedin url", 2) || getCol(cols, "url", 2) || undefined,
+          connectionCount: parseInt(getCol(cols, "connections", 3)) || 0,
+          industry: getCol(cols, "industry", 4) || undefined,
+          location: getCol(cols, "location", 5) || undefined,
+          hasSalesNav: ["yes", "true"].includes((getCol(cols, "sales nav", 6) || "").toLowerCase()),
+          accountAgeMonths: ageM || undefined,
+          monthlyPrice: parseFloat(getCol(cols, "rental price", 8) || getCol(cols, "rental", 8)) || 0,
+          ambassadorPayment: parseFloat(getCol(cols, "ambassador payment", 9) || getCol(cols, "ambassador", 9) || getCol(cols, "payout", 9)) || 0,
+          profilePhotoUrl: getCol(cols, "photo", 11) || getCol(cols, "image", 11) || undefined,
+          gologinShareLink: getCol(cols, "gologin", 12) || getCol(cols, "share link", 12) || undefined,
+          notes: `Ambassador account. Owner: admin. Profile email: ${accountEmail || ""}.`,
+          status: ["under_review", "available", "unavailable", "rented", "maintenance", "retired"].includes(status?.trim().toLowerCase()) ? status.trim().toLowerCase() : "under_review",
+        }) });
+        if (res.ok) success++; else failed++;
+      } catch { failed++; }
+    }
+    setImportResult({ success, failed }); setImporting(false); load();
+  };
   const patchApp = async (appId: string, body: Record<string, unknown>) => { const res = await fetch(`/api/admin/ambassadors/${appId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (res.ok) await load(); return res; };
 
   const patch = async (id: string, body: Record<string, unknown>, reload = true) => {
@@ -515,18 +564,35 @@ export default function InventoryV2Page() {
     <div style={{ minHeight: "100vh", background: BG, padding: "24px 24px 80px", margin: "-24px", fontFamily: F }}>
       <style>{`.lv-we:hover{color:#2563eb}`}</style>
       {toast && <div style={{ position: "fixed", left: "50%", bottom: 28, transform: "translateX(-50%)", zIndex: 50, background: INK, color: "#fff", font: `700 13px ${F}`, padding: "9px 16px", borderRadius: 999, boxShadow: "0 6px 20px rgba(0,0,0,.18)" }}>{toast}</div>}
+      {showImport && (
+        <div onClick={() => setShowImport(false)} style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "flex-start", justifyContent: "center", background: "rgba(11,18,32,.5)", padding: "6vh 16px" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, background: "#fff", border: `1px solid ${LINE}`, borderRadius: 16, padding: 24, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 20px 60px -20px rgba(0,0,0,.4)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h2 style={{ font: `700 18px ${G}`, color: INK, margin: 0 }}>Import accounts from CSV</h2>
+              <button onClick={() => setShowImport(false)} style={{ font: "400 22px/1 sans-serif", color: MUT, background: "none", border: "none", cursor: "pointer" }}>×</button>
+            </div>
+            <p style={{ font: `500 12.5px ${F}`, color: SUB, margin: "0 0 12px" }}>Upload a CSV or paste rows below. Each row creates an account with &ldquo;Under review&rdquo; status.</p>
+            <input type="file" accept=".csv" onChange={handleFileUpload} style={{ font: `500 12.5px ${F}`, color: SUB, marginBottom: 12 }} />
+            <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} placeholder={csvTemplate} rows={7} style={{ width: "100%", resize: "vertical", border: `1px solid ${LINE}`, borderRadius: 10, padding: "9px 11px", font: `500 12px ${G}`, color: INK, outline: "none", boxSizing: "border-box" }} />
+            {importResult && <p style={{ font: `700 13px ${F}`, color: importResult.failed ? AMBER : GREEND, margin: "12px 0 0" }}>Imported {importResult.success} · {importResult.failed} failed</p>}
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => setCsvText(csvTemplate)} style={{ border: `1px solid ${LINE}`, background: "#fff", color: INK, borderRadius: 10, padding: "9px 16px", font: `600 13px ${F}`, cursor: "pointer" }}>Load template</button>
+              <button onClick={handleCsvImport} disabled={importing || !csvText.trim()} style={{ font: `700 13px ${F}`, color: "#fff", background: INK, border: "none", padding: "9px 16px", borderRadius: 10, cursor: "pointer", opacity: importing || !csvText.trim() ? 0.5 : 1 }}>{importing ? "Importing…" : "Import"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ maxWidth: 1360, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
 
         {/* header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ font: `700 30px ${G}`, color: INK, margin: "0 0 4px", letterSpacing: "-.01em" }}>Inventory <span style={{ font: `700 12px ${F}`, color: "#fff", background: BLUE, borderRadius: 999, padding: "3px 9px", verticalAlign: "middle" }}>v2 preview</span></h1>
+            <h1 style={{ font: `700 30px ${G}`, color: INK, margin: "0 0 4px", letterSpacing: "-.01em" }}>Inventory</h1>
             <p style={{ font: `500 14px ${F}`, color: SUB, margin: 0 }}>Every account we own, what state it&apos;s in, and who&apos;s on it.</p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <Link href="/admin/accounts" style={{ border: `1px solid #dde1e8`, background: "#fff", color: INK, borderRadius: 10, padding: "8px 12px", font: `600 12.5px ${F}`, textDecoration: "none" }}>← Live inventory</Link>
             {sheetFormula && <button onClick={copyFormula} title="Copy the IMPORTDATA formula for the live Google Sheet" style={{ border: "1px solid #cdebd9", background: "#f4fbf7", color: GREEND, borderRadius: 10, padding: "8px 12px", font: `700 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>{copiedFormula ? "Copied ✓" : "Sheets formula"}</button>}
-            <Link href="/admin/accounts" title="CSV import lives on the live Inventory tab" style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 10, padding: "8px 12px", font: `600 12.5px ${F}`, textDecoration: "none" }}>Import CSV</Link>
+            <button onClick={() => { setShowImport(true); setImportResult(null); }} title="Bulk-create accounts from a CSV" style={{ border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 10, padding: "8px 12px", font: `600 12.5px ${F}`, cursor: "pointer" }}>Import CSV</button>
             <label style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, border: "1px solid #dde1e8", background: "#fff", color: INK, borderRadius: 10, padding: "8px 12px", font: `600 12.5px ${F}`, cursor: "pointer", whiteSpace: "nowrap" }}>Catalogue ↗<span style={{ font: `600 10px ${F}`, color: MUT }}>▾</span>
               <select defaultValue="" onChange={(e) => { if (e.target.value === "with") window.open("/catalogue", "_blank"); else if (e.target.value === "without") window.open("/catalogue?pricing=off", "_blank"); e.target.value = ""; }} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}><option value="">Open catalogue…</option><option value="with">With pricing</option><option value="without">Without pricing</option></select>
             </label>
