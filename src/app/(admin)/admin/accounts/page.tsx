@@ -635,6 +635,19 @@ export default function AdminAccountsPage() {
     try {
       const res = await fetch(`/api/admin/accounts/${a.id}/restricted`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restricted, note }) });
       if (res.ok) { const d = await res.json(); setAccounts((prev) => prev.map((x) => (x.id === a.id ? { ...x, restrictedAt: restricted ? (d.restrictedAt || new Date().toISOString()) : null, restrictionLog: (d.restrictionLog as Account["restrictionLog"]) ?? x.restrictionLog } : x))); if (!restricted && d.creditedDays) alert(`Recovered. Credited ~${d.creditedDays} day(s) of downtime to the renter.`); }
+      // One-tap opt-in: email the owner + referrer the restricted notice (with login details).
+      if (res.ok && restricted && confirm("Email the owner and referrer now with the restricted notice + their login details? This is logged on the account.")) {
+        try {
+          const nr = await fetch(`/api/admin/accounts/${a.id}/restrict-notify`, { method: "POST" });
+          const nd = await nr.json().catch(() => ({}));
+          if (nr.ok) {
+            const sentTo = (nd.sent || []).map((s: { recipient: string; to: string }) => `${s.recipient} (${s.to})`).join(", ");
+            const skip = (nd.skipped || []).map((s: { recipient: string; reason: string }) => `${s.recipient}: ${s.reason}`).join("; ");
+            alert(sentTo ? `Emailed ${sentTo}.${skip ? ` Skipped — ${skip}.` : ""}` : (skip ? `No emails sent — ${skip}.` : "No recipients to email."));
+            void load();
+          } else alert(nd.error || "Could not send notifications.");
+        } catch { alert("Could not send notifications."); }
+      }
     } finally { setBusy(null); }
   };
   // Remove a single (mistaken / duplicate) entry from the restriction history. Correction
