@@ -17,6 +17,7 @@ import { tierPricing } from "@/lib/account-pricing";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
 import { RENTAL_READY_ITEMS, RENTAL_READY_OPTIONAL, rentalReadyStatus, type ChecklistState } from "@/lib/rental-ready";
+import { SHARED_TOGGLES, OFFBOARDING_ITEMS, offboardingAuto, offboardingLeft, type Offboarding, type SharedWithRenter } from "@/lib/offboarding";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 import { sortAccountsByLastUpdated } from "@/lib/account-notes";
 import { IssueActions } from "@/components/admin/issue-actions";
@@ -67,6 +68,7 @@ interface Account {
   heldFor: string | null;
   heldBy: string | null;
   rentalReadyChecklist: Record<string, { done?: boolean; by?: string | null; at?: string | null }> | null;
+  offboarding: Offboarding | null;
   rentalReady: boolean;
   gologinStillShared: boolean;
   manualPaidUntil: string | null;
@@ -888,8 +890,86 @@ function MailBtn({ onClick, busy, bg, fg, children }: { onClick: () => void; bus
   return <button onClick={onClick} disabled={busy} style={{ border: "none", cursor: busy ? "default" : "pointer", opacity: busy ? 0.5 : 1, borderRadius: 7, padding: "6px 12px", font: `700 12px ${F}`, background: bg, color: fg, whiteSpace: "nowrap" }}>{children}</button>;
 }
 
+// ── End-of-rental: lock the account down (rotate 2FA / password / sessions) before it re-lists ──
+function EndOfRental({ r, onOpenChange, onClosed }: { r: Account; onOpenChange: (open: boolean) => void; onClosed: () => void }) {
+  const [ob, setOb] = useState<Offboarding>(r.offboarding || {});
+  const [busy, setBusy] = useState(false);
+  // Opens when explicitly started OR when the account already needs rotation (a rental just ended).
+  const open = !!ob.open || !!r.twoFactorResetNeeded;
+  const rented = r.status === "rented" || (r.rentals && r.rentals.length > 0);
+  const autoAcc = { gologinShared: r.gologinStillShared, hasActiveRental: r.rentals && r.rentals.length > 0, proxyHost: r.proxyHost };
+  const auto = offboardingAuto(autoAcc);
+  const left = offboardingLeft(autoAcc, ob);
+  const renter = r.rentals[0]?.user ? (r.rentals[0].user.fullName || r.rentals[0].user.email) : "the renter";
+  const call = async (body: Record<string, unknown>): Promise<boolean> => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/accounts/${r.id}/offboarding`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json().catch(() => ({} as { error?: string })); alert(d.error || "Couldn't update."); return false; }
+      return true;
+    } finally { setBusy(false); }
+  };
+  const start = async () => { if (await call({ action: "start" })) { setOb((o) => ({ ...o, open: true, shared: { gologin: true, totp: false, password: false, workEmail: false, ...(o.shared || {}) }, ticks: o.ticks || {} })); onOpenChange(true); } };
+  const toggleShared = async (key: keyof SharedWithRenter, on: boolean) => { setOb((o) => ({ ...o, shared: { ...(o.shared || {}), [key]: on } })); await call({ action: "shared", key, on }); };
+  const tick = async (key: string, done: boolean) => { setOb((o) => ({ ...o, ticks: { ...(o.ticks || {}), [key]: done } })); await call({ action: "tick", key, done }); };
+  const close = async () => { if (await call({ action: "close" })) { setOb((o) => ({ ...o, open: false })); onOpenChange(false); onClosed(); } };
+
+  if (!open) {
+    if (!rented) return null;
+    return (
+      <Card pad="14px">
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <span style={{ font: `700 12.5px ${F}`, color: INK }}>Rental ending?</span>
+          <span style={{ font: `500 12px/1.5 ${F}`, color: SUB }}>Lock it down before it goes back to Available.</span>
+          <button onClick={start} disabled={busy} style={{ alignSelf: "flex-start", border: `1.5px solid #fecaca`, background: "#fff", color: "#b91c1c", borderRadius: 10, padding: "8px 14px", font: `700 13px ${F}`, cursor: "pointer" }}>Start end-of-rental</button>
+        </div>
+      </Card>
+    );
+  }
+  const shared = ob.shared || {};
+  const ticks = ob.ticks || {};
+  const items = OFFBOARDING_ITEMS.filter((i) => !i.needs || shared[i.needs]);
+  return (
+    <Card pad="14px">
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ font: `800 10.5px ${F}`, letterSpacing: ".07em", textTransform: "uppercase", color: "#b91c1c" }}>End-of-rental checklist</span>
+        <span style={{ marginLeft: "auto", font: `800 11px ${F}`, color: left === 0 ? GREEND : "#b91c1c", background: left === 0 ? "#dcfce7" : "#fee2e2", borderRadius: 999, padding: "2px 9px" }}>{left === 0 ? "✓ Locked down" : `${left} left`}</span>
+      </div>
+      <span style={{ font: `500 11.5px/1.5 ${F}`, color: SUB }}>Do this the moment {renter} stops renting. Only items for what they had are shown.</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <span style={{ font: `800 10px ${F}`, letterSpacing: ".06em", textTransform: "uppercase", color: MUT }}>What did the renter have?</span>
+        <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+          {SHARED_TOGGLES.map((t) => {
+            const on = t.locked ? true : !!shared[t.key];
+            return <button key={t.key} title={t.hint} disabled={busy || t.locked} onClick={() => !t.locked && toggleShared(t.key, !on)} style={{ border: `1px solid ${on ? "#bfd2fb" : "#dde1e8"}`, background: on ? "#eff4ff" : "#fff", color: on ? "#2563eb" : "#5b6779", borderRadius: 999, padding: "5px 11px", font: `700 12px ${F}`, cursor: t.locked ? "default" : "pointer" }}>{on ? "✓ " : ""}{t.label}</button>;
+          })}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "#f6f8fb", border: `1px solid ${LINE2}`, borderRadius: 8, padding: "8px 10px" }}>
+        <span style={{ font: `800 10px ${F}`, letterSpacing: ".06em", textTransform: "uppercase", color: MUT }}>Auto-checked by the system</span>
+        {auto.map((c) => <span key={c.key} style={{ font: `650 11.5px ${F}`, color: c.ok ? GREEND : "#b91c1c" }}>{c.ok ? "✓" : "✕"} {c.label}</span>)}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {items.map((i) => {
+          const done = !!ticks[i.key];
+          return (
+            <label key={i.key} style={{ display: "flex", gap: 9, alignItems: "flex-start", cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+              <input type="checkbox" checked={done} disabled={busy} onChange={(e) => tick(i.key, e.target.checked)} style={{ width: 17, height: 17, marginTop: 1, flex: "none", accentColor: "#12a150", cursor: "inherit", ...(done ? {} : { outline: "1.5px solid #fca5a5", outlineOffset: -1, borderRadius: 4 }) }} />
+              <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                <span style={{ font: `650 12.5px ${F}`, color: done ? GREEND : INK, textDecoration: done ? "line-through" : "none" }}>{i.label}{i.optional && <span style={{ font: `600 10.5px ${F}`, color: MUT }}> · optional</span>}</span>
+                <span style={{ font: `500 11px/1.4 ${F}`, color: MUT }}>{i.hint}</span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      <button onClick={close} disabled={busy || left > 0} style={{ border: "none", background: left > 0 ? "#c3c9d3" : "#0b1220", color: "#fff", borderRadius: 10, padding: "9px 14px", font: `700 13px ${F}`, cursor: left > 0 ? "default" : "pointer" }}>{left > 0 ? `Finish ${left} more to close out` : "Close out rental → back to rental-ready"}</button>
+    </Card>
+  );
+}
+
 // ── Rental-ready: housekeeping that must be done before an account is listed Available (hard gate) ──
-function RentalReady({ r, onReady }: { r: Account; onReady?: (ready: boolean) => void }) {
+function RentalReady({ r, onReady, locked }: { r: Account; onReady?: (ready: boolean) => void; locked?: boolean }) {
   const [checklist, setChecklist] = useState<ChecklistState>((r.rentalReadyChecklist as ChecklistState) || {});
   const [busy, setBusy] = useState<string | null>(null);
   const autoAcc = { restrictedAt: r.restrictedAt, permanentlyRestricted: r.permanentlyRestricted, twoFactorResetNeeded: r.twoFactorResetNeeded, proxyHost: r.proxyHost, gologinShared: r.gologinStillShared };
@@ -916,12 +996,12 @@ function RentalReady({ r, onReady }: { r: Account; onReady?: (ready: boolean) =>
     );
   };
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, borderTop: `1px solid ${LINE2}`, paddingTop: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, borderTop: `1px solid ${LINE2}`, paddingTop: 12, opacity: locked ? 0.45 : 1, pointerEvents: locked ? "none" : "auto" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
         <Lbl>Rental-ready checklist</Lbl>
         <span style={{ marginLeft: "auto", font: `800 11px ${F}`, color: st.ready ? GREEND : "#854d0e", background: st.ready ? "#dcfce7" : "#fef3c7", borderRadius: 999, padding: "2px 9px" }}>{st.ready ? "✓ Ready to list" : `Not ready · ${st.missing.length + st.autoFail.length} left`}</span>
       </div>
-      <span style={{ font: `500 11.5px/1.5 ${F}`, color: SUB }}>Finish this before marking the account Available — it can&apos;t be listed until it passes. Covers the two risks: getting restricted, and two people on the account at once.</span>
+      <span style={{ font: `500 11.5px/1.5 ${F}`, color: SUB }}>{locked ? "Unlocks after the end-of-rental checklist is closed out." : "Finish this before marking the account Available — it can't be listed until it passes. Covers the two risks: getting restricted, and two people on the account at once."}</span>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "#f6f8fb", border: `1px solid ${LINE2}`, borderRadius: 8, padding: "8px 10px" }}>
         <span style={{ font: `800 10px ${F}`, letterSpacing: ".06em", textTransform: "uppercase", color: MUT }}>Auto-checked by the system</span>
         {[
@@ -1009,6 +1089,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, 
   const [note, setNote] = useState("");
   const [who, setWho] = useState("");
   const [holdFor, setHoldFor] = useState("");
+  const [obOpen, setObOpen] = useState(!!r.offboarding?.open || !!r.twoFactorResetNeeded);
   const [copied, setCopied] = useState(false);
   const copyRentLink = () => {
     const link = `${typeof window !== "undefined" ? window.location.origin : ""}/checkout?accounts=${r.id}&direct=1`;
@@ -1209,7 +1290,10 @@ function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, 
                 ) : (
                   <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Only available accounts can be reserved.</span>
                 )}
-                <RentalReady r={r} onReady={onRentalReady} />
+              </Card>
+              <EndOfRental r={r} onOpenChange={setObOpen} onClosed={reload} />
+              <Card pad="14px">
+                <RentalReady r={r} onReady={onRentalReady} locked={obOpen} />
               </Card>
               <Card pad="14px">
                 <Lbl>Chase an issue</Lbl>

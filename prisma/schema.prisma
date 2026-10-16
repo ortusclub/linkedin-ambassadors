@@ -239,6 +239,9 @@ model LinkedInAccount {
   // Rental-ready housekeeping done before an account is listed Available (hard gate). Shape:
   // { <itemKey>: { done: bool, by: string, at: ISO } }. See lib/rental-ready.ts for the items.
   rentalReadyChecklist  Json?         @map("rental_ready_checklist")
+  // End-of-rental lockdown checklist (opened when a rental ends). Shape in lib/offboarding.ts:
+  // { open, shared:{gologin,totp,password,workEmail}, ticks:{...}, openedBy/At, closedBy/At }.
+  offboarding           Json?         @map("offboarding")
   // Internal proof the account is real (email-exchange screenshot links / notes).
   // Never shown publicly — shared with a renter per-case.
   verificationProof     String?       @map("verification_proof")
