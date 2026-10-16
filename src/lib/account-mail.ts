@@ -82,9 +82,19 @@ export function classifyAccountMail(subject: string, body: string): { type: Mail
   const newPlace = has(s, /new (device|location|place)/) || has(b, /new (device|location|place)|didn.?t recognize|don.?t recognize|was this you/);
 
   if (has(s, /restrict|account (has been|was) (restricted|suspended)|we.?ve restricted|temporarily restricted|unusual activity on your account/)) return { type: "restriction", severity: "danger", location };
-  if (has(s, /password (was|has been)? ?(changed|reset|updated)|you changed your password|reset your password/)) return { type: "password_changed", severity: "review", location };
+  // Password change/reset — allow intervening words ("password was successfully reset", "we reset
+  // your password"), and LinkedIn's forced-reset prompt ("Account security alert — create a new
+  // password"), rather than requiring the verb to butt right up against "password".
+  if (has(s, /password\b[\w\s]{0,24}\b(changed|reset|updated)|(changed|reset|updated)\b[\w\s]{0,24}\bpassword|you (changed|reset) your password|create a new password/)) return { type: "password_changed", severity: "review", location };
   if (has(s, /email address (was|has been)? ?(changed|added|updated)|you (added|changed) (a new )?email|primary email/)) return { type: "email_changed", severity: "review", location };
-  if (has(s, /confirm your email|verify your email|email verification|confirm this email|please verify it.?s you|verification code|security code|one-?time (code|pin)/)) return { type: "email_verify", severity: "benign", location };
+  // New-device / "is this you?" challenge — a login from an unrecognised device that LinkedIn wants
+  // confirmed. This is review-worthy (possible takeover), so it sits ABOVE the benign email_verify
+  // branch and the "it's you / was this you" phrasing lives here, not there.
+  if (has(s, /verify your (new )?(device|sign-?in|log-?in)|new device|device verification|please verify it.?s really you|verify it.?s you|is it (really )?you\b|was this you\b|do(n.?t| not)? you recognize/)) return { type: "location_change", severity: "review", location };
+  // Benign email confirmation / one-time codes & PINs — NOT a device challenge (handled above).
+  if (has(s, /confirm your email|verify your email|email verification|confirm this email|verification code|security code|one-?time (code|pin)|here.?s your pin|your pin is\b|your pin:? \d/)) return { type: "email_verify", severity: "benign", location };
+  // Routine informational security-channel mail — logged but doesn't need a look.
+  if (has(s, /remember me is no longer active/)) return { type: "other", severity: "benign", location };
   // Sign-in alerts: only the account-security phrasing, so notification mail ("…just signed in to
   // post") can't trip it.
   if (has(s, /new sign-?in|new sign in to|a new sign|signed in to your (linkedin )?account|we noticed a (new )?(login|sign-?in)|recent login to your account/)) return { type: newPlace ? "location_change" : "new_login", severity: newPlace ? "review" : "benign", location };
