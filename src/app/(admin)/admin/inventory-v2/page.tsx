@@ -240,6 +240,9 @@ export default function InventoryV2Page() {
   const [groupFilter, setGroupFilter] = useState("all");
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<Record<string, "account" | "mail" | "activity" | "overview">>({});
+  const [toast, setToast] = useState("");
+  const flash = (m: string) => { setToast(m); setTimeout(() => setToast(""), 1800); };
+  const copyWorkEmail = (email: string) => { if (navigator.clipboard?.writeText) navigator.clipboard.writeText(email).then(() => flash("Work email copied")).catch(() => flash("Work email copied")); else flash("Work email copied"); };
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [checkMode, setCheckMode] = useState(false);
   const [hideDone, setHideDone] = useState(false);
@@ -457,6 +460,8 @@ export default function InventoryV2Page() {
 
   return (
     <div style={{ minHeight: "100vh", background: BG, padding: "24px 24px 80px", margin: "-24px", fontFamily: F }}>
+      <style>{`.lv-we:hover{color:#2563eb}`}</style>
+      {toast && <div style={{ position: "fixed", left: "50%", bottom: 28, transform: "translateX(-50%)", zIndex: 50, background: INK, color: "#fff", font: `700 13px ${F}`, padding: "9px 16px", borderRadius: 999, boxShadow: "0 6px 20px rgba(0,0,0,.18)" }}>{toast}</div>}
       <div style={{ maxWidth: 1360, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
 
         {/* header */}
@@ -666,7 +671,8 @@ export default function InventoryV2Page() {
                               <span title={r.location || ""} style={{ flex: "none", font: `700 10.5px ${F}`, padding: "2px 6px", borderRadius: 6, background: "#f1f3f6", color: SUB }}>{countryOf(r.location)}</span>
                               {isDummy(r) && <span style={{ flex: "none", font: `800 9.5px ${F}`, padding: "2px 6px", borderRadius: 5, background: "#fef3c7", color: AMBER }}>DUMMY</span>}
                             </div>
-                            <div style={{ font: `500 12px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.linkedinHeadline || r.loginEmail || r.industry || "—"}</div>
+                            {r.loginEmail && <div className="lv-we" onClick={(e) => { e.stopPropagation(); copyWorkEmail(r.loginEmail!); }} title="Copy work email" style={{ font: `500 11.5px ${F}`, color: "#8a93a3", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer", width: "fit-content", maxWidth: "100%" }}>✉ {r.loginEmail}</div>}
+                            <div style={{ font: `500 12px ${F}`, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.linkedinHeadline || "No headline yet"}</div>
                           </div>
                           {/* conn — inline input during the daily check or when quick-editing; click the number to edit otherwise */}
                           {(checkMode && checkable(r)) || editConn === r.id ? (
