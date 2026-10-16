@@ -67,6 +67,7 @@ interface Account {
   heldBy: string | null;
   rentalReadyChecklist: Record<string, { done?: boolean; by?: string | null; at?: string | null }> | null;
   rentalReady: boolean;
+  gologinStillShared: boolean;
   manualPaidUntil: string | null;
   inventoryPool?: string | null;
   shadowRenter: string | null;
@@ -856,7 +857,7 @@ function MailBtn({ onClick, busy, bg, fg, children }: { onClick: () => void; bus
 function RentalReady({ r }: { r: Account }) {
   const [checklist, setChecklist] = useState<ChecklistState>((r.rentalReadyChecklist as ChecklistState) || {});
   const [busy, setBusy] = useState<string | null>(null);
-  const autoAcc = { restrictedAt: r.restrictedAt, permanentlyRestricted: r.permanentlyRestricted, twoFactorResetNeeded: r.twoFactorResetNeeded, proxyHost: r.proxyHost };
+  const autoAcc = { restrictedAt: r.restrictedAt, permanentlyRestricted: r.permanentlyRestricted, twoFactorResetNeeded: r.twoFactorResetNeeded, proxyHost: r.proxyHost, gologinShared: r.gologinStillShared };
   const st = rentalReadyStatus(autoAcc, checklist);
   const toggle = async (key: string, done: boolean) => {
     setBusy(key);
@@ -885,11 +886,17 @@ function RentalReady({ r }: { r: Account }) {
         <span style={{ marginLeft: "auto", font: `800 11px ${F}`, color: st.ready ? GREEND : "#854d0e", background: st.ready ? "#dcfce7" : "#fef3c7", borderRadius: 999, padding: "2px 9px" }}>{st.ready ? "✓ Ready to list" : `Not ready · ${st.missing.length + st.autoFail.length} left`}</span>
       </div>
       <span style={{ font: `500 11.5px/1.5 ${F}`, color: SUB }}>Finish this before marking the account Available — it can&apos;t be listed until it passes. Covers the two risks: getting restricted, and two people on the account at once.</span>
-      {st.autoFail.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 10px" }}>
-          {st.autoFail.map((f) => <span key={f.key} style={{ font: `650 11.5px ${F}`, color: REDD }}>✕ {f.reason}</span>)}
-        </div>
-      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "#f6f8fb", border: `1px solid ${LINE2}`, borderRadius: 8, padding: "8px 10px" }}>
+        <span style={{ font: `800 10px ${F}`, letterSpacing: ".06em", textTransform: "uppercase", color: MUT }}>Auto-checked by the system</span>
+        {[
+          { label: "Not restricted", ok: !(r.restrictedAt || r.permanentlyRestricted) },
+          { label: "2FA not pending rotation", ok: !r.twoFactorResetNeeded },
+          { label: "Proxy assigned", ok: !!r.proxyHost },
+          { label: "GoLogin share cleared (no renter still has access)", ok: !r.gologinStillShared },
+        ].map((a) => (
+          <span key={a.label} style={{ font: `650 11.5px ${F}`, color: a.ok ? GREEND : REDD }}>{a.ok ? "✓" : "✕"} {a.label}</span>
+        ))}
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {RENTAL_READY_ITEMS.map((i) => <Row key={i.key} k={i.key} label={i.label} hint={i.hint} gated />)}
         {RENTAL_READY_OPTIONAL.map((i) => <Row key={i.key} k={i.key} label={i.label} hint={i.hint} gated={false} />)}

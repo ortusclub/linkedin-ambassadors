@@ -161,7 +161,9 @@ export async function PATCH(
         // Rental-ready gate: housekeeping must be done before a renter can get instant access
         // (anti-restriction + anti-double-use). Does not retroactively block already-available
         // accounts (guarded by cur.status !== "available"), only new flips into Available.
-        const rr = rentalReadyStatus(cur, cur.rentalReadyChecklist as ChecklistState);
+        const shareRows = await prisma.rental.findMany({ where: { linkedinAccountId: id }, select: { gologinShareIds: true } });
+        const gologinShared = shareRows.some((rr) => Array.isArray(rr.gologinShareIds) && (rr.gologinShareIds as unknown[]).length > 0);
+        const rr = rentalReadyStatus({ ...cur, gologinShared }, cur.rentalReadyChecklist as ChecklistState);
         if (!rr.ready) {
           const labelOf = (k: string) => RENTAL_READY_ITEMS.find((i) => i.key === k)?.label || k;
           const missingLabels = rr.missing.map(labelOf);
