@@ -497,10 +497,10 @@ export default function PayoutsIIPage() {
       alert(`Could not record payment: ${d.error || res.status}`);
       return;
     }
-    // Paying the setup fee releases the account into inventory — tell the admin what happened.
+    // Setup fee paid records the payment but no longer auto-lists — the account waits in
+    // Construction until the team runs the rental-ready checklist and marks it Available by hand.
     if (r.bucket === "setup") {
-      if (d.movedToAvailable) alert(`✓ Setup paid. ${r.linkedinName || "The account"} is now Available in the inventory.`);
-      else if (d.moveBlockedReason) alert(`✓ Setup paid. Note: the account did NOT move to Available because ${d.moveBlockedReason}. Sort that, then set it available.`);
+      alert(`✓ Setup paid. ${r.linkedinName || "The account"} stays in Construction — run the rental-ready checklist, then mark it Available from inventory.`);
     }
     await load(); // refresh so the row moves to Paid and last-paid / total / next-due update
   };
