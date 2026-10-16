@@ -1,12 +1,12 @@
 import { warmRampErrors } from './mature-warm-ramp.mjs';
-export const MATURE_WARM_POOLS = Object.freeze({ all_available: 'All available accounts', ortus_owned: 'Ortus Owned Account', linkedvelocity_owned: 'Other Pool Accounts (LV)' });
+export const MATURE_WARM_POOLS = Object.freeze({ linkedvelocity_owned: 'Eligible LinkedVelocity profiles only' });
 // Plan data is stored inside the campaign config, never in shared localStorage.
 export function newMaturePlan() {
   // Default warm ramp (Sam, 2026-10-05): 3 → 6 → 10 → 20 a day, holding the last
   // rate until the pool runs out. Every figure stays editable before starting.
   // Cold connections and post engagement do not run yet: cold starts switched
   // off and both default to 0.
-  return { version: 1, warmPool: '', coldPool: '', coldPoolSource: 'default', coldPoolOrder: 'random', postPool: '', notes: '', accounts: {}, targetProfileIds: [], warmUntilExhausted: true, warmEnabled: true, coldEnabled: false, stages: [
+  return { version: 1, warmPool: 'linkedvelocity_owned', coldPool: '', coldPoolSource: 'default', coldPoolOrder: 'random', postPool: '', notes: '', accounts: {}, targetProfileIds: [], warmUntilExhausted: true, warmEnabled: true, coldEnabled: false, stages: [
     { id: 'warm', name: 'Warm connections', fromDay: 1, toDay: 3, warmDaily: 3, coldDaily: 0, likesDaily: 0 },
     { id: 'ramp', name: 'Increase warm connections', fromDay: 4, toDay: 7, warmDaily: 6, coldDaily: 0, likesDaily: 0 },
     { id: 'cold', name: 'Introduce cold connections', fromDay: 8, toDay: 14, warmDaily: 10, coldDaily: 0, likesDaily: 0 },

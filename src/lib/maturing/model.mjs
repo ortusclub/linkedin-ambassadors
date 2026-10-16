@@ -6,11 +6,18 @@ export const OWNER = 'info@linkedvelocity.com';
 export function visible(c) {
   return !!(c?.maturing || c?.config?.matureWarm) && /^[^@\s]+@linkedvelocity\.com$/i.test(String(c.owner || '').trim());
 }
-export function eligible(a) { return !!a?.gologinProfileId && !a.rented && !a.restricted && !a.removed && !a.showcase; }
+export function eligible(a) { return !!a?.gologinProfileId && !a.rented && !a.restricted && !a.removed && !a.showcase && !a.unavailable; }
 export function urlKey(url) { return String(url || '').toLowerCase().replace(/^https?:\/\/(?:[a-z]+\.)?linkedin\.com\/in\//, '').replace(/[/?#].*$/, ''); }
 export function profileUrl(url) { return /^https:\/\/(?:[a-z]+\.)?linkedin\.com\/in\/[^\s/?#]+\/?(?:\?.*)?$/i.test(String(url || '')); }
+export function linkedVelocityWarmPool(sources,excludeProfileIds=[]){
+  const lvAccounts=(sources.lvAccounts||[]).filter(eligible);
+  const ids=new Set(lvAccounts.map(a=>a.gologinProfileId));
+  const profiles=(sources.profiles||[]).filter(p=>p.account==='linkedvelocity'&&ids.has(p.id));
+  return buildWarmPool({pool:'linkedvelocity_owned',profiles,lvAccounts,excludeProfileIds});
+}
 export function preparePlan(input, account, accounts, excluded = [], now = new Date(), sources = null, coldRows = null) {
   if(!input.plan || input.plan.version!==1 || !Array.isArray(input.plan.stages))throw Error('Invalid maturing plan.');
+  if(input.plan.warmEnabled!==false && input.plan.warmPool!=='linkedvelocity_owned')throw Error('Warm campaigns can only use eligible LinkedVelocity profiles.');
   const plan = restoreMaturePlan(input.plan);
   plan.targetProfileIds = [account.gologinProfileId];
 
@@ -30,8 +37,8 @@ export function preparePlan(input, account, accounts, excluded = [], now = new D
   const startDate=`${field('year')}-${field('month')}-${field('day')}`;
   const warmAmounts=matureWarmSchedule(plan,startDate), cold=matureColdSchedule(plan);
   const seen=new Set([...excluded,account.linkedinUrl].map(urlKey));
-  let warmTargets=accounts.filter(a=>eligible(a)&&a.gologinProfileId!==account.gologinProfileId&&profileUrl(a.linkedinUrl)).filter(a=>{const k=urlKey(a.linkedinUrl);if(seen.has(k))return false;seen.add(k);return true;}).map(a=>({name:a.name,linkedinUrl:a.linkedinUrl,profile:a.loginEmail,profileId:a.gologinProfileId}));
-  if(sources)warmTargets=buildWarmPool({pool:plan.warmPool,excludeProfileIds:[account.gologinProfileId],...sources}).targets.filter(t=>!excluded.map(urlKey).includes(urlKey(t.linkedinUrl)));
+  let warmTargets=accounts.filter(a=>eligible(a)&&a.workspace==='linkedvelocity'&&a.gologinProfileId!==account.gologinProfileId&&profileUrl(a.linkedinUrl)).filter(a=>{const k=urlKey(a.linkedinUrl);if(seen.has(k))return false;seen.add(k);return true;}).map(a=>({name:a.name,linkedinUrl:a.linkedinUrl,profile:a.loginEmail,profileId:a.gologinProfileId}));
+  if(sources)warmTargets=linkedVelocityWarmPool(sources,[account.gologinProfileId]).targets.filter(t=>!excluded.map(urlKey).includes(urlKey(t.linkedinUrl)));
   for(let i=warmTargets.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[warmTargets[i],warmTargets[j]]=[warmTargets[j],warmTargets[i]];}
   const managed=new Set(accounts.map(a=>urlKey(a.linkedinUrl)));
   let coldLeads=[];

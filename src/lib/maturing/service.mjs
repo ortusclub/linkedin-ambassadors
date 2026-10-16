@@ -1,9 +1,8 @@
 import {sheetRows,workspaceProfiles} from './sources.mjs';
-import {buildWarmPool} from './shared/mature-warm-pool.mjs';
 import {DEFAULT_MATURE_COLD_SHEET_URL} from './shared/mature-cold-pool.mjs';
 import { createHash } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
-import { visible, eligible, preparePlan, OWNER } from './model.mjs';
+import { visible, eligible, preparePlan, linkedVelocityWarmPool, OWNER } from './model.mjs';
 export class MaturingError extends Error { constructor(message,status=400){super(message);this.status=status;} }
 export async function engine(path, body) {
   const token=process.env.MATURING_ENGINE_TOKEN;
@@ -16,7 +15,7 @@ export async function engine(path, body) {
 }
 export async function accounts(db=prisma) {
   const rows=await db.linkedInAccount.findMany({where:{status:{not:'removed'}},select:{id:true,gologinProfileId:true,gologinAccount:true,loginEmail:true,linkedinName:true,linkedinUrl:true,connectionCount:true,status:true,restrictedAt:true,permanentlyRestricted:true,notes:true,rentals:{where:{status:{in:['active','pending_access','payment_failed']},isShadow:false},select:{id:true},take:1}}});
-  return rows.filter(a=>!(a.notes||'').includes('[SHOWCASE]')).map(a=>({id:a.id,gologinProfileId:a.gologinProfileId,name:a.linkedinName,loginEmail:a.loginEmail,linkedinUrl:a.linkedinUrl,connections:a.connectionCount,workspace:a.gologinAccount==='klabber'?'linkedvelocity':'ortus',rented:a.status==='rented'||a.rentals.length>0,restricted:!!a.restrictedAt||a.permanentlyRestricted||a.status==='retired',removed:a.status==='removed'}));
+  return rows.filter(a=>!(a.notes||'').includes('[SHOWCASE]')).map(a=>({id:a.id,gologinProfileId:a.gologinProfileId,name:a.linkedinName,loginEmail:a.loginEmail,linkedinUrl:a.linkedinUrl,connections:a.connectionCount,workspace:a.gologinAccount==='klabber'?'linkedvelocity':'ortus',rented:a.status==='rented'||a.rentals.length>0,restricted:!!a.restrictedAt||a.permanentlyRestricted||a.status==='retired',removed:a.status==='removed',unavailable:['unavailable','maintenance'].includes(a.status)}));
 }
 export async function owned(id){
   if(!/^[\w-]{1,100}$/.test(id))throw new MaturingError('Invalid campaign ID.');
@@ -53,6 +52,7 @@ export async function workbook(id, params){
   return engine(`/api/maturing/workbook/${id}?${query}`);
 }
 export async function start(input, actor){
+  if(input.plan?.warmEnabled!==false&&input.plan?.warmPool!=='linkedvelocity_owned')throw new MaturingError('Warm campaigns can only use eligible LinkedVelocity profiles.');
   if(!/^[\w-]{16,80}$/.test(input.launchId||'') || typeof input.accountId!=='string')throw new MaturingError('Invalid launch request.');
   // Cross-instance lock: a double click or two admins cannot launch overlapping plans.
   return prisma.$transaction(async tx=>{
@@ -114,8 +114,9 @@ export async function desktop(path,params){
  if(path==='profiles')return inventory.filter(a=>a.gologinProfileId===params.get('profileId')).map(a=>({id:a.gologinProfileId,name:a.loginEmail,account:'linkedvelocity',available:eligible(a)}));
  if(path==='soo-status')return {accounts:(await engine('/api/soo-status')).accounts||[]};
  if(path==='mature/warm-pool'){
+   if(params.get('pool')!=='linkedvelocity_owned')throw new MaturingError('Only eligible LinkedVelocity profiles are available for warm campaigns.');
    const sources=await poolSources(inventory);
-   const {targets,...counts}=buildWarmPool({pool:params.get('pool')||'',excludeProfileIds:(params.get('exclude')||'').split(','),...sources});
+   const {targets,...counts}=linkedVelocityWarmPool(sources,(params.get('exclude')||'').split(','));
    return {...counts,ready:targets.length};
  }
  throw new MaturingError('Not found.',404);

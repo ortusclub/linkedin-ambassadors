@@ -44,7 +44,8 @@ const puppeteer=require('puppeteer');const assert=require('node:assert/strict');
   await page.type('[aria-label="Find account to mature"]','new@example.com');
   await page.click('.maturing-picker-row button');
   await page.waitForFunction(()=>document.querySelector('#mature-plan-editor')?.innerText.includes('new@example.com'));
-  await page.select('#mature-warm-pool','linkedvelocity_owned');
+  assert.deepEqual(await page.$$eval('#mature-warm-pool option',options=>options.map(o=>o.value)),['linkedvelocity_owned']);
+  assert.equal(await page.$eval('#mature-warm-pool',e=>e.disabled),true);
   assert.equal(posts,0,'Choosing an account and configuring it must not launch');
   const startButtons=await page.$$('button');for(const b of startButtons){if((await b.evaluate(e=>e.textContent))==='Start campaign'){await b.click();break;}}
   await page.waitForFunction(()=>document.querySelector('[role="status"].maturing-notice')?.innerText.includes('new@example.com'));
