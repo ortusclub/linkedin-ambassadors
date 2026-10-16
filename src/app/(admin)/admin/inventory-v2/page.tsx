@@ -746,7 +746,7 @@ export default function InventoryV2Page() {
                           <span style={{ font: `700 14px ${F}`, color: MUT, display: "inline-block", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
                         </div>
 
-                        {isOpen && <ExpandedDetail r={r} tab={curTab} setTab={(t) => setTab((m) => ({ ...m, [r.id]: t }))} busy={busy === r.id} price={price} setState={(pill) => setState(r, pill)} recheck={() => recheck(r)} hold={(days, heldFor) => hold(r, days, heldFor)} release={() => release(r)} patch={patch} patchApp={patchApp} reload={load} />}
+                        {isOpen && <ExpandedDetail r={r} tab={curTab} setTab={(t) => setTab((m) => ({ ...m, [r.id]: t }))} busy={busy === r.id} price={price} setState={(pill) => setState(r, pill)} recheck={() => recheck(r)} hold={(days, heldFor) => hold(r, days, heldFor)} release={() => release(r)} onRentalReady={(ready) => setAccounts((p) => p.map((x) => (x.id === r.id ? { ...x, rentalReady: ready } : x)))} patch={patch} patchApp={patchApp} reload={load} />}
                       </div>
                     );
                   }); })()}
@@ -889,7 +889,7 @@ function MailBtn({ onClick, busy, bg, fg, children }: { onClick: () => void; bus
 }
 
 // ── Rental-ready: housekeeping that must be done before an account is listed Available (hard gate) ──
-function RentalReady({ r }: { r: Account }) {
+function RentalReady({ r, onReady }: { r: Account; onReady?: (ready: boolean) => void }) {
   const [checklist, setChecklist] = useState<ChecklistState>((r.rentalReadyChecklist as ChecklistState) || {});
   const [busy, setBusy] = useState<string | null>(null);
   const autoAcc = { restrictedAt: r.restrictedAt, permanentlyRestricted: r.permanentlyRestricted, twoFactorResetNeeded: r.twoFactorResetNeeded, proxyHost: r.proxyHost, gologinShared: r.gologinStillShared };
@@ -899,7 +899,8 @@ function RentalReady({ r }: { r: Account }) {
     setChecklist((c) => ({ ...c, [key]: done ? { done: true } : { done: false } }));
     try {
       const res = await fetch(`/api/admin/accounts/${r.id}/rental-ready`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key, done }) });
-      if (res.ok) { const d = await res.json(); setChecklist(d.checklist || {}); }
+      // Response carries the server-computed readiness → update the row's ⚠ unverified flag live.
+      if (res.ok) { const d = await res.json() as { checklist?: ChecklistState; ready?: boolean }; setChecklist(d.checklist || {}); onReady?.(!!d.ready); }
     } finally { setBusy(null); }
   };
   const Row = ({ k, label, hint, gated }: { k: string; label: string; hint: string; gated: boolean }) => {
@@ -942,16 +943,9 @@ function RentalReady({ r }: { r: Account }) {
 
 // ── Rental history: every rental this account has had (real + shadow, active + ended), newest first ──
 type RentalRow = { id: string; status: string; isShadow: boolean; startDate: string | null; currentPeriodEnd: string | null; accessGrantedAt: string | null; accessRevokedAt: string | null; createdAt: string; lockedPrice: string | number | null; user: { fullName: string | null; email: string } | null };
-const rentalStatusMeta = (s: string): { bg: string; fg: string; l: string } => {
-  if (s === "active") return { bg: "#dcfce7", fg: GREEND, l: "Active" };
-  if (s === "pending_access") return { bg: "#fef3c7", fg: "#854d0e", l: "Pending access" };
-  if (s === "payment_failed") return { bg: "#fee2e2", fg: "#991b1b", l: "Payment failed" };
-  if (s === "expired") return { bg: "#eef2f7", fg: SUB, l: "Expired" };
-  if (s === "cancelled") return { bg: "#eef2f7", fg: MUT, l: "Cancelled" };
-  return { bg: "#eef2f7", fg: SUB, l: s };
-};
+const monYr = (d: Date) => `${MON[d.getMonth()]} ${d.getFullYear()}`;
 
-function RentalHistory({ accountId }: { accountId: string }) {
+function RentalHistory({ accountId, fallbackRate }: { accountId: string; fallbackRate: number }) {
   const [rentals, setRentals] = useState<RentalRow[] | null>(null);
   const [err, setErr] = useState(false);
   useEffect(() => {
@@ -959,30 +953,43 @@ function RentalHistory({ accountId }: { accountId: string }) {
     fetch(`/api/admin/accounts/${accountId}/rentals`).then((r) => r.json()).then((d) => { if (on) setRentals(d.rentals || []); }).catch(() => { if (on) setErr(true); });
     return () => { on = false; };
   }, [accountId]);
+  const rows = (rentals || []).map((rt) => {
+    const rate = rt.lockedPrice != null && Number(rt.lockedPrice) > 0 ? Number(rt.lockedPrice) : fallbackRate;
+    const start = new Date(rt.startDate || rt.createdAt);
+    const current = rt.status === "active" || rt.status === "pending_access" || rt.status === "payment_failed";
+    const endRef = rt.accessRevokedAt ? new Date(rt.accessRevokedAt) : current ? new Date() : rt.currentPeriodEnd ? new Date(rt.currentPeriodEnd) : new Date();
+    const months = Math.max(1, Math.round((endRef.getTime() - start.getTime()) / (30 * 86400000)));
+    return { rt, rate, start, current, months, amount: Math.round(rate * months) };
+  });
+  const total = rows.reduce((s, x) => s + x.amount, 0);
   return (
     <Card pad="14px">
-      <Lbl>Rental history</Lbl>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><Lbl>Rental history</Lbl>{rows.length > 0 && <span style={{ marginLeft: "auto", font: `600 11.5px ${F}`, color: MUT }}>{rows.length} rental{rows.length === 1 ? "" : "s"} · <b style={{ color: SUB, fontFamily: G }}>${total.toLocaleString()}</b> total</span>}</div>
       {err ? <span style={{ font: `500 13px ${F}`, color: MUT }}>Couldn&apos;t load rental history.</span>
         : !rentals ? <span style={{ font: `500 13px ${F}`, color: MUT }}>Loading…</span>
-        : rentals.length === 0 ? <span style={{ font: `600 13px ${F}`, color: SUB }}>No rentals yet.</span>
+        : rows.length === 0 ? <span style={{ font: `600 13px ${F}`, color: SUB }}>Never rented.</span>
         : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {rentals.map((r) => {
-              const m = rentalStatusMeta(r.status);
-              const renter = r.user?.fullName || r.user?.email || (r.isShadow ? "Shadow renter" : "—");
-              const price = r.lockedPrice != null ? Number(r.lockedPrice) : null;
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {rows.map(({ rt, rate, start, current, months, amount }) => {
+              const renter = rt.user?.fullName || rt.user?.email || (rt.isShadow ? "Shadow renter" : "—");
+              // End note — Current must match the Rental card's Next billing.
+              let note: string, noteFg = SUB;
+              if (current) {
+                if (rt.status === "payment_failed") { note = `Overdue $${rate}`; noteFg = "#b91c1c"; }
+                else { note = rt.currentPeriodEnd ? `Renews ${fmtDY(rt.currentPeriodEnd)}` : "Current"; noteFg = GREEND; }
+              } else if (rt.status === "cancelled") { note = "Ended · cancelled"; }
+              else if (rt.accessRevokedAt) { note = `Ended ${fmtDY(rt.accessRevokedAt)}`; }
+              else { note = rt.currentPeriodEnd ? `Ended ${fmtDY(rt.currentPeriodEnd)}` : "Ended"; }
               return (
-                <div key={r.id} style={{ borderLeft: `3px solid ${r.status === "active" ? GREEN : "#d3dae3"}`, background: "#fafbfc", borderRadius: 8, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 3 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ font: `700 13px ${F}`, color: INK }}>{renter}</span>
-                    {r.isShadow && <span style={{ flex: "none", font: `700 10px ${F}`, padding: "1px 7px", borderRadius: 999, background: "#ede9fe", color: "#6d28d9" }}>◐ Shadow</span>}
-                    <span style={{ flex: "none", font: `700 10px ${F}`, padding: "1px 7px", borderRadius: 999, background: m.bg, color: m.fg }}>{m.l}</span>
-                    {price != null && price > 0 && <span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: SUB }}>${price}/mo</span>}
+                <div key={rt.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: "2px 10px", borderTop: `1px solid #f4f5f7`, padding: "9px 0" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                    <span style={{ font: `700 13px ${F}`, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{renter}</span>
+                    {rt.isShadow && <span style={{ flex: "none", font: `700 10px ${F}`, padding: "1px 7px", borderRadius: 999, background: "#ede9fe", color: "#6d28d9" }}>◐ Shadow</span>}
+                    <span style={{ flex: "none", font: `700 10px ${F}`, padding: "1px 7px", borderRadius: 999, background: current ? "#e7f7ee" : "#f1f3f6", color: current ? "#0f7a3d" : "#5b6779" }}>{current ? "Current" : "Past"}</span>
                   </div>
-                  <span style={{ font: `500 11.5px ${F}`, color: MUT }}>
-                    {fmtDY(r.startDate || r.createdAt)} → {r.currentPeriodEnd ? fmtDY(r.currentPeriodEnd) : "—"}
-                    {r.accessRevokedAt ? ` · access ended ${fmtDY(r.accessRevokedAt)}` : r.accessGrantedAt ? " · access granted" : ""}
-                  </span>
+                  <span style={{ justifySelf: "end", font: `700 13px ${G}`, color: INK }}>${amount.toLocaleString()}</span>
+                  <span style={{ font: `500 11.5px ${F}`, color: MUT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{monYr(start)} → {current ? "now" : monYr(new Date(rt.accessRevokedAt || rt.currentPeriodEnd || rt.createdAt))} · {months} mo · ${rate}/mo</span>
+                  <span style={{ justifySelf: "end", font: `600 11.5px ${F}`, color: noteFg, whiteSpace: "nowrap" }}>{note}</span>
                 </div>
               );
             })}
@@ -992,10 +999,10 @@ function RentalHistory({ accountId }: { accountId: string }) {
   );
 }
 
-function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, release, patch, patchApp, reload }: {
+function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, release, onRentalReady, patch, patchApp, reload }: {
   r: Account; tab: "account" | "mail" | "activity" | "overview"; setTab: (t: "account" | "mail" | "activity" | "overview") => void; busy: boolean; price: number;
   setState: (pill: "active" | "restricted" | "perm" | "withdrawn") => void; recheck: () => void;
-  hold: (days: number, heldFor: string) => void; release: () => void;
+  hold: (days: number, heldFor: string) => void; release: () => void; onRentalReady: (ready: boolean) => void;
   patch: (id: string, body: Record<string, unknown>, reload?: boolean) => Promise<Response | undefined>;
   patchApp: (appId: string, body: Record<string, unknown>) => Promise<Response | undefined>; reload: () => void;
 }) {
@@ -1149,7 +1156,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, 
                   <span>Health</span><b style={{ color: r.restrictedAt ? REDD : INK }}>{r.restrictedAt ? "restricted" : (r.linkedinAccountHealth || "unchecked")}</b>
                 </div>
               </Card>
-              <RentalHistory accountId={r.id} />
+              <RentalHistory accountId={r.id} fallbackRate={price} />
               <Card pad="14px">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Catalogue details</Lbl><span style={{ marginLeft: "auto", font: `700 11px ${F}`, color: complete ? GREEND : "#b45309" }}>{complete ? "✓ complete" : "incomplete"}</span></div>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4 }}><Lbl>LinkedIn URL</Lbl><input value={urlV} onChange={(e) => setUrlV(e.target.value)} placeholder="https://www.linkedin.com/in/…" style={fieldStyle} /></label>
@@ -1202,7 +1209,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, setState, recheck, hold, 
                 ) : (
                   <span style={{ font: `500 12px/1.5 ${F}`, color: MUT }}>Only available accounts can be reserved.</span>
                 )}
-                <RentalReady r={r} />
+                <RentalReady r={r} onReady={onRentalReady} />
               </Card>
               <Card pad="14px">
                 <Lbl>Chase an issue</Lbl>
