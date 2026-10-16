@@ -52,22 +52,10 @@ export async function POST(req: Request) {
       },
     });
 
-    // Paying the setup fee releases the account into inventory: an under-construction
-    // account that's otherwise ready (provisioned, not restricted, no 2FA reset) flips to
-    // Available. If it isn't ready we don't move it — we tell the admin why instead.
-    let movedToAvailable = false;
-    let moveBlockedReason: string | null = null;
-    if (kind === "setup" && account.status === "under_construction") {
-      if (account.restrictedAt) moveBlockedReason = "it's currently restricted";
-      else if (account.twoFactorResetNeeded) moveBlockedReason = "its 2FA still needs resetting";
-      else if (!account.gologinShareLink) moveBlockedReason = "it has no GoLogin access link yet";
-      else {
-        await prisma.linkedInAccount.update({ where: { id: accountId }, data: { status: "available", listed: true } });
-        movedToAvailable = true;
-      }
-    }
-
-    return NextResponse.json({ ok: true, kind, amount, paidAt: nowISO, movedToAvailable, moveBlockedReason });
+    // Paying the setup fee records the payment but no longer auto-lists the account. It stays in
+    // Construction so the team can run the rental-ready housekeeping first, then mark it Available
+    // by hand — which enforces the rental-ready gate. (movedToAvailable kept for the Payouts II UI.)
+    return NextResponse.json({ ok: true, kind, amount, paidAt: nowISO, movedToAvailable: false, moveBlockedReason: null });
   } catch (error) {
     if (error instanceof Error && (error.message === "Forbidden" || error.message === "Unauthorized")) {
       return NextResponse.json({ error: error.message }, { status: 403 });
