@@ -124,6 +124,13 @@ export async function GET(_req: NextRequest) {
       : [];
     const shadowByAccount = new Map(shadowRentals.map((r) => [r.linkedinAccountId, r.user.email]));
 
+    // Accounts where a rental still holds a live GoLogin share (revoke didn't clear it) — auto
+    // condition for the rental-ready gate ("GoLogin share cleared").
+    const shareRows = ids.length
+      ? await prisma.rental.findMany({ where: { linkedinAccountId: { in: ids } }, select: { linkedinAccountId: true, gologinShareIds: true } })
+      : [];
+    const gologinSharedSet = new Set(shareRows.filter((r) => Array.isArray(r.gologinShareIds) && (r.gologinShareIds as unknown[]).length > 0).map((r) => r.linkedinAccountId));
+
     const out = accounts.map((a) => {
       const ownerEmail = (a.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || "";
       const app = (a.linkedinUrl ? appByUrl.get(normUrl(a.linkedinUrl)) : undefined) || (ownerEmail ? appMap.get(ownerEmail.toLowerCase()) : undefined);
@@ -135,7 +142,8 @@ export async function GET(_req: NextRequest) {
         mailNeedsReview: mailNeedsReviewByAccount.get(a.id) ?? 0,
         mailIncidentOpen: mailIncidentByAccount.get(a.id) ?? 0,
         // Whether the rental-ready housekeeping checklist passes (for the sweep flag on the row).
-        rentalReady: rentalReadyStatus(a, a.rentalReadyChecklist as ChecklistState).ready,
+        gologinStillShared: gologinSharedSet.has(a.id),
+        rentalReady: rentalReadyStatus({ ...a, gologinShared: gologinSharedSet.has(a.id) }, a.rentalReadyChecklist as ChecklistState).ready,
         // Carry pipeline (application) profile data into inventory when the account's own is blank.
         linkedinUrl: a.linkedinUrl || app?.linkedinUrl || null,
         location: a.location || app?.location || null,

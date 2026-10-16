@@ -23,7 +23,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     checklist[key] = done ? { done: true, by: admin.fullName || admin.email, at: new Date().toISOString() } : { done: false };
 
     await prisma.linkedInAccount.update({ where: { id }, data: { rentalReadyChecklist: checklist } });
-    const status = rentalReadyStatus(acc, checklist);
+    const shareRows = await prisma.rental.findMany({ where: { linkedinAccountId: id }, select: { gologinShareIds: true } });
+    const gologinShared = shareRows.some((rr) => Array.isArray(rr.gologinShareIds) && (rr.gologinShareIds as unknown[]).length > 0);
+    const status = rentalReadyStatus({ ...acc, gologinShared }, checklist);
     return NextResponse.json({ checklist, ...status });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "error";
