@@ -37,6 +37,7 @@ const sections = [
     { href: "/admin/referral-outreach", label: "Outreach" },
     { href: "/admin/balances", label: "Payouts" },
     { href: "/admin/inventory-v2", label: "Inventory" },
+    { href: "/admin/profile-maturing", label: "Profile Maturing" },
     { href: "/admin/restrictions", label: "Restrictions" },
     { href: "/admin/proxies", label: "Proxies" },
     { href: "/admin/payouts-ii", label: "Payouts Schedule" },
