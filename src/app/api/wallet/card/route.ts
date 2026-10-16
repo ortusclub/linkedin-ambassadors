@@ -1,15 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveViewUser } from "@/lib/view-as";
 
 // Returns the card on file (brand + last4) for display on the dashboard.
-export async function GET() {
-  const session = await getSession();
-  if (!session?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  let viewUser;
+  try {
+    viewUser = (await resolveViewUser(req)).user; // admin ?view_as=<id> sees the renter's card (read-only)
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.id },
+    where: { id: viewUser.id },
     select: { cardBrand: true, cardLast4: true, stripePaymentMethodId: true },
   });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
