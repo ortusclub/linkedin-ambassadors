@@ -2,6 +2,8 @@
 
 Admin route: `/admin/profile-maturing` (Ambassadors → Profile Maturing).
 
+Use **Add account to mature** to search eligible inventory, select **Set up campaign**, configure the original Outreach editor, then choose **Start campaign**. Existing active accounts link to their campaign instead of creating duplicates. After launch the new campaign opens automatically; merely selecting an account or editing does not start activity.
+
 This page reads and controls the existing Outreach cloud campaigns at `https://scraper.ortusclub.com`. It does not run another worker or copy campaign state into PostgreSQL. Only maturing campaigns owned by a `@linkedvelocity.com` operator are exposed. Every API request requires admin authorization; mutations also require the same browser origin.
 
 `src/lib/maturing/shared` contains the desktop plan editor, schedule, pool, ramp and board modules from Outreach v3.1.128 (10a6b902). The editor fetch adapter uses authenticated server routes. Pool sources are the existing GoLogin workspaces, SoO engine endpoint and LinkedVelocity inventory. Credentials remain server-side.
