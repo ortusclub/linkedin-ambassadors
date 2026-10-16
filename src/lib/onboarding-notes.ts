@@ -8,6 +8,20 @@ export type NoteItem = { kind: NoteKind; text: string };
 export type NoteSection = { label: string | null; date: string | null; items: NoteItem[] };
 export type ParsedNotes = { sections: NoteSection[]; existingAccount: boolean; fallback: string | null };
 
+// Current account state used to reconcile the frozen onboarding snapshot with reality, so a
+// warning the referrer wrote at hand-off ("2FA not provided") stops nagging once the team has
+// actually done it. The note text stays a dated record; only the actionable items get resolved.
+export type LiveReconcile = { has2fa?: boolean; loginConfirmed?: boolean };
+
+function reconcile(items: NoteItem[], live?: LiveReconcile): NoteItem[] {
+  if (!live) return items;
+  return items.map((it) => {
+    if (live.has2fa && it.kind === "warn" && /2FA not provided/i.test(it.text)) return { kind: "check", text: "2FA set up by the team" };
+    if (live.loginConfirmed && it.kind === "bullet" && /Login not yet confirmed/i.test(it.text)) return { kind: "check", text: "Login confirmed" };
+    return it;
+  });
+}
+
 const ISO_RE = /\d{4}-\d{2}-\d{2}T[\d:.]+Z/;
 
 function fmtDate(iso: string | null): string | null {
@@ -40,7 +54,7 @@ function facts(body: string): NoteItem[] {
 
 const SEG_RE = /(?=(?:^|\n)\s*(?:PHONE HAND-OFF|Self-service onboarding|Self-service login reported|Login reported successful|2FA key saved by referrer))/i;
 
-export function parseOnboardingNotes(raw: string | null | undefined): ParsedNotes {
+export function parseOnboardingNotes(raw: string | null | undefined, live?: LiveReconcile): ParsedNotes {
   const text0 = (raw || "").trim();
   if (!text0) return { sections: [], existingAccount: false, fallback: null };
 
@@ -59,7 +73,7 @@ export function parseOnboardingNotes(raw: string | null | undefined): ParsedNote
     if (/^PHONE HAND-OFF/i.test(c)) label = "Phone hand-off";
     else if (/^Self-service/i.test(c) || /^Login reported/i.test(c)) label = "Self-service";
     else if (/^2FA key saved/i.test(c)) label = "2FA";
-    const items = facts(c);
+    const items = reconcile(facts(c), live);
     if (items.length) { sections.push({ label, date: fmtDate(iso), items }); continue; }
     // Unrecognised chunk: keep its text as a plain bullet (date stripped) so nothing is lost.
     const clean = c.replace(ISO_RE, "").replace(/\s{2,}/g, " ").trim().replace(/^[;:.\s]+/, "");

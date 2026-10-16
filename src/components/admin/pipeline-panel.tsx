@@ -825,7 +825,7 @@ export function CardDetail({ r, h }: { r: Row; h: Handlers }) {
             // Read-only onboarding summary. Adding/logging updates lives in the Activity card
             // (the shared outreach log) so there's one place to post an update, not three.
             <PanelCard title="Admin notes" tone="notes">
-              {r.adminNotes && <OnboardingNotes text={r.adminNotes} />}
+              {r.adminNotes && <OnboardingNotes text={r.adminNotes} live={{ has2fa: !!r.twoFactor, loginConfirmed: isLive(r) || r.status === "onboarded" }} />}
               {r.applicationNotes && <Note label="Application notes">{r.applicationNotes}</Note>}
             </PanelCard>
           )}

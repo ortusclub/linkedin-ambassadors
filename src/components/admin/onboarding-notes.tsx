@@ -1,5 +1,5 @@
 import { F_SANS } from "@/lib/pipeline-model";
-import { parseOnboardingNotes, type NoteKind } from "@/lib/onboarding-notes";
+import { parseOnboardingNotes, type NoteKind, type LiveReconcile } from "@/lib/onboarding-notes";
 
 const MARK: Record<NoteKind, { char: string; color: string }> = {
   check: { char: "✓", color: "var(--st-active-fg,#188038)" },
@@ -9,8 +9,8 @@ const MARK: Record<NoteKind, { char: string; color: string }> = {
 
 // Renders the free-text onboarding notes as tidy dated sections. Unrecognised text (e.g. a
 // hand-typed team note) falls through to plain, wrapped text so nothing is ever lost.
-export function OnboardingNotes({ text }: { text: string | null | undefined }) {
-  const { sections, existingAccount, fallback } = parseOnboardingNotes(text);
+export function OnboardingNotes({ text, live }: { text: string | null | undefined; live?: LiveReconcile }) {
+  const { sections, existingAccount, fallback } = parseOnboardingNotes(text, live);
   if (fallback) return <div style={{ font: `500 12.5px/1.55 ${F_SANS}`, color: "var(--fg,#444)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{fallback}</div>;
   if (!sections.length && !existingAccount) return null;
   return (
