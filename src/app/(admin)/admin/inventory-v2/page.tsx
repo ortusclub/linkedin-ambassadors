@@ -836,6 +836,58 @@ function MailBtn({ onClick, busy, bg, fg, children }: { onClick: () => void; bus
   return <button onClick={onClick} disabled={busy} style={{ border: "none", cursor: busy ? "default" : "pointer", opacity: busy ? 0.5 : 1, borderRadius: 7, padding: "6px 12px", font: `700 12px ${F}`, background: bg, color: fg, whiteSpace: "nowrap" }}>{children}</button>;
 }
 
+// ── Rental history: every rental this account has had (real + shadow, active + ended), newest first ──
+type RentalRow = { id: string; status: string; isShadow: boolean; startDate: string | null; currentPeriodEnd: string | null; accessGrantedAt: string | null; accessRevokedAt: string | null; createdAt: string; lockedPrice: string | number | null; user: { fullName: string | null; email: string } | null };
+const rentalStatusMeta = (s: string): { bg: string; fg: string; l: string } => {
+  if (s === "active") return { bg: "#dcfce7", fg: GREEND, l: "Active" };
+  if (s === "pending_access") return { bg: "#fef3c7", fg: "#854d0e", l: "Pending access" };
+  if (s === "payment_failed") return { bg: "#fee2e2", fg: "#991b1b", l: "Payment failed" };
+  if (s === "expired") return { bg: "#eef2f7", fg: SUB, l: "Expired" };
+  if (s === "cancelled") return { bg: "#eef2f7", fg: MUT, l: "Cancelled" };
+  return { bg: "#eef2f7", fg: SUB, l: s };
+};
+
+function RentalHistory({ accountId }: { accountId: string }) {
+  const [rentals, setRentals] = useState<RentalRow[] | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    let on = true;
+    fetch(`/api/admin/accounts/${accountId}/rentals`).then((r) => r.json()).then((d) => { if (on) setRentals(d.rentals || []); }).catch(() => { if (on) setErr(true); });
+    return () => { on = false; };
+  }, [accountId]);
+  return (
+    <Card pad="14px">
+      <Lbl>Rental history</Lbl>
+      {err ? <span style={{ font: `500 13px ${F}`, color: MUT }}>Couldn&apos;t load rental history.</span>
+        : !rentals ? <span style={{ font: `500 13px ${F}`, color: MUT }}>Loading…</span>
+        : rentals.length === 0 ? <span style={{ font: `600 13px ${F}`, color: SUB }}>No rentals yet.</span>
+        : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {rentals.map((r) => {
+              const m = rentalStatusMeta(r.status);
+              const renter = r.user?.fullName || r.user?.email || (r.isShadow ? "Shadow renter" : "—");
+              const price = r.lockedPrice != null ? Number(r.lockedPrice) : null;
+              return (
+                <div key={r.id} style={{ borderLeft: `3px solid ${r.status === "active" ? GREEN : "#d3dae3"}`, background: "#fafbfc", borderRadius: 8, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ font: `700 13px ${F}`, color: INK }}>{renter}</span>
+                    {r.isShadow && <span style={{ flex: "none", font: `700 10px ${F}`, padding: "1px 7px", borderRadius: 999, background: "#ede9fe", color: "#6d28d9" }}>◐ Shadow</span>}
+                    <span style={{ flex: "none", font: `700 10px ${F}`, padding: "1px 7px", borderRadius: 999, background: m.bg, color: m.fg }}>{m.l}</span>
+                    {price != null && price > 0 && <span style={{ marginLeft: "auto", font: `700 12px ${F}`, color: SUB }}>${price}/mo</span>}
+                  </div>
+                  <span style={{ font: `500 11.5px ${F}`, color: MUT }}>
+                    {fmtDY(r.startDate || r.createdAt)} → {r.currentPeriodEnd ? fmtDY(r.currentPeriodEnd) : "—"}
+                    {r.accessRevokedAt ? ` · access ended ${fmtDY(r.accessRevokedAt)}` : r.accessGrantedAt ? " · access granted" : ""}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+    </Card>
+  );
+}
+
 function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted, recheck, hold, release, patch, patchApp, reload }: {
   r: Account; tab: "overview" | "signin" | "mail" | "owner"; setTab: (t: "overview" | "signin" | "mail" | "owner") => void; busy: boolean; price: number;
   markActive: () => void; setRestricted: (v: boolean) => void; recheck: () => void;
@@ -1052,6 +1104,8 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
         const CHIP: Record<string, string> = { whatsapp: "WhatsApp", viber: "Viber", telegram: "Telegram", email: "Email", text: "Text", note: "Note" };
         return (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 10, alignItems: "start" }}>
+            {/* rental history — every renter this account has had */}
+            <RentalHistory accountId={r.id} />
             {/* account owner */}
             <Card pad="14px">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Lbl>Account owner</Lbl>{r.linkedinUrl && <a href={r.linkedinUrl.startsWith("http") ? r.linkedinUrl : `https://${r.linkedinUrl}`} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", font: `700 12.5px ${F}`, color: BLUE, textDecoration: "none" }}>View profile ↗</a>}</div>
