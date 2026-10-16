@@ -236,6 +236,9 @@ model LinkedInAccount {
   heldFor               String?       @map("held_for")        // who it's reserved for (name/note, or the catalogue name for self-serve)
   heldBy                String?       @map("held_by")          // admin email, or "reserve:<catalogue>" for self-serve
   heldAt                DateTime?     @map("held_at")
+  // Rental-ready housekeeping done before an account is listed Available (hard gate). Shape:
+  // { <itemKey>: { done: bool, by: string, at: ISO } }. See lib/rental-ready.ts for the items.
+  rentalReadyChecklist  Json?         @map("rental_ready_checklist")
   // Internal proof the account is real (email-exchange screenshot links / notes).
   // Never shown publicly — shared with a renter per-case.
   verificationProof     String?       @map("verification_proof")

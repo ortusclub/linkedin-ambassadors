@@ -11,6 +11,7 @@ import { restrictionUpdate } from "@/lib/restriction";
 import { notifyBillingPaused } from "@/lib/billing-pause-notify";
 import { setupPaidDate } from "@/lib/payment-schedule";
 import { logWarmupActivity } from "@/lib/warmup-activity";
+import { rentalReadyStatus, RENTAL_READY_ITEMS, type ChecklistState } from "@/lib/rental-ready";
 
 const updateSchema = z.object({
   linkedinName: z.string().optional(),
@@ -149,13 +150,31 @@ export async function PATCH(
     if (data.status === "available") {
       const cur = await prisma.linkedInAccount.findUnique({
         where: { id },
-        select: { status: true, notes: true, linkedinUrl: true },
+        select: { status: true, notes: true, linkedinUrl: true, rentalReadyChecklist: true, restrictedAt: true, permanentlyRestricted: true, twoFactorResetNeeded: true, proxyHost: true },
       });
       if (!cur) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
       // Only guard an actual flip INTO available — not a no-op re-save of an account
       // that is already available.
+      if (cur.status !== "available") {
+        // Rental-ready gate: housekeeping must be done before a renter can get instant access
+        // (anti-restriction + anti-double-use). Does not retroactively block already-available
+        // accounts (guarded by cur.status !== "available"), only new flips into Available.
+        const rr = rentalReadyStatus(cur, cur.rentalReadyChecklist as ChecklistState);
+        if (!rr.ready) {
+          const labelOf = (k: string) => RENTAL_READY_ITEMS.find((i) => i.key === k)?.label || k;
+          const missingLabels = rr.missing.map(labelOf);
+          const autoLabels = rr.autoFail.map((f) => f.reason);
+          return NextResponse.json(
+            {
+              error: `Rental-ready checklist incomplete — finish housekeeping before listing. Still needed: ${[...autoLabels, ...missingLabels].join("; ")}.`,
+              rentalReady: rr,
+            },
+            { status: 409 }
+          );
+        }
+      }
       if (cur.status !== "available") {
         const ownerEmail = (cur.notes || "").match(/Owner:\s*(\S+@\S+)/)?.[1]?.replace(/\.$/, "") || null;
         const url = cur.linkedinUrl?.replace(/\/$/, "") || null;

@@ -16,6 +16,7 @@ import Link from "next/link";
 import { tierPricing } from "@/lib/account-pricing";
 import { formatName } from "@/lib/utils";
 import { isCompanyEmail } from "@/lib/company";
+import { RENTAL_READY_ITEMS, RENTAL_READY_OPTIONAL, rentalReadyStatus, type ChecklistState } from "@/lib/rental-ready";
 import { currencyConfigFor, formatMoney } from "@/lib/referral-currency";
 import { sortAccountsByLastUpdated } from "@/lib/account-notes";
 import { IssueActions } from "@/components/admin/issue-actions";
@@ -52,6 +53,8 @@ interface Account {
   updatedAt: string | null;
   ownerUpdatedAt: string | null;
   restrictedAt: string | null;
+  permanentlyRestricted: boolean;
+  proxyHost: string | null;
   warmupStartedAt: string | null;
   healthCheckedAt: string | null;
   linkedinAccountHealth: string | null;
@@ -62,6 +65,7 @@ interface Account {
   heldUntil: string | null;
   heldFor: string | null;
   heldBy: string | null;
+  rentalReadyChecklist: Record<string, { done?: boolean; by?: string | null; at?: string | null }> | null;
   manualPaidUntil: string | null;
   inventoryPool?: string | null;
   shadowRenter: string | null;
@@ -271,10 +275,18 @@ export default function InventoryV2Page() {
     setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, linkedinVerified: v, updatedAt: now } : x)));
     patch(a.id, { linkedinVerified: v }, false);
   };
-  const setStatus = (a: Account, status: string) => {
+  const setStatus = async (a: Account, status: string) => {
+    const prev = a.status;
     const now = new Date().toISOString();
     setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, status, updatedAt: now, listed: status === "available" ? x.listed : false } : x)));
-    patch(a.id, { status }, false);
+    const res = await patch(a.id, { status }, false);
+    // The server gates a flip into Available on the rental-ready checklist (and 2FA/setup fee).
+    // On a block, revert the optimistic change and surface why.
+    if (res && !res.ok) {
+      const d = await res.json().catch(() => ({} as { error?: string }));
+      setAccounts((p) => p.map((x) => (x.id === a.id ? { ...x, status: prev } : x)));
+      alert(d.error || "Couldn't change the status.");
+    }
   };
   // Reserve/hold an account (1 or 2 days) so it drops out of every catalogue while held.
   const hold = async (a: Account, days: number, heldFor: string) => {
@@ -836,6 +848,52 @@ function MailBtn({ onClick, busy, bg, fg, children }: { onClick: () => void; bus
   return <button onClick={onClick} disabled={busy} style={{ border: "none", cursor: busy ? "default" : "pointer", opacity: busy ? 0.5 : 1, borderRadius: 7, padding: "6px 12px", font: `700 12px ${F}`, background: bg, color: fg, whiteSpace: "nowrap" }}>{children}</button>;
 }
 
+// ── Rental-ready: housekeeping that must be done before an account is listed Available (hard gate) ──
+function RentalReady({ r }: { r: Account }) {
+  const [checklist, setChecklist] = useState<ChecklistState>((r.rentalReadyChecklist as ChecklistState) || {});
+  const [busy, setBusy] = useState<string | null>(null);
+  const autoAcc = { restrictedAt: r.restrictedAt, permanentlyRestricted: r.permanentlyRestricted, twoFactorResetNeeded: r.twoFactorResetNeeded, proxyHost: r.proxyHost };
+  const st = rentalReadyStatus(autoAcc, checklist);
+  const toggle = async (key: string, done: boolean) => {
+    setBusy(key);
+    setChecklist((c) => ({ ...c, [key]: done ? { done: true } : { done: false } }));
+    try {
+      const res = await fetch(`/api/admin/accounts/${r.id}/rental-ready`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key, done }) });
+      if (res.ok) { const d = await res.json(); setChecklist(d.checklist || {}); }
+    } finally { setBusy(null); }
+  };
+  const Row = ({ k, label, hint, gated }: { k: string; label: string; hint: string; gated: boolean }) => {
+    const done = !!checklist[k]?.done; const b = busy === k;
+    return (
+      <label style={{ display: "flex", gap: 9, alignItems: "flex-start", cursor: b ? "default" : "pointer", opacity: b ? 0.5 : 1 }}>
+        <input type="checkbox" checked={done} disabled={b} onChange={(e) => toggle(k, e.target.checked)} style={{ width: 17, height: 17, marginTop: 1, flex: "none", accentColor: GREEN, cursor: "inherit" }} />
+        <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+          <span style={{ font: `650 12.5px ${F}`, color: done ? GREEND : INK }}>{label}{!gated && <span style={{ font: `600 10.5px ${F}`, color: MUT }}> · optional</span>}</span>
+          <span style={{ font: `500 11px/1.4 ${F}`, color: MUT }}>{hint}</span>
+        </span>
+      </label>
+    );
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, borderTop: `1px solid ${LINE2}`, paddingTop: 12 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <Lbl>Rental-ready checklist</Lbl>
+        <span style={{ marginLeft: "auto", font: `800 11px ${F}`, color: st.ready ? GREEND : "#854d0e", background: st.ready ? "#dcfce7" : "#fef3c7", borderRadius: 999, padding: "2px 9px" }}>{st.ready ? "✓ Ready to list" : `Not ready · ${st.missing.length + st.autoFail.length} left`}</span>
+      </div>
+      <span style={{ font: `500 11.5px/1.5 ${F}`, color: SUB }}>Finish this before marking the account Available — it can&apos;t be listed until it passes. Covers the two risks: getting restricted, and two people on the account at once.</span>
+      {st.autoFail.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 3, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 10px" }}>
+          {st.autoFail.map((f) => <span key={f.key} style={{ font: `650 11.5px ${F}`, color: REDD }}>✕ {f.reason}</span>)}
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {RENTAL_READY_ITEMS.map((i) => <Row key={i.key} k={i.key} label={i.label} hint={i.hint} gated />)}
+        {RENTAL_READY_OPTIONAL.map((i) => <Row key={i.key} k={i.key} label={i.label} hint={i.hint} gated={false} />)}
+      </div>
+    </div>
+  );
+}
+
 // ── Rental history: every rental this account has had (real + shadow, active + ended), newest first ──
 type RentalRow = { id: string; status: string; isShadow: boolean; startDate: string | null; currentPeriodEnd: string | null; accessGrantedAt: string | null; accessRevokedAt: string | null; createdAt: string; lockedPrice: string | number | null; user: { fullName: string | null; email: string } | null };
 const rentalStatusMeta = (s: string): { bg: string; fg: string; l: string } => {
@@ -1068,6 +1126,7 @@ function ExpandedDetail({ r, tab, setTab, busy, price, markActive, setRestricted
                   </div>
                 );
               })()}
+              <RentalReady r={r} />
             </Card>
             <Card pad="14px">
               <Lbl>Chase an issue</Lbl>
