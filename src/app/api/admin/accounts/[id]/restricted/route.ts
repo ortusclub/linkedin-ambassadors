@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { restrictionUpdate, type RestrictionEvent } from "@/lib/restriction";
 import { notifyBillingPaused } from "@/lib/billing-pause-notify";
+import { notifyRestrictionOwnerReferrer } from "@/lib/restrict-notify";
 
 // Admin: mark a rented account as restricted (LinkedIn restricted it, we're recovering)
 // or clear it (recovered). On recover, credit the active rental's downtime by extending
@@ -36,7 +37,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
     }
 
-    // Newly restricted (was clear, now set): tell any real renter(s) their billing is paused.
+    // Newly restricted (was clear, now set): tell any real renter(s) their billing is paused,
+    // and auto-notify the account owner + referrer with the restricted notice.
+    let notify: Awaited<ReturnType<typeof notifyRestrictionOwnerReferrer>> | null = null;
     if (restrict && !account.restrictedAt && updated.restrictedAt) {
       const renters = await prisma.rental.findMany({
         where: { linkedinAccountId: id, isShadow: false, status: { in: ["active", "pending_access", "payment_failed"] } },
@@ -48,9 +51,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         seen.add(r.userId);
         await notifyBillingPaused(r.userId, { trigger: "restricted", highlightAccount: account.linkedinName });
       }
+      // Owner + referrer notice (best-effort; must not fail the restrict).
+      try { notify = await notifyRestrictionOwnerReferrer(id); } catch (e) { console.error("restrict owner/referrer notify failed", e); }
     }
 
-    return NextResponse.json({ restrictedAt: updated.restrictedAt, creditedDays: fields.creditedDays ?? 0, restrictionLog: updated.restrictionLog });
+    return NextResponse.json({ restrictedAt: updated.restrictedAt, creditedDays: fields.creditedDays ?? 0, restrictionLog: updated.restrictionLog, notify });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "error";
     const code = msg === "Forbidden" ? 403 : msg === "Unauthorized" ? 401 : 500;

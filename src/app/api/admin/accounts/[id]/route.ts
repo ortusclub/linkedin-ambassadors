@@ -9,6 +9,7 @@ import { provisionAccount } from "@/lib/provision-account";
 import * as gologin from "@/services/gologin";
 import { restrictionUpdate } from "@/lib/restriction";
 import { notifyBillingPaused } from "@/lib/billing-pause-notify";
+import { notifyRestrictionOwnerReferrer } from "@/lib/restrict-notify";
 import { setupPaidDate } from "@/lib/payment-schedule";
 import { logWarmupActivity } from "@/lib/warmup-activity";
 import { rentalReadyStatus, RENTAL_READY_ITEMS, type ChecklistState } from "@/lib/rental-ready";
@@ -318,6 +319,8 @@ export async function PATCH(
         seen.add(r.userId);
         await notifyBillingPaused(r.userId, { trigger: "restricted", highlightAccount: account.linkedinName });
       }
+      // Auto-notify the account owner + referrer (best-effort; must not fail the edit).
+      try { await notifyRestrictionOwnerReferrer(id); } catch (e) { console.error("restrict owner/referrer notify failed", e); }
     }
 
     // If this edit just made the account runnable (a GoLogin was set/changed), advance

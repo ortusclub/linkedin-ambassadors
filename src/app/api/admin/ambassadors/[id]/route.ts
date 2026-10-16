@@ -6,6 +6,7 @@ import { z } from "zod";
 import { sendSetupFeePaidEmail, sendMonthlyPayoutEmail } from "@/services/email";
 import { currencyConfigFor } from "@/lib/referral-currency";
 import { carryAppRestrictionToAccount, appIssueIsRestricted } from "@/lib/restriction";
+import { notifyRestrictionOwnerReferrer } from "@/lib/restrict-notify";
 import { deleteApplicationCascade } from "@/lib/application-delete";
 
 const updateSchema = z.object({
@@ -256,7 +257,9 @@ export async function PATCH(
         }
         // If this lead was flagged restricted in the pipeline before the account was
         // linked, carry that onto the now-linked account so both views agree.
-        await carryAppRestrictionToAccount(existing.id, application);
+        if (await carryAppRestrictionToAccount(existing.id, application)) {
+          try { await notifyRestrictionOwnerReferrer(existing.id); } catch (e) { console.error("restrict owner/referrer notify failed", e); }
+        }
       } else {
         // Monthly rate follows the referrer's currency (PH ₱500 / non-PH USD $8 — see
         // lib/referral-currency). For PH, offered_amount is unreliable (it sometimes holds
@@ -280,7 +283,9 @@ export async function PATCH(
           },
         });
         // Carry a pre-account pipeline restriction flag onto the freshly-created account.
-        await carryAppRestrictionToAccount(created.id, application);
+        if (await carryAppRestrictionToAccount(created.id, application)) {
+          try { await notifyRestrictionOwnerReferrer(created.id); } catch (e) { console.error("restrict owner/referrer notify failed", e); }
+        }
       }
     }
 
@@ -298,7 +303,9 @@ export async function PATCH(
         },
         select: { id: true },
       });
-      if (linked) await carryAppRestrictionToAccount(linked.id, application);
+      if (linked && await carryAppRestrictionToAccount(linked.id, application)) {
+        try { await notifyRestrictionOwnerReferrer(linked.id); } catch (e) { console.error("restrict owner/referrer notify failed", e); }
+      }
     }
 
     return NextResponse.json({ application });
