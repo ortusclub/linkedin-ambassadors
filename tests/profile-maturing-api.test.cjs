@@ -24,7 +24,7 @@ test('admin authorization runs before API access and cross-origin mutations are 
  assert.equal((await route.POST({...req,method:'POST',headers:new Headers({origin:'https://evil.example'})},{params:Promise.resolve({path:['one','stop']})})).status,403);
 });
 test('incomplete dispatch does not masquerade as a successful retry',async()=>{
- const input={accountId:'one',launchId:'abcdefghijklmnop',plan:{warmEnabled:true,coldEnabled:true}};
+ const input={accountId:'one',launchId:'abcdefghijklmnop',plan:{warmEnabled:true,coldEnabled:true,warmPool:'linkedvelocity_owned'}};
  const id='lv_'+require('node:crypto').createHash('sha256').update('one:'+input.launchId).digest('hex').slice(0,24)+'_warm';
  const tx={$executeRaw:async()=>{},linkedInAccount:{findMany:async()=>[{id:'one',gologinProfileId:'one',status:'available',rentals:[]}]}};
  const lib=service(async()=>Response.json({campaigns:[{id,profile_ids:['one'],status:'cancelled'}]}),{$transaction:fn=>fn(tx)});

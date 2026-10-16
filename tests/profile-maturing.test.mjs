@@ -46,3 +46,15 @@ test('edited sender identity is used by receiving accounts',()=>{
  const [stage]=preparePlan({plan:p},account,[account,recipient]);
  assert.deepEqual(stage.config.maturedAccount,{name:'Updated identity',profileUrl:'https://www.linkedin.com/in/updated'});
 });
+
+test('warm launch rejects Ortus and combined pools, including forged submissions',()=>{
+ for(const warmPool of ['ortus_owned','all_available',''])assert.throws(()=>preparePlan({plan:{...plan(),warmPool}},account,[account,recipient]),/only use eligible LinkedVelocity/);
+});
+test('live-source warm pool excludes rented, restricted, unavailable, removed, unknown and non-LV recipients',()=>{
+ const variations=[recipient,...['rented','restricted','unavailable','removed'].map(flag=>({...recipient,id:flag,gologinProfileId:flag,linkedinUrl:`https://www.linkedin.com/in/${flag}`,[flag]:true})),{...recipient,id:'ortus',gologinProfileId:'ortus',workspace:'ortus',linkedinUrl:'https://www.linkedin.com/in/ortus'}];
+ const inventory=[account,...variations];
+ const sources={lvAccounts:inventory,profiles:[...inventory.map(a=>({id:a.gologinProfileId,name:a.loginEmail,account:a.workspace})),{id:'unknown',name:recipient.loginEmail,account:'linkedvelocity'}],sooAccounts:[]};
+ const [stage]=preparePlan({plan:plan()},account,inventory,[],new Date(),sources);
+ assert.deepEqual(stage.leads.map(l=>l.row['Pool Profile ID']),['two']);
+ assert.equal(stage.config.warmPool,'linkedvelocity_owned');
+});

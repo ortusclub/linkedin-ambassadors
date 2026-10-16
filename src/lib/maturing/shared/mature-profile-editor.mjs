@@ -303,7 +303,8 @@ export function renderMaturePlan({onChange, accounts} = {}) {
   const warmText = document.createElement('span'); warmText.textContent = 'Warm pool';
   const warmSelect = document.createElement('select'); warmSelect.id = 'mature-warm-pool';
   const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = 'Select warm pool'; placeholder.disabled = true;
-  warmSelect.append(placeholder);
+  plan.warmPool = 'linkedvelocity_owned';
+  warmSelect.disabled = true;
   for (const [value, label] of Object.entries(MATURE_WARM_POOLS)) {
     const option = document.createElement('option'); option.value = value; option.textContent = label; warmSelect.append(option);
   }

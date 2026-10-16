@@ -6,7 +6,7 @@ Use **Add account to mature** to search eligible inventory, select **Set up camp
 
 This page reads and controls the existing Outreach cloud campaigns at `https://scraper.ortusclub.com`. It does not run another worker or copy campaign state into PostgreSQL. Only maturing campaigns owned by a `@linkedvelocity.com` operator are exposed. Every API request requires admin authorization; mutations also require the same browser origin.
 
-`src/lib/maturing/shared` contains the desktop plan editor, schedule, pool, ramp and board modules from Outreach v3.1.128 (10a6b902). The editor fetch adapter uses authenticated server routes. Pool sources are the existing GoLogin workspaces, SoO engine endpoint and LinkedVelocity inventory. Credentials remain server-side.
+`src/lib/maturing/shared` contains the desktop plan editor, schedule, pool, ramp and board modules from Outreach v3.1.128 (10a6b902). The editor fetch adapter uses authenticated server routes. Warm campaigns allow only the LinkedVelocity pool. Recipients must have a matching LinkedVelocity inventory profile and be unrented, unrestricted, available and not removed. The same rule is enforced in server dispatch, not only the editor. Ortus and combined pools are rejected. Credentials remain server-side.
 
 Production settings: `MATURING_ENGINE_TOKEN`, optional `MATURING_ENGINE_URL`, existing `DATABASE_URL`, `GOLOGIN_API_TOKEN`, and `GOLOGIN_API_TOKEN_KLABBER`. Do not commit values.
 
